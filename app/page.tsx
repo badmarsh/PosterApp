@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Cpu, LayoutGrid, PanelsTopLeft, SquarePen } from "lucide-react"
 import { EditorProvider, useEditor } from "@/components/editor-store"
 import { TopBar } from "@/components/top-bar"
-import { StructureSidebar } from "@/components/structure-sidebar"
+import { ProjectSettingsSidebar } from "@/components/project-settings-sidebar"
 import { PosterPreview } from "@/components/poster-preview"
 import { CardInspector } from "@/components/card-inspector"
 import { AgentPanel } from "@/components/agent-panel"
@@ -28,7 +28,7 @@ function DesktopShell() {
         onToggleAgent={() => setAgentOpen((v) => !v)}
       />
       <div className="flex min-h-0 flex-1">
-        {structureOpen ? <StructureSidebar /> : null}
+        {structureOpen ? <ProjectSettingsSidebar /> : null}
         <main className="flex min-w-0 flex-1 flex-col">
           <PosterPreview />
         </main>

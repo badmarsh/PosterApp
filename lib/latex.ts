@@ -80,13 +80,28 @@ function restoreMacros(text: string, slots: MacroSlot[]): string {
 export function escapeLatex(input: string): string {
   // Standard specials — but NOT $ (math delimiter) and NOT \ (macro leader)
   // Those are handled by the extraction pipeline above.
-  return input
+  let text = input
     .replace(/&/g, "\\&")
     .replace(/%/g, "\\%")
     .replace(/#/g, "\\#")
     .replace(/_/g, "\\_")
     .replace(/~/g, "\\textasciitilde{}")
     .replace(/\^/g, "\\textasciicircum{}")
+
+  // Handle common unicode replacements that trip up pdflatex
+  const unicodeMap: Record<string, string> = {
+    "⁰": "$^0$", "¹": "$^1$", "²": "$^2$", "³": "$^3$", "⁴": "$^4$",
+    "⁵": "$^5$", "⁶": "$^6$", "⁷": "$^7$", "⁸": "$^8$", "⁹": "$^9$",
+    "⁺": "$^+$", "⁻": "$^-$", "⁼": "$^=$", "⁽": "$^($", "⁾": "$^)$",
+    "°": "$^\\circ$", "–": "--", "—": "---", "’": "'", "‘": "`", "“": "``", "”": "''",
+    "≤": "$\\le$", "≥": "$\\ge$", "×": "$\\times$", "±": "$\\pm$", "≈": "$\\approx$", "≠": "$\\neq$",
+    "µ": "$\\mu$", "Ω": "$\\Omega$", "α": "$\\alpha$", "β": "$\\beta$", "γ": "$\\gamma$",
+    "Δ": "$\\Delta$", "λ": "$\\lambda$", "θ": "$\\theta$", "π": "$\\pi$", "σ": "$\\sigma$", "τ": "$\\tau$"
+  }
+  for (const [char, repl] of Object.entries(unicodeMap)) {
+    text = text.split(char).join(repl)
+  }
+  return text
 }
 
 // ---------------------------------------------------------------------------
@@ -424,6 +439,35 @@ export function generateFullTemplate(project: Project, workspaceId = ""): string
 \\newcommand{\\captiontext}[1]{#1}
 
 \\usetheme{Default}
+
+\\definecolor{maincolor}{HTML}{9e2b2f}
+\\definecolor{secondarycolor}{RGB}{158, 43, 47}
+\\definecolor{lightred}{RGB}{237, 199, 201}
+
+\\definecolorstyle{atlascolors}{
+    \\colorlet{backgroundcolor}{white}
+    \\colorlet{titlefgcolor}{white}
+    \\colorlet{titlebgcolor}{maincolor}
+    \\colorlet{blocktitlefgcolor}{white}
+    \\colorlet{blocktitlebgcolor}{maincolor}
+    \\colorlet{blockbodyfgcolor}{black}
+    \\colorlet{blockbodybgcolor}{lightred!25}
+}{}
+\\usecolorstyle{atlascolors}
+
+\\definetitlestyle{sampletitle}{width=760mm, roundedcorners=20, linewidth=2pt,
+  innersep=10pt, titletotopverticalspace=6mm, titletoblockverticalspace=8mm}{%
+  \\begin{scope}[line width=\\titlelinewidth, rounded corners=\\titleroundedcorners]
+    \\draw[color=blocktitlebgcolor, fill=titlebgcolor]
+      (\\titleposleft,\\titleposbottom) rectangle (\\titleposright,\\titlepostop);
+  \\end{scope}
+  \\node[anchor=east, fill=white, rounded corners=10pt, inner sep=10pt, xshift=5mm]
+    at ($(\\titleposright,\\titlepostop)!0.5!(\\titleposright,\\titleposbottom)$)
+    {\\includegraphics[height=8.6cm]{logos/atlas_transparent.png}};
+  \\node[anchor=west, fill=white, rounded corners=10pt, inner sep=10pt, xshift=-45mm, yshift=5mm]
+    at ($(\\titleposleft,\\titlepostop)!0.5!(\\titleposleft,\\titleposbottom)$)
+    {\\includegraphics[height=15cm]{logos/uk_logo.png}};}
+\\usetitlestyle{sampletitle}
 
 \\title{\\parbox{0.74\\linewidth}{\\centering\\huge
     ${parseMarkdownToLatex(project.posterTitle)}\\\\[1mm]

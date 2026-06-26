@@ -87,6 +87,7 @@ export interface EditorState {
   switchProject: (id: string) => Promise<void>
   getStatus: (card: Card) => ValidationLevel
   selectCard: (id: string | null) => void
+  updateProject: (patch: Partial<Omit<Project, "id" | "cards">>) => void
   updateCard: (id: string, patch: Partial<Card>) => void
   addCard: (column: ColumnIndex) => void
   deleteCard: (id: string) => void
@@ -211,6 +212,10 @@ function createEditorStore() {
           if (get().generatingId === card.id) return "generating"
           return levelFromMessages(validateCard(card))
         },
+
+        updateProject: (patch) => set((s) => {
+          Object.assign(s.project, patch)
+        }),
 
         selectCard: (id) => set((s) => { s.selectedCardId = id }),
 
@@ -481,11 +486,21 @@ export function EditorProvider({ children }: { children: ReactNode }) {
  * For backwards compatibility, calling useEditor() with no selector returns
  * the full state object (same as before, but now with granular subscriptions possible).
  */
-export function useEditor(): EditorState
+export function useEditor(): EditorState & { selectedCard: Card | null }
 export function useEditor<T>(selector: (state: EditorState) => T): T
-export function useEditor<T>(selector?: (state: EditorState) => T): T | EditorState {
+export function useEditor<T>(selector?: (state: EditorState) => T): T | (EditorState & { selectedCard: Card | null }) {
   const store = useContext(EditorStoreContext)
   if (!store) throw new Error("useEditor must be used within EditorProvider")
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  return useStore(store, selector ?? ((s) => s as unknown as T)) as T | EditorState
+  const state = useStore(store, selector ?? ((s) => s as unknown as T))
+  if (!selector) {
+    const fullState = state as EditorState
+    return {
+      ...fullState,
+      get selectedCard() {
+        return fullState.project.cards.find((c) => c.id === fullState.selectedCardId) ?? null
+      },
+    }
+  }
+  return state as T | (EditorState & { selectedCard: Card | null })
 }
