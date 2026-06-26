@@ -1,0 +1,210 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { Cpu, LayoutGrid, PanelsTopLeft, SquarePen } from "lucide-react"
+import { EditorProvider, useEditor } from "@/components/editor-store"
+import { TopBar } from "@/components/top-bar"
+import { StructureSidebar } from "@/components/structure-sidebar"
+import { PosterPreview } from "@/components/poster-preview"
+import { CardInspector } from "@/components/card-inspector"
+import { AgentPanel } from "@/components/agent-panel"
+import { IngestionDrawer } from "@/components/ingestion/ingestion-drawer"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useIsDesktop } from "@/hooks/use-media-query"
+import { cn } from "@/lib/utils"
+
+type MobilePane = "structure" | "preview" | "editor" | "agent"
+
+function DesktopShell() {
+  const [structureOpen, setStructureOpen] = useState(true)
+  const [agentOpen, setAgentOpen] = useState(true)
+
+  return (
+    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+      <TopBar
+        structureOpen={structureOpen}
+        agentOpen={agentOpen}
+        onToggleStructure={() => setStructureOpen((v) => !v)}
+        onToggleAgent={() => setAgentOpen((v) => !v)}
+      />
+      <div className="flex min-h-0 flex-1">
+        {structureOpen ? <StructureSidebar /> : null}
+        <main className="flex min-w-0 flex-1 flex-col">
+          <PosterPreview />
+        </main>
+        <CardInspector />
+        {agentOpen ? <AgentPanel /> : null}
+      </div>
+    </div>
+  )
+}
+
+function MobileNavButton({
+  active,
+  label,
+  badge,
+  pulse,
+  onClick,
+  children,
+}: {
+  active: boolean
+  label: string
+  badge?: number
+  pulse?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      aria-label={label}
+      className={cn(
+        "relative flex flex-1 flex-col items-center gap-0.5 rounded-md py-1.5 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        active
+          ? "bg-accent text-accent-foreground"
+          : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <span className="relative">
+        {children}
+        {pulse && (
+          <span className="absolute -right-1 -top-0.5 size-1.5 animate-pulse rounded-full bg-primary" />
+        )}
+        {!pulse && badge ? (
+          <span className="absolute -right-2 -top-1 min-w-3.5 rounded-full bg-muted px-1 text-center font-mono text-[8px] leading-[14px] text-muted-foreground">
+            {badge}
+          </span>
+        ) : null}
+      </span>
+      {label}
+    </button>
+  )
+}
+
+function MobileShell() {
+  const { selectedCardId, project, agentEvents, busy } = useEditor()
+  const [pane, setPane] = useState<MobilePane>("preview")
+
+  // When a card gets selected (e.g. from the structure list or preview),
+  // bring the editor pane forward automatically.
+  useEffect(() => {
+    if (selectedCardId) setPane("editor")
+  }, [selectedCardId])
+
+  return (
+    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+      <TopBar
+        structureOpen={false}
+        agentOpen={false}
+        onToggleStructure={() => setPane("structure")}
+        onToggleAgent={() => setPane("agent")}
+      />
+      <div className="relative min-h-0 flex-1">
+        <div key={pane} className="absolute inset-0 flex animate-in fade-in duration-200">
+          {pane === "structure" && <StructureSidebar />}
+          {pane === "preview" && (
+            <main className="flex min-w-0 flex-1 flex-col">
+              <PosterPreview />
+            </main>
+          )}
+          {pane === "editor" && <CardInspector />}
+          {pane === "agent" && <AgentPanel />}
+        </div>
+      </div>
+      <nav
+        aria-label="Editor sections"
+        className="flex shrink-0 items-stretch gap-1 border-t border-border bg-card px-2 py-1"
+      >
+        <MobileNavButton
+          active={pane === "structure"}
+          label="Structure"
+          badge={project.cards.length}
+          onClick={() => setPane("structure")}
+        >
+          <PanelsTopLeft className="size-5" />
+        </MobileNavButton>
+        <MobileNavButton
+          active={pane === "preview"}
+          label="Preview"
+          onClick={() => setPane("preview")}
+        >
+          <LayoutGrid className="size-5" />
+        </MobileNavButton>
+        <MobileNavButton
+          active={pane === "editor"}
+          label="Editor"
+          onClick={() => setPane("editor")}
+        >
+          <SquarePen className="size-5" />
+        </MobileNavButton>
+        <MobileNavButton
+          active={pane === "agent"}
+          label="Agent"
+          badge={agentEvents.length}
+          pulse={busy}
+          onClick={() => setPane("agent")}
+        >
+          <Cpu className="size-5" />
+        </MobileNavButton>
+      </nav>
+    </div>
+  )
+}
+
+function AppSkeleton() {
+  return (
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <div className="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-card px-3">
+        <Skeleton className="size-7 rounded" />
+        <Skeleton className="h-4 w-40" />
+        <div className="ml-auto flex gap-2">
+          <Skeleton className="h-8 w-16" />
+          <Skeleton className="h-8 w-24" />
+          <Skeleton className="h-8 w-24" />
+        </div>
+      </div>
+      <div className="flex min-h-0 flex-1">
+        <div className="hidden w-72 shrink-0 flex-col gap-2 border-r border-border bg-sidebar p-3 lg:flex">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+        <div className="flex flex-1 items-center justify-center p-6">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary" />
+            Loading editor…
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Shell() {
+  const { isDesktop, mounted } = useIsDesktop()
+  const { switchProject } = useEditor()
+
+  // Load the real workspace on first mount
+  useEffect(() => {
+    switchProject("tilecal-irid-2026")
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  if (!mounted) return <AppSkeleton />
+  return (
+    <>
+      {isDesktop ? <DesktopShell /> : <MobileShell />}
+      <IngestionDrawer />
+    </>
+  )
+}
+
+export default function Page() {
+  return (
+    <EditorProvider>
+      <Shell />
+    </EditorProvider>
+  )
+}

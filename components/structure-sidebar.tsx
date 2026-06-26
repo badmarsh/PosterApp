@@ -1,0 +1,281 @@
+"use client"
+
+import {
+  ChevronDown,
+  Copy,
+  FilePlus2,
+  FileStack,
+  Plus,
+  Trash2,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { useEditor } from "@/components/editor-store"
+import {
+  CardTypeBadge,
+  ContentIndicators,
+  PATTERN_SHORT,
+  StatusIcon,
+} from "@/components/status"
+import { otherProjects } from "@/lib/mock-data"
+import type { Card, ColumnIndex } from "@/lib/poster-types"
+import { cn } from "@/lib/utils"
+
+function CardRow({ card }: { card: Card }) {
+  const { selectedCardId, selectCard, deleteCard, getStatus } = useEditor()
+  const active = card.id === selectedCardId
+  const status = getStatus(card)
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-current={active ? "true" : undefined}
+      aria-label={`Edit card ${card.title || "Untitled"} (${card.id})`}
+      onClick={() => selectCard(card.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          selectCard(card.id)
+        }
+      }}
+      className={cn(
+        "group flex cursor-pointer flex-col gap-1 rounded-md border px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        active
+          ? "border-primary/40 bg-sidebar-accent"
+          : "border-transparent hover:border-border hover:bg-sidebar-accent/50 active:bg-sidebar-accent/70",
+      )}
+    >
+      <div className="flex items-center gap-1.5">
+        <StatusIcon level={status} />
+        <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-tight">
+          {card.title || "Untitled"}
+        </span>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                aria-label={`Delete ${card.id}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  deleteCard(card.id)
+                }}
+                className="hidden rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive group-hover:block"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            }
+          />
+          <TooltipContent>Delete card</TooltipContent>
+        </Tooltip>
+      </div>
+      <div className="flex items-center justify-between gap-2 pl-5">
+        <span className="truncate font-mono text-[10px] text-muted-foreground">
+          {card.id}
+        </span>
+        <div className="flex items-center gap-1.5">
+          <ContentIndicators card={card} />
+          <CardTypeBadge card={card} />
+        </div>
+      </div>
+      <div className="pl-5">
+        <span className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground/70">
+          {PATTERN_SHORT[card.pattern]}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function ColumnGroup({ column }: { column: ColumnIndex }) {
+  const { project, addCard } = useEditor()
+  const cards = project.cards
+    .filter((c) => c.column === column)
+    .sort((a, b) => a.order - b.order)
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-1.5">
+          <ChevronDown className="size-3.5 text-muted-foreground" />
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Column {column}
+          </span>
+          <span className="rounded bg-muted px-1 font-mono text-[10px] text-muted-foreground">
+            {cards.length}
+          </span>
+        </div>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label={`Add card to column ${column}`}
+                onClick={() => addCard(column)}
+              >
+                <Plus className="size-3.5" />
+              </Button>
+            }
+          />
+          <TooltipContent>Add card</TooltipContent>
+        </Tooltip>
+      </div>
+      <div className="flex flex-col gap-0.5">
+        {cards.length ? (
+          cards.map((c) => <CardRow key={c.id} card={c} />)
+        ) : (
+          <button
+            type="button"
+            onClick={() => addCard(column)}
+            className="flex flex-col items-center gap-1 rounded-md border border-dashed border-border px-2 py-3 text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:bg-sidebar-accent/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Plus className="size-3.5" />
+            No cards yet — add the first block
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function StructureSidebar() {
+  const {
+    project,
+    columnCount,
+    newProject,
+    duplicateProject,
+    switchProject,
+    isSwitchingProject,
+    openIngestion,
+    assets,
+  } = useEditor()
+
+  const promotedCount = assets.filter((a) => a.assignedCardId).length
+
+  return (
+    <aside className="flex h-full w-full shrink-0 flex-col border-r border-border bg-sidebar lg:w-72">
+      <div className="flex flex-col gap-2 border-b border-border p-2.5">
+        <Select
+          value={project.id}
+          onValueChange={(v) => switchProject(String(v))}
+          items={Object.fromEntries(otherProjects.map((p) => [p.id, p.name]))}
+        >
+          <SelectTrigger size="sm" className="w-full bg-card">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {otherProjects.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <div className="rounded-md border border-border bg-card p-2">
+          <p className="text-[11px] font-medium leading-tight text-pretty">
+            {project.posterTitle}
+          </p>
+          <dl className="mt-1.5 space-y-0.5 text-[10px] text-muted-foreground">
+            <div className="flex gap-1">
+              <dt className="text-muted-foreground/70">Authors</dt>
+              <dd className="truncate">{project.authors}</dd>
+            </div>
+            <div className="flex gap-1">
+              <dt className="text-muted-foreground/70">Venue</dt>
+              <dd className="truncate">{project.venue}</dd>
+            </div>
+            <div className="flex gap-1">
+              <dt className="text-muted-foreground/70">Cards</dt>
+              <dd>
+                {project.cards.length} blocks · {columnCount} columns
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="flex gap-1.5">
+          <Button
+            variant="outline"
+            size="xs"
+            className="flex-1 gap-1"
+            onClick={newProject}
+          >
+            <FilePlus2 className="size-3" />
+            New
+          </Button>
+          <Button
+            variant="outline"
+            size="xs"
+            className="flex-1 gap-1"
+            onClick={duplicateProject}
+          >
+            <Copy className="size-3" />
+            Duplicate
+          </Button>
+        </div>
+
+        <Button
+          variant="outline"
+          size="xs"
+          className="w-full justify-start gap-1.5 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary"
+          onClick={openIngestion}
+        >
+          <FileStack className="size-3.5" />
+          Ingest sources (PDF)
+          {assets.length > 0 && (
+            <span className="ml-auto font-mono text-[9px] text-muted-foreground">
+              {promotedCount}/{assets.length} used
+            </span>
+          )}
+        </Button>
+      </div>
+
+      <div className="flex items-center justify-between px-3 pt-2.5 pb-1">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground">
+          Poster structure
+        </span>
+      </div>
+
+      <ScrollArea className="min-h-0 flex-1">
+        {isSwitchingProject ? (
+          <div
+            className="flex flex-col gap-3 px-2.5 pb-4"
+            role="status"
+            aria-label="Loading project structure"
+          >
+            {Array.from({ length: 3 }).map((_, g) => (
+              <div key={g} className="flex flex-col gap-1.5">
+                <Skeleton className="h-3 w-20" />
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            ))}
+            <span className="sr-only">Loading project structure…</span>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 px-2.5 pb-4">
+            <ColumnGroup column={1} />
+            <ColumnGroup column={2} />
+            <ColumnGroup column={3} />
+          </div>
+        )}
+      </ScrollArea>
+    </aside>
+  )
+}
