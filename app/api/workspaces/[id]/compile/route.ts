@@ -57,7 +57,8 @@ export async function POST(
       maxBuffer: 4 * 1024 * 1024,
     })
     log = output.toString("utf-8")
-    ok = true
+    // pdflatex might fail but wsl bash still exits 0
+    ok = !log.includes("Fatal error occurred") && !log.includes("! LaTeX Error:")
   } catch (err: unknown) {
     // execSync throws when exit code is non-zero; the stderr/stdout is on err.stdout
     if (

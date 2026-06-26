@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025/Debian) (preloaded format=pdflatex 2026.6.10)  26 JUN 2026 21:55
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025/Debian) (preloaded format=pdflatex 2026.6.10)  26 JUN 2026 22:45
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -780,7 +780,7 @@ Package: multicol 2025/10/21 v2.0b multicolumn formatting (FMi)
 \mc@col@check@num=\count337
 \g__mc_curr_col_int=\count338
 )
-LaTeX Font Info:    Trying to load font information for T1+aer on input line 23
+LaTeX Font Info:    Trying to load font information for T1+aer on input line 52
 .
 
 (/usr/share/texlive/texmf-dist/tex/latex/ae/t1aer.fd
@@ -797,20 +797,20 @@ LaTeX Warning: Unused global option(s):
 (./main.aux)
 \openout1 = `main.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 23.
-LaTeX Font Info:    ... okay on input line 23.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 52.
+LaTeX Font Info:    ... okay on input line 52.
  (/usr/share/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
 \scratchcounter=\count340
@@ -870,95 +870,119 @@ e
 Missing character: There is no 1 in font nullfont!
 Missing character: There is no = in font nullfont!
 Missing character: There is no 1 in font nullfont!
-LaTeX Font Info:    Trying to load font information for U+msa on input line 25.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 54.
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 25.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 54.
 
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-LaTeX Font Info:    Trying to load font information for TS1+aer on input line 5
+<logos/atlas_transparent.png, id=29, 1193.6595pt x 1542.9645pt>
+File: logos/atlas_transparent.png Graphic file (type png)
+<use logos/atlas_transparent.png>
+Package pdftex.def Info: logos/atlas_transparent.png  used on input line 54.
+(pdftex.def)             Requested size: 189.29555pt x 244.69386pt.
+<logos/uk_logo.png, id=31, 520.8258pt x 626.34pt>
+File: logos/uk_logo.png Graphic file (type png)
+<use logos/uk_logo.png>
+Package pdftex.def Info: logos/uk_logo.png  used on input line 54.
+(pdftex.def)             Requested size: 354.90388pt x 426.79134pt.
+LaTeX Font Info:    Trying to load font information for TS1+aer on input line 8
 1.
-LaTeX Font Info:    No file TS1aer.fd. on input line 51.
+LaTeX Font Info:    No file TS1aer.fd. on input line 81.
 
 
 LaTeX Font Warning: Font shape `TS1/aer/m/n' undefined
 (Font)              using `TS1/cmr/m/n' instead
-(Font)              for symbol `textbullet' on input line 51.
+(Font)              for symbol `textbullet' on input line 81.
 
-<assets/plot1.pdf, id=29, 1304.875pt x 853.1875pt>
+<assets/plot1.pdf, id=32, 1304.875pt x 853.1875pt>
 File: assets/plot1.pdf Graphic file (type pdf)
 <use assets/plot1.pdf>
-Package pdftex.def Info: assets/plot1.pdf  used on input line 51.
+Package pdftex.def Info: assets/plot1.pdf  used on input line 81.
 (pdftex.def)             Requested size: 345.57791pt x 225.95041pt.
-<assets/plot2.pdf, id=30, 424.58624pt x 496.85625pt>
+<assets/plot2.pdf, id=33, 424.58624pt x 496.85625pt>
 File: assets/plot2.pdf Graphic file (type pdf)
 <use assets/plot2.pdf>
-Package pdftex.def Info: assets/plot2.pdf  used on input line 51.
+Package pdftex.def Info: assets/plot2.pdf  used on input line 81.
 (pdftex.def)             Requested size: 345.57791pt x 404.41493pt.
-LaTeX Info: Symbol \texttwosuperior not provided by
-            font family aer in TS1 encoding.
-            Default family used instead on input line 73.
-LaTeX Info: Symbol \texttwosuperior not provided by
-            font family aer in TS1 encoding.
-            Default family used instead on input line 73.
-LaTeX Info: Symbol \textonesuperior not provided by
-            font family aer in TS1 encoding.
-            Default family used instead on input line 73.
-LaTeX Info: Symbol \texttwosuperior not provided by
-            font family aer in TS1 encoding.
-            Default family used instead on input line 73.
-LaTeX Info: Symbol \textonesuperior not provided by
-            font family aer in TS1 encoding.
-            Default family used instead on input line 73.
-LaTeX Info: Symbol \textonesuperior not provided by
-            font family aer in TS1 encoding.
-            Default family used instead on input line 73.
-LaTeX Info: Symbol \textonesuperior not provided by
-            font family aer in TS1 encoding.
-            Default family used instead on input line 73.
-LaTeX Info: Symbol \texttwosuperior not provided by
-            font family aer in TS1 encoding.
-            Default family used instead on input line 73.
-LaTeX Info: Symbol \textonesuperior not provided by
-            font family aer in TS1 encoding.
-            Default family used instead on input line 73.
-LaTeX Info: Symbol \textonesuperior not provided by
-            font family aer in TS1 encoding.
-            Default family used instead on input line 73.
-LaTeX Info: Symbol \textonesuperior not provided by
-            font family aer in TS1 encoding.
-            Default family used instead on input line 73.
-LaTeX Info: Symbol \texttwosuperior not provided by
-            font family aer in TS1 encoding.
-            Default family used instead on input line 73.
-LaTeX Info: Symbol \textonesuperior not provided by
-            font family aer in TS1 encoding.
-            Default family used instead on input line 73.
 
-! LaTeX Error: Unicode character ⁰ (U+2070)
-               not set up for use with LaTeX.
+Underfull \hbox (badness 1946) in paragraph at lines 129--129
+[]\T1/aer/m/n/29.86 Replacing orig-i-nal STB57N65M5 power MOS-FETs
+ []
 
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.73     }
-          
-You may provide a definition with
-\DeclareUnicodeCharacter 
+<assets/Moayedi_2026_J._Inst._21_C05002_slide_7_item_1.png, id=34, 949.29657pt 
+x 594.72188pt>
+File: assets/Moayedi_2026_J._Inst._21_C05002_slide_7_item_1.png Graphic file (t
+ype png)
+<use assets/Moayedi_2026_J._Inst._21_C05002_slide_7_item_1.png>
+Package pdftex.def Info: assets/Moayedi_2026_J._Inst._21_C05002_slide_7_item_1.
+png  used on input line 129.
+(pdftex.def)             Requested size: 339.94441pt x 212.96538pt.
+<assets/Moayedi_2026_J._Inst._21_C05002_slide_7_item_2.png, id=35, 958.3303pt x
+ 596.2275pt>
+File: assets/Moayedi_2026_J._Inst._21_C05002_slide_7_item_2.png Graphic file (t
+ype png)
+<use assets/Moayedi_2026_J._Inst._21_C05002_slide_7_item_2.png>
+Package pdftex.def Info: assets/Moayedi_2026_J._Inst._21_C05002_slide_7_item_2.
+png  used on input line 129.
+(pdftex.def)             Requested size: 339.94441pt x 211.49393pt.
 
- 
+Underfull \hbox (badness 1688) in paragraph at lines 146--146
+[]\T1/aer/m/n/29.86 Utilizes Com-mer-cial Off-The-Shelf com-po-nents and
+ []
+
+<assets/fig_db6_blockdiagram.png, id=36, 680.5425pt x 416.30531pt>
+File: assets/fig_db6_blockdiagram.png Graphic file (type png)
+<use assets/fig_db6_blockdiagram.png>
+Package pdftex.def Info: assets/fig_db6_blockdiagram.png  used on input line 14
+6.
+(pdftex.def)             Requested size: 686.76317pt x 420.13472pt.
+<assets/fig_db6_tid_test.png, id=37, 821.31844pt x 225.09094pt>
+File: assets/fig_db6_tid_test.png Graphic file (type png)
+<use assets/fig_db6_tid_test.png>
+Package pdftex.def Info: assets/fig_db6_tid_test.png  used on input line 161.
+(pdftex.def)             Requested size: 686.76317pt x 188.213pt.
+[1
+
+{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}{/usr/share/texmf/fonts/enc/
+dvips/cm-super/cm-super-ts1.enc} <./logos/atlas_transparent.png> <./logos/uk_lo
+go.png> <./assets/plot1.pdf> <./assets/plot2.pdf> <./assets/Moayedi_2026_J._Ins
+t._21_C05002_slide_7_item_1.png (PNG copy)> <./assets/Moayedi_2026_J._Inst._21_
+C05002_slide_7_item_2.png (PNG copy)> <./assets/fig_db6_blockdiagram.png (PNG c
+opy)> <./assets/fig_db6_tid_test.png (PNG copy)>] (./main.aux)
+ ***********
+LaTeX2e <2025-11-01>
+L3 programming layer <2026-01-19>
+ ***********
+
+
+LaTeX Font Warning: Some font shapes were not available, defaults substituted.
+
+ ) 
 Here is how much of TeX's memory you used:
- 18848 strings out of 469438
- 406452 string characters out of 5468410
- 828518 words of memory out of 5000000
- 47148 multiletter control sequences out of 15000+600000
- 659514 words of font info for 93 fonts, out of 8000000 for 9000
+ 18973 strings out of 469438
+ 409674 string characters out of 5468410
+ 885021 words of memory out of 5000000
+ 47239 multiletter control sequences out of 15000+600000
+ 671977 words of font info for 130 fonts, out of 8000000 for 9000
  59 hyphenation exceptions out of 8191
- 117i,11n,121p,495b,939s stack positions out of 10000i,1000n,20000p,200000b,200000s
-!  ==> Fatal error occurred, no output PDF file produced!
+ 117i,12n,121p,495b,943s stack positions out of 10000i,1000n,20000p,200000b,200000s
+</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmb10.pfb></usr
+/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmcsc10.pfb></usr/shar
+e/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texli
+ve/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texlive/texm
+f-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist
+/fonts/type1/public/amsfonts/cm/cmti12.pfb></usr/share/texmf/fonts/type1/public
+/cm-super/sfrm2986.pfb>
+Output written on main.pdf (1 page, 3581990 bytes).
+PDF statistics:
+ 93 PDF objects out of 1000 (max. 8388607)
+ 45 compressed objects within 1 object stream
+ 0 named destinations out of 1000 (max. 500000)
+ 149 words of extra memory for PDF output out of 10000 (max. 10000000)
+

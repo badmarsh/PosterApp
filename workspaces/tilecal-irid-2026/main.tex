@@ -13,11 +13,40 @@
 
 \usetheme{Default}
 
+\definecolor{maincolor}{HTML}{9e2b2f}
+\definecolor{secondarycolor}{RGB}{158, 43, 47}
+\definecolor{lightred}{RGB}{237, 199, 201}
+
+\definecolorstyle{atlascolors}{
+    \colorlet{backgroundcolor}{white}
+    \colorlet{titlefgcolor}{white}
+    \colorlet{titlebgcolor}{maincolor}
+    \colorlet{blocktitlefgcolor}{white}
+    \colorlet{blocktitlebgcolor}{maincolor}
+    \colorlet{blockbodyfgcolor}{black}
+    \colorlet{blockbodybgcolor}{lightred!25}
+}{}
+\usecolorstyle{atlascolors}
+
+\definetitlestyle{sampletitle}{width=760mm, roundedcorners=20, linewidth=2pt,
+  innersep=10pt, titletotopverticalspace=6mm, titletoblockverticalspace=8mm}{%
+  \begin{scope}[line width=\titlelinewidth, rounded corners=\titleroundedcorners]
+    \draw[color=blocktitlebgcolor, fill=titlebgcolor]
+      (\titleposleft,\titleposbottom) rectangle (\titleposright,\titlepostop);
+  \end{scope}
+  \node[anchor=east, fill=white, rounded corners=10pt, inner sep=10pt, xshift=5mm]
+    at ($(\titleposright,\titlepostop)!0.5!(\titleposright,\titleposbottom)$)
+    {\includegraphics[height=8.6cm]{logos/atlas_transparent.png}};
+  \node[anchor=west, fill=white, rounded corners=10pt, inner sep=10pt, xshift=-45mm, yshift=5mm]
+    at ($(\titleposleft,\titlepostop)!0.5!(\titleposleft,\titleposbottom)$)
+    {\includegraphics[height=15cm]{logos/uk_logo.png}};}
+\usetitlestyle{sampletitle}
+
 \title{\parbox{0.74\linewidth}{\centering\huge
     Irradiation Studies and Design Optimization of the ATLAS Tile Calorimeter for the High-Luminosity LHC\\[1mm]
     }}
 \author{\Large Róbert Astalos (Comenius University Bratislava), on behalf of the ATLAS Tile Calorimeter System}
-\institute{\normalsize International Workshops on Radiation Imaging Detectors, Ghent, 28.6.–02.07.2026}
+\institute{\normalsize International Workshops on Radiation Imaging Detectors, Ghent, 28.6.--02.07.2026}
 \date{}
 
 \begin{document}
@@ -31,8 +60,9 @@
     % block id: blk_tilecal  (column 1, order 0)
     \block{The ATLAS Hadronic Tile Calorimeter (TileCal)}{
       \begin{itemize}\setlength{\itemsep}{0.3em}
+        \item Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town 
         \item The Tile Calorimeter is a hadronic calorimeter composed of wedge-shaped modules arranged in a Long Barrel (LB) and two Extended Barrels (EB).
-        \item Consists of 256 modules containing 5182 calorimetric cells, utilizing scintillating tiles and wavelength shifting fibers to transfer light to photomultiplier tubes (PMTs). Most cells are readout by two PMTs, except for special E1–E4 gap/crack cells readout by one PMT.
+        \item Consists of 256 modules containing 5182 calorimetric cells, utilizing scintillating tiles and wavelength shifting fibers to transfer light to photomultiplier tubes (PMTs). Most cells are readout by two PMTs, except for special E1--E4 gap/crack cells readout by one PMT.
         \item \textbf{Low Voltage Power Supplies (LVPS)}: Utilize switching DC-DC converters (bricks) at 300 kHz to step down a bulk 200 V input to different voltage levels to distribute stable power to the on-detector readout electronics.
         \item \textbf{Daughterboard (DB)}: central communication hub of each module, using high-speed optical links to continuously transmit digitized PMT signals to off-detector systems while receiving timing and configuration commands.
         \item Components located in the highest radiation regions of TileCal, particularly the LB LVPS and readout electronics close to the detector gap regions, must tolerate elevated TID and NIEL levels.
@@ -59,17 +89,17 @@
       \resizebox{\linewidth}{!}{
       \begin{tabular}{|l|c|c|c|}\hline
         \hline
-        Component & TID [Gy] & NIEL [n/cm²] & SEE [p/cm²] \\
+        Component & TID [Gy] & NIEL [n/cm$^2$] & SEE [p/cm$^2$] \\
         \hline
-        PMT Divider – Barrel & 17.6 & 2.0×10¹² & 1.9×10¹¹ \\
-        FENICS – Barrel & 10.6 & 1.6×10¹² & 1.8×10¹¹ \\
-        MB – Barrel & 10.0 & 1.4×10¹² & 9.2×10¹⁰ \\
-        LVPS – Barrel & 53.6 & 3.5×10¹² & 5.3×10¹¹ \\
-        DB – Endcap & 6.8 & 9.7×10¹¹ & 4.9×10¹⁰ \\
+        PMT Divider -- Barrel & 17.6 & 2.0$\times$10$^1$$^2$ & 1.9$\times$10$^1$$^1$ \\
+        FENICS -- Barrel & 10.6 & 1.6$\times$10$^1$$^2$ & 1.8$\times$10$^1$$^1$ \\
+        MB -- Barrel & 10.0 & 1.4$\times$10$^1$$^2$ & 9.2$\times$10$^1$$^0$ \\
+        LVPS -- Barrel & 53.6 & 3.5$\times$10$^1$$^2$ & 5.3$\times$10$^1$$^1$ \\
+        DB -- Endcap & 6.8 & 9.7$\times$10$^1$$^1$ & 4.9$\times$10$^1$$^0$ \\
       \hline
       \end{tabular}
       }
-      {\small Table 1: Simulated worst-case doses for 4000 fb⁻¹ (no safety factors), only higher doses from Barrel/Endcap are shown.}
+      {\small Table 1: Simulated worst-case doses for 4000 fb$^-$$^1$ (no safety factors), only higher doses from Barrel/Endcap are shown.}
     }
 
   % ===== Column 2 =====
@@ -78,12 +108,12 @@
     % block id: blk_lvps  (column 2, order 0)
     \block{LVPS Design \& Component Radiation Testing}{
       \begin{itemize}\setlength{\itemsep}{0.3em}
-        \item \textbf{LVPS Design:} 8 identical bricks for LB modules and 6 bricks for EB modules inside a box convert the 200 V input to a 10 V output at a nominal power of 23 W – Each brick powers an independent side of the readout electronics, preserving the TileCal dual-PMT cell redundancy.
+        \item \textbf{LVPS Design:} 8 identical bricks for LB modules and 6 bricks for EB modules inside a box convert the 200 V input to a 10 V output at a nominal power of 23 W -- Each brick powers an independent side of the readout electronics, preserving the TileCal dual-PMT cell redundancy.
         \item Replacing original STB57N65M5 power MOSFETs with SIHFS9N60A reduced gate-source capacitance and switching losses. Efficiency improved from 58\% to 72\%, meeting the 77 kW cooling capacity of the TileCal cooling system.
         \item Control interface optimization reduced the number of required control lines by 50\%, enabling reuse of the existing infrastructure. The optimization successfully achieved the project targets, ensuring operational stability and mitigating failure risks.
         \item \textbf{Radiation Testing:} SIHFS9N60A MOSFET (main high-power switching transistor): Shift of 2.5 V in gate-source threshold observed after 200 Gy of TID, with minimal deviation from NIEL.
         \item SI8920 Isolation Amplifier: Initial tests showed voltage fluctuations at 150 mV, but performance is completely stable below 100 mV. Selected for final production with circuits restricting the input voltage.
-        \item LT1681 Controller \& LT3080 Regulator: TID tests at 502 Gy/h showed minor drifts (≤5\%) in output voltages, within acceptable limits.
+        \item LT1681 Controller \& LT3080 Regulator: TID tests at 502 Gy/h showed minor drifts ($\le$5\%) in output voltages, within acceptable limits.
         \item LTC6241 Op-Amp: Single Event Transients (SETs) had small amplitudes (\textasciitilde{}50 mV) and short durations (\textasciitilde{}100 ns) posing no effect on brick performance.
       \end{itemize}
 
@@ -118,10 +148,10 @@
     % block id: blk_db_qualification  (column 3, order 1)
     \block{DB Radiation Qualification \& Tolerances}{
       \begin{itemize}\setlength{\itemsep}{0.3em}
-        \item The DB requires 108 Gy TID and 13.16×10¹² n/cm² NIEL qualification limits (including safety factors).
-        \item Kintex Ultrascale (KU) FPGAs (primary data processors) and ProASIC FPGAs (remote reconfiguration buffers) successfully withstood over 108 Gy and 14×10¹² n/cm² during tests.
-        \item KU+ FPGAs were disqualified for exhibiting SEL; selected KU FPGAs showed no SEL up to 3.2×10¹¹ p/cm².
-        \item Measured SEU rates for the KU FPGA were 116 SEU/(10⁹ p/cm²); \textasciitilde{}5498 SEUs per year, heavily mitigated by Xilinx SEM.
+        \item The DB requires 108 Gy TID and 13.16$\times$10$^1$$^2$ n/cm$^2$ NIEL qualification limits (including safety factors).
+        \item Kintex Ultrascale (KU) FPGAs (primary data processors) and ProASIC FPGAs (remote reconfiguration buffers) successfully withstood over 108 Gy and 14$\times$10$^1$$^2$ n/cm$^2$ during tests.
+        \item KU+ FPGAs were disqualified for exhibiting SEL; selected KU FPGAs showed no SEL up to 3.2$\times$10$^1$$^1$ p/cm$^2$.
+        \item Measured SEU rates for the KU FPGA were 116 SEU/(10$^9$ p/cm$^2$); \textasciitilde{}5498 SEUs per year, heavily mitigated by Xilinx SEM.
       \end{itemize}
 
       \begin{center}
