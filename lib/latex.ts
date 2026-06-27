@@ -215,6 +215,8 @@ export function assetUrlToLatexPath(apiUrl: string, workspaceId: string): string
 
 export function estimateHeight(card: Card): number {
   let h = 70 // title + chrome
+  if (card.pattern === "references") return h + 150
+
   h += Math.floor(card.content.length / 60) * 14
   const bulletCount = (card.content.match(/^[-*]\s/gm) || []).length
   h += bulletCount * 10
@@ -390,18 +392,22 @@ export function generateFigures(card: Card, workspaceId = ""): string {
 export function generateLatexForCard(card: Card, workspaceId = ""): string {
   const parts: string[] = []
 
-  if (card.pattern !== "image-focused" && card.content.trim()) {
-    parts.push(parseMarkdownToLatex(card.content.trim()))
-  }
-  if (card.pattern === "bullets-table") {
-    parts.push(generateTable(card))
-  }
-  if (
-    card.pattern === "bullets-image" ||
-    card.pattern === "bullets-two-images" ||
-    card.pattern === "image-focused"
-  ) {
-    parts.push(generateFigures(card, workspaceId))
+  if (card.pattern === "references") {
+    parts.push("\\begin{center}\n  \\begingroup\n  \\renewcommand{\\section}[2]{} % disable the bibliography section header\n  \\nocite{*}\n  \\bibliographystyle{plain}\n  \\bibliography{references}\n  \\endgroup\n\\end{center}")
+  } else {
+    if (card.pattern !== "image-focused" && card.content.trim()) {
+      parts.push(parseMarkdownToLatex(card.content.trim()))
+    }
+    if (card.pattern === "bullets-table") {
+      parts.push(generateTable(card))
+    }
+    if (
+      card.pattern === "bullets-image" ||
+      card.pattern === "bullets-two-images" ||
+      card.pattern === "image-focused"
+    ) {
+      parts.push(generateFigures(card, workspaceId))
+    }
   }
 
   const body = parts.join("\n\n")

@@ -19,6 +19,8 @@ export type IngestFile = {
 export type ExtractedAsset = {
   id: string
   fileId: string
+  filename?: string
+  url?: string
   kind: AssetKind
   page: number
   section?: string

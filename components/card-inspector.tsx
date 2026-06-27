@@ -8,6 +8,7 @@ import {
   FileWarning,
   GripVertical,
   Info,
+  HelpCircle,
   Lightbulb,
   Loader2,
   Play,
@@ -21,8 +22,13 @@ import {
   Italic,
   Code as CodeIcon,
   Link as LinkIcon,
+  Save,
+  MoreHorizontal,
+  SaveAll,
 } from "lucide-react"
 import { toast } from "sonner"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -34,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { useEditor } from "@/components/editor-store"
@@ -168,17 +174,12 @@ function BasicsTab({ card }: { card: Card }) {
 }
 
 function ContentTab({ card }: { card: Card }) {
-  const { updateCard, project } = useEditor()
-  const disabled = card.pattern === "image-focused"
+  const { updateCard, project, bibKeys, autoFillCardAction, generatingId } = useEditor()
+  const ingestFiles = project.ingestFiles || []
+  const disabled = card.pattern === "image-focused" || card.pattern === "references"
+  const isReferences = card.pattern === "references"
+  const isGenerating = generatingId === card.id
   const contentRef = useRef<HTMLTextAreaElement>(null)
-  const [bibKeys, setBibKeys] = useState<string[]>([])
-
-  useEffect(() => {
-    fetch(`/api/workspaces/${project.id}/bib`)
-      .then((r) => r.ok ? r.json() : { keys: [] })
-      .then((d: { keys: string[] }) => setBibKeys(d.keys ?? []))
-      .catch(() => setBibKeys([]))
-  }, [project.id])
 
   function insertMarkdown(prefix: string, suffix: string) {
     const el = contentRef.current
@@ -220,10 +221,24 @@ function ContentTab({ card }: { card: Card }) {
   return (
     <div className="flex flex-col gap-3 p-3">
       <div className="flex flex-col gap-1.5">
-        <FieldLabel hint="markdown supported">Card Content</FieldLabel>
+        <div className="flex items-center justify-between">
+          <FieldLabel hint="markdown supported">Card Content</FieldLabel>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-6 gap-1 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 text-[10px] text-indigo-500 hover:text-indigo-600 border-indigo-500/20"
+            onClick={() => autoFillCardAction(card.id)}
+            disabled={isGenerating || disabled}
+          >
+            {isGenerating ? <Loader2 className="size-3 animate-spin" /> : "✨"}
+            Auto-Fill
+          </Button>
+        </div>
         {disabled ? (
           <p className="rounded-md border border-dashed border-border bg-muted/40 px-2.5 py-3 text-center text-[11px] text-muted-foreground">
-            The image-focused pattern has no text content. Switch pattern in Basics to enable.
+            {isReferences
+              ? "The references pattern automatically generates the bibliography. No text content is needed."
+              : "The image-focused pattern has no text content. Switch pattern in Basics to enable."}
           </p>
         ) : (
           <div className="flex flex-col rounded-md border border-input focus-within:ring-1 focus-within:ring-ring">
@@ -291,6 +306,65 @@ function ContentTab({ card }: { card: Card }) {
               </option>
             ))}
           </select>
+        </div>
+      )}
+
+      {!disabled && (
+        <div className="flex flex-col gap-1">
+          <FieldLabel>Height Budget (u)</FieldLabel>
+          <Input
+            type="number"
+            value={card.heightBudget || ""}
+            onChange={(e) => {
+              const val = e.target.value ? Number(e.target.value) : null
+              updateCard(card.id, { heightBudget: val })
+            }}
+            placeholder="Auto (fit remaining space)"
+            className="h-8 text-xs"
+          />
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            Target height in layout units (Column max: 900u). Leave empty to automatically fit the remaining space in the column. The AI calculates character limits based on: Title (70u) + Images (~190u) + Text (14u per 60 chars).
+          </p>
+        </div>
+      )}
+
+      {!disabled && ingestFiles.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-3">
+          <FieldLabel>Data Sources for Auto-Fill</FieldLabel>
+          <div className="flex flex-col gap-2">
+            {ingestFiles.map((file: any) => {
+              const isSelected = !card.sourceIds || card.sourceIds.length === 0 || card.sourceIds.includes(file.id)
+              return (
+                <div key={file.id} className="flex items-center gap-2">
+                  <Switch
+                    size="sm"
+                    checked={isSelected}
+                    onCheckedChange={(checked) => {
+                      const current = card.sourceIds || []
+                      // If empty/all, and turning one off, we must implicitly select the others
+                      let next: string[]
+                      if (current.length === 0) {
+                        next = checked ? [] : ingestFiles.filter((f: any) => f.id !== file.id).map(f => f.id)
+                      } else {
+                        next = checked ? [...current, file.id] : current.filter(id => id !== file.id)
+                      }
+                      
+                      // If all are selected, reset to empty array for cleaner state
+                      if (next.length === ingestFiles.length) {
+                        next = []
+                      }
+                      
+                      updateCard(card.id, { sourceIds: next })
+                    }}
+                  />
+                  <span className="truncate text-[11px] text-muted-foreground">{file.name}</span>
+                </div>
+              )
+            })}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Restrict the Gemini RAG context to these specific files.
+          </p>
         </div>
       )}
     </div>
@@ -702,7 +776,7 @@ export function CardInspector() {
       </div>
 
       <Tabs defaultValue="basics" className="flex min-h-0 flex-1 flex-col gap-0">
-        <TabsList variant="line" className="h-9 shrink-0 justify-start gap-0.5 overflow-x-auto border-b border-border px-2">
+        <TabsList variant="line" className="h-9 shrink-0 justify-start gap-0.5 overflow-x-auto overflow-y-hidden border-b border-border px-2">
           <TabsTrigger value="basics" className="px-2 text-[12px]">Basics</TabsTrigger>
           <TabsTrigger value="content" className="px-2 text-[12px]">Content</TabsTrigger>
           <TabsTrigger value="table" className="px-2 text-[12px]">Table</TabsTrigger>
@@ -721,51 +795,54 @@ export function CardInspector() {
         </ScrollArea>
       </Tabs>
 
-      <div className="grid shrink-0 grid-cols-2 gap-1.5 border-t border-border bg-muted/30 p-2.5">
+      <div className="flex flex-col gap-2 border-t border-border bg-muted/30 p-4">
         <Button
-          size="sm"
-          variant="outline"
-          className="gap-1.5"
-          onClick={() => validateCardAction(card.id)}
+          size="default"
+          className="w-full justify-center h-9 text-sm"
+          onClick={async () => {
+            const editor = useEditor.getState()
+            try {
+              const res = await fetch(`/api/workspaces/${editor.project.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(editor.project),
+              })
+              if (res.ok) toast.success("Workspace saved")
+              else throw new Error()
+            } catch (e) {
+              toast.error("Save failed")
+            }
+          }}
           disabled={isGenerating}
         >
-          <ShieldCheck className="size-3.5" /> Validate input
+          <SaveAll className="size-4 mr-2" /> Save Project
         </Button>
-        <Button
-          size="sm"
-          className="gap-1.5"
-          onClick={() => generateCardAction(card.id)}
-          disabled={isGenerating}
-          aria-busy={isGenerating}
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="size-3.5 animate-spin" /> Generating…
-            </>
-          ) : (
-            <>
-              <Play className="size-3.5" /> Generate LaTeX
-            </>
-          )}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="gap-1.5"
-          onClick={() => explainFailure(card.id)}
-          disabled={isGenerating}
-        >
-          <FileWarning className="size-3.5" /> Explain failure
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="gap-1.5"
-          onClick={() => suggestImprovements(card.id)}
-          disabled={isGenerating}
-        >
-          <Lightbulb className="size-3.5" /> Suggest
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 text-primary hover:text-primary hover:bg-primary/10"
+            onClick={() => {
+              const editor = useEditor.getState()
+              editor.deleteCard(card.id)
+              editor.selectCard(null)
+            }}
+            disabled={isGenerating}
+          >
+            <Trash2 className="size-4 mr-2" /> Delete
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1"
+            onClick={() => {
+              toast.success("Card updated in workspace")
+            }}
+            disabled={isGenerating}
+          >
+            <Save className="size-4 mr-2" /> Save Card
+          </Button>
+        </div>
       </div>
     </section>
   )

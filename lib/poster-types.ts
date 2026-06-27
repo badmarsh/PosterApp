@@ -6,6 +6,7 @@ export type BlockPattern =
   | "bullets-two-images"
   | "bullets-table"
   | "image-focused"
+  | "references"
 
 export const BLOCK_PATTERNS: {
   id: BlockPattern
@@ -32,6 +33,11 @@ export const BLOCK_PATTERNS: {
     id: "image-focused",
     label: "Image-focused card",
     description: "A figure-dominant block with a short caption.",
+  },
+  {
+    id: "references",
+    label: "References / Bibliography",
+    description: "Auto-generates the bibliography.",
   },
 ]
 
@@ -78,6 +84,8 @@ export type Card = {
   table: CardTable
   figures: Figure[]
   figureLayout: FigureLayout
+  sourceIds?: string[]
+  heightBudget?: number | null
   validation: ValidationLevel
   /** when validation === "generating" we still keep last messages */
   generatedLatex?: string
@@ -91,6 +99,8 @@ export type Project = {
   venue: string
   templateName: string
   cards: Card[]
+  assets: import("./ingestion").ExtractedAsset[]
+  ingestFiles: import("./ingestion").IngestFile[]
 }
 
 export function cardType(card: Card): CardType {
@@ -104,5 +114,7 @@ export function cardType(card: Card): CardType {
     case "bullets-image":
     case "bullets-two-images":
       return "mixed"
+    case "references":
+      return "bullets"
   }
 }

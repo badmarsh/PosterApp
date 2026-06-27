@@ -102,4 +102,5 @@ export const PATTERN_SHORT: Record<BlockPattern, string> = {
   "bullets-two-images": "bullets+2img",
   "bullets-table": "bullets+table",
   "image-focused": "image",
+  references: "refs",
 }

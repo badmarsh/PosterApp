@@ -1,27 +1,34 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useTheme } from "next-themes"
 import {
   CheckCircle2,
   Download,
   FileCode2,
   FileStack,
-  ListChecks,
+  Sparkles,
   Moon,
   PanelLeft,
-  PanelRight,
+  HelpCircle,
   Save,
   Sun,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { HelpModal } from "@/components/help-modal"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useEditor } from "@/components/editor-store"
 import { generateFullTemplate, levelFromMessages, validateCard } from "@/lib/latex"
 import { cn } from "@/lib/utils"
@@ -68,9 +75,17 @@ export function TopBar({
   onToggleStructure,
   onToggleAgent,
 }: TopBarProps) {
-  const { project, validateAll, openIngestion, switchProject } = useEditor()
+  const { project, aiReview, openIngestion, switchProject } = useEditor()
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
   const [saving, setSaving] = useState(false)
+  const [isHelpOpen, setIsHelpOpen] = useState(false)
+
+  const projectRef = useRef(project)
+  const lastSavedRef = useRef(JSON.stringify(project))
+
+  useEffect(() => {
+    projectRef.current = project
+  }, [project])
 
   useEffect(() => {
     fetch("/api/workspaces")
@@ -79,22 +94,37 @@ export function TopBar({
       .catch(() => {})
   }, [])
 
-  async function saveProject() {
+  const doSave = async (proj: typeof project, isAuto = false) => {
     setSaving(true)
     try {
-      const res = await fetch(`/api/workspaces/${project.id}`, {
+      const bodyStr = JSON.stringify(proj)
+      const res = await fetch(`/api/workspaces/${proj.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(project),
+        body: bodyStr,
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      toast.success("Workspace saved")
+      lastSavedRef.current = bodyStr
+      if (!isAuto) toast.success("Workspace saved")
     } catch (err) {
       toast.error(`Save failed: ${err}`)
     } finally {
       setSaving(false)
     }
   }
+
+  async function saveProject() {
+    await doSave(projectRef.current, false)
+  }
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (JSON.stringify(projectRef.current) !== lastSavedRef.current) {
+        doSave(projectRef.current, true)
+      }
+    }, 60000)
+    return () => clearInterval(interval)
+  }, [])
 
   const counts = project.cards.reduce(
     (acc, c) => {
@@ -148,28 +178,41 @@ export function TopBar({
         <div className="flex size-7 items-center justify-center rounded bg-primary text-primary-foreground">
           <FileCode2 className="size-4" />
         </div>
-        <div className="leading-none">
-          <div className="flex items-center gap-2">
-            <span className="hidden text-sm font-semibold tracking-tight sm:inline">
-              Poster Block Studio
-            </span>
-            <span className="hidden rounded border border-border bg-muted px-1 py-px font-mono text-[10px] text-muted-foreground lg:inline">
-              {project.templateName}
-            </span>
-          </div>
-        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                className="h-8 px-2 font-semibold text-sm data-[state=open]:bg-muted"
+              >
+                {project.name}
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="start" className="w-64">
+            {workspaces.map((ws) => (
+              <DropdownMenuItem
+                key={ws.id}
+                onClick={() => switchProject(ws.id)}
+                className={cn(
+                  "cursor-pointer",
+                  ws.id === project.id &&
+                    "bg-primary/10 text-primary focus:bg-primary/15 focus:text-primary font-medium"
+                )}
+              >
+                {ws.name}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <span className="hidden rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground lg:inline">
+          {project.templateName}
+        </span>
       </div>
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
-
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium text-foreground">
-          {project.name}
-        </p>
-        <p className="truncate text-[11px] text-muted-foreground">
-          {project.posterTitle}
-        </p>
-      </div>
+      <div className="flex-1" />
 
       <div
         className={cn(
@@ -200,22 +243,11 @@ export function TopBar({
           variant="outline"
           size="sm"
           className="h-8 gap-1.5"
-          onClick={saveProject}
-          disabled={saving}
-          aria-label="Save project"
+          onClick={aiReview}
+          aria-label="AI Poster review"
         >
-          <Save className="size-3.5" />
-          <span className="hidden md:inline">{saving ? "Saving…" : "Save"}</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5"
-          onClick={validateAll}
-          aria-label="Validate all cards"
-        >
-          <ListChecks className="size-3.5" />
-          <span className="hidden md:inline">Validate all</span>
+          <Sparkles className="size-3.5" />
+          <span className="hidden md:inline">AI Poster review</span>
         </Button>
         <Button
           size="sm"
@@ -233,18 +265,18 @@ export function TopBar({
               <Button
                 variant="ghost"
                 size="icon"
-                className={cn("size-8", agentOpen && "text-primary")}
-                onClick={onToggleAgent}
-                aria-label="Toggle agent panel"
-                aria-pressed={agentOpen}
+                className="size-8"
+                onClick={() => setIsHelpOpen(true)}
+                aria-label="Help Guide"
               >
-                <PanelRight className="size-4" />
+                <HelpCircle className="size-4" />
               </Button>
             }
           />
-          <TooltipContent>Agent activity</TooltipContent>
+          <TooltipContent>Help Guide</TooltipContent>
         </Tooltip>
       </div>
+      <HelpModal open={isHelpOpen} onOpenChange={setIsHelpOpen} />
     </header>
   )
 }
