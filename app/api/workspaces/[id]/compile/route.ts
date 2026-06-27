@@ -46,7 +46,16 @@ export async function POST(
 
   // Build the WSL command — escape the workspace id for shell safety
   const escapedId = id.replace(/'/g, "'\\''")
-  const wslCmd = `wsl bash -c "cd /mnt/c/Users/marek/Documents/Robco\\ PhD/PosterApp/workspaces/${escapedId} && pdflatex -interaction=nonstopmode -halt-on-error main.tex 2>&1"`
+  const baseCmd = `cd /mnt/c/Users/marek/Documents/Robco\\ PhD/PosterApp/workspaces/${escapedId}`
+  
+  const hasBib = tex.includes("\\bibliography{")
+
+  let wslCmd = ""
+  if (hasBib) {
+    wslCmd = `wsl bash -c "${baseCmd} && pdflatex -interaction=nonstopmode -halt-on-error main.tex && (bibtex main || true) && pdflatex -interaction=nonstopmode -halt-on-error main.tex && pdflatex -interaction=nonstopmode -halt-on-error main.tex 2>&1"`
+  } else {
+    wslCmd = `wsl bash -c "${baseCmd} && pdflatex -interaction=nonstopmode -halt-on-error main.tex 2>&1"`
+  }
 
   let log = ""
   let ok = false

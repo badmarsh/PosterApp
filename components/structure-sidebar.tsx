@@ -161,10 +161,9 @@ export function StructureSidebar() {
     switchProject,
     isSwitchingProject,
     openIngestion,
-    assets,
   } = useEditor()
 
-  const promotedCount = assets.filter((a) => a.assignedCardId).length
+  const promotedCount = (project.assets || []).filter((a: any) => a.assignedCardId).length
 
   return (
     <aside className="flex h-full w-full shrink-0 flex-col border-r border-border bg-sidebar lg:w-72">
@@ -237,9 +236,9 @@ export function StructureSidebar() {
         >
           <FileStack className="size-3.5" />
           Ingest sources (PDF)
-          {assets.length > 0 && (
+          {(project.assets || []).length > 0 && (
             <span className="ml-auto font-mono text-[9px] text-muted-foreground">
-              {promotedCount}/{assets.length} used
+              {promotedCount}/{(project.assets || []).length} used
             </span>
           )}
         </Button>

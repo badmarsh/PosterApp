@@ -13,10 +13,22 @@
       "order": 0,
       "pattern": "bullets-two-images",
       "content": "- The Tile Calorimeter is a hadronic calorimeter composed of wedge-shaped modules arranged in a Long Barrel (LB) and two Extended Barrels (EB).\n- Consists of 256 modules containing 5182 calorimetric cells, utilizing scintillating tiles and wavelength shifting fibers to transfer light to photomultiplier tubes (PMTs). Most cells are readout by two PMTs, except for special E1–E4 gap/crack cells readout by one PMT.\n- **Low Voltage Power Supplies (LVPS)**: Utilize switching DC-DC converters (bricks) at 300 kHz to step down a bulk 200 V input to different voltage levels to distribute stable power to the on-detector readout electronics.\n- **Daughterboard (DB)**: central communication hub of each module, using high-speed optical links to continuously transmit digitized PMT signals to off-detector systems while receiving timing and configuration commands.\n- Components located in the highest radiation regions of TileCal, particularly the LB LVPS and readout electronics close to the detector gap regions, must tolerate elevated TID and NIEL levels.\n- Single Event Effects (SEE), in particular Single Event Upsets (SEU) and Single Event Latch-ups (SEL), must be evaluated and mitigated.",
-      "table": { "hasHeader": true, "caption": "", "rows": [] },
+      "table": {
+        "hasHeader": true,
+        "caption": "",
+        "rows": []
+      },
       "figures": [
-        { "id": "fig_tilecal_overview", "url": "/api/workspaces/tilecal-irid-2026/assets/plot1.pdf", "caption": "Figure 1: ATLAS Tile Calorimeter (left) and a wedge-shaped module slice (right) [1]." },
-        { "id": "fig_tilecal_module", "url": "/api/workspaces/tilecal-irid-2026/assets/plot2.pdf", "caption": "" }
+        {
+          "id": "fig_tilecal_overview",
+          "url": "/api/workspaces/tilecal-irid-2026/assets/plot1.pdf",
+          "caption": "Figure 1: ATLAS Tile Calorimeter (left) and a wedge-shaped module slice (right) \\cite{ATLAS2008}."
+        },
+        {
+          "id": "fig_tilecal_module",
+          "url": "/api/workspaces/tilecal-irid-2026/assets/plot2.pdf",
+          "caption": ""
+        }
       ],
       "figureLayout": "two-up",
       "validation": "valid"
@@ -32,12 +44,42 @@
         "hasHeader": true,
         "caption": "Table 1: Simulated worst-case doses for 4000 fb⁻¹ (no safety factors), only higher doses from Barrel/Endcap are shown.",
         "rows": [
-          ["Component", "TID [Gy]", "NIEL [n/cm²]", "SEE [p/cm²]"],
-          ["PMT Divider – Barrel", "17.6", "2.0×10¹²", "1.9×10¹¹"],
-          ["FENICS – Barrel", "10.6", "1.6×10¹²", "1.8×10¹¹"],
-          ["MB – Barrel", "10.0", "1.4×10¹²", "9.2×10¹⁰"],
-          ["LVPS – Barrel", "53.6", "3.5×10¹²", "5.3×10¹¹"],
-          ["DB – Endcap", "6.8", "9.7×10¹¹", "4.9×10¹⁰"]
+          [
+            "Component",
+            "TID [Gy]",
+            "NIEL [n/cm²]",
+            "SEE [p/cm²]"
+          ],
+          [
+            "PMT Divider – Barrel",
+            "17.6",
+            "2.0×10¹²",
+            "1.9×10¹¹"
+          ],
+          [
+            "FENICS – Barrel",
+            "10.6",
+            "1.6×10¹²",
+            "1.8×10¹¹"
+          ],
+          [
+            "MB – Barrel",
+            "10.0",
+            "1.4×10¹²",
+            "9.2×10¹⁰"
+          ],
+          [
+            "LVPS – Barrel",
+            "53.6",
+            "3.5×10¹²",
+            "5.3×10¹¹"
+          ],
+          [
+            "DB – Endcap",
+            "6.8",
+            "9.7×10¹¹",
+            "4.9×10¹⁰"
+          ]
         ]
       },
       "figures": [],
@@ -53,20 +95,70 @@
       "content": "- **LVPS Design:** 8 identical bricks for LB modules and 6 bricks for EB modules inside a box convert the 200 V input to a 10 V output at a nominal power of 23 W – Each brick powers an independent side of the readout electronics, preserving the TileCal dual-PMT cell redundancy.\n- Replacing original STB57N65M5 power MOSFETs with SIHFS9N60A reduced gate-source capacitance and switching losses. Efficiency improved from 58% to 72%, meeting the 77 kW cooling capacity of the TileCal cooling system.\n- Control interface optimization reduced the number of required control lines by 50%, enabling reuse of the existing infrastructure. The optimization successfully achieved the project targets, ensuring operational stability and mitigating failure risks.\n- **Radiation Testing:** SIHFS9N60A MOSFET (main high-power switching transistor): Shift of 2.5 V in gate-source threshold observed after 200 Gy of TID, with minimal deviation from NIEL.\n- SI8920 Isolation Amplifier: Initial tests showed voltage fluctuations at 150 mV, but performance is completely stable below 100 mV. Selected for final production with circuits restricting the input voltage.\n- LT1681 Controller & LT3080 Regulator: TID tests at 502 Gy/h showed minor drifts (≤5%) in output voltages, within acceptable limits.\n- LTC6241 Op-Amp: Single Event Transients (SETs) had small amplitudes (~50 mV) and short durations (~100 ns) posing no effect on brick performance.",
       "table": {
         "hasHeader": true,
-        "caption": "Table 2: Summary of SEE tests conditions and results for different components [3].",
+        "caption": "Table 2: Summary of SEE tests conditions and results for different components \\cite{Moayedi2026}.",
         "rows": [
-          ["Component", "Flux [p/cm²/s]", "Fluence [p/cm²]", "SEE Count", "Cross Section [cm²]"],
-          ["LT1681", "2.4×10⁸", "7.05×10¹¹", "64 (2 chips)", "4.54×10⁻¹¹"],
-          ["LTC6241", "2.4×10⁸", "7.05×10¹¹", "133 (4 op-amps)", "4.72×10⁻¹¹"],
-          ["LT3080", "2.4×10⁸", "7.05×10¹¹", "198 (4 chips)", "7.02×10⁻¹¹"],
-          ["IR2110", "3.5×10⁸", "3.4×10¹¹", "None (2 chips)", ">1.47×10⁻¹²"],
-          ["SIHFS9N60A", "3.5×10⁸", "3.4×10¹¹", "None (8 chips)", ">3.67×10⁻¹³"],
-          ["SI8920", "1×10⁷", "1.96×10¹¹", "1 (20 chips)", "2.55×10⁻¹³"]
+          [
+            "Component",
+            "Flux [p/cm²/s]",
+            "Fluence [p/cm²]",
+            "SEE Count",
+            "Cross Section [cm²]"
+          ],
+          [
+            "LT1681",
+            "2.4×10⁸",
+            "7.05×10¹¹",
+            "64 (2 chips)",
+            "4.54×10⁻¹¹"
+          ],
+          [
+            "LTC6241",
+            "2.4×10⁸",
+            "7.05×10¹¹",
+            "133 (4 op-amps)",
+            "4.72×10⁻¹¹"
+          ],
+          [
+            "LT3080",
+            "2.4×10⁸",
+            "7.05×10¹¹",
+            "198 (4 chips)",
+            "7.02×10⁻¹¹"
+          ],
+          [
+            "IR2110",
+            "3.5×10⁸",
+            "3.4×10¹¹",
+            "None (2 chips)",
+            ">1.47×10⁻¹²"
+          ],
+          [
+            "SIHFS9N60A",
+            "3.5×10⁸",
+            "3.4×10¹¹",
+            "None (8 chips)",
+            ">3.67×10⁻¹³"
+          ],
+          [
+            "SI8920",
+            "1×10⁷",
+            "1.96×10¹¹",
+            "1 (20 chips)",
+            "2.55×10⁻¹³"
+          ]
         ]
       },
       "figures": [
-        { "id": "fig_mosfet_tid_left", "url": "/api/workspaces/tilecal-irid-2026/assets/Moayedi_2026_J._Inst._21_C05002_slide_7_item_1.png", "caption": "Figure 2: SIHFS9N60A MOSFET characterization at V_DS = 1 V after 200 Gy of TID (left) and after NIEL tests (right) [3]." },
-        { "id": "fig_mosfet_tid_right", "url": "/api/workspaces/tilecal-irid-2026/assets/Moayedi_2026_J._Inst._21_C05002_slide_7_item_2.png", "caption": "" }
+        {
+          "id": "fig_mosfet_tid_left",
+          "url": "/api/workspaces/tilecal-irid-2026/assets/Moayedi_2026_J._Inst._21_C05002_slide_7_item_1.png",
+          "caption": "Figure 2: SIHFS9N60A MOSFET characterization at V_DS = 1 V after 200 Gy of TID (left) and after NIEL tests (right) \\cite{Moayedi2026}."
+        },
+        {
+          "id": "fig_mosfet_tid_right",
+          "url": "/api/workspaces/tilecal-irid-2026/assets/Moayedi_2026_J._Inst._21_C05002_slide_7_item_2.png",
+          "caption": ""
+        }
       ],
       "figureLayout": "two-up",
       "validation": "warning"
@@ -78,9 +170,17 @@
       "order": 0,
       "pattern": "bullets-image",
       "content": "- Interfaces the on-detector and off-detector systems by distributing timing and configuration signals and continuously transmitting digitized PMT data off-detector.\n- 896 DBs will transmit ~35 Tbps of physics data via 3584 optical uplinks (9.6 Gbps), while receiving configuration and timing via 1792 downlinks (4.8 Gbps).\n- Utilizes Commercial Off-The-Shelf components and radiation-hard GBTx ASICs (receive clock and config commands) designed by CERN.",
-      "table": { "hasHeader": true, "caption": "", "rows": [] },
+      "table": {
+        "hasHeader": true,
+        "caption": "",
+        "rows": []
+      },
       "figures": [
-        { "id": "fig_db_blockdiagram", "url": "/api/workspaces/tilecal-irid-2026/assets/fig_db6_blockdiagram.png", "caption": "Figure 3: The TileCal Daughterboard redundancy architecture and data paths [5]." }
+        {
+          "id": "fig_db_blockdiagram",
+          "url": "/api/workspaces/tilecal-irid-2026/assets/fig_db6_blockdiagram.png",
+          "caption": "Figure 3: The TileCal Daughterboard redundancy architecture and data paths \\cite{ValdesSanturio2023}."
+        }
       ],
       "figureLayout": "single",
       "validation": "valid"
@@ -92,9 +192,17 @@
       "order": 1,
       "pattern": "bullets-image",
       "content": "- The DB requires 108 Gy TID and 13.16×10¹² n/cm² NIEL qualification limits (including safety factors).\n- Kintex Ultrascale (KU) FPGAs (primary data processors) and ProASIC FPGAs (remote reconfiguration buffers) successfully withstood over 108 Gy and 14×10¹² n/cm² during tests.\n- KU+ FPGAs were disqualified for exhibiting SEL; selected KU FPGAs showed no SEL up to 3.2×10¹¹ p/cm².\n- Measured SEU rates for the KU FPGA were 116 SEU/(10⁹ p/cm²); ~5498 SEUs per year, heavily mitigated by Xilinx SEM.",
-      "table": { "hasHeader": true, "caption": "", "rows": [] },
+      "table": {
+        "hasHeader": true,
+        "caption": "",
+        "rows": []
+      },
       "figures": [
-        { "id": "fig_db_tid_test", "url": "/api/workspaces/tilecal-irid-2026/assets/fig_db6_tid_test.png", "caption": "Figure 4: Monitored KU FPGA temperatures and currents during 54 MeV proton beam TID testing. Drops correspond to active SEU corrections by the Xilinx SEM and resets applied during uncorrectable SEUs [5]." }
+        {
+          "id": "fig_db_tid_test",
+          "url": "/api/workspaces/tilecal-irid-2026/assets/fig_db6_tid_test.png",
+          "caption": "Figure 4: Monitored KU FPGA temperatures and currents during 54 MeV proton beam TID testing. Drops correspond to active SEU corrections by the Xilinx SEM and resets applied during uncorrectable SEUs \\cite{ValdesSanturio2023}."
+        }
       ],
       "figureLayout": "single",
       "validation": "valid"
@@ -106,7 +214,11 @@
       "order": 2,
       "pattern": "bullets",
       "content": "- The optimized power distribution scheme increases readout reliability, power efficiency, and mitigates failure impact by utilizing identical and independent LVPS bricks.\n- DB key components passed TID and NIEL qualification, and SEL was eliminated from the selected KU FPGAs.\n- All critical components for the upgrade of the TileCal on-detector electronics have been successfully qualified against the expected radiation environment, following all the safety factors imposed by CERN guidelines, enabling full-scale production.",
-      "table": { "hasHeader": true, "caption": "", "rows": [] },
+      "table": {
+        "hasHeader": true,
+        "caption": "",
+        "rows": []
+      },
       "figures": [],
       "figureLayout": "single",
       "validation": "valid"
@@ -116,9 +228,13 @@
       "title": "References",
       "column": 3,
       "order": 3,
-      "pattern": "bullets",
+      "pattern": "references",
       "content": "- ATLAS Collaboration, *The ATLAS Experiment at the CERN Large Hadron Collider*, JINST 3 (2008) S08003.\n- ATLAS collaboration, *Technical Design Report for the Phase-II Upgrade of the ATLAS Tile Calorimeter*, CERN-LHCC-2017-019.\n- S. Moayedi, *Upgrade of the ATLAS Tile Calorimeter front-end power supply for the HL-LHC*, 2026 JINST **21** C05002.\n- S. Moayedi, *Upgrade of the ATLAS Tile Calorimeter Front-End Power Supply for the HL-LHC*, ATL-TILECAL-SLIDE-2025-552.\n- E. Valdés Santurio et al., *Radiation studies performed on the High Luminosity ATLAS TileCal link Daughterboard*, 2023 JINST **18** C04011.",
-      "table": { "hasHeader": true, "caption": "", "rows": [] },
+      "table": {
+        "hasHeader": true,
+        "caption": "",
+        "rows": []
+      },
       "figures": [],
       "figureLayout": "single",
       "validation": "valid"

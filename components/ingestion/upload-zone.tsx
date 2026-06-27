@@ -12,15 +12,14 @@ import {
 } from "@/components/ingestion/ingestion-badges"
 
 export function UploadZone() {
-  const { ingestFiles, uploadFiles, retryFile, removeFile } = useEditor()
+  const { project, uploadFiles, retryFile, removeFile } = useEditor()
+  const ingestFiles = project.ingestFiles || []
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
   function handleFiles(list: FileList | null) {
     if (!list || !list.length) return
-    uploadFiles(
-      Array.from(list).map((f) => ({ name: f.name, size: f.size })),
-    )
+    uploadFiles(Array.from(list))
   }
 
   return (

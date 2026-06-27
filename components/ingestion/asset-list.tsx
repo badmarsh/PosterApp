@@ -107,9 +107,18 @@ function AssetRow({ asset }: { asset: ExtractedAsset }) {
             </>
           )}
           {asset.kind === "figure" && (
-            <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
-              {asset.caption}
-            </p>
+            <>
+              {asset.caption && (
+                <p className="mt-0.5 line-clamp-2 text-[11px] font-medium leading-tight">
+                  {asset.caption}
+                </p>
+              )}
+              {asset.snippet && (
+                <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
+                  {asset.snippet}
+                </p>
+              )}
+            </>
           )}
           {asset.kind === "table" && (
             <div className="mt-1">
@@ -155,7 +164,24 @@ function AssetRow({ asset }: { asset: ExtractedAsset }) {
 }
 
 export function AssetList() {
-  const { assets } = useEditor()
+  const { project } = useEditor()
+  const assets = project.assets || []
+  const ingestFiles = project.ingestFiles || []
+
+  // Group assets by fileId
+  const groups = ingestFiles
+    .map((file) => ({
+      file,
+      items: assets.filter((a: any) => a.fileId === file.id),
+    }))
+    .filter((g) => g.items.length > 0)
+
+  const legacyAssets = assets.filter(
+    (a: any) => !a.fileId || !ingestFiles.find((f) => f.id === a.fileId),
+  )
+
+  const defaultOpen = groups.length > 0 ? groups[0].file.id : "legacy"
+  const [openSection, setOpenSection] = useState<string | null>(defaultOpen)
 
   if (!assets.length) {
     return (
@@ -169,30 +195,99 @@ export function AssetList() {
     )
   }
 
+  function renderGroupAssets(groupAssets: any[]) {
+    return KIND_ORDER.map((kind) => {
+      const items = groupAssets.filter((a: any) => a.kind === kind)
+      if (!items.length) return null
+      return (
+        <div key={kind} className="mt-3 first:mt-0">
+          <div className="mb-1.5 flex items-center gap-1.5 text-muted-foreground">
+            <AssetKindIcon kind={kind} className="size-3" />
+            <h5 className="text-[10px] font-semibold uppercase tracking-wide">
+              {ASSET_KIND_LABEL[kind]}
+            </h5>
+            <span className="font-mono text-[9px]">{items.length}</span>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {items.map((a) => (
+              <AssetRow key={a.id} asset={a} />
+            ))}
+          </div>
+        </div>
+      )
+    })
+  }
+
   return (
     <div className="flex flex-col gap-3">
-      {KIND_ORDER.map((kind) => {
-        const group = assets.filter((a) => a.kind === kind)
-        if (!group.length) return null
+      {groups.map((g) => {
+        const isOpen = openSection === g.file.id
         return (
-          <section key={kind}>
-            <div className="mb-1 flex items-center gap-1.5">
-              <AssetKindIcon kind={kind} className="size-3 text-muted-foreground" />
-              <h4 className="text-[11px] font-semibold uppercase tracking-wide">
-                {ASSET_KIND_LABEL[kind]}
-              </h4>
-              <span className="font-mono text-[10px] text-muted-foreground">
-                {group.length}
-              </span>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {group.map((a) => (
-                <AssetRow key={a.id} asset={a} />
-              ))}
-            </div>
-          </section>
+          <div key={g.file.id} className="rounded-md border border-border bg-muted/10">
+            <button
+              className="flex w-full items-center justify-between px-3 py-2 text-left transition-colors hover:bg-muted/30"
+              onClick={() => setOpenSection(isOpen ? null : g.file.id)}
+            >
+              <div className="flex items-center gap-2 overflow-hidden">
+                <span className="truncate text-[12px] font-medium">{g.file.name}</span>
+                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                  {g.items.length} items
+                </span>
+              </div>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")}
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            {isOpen && (
+              <div className="border-t border-border p-2">
+                {renderGroupAssets(g.items)}
+              </div>
+            )}
+          </div>
         )
       })}
+
+      {legacyAssets.length > 0 && (
+        <div className="rounded-md border border-border bg-muted/10">
+          <button
+            className="flex w-full items-center justify-between px-3 py-2 text-left transition-colors hover:bg-muted/30"
+            onClick={() => setOpenSection(openSection === "legacy" ? null : "legacy")}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] font-medium">Other Assets</span>
+              <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                {legacyAssets.length} items
+              </span>
+            </div>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", openSection === "legacy" && "rotate-180")}
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+          {openSection === "legacy" && (
+            <div className="border-t border-border p-2">
+              {renderGroupAssets(legacyAssets)}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

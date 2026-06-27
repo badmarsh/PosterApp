@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Workspace {
+  id           String  @id
+  name         String
+  posterTitle  String
+  authors      String
+  venue        String
+  templateName String
+  bibContent   String?
+  bibKeys      String? // JSON string
+  cards        Card[]
+  assets       Asset[]
+  ingestFiles  IngestFile[]
+}
+
+model Card {
+  id             String @id
+  workspaceId    String
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  title          String
+  column         Int
+  order          Int
+  pattern        String
+  content        String
+  table          String? // JSON string
+  figures        String? // JSON string
+  figureLayout   String
+  sourceIds      String? // JSON string
+  heightBudget   Float?
+  validation     String
+  generatedLatex String?
+}
+
+model Asset {
+  id             String @id
+  workspaceId    String
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  fileId         String
+  filename       String?
+  url            String?
+  kind           String
+  page           Int
+  section        String?
+  bbox           String?
+  confidence     String
+  heading        String?
+  snippet        String?
+  thumbnailUrl   String?
+  caption        String?
+  tableRows      String? // JSON string
+  assignedCardId String?
+  assignedSlot   String?
+}
+
+model IngestFile {
+  id          String @id
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  size        Int
+  method      String
+  status      String
+  progress    Int
+  error       String?
+}
+

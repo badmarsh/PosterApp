@@ -152,6 +152,8 @@ const posterCards: Card[] = [
   }),
 ]
 
+import { initialAssets, initialIngestFiles } from "./ingestion"
+
 export const sampleProject: Project = {
   id: "prj_lattice",
   name: "LATTICE — CoRL 2025",
@@ -161,6 +163,8 @@ export const sampleProject: Project = {
   venue: "Robotics & Learning Lab · CoRL 2025",
   templateName: "tikzposter / 3-column portrait (a0)",
   cards: posterCards,
+  assets: initialAssets,
+  ingestFiles: initialIngestFiles,
 }
 
 export const otherProjects: Pick<Project, "id" | "name">[] = [

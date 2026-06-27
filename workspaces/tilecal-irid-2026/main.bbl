@@ -1,0 +1,32 @@
+\begin{thebibliography}{1}
+
+\bibitem{ATLAS2008}
+{ATLAS Collaboration}.
+\newblock The {ATLAS} experiment at the {CERN} large hadron collider.
+\newblock {\em JINST}, 3:S08003, 2008.
+
+\bibitem{TileCal_TDR2017}
+{ATLAS Collaboration}.
+\newblock Technical design report for the phase-{II} upgrade of the {ATLAS}
+  tile calorimeter.
+\newblock Technical Report CERN-LHCC-2017-019, CERN, 2017.
+
+\bibitem{Moayedi_slides2025}
+S.~Moayedi.
+\newblock Upgrade of the {ATLAS} tile calorimeter front-{E}nd power supply for
+  the {HL-LHC}.
+\newblock Technical Report ATL-TILECAL-SLIDE-2025-552, CERN, 2025.
+
+\bibitem{Moayedi2026}
+S.~Moayedi.
+\newblock Upgrade of the {ATLAS} tile calorimeter front-end power supply for
+  the {HL-LHC}.
+\newblock {\em JINST}, 21:C05002, 2026.
+
+\bibitem{ValdesSanturio2023}
+E.~Vald{\'e}s~Santurio et~al.
+\newblock Radiation studies performed on the high luminosity {ATLAS} {TileCal}
+  link {D}aughterboard.
+\newblock {\em JINST}, 18:C04011, 2023.
+
+\end{thebibliography}

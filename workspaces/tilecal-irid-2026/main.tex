@@ -60,7 +60,6 @@
     % block id: blk_tilecal  (column 1, order 0)
     \block{The ATLAS Hadronic Tile Calorimeter (TileCal)}{
       \begin{itemize}\setlength{\itemsep}{0.3em}
-        \item Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town Mystic M is in the town 
         \item The Tile Calorimeter is a hadronic calorimeter composed of wedge-shaped modules arranged in a Long Barrel (LB) and two Extended Barrels (EB).
         \item Consists of 256 modules containing 5182 calorimetric cells, utilizing scintillating tiles and wavelength shifting fibers to transfer light to photomultiplier tubes (PMTs). Most cells are readout by two PMTs, except for special E1--E4 gap/crack cells readout by one PMT.
         \item \textbf{Low Voltage Power Supplies (LVPS)}: Utilize switching DC-DC converters (bricks) at 300 kHz to step down a bulk 200 V input to different voltage levels to distribute stable power to the on-detector readout electronics.
@@ -77,7 +76,7 @@
         \includegraphics[width=\linewidth]{assets/plot2.pdf}
       \end{minipage}
 
-        {\small Figure 1: ATLAS Tile Calorimeter (left) and a wedge-shaped module slice (right) [1].}
+        {\small Figure 1: ATLAS Tile Calorimeter (left) and a wedge-shaped module slice (right) \cite{ATLAS2008}.}
     }
 
     % block id: blk_radiation_criteria  (column 1, order 1)
@@ -125,7 +124,7 @@
         \includegraphics[width=\linewidth]{assets/Moayedi_2026_J._Inst._21_C05002_slide_7_item_2.png}
       \end{minipage}
 
-        {\small Figure 2: SIHFS9N60A MOSFET characterization at V\_DS = 1 V after 200 Gy of TID (left) and after NIEL tests (right) [3].}
+        {\small Figure 2: SIHFS9N60A MOSFET characterization at V\_DS = 1 V after 200 Gy of TID (left) and after NIEL tests (right) \cite{Moayedi2026}.}
     }
 
   % ===== Column 3 =====
@@ -142,7 +141,7 @@
       \begin{center}
         \includegraphics[width=1.0\linewidth]{assets/fig_db6_blockdiagram.png}
       \end{center}
-      {\small Figure 3: The TileCal Daughterboard redundancy architecture and data paths [5].}
+      {\small Figure 3: The TileCal Daughterboard redundancy architecture and data paths \cite{ValdesSanturio2023}.}
     }
 
     % block id: blk_db_qualification  (column 3, order 1)
@@ -157,7 +156,7 @@
       \begin{center}
         \includegraphics[width=1.0\linewidth]{assets/fig_db6_tid_test.png}
       \end{center}
-      {\small Figure 4: Monitored KU FPGA temperatures and currents during 54 MeV proton beam TID testing. Drops correspond to active SEU corrections by the Xilinx SEM and resets applied during uncorrectable SEUs [5].}
+      {\small Figure 4: Monitored KU FPGA temperatures and currents during 54 MeV proton beam TID testing. Drops correspond to active SEU corrections by the Xilinx SEM and resets applied during uncorrectable SEUs \cite{ValdesSanturio2023}.}
     }
 
     % block id: blk_conclusions  (column 3, order 2)
@@ -171,13 +170,14 @@
 
     % block id: blk_references  (column 3, order 3)
     \block{References}{
-      \begin{itemize}\setlength{\itemsep}{0.3em}
-        \item ATLAS Collaboration, \textit{The ATLAS Experiment at the CERN Large Hadron Collider}, JINST 3 (2008) S08003.
-        \item ATLAS collaboration, \textit{Technical Design Report for the Phase-II Upgrade of the ATLAS Tile Calorimeter}, CERN-LHCC-2017-019.
-        \item S. Moayedi, \textit{Upgrade of the ATLAS Tile Calorimeter front-end power supply for the HL-LHC}, 2026 JINST \textbf{21} C05002.
-        \item S. Moayedi, \textit{Upgrade of the ATLAS Tile Calorimeter Front-End Power Supply for the HL-LHC}, ATL-TILECAL-SLIDE-2025-552.
-        \item E. Valdés Santurio et al., \textit{Radiation studies performed on the High Luminosity ATLAS TileCal link Daughterboard}, 2023 JINST \textbf{18} C04011.
-      \end{itemize}
+      \begin{center}
+        \begingroup
+        \renewcommand{\section}[2]{} % disable the bibliography section header
+        \nocite{*}
+        \bibliographystyle{plain}
+        \bibliography{references}
+        \endgroup
+      \end{center}
     }
 
 \end{columns}

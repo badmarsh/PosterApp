@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { ChevronDown, ChevronUp, ImageIcon, List, Table2, FileDown, Loader2, ChevronDown as ChevronDownIcon } from "lucide-react"
+import { ChevronDown, ChevronUp, ImageIcon, List, Table2, FileDown, Loader2, ChevronDown as ChevronDownIcon, Plus } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -118,7 +118,7 @@ function MiniBlock({ card }: { card: Card }) {
         </div>
       </div>
 
-      <p className="mt-1 line-clamp-2 pl-1.5 text-[10px] leading-snug text-muted-foreground">
+      <p className="mt-1 line-clamp-4 pl-1.5 text-[11px] leading-relaxed text-muted-foreground">
         {summarize(card)}
       </p>
 
@@ -186,7 +186,7 @@ function MiniBlock({ card }: { card: Card }) {
 // PosterColumn (unchanged)
 // ---------------------------------------------------------------------------
 function PosterColumn({ column }: { column: ColumnIndex }) {
-  const { project } = useEditor()
+  const { project, addCard } = useEditor()
   const cards = project.cards
     .filter((c) => c.column === column)
     .sort((a, b) => a.order - b.order)
@@ -216,6 +216,13 @@ function PosterColumn({ column }: { column: ColumnIndex }) {
             No blocks in this column yet.
           </div>
         )}
+        <button
+          onClick={() => addCard(column)}
+          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/50 hover:text-primary mt-1"
+        >
+          <Plus className="size-3.5" />
+          Add Card
+        </button>
       </div>
     </div>
   )
@@ -227,7 +234,7 @@ function PosterColumn({ column }: { column: ColumnIndex }) {
 function PosterSkeleton() {
   return (
     <div
-      className="mx-auto w-full max-w-3xl p-5"
+      className="mx-auto w-full max-w-5xl p-5"
       role="status"
       aria-label="Loading poster preview"
     >
@@ -262,7 +269,7 @@ function StructureView() {
       {isSwitchingProject ? (
         <PosterSkeleton />
       ) : (
-        <div className="mx-auto w-full max-w-3xl p-5">
+        <div className="mx-auto w-full max-w-5xl p-5 pb-20">
           <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
             {/* fixed header area */}
             <div className="border-b-2 border-primary/30 bg-gradient-to-b from-muted/60 to-card px-4 py-3 text-center">

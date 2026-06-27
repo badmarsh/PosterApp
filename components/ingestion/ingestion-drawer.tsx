@@ -10,7 +10,9 @@ import { AssetList } from "@/components/ingestion/asset-list"
 import { ParseLogPanel } from "@/components/ingestion/parse-log-panel"
 
 export function IngestionDrawer() {
-  const { ingestionOpen, closeIngestion, assets, ingestFiles } = useEditor()
+  const { ingestionOpen, closeIngestion, project } = useEditor()
+  const assets = project.assets || []
+  const ingestFiles = project.ingestFiles || []
 
   useEffect(() => {
     if (!ingestionOpen) return

@@ -1,0 +1,185 @@
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { FileStack, LayoutTemplate, BoxSelect, Image as ImageIcon, Sparkles, BookOpen } from "lucide-react"
+
+interface HelpModalProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+export function HelpModal({ open, onOpenChange }: HelpModalProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-5xl max-w-5xl w-[90vw] max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden bg-background">
+        <div className="p-6 pb-4 border-b border-border bg-muted/20">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <Sparkles className="size-5 text-primary" />
+              PosterApp Guide
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              A comprehensive guide to creating beautiful scientific posters with AI assistance.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-background">
+          <Accordion defaultValue={["ingestion"]} className="w-full space-y-2">
+            
+            <AccordionItem value="ingestion" className="border border-border bg-card px-4 rounded-lg">
+              <AccordionTrigger className="hover:no-underline py-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-md">
+                    <FileStack className="size-4 text-primary" />
+                  </div>
+                  <span className="font-semibold text-base">Ingestion & Sources</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground pb-4 leading-relaxed space-y-4">
+                <p>
+                  The first step in creating your poster is giving the AI the literature it needs. Click <strong className="text-foreground font-medium">Ingest</strong> in the top bar to upload your research papers (.pdf).
+                </p>
+                <div className="bg-muted/50 p-4 rounded-lg border border-border">
+                  <h4 className="font-medium text-foreground mb-1">Local Processing</h4>
+                  <p className="text-sm">
+                    The system uses MinerU locally on your machine to extract text, figures, and tables. The AI operates purely on your uploaded literature without searching the web, keeping your data private and scientifically grounded.
+                  </p>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="cards" className="border border-border bg-card px-4 rounded-lg">
+              <AccordionTrigger className="hover:no-underline py-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-md">
+                    <LayoutTemplate className="size-4 text-primary" />
+                  </div>
+                  <span className="font-semibold text-base">Cards & AI Auto-fill</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground pb-4 leading-relaxed space-y-4">
+                <p>
+                  Each section of your poster is represented as a <strong className="text-foreground font-medium">Card</strong>. You can write the content manually or use the powerful AI Auto-fill feature.
+                </p>
+                <ul className="space-y-3 mt-4">
+                  <li className="flex gap-3">
+                    <div className="bg-muted rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5"><span className="text-xs font-bold text-foreground">1</span></div>
+                    <div>
+                      <strong className="text-foreground block">Directed Generation</strong>
+                      <p className="text-sm">Give the card a title (e.g., "Methodology"), leave the content empty, and click the <Sparkles className="size-3 inline mx-1"/> icon. The AI will write the content specifically for that section.</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <div className="bg-muted rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5"><span className="text-xs font-bold text-foreground">2</span></div>
+                    <div>
+                      <strong className="text-foreground block">Autonomous Generation</strong>
+                      <p className="text-sm">If you don't provide a title, the AI will autonomously analyze the literature and decide the most compelling topic to write about.</p>
+                    </div>
+                  </li>
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="layout" className="border border-border bg-card px-4 rounded-lg">
+              <AccordionTrigger className="hover:no-underline py-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-md">
+                    <BoxSelect className="size-4 text-primary" />
+                  </div>
+                  <span className="font-semibold text-base">Height Budgets</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground pb-4 leading-relaxed space-y-4">
+                <p>
+                  Unlike a scrolling webpage, your poster is constrained by physical space. Each card is allocated a <strong className="text-foreground font-medium">Height Budget</strong> (measured in generic units "u").
+                </p>
+                <div className="grid sm:grid-cols-2 gap-4 mt-2">
+                  <div className="border border-border p-4 rounded-lg bg-muted/30">
+                    <strong className="text-foreground block mb-2">Overflow Management</strong>
+                    <p className="text-sm">If the AI generates too much content, it will overflow its container. The AI is instructed to stay under this limit, but you should manually trim text if it exceeds the boundary.</p>
+                  </div>
+                  <div className="border border-border p-4 rounded-lg bg-muted/30">
+                    <strong className="text-foreground block mb-2">Adjusting Budgets</strong>
+                    <p className="text-sm">You can freely adjust the height budget of any card by dragging its bottom edge in the preview area to make room for more content or figures.</p>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="assets" className="border border-border bg-card px-4 rounded-lg">
+              <AccordionTrigger className="hover:no-underline py-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-md">
+                    <ImageIcon className="size-4 text-primary" />
+                  </div>
+                  <span className="font-semibold text-base">Figures & Tables</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground pb-4 leading-relaxed space-y-4">
+                <p>
+                  A great poster balances text with rich visuals. The left panel shows all extracted assets (figures and tables) from your PDFs.
+                </p>
+                <p>
+                  You can assign these figures to specific slots in your cards using the <strong className="text-foreground font-medium">Card Content</strong> panel on the right. When you use the AI Auto-fill feature, the AI will also automatically suggest and assign relevant figures if it finds them.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="review" className="border border-border bg-card px-4 rounded-lg">
+              <AccordionTrigger className="hover:no-underline py-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-md">
+                    <Sparkles className="size-4 text-primary" />
+                  </div>
+                  <span className="font-semibold text-base">AI Poster Review</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground pb-4 leading-relaxed space-y-4">
+                <p>
+                  Before finalizing your poster, click <strong className="text-foreground font-medium">AI Poster review</strong> in the top bar.
+                </p>
+                <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
+                  <p className="text-sm">
+                    This triggers a comprehensive evaluation of your entire workspace by the local AI. It will check for:
+                  </p>
+                  <ul className="list-disc pl-5 mt-2 text-sm space-y-1 text-foreground/80">
+                    <li>Missing references or uncited claims</li>
+                    <li>Layout imbalances and text overflow</li>
+                    <li>Missed opportunities to include key figures</li>
+                    <li>Typos and structural flow</li>
+                  </ul>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="bib" className="border border-border bg-card px-4 rounded-lg">
+              <AccordionTrigger className="hover:no-underline py-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-md">
+                    <BookOpen className="size-4 text-primary" />
+                  </div>
+                  <span className="font-semibold text-base">Bibliography</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground pb-4 leading-relaxed space-y-4">
+                <p>
+                  PosterApp maintains a central BibTeX file for your workspace.
+                </p>
+                <p>
+                  You can manage your bibliography by clicking <strong className="text-foreground font-medium">Edit references.bib</strong> in the Project Settings (bottom left). This allows you to upload existing .bib files or manually edit your citation keys to match those used in your cards.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+
+          </Accordion>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
