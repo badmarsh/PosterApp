@@ -10,6 +10,10 @@ export async function POST(
 ) {
   const { id: workspaceId, cardId } = await params
   
+  if (!process.env.AI_API_URL || !process.env.AI_API_KEY) {
+    return NextResponse.json({ error: "AI API configuration missing" }, { status: 503 })
+  }
+
   try {
     const body = await req.json()
     const { topic, assets, sourceIds, characterLimit = 300 } = body
@@ -22,7 +26,7 @@ export async function POST(
     const sourcesDir = path.join(WORKSPACES_DIR, workspaceId, "sources")
     let sourceContext = ""
     if (fs.existsSync(sourcesDir)) {
-      const files = fs.readdirSync(sourcesDir)
+      const files = await fs.promises.readdir(sourcesDir)
       for (const file of files) {
         if (file.endsWith(".md")) {
           const id = file.replace(".md", "")
@@ -30,7 +34,7 @@ export async function POST(
           if (Array.isArray(sourceIds) && sourceIds.length > 0 && !sourceIds.includes(id)) {
             continue
           }
-          const content = fs.readFileSync(path.join(sourcesDir, file), "utf-8")
+          const content = await fs.promises.readFile(path.join(sourcesDir, file), "utf-8")
           sourceContext += `\n\n--- Source Document: ${file} ---\n\n${content}`
         }
       }
@@ -41,7 +45,7 @@ export async function POST(
     }
 
     // 2. Format available assets
-    const availableAssets = (assets || []).map((a: any) => ({
+    const availableAssets = (assets || []).map((a: {id: string, kind: string, caption?: string, snippet?: string}) => ({
       id: a.id,
       kind: a.kind,
       caption: a.caption,
@@ -83,10 +87,10 @@ Respond EXACTLY in this JSON format with no markdown wrappers:
   ]
 }`
 
-    const response = await fetch("http://localhost:8045/v1/chat/completions", {
+    const response = await fetch(process.env.AI_API_URL as string, {
       method: "POST",
       headers: {
-        "Authorization": "Bearer sk-4c2ec6f80d904f35b2c1598b1464aaca",
+        "Authorization": `Bearer ${process.env.AI_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -111,10 +115,10 @@ Respond EXACTLY in this JSON format with no markdown wrappers:
     const parsed = JSON.parse(responseText)
     
     return NextResponse.json(parsed)
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Gemini card generation failed:", err)
     return NextResponse.json(
-      { error: err.message || "Failed to generate card content" },
+      { error: err instanceof Error ? err.message : "Failed to generate card content" },
       { status: 500 }
     )
   }

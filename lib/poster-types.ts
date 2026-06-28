@@ -1,5 +1,26 @@
 export type ColumnIndex = 1 | 2 | 3
 
+import type { ExtractedAsset, IngestFile } from "./ingestion"
+
+export type BibEntry = {
+  id: string
+  title: string
+  authors: string[]
+  year?: string
+  journal?: string
+  doi?: string
+}
+
+export type WorkspaceSettings = {
+  theme: string
+  // Add other settings as needed
+}
+
+export type ValidationResult = {
+  isValid: boolean
+  messages: ValidationMessage[]
+}
+
 export type BlockPattern =
   | "bullets"
   | "bullets-image"
@@ -68,7 +89,7 @@ export type CardTable = {
 export type AgentEvent = {
   id: string
   ts: string
-  kind: "validate" | "generate" | "suggest" | "explain" | "info"
+  kind: "validate" | "generate" | "suggest" | "explain" | "info" | "verify"
   status: "running" | "done" | "error" | "warning"
   title: string
   detail?: string
@@ -99,8 +120,8 @@ export type Project = {
   venue: string
   templateName: string
   cards: Card[]
-  assets: import("./ingestion").ExtractedAsset[]
-  ingestFiles: import("./ingestion").IngestFile[]
+  assets: ExtractedAsset[]
+  ingestFiles: IngestFile[]
 }
 
 export function cardType(card: Card): CardType {
@@ -116,5 +137,7 @@ export function cardType(card: Card): CardType {
       return "mixed"
     case "references":
       return "bullets"
+    default:
+      return "bullets" // or throw new Error("Unknown block pattern")
   }
 }

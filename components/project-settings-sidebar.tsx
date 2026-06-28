@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 
 import { useEditor } from "@/components/editor-store"
+import { useShallow } from "zustand/react/shallow"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -23,12 +24,31 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { otherProjects } from "@/lib/mock-data"
+
 import { FileStack, Copy, FilePlus2, BookOpen, Upload } from "lucide-react"
 
 export function ProjectSettingsSidebar() {
-  const { project, updateProject, isSwitchingProject, switchProject, newProject, duplicateProject, bibContent, updateBib } = useEditor()
+  const { project, updateProject, isSwitchingProject, switchProject, newProject, duplicateProject, bibContent, updateBib } = useEditor(
+    useShallow((s) => ({
+      project: s.project,
+      updateProject: s.updateProject,
+      isSwitchingProject: s.isSwitchingProject,
+      switchProject: s.switchProject,
+      newProject: s.newProject,
+      duplicateProject: s.duplicateProject,
+      bibContent: s.bibContent,
+      updateBib: s.updateBib,
+    }))
+  )
   const [localBib, setLocalBib] = useState(bibContent)
+  const [workspaces, setWorkspaces] = useState<{id: string, name: string}[]>([])
+
+  useEffect(() => {
+    fetch('/api/workspaces')
+      .then((r) => r.json())
+      .then((data) => setWorkspaces(Array.isArray(data) ? data : []))
+      .catch(console.error)
+  }, [project.id])
 
   useEffect(() => {
     setLocalBib(bibContent)
@@ -68,7 +88,7 @@ export function ProjectSettingsSidebar() {
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false} align="start" className="w-[240px]">
             <SelectItem value={project.id}>{project.name}</SelectItem>
-            {otherProjects.map((p) => (
+            {workspaces.filter(p => p.id !== project.id).map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.name}
               </SelectItem>

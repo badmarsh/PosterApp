@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useMemo } from "react"
 import { useTheme } from "next-themes"
 import {
   CheckCircle2,
@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useEditor } from "@/components/editor-store"
+import { useShallow } from "zustand/react/shallow"
 import { generateFullTemplate, levelFromMessages, validateCard } from "@/lib/latex"
 import { cn } from "@/lib/utils"
 
@@ -75,7 +76,14 @@ export function TopBar({
   onToggleStructure,
   onToggleAgent,
 }: TopBarProps) {
-  const { project, aiReview, openIngestion, switchProject } = useEditor()
+  const { project, aiReview, openIngestion, switchProject } = useEditor(
+    useShallow((s) => ({
+      project: s.project,
+      aiReview: s.aiReview,
+      openIngestion: s.openIngestion,
+      switchProject: s.switchProject,
+    }))
+  )
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
   const [saving, setSaving] = useState(false)
   const [isHelpOpen, setIsHelpOpen] = useState(false)
@@ -126,13 +134,17 @@ export function TopBar({
     return () => clearInterval(interval)
   }, [])
 
-  const counts = project.cards.reduce(
-    (acc, c) => {
-      const lvl = levelFromMessages(validateCard(c))
-      acc[lvl] += 1
-      return acc
-    },
-    { valid: 0, warning: 0, invalid: 0 },
+  const counts = useMemo(
+    () =>
+      project.cards.reduce(
+        (acc, c) => {
+          const lvl = levelFromMessages(validateCard(c))
+          acc[lvl] += 1
+          return acc
+        },
+        { valid: 0, warning: 0, invalid: 0 },
+      ),
+    [project.cards]
   )
   const overall =
     counts.invalid > 0 ? "invalid" : counts.warning > 0 ? "warning" : "valid"

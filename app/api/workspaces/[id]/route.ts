@@ -37,13 +37,74 @@ export async function GET(
   }
 }
 
+import { z } from "zod"
+
+const WorkspaceSchema = z.object({
+  name: z.string().optional(),
+  posterTitle: z.string().optional(),
+  authors: z.string().optional(),
+  venue: z.string().optional(),
+  templateName: z.string().optional(),
+  cards: z.array(z.object({
+    id: z.string(),
+    title: z.string().optional(),
+    column: z.number().int(),
+    order: z.number().int(),
+    pattern: z.string(),
+    content: z.string().optional(),
+    table: z.any().optional().nullable(),
+    figures: z.any().optional().nullable(),
+    figureLayout: z.string().optional(),
+    sourceIds: z.any().optional().nullable(),
+    heightBudget: z.number().nullable().optional(),
+    validation: z.string().optional(),
+    generatedLatex: z.string().nullable().optional(),
+  })).optional(),
+  assets: z.array(z.object({
+    id: z.string(),
+    fileId: z.string(),
+    filename: z.string().nullable().optional(),
+    url: z.string().nullable().optional(),
+    kind: z.string(),
+    page: z.number().int(),
+    section: z.string().nullable().optional(),
+    bbox: z.string().nullable().optional(),
+    confidence: z.string(),
+    heading: z.string().nullable().optional(),
+    snippet: z.string().nullable().optional(),
+    thumbnailUrl: z.string().nullable().optional(),
+    caption: z.string().nullable().optional(),
+    tableRows: z.any().optional().nullable(),
+    assignedCardId: z.string().nullable().optional(),
+    assignedSlot: z.string().nullable().optional(),
+  })).optional(),
+  ingestFiles: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    size: z.number(),
+    method: z.string(),
+    status: z.string(),
+    progress: z.number(),
+    error: z.string().nullable().optional(),
+  })).optional(),
+})
+
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
   try {
-    const body = await req.json()
+    const rawBody = await req.json()
+    const parsed = WorkspaceSchema.safeParse(rawBody)
+    
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Validation failed", details: parsed.error.format() },
+        { status: 400 }
+      )
+    }
+    const body = parsed.data
     
     // Use a transaction to safely replace cards, assets, and ingest files
     await prisma.$transaction(async (tx) => {

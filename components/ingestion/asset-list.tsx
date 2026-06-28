@@ -1,8 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, memo } from "react"
 import { Trash2, Wand2 } from "lucide-react"
 import { useEditor } from "@/components/editor-store"
+import { useShallow } from "zustand/react/shallow"
+import { Skeleton } from "@/components/ui/skeleton"
+import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -59,8 +62,8 @@ function TablePreview({ rows }: { rows: string[][] }) {
   )
 }
 
-function AssetRow({ asset }: { asset: ExtractedAsset }) {
-  const { discardAsset } = useEditor()
+const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
+  const discardAsset = useEditor((s) => s.discardAsset)
   const [editing, setEditing] = useState(false)
 
   return (
@@ -161,10 +164,10 @@ function AssetRow({ asset }: { asset: ExtractedAsset }) {
       )}
     </div>
   )
-}
+})
 
 export function AssetList() {
-  const { project } = useEditor()
+  const project = useEditor((s) => s.project)
   const assets = project.assets || []
   const ingestFiles = project.ingestFiles || []
 
@@ -172,12 +175,12 @@ export function AssetList() {
   const groups = ingestFiles
     .map((file) => ({
       file,
-      items: assets.filter((a: any) => a.fileId === file.id),
+      items: assets.filter((a: Asset) => a.fileId === file.id),
     }))
     .filter((g) => g.items.length > 0)
 
   const legacyAssets = assets.filter(
-    (a: any) => !a.fileId || !ingestFiles.find((f) => f.id === a.fileId),
+    (a: Asset) => !a.fileId || !ingestFiles.find((f) => f.id === a.fileId),
   )
 
   const defaultOpen = groups.length > 0 ? groups[0].file.id : "legacy"
@@ -195,9 +198,9 @@ export function AssetList() {
     )
   }
 
-  function renderGroupAssets(groupAssets: any[]) {
+  function renderGroupAssets(groupAssets: Asset[]) {
     return KIND_ORDER.map((kind) => {
-      const items = groupAssets.filter((a: any) => a.kind === kind)
+      const items = groupAssets.filter((a: Asset) => a.kind === kind)
       if (!items.length) return null
       return (
         <div key={kind} className="mt-3 first:mt-0">

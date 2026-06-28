@@ -154,7 +154,7 @@ export async function POST(req: Request) {
   // -- Load and base64-encode the source image -----------------------------
   let imageBuffer: Buffer
   try {
-    imageBuffer = fs.readFileSync(assetPath)
+    imageBuffer = await fs.promises.readFile(assetPath)
   } catch (err) {
     return NextResponse.json(
       { error: "Failed to read asset file", detail: String(err) },
@@ -306,7 +306,7 @@ export async function POST(req: Request) {
   const newFilename = path.basename(newFilePath)
 
   try {
-    fs.writeFileSync(newFilePath, resultBuffer)
+    await fs.promises.writeFile(newFilePath, resultBuffer)
   } catch (err) {
     return NextResponse.json(
       { error: "Failed to save edited image", detail: String(err) },

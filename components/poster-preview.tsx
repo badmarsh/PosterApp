@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, memo, useMemo } from "react"
 import { ChevronDown, ChevronUp, ImageIcon, List, Table2, FileDown, Loader2, ChevronDown as ChevronDownIcon, Plus } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useEditor } from "@/components/editor-store"
+import { useShallow } from "zustand/react/shallow"
 import { StatusIcon } from "@/components/status"
 import { COLUMN_BUDGET, estimateHeight, generateFullTemplate } from "@/lib/latex"
 import type { Card, ColumnIndex } from "@/lib/poster-types"
@@ -31,9 +32,17 @@ function summarize(card: Card): string {
   return first || "No content yet"
 }
 
-function MiniBlock({ card }: { card: Card }) {
+const MiniBlock = memo(function MiniBlock({ card }: { card: Card }) {
   const { selectedCardId, selectCard, reorderCard, getStatus, project } =
-    useEditor()
+    useEditor(
+      useShallow((s) => ({
+        selectedCardId: s.selectedCardId,
+        selectCard: s.selectCard,
+        reorderCard: s.reorderCard,
+        getStatus: s.getStatus,
+        project: s.project,
+      }))
+    )
   const active = card.id === selectedCardId
   const status = getStatus(card)
   const height = estimateHeight(card)
@@ -43,9 +52,12 @@ function MiniBlock({ card }: { card: Card }) {
     card.pattern !== "image-focused" && card.content.trim().length > 0
   const hasTable = card.pattern === "bullets-table" && card.table.rows.length > 0
 
-  const colCards = project.cards
-    .filter((c) => c.column === card.column)
-    .sort((a, b) => a.order - b.order)
+  const colCards = useMemo(
+    () => project.cards
+      .filter((c) => c.column === card.column)
+      .sort((a, b) => a.order - b.order),
+    [project.cards, card.column]
+  )
   const idx = colCards.findIndex((c) => c.id === card.id)
 
   return (
@@ -180,13 +192,18 @@ function MiniBlock({ card }: { card: Card }) {
       </div>
     </div>
   )
-}
+})
 
 // ---------------------------------------------------------------------------
 // PosterColumn (unchanged)
 // ---------------------------------------------------------------------------
 function PosterColumn({ column }: { column: ColumnIndex }) {
-  const { project, addCard } = useEditor()
+  const { project, addCard } = useEditor(
+    useShallow((s) => ({
+      project: s.project,
+      addCard: s.addCard,
+    }))
+  )
   const cards = project.cards
     .filter((c) => c.column === column)
     .sort((a, b) => a.order - b.order)
@@ -263,7 +280,12 @@ function PosterSkeleton() {
 // StructureView
 // ---------------------------------------------------------------------------
 function StructureView() {
-  const { project, isSwitchingProject } = useEditor()
+  const { project, isSwitchingProject } = useEditor(
+    useShallow((s) => ({
+      project: s.project,
+      isSwitchingProject: s.isSwitchingProject,
+    }))
+  )
   return (
     <ScrollArea className="min-h-0 flex-1">
       {isSwitchingProject ? (
@@ -404,7 +426,12 @@ function PdfView({ projectId, pdfUrl, compileLog, compileOk, compiling }: PdfVie
 // PosterPreview (main export)
 // ---------------------------------------------------------------------------
 export function PosterPreview() {
-  const { project, isSwitchingProject } = useEditor()
+  const { project, isSwitchingProject } = useEditor(
+    useShallow((s) => ({
+      project: s.project,
+      isSwitchingProject: s.isSwitchingProject,
+    }))
+  )
 
   const [activeTab, setActiveTab] = useState<Tab>("structure")
   const [compiling, setCompiling] = useState(false)

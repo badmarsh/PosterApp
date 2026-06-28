@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import { FileStack, X } from "lucide-react"
 import { useEditor } from "@/components/editor-store"
+import { useShallow } from "zustand/react/shallow"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UploadZone } from "@/components/ingestion/upload-zone"
@@ -10,7 +11,13 @@ import { AssetList } from "@/components/ingestion/asset-list"
 import { ParseLogPanel } from "@/components/ingestion/parse-log-panel"
 
 export function IngestionDrawer() {
-  const { ingestionOpen, closeIngestion, project } = useEditor()
+  const { ingestionOpen, closeIngestion, project } = useEditor(
+    useShallow((s) => ({
+      ingestionOpen: s.ingestionOpen,
+      closeIngestion: s.closeIngestion,
+      project: s.project,
+    }))
+  )
   const assets = project.assets || []
   const ingestFiles = project.ingestFiles || []
 
