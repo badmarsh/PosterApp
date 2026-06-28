@@ -23,7 +23,7 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
-  const buffer = fs.readFileSync(resolved)
+  const buffer = await fs.promises.readFile(resolved)
   const contentType = mime.getType(resolved) ?? "application/octet-stream"
 
   return new NextResponse(buffer, {

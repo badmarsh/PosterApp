@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Cpu, LayoutGrid, PanelsTopLeft, SquarePen } from "lucide-react"
+import { useShallow } from "zustand/react/shallow"
 import { EditorProvider, useEditor } from "@/components/editor-store"
 import { TopBar } from "@/components/top-bar"
 import { ProjectSettingsSidebar } from "@/components/project-settings-sidebar"
@@ -13,6 +14,7 @@ import { IngestionDrawer } from "@/components/ingestion/ingestion-drawer"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useIsDesktop } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
+import { ErrorBoundary } from "@/components/error-boundary"
 
 type MobilePane = "structure" | "preview" | "editor" | "agent"
 
@@ -29,12 +31,24 @@ function DesktopShell() {
         onToggleAgent={() => setAgentOpen((v) => !v)}
       />
       <div className="flex min-h-0 flex-1">
-        {structureOpen ? <ProjectSettingsSidebar /> : null}
+        {structureOpen ? (
+          <ErrorBoundary name="Project Settings Sidebar">
+            <ProjectSettingsSidebar />
+          </ErrorBoundary>
+        ) : null}
         <main className="flex min-w-0 flex-1 flex-col">
-          <PosterPreview />
+          <ErrorBoundary name="Poster Preview">
+            <PosterPreview />
+          </ErrorBoundary>
         </main>
-        <CardInspector />
-        {agentOpen ? <AgentPanel /> : null}
+        <ErrorBoundary name="Card Inspector">
+          <CardInspector />
+        </ErrorBoundary>
+        {agentOpen ? (
+          <ErrorBoundary name="Agent Panel">
+            <AgentPanel />
+          </ErrorBoundary>
+        ) : null}
       </div>
     </div>
   )
@@ -85,7 +99,16 @@ function MobileNavButton({
 }
 
 function MobileShell() {
-  const { selectedCardId, project, agentEvents, busy } = useEditor()
+  const { selectedCardId, project, agentEvents, isSwitchingProject, generatingId } = useEditor(
+    useShallow((s) => ({
+      selectedCardId: s.selectedCardId,
+      project: s.project,
+      agentEvents: s.agentEvents,
+      isSwitchingProject: s.isSwitchingProject,
+      generatingId: s.generatingId,
+    }))
+  )
+  const busy = isSwitchingProject || generatingId !== null
   const [pane, setPane] = useState<MobilePane>("preview")
 
   // When a card gets selected (e.g. from the structure list or preview),
@@ -104,14 +127,28 @@ function MobileShell() {
       />
       <div className="relative min-h-0 flex-1">
         <div key={pane} className="absolute inset-0 flex animate-in fade-in duration-200">
-          {pane === "structure" && <StructureSidebar />}
+          {pane === "structure" && (
+            <ErrorBoundary name="Structure Sidebar">
+              <StructureSidebar />
+            </ErrorBoundary>
+          )}
           {pane === "preview" && (
             <main className="flex min-w-0 flex-1 flex-col">
-              <PosterPreview />
+              <ErrorBoundary name="Poster Preview">
+                <PosterPreview />
+              </ErrorBoundary>
             </main>
           )}
-          {pane === "editor" && <CardInspector />}
-          {pane === "agent" && <AgentPanel />}
+          {pane === "editor" && (
+            <ErrorBoundary name="Card Inspector">
+              <CardInspector />
+            </ErrorBoundary>
+          )}
+          {pane === "agent" && (
+            <ErrorBoundary name="Agent Panel">
+              <AgentPanel />
+            </ErrorBoundary>
+          )}
         </div>
       </div>
       <nav
@@ -185,11 +222,24 @@ function AppSkeleton() {
 
 function Shell() {
   const { isDesktop, mounted } = useIsDesktop()
-  const { switchProject } = useEditor()
+  const switchProject = useEditor((s) => s.switchProject)
+  const newProject = useEditor((s) => s.newProject)
 
   // Load the real workspace on first mount
   useEffect(() => {
-    switchProject("tilecal-irid-2026")
+    fetch('/api/workspaces')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.length > 0) {
+          switchProject(data[0].id)
+        } else {
+          newProject()
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch workspaces", err)
+        newProject()
+      })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -197,7 +247,9 @@ function Shell() {
   return (
     <>
       {isDesktop ? <DesktopShell /> : <MobileShell />}
-      <IngestionDrawer />
+      <ErrorBoundary name="Ingestion Drawer">
+        <IngestionDrawer />
+      </ErrorBoundary>
     </>
   )
 }

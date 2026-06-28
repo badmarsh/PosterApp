@@ -154,21 +154,14 @@ export async function POST(req: Request) {
       // No explicit Content-Type — let fetch set the boundary for multipart
     })
   } catch (err) {
-    const mockFile = path.join(process.cwd(), "mineru_out_2.json")
-    if (fs.existsSync(mockFile)) {
-      const fallbackData = JSON.parse(fs.readFileSync(mockFile, "utf16le"))
-      mineruResponse = new Response(JSON.stringify(fallbackData), { status: 200 })
-    } else {
-      const message = err instanceof Error ? err.message : String(err)
-      return NextResponse.json(
-        {
-          error: "MinerU is unavailable",
-          detail: message,
-          hint: `Ensure the MinerU sidecar is running at ${MINERU_API_URL}`,
-        },
-        { status: 503 }
-      )
-    }
+    const message = err instanceof Error ? err.message : String(err)
+    return NextResponse.json(
+      {
+        error: "MinerU is unavailable",
+        detail: message,
+      },
+      { status: 502 }
+    )
   }
 
   if (!mineruResponse!.ok) {
@@ -183,7 +176,7 @@ export async function POST(req: Request) {
     )
   }
 
-  let mineruData: any
+  let mineruData: { results?: Record<string, { md_content?: string, images?: Record<string, string> }> }
   try {
     mineruData = await mineruResponse.json()
   } catch {
@@ -202,7 +195,7 @@ export async function POST(req: Request) {
   if (fileId && typeof fileId === "string" && results?.md_content) {
     const sourcesDir = path.join(WORKSPACES_DIR, workspaceId, "sources")
     if (!fs.existsSync(sourcesDir)) fs.mkdirSync(sourcesDir, { recursive: true })
-    fs.writeFileSync(path.join(sourcesDir, `${fileId}.md`), results.md_content)
+    await fs.promises.writeFile(path.join(sourcesDir, `${fileId}.md`), results.md_content)
   }
 
   const assets: {
@@ -233,7 +226,7 @@ export async function POST(req: Request) {
           ? base64Data.split(",")[1] 
           : base64Data
         const buf = Buffer.from(base64Payload, "base64")
-        fs.writeFileSync(destPath, buf)
+        await fs.promises.writeFile(destPath, buf)
       } catch {
         continue
       }

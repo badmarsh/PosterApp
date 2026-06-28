@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server"
 import fs from "fs"
 import path from "path"
-import { execSync } from "child_process"
+import { execFile } from "child_process"
+import { promisify } from "util"
+
+const execFileAsync = promisify(execFile)
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 
@@ -39,44 +42,42 @@ export async function POST(
   // Write the LaTeX source
   const mainTexPath = path.join(dir, "main.tex")
   try {
-    fs.writeFileSync(mainTexPath, tex, "utf-8")
+    await fs.promises.writeFile(mainTexPath, tex, "utf-8")
   } catch (err) {
     return NextResponse.json({ ok: false, log: `Failed to write main.tex: ${String(err)}` }, { status: 500 })
   }
 
-  // Build the WSL command — escape the workspace id for shell safety
-  const escapedId = id.replace(/'/g, "'\\''")
-  const baseCmd = `cd /mnt/c/Users/marek/Documents/Robco\\ PhD/PosterApp/workspaces/${escapedId}`
-  
+  const windowsDir = workspaceDir(id)
   const hasBib = tex.includes("\\bibliography{")
 
-  let wslCmd = ""
-  if (hasBib) {
-    wslCmd = `wsl bash -c "${baseCmd} && pdflatex -interaction=nonstopmode -halt-on-error main.tex && (bibtex main || true) && pdflatex -interaction=nonstopmode -halt-on-error main.tex && pdflatex -interaction=nonstopmode -halt-on-error main.tex 2>&1"`
-  } else {
-    wslCmd = `wsl bash -c "${baseCmd} && pdflatex -interaction=nonstopmode -halt-on-error main.tex 2>&1"`
-  }
+  const bashScript = hasBib
+    ? "pdflatex -interaction=nonstopmode -halt-on-error main.tex && (bibtex main || true) && pdflatex -interaction=nonstopmode -halt-on-error main.tex && pdflatex -interaction=nonstopmode -halt-on-error main.tex 2>&1"
+    : "pdflatex -interaction=nonstopmode -halt-on-error main.tex 2>&1"
+
+  const wslArgs = [
+    "--cd", windowsDir,
+    "bash", "-c",
+    bashScript
+  ]
 
   let log = ""
   let ok = false
 
   try {
-    const output = execSync(wslCmd, {
+    const { stdout } = await execFileAsync("wsl", wslArgs, {
       timeout: 60_000,
       maxBuffer: 4 * 1024 * 1024,
     })
-    log = output.toString("utf-8")
+    log = stdout
     // pdflatex might fail but wsl bash still exits 0
     ok = !log.includes("Fatal error occurred") && !log.includes("! LaTeX Error:")
   } catch (err: unknown) {
-    // execSync throws when exit code is non-zero; the stderr/stdout is on err.stdout
     if (
       err &&
       typeof err === "object" &&
-      "stdout" in err &&
-      err.stdout instanceof Buffer
+      "stdout" in err
     ) {
-      log = err.stdout.toString("utf-8")
+      log = (err.stdout as string | Buffer).toString()
     } else {
       log = String(err)
     }

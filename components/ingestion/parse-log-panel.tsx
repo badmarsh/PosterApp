@@ -13,7 +13,7 @@ const LEVEL_COLOR: Record<ParseLogEntry["level"], string> = {
 }
 
 export function ParseLogPanel() {
-  const { parseLog } = useEditor()
+  const parseLog = useEditor((s) => s.parseLog)
   const [open, setOpen] = useState(false)
   const warnings = parseLog.filter((l) => l.level !== "info").length
 

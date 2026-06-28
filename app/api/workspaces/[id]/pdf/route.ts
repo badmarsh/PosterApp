@@ -22,7 +22,7 @@ export async function GET(
   }
 
   try {
-    const buffer = fs.readFileSync(pdfPath)
+    const buffer = await fs.promises.readFile(pdfPath)
     return new Response(buffer, {
       status: 200,
       headers: {

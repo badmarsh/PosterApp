@@ -44,6 +44,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { useEditor } from "@/components/editor-store"
+import { useShallow } from "zustand/react/shallow"
 import { StatusBadge } from "@/components/status"
 import {
   generateLatexForCard,
@@ -68,7 +69,13 @@ function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: stri
 }
 
 function BasicsTab({ card }: { card: Card }) {
-  const { updateCard, moveColumn, project } = useEditor()
+  const { updateCard, moveColumn, project } = useEditor(
+    useShallow((s) => ({
+      updateCard: s.updateCard,
+      moveColumn: s.moveColumn,
+      project: s.project,
+    }))
+  )
   const idValid = /^blk_[a-z0-9_]+$/.test(card.id)
   const titleInvalid = card.title.trim().length === 0
   const orderInCol =
@@ -174,7 +181,15 @@ function BasicsTab({ card }: { card: Card }) {
 }
 
 function ContentTab({ card }: { card: Card }) {
-  const { updateCard, project, bibKeys, autoFillCardAction, generatingId } = useEditor()
+  const { updateCard, project, bibKeys, autoFillCardAction, generatingId } = useEditor(
+    useShallow((s) => ({
+      updateCard: s.updateCard,
+      project: s.project,
+      bibKeys: s.bibKeys,
+      autoFillCardAction: s.autoFillCardAction,
+      generatingId: s.generatingId,
+    }))
+  )
   const ingestFiles = project.ingestFiles || []
   const disabled = card.pattern === "image-focused" || card.pattern === "references"
   const isReferences = card.pattern === "references"
@@ -332,7 +347,7 @@ function ContentTab({ card }: { card: Card }) {
         <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-3">
           <FieldLabel>Data Sources for Auto-Fill</FieldLabel>
           <div className="flex flex-col gap-2">
-            {ingestFiles.map((file: any) => {
+            {ingestFiles.map((file: {id: string, name: string}) => {
               const isSelected = !card.sourceIds || card.sourceIds.length === 0 || card.sourceIds.includes(file.id)
               return (
                 <div key={file.id} className="flex items-center gap-2">
@@ -344,7 +359,7 @@ function ContentTab({ card }: { card: Card }) {
                       // If empty/all, and turning one off, we must implicitly select the others
                       let next: string[]
                       if (current.length === 0) {
-                        next = checked ? [] : ingestFiles.filter((f: any) => f.id !== file.id).map(f => f.id)
+                        next = checked ? [] : ingestFiles.filter((f: {id: string}) => f.id !== file.id).map(f => f.id)
                       } else {
                         next = checked ? [...current, file.id] : current.filter(id => id !== file.id)
                       }
@@ -372,7 +387,7 @@ function ContentTab({ card }: { card: Card }) {
 }
 
 function TableTab({ card }: { card: Card }) {
-  const { updateCard } = useEditor()
+  const updateCard = useEditor((s) => s.updateCard)
   const { table } = card
   const cols = table.rows[0]?.length ?? 0
   const enabled = card.pattern === "bullets-table"
@@ -487,7 +502,7 @@ function TableTab({ card }: { card: Card }) {
 }
 
 function FiguresTab({ card }: { card: Card }) {
-  const { updateCard } = useEditor()
+  const updateCard = useEditor((s) => s.updateCard)
   const slots =
     card.pattern === "bullets-two-images"
       ? 2
@@ -727,14 +742,27 @@ function OutputTab({ card }: { card: Card }) {
 
 export function CardInspector() {
   const {
-    selectedCard,
     validateCardAction,
     generateCardAction,
-    explainFailure,
-    suggestImprovements,
+    saveProject,
+    deleteCard,
+    selectCard,
     getStatus,
     generatingId,
-  } = useEditor()
+    projectId,
+  } = useEditor(
+    useShallow((s) => ({
+      validateCardAction: s.validateCardAction,
+      generateCardAction: s.generateCardAction,
+      saveProject: s.saveProject,
+      deleteCard: s.deleteCard,
+      selectCard: s.selectCard,
+      getStatus: s.getStatus,
+      generatingId: s.generatingId,
+      projectId: s.project.id,
+    }))
+  )
+  const selectedCard = useEditor((s) => s.project.cards.find((c) => c.id === s.selectedCardId) ?? null)
 
   if (!selectedCard) {
     return (
@@ -799,20 +827,7 @@ export function CardInspector() {
         <Button
           size="default"
           className="w-full justify-center h-9 text-sm"
-          onClick={async () => {
-            const editor = useEditor.getState()
-            try {
-              const res = await fetch(`/api/workspaces/${editor.project.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(editor.project),
-              })
-              if (res.ok) toast.success("Workspace saved")
-              else throw new Error()
-            } catch (e) {
-              toast.error("Save failed")
-            }
-          }}
+          onClick={() => saveProject()}
           disabled={isGenerating}
         >
           <SaveAll className="size-4 mr-2" /> Save Project
@@ -823,9 +838,8 @@ export function CardInspector() {
             variant="outline"
             className="flex-1 text-primary hover:text-primary hover:bg-primary/10"
             onClick={() => {
-              const editor = useEditor.getState()
-              editor.deleteCard(card.id)
-              editor.selectCard(null)
+              deleteCard(card.id)
+              selectCard(null)
             }}
             disabled={isGenerating}
           >
@@ -835,8 +849,13 @@ export function CardInspector() {
             size="sm"
             variant="outline"
             className="flex-1"
-            onClick={() => {
-              toast.success("Card updated in workspace")
+            onClick={async () => {
+              try {
+                await saveProject()
+                toast.success("Card saved")
+              } catch (e) {
+                toast.error("Save card failed")
+              }
             }}
             disabled={isGenerating}
           >

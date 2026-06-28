@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState, memo } from "react"
 import {
   ChevronDown,
   Copy,
@@ -24,18 +25,26 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useEditor } from "@/components/editor-store"
+import { useShallow } from "zustand/react/shallow"
 import {
   CardTypeBadge,
   ContentIndicators,
   PATTERN_SHORT,
   StatusIcon,
 } from "@/components/status"
-import { otherProjects } from "@/lib/mock-data"
+
 import type { Card, ColumnIndex } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 
-function CardRow({ card }: { card: Card }) {
-  const { selectedCardId, selectCard, deleteCard, getStatus } = useEditor()
+const CardRow = memo(function CardRow({ card }: { card: Card }) {
+  const { selectedCardId, selectCard, deleteCard, getStatus } = useEditor(
+    useShallow((s) => ({
+      selectedCardId: s.selectedCardId,
+      selectCard: s.selectCard,
+      deleteCard: s.deleteCard,
+      getStatus: s.getStatus,
+    }))
+  )
   const active = card.id === selectedCardId
   const status = getStatus(card)
   return (
@@ -98,10 +107,15 @@ function CardRow({ card }: { card: Card }) {
       </div>
     </div>
   )
-}
+})
 
 function ColumnGroup({ column }: { column: ColumnIndex }) {
-  const { project, addCard } = useEditor()
+  const { project, addCard } = useEditor(
+    useShallow((s) => ({
+      project: s.project,
+      addCard: s.addCard,
+    }))
+  )
   const cards = project.cards
     .filter((c) => c.column === column)
     .sort((a, b) => a.order - b.order)
@@ -161,9 +175,27 @@ export function StructureSidebar() {
     switchProject,
     isSwitchingProject,
     openIngestion,
-  } = useEditor()
+  } = useEditor(
+    useShallow((s) => ({
+      project: s.project,
+      columnCount: s.columnCount,
+      newProject: s.newProject,
+      duplicateProject: s.duplicateProject,
+      switchProject: s.switchProject,
+      isSwitchingProject: s.isSwitchingProject,
+      openIngestion: s.openIngestion,
+    }))
+  )
 
-  const promotedCount = (project.assets || []).filter((a: any) => a.assignedCardId).length
+  const promotedCount = (project.assets || []).filter((a: { assignedCardId?: string | null }) => a.assignedCardId).length
+
+  const [workspaces, setWorkspaces] = useState<{id: string, name: string}[]>([])
+  useEffect(() => {
+    fetch('/api/workspaces')
+      .then((r) => r.json())
+      .then((data) => setWorkspaces(Array.isArray(data) ? data : []))
+      .catch(console.error)
+  }, [project.id])
 
   return (
     <aside className="flex h-full w-full shrink-0 flex-col border-r border-border bg-sidebar lg:w-72">
@@ -171,13 +203,13 @@ export function StructureSidebar() {
         <Select
           value={project.id}
           onValueChange={(v) => switchProject(String(v))}
-          items={Object.fromEntries(otherProjects.map((p) => [p.id, p.name]))}
+          items={Object.fromEntries(workspaces.map((p) => [p.id, p.name]))}
         >
           <SelectTrigger size="sm" className="w-full bg-card">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {otherProjects.map((p) => (
+            {workspaces.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.name}
               </SelectItem>

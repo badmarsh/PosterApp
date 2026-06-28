@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
+import type { Card } from "@/lib/poster-types"
+import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 
 export async function POST(
   req: NextRequest,
@@ -6,6 +8,10 @@ export async function POST(
 ) {
   const { id: workspaceId } = await params
   
+  if (!process.env.AI_API_URL || !process.env.AI_API_KEY) {
+    return NextResponse.json({ error: "AI API configuration missing" }, { status: 503 })
+  }
+
   try {
     const project = await req.json()
 
@@ -13,16 +19,16 @@ export async function POST(
     const projectSummary = {
       title: project.title,
       template: project.templateName,
-      cards: project.cards.map((c: any) => ({
+      cards: project.cards.map((c: Card) => ({
         id: c.id,
         title: c.title,
         column: c.column,
         heightBudget: c.heightBudget,
         contentLength: c.content?.length || 0,
         contentPreview: c.content?.substring(0, 500) + (c.content?.length > 500 ? "..." : ""),
-        assignedAssets: c.assignedAssets
+        assignedAssets: c.figures
       })),
-      assets: project.assets.map((a: any) => ({
+      assets: project.assets.map((a: Asset) => ({
         id: a.id,
         kind: a.kind,
         caption: a.caption
@@ -48,10 +54,10 @@ Return EXACTLY in this JSON format with no markdown wrappers:
   ]
 }`
 
-    const response = await fetch("http://localhost:8045/v1/chat/completions", {
+    const response = await fetch(process.env.AI_API_URL as string, {
       method: "POST",
       headers: {
-        "Authorization": "Bearer sk-4c2ec6f80d904f35b2c1598b1464aaca",
+        "Authorization": `Bearer ${process.env.AI_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -77,8 +83,8 @@ Return EXACTLY in this JSON format with no markdown wrappers:
     const parsed = JSON.parse(content)
     return NextResponse.json(parsed)
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in AI Review:", error)
-    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal server error" }, { status: 500 })
   }
 }

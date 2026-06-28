@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, memo, useMemo } from "react"
 import {
   AlertTriangle,
   CheckCircle2,
@@ -23,6 +23,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useEditor } from "@/components/editor-store"
+import { useShallow } from "zustand/react/shallow"
 import type { AgentEvent } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 
@@ -32,6 +33,7 @@ const KIND_ICON = {
   suggest: Lightbulb,
   explain: AlertTriangle,
   info: Terminal,
+  verify: ShieldCheck,
 } as const
 
 function statusColor(status: AgentEvent["status"]) {
@@ -61,7 +63,7 @@ function StatusGlyph({ status }: { status: AgentEvent["status"] }) {
   }
 }
 
-function EventRow({ event, last }: { event: AgentEvent; last: boolean }) {
+const EventRow = memo(function EventRow({ event, last }: { event: AgentEvent; last: boolean }) {
   const Icon = KIND_ICON[event.kind]
   // Timestamps are locale/clock-dependent, so only reveal them after mount to
   // avoid a server/client hydration mismatch.
@@ -96,16 +98,21 @@ function EventRow({ event, last }: { event: AgentEvent; last: boolean }) {
       </div>
     </div>
   )
-}
+})
 
 export function AgentPanel() {
-  const { agentEvents, generatingId } = useEditor()
+  const { agentEvents, generatingId } = useEditor(
+    useShallow((s) => ({
+      agentEvents: s.agentEvents,
+      generatingId: s.generatingId,
+    }))
+  )
   const [collapsed, setCollapsed] = useState(false)
 
   const running = agentEvents.filter((e) => e.status === "running")
   const current =
     running[running.length - 1] ?? agentEvents[agentEvents.length - 1]
-  const ordered = [...agentEvents].reverse()
+  const ordered = useMemo(() => [...agentEvents].reverse(), [agentEvents])
 
   if (collapsed) {
     return (

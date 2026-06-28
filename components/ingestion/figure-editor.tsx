@@ -31,7 +31,7 @@ export function FigureEditor({
   asset: ExtractedAsset
   onClose: () => void
 }) {
-  const { applyFigureOp } = useEditor()
+  const applyFigureOp = useEditor((s) => s.applyFigureOp)
   const [prompt, setPrompt] = useState("")
   const [applying, setApplying] = useState(false)
   const [result, setResult] = useState<{ op: string; filter: string; checker: boolean } | null>(

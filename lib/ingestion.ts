@@ -85,10 +85,8 @@ export function detectMethod(name: string): ParseMethod {
   return "Auto"
 }
 
-let assetSeq = 0
 function aid(prefix: string) {
-  assetSeq += 1
-  return `${prefix}_${assetSeq}`
+  return `${prefix}_${crypto.randomUUID()}`
 }
 
 /**

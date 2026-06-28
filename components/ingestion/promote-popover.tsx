@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { ArrowRight, Check, Link2Off } from "lucide-react"
 import { useEditor } from "@/components/editor-store"
+import { useShallow } from "zustand/react/shallow"
 import { Button } from "@/components/ui/button"
 import {
   Popover,
@@ -26,7 +27,13 @@ import {
 } from "@/lib/ingestion"
 
 export function PromotePopover({ asset }: { asset: ExtractedAsset }) {
-  const { project, promoteAsset, unassignAsset } = useEditor()
+  const { project, promoteAsset, unassignAsset } = useEditor(
+    useShallow((s) => ({
+      project: s.project,
+      promoteAsset: s.promoteAsset,
+      unassignAsset: s.unassignAsset,
+    }))
+  )
   const slots = slotsForKind(asset.kind)
   const [open, setOpen] = useState(false)
   const [cardId, setCardId] = useState<string>(
