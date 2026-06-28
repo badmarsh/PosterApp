@@ -126,13 +126,13 @@ export function TopBar({
   }
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (JSON.stringify(projectRef.current) !== lastSavedRef.current) {
-        doSave(projectRef.current, true)
+    const t = setTimeout(() => {
+      if (JSON.stringify(project) !== lastSavedRef.current) {
+        doSave(project, true)
       }
-    }, 60000)
-    return () => clearInterval(interval)
-  }, [])
+    }, 2000)
+    return () => clearTimeout(t)
+  }, [project])
 
   const counts = useMemo(
     () =>
