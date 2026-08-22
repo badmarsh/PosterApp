@@ -7,6 +7,7 @@ import { rateLimit } from "@/lib/rate-limit"
 import { jsonStringify } from "@/lib/db-helpers"
 import { generateCaption } from "@/lib/services/vision-service"
 import { extractBibTeX } from "@/lib/services/bibtex-service"
+import { auth } from "@clerk/nextjs/server"
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 const MINERU_API_URL = process.env.MINERU_API_URL ?? "http://127.0.0.1:8001"
 
@@ -55,6 +56,20 @@ export async function POST(req: Request) {
       { error: "workspaceId query parameter is required" },
       { status: 400 }
     )
+  }
+
+  const { userId } = await auth()
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  // Verify workspace ownership
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId, userId }
+  })
+  
+  if (!workspace) {
+    return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
   }
 
   // -- Validate workspace exists ------------------------------------------

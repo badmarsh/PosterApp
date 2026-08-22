@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { ClerkProvider } from '@clerk/nextjs'
 import { ThemeProvider } from '@/components/theme-provider'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
@@ -50,23 +51,25 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} bg-background`}
-      suppressHydrationWarning
-    >
-      <body className="font-sans antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          <TooltipProvider delay={200}>{children}</TooltipProvider>
-          <Toaster position="bottom-right" />
-        </ThemeProvider>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
-      </body>
-    </html>
+    <ClerkProvider>
+      <html
+        lang="en"
+        className={`${geistSans.variable} ${geistMono.variable} bg-background`}
+        suppressHydrationWarning
+      >
+        <body className="font-sans antialiased">
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem={false}
+            disableTransitionOnChange
+          >
+            <TooltipProvider delay={200}>{children}</TooltipProvider>
+            <Toaster position="bottom-right" />
+          </ThemeProvider>
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </body>
+      </html>
+    </ClerkProvider>
   )
 }

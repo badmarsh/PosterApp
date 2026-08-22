@@ -41,3 +41,4 @@ tsconfig.tsbuildinfo
 # Test artifacts
 test-results/
 playwright-report/
+.clerk/

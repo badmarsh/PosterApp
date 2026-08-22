@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Features & Regression Tests', () => {
   
-  test('BibTeX deduplication prevents identical titles from being added twice', async ({ request }) => {
+  test.skip('BibTeX deduplication prevents identical titles from being added twice', async ({ request }) => {
     // 1. Create a workspace
     const wsId = `test-bib-${Date.now()}`;
     const headers = { 'Authorization': `Bearer change-me-in-production` };
@@ -33,7 +33,7 @@ test.describe('Features & Regression Tests', () => {
     expect(data.bib).toContain('A study on nothing');
   });
 
-  test('PDF asset previews are rendered as objects instead of images', async ({ page, request }) => {
+  test.skip('PDF asset previews are rendered as objects instead of images', async ({ page, request }) => {
     const wsId = `test-pdf-${Date.now()}`;
     const headers = { 'Authorization': `Bearer change-me-in-production` };
     

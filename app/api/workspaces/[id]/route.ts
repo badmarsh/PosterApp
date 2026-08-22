@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { safeJsonParse, jsonStringify } from "@/lib/db-helpers"
+import { auth } from "@clerk/nextjs/server"
 
 export async function GET(
   _req: Request,
@@ -13,8 +14,11 @@ export async function GET(
   }
 
   try {
+    const { userId } = await auth()
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
     const workspace = await prisma.workspace.findUnique({
-      where: { id },
+      where: { id, userId },
       include: { cards: true, assets: true, ingestFiles: true },
     })
 
@@ -56,6 +60,13 @@ export async function PUT(
   }
 
   try {
+    const { userId } = await auth()
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    // Check ownership first
+    const existing = await prisma.workspace.findUnique({ where: { id, userId } })
+    if (!existing) return NextResponse.json({ error: "Not found or unauthorized" }, { status: 404 })
+
     const rawBody = await req.json()
     const parsed = WorkspaceSchema.safeParse(rawBody)
     
@@ -218,6 +229,12 @@ export async function DELETE(
   }
 
   try {
+    const { userId } = await auth()
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const existing = await prisma.workspace.findUnique({ where: { id, userId } })
+    if (!existing) return NextResponse.json({ error: "Not found or unauthorized" }, { status: 404 })
+
     await prisma.workspace.delete({ where: { id } })
     return NextResponse.json({ ok: true })
   } catch (err) {

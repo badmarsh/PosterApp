@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { WorkspaceCreateSchema } from "@/lib/validations/workspace"
+import { auth } from "@clerk/nextjs/server"
 
 export async function GET() {
   try {
+    const { userId } = await auth()
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
     const workspaces = await prisma.workspace.findMany({
+      where: { userId },
       select: { id: true, name: true },
     })
     return NextResponse.json(workspaces)
@@ -15,6 +20,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const { userId } = await auth()
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
     const rawBody = await req.json()
     const parsed = WorkspaceCreateSchema.safeParse(rawBody)
     
@@ -35,6 +43,7 @@ export async function POST(req: Request) {
         authors: "",
         venue: "",
         templateName: templateName || "atlas",
+        userId,
       },
       include: {
         cards: true,

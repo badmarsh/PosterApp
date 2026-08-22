@@ -19,6 +19,7 @@ model Workspace {
   templateName String
   bibContent   String?
   bibKeys      String? // JSON string
+  userId       String  @default("unauthenticated")
   cards        Card[]
   assets       Asset[]
   ingestFiles  IngestFile[]

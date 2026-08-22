@@ -12,12 +12,12 @@ import {
   HelpCircle,
   Save,
   Sun,
-  FolderOpen,
-} from "lucide-react"
+import { FolderOpen } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { HelpModal } from "@/components/help-modal"
+import { UserButton } from "@clerk/nextjs"
 import {
   Tooltip,
   TooltipContent,
@@ -277,6 +277,7 @@ export function TopBar({
           <span className="hidden sm:inline">Export .tex</span>
         </Button>
         <ThemeToggle />
+        <UserButton afterSignOutUrl="/" />
         <Tooltip>
           <TooltipTrigger
             render={

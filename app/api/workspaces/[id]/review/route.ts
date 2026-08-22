@@ -6,6 +6,8 @@ import * as path from "path"
 import { extractCiteKeys } from "@/lib/bib-parser"
 import { rateLimit } from "@/lib/rate-limit"
 import { parseAiJson } from "@/lib/ai-helpers"
+import { auth } from "@clerk/nextjs/server"
+import { prisma } from "@/lib/prisma"
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 // Max characters of source markdown to include in review context
 const MAX_REVIEW_SOURCE_CHARS = 60_000
@@ -83,6 +85,18 @@ export async function POST(
   const { allowed, retryAfterMs } = rateLimit(ip, 10, 60_000)
   if (!allowed) {
     return NextResponse.json({ error: 'Rate limited', retryAfterMs }, { status: 429, headers: { 'Retry-After': Math.ceil(retryAfterMs / 1000).toString() } })
+  }
+
+  const { userId } = await auth()
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId, userId }
+  })
+  if (!workspace) {
+    return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
   }
 
   if (!process.env.AI_API_URL || !process.env.AI_API_KEY) {

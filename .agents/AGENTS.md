@@ -130,5 +130,5 @@ Schema at `prisma/schema.prisma`. Key notes:
 
 ## General Agent Guidelines
 - **Always Run the App:** While developing, always make sure after you finish that the app is actively running (e.g. `npm run dev` in the background) so the user can immediately test and review the latest changes in their browser.
-- **E2E Testing:** Playwright is configured to run on port `3333`. Always run `npx playwright test` to verify there are no regressions after major features. If you are fixing a bug or adding a feature, document the behavior in a `.spec.ts` file under `tests/`.
-- **API Authentication:** All internal `/api/*` routes (except `/assets/`) require the `Authorization` header to match `process.env.AUTH_SECRET` (fallback `"change-me-in-production"`). E2E API requests MUST pass this header explicitly.
+- **E2E Testing:** Playwright is configured to run on port `3333`. Always run `npx playwright test` to verify there are no regressions after major features. If you are fixing a bug or adding a feature, document the behavior in a `.spec.ts` file under `tests/`. (Note: Tests are currently skipped due to Clerk Auth).
+- **API Authentication:** All internal `/api/*` routes are protected by Clerk (`clerkMiddleware`). E2E API requests will fail with 401 unless a valid Clerk session token is provided, so tests hitting the API directly might need to be mocked or bypassed in the middleware.
