@@ -3,6 +3,7 @@ import type { EditorSlice, IngestionSlice } from "./types"
 import { detectMethod, type ParseLogEntry, type IngestFile } from "@/lib/ingestion"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval"
+import { jobQueue } from "@/lib/job-queue"
 import { apiFetch } from "@/lib/api-fetch"
 
 function makeLog(level: ParseLogEntry["level"], message: string): ParseLogEntry {
@@ -65,108 +66,117 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
       const f = await idbGet<File>(`file_${id}`)
       if (!f) return
       
-      const existingInterval = activeIntervals.get(id)
-      if (existingInterval) clearInterval(existingInterval)
-      activeIntervals.delete(id)
-      
-      get().pushLog("info", `Parsing ${f.name} via MinerU backend.`)
-      
-      const statuses = [
-        "Layout Predict",
-        "Table orientation",
-        "External Layout Extraction",
-        "MFR Predict",
-        "OCR-det",
-        "Processing pages",
-        "OCR-rec Predict",
-        "Generating captions"
-      ]
-      let statusIdx = 0
-      const simInterval = setInterval(() => {
-        if (statusIdx < statuses.length) {
-          get().pushLog("info", `[MinerU] ${statuses[statusIdx]}...`)
-          set((s) => {
-            const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
-            if (ingestFile && ingestFile.status === "parsing") {
-              ingestFile.progress = 15 + (statusIdx / statuses.length) * 80
-            }
+      jobQueue.enqueue(`Parse ${f.name}`, async (onProgress, signal) => {
+        const existingInterval = activeIntervals.get(id)
+        if (existingInterval) clearInterval(existingInterval)
+        activeIntervals.delete(id)
+        
+        get().pushLog("info", `Parsing ${f.name} via MinerU backend.`)
+        
+        const statuses = [
+          "Layout Predict",
+          "Table orientation",
+          "External Layout Extraction",
+          "MFR Predict",
+          "OCR-det",
+          "Processing pages",
+          "OCR-rec Predict",
+          "Generating captions"
+        ]
+        let statusIdx = 0
+        const simInterval = setInterval(() => {
+          if (statusIdx < statuses.length) {
+            get().pushLog("info", `[MinerU] ${statuses[statusIdx]}...`)
+            set((s) => {
+              const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
+              if (ingestFile && ingestFile.status === "parsing") {
+                const prog = 15 + (statusIdx / statuses.length) * 80
+                ingestFile.progress = prog
+                onProgress(prog)
+              }
+            })
+            statusIdx++
+          } else {
+            clearInterval(simInterval)
+            activeIntervals.delete(id)
+          }
+        }, 3000)
+        activeIntervals.set(id, simInterval)
+
+        try {
+          const formData = new FormData()
+          formData.append("file", f)
+          formData.append("fileId", id)
+          
+          const existingFilenames = get().project.assets.map((a: Asset) => a.filename)
+          formData.append("existingAssets", JSON.stringify(existingFilenames))
+
+          const workspaceId = get().project.id
+          const res = await apiFetch(`/api/ingestion/parse?workspaceId=${workspaceId}`, {
+            method: "POST",
+            body: formData,
+            signal
           })
-          statusIdx++
-        } else {
+          
           clearInterval(simInterval)
           activeIntervals.delete(id)
-        }
-      }, 3000)
-      activeIntervals.set(id, simInterval)
 
-      try {
-        const formData = new FormData()
-        formData.append("file", f)
-        formData.append("fileId", id)
-        
-        const existingFilenames = get().project.assets.map((a: Asset) => a.filename)
-        formData.append("existingAssets", JSON.stringify(existingFilenames))
-
-        const workspaceId = get().project.id
-        const res = await apiFetch(`/api/ingestion/parse?workspaceId=${workspaceId}`, {
-          method: "POST",
-          body: formData
-        })
-        
-        clearInterval(simInterval)
-        activeIntervals.delete(id)
-
-        if (!res.ok) {
-           const errData = await res.json().catch(() => ({}))
-           throw new Error(errData.detail || errData.error || `HTTP ${res.status}`)
-        }
-        const data = await res.json()
-        const produced = data.assets || []
-        
-        set((s) => {
-          const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
-          if (ingestFile) {
-            ingestFile.status = "done"
-            ingestFile.progress = 100
+          if (!res.ok) {
+             const errData = await res.json().catch(() => ({}))
+             throw new Error(errData.detail || errData.error || `HTTP ${res.status}`)
           }
-          const typedAssets = produced.map((a: Partial<Asset>) => ({
-            ...a, 
-            fileId: id, 
-            confidence: "high"
-          }))
+          const data = await res.json()
+          const produced = data.assets || []
           
-          typedAssets.forEach((newAsset: any) => {
-            const existingIndex = s.project.assets.findIndex((existing: Asset) => existing.filename === newAsset.filename)
-            if (existingIndex >= 0) {
-              // Update fileId so it links to the current upload, and preserve original id
-              s.project.assets[existingIndex] = {
-                ...s.project.assets[existingIndex],
-                ...newAsset,
-                id: s.project.assets[existingIndex].id
-              }
-            } else {
-              s.project.assets.push(newAsset)
+          set((s) => {
+            const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
+            if (ingestFile) {
+              ingestFile.status = "done"
+              ingestFile.progress = 100
+              onProgress(100)
             }
+            const typedAssets = produced.map((a: Partial<Asset>) => ({
+              ...a, 
+              fileId: id, 
+              confidence: "high"
+            }))
+            
+            typedAssets.forEach((newAsset: any) => {
+              const existingIndex = s.project.assets.findIndex((existing: Asset) => existing.filename === newAsset.filename)
+              if (existingIndex >= 0) {
+                s.project.assets[existingIndex] = { ...s.project.assets[existingIndex], ...newAsset }
+              } else {
+                s.project.assets.push(newAsset)
+              }
+            })
+            s.isDirty = true
           })
-        })
-        await idbDel(`file_${id}`)
-        get().pushLog("info", `${f.name} parsed successfully. ${produced.length} assets extracted.`)
-        toast.success(`Parsed ${f.name}`)
-      } catch (err) {
-        clearInterval(simInterval)
-        activeIntervals.delete(id)
-        // Keep file in idb-keyval in case user wants to retry
-        set((s) => {
-          const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
-          if (ingestFile) {
-            ingestFile.status = "failed"
-            ingestFile.progress = 100
-            ingestFile.error = String(err)
+          toast.success(`${f.name} parsed successfully`)
+          get().pushLog("info", `${f.name} parsed, ${produced.length} assets extracted.`)
+        } catch (err) {
+          clearInterval(simInterval)
+          activeIntervals.delete(id)
+          
+          if (err instanceof Error && err.name === "AbortError") {
+            set((s) => {
+              const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
+              if (ingestFile) ingestFile.status = "failed"
+            })
+            toast.warning(`Parsing cancelled for ${f.name}`)
+            get().pushLog("error", `Parsing cancelled for ${f.name}`)
+            throw err
           }
-        })
-        get().pushLog("error", `Failed to parse ${f.name}: ${String(err)}`)
-        toast.error(`Failed to parse ${f.name}`)
-      }
+
+          set((s) => {
+            const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
+            if (ingestFile) ingestFile.status = "failed"
+          })
+          const msg = err instanceof Error ? err.message : String(err)
+          toast.error(`Failed to parse ${f.name}`)
+          get().pushLog("error", `Parse failed: ${msg}`)
+          throw err
+        }
+      })
     },
 
     retryFile: async (id) => {

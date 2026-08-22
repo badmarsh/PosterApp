@@ -45,7 +45,7 @@ export async function POST(
 
   try {
     const body = await req.json()
-    const { topic, assets, sourceIds, characterLimit = 300, bibKeys = [] } = body
+    const { topic, assets, sourceIds, characterLimit = 300, bibKeys = [], outputType = "poster" } = body
 
     if (!topic) {
       return NextResponse.json({ error: "Card topic is required" }, { status: 400 })
@@ -94,11 +94,18 @@ export async function POST(
 
     // 3. Build prompt
     const isAutonomous = topic === "Untitled card" || topic.trim() === ""
+    const typeLabel = outputType === "paper" ? "an academic paper" : outputType === "slides" ? "presentation slides" : "a scientific poster"
     const topicInstruction = isAutonomous 
-      ? `The user has NOT specified a topic. You must autonomously analyze the <Source Material> and <Available Figures/Tables>, and decide on the most compelling scientific section to create for this poster (e.g., "Methodology", "Key Results", "Conclusion"). Choose the topic that has the most solid content and supporting figures.`
-      : `The user explicitly wants a poster section about: "${topic}". You must focus ONLY on this topic.`
+      ? `The user has NOT specified a topic. You must autonomously analyze the <Source Material> and <Available Figures/Tables>, and decide on the most compelling scientific section to create for this ${outputType} (e.g., "Methodology", "Key Results", "Conclusion"). Choose the topic that has the most solid content and supporting figures.`
+      : `The user explicitly wants a ${outputType} section about: "${topic}". You must focus ONLY on this topic.`
 
-    const prompt = `You are an expert academic assistant tasked with writing a section for a scientific poster.
+    const formatConstraint = outputType === "paper" 
+      ? `- Write cohesive academic paragraphs. Return the paragraphs as an array of strings (one string per paragraph) in the "bullets" JSON field. Do not use markdown bullet syntax (*), just return raw paragraphs.`
+      : outputType === "slides"
+      ? `- Write very short, punchy bullet points suitable for presentation slides. Each bullet must be at most 1 sentence.`
+      : `- Each bullet should be no longer than 1-2 sentences.`
+
+    const prompt = `You are an expert academic assistant tasked with writing a section for ${typeLabel}.
 
 <Source Material>
 ${sourceContext}
@@ -118,8 +125,8 @@ IMPORTANT constraints:
 - STRICT GROUNDING: You MUST base your content STRICTLY and ONLY on the provided <Source Material>. Do NOT use outside knowledge, do NOT search the web, and do NOT hallucinate facts.
 - NO HALLUCINATED CITATIONS: If you use the \\cite{} command, you MUST ONLY use keys from the <Valid Cite Keys> array. If the array is empty, do not use citations.
 - INLINE EQUATIONS: If the topic involves equations or math from the source text, you may reproduce them verbatim in the bullets as LaTeX math (e.g. $E=mc^2$ or $$...$$).
-- The TOTAL combined length of all text you generate MUST be strictly around ${characterLimit} characters to fit the physical constraints of the poster layout.
-- Each bullet should be no longer than 1-2 sentences.
+- The TOTAL combined length of all text you generate MUST be strictly around ${characterLimit} characters to fit the physical constraints of the ${outputType} layout.
+${formatConstraint}
 
 Also, review the available figures/tables. If any of them strongly support the points you made, assign them to 'figure1' or 'figure2'. You can assign up to 2 assets. To accurately identify the assets, look for their \`filename\` in the <Source Material>.
 

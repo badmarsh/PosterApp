@@ -26,6 +26,7 @@ export function createEditorStore() {
         version: 1,
         partialize: (state) => ({
           selectedCardId: state.selectedCardId,
+          lastWorkspaceId: state.lastWorkspaceId,
         }),
       }
     )

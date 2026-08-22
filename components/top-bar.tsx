@@ -13,14 +13,17 @@ import {
   Save,
   Sun,
   FolderOpen,
+  Folders,
   LayoutTemplate,
   FileText,
+  CodeIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { HelpModal } from "@/components/help-modal"
 import { UserButton } from "@clerk/nextjs"
+import { ManageWorkspaces } from "@/components/manage-workspaces"
 import {
   Tooltip,
   TooltipContent,
@@ -30,8 +33,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
@@ -84,7 +91,7 @@ export function TopBar({
   onToggleAgent,
   onOpenWorkspaceSelector,
 }: TopBarProps) {
-  const { project, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, collaborators, yjsStatus } = useEditor(
+  const { project, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource } = useEditor(
     useShallow((s) => ({
       project: s.project,
       aiReview: s.aiReview,
@@ -92,8 +99,11 @@ export function TopBar({
       switchProject: s.switchProject,
       switchOutput: s.switchOutput,
       autoFillAllCardsAction: s.autoFillAllCardsAction,
+      convertOutputAction: s.convertOutputAction,
       collaborators: s.collaborators,
       yjsStatus: s.yjsStatus,
+      showLatexSource: s.showLatexSource,
+      toggleLatexSource: s.toggleLatexSource,
     }))
   )
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
@@ -264,6 +274,17 @@ export function TopBar({
                   <span className="text-muted-foreground ml-2">{o.title}</span>
                 </DropdownMenuItem>
               ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="text-xs cursor-pointer px-2 py-1.5 flex items-center justify-between">
+                  Convert Output...
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem className="text-xs cursor-pointer" onClick={() => convertOutputAction(project.activeOutputId, "poster")}>To Poster</DropdownMenuItem>
+                  <DropdownMenuItem className="text-xs cursor-pointer" onClick={() => convertOutputAction(project.activeOutputId, "slides")}>To Slides</DropdownMenuItem>
+                  <DropdownMenuItem className="text-xs cursor-pointer" onClick={() => convertOutputAction(project.activeOutputId, "paper")}>To Paper</DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -324,6 +345,17 @@ export function TopBar({
                   </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Button
+          variant={showLatexSource ? "default" : "outline"}
+          size="sm"
+          className={cn("h-8 gap-1.5", showLatexSource ? "bg-primary/20 text-primary hover:bg-primary/30" : "")}
+          onClick={toggleLatexSource}
+          aria-label="Toggle LaTeX Source View"
+        >
+          <CodeIcon className="size-3.5" />
+          <span className="hidden sm:inline">Source</span>
+        </Button>
         
         <div className="flex -space-x-2 mr-2">
           {collaborators.map(c => (
@@ -344,7 +376,15 @@ export function TopBar({
         </div>
 
         <ThemeToggle />
-        <UserButton />
+        <UserButton>
+          <UserButton.UserProfilePage 
+            label="Manage Workspaces" 
+            url="workspaces" 
+            labelIcon={<Folders className="h-4 w-4" />}
+          >
+            <ManageWorkspaces />
+          </UserButton.UserProfilePage>
+        </UserButton>
         <Tooltip>
           <TooltipTrigger
             render={

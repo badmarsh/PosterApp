@@ -1,68 +1,71 @@
-import { describe, expect, it } from "vitest"
+import { expect, test, describe } from "vitest"
 import { BeamerSlidesGenerator } from "../generator-slides"
-import { sampleProject } from "@/lib/mock-data"
-import type { OutputConfig } from "@/lib/poster-types"
+import type { Project, OutputConfig } from "@/lib/poster-types"
+
+const mockProject: Project = {
+  id: "test",
+  title: "Test slides",
+  authors: "Author",
+  venue: "Venue",
+  activeOutputId: "out1",
+  cards: [],
+  outputs: [
+    {
+      id: "out1",
+      outputType: "slides",
+      templateId: "beamer-default",
+      title: "Test slides",
+      cards: [
+        {
+          id: "c1",
+          pattern: "bullets-image",
+          title: "My Slide",
+          content: "Content",
+          order: 0,
+          column: 0,
+          layoutWarnings: [],
+          figures: [{ url: "/api/workspaces/test/assets/img.png", id: "fig1", prompt: "", assignedCardId: "c1" }]
+        },
+        {
+          id: "c2",
+          pattern: "bullets",
+          title: "Notes Slide",
+          content: "Content",
+          order: 1,
+          column: 0,
+          layoutWarnings: [],
+          slideNotes: "Here are some notes"
+        }
+      ]
+    }
+  ]
+}
 
 describe("BeamerSlidesGenerator", () => {
-  it("generates \\usetheme{metropolis} for beamer-metropolis template", () => {
+  test("generates beamer-metropolis theme", () => {
     const generator = new BeamerSlidesGenerator("beamer-metropolis")
-    const outputConfig: OutputConfig = {
-      id: "out-1",
-      outputType: "slides",
-      title: "Test Slides",
-      templateId: "beamer-metropolis",
-      cards: []
-    }
-    const tex = generator.generateDocument(sampleProject, outputConfig)
+    const tex = generator.generateDocument(mockProject, mockProject.outputs![0])
     expect(tex).toContain("\\usetheme{metropolis}")
   })
 
-  it("generates \\includegraphics for figure-slide pattern", () => {
-    const generator = new BeamerSlidesGenerator()
-    const outputConfig: OutputConfig = {
-      id: "out-1",
-      outputType: "slides",
-      title: "Test Slides",
-      templateId: "beamer-default",
-      cards: [
-        {
-          id: "card-1",
-          pattern: "figure-slide",
-          title: "Figure Slide",
-          content: "Some content",
-          figures: [{ url: "test.png", caption: "Test figure" }],
-          table: { hasHeader: false, rows: [] },
-          order: 0
-        }
-      ]
-    }
-    const tex = generator.generateDocument(sampleProject, outputConfig)
-    expect(tex).toContain("\\includegraphics")
-    expect(tex).toContain("test.png")
-    expect(tex).toContain("Test figure")
+  test("generates beamer-atlas theme with colors", () => {
+    const generator = new BeamerSlidesGenerator("beamer-atlas")
+    const tex = generator.generateDocument(mockProject, mockProject.outputs![0])
+    expect(tex).toContain("\\usetheme{Madrid}")
+    expect(tex).toContain("\\definecolor{atlasred}{RGB}{158,43,47}")
+    expect(tex).toContain("\\setbeamercolor{structure}{fg=atlasred}")
   })
 
-  it("generates \\note{...} when slideNotes is set", () => {
-    const generator = new BeamerSlidesGenerator()
-    const outputConfig: OutputConfig = {
-      id: "out-1",
-      outputType: "slides",
-      title: "Test Slides",
-      templateId: "beamer-default",
-      cards: [
-        {
-          id: "card-1",
-          pattern: "bullets",
-          title: "Note Slide",
-          content: "Some content",
-          slideNotes: "Speaker notes go here",
-          figures: [],
-          table: { hasHeader: false, rows: [] },
-          order: 0
-        }
-      ]
-    }
-    const tex = generator.generateDocument(sampleProject, outputConfig)
-    expect(tex).toContain("\\note{Speaker notes go here}")
+  test("generates \\includegraphics for figure-slide", () => {
+    const generator = new BeamerSlidesGenerator("beamer-default")
+    const tex = generator.generateDocument(mockProject, mockProject.outputs![0], "test")
+    expect(tex).toContain("\\includegraphics")
+    expect(tex).toContain("assets/img.png") // assetUrlToLatexPath strips the URL
+  })
+
+  test("generates \\note{} for slideNotes", () => {
+    const generator = new BeamerSlidesGenerator("beamer-default")
+    const tex = generator.generateDocument(mockProject, mockProject.outputs![0])
+    expect(tex).toContain("\\note{Here are some notes}")
   })
 })

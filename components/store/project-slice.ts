@@ -2,9 +2,12 @@ import { toast } from "sonner"
 import type { EditorSlice, ProjectSlice } from "./types"
 import { sampleProject } from "@/lib/mock-data"
 import { COLUMN_BUDGET, estimateHeight, generateLatexForCard, levelFromMessages, validateCard } from "@/lib/latex"
-import type { Project } from "@/lib/poster-types"
+import type { Project, OutputConfig, BlockPattern } from "@/lib/poster-types"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { apiFetch } from "@/lib/api-fetch"
+import type { OutputType } from "@/lib/output-types"
+import { getDefaultTemplateId, DEFAULT_STRUCTURES } from "@/lib/output-types"
+import { jobQueue } from "@/lib/job-queue"
 export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
   project: sampleProject,
   selectedCardId: null,
@@ -34,6 +37,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
         // Reset legacy assets (not linked to current workspace)
         state.ingestionOpen = false
       })
+      get().setLastWorkspaceId(id)
 
       // Load UI history
       get().hydrateUi(agentEvents, chatMessages)
@@ -90,16 +94,27 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     }
   }),
 
-  addCard: (column) => set((s) => {
-    const inCol = s.project.cards.filter((c) => c.column === column)
+  addCard: (column = null) => set((s) => {
+    const activeOutput = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
+    const outputType: OutputType = (activeOutput?.outputType as OutputType) ?? "poster"
+    const effectiveColumn = outputType === "poster" ? (column ?? 1) : null
+    const order = outputType === "poster"
+      ? s.project.cards.filter((c) => c.column === effectiveColumn).length
+      : s.project.cards.length
+    const defaultPattern = outputType === "slides" ? "bullets"
+      : outputType === "paper" ? "section"
+      : "bullets"
+    const defaultTitle = outputType === "slides" ? "Untitled Slide"
+      : outputType === "paper" ? "New Section"
+      : "Untitled card"
     const id = `blk_new_${Date.now().toString(36)}`
     s.project.cards.push({
       id,
-      title: "Untitled card",
-      column,
-      order: inCol.length,
-      pattern: "bullets",
-      content: "- New finding",
+      title: defaultTitle,
+      column: effectiveColumn as (1 | 2 | 3 | null),
+      order,
+      pattern: defaultPattern,
+      content: "",
       table: { hasHeader: true, caption: "", rows: [] },
       figures: [],
       figureLayout: "single",
@@ -108,7 +123,52 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
       validation: "warning",
     })
     s.selectedCardId = id
-    toast.success(`Added card to column ${column}`)
+    if (outputType === "poster") {
+      toast.success(`Added card to column ${effectiveColumn}`)
+    } else {
+      toast.success("Added card")
+    }
+  }),
+
+  addOutput: (outputType, templateId) => set((s) => {
+    // Save current active output's cards before switching
+    const currentActive = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
+    if (currentActive) {
+      currentActive.cards = [...s.project.cards]
+    }
+    const resolvedTemplate = templateId || getDefaultTemplateId(outputType)
+    const id = `out_${outputType}_${Date.now().toString(36)}`
+    
+    const structure = DEFAULT_STRUCTURES[outputType]
+    const newCards = structure.map((def, i) => ({
+      id: `blk_${id}_${i}`,
+      title: def.title,
+      column: (def.column ?? null) as 1 | 2 | 3 | null,
+      order: i,
+      pattern: def.pattern as BlockPattern,
+      content: "",
+      table: { hasHeader: true, caption: "", rows: [] },
+      figures: [],
+      figureLayout: "single" as const,
+      sourceIds: [],
+      heightBudget: null,
+      validation: "warning" as const,
+    }))
+
+    const newOutput: OutputConfig = {
+      id,
+      outputType,
+      templateId: resolvedTemplate,
+      title: s.project.name,
+      cards: newCards,
+    }
+    if (!s.project.outputs) s.project.outputs = []
+    s.project.outputs.push(newOutput)
+    s.project.activeOutputId = id
+    s.project.cards = newOutput.cards
+    s.selectedCardId = null
+    s.isDirty = true
+    toast.success(`Created new ${outputType} output`)
   }),
 
   deleteCard: (id) => set((s) => {
@@ -256,10 +316,14 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
 
     try {
       const workspaceId = get().project.id
+      const activeOutput = get().project.outputs?.find(o => o.id === get().project.activeOutputId)
+      const outputType = activeOutput?.outputType || "poster"
+
       const res = await apiFetch(`/api/workspaces/${workspaceId}/cards/${id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          outputType,
           topic: card.title || "Introduction",
           assets: get().project.assets,
           sourceIds: card.sourceIds,
@@ -330,21 +394,91 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
       return
     }
 
-    toast.info(`Starting auto-fill for ${cards.length} cards in parallel...`)
-    const evId = get().pushEvent({ kind: "info", status: "running", title: "Bulk Auto-fill Started", detail: `Running ${cards.length} cards in parallel.` })
+    jobQueue.enqueue("Bulk Auto-fill", async (onProgress, signal) => {
+      const evId = get().pushEvent({ kind: "info", status: "running", title: "Bulk Auto-fill Started", detail: `Processing ${cards.length} cards...` })
 
+      let succeeded = 0
+      let failed = 0
+      
+      for (let i = 0; i < cards.length; i++) {
+        if (signal.aborted) {
+          get().updateEvent(evId, { status: "error", title: "Bulk Auto-fill Cancelled", detail: `${succeeded} succeeded, ${failed} failed before cancellation.` })
+          throw new Error("AbortError")
+        }
+        
+        try {
+          await get().autoFillCardAction(cards[i].id)
+          succeeded++
+        } catch (e) {
+          failed++
+        }
+        onProgress(Math.round(((i + 1) / cards.length) * 100))
+      }
+
+      get().updateEvent(evId, { status: "done", title: "Bulk Auto-fill Complete", detail: `${succeeded} succeeded, ${failed} failed.` })
+      if (failed > 0) {
+        toast.warning(`Auto-fill: ${succeeded} cards done, ${failed} failed.`)
+      } else {
+        toast.success("All cards auto-filled successfully.")
+      }
+    })
+  },
+
+  convertOutputAction: async (sourceOutputId: string, targetType: OutputType) => {
+    const sourceOutput = get().project.outputs?.find((o) => o.id === sourceOutputId)
+    if (!sourceOutput) return
+
+    toast.info(`Converting ${sourceOutput.outputType} to ${targetType}...`)
+    const evId = get().pushEvent({ kind: "generate", status: "running", title: `Converting to ${targetType}`, detail: `Rewriting ${sourceOutput.cards.length} cards...` })
+
+    // Create a new output of targetType
+    get().addOutput(targetType, "")
+    const newOutputId = get().project.activeOutputId
+    if (!newOutputId) return
+
+    const newCards = get().project.cards // active output's cards
     const results = await Promise.allSettled(
-      cards.map(card => get().autoFillCardAction(card.id))
+      sourceOutput.cards.filter((c) => c.pattern !== "references" && c.content.trim() !== "").map(async (sourceCard, i) => {
+        // Attempt to find a corresponding card in the scaffolded output
+        const targetCard = newCards[i]
+        if (!targetCard) return
+
+        set((s) => { s.generatingId = targetCard.id })
+
+        const res = await apiFetch(`/api/workspaces/${get().project.id}/cards/convert`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sourceContent: sourceCard.content,
+            sourceTopic: sourceCard.title,
+            sourceType: sourceOutput.outputType,
+            targetType,
+            bibKeys: get().bibKeys,
+          })
+        })
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json()
+
+        set((s) => {
+          const c = s.project.cards.find((c) => c.id === targetCard.id)
+          if (c && data.bullets) {
+            c.content = Array.isArray(data.bullets) ? data.bullets.join("\n\n") : data.bullets
+            c.title = data.title || targetCard.title
+          }
+          if (s.generatingId === targetCard.id) s.generatingId = null
+        })
+      })
     )
 
-    const failed = results.filter(r => r.status === "rejected").length
+    const failed = results.filter((r) => r.status === "rejected").length
     const succeeded = results.length - failed
 
-    get().updateEvent(evId, { status: "done", title: "Bulk Auto-fill Complete", detail: `${succeeded} succeeded, ${failed} failed.` })
+    get().updateEvent(evId, { status: "done", title: `Conversion Complete`, detail: `${succeeded} succeeded, ${failed} failed.` })
     if (failed > 0) {
-      toast.warning(`Auto-fill: ${succeeded} cards done, ${failed} failed.`)
+      toast.warning(`Conversion: ${succeeded} cards done, ${failed} failed.`)
     } else {
-      toast.success("All cards auto-filled successfully.")
+      toast.success("Output successfully converted.")
     }
   },
 

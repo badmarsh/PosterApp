@@ -154,6 +154,26 @@ const posterCards: Card[] = [
 
 import { ExtractedAsset as Asset, IngestFile, ParseLogEntry } from "./ingestion"
 
+// --------------- Slide cards (mock) ---------------
+const slideCards: Card[] = [
+  card({ id: "sl_title",  title: "Title Slide",      column: null, order: 0, pattern: "title-slide", content: "" }),
+  card({ id: "sl_intro",  title: "Introduction",     column: null, order: 1, pattern: "bullets",     content: "- Long-horizon manipulation remains a key open challenge in robotics.\n- LATTICE couples latent dynamics with hindsight subgoal relabeling.\n- Outperforms all baselines across 6 sparse-reward benchmarks." }),
+  card({ id: "sl_method", title: "Method Overview",  column: null, order: 2, pattern: "bullets-image", content: "- Encoder maps observations to latent space z_t.\n- Dynamics model predicts z_{t+1} from z_t and action a_t.\n- Hindsight relabeling augments transitions with achieved subgoals.", figures: [{ id: "fig_sl_arch", url: "/images/fig-architecture.png", caption: "LATTICE architecture." }] }),
+  card({ id: "sl_results",title: "Results",           column: null, order: 3, pattern: "figure-slide", content: "", figures: [{ id: "fig_sl_res", url: "/images/fig-results-a.png", caption: "Success rate vs. steps." }] }),
+  card({ id: "sl_concl",  title: "Conclusion",        column: null, order: 4, pattern: "bullets",     content: "- Latent subgoal anchoring is a simple, powerful inductive bias.\n- Sets a new state of the art on sparse-reward manipulation.\n- Future work: real-robot transfer and dynamic obstacles." }),
+  card({ id: "sl_refs",   title: "References",        column: null, order: 5, pattern: "references",  content: "" }),
+]
+
+// --------------- Paper section cards (mock) ---------------
+const paperCards: Card[] = [
+  card({ id: "pp_abstract", title: "Abstract",             column: null, order: 0, pattern: "section",        content: "We study sample-efficient policy learning for long-horizon robotic manipulation under sparse rewards. Our method, LATTICE, couples a learned latent dynamics model with hindsight subgoal relabeling, achieving an 18.4-point improvement over the strongest baseline across 6 benchmarks." }),
+  card({ id: "pp_intro",    title: "1 Introduction",       column: null, order: 1, pattern: "section",        content: "Sparse-reward manipulation is difficult because the exploration cost grows exponentially with the horizon. Model-based RL improves efficiency but compounds prediction error over long rollouts." }),
+  card({ id: "pp_method",   title: "2 Method",             column: null, order: 2, pattern: "section-figure", content: "LATTICE trains an encoder φ that maps observations to a latent state z_t. A learned dynamics model predicts z_{t+1} from (z_t, a_t). Hindsight subgoal relabeling augments every transition with an achieved subgoal.", figures: [{ id: "fig_pp_arch", url: "/images/fig-architecture.png", caption: "Figure 1. LATTICE architecture." }] }),
+  card({ id: "pp_results",  title: "3 Experimental Results", column: null, order: 3, pattern: "section-table", content: "We evaluate on 6 tasks with 240k offline transitions. LATTICE outperforms DreamerV3 and TD-MPC2 on all tasks.", table: { hasHeader: true, caption: "Table 1. Success rate (%) at 1M steps.", rows: [["Task","LATTICE","DreamerV3","TD-MPC2"],["Push","94.2","81.0","84.7"],["Stack","88.6","63.4","70.2"],["Insert","71.9","52.1","58.0"]] } }),
+  card({ id: "pp_concl",    title: "4 Conclusion",         column: null, order: 4, pattern: "section",        content: "Latent subgoal anchoring jointly regularises exploration and model rollout. LATTICE sets a new state of the art on sparse-reward manipulation benchmarks. Future work: transfer to real-robot hardware." }),
+  card({ id: "pp_refs",     title: "References",           column: null, order: 5, pattern: "references",     content: "" }),
+]
+
 export const sampleProject: Project = {
   id: "prj_lattice",
   name: "LATTICE — CoRL 2025",
@@ -173,9 +193,24 @@ export const sampleProject: Project = {
       title: "LATTICE: Latent Subgoal Anchoring for Sample-Efficient Long-Horizon Manipulation",
       cards: posterCards,
     },
+    {
+      id: "out_slides_metropolis",
+      outputType: "slides",
+      templateId: "beamer-metropolis",
+      title: "LATTICE — CoRL 2025 Talk",
+      cards: slideCards,
+    },
+    {
+      id: "out_paper_twocol",
+      outputType: "paper",
+      templateId: "article-twocol",
+      title: "LATTICE: Latent Subgoal Anchoring for Sample-Efficient Long-Horizon Manipulation",
+      cards: paperCards,
+    },
   ],
   activeOutputId: "out_poster_atlas",
 }
+
 
 export const otherProjects: Pick<Project, "id" | "name">[] = [
   { id: "prj_lattice", name: "LATTICE — CoRL 2025" },

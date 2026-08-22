@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, memo, useMemo, useEffect } from "react"
-import { ChevronDown, ChevronUp, ImageIcon, List, Table2, FileDown, Loader2, ChevronDown as ChevronDownIcon, Plus, GripVertical, Settings2, LayoutTemplate, FileText, Sparkles } from "lucide-react"
+import { ChevronDown, ChevronUp, ImageIcon, List, Table2, FileDown, Loader2, ChevronDown as ChevronDownIcon, Plus, GripVertical, Settings2, LayoutTemplate, FileText, Sparkles, MonitorPlay, BookOpen, PanelTopOpen, X } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import {
   DndContext,
@@ -43,6 +43,13 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { StatusIcon } from "@/components/status"
@@ -50,6 +57,8 @@ import { COLUMN_BUDGET, estimateHeight, generateFullTemplate } from "@/lib/latex
 import type { Card, ColumnIndex } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 import { apiFetch } from "@/lib/api-fetch"
+import type { OutputType } from "@/lib/output-types"
+import { OUTPUT_TYPE_LABELS, TEMPLATE_REGISTRY, getTemplatesForType } from "@/lib/output-types"
 
 // ---------------------------------------------------------------------------
 // Tab type
@@ -57,8 +66,142 @@ import { apiFetch } from "@/lib/api-fetch"
 type Tab = "structure" | "pdf"
 
 // ---------------------------------------------------------------------------
-// MiniBlock (unchanged)
+// OutputTypeIcon — maps output type to a small icon
 // ---------------------------------------------------------------------------
+function OutputTypeIcon({ type, className }: { type: OutputType; className?: string }) {
+  if (type === "slides") return <MonitorPlay className={className} />
+  if (type === "paper") return <BookOpen className={className} />
+  return <PanelTopOpen className={className} />
+}
+
+// ---------------------------------------------------------------------------
+// AddOutputDialog — pick type + template, then create
+// ---------------------------------------------------------------------------
+function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const addOutput = useEditor((s) => s.addOutput)
+  const [selectedType, setSelectedType] = useState<OutputType>("slides")
+  const templates = getTemplatesForType(selectedType)
+  const [selectedTemplate, setSelectedTemplate] = useState(templates[0]?.id ?? "")
+
+  // Sync template when type changes
+  const handleTypeChange = (t: OutputType) => {
+    setSelectedType(t)
+    const ts = getTemplatesForType(t)
+    setSelectedTemplate(ts[0]?.id ?? "")
+  }
+
+  const handleCreate = () => {
+    addOutput(selectedType, selectedTemplate)
+    onClose()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Add Output</DialogTitle>
+          <DialogDescription>Choose an output format and template for this workspace.</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4 pt-2">
+          {/* Type selector */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Output type</label>
+            <div className="flex gap-2">
+              {(["poster", "slides", "paper"] as OutputType[]).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => handleTypeChange(t)}
+                  className={cn(
+                    "flex flex-1 flex-col items-center gap-1 rounded-md border px-2 py-3 text-[11px] font-medium transition-colors",
+                    selectedType === t
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground",
+                  )}
+                >
+                  <OutputTypeIcon type={t} className="size-4" />
+                  {OUTPUT_TYPE_LABELS[t]}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Template selector */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Template</label>
+            <div className="flex flex-col gap-1">
+              {templates.map((tmpl) => (
+                <button
+                  key={tmpl.id}
+                  onClick={() => setSelectedTemplate(tmpl.id)}
+                  className={cn(
+                    "flex flex-col rounded-md border px-3 py-2 text-left transition-colors",
+                    selectedTemplate === tmpl.id
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-muted-foreground/40",
+                  )}
+                >
+                  <span className="text-[12px] font-semibold">{tmpl.label}</span>
+                  <span className="text-[10px] text-muted-foreground">{tmpl.description}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={handleCreate}
+            className="rounded-md bg-primary px-4 py-2 text-[12px] font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            Create Output
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// OutputTabBar — row of output tabs + add button
+// ---------------------------------------------------------------------------
+function OutputTabBar() {
+  const { project, switchOutput } = useEditor(
+    useShallow((s) => ({ project: s.project, switchOutput: s.switchOutput }))
+  )
+  const [addOpen, setAddOpen] = useState(false)
+  const outputs = project.outputs ?? []
+
+  return (
+    <>
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-muted/30 px-2 py-1 shrink-0">
+        {outputs.map((o) => {
+          const isActive = o.id === project.activeOutputId
+          return (
+            <button
+              key={o.id}
+              onClick={() => switchOutput(o.id)}
+              className={cn(
+                "flex items-center gap-1.5 rounded px-2.5 py-1 text-[11px] font-medium whitespace-nowrap transition-colors",
+                isActive
+                  ? "bg-background border border-border shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/60",
+              )}
+            >
+              <OutputTypeIcon type={o.outputType as OutputType} className="size-3" />
+              {OUTPUT_TYPE_LABELS[o.outputType as OutputType]}
+            </button>
+          )
+        })}
+        <button
+          onClick={() => setAddOpen(true)}
+          className="ml-1 flex items-center gap-1 rounded px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-background/60 transition-colors"
+          aria-label="Add output"
+        >
+          <Plus className="size-3" />
+          Add
+        </button>
+      </div>
+      <AddOutputDialog open={addOpen} onClose={() => setAddOpen(false)} />
+    </>
+  )
+}
+
 function summarize(card: Card): string {
   if (card.pattern === "image-focused") {
     return card.figures[0]?.caption || "Figure-dominant block"
@@ -299,7 +442,7 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
 })
 
 // ---------------------------------------------------------------------------
-// PosterColumn (unchanged)
+// PosterColumn — 3-column poster layout column
 // ---------------------------------------------------------------------------
 function PosterColumn({ column }: { column: ColumnIndex }) {
   const { project, addCard } = useEditor(
@@ -352,7 +495,7 @@ function PosterColumn({ column }: { column: ColumnIndex }) {
 }
 
 // ---------------------------------------------------------------------------
-// PosterSkeleton (unchanged)
+// PosterSkeleton
 // ---------------------------------------------------------------------------
 function PosterSkeleton() {
   return (
@@ -383,9 +526,9 @@ function PosterSkeleton() {
 }
 
 // ---------------------------------------------------------------------------
-// StructureView
+// StructureView (poster 3-column DnD, poster-only)
 // ---------------------------------------------------------------------------
-function StructureView() {
+function PosterStructureView() {
   const { project, isSwitchingProject, moveCard } = useEditor(
     useShallow((s) => ({
       project: s.project,
@@ -498,8 +641,275 @@ function StructureView() {
 }
 
 // ---------------------------------------------------------------------------
-// CompileLog
+// SlideCard — linear card for slides view
 // ---------------------------------------------------------------------------
+const SlideCard = memo(function SlideCard({ card, index, overlay }: { card: Card; index: number; overlay?: boolean }) {
+  const { selectedCardId, selectCard, deleteCard, autoFillCardAction } = useEditor(
+    useShallow((s) => ({
+      selectedCardId: s.selectedCardId,
+      selectCard: s.selectCard,
+      deleteCard: s.deleteCard,
+      autoFillCardAction: s.autoFillCardAction,
+    }))
+  )
+  const active = card.id === selectedCardId
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
+  const figs = card.figures?.filter((f) => f.url.trim()).length ?? 0
+  const preview = card.content?.split("\n").find((l) => l.trim())
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      role="button"
+      tabIndex={0}
+      aria-current={active ? "true" : undefined}
+      onClick={() => selectCard(card.id)}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectCard(card.id) } }}
+      className={cn(
+        "group relative flex items-stretch gap-0 rounded-md border bg-card shadow-sm transition-all hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        active ? "border-primary ring-1 ring-primary" : "border-border hover:border-muted-foreground/40",
+        overlay && "shadow-xl border-primary/50 cursor-grabbing rotate-1 scale-105",
+      )}
+    >
+      {/* Slide number badge */}
+      <div className={cn(
+        "flex w-8 shrink-0 flex-col items-center justify-center rounded-l-md border-r border-border bg-muted/40 text-center",
+        active && "bg-primary/10",
+      )}>
+        <span className="font-mono text-[10px] font-bold text-muted-foreground">{index + 1}</span>
+      </div>
+      {/* Drag handle */}
+      <div
+        className={cn("flex items-center px-1 cursor-grab text-muted-foreground/40 hover:text-muted-foreground", overlay && "cursor-grabbing")}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="size-3.5" />
+      </div>
+      {/* Content */}
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5 px-2 py-2">
+        <div className="flex items-center gap-1.5">
+          <StatusIcon level={"valid"} className="size-3 shrink-0" />
+          <span className="truncate text-[12px] font-semibold">{card.title || "Untitled Slide"}</span>
+        </div>
+        {preview && (
+          <p className="line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">{preview}</p>
+        )}
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="rounded border border-border bg-muted px-1 py-px font-mono text-[9px] text-muted-foreground">{card.pattern}</span>
+          {figs > 0 && <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground"><ImageIcon className="size-2.5" />{figs}</span>}
+          {card.slideNotes && <span className="text-[9px] text-muted-foreground/60 italic">has notes</span>}
+        </div>
+      </div>
+    </div>
+  )
+})
+
+// ---------------------------------------------------------------------------
+// PaperSection — linear card for paper view
+// ---------------------------------------------------------------------------
+const PaperSection = memo(function PaperSection({ card, overlay }: { card: Card; overlay?: boolean }) {
+  const { selectedCardId, selectCard, deleteCard } = useEditor(
+    useShallow((s) => ({
+      selectedCardId: s.selectedCardId,
+      selectCard: s.selectCard,
+      deleteCard: s.deleteCard,
+    }))
+  )
+  const active = card.id === selectedCardId
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
+  const preview = card.content?.split("\n").find((l) => l.trim())
+  const figs = card.figures?.filter((f) => f.url.trim()).length ?? 0
+  const hasTable = card.table?.rows?.length > 0
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      role="button"
+      tabIndex={0}
+      aria-current={active ? "true" : undefined}
+      onClick={() => selectCard(card.id)}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectCard(card.id) } }}
+      className={cn(
+        "group relative flex items-stretch gap-0 rounded-md border bg-card shadow-sm transition-all hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        active ? "border-primary ring-1 ring-primary" : "border-border hover:border-muted-foreground/40",
+        overlay && "shadow-xl border-primary/50 cursor-grabbing rotate-1 scale-105",
+      )}
+    >
+      {/* Left accent: section type icon */}
+      <div className={cn(
+        "flex w-8 shrink-0 flex-col items-center justify-center rounded-l-md border-r border-border bg-muted/40",
+        active && "bg-primary/10",
+      )}>
+        <FileText className="size-3.5 text-muted-foreground" />
+      </div>
+      {/* Drag handle */}
+      <div
+        className={cn("flex items-center px-1 cursor-grab text-muted-foreground/40 hover:text-muted-foreground", overlay && "cursor-grabbing")}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="size-3.5" />
+      </div>
+      {/* Content */}
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5 px-2 py-2">
+        <div className="flex items-center gap-1.5">
+          <span className="truncate text-[12px] font-semibold">{card.title || "Untitled Section"}</span>
+        </div>
+        {preview && (
+          <p className="line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">{preview}</p>
+        )}
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="rounded border border-border bg-muted px-1 py-px font-mono text-[9px] text-muted-foreground">{card.pattern}</span>
+          {figs > 0 && <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground"><ImageIcon className="size-2.5" />{figs}</span>}
+          {hasTable && <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground"><Table2 className="size-2.5" />table</span>}
+        </div>
+      </div>
+    </div>
+  )
+})
+
+// ---------------------------------------------------------------------------
+// SlidesView — linear sortable list of slides
+// ---------------------------------------------------------------------------
+function SlidesView() {
+  const { project, addCard, moveCard, isSwitchingProject } = useEditor(
+    useShallow((s) => ({
+      project: s.project,
+      addCard: s.addCard,
+      moveCard: s.moveCard,
+      isSwitchingProject: s.isSwitchingProject,
+    }))
+  )
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const cards = useMemo(() => [...project.cards].sort((a, b) => a.order - b.order), [project.cards])
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+  const activeCard = useMemo(() => cards.find(c => c.id === activeId), [cards, activeId])
+
+  const handleDragStart = (e: DragStartEvent) => setActiveId(e.active.id as string)
+  const handleDragEnd = (e: DragEndEvent) => {
+    setActiveId(null)
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const overCard = cards.find(c => c.id === over.id)
+    if (overCard) moveCard(active.id as string, null, overCard.order)
+  }
+
+  if (isSwitchingProject) return <PosterSkeleton />
+
+  return (
+    <ScrollArea className="min-h-0 flex-1">
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="mx-auto w-full max-w-2xl px-5 py-6 pb-20 flex flex-col gap-2">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MonitorPlay className="size-4 text-primary" />
+              <span className="text-[13px] font-bold">Slides</span>
+              <span className="rounded-full bg-muted px-2 py-px text-[10px] font-mono text-muted-foreground">{cards.length}</span>
+            </div>
+          </div>
+          <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
+            {cards.map((c, i) => <SlideCard key={c.id} card={c} index={i} />)}
+          </SortableContext>
+          <button
+            onClick={() => addCard(null)}
+            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border py-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/50 hover:text-primary mt-1"
+          >
+            <Plus className="size-3.5" />
+            Add Slide
+          </button>
+        </div>
+        <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.4" } } }) }}>
+          {activeCard ? <SlideCard card={activeCard} index={cards.findIndex(c => c.id === activeCard.id)} overlay /> : null}
+        </DragOverlay>
+      </DndContext>
+    </ScrollArea>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// PaperView — linear sortable list of sections
+// ---------------------------------------------------------------------------
+function PaperView() {
+  const { project, addCard, moveCard, isSwitchingProject } = useEditor(
+    useShallow((s) => ({
+      project: s.project,
+      addCard: s.addCard,
+      moveCard: s.moveCard,
+      isSwitchingProject: s.isSwitchingProject,
+    }))
+  )
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const cards = useMemo(() => [...project.cards].sort((a, b) => a.order - b.order), [project.cards])
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+  const activeCard = useMemo(() => cards.find(c => c.id === activeId), [cards, activeId])
+
+  const handleDragStart = (e: DragStartEvent) => setActiveId(e.active.id as string)
+  const handleDragEnd = (e: DragEndEvent) => {
+    setActiveId(null)
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const overCard = cards.find(c => c.id === over.id)
+    if (overCard) moveCard(active.id as string, null, overCard.order)
+  }
+
+  if (isSwitchingProject) return <PosterSkeleton />
+
+  return (
+    <ScrollArea className="min-h-0 flex-1">
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="mx-auto w-full max-w-2xl px-5 py-6 pb-20 flex flex-col gap-2">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BookOpen className="size-4 text-primary" />
+              <span className="text-[13px] font-bold">Paper Sections</span>
+              <span className="rounded-full bg-muted px-2 py-px text-[10px] font-mono text-muted-foreground">{cards.length}</span>
+            </div>
+          </div>
+          <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
+            {cards.map((c) => <PaperSection key={c.id} card={c} />)}
+          </SortableContext>
+          <button
+            onClick={() => addCard(null)}
+            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border py-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/50 hover:text-primary mt-1"
+          >
+            <Plus className="size-3.5" />
+            Add Section
+          </button>
+        </div>
+        <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.4" } } }) }}>
+          {activeCard ? <PaperSection card={activeCard} overlay /> : null}
+        </DragOverlay>
+      </DndContext>
+    </ScrollArea>
+  )
+}
+
+
+// ---------------------------------------------------------------------------
+// StructureView — routes to the right view based on active output type
+// ---------------------------------------------------------------------------
+function StructureView() {
+  const activeOutputType = useEditor((s) => {
+    const o = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
+    return (o?.outputType ?? "poster") as OutputType
+  })
+
+  if (activeOutputType === "slides") return <SlidesView />
+  if (activeOutputType === "paper") return <PaperView />
+  return <PosterStructureView />
+}
+
 function CompileLog({ log, ok }: { log: string; ok: boolean }) {
   const [open, setOpen] = useState(false)
 
@@ -689,7 +1099,7 @@ function PdfView() {
 // PosterPreview (main export)
 // ---------------------------------------------------------------------------
 export function PosterPreview() {
-  const { isSwitchingProject, compiling, compileOk, compileProject, project, autoCompile, setAutoCompile, lastCompileFormat, setLastCompileFormat } = useEditor(
+  const { isSwitchingProject, compiling, compileOk, compileProject, project, autoCompile, setAutoCompile, lastCompileFormat, setLastCompileFormat, showLatexSource } = useEditor(
     useShallow((s) => ({
       isSwitchingProject: s.isSwitchingProject,
       compiling: s.compiling,
@@ -700,6 +1110,7 @@ export function PosterPreview() {
       setAutoCompile: s.setAutoCompile,
       lastCompileFormat: s.lastCompileFormat,
       setLastCompileFormat: s.setLastCompileFormat,
+      showLatexSource: s.showLatexSource,
     }))
   )
 
@@ -713,7 +1124,7 @@ export function PosterPreview() {
     return () => clearTimeout(t)
   }, [project, autoCompile, lastCompileFormat, compileProject])
 
-  const handleCompile = useCallback((format: "poster" | "paper") => {
+  const handleCompile = useCallback((format: OutputType) => {
     setLastCompileFormat(format)
     setActiveTab("pdf")
     compileProject(format)
@@ -721,6 +1132,8 @@ export function PosterPreview() {
 
   return (
     <section className="flex min-w-0 flex-1 flex-col bg-muted/30">
+      {/* Output type tab bar */}
+      <OutputTabBar />
       {/* Header bar */}
       <div className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-card px-3">
         {/* Tab switcher */}
@@ -793,6 +1206,10 @@ export function PosterPreview() {
                 <LayoutTemplate className="text-muted-foreground" />
                 Compile as Poster
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleCompile("slides")}>
+                <MonitorPlay className="text-muted-foreground" />
+                Compile as Slides
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleCompile("paper")}>
                 <FileText className="text-muted-foreground" />
                 Compile as Paper
@@ -803,7 +1220,18 @@ export function PosterPreview() {
       </div>
 
       {/* Tab content */}
-      {activeTab === "structure" ? (
+      {showLatexSource ? (
+        <ScrollArea className="flex-1 min-h-0 bg-muted/20">
+          <div className="p-4">
+            <pre className="rounded-md border border-border bg-card p-4 font-mono text-[11px] leading-relaxed text-foreground max-w-full overflow-x-auto whitespace-pre-wrap break-all">
+              {(() => {
+                const activeOutput = project.outputs?.find(o => o.id === project.activeOutputId) || project.outputs?.[0];
+                return activeOutput ? generateFullTemplate(project, activeOutput, project.id) : "No output selected";
+              })()}
+            </pre>
+          </div>
+        </ScrollArea>
+      ) : activeTab === "structure" ? (
         <StructureView />
       ) : (
         <PdfView />

@@ -41,6 +41,12 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
   }),
 
   inspectorTab: "basics",
+  isInspectorOpen: true,
+  showLatexSource: false,
+  toggleLatexSource: () => set((s) => { s.showLatexSource = !s.showLatexSource }),
+  lastWorkspaceId: null,
+  setLastWorkspaceId: (id) => set({ lastWorkspaceId: id }),
+  toggleInspector: () => set((s) => { s.isInspectorOpen = !s.isInspectorOpen }),
   setInspectorTab: (tab) => set({ inspectorTab: tab }),
 
   pendingAiPrompt: null,
@@ -172,5 +178,10 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
     } finally {
       set((s) => { s.compiling = false })
     }
+  },
+
+  jobs: [],
+  cancelJob: (id) => {
+    import("@/lib/job-queue").then(m => m.jobQueue.cancel(id))
   },
 })

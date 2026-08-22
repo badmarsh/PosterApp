@@ -6,6 +6,7 @@ import { WebsocketProvider } from "y-websocket"
 import { useEditorStoreInstance } from "@/components/editor-store"
 import type { Card } from "@/lib/poster-types"
 import type { Collaborator } from "./types"
+import { jobQueue } from "@/lib/job-queue"
 
 const COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#8b5cf6", "#d946ef"]
 
@@ -109,8 +110,13 @@ export function useYjs(workspaceId: string) {
     window.addEventListener("mousemove", handleMouseMove)
     window.addEventListener("mouseleave", handleMouseLeave)
 
+    const unsubscribeJobs = jobQueue.subscribe((jobs) => {
+      store.setState({ jobs })
+    })
+
     return () => {
       unsubscribeZustand()
+      unsubscribeJobs()
       window.removeEventListener("mousemove", handleMouseMove)
       window.removeEventListener("mouseleave", handleMouseLeave)
       provider.disconnect()

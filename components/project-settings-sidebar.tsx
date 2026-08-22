@@ -27,9 +27,11 @@ import {
 } from "@/components/ui/dialog"
 
 import { FileStack, Copy, FilePlus2, BookOpen, Upload } from "lucide-react"
+import { OUTPUT_TYPE_LABELS, getTemplatesForType } from "@/lib/output-types"
+import type { OutputType } from "@/lib/output-types"
 
 export function ProjectSettingsSidebar() {
-  const { project, updateProject, isSwitchingProject, switchProject, newProject, duplicateProject, bibContent, updateBib } = useEditor(
+  const { project, updateProject, isSwitchingProject, switchProject, newProject, duplicateProject, bibContent, updateBib, switchOutput } = useEditor(
     useShallow((s) => ({
       project: s.project,
       updateProject: s.updateProject,
@@ -39,8 +41,15 @@ export function ProjectSettingsSidebar() {
       duplicateProject: s.duplicateProject,
       bibContent: s.bibContent,
       updateBib: s.updateBib,
+      switchOutput: s.switchOutput,
     }))
   )
+
+  // Derive active output metadata
+  const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
+  const activeOutputType = (activeOutput?.outputType ?? "poster") as OutputType
+  const activeTitle = activeOutput?.title ?? project.posterTitle
+  const outputTypeLabel = OUTPUT_TYPE_LABELS[activeOutputType]
   const [localBib, setLocalBib] = useState(bibContent)
   const [workspaces, setWorkspaces] = useState<{id: string, name: string}[]>([])
 
@@ -136,11 +145,21 @@ export function ProjectSettingsSidebar() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="posterTitle" className="text-[11px] font-medium text-muted-foreground">Poster Title</Label>
+            <Label htmlFor="outputTitle" className="text-[11px] font-medium text-muted-foreground">{outputTypeLabel} Title</Label>
             <Textarea
-              id="posterTitle"
-              value={project.posterTitle}
-              onChange={(e) => updateProject({ posterTitle: e.target.value })}
+              id="outputTitle"
+              value={activeTitle}
+              onChange={(e) => {
+                // Update the active output's title and the legacy flat field
+                updateProject({ posterTitle: e.target.value })
+                if (activeOutput) {
+                  // Patch the active output title via switchOutput (no-op) + direct update
+                  const updatedOutputs = project.outputs?.map((o) =>
+                    o.id === activeOutput.id ? { ...o, title: e.target.value } : o
+                  )
+                  if (updatedOutputs) updateProject({ outputs: updatedOutputs } as any)
+                }
+              }}
               className="min-h-16 resize-none text-[12px] font-medium leading-tight"
             />
           </div>

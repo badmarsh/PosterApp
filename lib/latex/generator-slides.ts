@@ -60,6 +60,8 @@ export class BeamerSlidesGenerator implements LatexGenerator {
     let theme = "\\usetheme{Madrid}"
     if (this.templateId === "beamer-metropolis") {
       theme = "\\usetheme{metropolis}"
+    } else if (this.templateId === "beamer-atlas") {
+      theme = "\\usetheme{Madrid}\n\\definecolor{atlasred}{RGB}{158,43,47}\n\\setbeamercolor{structure}{fg=atlasred}"
     }
 
     return `% =============================================================================

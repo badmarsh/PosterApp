@@ -35,6 +35,9 @@ import {
 } from "@/components/ui/tooltip"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Progress } from "@/components/ui/progress"
+import type { Job } from "@/lib/job-queue"
 import type { AgentEvent } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 import { makeChatAdapter } from "@/components/agent-chat-adapter"
@@ -434,16 +437,83 @@ function ChatThread() {
 }
 
 // ---------------------------------------------------------------------------
+// Jobs List
+// ---------------------------------------------------------------------------
+
+function JobsList({ jobs, onCancel }: { jobs: Job[]; onCancel: (id: string) => void }) {
+  if (jobs.length === 0) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center p-4 text-center">
+        <Loader2 className="size-5 mb-2 text-muted-foreground/30" />
+        <p className="text-sm font-medium text-muted-foreground">No active jobs</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-1 flex-col overflow-y-auto p-3 gap-2">
+      {jobs.map((job) => (
+        <div key={job.id} className="flex flex-col gap-2 rounded-md border bg-card p-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold">{job.label}</span>
+            {job.status === "running" && (
+              <span className="flex items-center gap-1 text-[10px] text-primary font-medium">
+                <Loader2 className="size-3 animate-spin" />
+                Running
+              </span>
+            )}
+            {job.status === "queued" && (
+              <span className="text-[10px] text-muted-foreground font-medium">Queued</span>
+            )}
+            {job.status === "done" && (
+              <span className="text-[10px] text-green-500 font-medium">Done</span>
+            )}
+            {job.status === "cancelled" && (
+              <span className="text-[10px] text-muted-foreground font-medium">Cancelled</span>
+            )}
+            {job.status === "error" && (
+              <span className="text-[10px] text-destructive font-medium">Error</span>
+            )}
+          </div>
+
+          {(job.status === "running" || job.status === "queued") && (
+            <Progress value={job.progress ?? 0} className="h-1.5" />
+          )}
+
+          {job.error && (
+            <div className="text-[10px] text-destructive mt-1 bg-destructive/10 p-1.5 rounded-sm">
+              {job.error}
+            </div>
+          )}
+
+          {(job.status === "queued" || job.status === "running") && (
+            <div className="mt-1 flex justify-end">
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => onCancel(job.id)}>
+                Cancel
+              </Button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // AgentPanelInner — needs to be inside AssistantRuntimeProvider
 // ---------------------------------------------------------------------------
 
 function AgentPanelInner({
   agentEvents,
   generatingId,
+  jobs,
+  onCancelJob,
   onCollapse,
 }: {
   agentEvents: AgentEvent[]
   generatingId: string | null
+  jobs: Job[]
+  onCancelJob: (id: string) => void
   onCollapse: () => void
 }) {
   return (
@@ -456,7 +526,7 @@ function AgentPanelInner({
         <div className="flex items-center gap-1.5">
           <Cpu className="size-4 text-primary" />
           <span className="text-[11px] font-semibold uppercase tracking-wide">
-            AI Chat
+            AI Assistant
           </span>
         </div>
         <Button
@@ -473,8 +543,28 @@ function AgentPanelInner({
       {/* Status strip (collapsible event log) */}
       <StatusStrip agentEvents={agentEvents} generatingId={generatingId} />
 
-      {/* Chat thread */}
-      <ChatThread />
+      <Tabs defaultValue="chat" className="flex flex-1 flex-col min-h-0">
+        <div className="px-3 py-2 border-b border-border">
+          <TabsList className="w-full h-8">
+            <TabsTrigger value="chat" className="flex-1 text-xs h-6">Chat</TabsTrigger>
+            <TabsTrigger value="jobs" className="flex-1 text-xs h-6">
+              Jobs
+              {jobs.filter(j => j.status === "running" || j.status === "queued").length > 0 && (
+                <span className="ml-1.5 flex size-4 items-center justify-center rounded-full bg-primary text-[9px] text-primary-foreground">
+                  {jobs.filter(j => j.status === "running" || j.status === "queued").length}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </div>
+        <TabsContent value="chat" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden">
+          {/* Chat thread */}
+          <ChatThread />
+        </TabsContent>
+        <TabsContent value="jobs" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden">
+          <JobsList jobs={jobs} onCancel={onCancelJob} />
+        </TabsContent>
+      </Tabs>
     </aside>
   )
 }
@@ -484,10 +574,12 @@ function AgentPanelInner({
 // ---------------------------------------------------------------------------
 
 export function AgentPanel() {
-  const { agentEvents, generatingId, projectId, selectedCardId, pendingAiPrompt, setPendingAiPrompt, chatMessages, setChatMessages } = useEditor(
+  const { agentEvents, generatingId, jobs, cancelJob, projectId, selectedCardId, pendingAiPrompt, setPendingAiPrompt, chatMessages, setChatMessages } = useEditor(
     useShallow((s) => ({
       agentEvents: s.agentEvents,
       generatingId: s.generatingId,
+      jobs: s.jobs,
+      cancelJob: s.cancelJob,
       projectId: s.project.id,
       selectedCardId: s.selectedCardId,
       pendingAiPrompt: s.pendingAiPrompt,
@@ -575,6 +667,8 @@ export function AgentPanel() {
       <AgentPanelInner
         agentEvents={agentEvents}
         generatingId={generatingId}
+        jobs={jobs}
+        onCancelJob={cancelJob}
         onCollapse={() => setCollapsed(true)}
       />
     </AssistantRuntimeProvider>

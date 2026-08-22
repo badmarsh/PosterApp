@@ -228,7 +228,10 @@ export function Shell() {
   const switchProject = useEditor((s) => s.switchProject)
   const project = useEditor((s) => s.project)
   const isSwitchingProject = useEditor((s) => s.isSwitchingProject)
+  const lastWorkspaceId = useEditor((s) => s.lastWorkspaceId)
+  
   const [showSelector, setShowSelector] = useState(false)
+  const [hasAutoLoaded, setHasAutoLoaded] = useState(false)
 
   // Autosave Hook
   const agentEvents = useEditor((s) => s.agentEvents)
@@ -247,11 +250,17 @@ export function Shell() {
   }, [project, agentEvents, chatMessages, isSwitchingProject, saveProject])
 
   useEffect(() => {
-    if (project.id === "prj_lattice") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!hasAutoLoaded) {
+      if (lastWorkspaceId && lastWorkspaceId !== "prj_lattice") {
+        switchProject(lastWorkspaceId)
+      } else {
+        setShowSelector(true)
+      }
+      setHasAutoLoaded(true)
+    } else if (project.id === "prj_lattice" && !isSwitchingProject) {
       setShowSelector(true)
     }
-  }, [project.id])
+  }, [project.id, lastWorkspaceId, hasAutoLoaded, isSwitchingProject, switchProject])
 
   if (!mounted) return <AppSkeleton />
   return (

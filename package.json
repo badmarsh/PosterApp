@@ -3,7 +3,7 @@
   "version": "0.1.1",
   "private": true,
   "scripts": {
-    "dev": "concurrently -c \"cyan,magenta\" -n \"next,mineru\" \"next dev --port 3333\" \"start-mineru.bat\"",
+    "dev": "concurrently -c \"cyan,magenta,yellow\" -n \"next,mineru,yjs\" \"next dev --port 3333\" \"bash start-mineru.sh\" \"npx y-websocket --port 1234\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -63,5 +63,11 @@
     "tailwindcss": "^4.2.0",
     "typescript": "5.7.3",
     "vitest": "^4.1.9"
+  },
+  "pnpm": {
+    "supportedArchitectures": {
+      "os": ["win32", "linux"],
+      "cpu": ["x64"]
+    }
   }
 }

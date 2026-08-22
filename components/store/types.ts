@@ -9,6 +9,9 @@ import type {
 import type { ThreadMessage } from "@assistant-ui/react"
 import type { AssignSlot, ParseLogEntry } from "@/lib/ingestion"
 import type { OutputType } from "@/lib/output-types"
+import type { Job } from "@/lib/job-queue"
+
+export type ColumnOrNull = ColumnIndex | null
 
 export type InspectorTab = "basics" | "content" | "table" | "figures" | "validation" | "output"
 
@@ -35,11 +38,12 @@ export interface ProjectSlice {
   updateProject: (patch: Partial<Omit<Project, "id" | "cards">>) => void
   _setCardsFromYjs: (cards: Card[]) => void
   updateCard: (id: string, patch: Partial<Card>) => void
-  addCard: (column: ColumnIndex) => void
+  addCard: (column?: ColumnOrNull) => void
+  addOutput: (outputType: OutputType, templateId: string) => void
   deleteCard: (id: string) => void
   reorderCard: (id: string, dir: -1 | 1) => void
-  moveColumn: (id: string, column: ColumnIndex) => void
-  moveCard: (id: string, toColumn: ColumnIndex, toIndex: number) => void
+  moveColumn: (id: string, column: ColumnOrNull) => void
+  moveCard: (id: string, toColumn: ColumnOrNull, toIndex: number) => void
   validateCardAction: (id: string) => void
   generateLatexForCardAction: (id: string) => void
   autoFillCardAction: (id: string) => Promise<void>
@@ -48,6 +52,7 @@ export interface ProjectSlice {
   newProject: () => void
   duplicateProject: () => void
   saveProject: () => Promise<void>
+  convertOutputAction: (sourceOutputId: string, targetType: OutputType) => Promise<void>
 }
 
 export interface IngestionSlice {
@@ -102,6 +107,12 @@ export interface UiSlice {
   setPendingAiPrompt: (prompt: string | null) => void
 
   inspectorTab: InspectorTab
+  isInspectorOpen: boolean
+  showLatexSource: boolean
+  toggleLatexSource: () => void
+  lastWorkspaceId: string | null
+  setLastWorkspaceId: (id: string | null) => void
+  toggleInspector: () => void
   setInspectorTab: (tab: InspectorTab) => void
 
   chatMessages: ThreadMessage[]
@@ -110,6 +121,10 @@ export interface UiSlice {
 
   pushEvent: (e: Omit<AgentEvent, "id" | "ts">) => string
   updateEvent: (id: string, patch: Partial<AgentEvent>) => void
+  
+  jobs: Job[]
+  cancelJob: (id: string) => void
+  
   compileProject: (format?: OutputType) => Promise<void>
 }
 

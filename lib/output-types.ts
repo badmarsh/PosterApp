@@ -167,3 +167,43 @@ export const LAYOUT_CONSTRAINTS: Record<OutputType, LayoutConstraints> = {
 export function getLayoutConstraints(outputType: OutputType): LayoutConstraints {
   return LAYOUT_CONSTRAINTS[outputType]
 }
+
+// ---------------------------------------------------------------------------
+// Default Structures
+// ---------------------------------------------------------------------------
+
+export type DefaultCardTemplate = {
+  title: string
+  pattern: string
+  column?: 1 | 2 | 3
+}
+
+export const DEFAULT_STRUCTURES: Record<OutputType, DefaultCardTemplate[]> = {
+  poster: [
+    { title: "Abstract", pattern: "bullets", column: 1 },
+    { title: "Introduction", pattern: "bullets", column: 1 },
+    { title: "Methodology", pattern: "bullets-image", column: 2 },
+    { title: "Results", pattern: "bullets-table", column: 2 },
+    { title: "Discussion & Conclusion", pattern: "bullets", column: 3 },
+    { title: "References", pattern: "references", column: 3 },
+  ],
+  slides: [
+    { title: "Title Slide", pattern: "title-slide" },
+    { title: "Outline", pattern: "bullets" },
+    { title: "Motivation", pattern: "bullets-image" },
+    { title: "Methodology", pattern: "bullets" },
+    { title: "Results", pattern: "bullets-table" },
+    { title: "Conclusion", pattern: "bullets" },
+    { title: "References", pattern: "references" },
+  ],
+  paper: [
+    { title: "Abstract", pattern: "section" },
+    { title: "1 Introduction", pattern: "section" },
+    { title: "2 Related Work", pattern: "section" },
+    { title: "3 Methodology", pattern: "section-figure" },
+    { title: "4 Experiments & Results", pattern: "section-table" },
+    { title: "5 Conclusion", pattern: "section" },
+    { title: "References", pattern: "references" },
+  ],
+}
+
