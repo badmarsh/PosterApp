@@ -11,31 +11,7 @@ export function apiFetch(
   url: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
-  // Reverted to localStorage to fix 401 Unauthorized for local user sessions.
-  // In a multi-user production environment, this should be replaced with
-  // a secure HttpOnly cookie session (e.g. NextAuth/Clerk) managed by the server.
-  const token =
-    (typeof window !== "undefined" && localStorage.getItem("API_SECRET")) ||
-    "change-me-in-production"
-
-  const urlStr =
-    typeof url === "string"
-      ? url
-      : url instanceof URL
-        ? url.toString()
-        : url instanceof Request
-          ? url.url
-          : String(url)
-
-  // Only inject auth for our own API routes (relative paths starting with /api)
-  const isInternal = urlStr.startsWith("/api") || urlStr.startsWith("api")
-
-  if (!isInternal) {
-    return fetch(url, init)
-  }
-
-  const headers = new Headers(init?.headers)
-  headers.set("Authorization", `Bearer ${token}`)
-
-  return fetch(url, { ...init, headers })
+  // Clerk handles authentication via secure HttpOnly cookies automatically,
+  // so we no longer need to manually inject a static Authorization header.
+  return fetch(url, init)
 }

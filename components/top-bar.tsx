@@ -12,7 +12,10 @@ import {
   HelpCircle,
   Save,
   Sun,
-import { FolderOpen } from "lucide-react"
+  FolderOpen,
+  LayoutTemplate,
+  FileText,
+} from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -141,16 +144,16 @@ export function TopBar({
 
 
 
-  function exportTex() {
-    const tex = generateFullTemplate(project)
+  function exportTex(format: "poster" | "paper") {
+    const tex = generateFullTemplate(project, project.id, format)
     const blob = new Blob([tex], { type: "text/x-tex" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `${project.id}.tex`
+    a.download = `${project.id}_${format}.tex`
     a.click()
     URL.revokeObjectURL(url)
-    toast.success("Exported poster.tex")
+    toast.success(`Exported ${format}.tex`)
   }
 
   return (
@@ -267,17 +270,32 @@ export function TopBar({
           <Sparkles className="size-3.5" />
           <span className="hidden md:inline">AI Review</span>
         </Button>
-        <Button
-          size="sm"
-          className="h-8 gap-1.5"
-          onClick={exportTex}
-          aria-label="Export poster as .tex file"
-        >
-          <Download className="size-3.5" />
-          <span className="hidden sm:inline">Export .tex</span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                size="sm"
+                className="h-8 gap-1.5"
+                aria-label="Export as .tex file"
+              >
+                <Download className="size-3.5" />
+                <span className="hidden sm:inline">Export .tex</span>
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => exportTex("poster")}>
+              <LayoutTemplate className="text-muted-foreground" />
+              Export Poster format
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => exportTex("paper")}>
+              <FileText className="text-muted-foreground" />
+              Export Paper format
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <ThemeToggle />
-        <UserButton afterSignOutUrl="/" />
+        <UserButton />
         <Tooltip>
           <TooltipTrigger
             render={

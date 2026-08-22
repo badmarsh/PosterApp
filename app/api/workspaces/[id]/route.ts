@@ -39,6 +39,8 @@ export async function GET(
         ...a,
         tableRows: safeJsonParse(a.tableRows, undefined),
       })),
+      agentEvents: safeJsonParse(workspace.agentEvents, []),
+      chatMessages: safeJsonParse(workspace.chatMessages, []),
     }
 
     return NextResponse.json(data)
@@ -88,6 +90,8 @@ export async function PUT(
           authors: body.authors || "",
           venue: body.venue || "",
           templateName: body.templateName || "",
+          agentEvents: body.agentEvents ? jsonStringify(body.agentEvents) : undefined,
+          chatMessages: body.chatMessages ? jsonStringify(body.chatMessages) : undefined,
         }
       })
 

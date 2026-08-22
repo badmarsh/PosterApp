@@ -12,7 +12,7 @@ import { createIngestionSlice } from "./store/ingestion-slice"
 import { createBibSlice } from "./store/bib-slice"
 import { createUiSlice } from "./store/ui-slice"
 
-function createEditorStore() {
+export function createEditorStore() {
   return createStore<EditorState>()(
     persist(
       immer((set, get, store) => ({

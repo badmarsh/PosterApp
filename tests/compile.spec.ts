@@ -1,31 +1,24 @@
 import { test, expect } from '@playwright/test';
+import { setupClerkTestingToken } from '@clerk/testing/playwright';
+
+test.beforeEach(async ({ page }) => {
+  await setupClerkTestingToken({ page });
+});
 
 test.describe('Poster Compilation', () => {
   test('can compile poster and view PDF', async ({ page }) => {
-    // 1. Create a test workspace via API
-    const apiContext = await page.context().request;
+    // 1. Navigate to the app
     const wsId = `test-compile-${Date.now()}`;
-    await apiContext.post('/api/workspaces', {
-      data: { id: wsId, name: 'Compile Test Workspace' }
-    });
-
-    // 2. Navigate to the app
     await page.goto('/');
 
-    // 3. Handle Workspace Selection modal
-    try {
-      await page.waitForSelector('text="Select a Workspace"', { timeout: 5000 });
-      // Find the specific workspace we just created
-      const workspaceBtn = page.getByText('Compile Test Workspace');
-      if (await workspaceBtn.count() > 0) {
-        await workspaceBtn.click();
-      } else {
-        await page.click('button:has-text("✕")');
-      }
-      await page.waitForSelector('text="Select a Workspace"', { state: 'hidden', timeout: 5000 });
-    } catch (e) {
-      // Modal might not appear if skipped, ignore
-    }
+    // 2. Create new project
+    await page.getByRole('button', { name: 'Create New Project' }).click();
+    await page.locator('input[placeholder="my-cool-project"]').fill(wsId);
+    await page.locator('input[placeholder="My Cool Project"]').fill('Compile Test Workspace');
+    await page.getByRole('button', { name: 'Create' }).click();
+
+    // 3. Wait for it to switch to this project
+    await expect(page.getByText('Compile Test Workspace')).toBeVisible({ timeout: 10000 });
 
     // 4. Trigger Compilation
     const compileBtn = page.getByRole('button', { name: /Compile/i });

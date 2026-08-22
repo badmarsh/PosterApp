@@ -74,6 +74,8 @@ export const WorkspaceSchema = z.object({
   cards: z.array(CardSchema).optional(),
   assets: z.array(AssetSchema).optional(),
   ingestFiles: z.array(IngestFileSchema).optional(),
+  agentEvents: z.array(z.any()).optional(),
+  chatMessages: z.array(z.any()).optional(),
 })
 
 export const WorkspaceCreateSchema = z.object({

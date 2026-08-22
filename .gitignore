@@ -42,3 +42,8 @@ tsconfig.tsbuildinfo
 test-results/
 playwright-report/
 .clerk/
+test-screenshot.png
+
+# Debug scratch files
+check_thread.ts
+check_types.ts

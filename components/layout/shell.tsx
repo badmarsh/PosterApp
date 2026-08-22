@@ -228,6 +228,22 @@ export function Shell() {
   const isSwitchingProject = useEditor((s) => s.isSwitchingProject)
   const [showSelector, setShowSelector] = useState(false)
 
+  // Autosave Hook
+  const agentEvents = useEditor((s) => s.agentEvents)
+  const chatMessages = useEditor((s) => s.chatMessages)
+  const saveProject = useEditor((s) => s.saveProject)
+  
+  useEffect(() => {
+    // Only autosave if the project is loaded and we are not in the middle of a switch
+    if (isSwitchingProject || !project.id || project.id === "prj_lattice") return
+
+    const timer = setTimeout(() => {
+      saveProject()
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }, [project, agentEvents, chatMessages, isSwitchingProject, saveProject])
+
   useEffect(() => {
     if (project.id === "prj_lattice") {
       setShowSelector(true)

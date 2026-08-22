@@ -1,10 +1,16 @@
 import { test, expect } from '@playwright/test';
+import { setupClerkTestingToken } from '@clerk/testing/playwright';
+
+test.beforeEach(async ({ page }) => {
+  await setupClerkTestingToken({ page });
+});
 
 test('workspace selection modal appears and functions', async ({ page }) => {
   // Navigate to the app
   await page.goto('http://localhost:3333/');
   
   // Verify the Workspace Selector modal is visible
+  await page.screenshot({ path: 'test-screenshot.png' });
   await expect(page.getByText('Select a Workspace')).toBeVisible({ timeout: 10000 });
   
   // Verify the Create New Project button exists

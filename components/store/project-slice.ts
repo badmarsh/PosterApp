@@ -20,17 +20,29 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     set((s) => { s.isSwitchingProject = true; s.selectedCardId = null })
     try {
       const res = await apiFetch(`/api/workspaces/${id}`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data: Project = await res.json()
-      set((s) => {
-        s.project = { ...data, assets: data.assets || [], ingestFiles: data.ingestFiles || [] }
-        s.isSwitchingProject = false
+      if (!res.ok) throw new Error("Failed to load workspace")
+      const projData = await res.json()
+      
+      const { agentEvents = [], chatMessages = [], ...projectData } = projData
+
+      set((state) => {
+        state.project = { ...projectData, assets: projectData.assets || [], ingestFiles: projectData.ingestFiles || [] }
+        state.selectedCardId = null
+        state.isSwitchingProject = false
+        state.isDirty = false
+        
+        // Reset legacy assets (not linked to current workspace)
+        state.ingestionOpen = false
       })
+
+      // Load UI history
+      get().hydrateUi(agentEvents, chatMessages)
+
       get().pushEvent({
         kind: "info",
         status: "done",
         title: "Workspace loaded",
-        detail: `${data.cards.length} cards · ${data.templateName}`,
+        detail: `${projectData.cards?.length || 0} cards · ${projectData.templateName || "atlas"}`,
       })
       get().fetchBib(id)
     } catch (err) {
@@ -158,12 +170,11 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
   validateCardAction: (id) => {
     const card = get().project.cards.find((c) => c.id === id)
     if (!card) return
-    get().pushEvent({ kind: "validate", status: "running", title: `Validating — ${id}` })
+    const evId = get().pushEvent({ kind: "validate", status: "running", title: `Validating — ${id}` })
     const msgs = validateCard(card)
     const level = levelFromMessages(msgs)
     window.setTimeout(() => {
-      get().pushEvent({
-        kind: "validate",
+      get().updateEvent(evId, {
         status: level === "invalid" ? "error" : level === "warning" ? "warning" : "done",
         title: level === "valid"
           ? `Validation passed — ${id}`
@@ -185,7 +196,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
       return
     }
     set((s) => { s.generatingId = id })
-    get().pushEvent({ kind: "generate", status: "running", title: `Generating LaTeX — ${id}`, detail: `${card.pattern} pattern` })
+    const evId = get().pushEvent({ kind: "generate", status: "running", title: `Generating LaTeX — ${id}`, detail: `${card.pattern} pattern` })
     window.setTimeout(() => {
       const latex = generateLatexForCard(card, get().project.id)
       set((s) => {
@@ -193,8 +204,8 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
         if (c) c.generatedLatex = latex
         if (s.generatingId === id) s.generatingId = null
       })
-      get().pushEvent({
-        kind: "generate", status: "done",
+      get().updateEvent(evId, {
+        status: "done",
         title: `LaTeX ready — ${id}`,
         detail: `${latex.split("\n").length} lines generated.`,
       })
@@ -222,7 +233,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     const characterLimit = Math.max(50, Math.floor(textBudgetUnits * (60 / 14)))
 
     set((s) => { s.generatingId = id })
-    get().pushEvent({ kind: "generate", status: "running", title: `Auto-filling content — ${id}`, detail: `Reading workspace sources with Gemini (Target limit: ${characterLimit} chars)` })
+    const evId = get().pushEvent({ kind: "generate", status: "running", title: `Auto-filling content — ${id}`, detail: `Reading workspace sources with Gemini (Target limit: ${characterLimit} chars)` })
     toast.info("Auto-filling card...")
 
     try {
@@ -274,8 +285,8 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
         if (s.generatingId === id) s.generatingId = null
       })
 
-      get().pushEvent({
-        kind: "generate", status: "done",
+      get().updateEvent(evId, {
+        status: "done",
         title: `Auto-fill complete — ${id}`,
         detail: `Filled ${data.bullets?.length || 0} bullets.`,
       })
@@ -286,7 +297,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
       
     } catch (err: unknown) {
       set((s) => { if (s.generatingId === id) s.generatingId = null })
-      get().pushEvent({ kind: "generate", status: "error", title: `Auto-fill failed — ${id}`, detail: String(err) })
+      get().updateEvent(evId, { status: "error", title: `Auto-fill failed — ${id}`, detail: String(err) })
       toast.error(err instanceof Error ? err.message : "Failed to auto-fill card")
     }
   },
@@ -302,7 +313,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     }
 
     toast.info(`Starting auto-fill for ${cards.length} cards in parallel...`)
-    get().pushEvent({ kind: "info", status: "running", title: "Bulk Auto-fill Started", detail: `Running ${cards.length} cards in parallel.` })
+    const evId = get().pushEvent({ kind: "info", status: "running", title: "Bulk Auto-fill Started", detail: `Running ${cards.length} cards in parallel.` })
 
     const results = await Promise.allSettled(
       cards.map(card => get().autoFillCardAction(card.id))
@@ -311,7 +322,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     const failed = results.filter(r => r.status === "rejected").length
     const succeeded = results.length - failed
 
-    get().pushEvent({ kind: "info", status: "done", title: "Bulk Auto-fill Complete", detail: `${succeeded} succeeded, ${failed} failed.` })
+    get().updateEvent(evId, { status: "done", title: "Bulk Auto-fill Complete", detail: `${succeeded} succeeded, ${failed} failed.` })
     if (failed > 0) {
       toast.warning(`Auto-fill: ${succeeded} cards done, ${failed} failed.`)
     } else {
@@ -320,7 +331,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
   },
 
   aiReview: async () => {
-    get().pushEvent({ kind: "verify", status: "running", title: "AI Poster review" })
+    const evId = get().pushEvent({ kind: "verify", status: "running", title: "AI Poster review" })
     try {
       const proj = get().project
       const res = await apiFetch(`/api/workspaces/${proj.id}/review`, {
@@ -343,18 +354,17 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
         const hasWarning = tips.some((t: any) => t.severity === "warning")
         const status = hasError ? "error" : hasWarning ? "warning" : "done"
         
-        get().pushEvent({ 
-          kind: "verify", 
+        get().updateEvent(evId, { 
           status, 
           title: "Review Complete", 
           detail: `Found ${tips.length} issue${tips.length === 1 ? "" : "s"}.`,
           tips 
         })
       } else {
-        get().pushEvent({ kind: "verify", status: "done", title: "Review Complete", detail: "Looking good! No major issues found." })
+        get().updateEvent(evId, { status: "done", title: "Review Complete", detail: "Looking good! No major issues found." })
       }
     } catch (e: unknown) {
-      get().pushEvent({ kind: "verify", status: "error", title: "Review Failed", detail: e instanceof Error ? e.message : String(e) })
+      get().updateEvent(evId, { status: "error", title: "Review Failed", detail: e instanceof Error ? e.message : String(e) })
       toast.error("Failed to run AI verification.")
     }
   },
@@ -363,13 +373,21 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
   duplicateProject: () => toast.info(`Duplicated "${get().project.name}" — coming soon`),
 
   saveProject: async () => {
-    const { project } = get()
+    if (get().isSaving) return
     set((s) => { s.isSaving = true })
     try {
-      const res = await apiFetch(`/api/workspaces/${project.id}`, {
+      const proj = get().project
+      const agentEvents = get().agentEvents
+      const chatMessages = get().chatMessages
+
+      const res = await apiFetch(`/api/workspaces/${proj.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(project)
+        body: JSON.stringify({
+          ...proj,
+          agentEvents,
+          chatMessages,
+        }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       set((s) => {

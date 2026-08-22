@@ -129,6 +129,8 @@ Schema at `prisma/schema.prisma`. Key notes:
 ---
 
 ## General Agent Guidelines
+- **Always Verify the App is Running & Error-Free:** After making any code changes, you MUST verify that the PosterApp is reachable, running, and has no build/runtime errors. (e.g. check the dev server logs, use curl or browse the local endpoint if needed).
+- **Use Playwright to Verify in Browser:** Before handing back to the user, you MUST write a quick Playwright script to actually load the app in the browser (e.g. `http://localhost:3333`), analyze the browser developer console for client-side errors, and ensure the app is absolutely flawless. Do not stop working until it is.
 - **Always Run the App:** While developing, always make sure after you finish that the app is actively running (e.g. `npm run dev` in the background) so the user can immediately test and review the latest changes in their browser.
 - **E2E Testing:** Playwright is configured to run on port `3333`. Always run `npx playwright test` to verify there are no regressions after major features. If you are fixing a bug or adding a feature, document the behavior in a `.spec.ts` file under `tests/`. (Note: Tests are currently skipped due to Clerk Auth).
 - **API Authentication:** All internal `/api/*` routes are protected by Clerk (`clerkMiddleware`). E2E API requests will fail with 401 unless a valid Clerk session token is provided, so tests hitting the API directly might need to be mocked or bypassed in the middleware.

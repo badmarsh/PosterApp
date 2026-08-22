@@ -750,6 +750,8 @@ export function CardInspector() {
     getStatus,
     generatingId,
     projectId,
+    inspectorTab,
+    setInspectorTab,
   } = useEditor(
     useShallow((s) => ({
       validateCardAction: s.validateCardAction,
@@ -760,6 +762,8 @@ export function CardInspector() {
       getStatus: s.getStatus,
       generatingId: s.generatingId,
       projectId: s.project.id,
+      inspectorTab: s.inspectorTab,
+      setInspectorTab: s.setInspectorTab,
     }))
   )
   const selectedCard = useEditor((s) => s.project.cards.find((c) => c.id === s.selectedCardId) ?? null)
@@ -803,7 +807,7 @@ export function CardInspector() {
         </div>
       </div>
 
-      <Tabs defaultValue="basics" className="flex min-h-0 flex-1 flex-col gap-0">
+      <Tabs value={inspectorTab} onValueChange={(v) => setInspectorTab(v as any)} className="flex min-h-0 flex-1 flex-col gap-0">
         <TabsList variant="line" className="h-9 shrink-0 justify-start gap-0.5 overflow-x-auto overflow-y-hidden border-b border-border px-2">
           <TabsTrigger value="basics" className="px-2 text-[12px]">Basics</TabsTrigger>
           <TabsTrigger value="content" className="px-2 text-[12px]">Content</TabsTrigger>

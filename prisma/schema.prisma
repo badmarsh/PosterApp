@@ -20,6 +20,8 @@ model Workspace {
   bibContent   String?
   bibKeys      String? // JSON string
   userId       String  @default("unauthenticated")
+  agentEvents  String? // JSON string
+  chatMessages String? // JSON string
   cards        Card[]
   assets       Asset[]
   ingestFiles  IngestFile[]

@@ -17,14 +17,30 @@ function makeEvent(e: Omit<AgentEvent, "id" | "ts">): AgentEvent {
 
 export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
   agentEvents: [
-    makeEvent({
+    {
+      id: "init",
+      ts: Date.now(),
       kind: "info",
       status: "done",
       title: "Editor ready",
       detail: "Loading workspace…",
-    }),
+    },
   ],
   generatingId: null,
+
+  chatMessages: [],
+  setChatMessages: (messages) => set({ chatMessages: messages }),
+
+  hydrateUi: (events, messages) => set({ 
+    agentEvents: events.length > 0 ? events : get().agentEvents, 
+    chatMessages: messages 
+  }),
+
+  inspectorTab: "basics",
+  setInspectorTab: (tab) => set({ inspectorTab: tab }),
+
+  pendingAiPrompt: null,
+  setPendingAiPrompt: (prompt) => set({ pendingAiPrompt: prompt }),
 
   // Compile state
   compiling: false,
@@ -32,20 +48,36 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
   compileLog: null,
   compileOk: null,
 
+  autoCompile: false,
+  setAutoCompile: (v) => set({ autoCompile: v }),
+  lastCompileFormat: "poster",
+  setLastCompileFormat: (format) => set({ lastCompileFormat: format }),
+
   pushEvent: (e) => {
+    const ev = makeEvent(e)
     set((s) => {
-      s.agentEvents.push(makeEvent(e))
+      s.agentEvents.push(ev)
+    })
+    return ev.id
+  },
+
+  updateEvent: (id, patch) => {
+    set((s) => {
+      const ev = s.agentEvents.find(e => e.id === id)
+      if (ev) {
+        Object.assign(ev, patch)
+      }
     })
   },
 
-  compileProject: async () => {
+  compileProject: async (format = "poster") => {
     if (get().compiling) return
     set((s) => { s.compiling = true })
-    get().pushEvent({ kind: "generate", status: "running", title: "Compiling poster with pdflatex…" })
+    const evId = get().pushEvent({ kind: "generate", status: "running", title: `Compiling ${format} with pdflatex…` })
 
     try {
       const project = get().project
-      const tex = generateFullTemplate(project, project.id)
+      const tex = generateFullTemplate(project, project.id, format)
       const res = await apiFetch(`/api/workspaces/${project.id}/compile`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,16 +97,16 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
           const buf = await pdfRes.arrayBuffer()
           set((s) => { s.pdfData = new Uint8Array(buf) })
         }
-        get().pushEvent({ kind: "generate", status: "done", title: "Compile succeeded", detail: "PDF ready for preview." })
+        get().updateEvent(evId, { status: "done", title: "Compile succeeded", detail: "PDF ready for preview." })
       } else {
-        get().pushEvent({ kind: "generate", status: "error", title: "Compile failed", detail: (data.log ?? "").slice(0, 200) })
+        get().updateEvent(evId, { status: "error", title: "Compile failed", detail: (data.log ?? "").slice(0, 200) })
       }
     } catch (err) {
       set((s) => {
         s.compileLog = String(err)
         s.compileOk = false
       })
-      get().pushEvent({ kind: "generate", status: "error", title: "Compile error", detail: String(err) })
+      get().updateEvent(evId, { status: "error", title: "Compile error", detail: String(err) })
     } finally {
       set((s) => { s.compiling = false })
     }

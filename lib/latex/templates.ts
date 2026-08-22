@@ -97,6 +97,27 @@ export function getAtlasTemplate(project: Project): string {
 \\date{}
 
 \\begin{document}
+\\end{document}
+`
+}
+
+export function getArticleTemplate(project: Project): string {
+  return `
+\\documentclass[11pt, a4paper, twocolumn]{article}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{booktabs}
+\\usepackage[margin=1in]{geometry}
+\\usepackage{authblk}
+
+\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\author{${parseMarkdownToLatex(project.authors)}}
+\\affil{${parseMarkdownToLatex(project.venue)}}
+\\date{}
+
+\\begin{document}
 \\maketitle
 `
 }

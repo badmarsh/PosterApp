@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Sparkles,
   Terminal,
+  Wrench,
   XCircle,
 } from "lucide-react"
 import {
@@ -37,6 +38,11 @@ import { useShallow } from "zustand/react/shallow"
 import type { AgentEvent } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 import { makeChatAdapter } from "@/components/agent-chat-adapter"
+import ReactMarkdown from "react-markdown"
+import remarkMath from "remark-math"
+import rehypeKatex from "rehype-katex"
+import remarkGfm from "remark-gfm"
+import "katex/dist/katex.min.css"
 
 // ---------------------------------------------------------------------------
 // Status event log helpers (unchanged from previous implementation)
@@ -215,7 +221,7 @@ function StatusStrip({
       {/* Expanded timeline */}
       {open && (
         <div
-          className="max-h-52 overflow-y-auto px-3 pt-1 pb-2"
+          className="max-h-[60vh] overflow-y-auto px-3 pt-1 pb-2"
           role="log"
           aria-live="polite"
           aria-label="Agent status timeline"
@@ -280,11 +286,57 @@ function AssistantMessageBubble() {
 
 function AssistantTextContent() {
   const { text } = useMessagePartText()
-  // Very lightweight markdown: render newlines and basic bold (no heavy lib needed)
+  const { updateCard, selectedCardId, pushEvent } = useEditor(
+    useShallow((s) => ({
+      updateCard: s.updateCard,
+      selectedCardId: s.selectedCardId,
+      pushEvent: s.pushEvent,
+    }))
+  )
+
+  const fixRegex = /<fix>([\s\S]*?)<\/fix>/g
+  let cleanText = text
+  const fixes: string[] = []
+
+  cleanText = text.replace(fixRegex, (fullMatch, content) => {
+    fixes.push(content.trim())
+    return ""
+  })
+
   return (
-    <span style={{ whiteSpace: "pre-wrap" }}>
-      {text}
-    </span>
+    <div className="flex flex-col gap-2">
+      <div className="prose prose-sm dark:prose-invert prose-p:leading-relaxed prose-pre:bg-card prose-pre:border prose-pre:border-border max-w-none text-[12px]">
+        <ReactMarkdown
+          remarkPlugins={[remarkMath, remarkGfm]}
+          rehypePlugins={[rehypeKatex]}
+        >
+          {cleanText}
+        </ReactMarkdown>
+      </div>
+
+      {fixes.map((fixContent, i) => (
+        <Button
+          key={i}
+          size="sm"
+          variant="outline"
+          className="mt-1 w-full gap-2 border-primary/50 bg-primary/5 text-primary hover:bg-primary/15"
+          onClick={() => {
+            if (selectedCardId) {
+              updateCard(selectedCardId, { content: fixContent })
+              pushEvent({
+                kind: "info",
+                status: "done",
+                title: "Fix applied",
+                detail: "Card content was updated by AI.",
+              })
+            }
+          }}
+        >
+          <Wrench className="size-3.5" />
+          Aplikovať opravu na vybranú kartu
+        </Button>
+      ))}
+    </div>
   )
 }
 
@@ -431,12 +483,16 @@ function AgentPanelInner({
 // ---------------------------------------------------------------------------
 
 export function AgentPanel() {
-  const { agentEvents, generatingId, projectId, selectedCardId } = useEditor(
+  const { agentEvents, generatingId, projectId, selectedCardId, pendingAiPrompt, setPendingAiPrompt, chatMessages, setChatMessages } = useEditor(
     useShallow((s) => ({
       agentEvents: s.agentEvents,
       generatingId: s.generatingId,
       projectId: s.project.id,
       selectedCardId: s.selectedCardId,
+      pendingAiPrompt: s.pendingAiPrompt,
+      setPendingAiPrompt: s.setPendingAiPrompt,
+      chatMessages: s.chatMessages,
+      setChatMessages: s.setChatMessages,
     }))
   )
 
@@ -457,7 +513,25 @@ export function AgentPanel() {
     [projectId]
   )
 
-  const runtime = useLocalRuntime(adapter)
+  const runtime = useLocalRuntime(adapter, { initialMessages: chatMessages })
+
+  // Observe and sync chat messages back to the global store
+  useEffect(() => {
+    return runtime.thread.subscribe(() => {
+      const msgs = runtime.thread.messages
+      // Simple debounce to avoid spamming the store
+      // In a real app we might use a dedicated debouncer, but a short timeout is fine here
+      setTimeout(() => setChatMessages([...msgs]), 0)
+    })
+  }, [runtime, setChatMessages])
+
+  useEffect(() => {
+    if (pendingAiPrompt) {
+      setCollapsed(false)
+      runtime.thread.append({ role: "user", content: [{ type: "text", text: pendingAiPrompt }] })
+      setPendingAiPrompt(null)
+    }
+  }, [pendingAiPrompt, runtime.thread, setPendingAiPrompt])
 
   if (collapsed) {
     return (

@@ -6,7 +6,11 @@ import type {
   Project,
   ValidationLevel,
 } from "@/lib/poster-types"
+import type { ThreadMessage } from "@assistant-ui/react"
 import type { AssignSlot, ParseLogEntry } from "@/lib/ingestion"
+import type { ExportFormat } from "@/lib/latex/types"
+
+export type InspectorTab = "basics" | "content" | "table" | "figures" | "validation" | "output"
 
 export interface ProjectSlice {
   project: Project
@@ -74,8 +78,24 @@ export interface UiSlice {
   compileLog: string | null
   compileOk: boolean | null
 
-  pushEvent: (e: Omit<AgentEvent, "id" | "ts">) => void
-  compileProject: () => Promise<void>
+  autoCompile: boolean
+  setAutoCompile: (v: boolean) => void
+  lastCompileFormat: ExportFormat
+  setLastCompileFormat: (format: ExportFormat) => void
+
+  pendingAiPrompt: string | null
+  setPendingAiPrompt: (prompt: string | null) => void
+
+  inspectorTab: InspectorTab
+  setInspectorTab: (tab: InspectorTab) => void
+
+  chatMessages: ThreadMessage[]
+  setChatMessages: (messages: ThreadMessage[]) => void
+  hydrateUi: (events: AgentEvent[], messages: ThreadMessage[]) => void
+
+  pushEvent: (e: Omit<AgentEvent, "id" | "ts">) => string
+  updateEvent: (id: string, patch: Partial<AgentEvent>) => void
+  compileProject: (format?: ExportFormat) => Promise<void>
 }
 
 export type EditorState = ProjectSlice & IngestionSlice & BibSlice & UiSlice

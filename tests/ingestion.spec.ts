@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { setupClerkTestingToken } from '@clerk/testing/playwright';
 import fs from 'fs';
 
 const filePath = process.env.E2E_TEST_PDF || 'C:\\Users\\marek\\Documents\\Robco PhD\\poster4\\Sources\\PO_152.pdf';
@@ -7,6 +8,10 @@ test.beforeAll(() => {
   if (!fs.existsSync(filePath)) {
     console.warn(`Skipping ingestion test: File ${filePath} not found.`);
   }
+});
+
+test.beforeEach(async ({ page }) => {
+  await setupClerkTestingToken({ page });
 });
 
 test('workspace selector loads and shows workspaces', async ({ page }) => {
@@ -29,14 +34,17 @@ test('ingestion of PDF via UI', async ({ page }) => {
   // Auto-accept any confirm() dialogues (like removing a file)
   page.on('dialog', dialog => dialog.accept());
   
-  // Create a test workspace via API
-  const apiContext = await page.context().request;
-  await apiContext.post('/api/workspaces', {
-    data: { id: 'test-workspace', name: 'Test Workspace' }
-  });
-
   // Navigate to the app
   await page.goto('/');
+
+  // Create new project
+  await page.getByRole('button', { name: 'Create New Project' }).click();
+  await page.locator('input[placeholder="my-cool-project"]').fill('test-workspace');
+  await page.locator('input[placeholder="My Cool Project"]').fill('Test Workspace');
+  await page.getByRole('button', { name: 'Create' }).click();
+
+  // Wait for it to switch to this project
+  await expect(page.getByText('Test Workspace')).toBeVisible({ timeout: 10000 });
 
   // Handle the new Workspace Selection modal properly
   try {

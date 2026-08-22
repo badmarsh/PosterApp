@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState, useEffect } from "react"
 import { Document, Page, pdfjs } from "react-pdf"
 import "react-pdf/dist/Page/AnnotationLayer.css"
 import "react-pdf/dist/Page/TextLayer.css"
@@ -12,8 +12,8 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/$
 interface PdfViewerProps {
   /** PDF binary data (Uint8Array) */
   data: Uint8Array
-  /** Render scale factor (1 = 100%) */
-  scale: number
+  /** Render scale factor (1 = 100%, or 'auto' for fit-width) */
+  scale: number | "auto"
   /** Called after document loads */
   onLoadSuccess?: (numPages: number) => void
   /** Called when an error occurs */
@@ -28,6 +28,17 @@ export function PdfViewer({
 }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [numPages, setNumPages] = useState(0)
+  const [containerWidth, setContainerWidth] = useState<number>(0)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      setContainerWidth(entries[0].contentRect.width)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   // Memoize the file object so react-pdf doesn't re-parse on every render
   const file = useMemo(() => {
@@ -54,8 +65,7 @@ export function PdfViewer({
   return (
     <div
       ref={containerRef}
-      className="flex flex-col items-center gap-2 overflow-auto p-4"
-      style={{ height: "100%" }}
+      className="absolute inset-0 flex flex-col items-center gap-2 overflow-auto p-4"
     >
       <Document
         file={file}
@@ -77,7 +87,8 @@ export function PdfViewer({
           <Page
             key={`page-${i + 1}`}
             pageNumber={i + 1}
-            scale={scale}
+            scale={scale === "auto" ? undefined : scale}
+            width={scale === "auto" && containerWidth ? containerWidth : undefined}
             className="mb-4 shadow-lg"
             loading={
               <div className="flex h-32 items-center justify-center">

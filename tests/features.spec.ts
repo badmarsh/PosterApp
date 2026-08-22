@@ -1,46 +1,55 @@
 import { test, expect } from '@playwright/test';
+import { setupClerkTestingToken } from '@clerk/testing/playwright';
 
 test.describe('Features & Regression Tests', () => {
-  
-  test.skip('BibTeX deduplication prevents identical titles from being added twice', async ({ request }) => {
-    // 1. Create a workspace
+  test.beforeEach(async ({ page }) => {
+    await setupClerkTestingToken({ page });
+  });
+
+  test('BibTeX deduplication prevents identical titles from being added twice', async ({ request, page }) => {
+    // 1. Create a workspace via UI to ensure proper Clerk auth is applied
     const wsId = `test-bib-${Date.now()}`;
-    const headers = { 'Authorization': `Bearer change-me-in-production` };
     
-    const createRes = await request.post('/api/workspaces', {
-      headers,
-      data: { id: wsId, name: 'Bib Test Workspace' }
-    });
+    await page.goto('/');
     
-    if (!createRes.ok()) {
-      console.log('CREATE FAILED:', createRes.status(), await createRes.text());
-    }
-    expect(createRes.ok()).toBeTruthy();
+    // Create new project
+    await page.getByRole('button', { name: 'Create New Project' }).click();
+    await page.locator('input[placeholder="my-cool-project"]').fill(wsId);
+    await page.locator('input[placeholder="My Cool Project"]').fill('Bib Test Workspace');
+    await page.getByRole('button', { name: 'Create' }).click();
+    
+    // Wait for the UI to settle
+    await expect(page.getByText('Bib Test Workspace')).toBeVisible({ timeout: 10000 });
 
     const initialBib = `@article{Smith2020,
   title = {A study on nothing},
   author = {Smith, John},
   year = {2020}
 }`;
+    // Get cookies to pass to the API request
+    const cookies = await page.context().cookies();
+    const clerkCookie = cookies.find(c => c.name === '__session')?.value;
+    
     const putRes = await request.put(`/api/workspaces/${wsId}/bib`, {
-      headers,
+      headers: { 'Cookie': `__session=${clerkCookie}` },
       data: { bib: initialBib }
     });
     expect(putRes.ok()).toBeTruthy();
 
-    const res = await request.get(`/api/workspaces/${wsId}/bib`, { headers });
+    const res = await request.get(`/api/workspaces/${wsId}/bib`, { headers: { 'Cookie': `__session=${clerkCookie}` } });
     const data = await res.json();
     expect(data.bib).toContain('A study on nothing');
   });
 
-  test.skip('PDF asset previews are rendered as objects instead of images', async ({ page, request }) => {
+  test('PDF asset previews are rendered as objects instead of images', async ({ page }) => {
     const wsId = `test-pdf-${Date.now()}`;
-    const headers = { 'Authorization': `Bearer change-me-in-production` };
+    await page.goto('/');
     
-    await request.post('/api/workspaces', {
-      headers,
-      data: { id: wsId, name: 'PDF Test Workspace' }
-    });
+    // Create new project
+    await page.getByRole('button', { name: 'Create New Project' }).click();
+    await page.locator('input[placeholder="my-cool-project"]').fill(wsId);
+    await page.locator('input[placeholder="My Cool Project"]').fill('PDF Test Workspace');
+    await page.getByRole('button', { name: 'Create' }).click();
 
     await page.goto('/');
     

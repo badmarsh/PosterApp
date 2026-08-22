@@ -29,7 +29,6 @@ export function WorkspaceSelector({ onSelect, onClose }: { onSelect: (id: string
         setLoading(false)
       })
       .catch(err => {
-        console.error(err)
         setError(String(err))
         setLoading(false)
       })
