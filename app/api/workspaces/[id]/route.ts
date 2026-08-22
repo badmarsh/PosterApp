@@ -62,7 +62,14 @@ const WorkspaceSchema = z.object({
   posterTitle: z.string().optional(),
   authors: z.string().optional(),
   venue: z.string().optional(),
-  templateName: z.enum(["atlas", "minimal"]).optional(),
+  templateName: z.preprocess(
+    (val) => {
+      // Normalize legacy value written before enum was enforced
+      if (typeof val === "string" && val !== "atlas" && val !== "minimal") return "atlas"
+      return val
+    },
+    z.enum(["atlas", "minimal"]).optional()
+  ),
   cards: z.array(z.object({
     id: z.string(),
     title: z.string().optional(),
