@@ -3,6 +3,7 @@ import type { EditorSlice, IngestionSlice } from "./types"
 import { detectMethod, type ParseLogEntry, type IngestFile } from "@/lib/ingestion"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval"
+import { apiFetch } from "@/lib/api-fetch"
 
 function makeLog(level: ParseLogEntry["level"], message: string): ParseLogEntry {
   return {
@@ -107,7 +108,7 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         formData.append("existingAssets", JSON.stringify(existingFilenames))
 
         const workspaceId = get().project.id
-        const res = await fetch(`/api/ingestion/parse?workspaceId=${workspaceId}`, {
+        const res = await apiFetch(`/api/ingestion/parse?workspaceId=${workspaceId}`, {
           method: "POST",
           body: formData
         })

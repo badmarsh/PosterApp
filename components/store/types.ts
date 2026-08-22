@@ -26,6 +26,7 @@ export interface ProjectSlice {
   deleteCard: (id: string) => void
   reorderCard: (id: string, dir: -1 | 1) => void
   moveColumn: (id: string, column: ColumnIndex) => void
+  moveCard: (id: string, toColumn: ColumnIndex, toIndex: number) => void
   validateCardAction: (id: string) => void
   generateLatexForCardAction: (id: string) => void
   autoFillCardAction: (id: string) => Promise<void>
@@ -67,7 +68,14 @@ export interface UiSlice {
   agentEvents: AgentEvent[]
   generatingId: string | null
 
+  // Compile state (persisted across tab switches)
+  compiling: boolean
+  pdfData: Uint8Array | null
+  compileLog: string | null
+  compileOk: boolean | null
+
   pushEvent: (e: Omit<AgentEvent, "id" | "ts">) => void
+  compileProject: () => Promise<void>
 }
 
 export type EditorState = ProjectSlice & IngestionSlice & BibSlice & UiSlice

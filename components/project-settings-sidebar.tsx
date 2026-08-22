@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { apiFetch } from "@/lib/api-fetch"
 
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
@@ -44,7 +45,7 @@ export function ProjectSettingsSidebar() {
   const [workspaces, setWorkspaces] = useState<{id: string, name: string}[]>([])
 
   useEffect(() => {
-    fetch('/api/workspaces')
+    apiFetch('/api/workspaces')
       .then((r) => r.json())
       .then((data) => setWorkspaces(Array.isArray(data) ? data : []))
       .catch(console.error)

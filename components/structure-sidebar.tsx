@@ -32,6 +32,7 @@ import {
   PATTERN_SHORT,
   StatusIcon,
 } from "@/components/status"
+import { apiFetch } from "@/lib/api-fetch"
 
 import type { Card, ColumnIndex } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
@@ -191,7 +192,7 @@ export function StructureSidebar() {
 
   const [workspaces, setWorkspaces] = useState<{id: string, name: string}[]>([])
   useEffect(() => {
-    fetch('/api/workspaces')
+    apiFetch('/api/workspaces')
       .then((r) => r.json())
       .then((data) => setWorkspaces(Array.isArray(data) ? data : []))
       .catch(console.error)

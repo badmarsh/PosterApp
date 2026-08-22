@@ -1,5 +1,6 @@
 import { toast } from "sonner"
 import type { EditorSlice, BibSlice } from "./types"
+import { apiFetch } from "@/lib/api-fetch"
 
 export const createBibSlice: EditorSlice<BibSlice> = (set) => ({
   bibContent: "",
@@ -7,7 +8,7 @@ export const createBibSlice: EditorSlice<BibSlice> = (set) => ({
 
   fetchBib: async (projectId) => {
     try {
-      const res = await fetch(`/api/workspaces/${projectId}/bib`)
+      const res = await apiFetch(`/api/workspaces/${projectId}/bib`)
       if (res.ok) {
         const data = await res.json()
         set((s) => {
@@ -25,7 +26,7 @@ export const createBibSlice: EditorSlice<BibSlice> = (set) => ({
   updateBib: async (projectId, bib) => {
     set((s) => { s.bibContent = bib })
     try {
-      const res = await fetch(`/api/workspaces/${projectId}/bib`, {
+      const res = await apiFetch(`/api/workspaces/${projectId}/bib`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bib })

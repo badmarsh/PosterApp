@@ -62,7 +62,7 @@ Browser drop → uploadFiles() → processFile() → POST /api/ingestion/parse
   → merge into store (update existing by filename, or push new)
 ```
 
-**Key behaviour:** `fileCache` (module-level Map) stores the original `File` objects for retry. Lost on page refresh — retry fails if user reloads.
+**Key behaviour:** `fileCache` (module-level Map backed by IndexedDB) stores the original `File` objects for retry. Files survive page refresh.
 
 ### AI Card Generation
 ```
@@ -104,9 +104,8 @@ Schema at `prisma/schema.prisma`. Key notes:
 ## Known Remaining Issues
 
 ### Still Open
-1. **`fileCache` lost on refresh** — Retry file after page reload shows "File no longer available". Fix: persist File to IndexedDB during upload.
-2. **BibTeX deduplication** — Same reference from two PDFs will appear twice in `bibContent`. (Dedups by cite key, but same ref might have different cite keys).
-3. **AUTH_SECRET is a static bearer token** — not suitable for multi-user deployment.
+1. **BibTeX deduplication** — Same reference from two PDFs will appear twice in `bibContent`. (Dedups by cite key, but same ref might have different cite keys).
+2. **AUTH_SECRET is a static bearer token** — not suitable for multi-user deployment.
 
 ### Fixed in This Session (2026-08-22)
 - ✅ `AI_MODEL` now set in `.env.local`, model name no longer hardcoded

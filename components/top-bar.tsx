@@ -34,6 +34,7 @@ import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { generateFullTemplate } from "@/lib/latex"
 import { cn } from "@/lib/utils"
+import { apiFetch } from "@/lib/api-fetch"
 
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme()
@@ -100,7 +101,7 @@ export function TopBar({
   }, [project])
 
   useEffect(() => {
-    fetch("/api/workspaces")
+    apiFetch("/api/workspaces")
       .then((r) => r.json())
       .then((data) => setWorkspaces(Array.isArray(data) ? data : []))
       .catch(() => {})
@@ -110,7 +111,7 @@ export function TopBar({
     setSaving(true)
     try {
       const bodyStr = JSON.stringify(proj)
-      const res = await fetch(`/api/workspaces/${proj.id}`, {
+      const res = await apiFetch(`/api/workspaces/${proj.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: bodyStr,

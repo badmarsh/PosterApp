@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import type { ExtractedAsset } from "@/lib/ingestion"
+import { apiFetch } from "@/lib/api-fetch"
 
 const QUICK_OPS: { id: string; label: string; icon: React.ReactNode; filter: string }[] = [
   { id: "remove-bg", label: "Remove background", icon: <Eraser className="size-3" />, filter: "" },
@@ -50,7 +51,7 @@ export function FigureEditor({
     if (opId === "crop") mappedOp = "crop-tight"
 
     try {
-      const res = await fetch("/api/ingestion/image-edit", {
+      const res = await apiFetch("/api/ingestion/image-edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

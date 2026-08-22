@@ -15,28 +15,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useIsDesktop } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
 import { ErrorBoundary } from "@/components/error-boundary"
+import { apiFetch } from "@/lib/api-fetch"
 
 type MobilePane = "structure" | "preview" | "editor" | "agent"
 
-if (typeof window !== "undefined") {
-  const originalFetch = window.fetch
-  window.fetch = async (...args) => {
-    const token = localStorage.getItem("API_SECRET") || "change-me-in-production"
-    let [url, config] = args
-    if (!config) config = {}
-    if (!config.headers) config.headers = {}
-    
-    if (config.headers instanceof Headers) {
-      config.headers.set("Authorization", `Bearer ${token}`)
-    } else if (Array.isArray(config.headers)) {
-      config.headers.push(["Authorization", `Bearer ${token}`])
-    } else {
-      config.headers = { ...config.headers, Authorization: `Bearer ${token}` }
-    }
-    
-    return originalFetch(url, config)
-  }
-}
+// Auth is injected via apiFetch() — see lib/api-fetch.ts
 
 function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () => void }) {
   const [structureOpen, setStructureOpen] = useState(true)
@@ -255,7 +238,7 @@ function WorkspaceSelector({ onSelect, onClose }: { onSelect: (id: string) => vo
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    fetch('/api/workspaces')
+    apiFetch('/api/workspaces')
       .then(async r => {
         if (!r.ok) {
           const errData = await r.json().catch(() => ({}))
@@ -289,7 +272,7 @@ function WorkspaceSelector({ onSelect, onClose }: { onSelect: (id: string) => vo
 
     setIsSubmitting(true)
     try {
-      const res = await fetch('/api/workspaces', {
+      const res = await apiFetch('/api/workspaces', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: newId, name: newName, templateName: newTemplate })

@@ -4,6 +4,7 @@ import { sampleProject } from "@/lib/mock-data"
 import { COLUMN_BUDGET, estimateHeight, generateLatexForCard, levelFromMessages, validateCard } from "@/lib/latex"
 import type { Project } from "@/lib/poster-types"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
+import { apiFetch } from "@/lib/api-fetch"
 export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
   project: sampleProject,
   selectedCardId: null,
@@ -18,7 +19,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     if (id === project.id || isSwitchingProject) return
     set((s) => { s.isSwitchingProject = true; s.selectedCardId = null })
     try {
-      const res = await fetch(`/api/workspaces/${id}`)
+      const res = await apiFetch(`/api/workspaces/${id}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data: Project = await res.json()
       set((s) => {
@@ -110,6 +111,50 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     card.order = s.project.cards.filter((c) => c.column === column && c.id !== id).length
   }),
 
+  moveCard: (id, toColumn, toIndex) => set((s) => {
+    const cardIndex = s.project.cards.findIndex((c) => c.id === id)
+    if (cardIndex === -1) return
+    
+    const card = s.project.cards[cardIndex]
+    const fromColumn = card.column
+    const fromIndex = card.order
+
+    if (fromColumn === toColumn) {
+      if (fromIndex === toIndex) return
+      const colCards = s.project.cards
+        .filter(c => c.column === toColumn)
+        .sort((a, b) => a.order - b.order)
+        
+      const [moved] = colCards.splice(fromIndex, 1)
+      colCards.splice(toIndex, 0, moved)
+      
+      colCards.forEach((c, idx) => {
+        const target = s.project.cards.find(sc => sc.id === c.id)
+        if (target) target.order = idx
+      })
+    } else {
+      card.column = toColumn
+      
+      const sourceCards = s.project.cards
+        .filter(c => c.column === fromColumn && c.id !== id)
+        .sort((a, b) => a.order - b.order)
+      sourceCards.forEach((c, idx) => {
+        const target = s.project.cards.find(sc => sc.id === c.id)
+        if (target) target.order = idx
+      })
+      
+      const destCards = s.project.cards
+        .filter(c => c.column === toColumn && c.id !== id)
+        .sort((a, b) => a.order - b.order)
+      
+      destCards.splice(toIndex, 0, card)
+      destCards.forEach((c, idx) => {
+        const target = s.project.cards.find(sc => sc.id === c.id)
+        if (target) target.order = idx
+      })
+    }
+  }),
+
   validateCardAction: (id) => {
     const card = get().project.cards.find((c) => c.id === id)
     if (!card) return
@@ -182,7 +227,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
 
     try {
       const workspaceId = get().project.id
-      const res = await fetch(`/api/workspaces/${workspaceId}/cards/${id}/generate`, {
+      const res = await apiFetch(`/api/workspaces/${workspaceId}/cards/${id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -278,7 +323,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     get().pushEvent({ kind: "verify", status: "running", title: "AI Poster review" })
     try {
       const proj = get().project
-      const res = await fetch(`/api/workspaces/${proj.id}/review`, {
+      const res = await apiFetch(`/api/workspaces/${proj.id}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -321,7 +366,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     const { project } = get()
     set((s) => { s.isSaving = true })
     try {
-      const res = await fetch(`/api/workspaces/${project.id}`, {
+      const res = await apiFetch(`/api/workspaces/${project.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(project)

@@ -1,7 +1,27 @@
 "use client"
 
 import { useState, useCallback, memo, useMemo } from "react"
-import { ChevronDown, ChevronUp, ImageIcon, List, Table2, FileDown, Loader2, ChevronDown as ChevronDownIcon, Plus } from "lucide-react"
+import { ChevronDown, ChevronUp, ImageIcon, List, Table2, FileDown, Loader2, ChevronDown as ChevronDownIcon, Plus, GripVertical } from "lucide-react"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+  DragStartEvent,
+  DragOverEvent,
+  DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -15,6 +35,7 @@ import { StatusIcon } from "@/components/status"
 import { COLUMN_BUDGET, estimateHeight, generateFullTemplate } from "@/lib/latex"
 import type { Card, ColumnIndex } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
+import { apiFetch } from "@/lib/api-fetch"
 
 // ---------------------------------------------------------------------------
 // Tab type
@@ -32,13 +53,12 @@ function summarize(card: Card): string {
   return first || "No content yet"
 }
 
-const MiniBlock = memo(function MiniBlock({ card }: { card: Card }) {
-  const { selectedCardId, selectCard, reorderCard, getStatus, project } =
+const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overlay?: boolean }) {
+  const { selectedCardId, selectCard, getStatus, project } =
     useEditor(
       useShallow((s) => ({
         selectedCardId: s.selectedCardId,
         selectCard: s.selectCard,
-        reorderCard: s.reorderCard,
         getStatus: s.getStatus,
         project: s.project,
       }))
@@ -51,6 +71,21 @@ const MiniBlock = memo(function MiniBlock({ card }: { card: Card }) {
   const hasBullets =
     card.pattern !== "image-focused" && card.content.trim().length > 0
   const hasTable = card.pattern === "bullets-table" && card.table.rows.length > 0
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: card.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
 
   const colCards = useMemo(
     () => project.cards
@@ -73,6 +108,8 @@ const MiniBlock = memo(function MiniBlock({ card }: { card: Card }) {
           selectCard(card.id)
         }
       }}
+      ref={setNodeRef}
+      style={style}
       className={cn(
         "group relative rounded-md border bg-card p-2 text-left shadow-sm transition-all hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active
@@ -80,8 +117,18 @@ const MiniBlock = memo(function MiniBlock({ card }: { card: Card }) {
           : status === "invalid"
             ? "border-destructive/50"
             : "border-border hover:border-muted-foreground/40",
+        overlay && "shadow-xl border-primary/50 cursor-grabbing rotate-2 scale-105"
       )}
     >
+      {/* Drag Handle Overlay to capture drags anywhere on the card, or use a specific handle */}
+      <div 
+        className={cn("absolute inset-0 z-10", overlay ? "cursor-grabbing" : "cursor-grab")}
+        {...attributes}
+        {...listeners}
+      />
+      
+      {/* Make content relative so it sits above the absolute drag layer if we want to click specific things, but for now whole card is drag handle */}
+      <div className="relative z-0 pointer-events-none">
       <div
         aria-hidden
         className={cn(
@@ -103,30 +150,7 @@ const MiniBlock = memo(function MiniBlock({ card }: { card: Card }) {
           </span>
         </div>
         <div className="flex shrink-0 flex-col opacity-0 transition-opacity group-hover:opacity-100">
-          <button
-            type="button"
-            aria-label="Move up"
-            disabled={idx === 0}
-            onClick={(e) => {
-              e.stopPropagation()
-              reorderCard(card.id, -1)
-            }}
-            className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-          >
-            <ChevronUp className="size-3" />
-          </button>
-          <button
-            type="button"
-            aria-label="Move down"
-            disabled={idx === colCards.length - 1}
-            onClick={(e) => {
-              e.stopPropagation()
-              reorderCard(card.id, 1)
-            }}
-            className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-          >
-            <ChevronDown className="size-3" />
-          </button>
+          <GripVertical className="size-4 text-muted-foreground" />
         </div>
       </div>
 
@@ -190,6 +214,7 @@ const MiniBlock = memo(function MiniBlock({ card }: { card: Card }) {
           </TooltipContent>
         </Tooltip>
       </div>
+      </div>
     </div>
   )
 })
@@ -225,14 +250,16 @@ function PosterColumn({ column }: { column: ColumnIndex }) {
           {pct}% fill
         </span>
       </div>
-      <div className="flex flex-col gap-2">
-        {cards.length ? (
-          cards.map((c) => <MiniBlock key={c.id} card={c} />)
-        ) : (
-          <div className="rounded-md border border-dashed border-border px-2 py-6 text-center text-[10px] leading-snug text-muted-foreground">
-            No blocks in this column yet.
-          </div>
-        )}
+      <div className="flex flex-col gap-2 min-h-[100px] rounded-md p-1 -mx-1">
+        <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
+          {cards.length ? (
+            cards.map((c) => <MiniBlock key={c.id} card={c} />)
+          ) : (
+            <div className="rounded-md border border-dashed border-border px-2 py-6 text-center text-[10px] leading-snug text-muted-foreground">
+              Drop cards here
+            </div>
+          )}
+        </SortableContext>
         <button
           onClick={() => addCard(column)}
           className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/50 hover:text-primary mt-1"
@@ -280,18 +307,80 @@ function PosterSkeleton() {
 // StructureView
 // ---------------------------------------------------------------------------
 function StructureView() {
-  const { project, isSwitchingProject } = useEditor(
+  const { project, isSwitchingProject, moveCard } = useEditor(
     useShallow((s) => ({
       project: s.project,
       isSwitchingProject: s.isSwitchingProject,
+      moveCard: s.moveCard,
     }))
   )
+  
+  const [activeId, setActiveId] = useState<string | null>(null)
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event
+    if (!over) return
+    
+    const activeId = active.id as string
+    const overId = over.id as string
+    
+    if (activeId === overId) return
+    
+    const activeCard = project.cards.find(c => c.id === activeId)
+    const overCard = project.cards.find(c => c.id === overId)
+    
+    if (!activeCard || !overCard) return
+    
+    if (activeCard.column !== overCard.column) {
+      moveCard(activeId, overCard.column, overCard.order)
+    }
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveId(null)
+    const { active, over } = event
+    if (!over) return
+
+    const activeId = active.id as string
+    const overId = over.id as string
+    
+    if (activeId === overId) return
+
+    const activeCard = project.cards.find(c => c.id === activeId)
+    const overCard = project.cards.find(c => c.id === overId)
+    
+    if (activeCard && overCard) {
+      moveCard(activeId, overCard.column, overCard.order)
+    }
+  }
+
+  const activeCardData = useMemo(
+    () => project.cards.find(c => c.id === activeId),
+    [project.cards, activeId]
+  )
+
   return (
     <ScrollArea className="min-h-0 flex-1">
       {isSwitchingProject ? (
         <PosterSkeleton />
       ) : (
-        <div className="mx-auto w-full max-w-5xl p-5 pb-20">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="mx-auto w-full max-w-5xl p-5 pb-20">
           <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
             {/* fixed header area */}
             <div className="border-b-2 border-primary/30 bg-gradient-to-b from-muted/60 to-card px-4 py-3 text-center">
@@ -318,7 +407,12 @@ function StructureView() {
               <PosterColumn column={3} />
             </div>
           </div>
-        </div>
+          </div>
+          
+          <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.4" } } }) }}>
+            {activeCardData ? <MiniBlock card={activeCardData} overlay /> : null}
+          </DragOverlay>
+        </DndContext>
       )}
     </ScrollArea>
   )
@@ -362,20 +456,113 @@ function CompileLog({ log, ok }: { log: string; ok: boolean }) {
 }
 
 // ---------------------------------------------------------------------------
-// PdfView
+// PdfView — react-pdf based viewer
 // ---------------------------------------------------------------------------
-interface PdfViewProps {
-  projectId: string
-  pdfUrl: string | null
-  compileLog: string | null
-  compileOk: boolean | null
-  compiling: boolean
-}
 
-function PdfView({ projectId, pdfUrl, compileLog, compileOk, compiling }: PdfViewProps) {
+import dynamic from "next/dynamic"
+import { Minus, Download } from "lucide-react"
+
+const PdfViewerComponent = dynamic(
+  () => import("@/components/pdf-viewer").then((mod) => mod.PdfViewer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    ),
+  },
+)
+
+const ZOOM_OPTIONS = [
+  { value: 0.5, label: "50%" },
+  { value: 0.75, label: "75%" },
+  { value: 1, label: "100%" },
+  { value: 1.25, label: "125%" },
+  { value: 1.5, label: "150%" },
+  { value: 2, label: "200%" },
+  { value: 3, label: "300%" },
+  { value: 4, label: "400%" },
+]
+
+function PdfView() {
+  const { pdfData, compileLog, compileOk, compiling, projectId } = useEditor(
+    useShallow((s) => ({
+      pdfData: s.pdfData,
+      compileLog: s.compileLog,
+      compileOk: s.compileOk,
+      compiling: s.compiling,
+      projectId: s.project.id,
+    }))
+  )
+
+  const [scale, setScale] = useState(1.5)
+  const [numPages, setNumPages] = useState(0)
+
+  const zoomIn = () => {
+    const idx = ZOOM_OPTIONS.findIndex((z) => z.value >= scale)
+    const next = ZOOM_OPTIONS[Math.min(idx + 1, ZOOM_OPTIONS.length - 1)]
+    if (next) setScale(next.value)
+  }
+  const zoomOut = () => {
+    const idx = ZOOM_OPTIONS.findIndex((z) => z.value >= scale)
+    const prev = ZOOM_OPTIONS[Math.max(idx - 1, 0)]
+    if (prev) setScale(prev.value)
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* PDF embed area */}
+      {/* Zoom toolbar */}
+      {pdfData && (
+        <div className="flex shrink-0 items-center justify-between border-b border-border bg-card/60 px-3 py-1">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={zoomOut}
+              disabled={scale <= ZOOM_OPTIONS[0].value}
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+              aria-label="Zoom out"
+            >
+              <Minus className="size-3.5" />
+            </button>
+            <select
+              value={scale}
+              onChange={(e) => setScale(Number(e.target.value))}
+              className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px]"
+            >
+              {ZOOM_OPTIONS.map((z) => (
+                <option key={z.value} value={z.value}>
+                  {z.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={zoomIn}
+              disabled={scale >= ZOOM_OPTIONS[ZOOM_OPTIONS.length - 1].value}
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+              aria-label="Zoom in"
+            >
+              <Plus className="size-3.5" />
+            </button>
+            {numPages > 0 && (
+              <span className="ml-2 font-mono text-[10px] text-muted-foreground">
+                {numPages} page{numPages !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+          <a
+            href={`/api/workspaces/${projectId}/pdf?t=${Date.now()}`}
+            download="poster.pdf"
+            className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Download className="size-3" />
+            Download
+          </a>
+        </div>
+      )}
+
+      {/* PDF render area */}
       <div className="relative min-h-0 flex-1 bg-muted/20">
         {compiling && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-background/70 backdrop-blur-sm">
@@ -383,25 +570,12 @@ function PdfView({ projectId, pdfUrl, compileLog, compileOk, compiling }: PdfVie
             <span className="text-[11px] text-muted-foreground">Compiling with pdflatex…</span>
           </div>
         )}
-        {pdfUrl ? (
-          <object
-            data={pdfUrl}
-            type="application/pdf"
-            className="h-full w-full"
-            aria-label="Compiled poster PDF preview"
-          >
-            <div className="flex h-full items-center justify-center text-[11px] text-muted-foreground">
-              PDF cannot be displayed.{" "}
-              <a
-                href={pdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ml-1 underline"
-              >
-                Download
-              </a>
-            </div>
-          </object>
+        {pdfData ? (
+          <PdfViewerComponent
+            data={pdfData}
+            scale={scale}
+            onLoadSuccess={setNumPages}
+          />
         ) : (
           <div className="flex h-full items-center justify-center">
             <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -426,45 +600,21 @@ function PdfView({ projectId, pdfUrl, compileLog, compileOk, compiling }: PdfVie
 // PosterPreview (main export)
 // ---------------------------------------------------------------------------
 export function PosterPreview() {
-  const { project, isSwitchingProject } = useEditor(
+  const { isSwitchingProject, compiling, compileOk, compileProject } = useEditor(
     useShallow((s) => ({
-      project: s.project,
       isSwitchingProject: s.isSwitchingProject,
+      compiling: s.compiling,
+      compileOk: s.compileOk,
+      compileProject: s.compileProject,
     }))
   )
 
   const [activeTab, setActiveTab] = useState<Tab>("structure")
-  const [compiling, setCompiling] = useState(false)
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
-  const [compileLog, setCompileLog] = useState<string | null>(null)
-  const [compileOk, setCompileOk] = useState<boolean | null>(null)
 
-  const handleCompile = useCallback(async () => {
-    if (compiling) return
-    setCompiling(true)
-    // Switch to PDF tab so the user can see progress
+  const handleCompile = useCallback(() => {
     setActiveTab("pdf")
-    try {
-      const tex = generateFullTemplate(project, project.id)
-      const res = await fetch(`/api/workspaces/${project.id}/compile`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tex }),
-      })
-      const data: { ok: boolean; log: string } = await res.json()
-      setCompileLog(data.log ?? "")
-      setCompileOk(data.ok)
-      if (data.ok) {
-        // Bust the PDF cache with a timestamp query param
-        setPdfUrl(`/api/workspaces/${project.id}/pdf?t=${Date.now()}`)
-      }
-    } catch (err) {
-      setCompileLog(String(err))
-      setCompileOk(false)
-    } finally {
-      setCompiling(false)
-    }
-  }, [compiling, project])
+    compileProject()
+  }, [compileProject])
 
   return (
     <section className="flex min-w-0 flex-1 flex-col bg-muted/30">
@@ -499,7 +649,7 @@ export function PosterPreview() {
           </button>
         </div>
 
-        {/* Right side: metadata labels + compile button */}
+        {/* Right side: compile button */}
         <div className="flex items-center gap-2">
 
           <button
@@ -526,14 +676,9 @@ export function PosterPreview() {
       {activeTab === "structure" ? (
         <StructureView />
       ) : (
-        <PdfView
-          projectId={project.id}
-          pdfUrl={pdfUrl}
-          compileLog={compileLog}
-          compileOk={compileOk}
-          compiling={compiling}
-        />
+        <PdfView />
       )}
     </section>
   )
 }
+
