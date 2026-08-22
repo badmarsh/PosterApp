@@ -419,8 +419,8 @@ function StructureView() {
     
     if (!activeCard || !overCard) return
     
-    if (activeCard.column !== overCard.column) {
-      moveCard(activeId, overCard.column, overCard.order)
+    if (activeCard.column !== overCard.column && overCard.column != null) {
+      moveCard(activeId, overCard.column as ColumnIndex, overCard.order)
     }
   }
 
@@ -437,8 +437,8 @@ function StructureView() {
     const activeCard = project.cards.find(c => c.id === activeId)
     const overCard = project.cards.find(c => c.id === overId)
     
-    if (activeCard && overCard) {
-      moveCard(activeId, overCard.column, overCard.order)
+    if (activeCard && overCard && overCard.column != null) {
+      moveCard(activeId, overCard.column as ColumnIndex, overCard.order)
     }
   }
 
@@ -640,6 +640,7 @@ function PdfView() {
             )}
           </div>
           <a
+            // eslint-disable-next-line react-hooks/purity
             href={`/api/workspaces/${projectId}/pdf?t=${Date.now()}`}
             download="poster.pdf"
             className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"

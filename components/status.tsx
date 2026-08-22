@@ -103,4 +103,13 @@ export const PATTERN_SHORT: Record<BlockPattern, string> = {
   "bullets-table": "bullets+table",
   "image-focused": "image",
   references: "refs",
+  // Slides
+  "title-slide": "title",
+  "figure-slide": "figure",
+  "two-column": "2-col",
+  // Paper
+  "section": "section",
+  "section-figure": "sec+fig",
+  "section-table": "sec+tbl",
+  "section-two-figures": "sec+2fig",
 }

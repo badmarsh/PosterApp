@@ -9,8 +9,10 @@ test('workspace selection modal appears and functions', async ({ page }) => {
   // Navigate to the app
   await page.goto('http://localhost:3333/');
   
+  // Open the workspace selector
+  await page.getByRole('button', { name: 'Switch workspace' }).click();
+  
   // Verify the Workspace Selector modal is visible
-  await page.screenshot({ path: 'test-screenshot.png' });
   await expect(page.getByText('Select a Workspace')).toBeVisible({ timeout: 10000 });
   
   // Verify the Create New Project button exists

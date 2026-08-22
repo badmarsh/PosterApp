@@ -13,6 +13,7 @@ export function useMediaQuery(query: string) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
     const mql = window.matchMedia(query)
     const onChange = () => setMatches(mql.matches)

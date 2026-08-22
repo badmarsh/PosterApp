@@ -6,7 +6,7 @@ import * as path from "path"
 import { extractCiteKeys } from "@/lib/bib-parser"
 import { rateLimit } from "@/lib/rate-limit"
 import { parseAiJson } from "@/lib/ai-helpers"
-import { auth } from "@clerk/nextjs/server"
+import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 // Max characters of source markdown to include in review context

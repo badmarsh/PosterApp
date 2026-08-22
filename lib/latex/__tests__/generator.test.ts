@@ -80,27 +80,44 @@ describe("Generator", () => {
   })
 
   describe("generateFullTemplate", () => {
-    const makeProject = (templateName: string, cards: Card[] = []): Project => ({
+    const makeProject = (templateName: string, posterCards: Card[] = []): Project => ({
       id: "prj_1",
       name: "Test",
       posterTitle: "Title",
       authors: "Authors",
       venue: "Venue",
       templateName,
-      cards,
+      cards: posterCards,
       assets: [],
-      ingestFiles: []
+      ingestFiles: [],
+      outputs: [
+        {
+          id: "out_poster_atlas",
+          outputType: "poster",
+          templateId: "atlas",
+          title: "Test Poster",
+          cards: posterCards,
+        },
+        {
+          id: "out_paper_twocol",
+          outputType: "paper",
+          templateId: "article-twocol",
+          title: "Test Paper",
+          cards: posterCards,
+        },
+      ],
+      activeOutputId: "out_poster_atlas",
     })
 
     it("produces atlascolors for atlas template", () => {
       const prj = makeProject("atlas")
-      const res = generateFullTemplate(prj)
+      const res = generateFullTemplate(prj, prj.outputs[0])
       expect(res).toContain("atlascolors")
     })
 
     it("produces minimalcolors for minimal template", () => {
       const prj = makeProject("minimal")
-      const res = generateFullTemplate(prj)
+      const res = generateFullTemplate(prj, prj.outputs[0])
       expect(res).toContain("minimalcolors")
     })
 
@@ -109,7 +126,7 @@ describe("Generator", () => {
         makeCard({ pattern: "bullets", content: "Cite \\cite{Foo2020}" }),
         makeCard({ pattern: "references" })
       ])
-      const res = generateFullTemplate(prj)
+      const res = generateFullTemplate(prj, prj.outputs[0])
       expect(res).toContain("\\nocite{Foo2020}")
     })
   })

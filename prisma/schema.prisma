@@ -13,26 +13,35 @@ datasource db {
 model Workspace {
   id           String  @id
   name         String
-  posterTitle  String
   authors      String
   venue        String
-  templateName String
+  userId       String  @default("unauthenticated")
   bibContent   String?
   bibKeys      String? // JSON string
-  userId       String  @default("unauthenticated")
   agentEvents  String? // JSON string
   chatMessages String? // JSON string
-  cards        Card[]
+  outputs      Output[]
   assets       Asset[]
   ingestFiles  IngestFile[]
 }
 
+model Output {
+  id           String    @id
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  outputType   String    // "poster" | "slides" | "paper"
+  templateId   String    // e.g. "atlas", "beamer-metropolis", "article-twocol"
+  title        String    // output-specific title (e.g. "My Poster Title")
+  isActive     Boolean   @default(false)
+  cards        Card[]
+}
+
 model Card {
-  id             String @id
-  workspaceId    String
-  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id             String  @id
+  outputId       String
+  output         Output  @relation(fields: [outputId], references: [id], onDelete: Cascade)
   title          String
-  column         Int
+  column         Int?    // nullable — only used for poster output type
   order          Int
   pattern        String
   content        String
@@ -43,6 +52,7 @@ model Card {
   heightBudget   Float?
   validation     String
   generatedLatex String?
+  slideNotes     String? // speaker notes for slides output type
   assignedAssets Asset[]
 }
 
@@ -80,4 +90,3 @@ model IngestFile {
   error       String?
   dismissed   Boolean @default(false)
 }
-

@@ -42,6 +42,7 @@ import { apiFetch } from "@/lib/api-fetch"
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), [])
   const isDark = resolvedTheme === "dark"
   return (
@@ -83,13 +84,16 @@ export function TopBar({
   onToggleAgent,
   onOpenWorkspaceSelector,
 }: TopBarProps) {
-  const { project, aiReview, openIngestion, switchProject, autoFillAllCardsAction } = useEditor(
+  const { project, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, collaborators, yjsStatus } = useEditor(
     useShallow((s) => ({
       project: s.project,
       aiReview: s.aiReview,
       openIngestion: s.openIngestion,
       switchProject: s.switchProject,
+      switchOutput: s.switchOutput,
       autoFillAllCardsAction: s.autoFillAllCardsAction,
+      collaborators: s.collaborators,
+      yjsStatus: s.yjsStatus,
     }))
   )
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
@@ -140,20 +144,26 @@ export function TopBar({
       }
     }, 2000)
     return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project])
 
 
 
-  function exportTex(format: "poster" | "paper") {
-    const tex = generateFullTemplate(project, project.id, format)
+  function exportTex() {
+    const activeOutput = project.outputs?.find(o => o.id === project.activeOutputId) || project.outputs?.[0]
+    if (!activeOutput) {
+      toast.error("No active output")
+      return
+    }
+    const tex = generateFullTemplate(project, activeOutput, project.id)
     const blob = new Blob([tex], { type: "text/x-tex" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `${project.id}_${format}.tex`
+    a.download = `${project.id}_${activeOutput.outputType}.tex`
     a.click()
     URL.revokeObjectURL(url)
-    toast.success(`Exported ${format}.tex`)
+    toast.success(`Exported ${activeOutput.outputType}.tex`)
   }
 
   return (
@@ -230,9 +240,33 @@ export function TopBar({
           <TooltipContent>Switch workspace</TooltipContent>
         </Tooltip>
 
-        <span className="hidden rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground lg:inline">
-          {project.templateName}
-        </span>
+        {project.outputs && project.outputs.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="hidden h-6 rounded px-2 py-0 text-[10px] font-mono text-muted-foreground lg:flex"
+                >
+                  {project.outputs.find((o) => o.id === project.activeOutputId)?.outputType || "Output"}
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="start">
+              {project.outputs.map((o) => (
+                <DropdownMenuItem
+                  key={o.id}
+                  onClick={() => switchOutput(o.id)}
+                  className={cn("text-xs cursor-pointer", o.id === project.activeOutputId && "font-bold text-primary")}
+                >
+                  <span className="uppercase w-16 inline-block">{o.outputType}</span>
+                  <span className="text-muted-foreground ml-2">{o.title}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       <div className="flex-1" />
@@ -284,16 +318,31 @@ export function TopBar({
             }
           />
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={() => exportTex("poster")}>
-              <LayoutTemplate className="text-muted-foreground" />
-              Export Poster format
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => exportTex("paper")}>
-              <FileText className="text-muted-foreground" />
-              Export Paper format
-            </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportTex()}>
+                    <FileCode2 className="mr-2 size-4 text-muted-foreground" />
+                    Export .tex
+                  </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        
+        <div className="flex -space-x-2 mr-2">
+          {collaborators.map(c => (
+            <div key={c.clientId} className="size-8 rounded-full border-2 border-background flex items-center justify-center text-xs text-white font-bold" style={{ backgroundColor: c.color }} title={c.name}>
+              {c.name.charAt(0)}
+            </div>
+          ))}
+          {yjsStatus === "connected" && collaborators.length === 0 && (
+             <div className="size-8 rounded-full border-2 border-background flex items-center justify-center text-xs bg-muted text-muted-foreground font-semibold" title="Connected to Yjs (Solo)">
+               1
+             </div>
+          )}
+          {yjsStatus !== "connected" && (
+             <div className="size-8 rounded-full border-2 border-background flex items-center justify-center text-xs bg-destructive text-destructive-foreground font-semibold animate-pulse" title="Yjs Offline">
+               !
+             </div>
+          )}
+        </div>
+
         <ThemeToggle />
         <UserButton />
         <Tooltip>

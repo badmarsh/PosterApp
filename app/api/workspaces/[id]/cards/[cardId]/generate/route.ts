@@ -3,7 +3,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { rateLimit } from "@/lib/rate-limit"
 import { parseAiJson } from "@/lib/ai-helpers"
-import { auth } from "@clerk/nextjs/server"
+import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")

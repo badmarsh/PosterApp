@@ -15,9 +15,9 @@ export const CardTableSchema = z.object({
 export const CardSchema = z.object({
   id: z.string(),
   title: z.string().optional(),
-  column: z.number().int().min(1).max(3),
+  column: z.number().int().min(1).max(3).nullable().optional(),
   order: z.number().int().min(0),
-  pattern: z.enum(["bullets", "bullets-image", "bullets-two-images", "bullets-table", "image-focused", "references"]),
+  pattern: z.string(),
   content: z.string().optional(),
   table: CardTableSchema.nullable().optional(),
   figures: z.array(FigureSchema).nullable().optional(),
@@ -26,6 +26,7 @@ export const CardSchema = z.object({
   heightBudget: z.number().nullable().optional(),
   validation: z.string().optional(),
   generatedLatex: z.string().nullable().optional(),
+  slideNotes: z.string().nullable().optional(),
 })
 
 export const AssetSchema = z.object({
@@ -58,20 +59,32 @@ export const IngestFileSchema = z.object({
   dismissed: z.boolean().optional(),
 })
 
+export const OutputSchema = z.object({
+  id: z.string(),
+  outputType: z.enum(["poster", "slides", "paper"]),
+  templateId: z.string(),
+  title: z.string(),
+  isActive: z.boolean().optional(),
+  cards: z.array(CardSchema).optional(),
+})
+
+/**
+ * Schema for updating a workspace via PUT.
+ * Accepts both legacy flat format (posterTitle, templateName, cards)
+ * and new outputs-based format.
+ */
 export const WorkspaceSchema = z.object({
   name: z.string().optional(),
+  // Legacy flat fields — mapped to/from the active output
   posterTitle: z.string().optional(),
   authors: z.string().optional(),
   venue: z.string().optional(),
-  templateName: z.preprocess(
-    (val) => {
-      // Normalize legacy value written before enum was enforced
-      if (typeof val === "string" && val !== "atlas" && val !== "minimal") return "atlas"
-      return val
-    },
-    z.enum(["atlas", "minimal"]).optional()
-  ),
+  templateName: z.string().optional(),
   cards: z.array(CardSchema).optional(),
+  // New outputs-based fields
+  outputs: z.array(OutputSchema).optional(),
+  activeOutputId: z.string().optional(),
+  // Shared workspace data
   assets: z.array(AssetSchema).optional(),
   ingestFiles: z.array(IngestFileSchema).optional(),
   agentEvents: z.array(z.any()).optional(),
@@ -81,5 +94,6 @@ export const WorkspaceSchema = z.object({
 export const WorkspaceCreateSchema = z.object({
   id: z.string().min(1, "ID is required"),
   name: z.string().min(1, "Name is required"),
-  templateName: z.enum(["atlas", "minimal"]).optional(),
+  outputType: z.enum(["poster", "slides", "paper"]).optional().default("poster"),
+  templateId: z.string().optional(),
 })

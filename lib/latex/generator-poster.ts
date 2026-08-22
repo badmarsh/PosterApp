@@ -1,4 +1,4 @@
-import type { Card, Project } from "@/lib/poster-types"
+import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
 import { getAtlasTemplate, getMinimalTemplate } from "./templates"
@@ -80,7 +80,14 @@ export function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: 
 }
 
 export class TikzPosterGenerator implements LatexGenerator {
-  generateDocument(project: Project, workspaceId = ""): string {
+  outputType = "poster" as const
+  templateId: string
+
+  constructor(theme = "atlas") {
+    this.templateId = theme
+  }
+
+  generateDocument(project: Project, outputConfig: OutputConfig, workspaceId = ""): string {
     const usedKeys = new Set<string>()
     for (const card of project.cards) {
       const textParts = [card.content]

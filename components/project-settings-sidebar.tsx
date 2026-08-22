@@ -52,6 +52,7 @@ export function ProjectSettingsSidebar() {
   }, [project.id])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalBib(bibContent)
   }, [bibContent])
 

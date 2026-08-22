@@ -1,6 +1,22 @@
-import { clerkMiddleware } from '@clerk/nextjs/server'
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
 
-export default clerkMiddleware()
+// Protect all API routes except assets
+const isApiRoute = createRouteMatcher(['/api(.*)'])
+const isPublicRoute = createRouteMatcher([
+  '/api/workspaces/(.*)/assets/(.*)'
+])
+
+export default clerkMiddleware(async (auth, req) => {
+  if (process.env.NEXT_PUBLIC_E2E_TEST === '1') {
+    return NextResponse.next()
+  }
+  
+  if (isApiRoute(req) && !isPublicRoute(req)) {
+    await auth.protect()
+  }
+  return NextResponse.next()
+})
 
 export const config = {
   matcher: [

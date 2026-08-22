@@ -9,14 +9,15 @@ import { useRouter } from "next/navigation"
 export default function Page() {
   const { isLoaded, userId } = useAuth()
   const router = useRouter()
+  const isE2e = process.env.NEXT_PUBLIC_E2E_TEST === "1"
 
   useEffect(() => {
-    if (isLoaded && !userId) {
+    if (isLoaded && !userId && !isE2e) {
       router.push("/sign-in")
     }
-  }, [isLoaded, userId, router])
+  }, [isLoaded, userId, router, isE2e])
 
-  if (!isLoaded || !userId) {
+  if ((!isLoaded || !userId) && !isE2e) {
     return <div style={{ padding: 20 }}>Loading Auth... isLoaded: {String(isLoaded)}, userId: {String(userId)}</div>
   }
 

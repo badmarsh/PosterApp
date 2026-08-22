@@ -27,7 +27,7 @@ describe('GET /api/workspaces', () => {
   })
 
   it('returns 401 when not authenticated', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: null } as any)
+    (mockAuth as any).mockResolvedValueOnce({ userId: null } as any)
 
     const res = await GET()
     const json = await res.json()
@@ -37,8 +37,8 @@ describe('GET /api/workspaces', () => {
   })
 
   it('returns workspaces for authenticated user', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: 'user_123' } as any)
-    mockPrisma.workspace.findMany.mockResolvedValueOnce([
+    (mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+;(mockPrisma.workspace.findMany as any).mockResolvedValueOnce([
       { id: 'ws-1', name: 'My Poster' },
       { id: 'ws-2', name: 'Another Poster' },
     ] as any)
@@ -62,7 +62,7 @@ describe('POST /api/workspaces', () => {
   })
 
   it('returns 401 when not authenticated', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: null } as any)
+    (mockAuth as any).mockResolvedValueOnce({ userId: null } as any)
 
     const req = new Request('http://localhost/api/workspaces', {
       method: 'POST',
@@ -78,7 +78,7 @@ describe('POST /api/workspaces', () => {
   })
 
   it('returns 400 for invalid input (missing name)', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: 'user_123' } as any)
+    (mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
 
     const req = new Request('http://localhost/api/workspaces', {
       method: 'POST',
@@ -94,7 +94,7 @@ describe('POST /api/workspaces', () => {
   })
 
   it('returns 400 for invalid input (missing id)', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: 'user_123' } as any)
+    (mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
 
     const req = new Request('http://localhost/api/workspaces', {
       method: 'POST',
@@ -110,18 +110,26 @@ describe('POST /api/workspaces', () => {
   })
 
   it('creates a workspace with valid input', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: 'user_123' } as any)
-    mockPrisma.workspace.create.mockResolvedValueOnce({
+    (mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+;(mockPrisma.workspace.create as any).mockResolvedValueOnce({
       id: 'new-ws',
       name: 'My New Poster',
-      templateName: 'atlas',
-      cards: [],
+      outputs: [
+        {
+          id: 'out_poster_123',
+          outputType: 'poster',
+          templateId: 'atlas',
+          title: 'My New Poster',
+          isActive: true,
+          cards: [],
+        },
+      ],
     } as any)
 
     const req = new Request('http://localhost/api/workspaces', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: 'new-ws', name: 'My New Poster', templateName: 'atlas' }),
+      body: JSON.stringify({ id: 'new-ws', name: 'My New Poster', templateId: 'atlas', outputType: 'poster' }),
     })
 
     const res = await POST(req)
@@ -133,22 +141,34 @@ describe('POST /api/workspaces', () => {
       data: {
         id: 'new-ws',
         name: 'My New Poster',
-        posterTitle: 'My New Poster',
         authors: '',
         venue: '',
-        templateName: 'atlas',
         userId: 'user_123',
+        outputs: expect.any(Object),
       },
-      include: { cards: true },
+      include: {
+        outputs: {
+          include: { cards: true },
+        },
+      },
     })
   })
 
   it('defaults templateName to atlas when not specified', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: 'user_123' } as any)
-    mockPrisma.workspace.create.mockResolvedValueOnce({
+    (mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+;(mockPrisma.workspace.create as any).mockResolvedValueOnce({
       id: 'ws-2',
       name: 'Test',
-      cards: [],
+      outputs: [
+        {
+          id: 'out_poster_456',
+          outputType: 'poster',
+          templateId: 'atlas',
+          title: 'Test',
+          isActive: true,
+          cards: [],
+        },
+      ],
     } as any)
 
     const req = new Request('http://localhost/api/workspaces', {
@@ -162,7 +182,11 @@ describe('POST /api/workspaces', () => {
     expect(mockPrisma.workspace.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          templateName: 'atlas',
+          outputs: expect.objectContaining({
+            create: expect.objectContaining({
+              templateId: 'atlas',
+            }),
+          }),
         }),
       })
     )

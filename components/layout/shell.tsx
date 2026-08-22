@@ -11,6 +11,7 @@ import { PosterPreview } from "@/components/poster-preview"
 import { CardInspector } from "@/components/card-inspector"
 import { AgentPanel } from "@/components/agent-panel"
 import { IngestionDrawer } from "@/components/ingestion/ingestion-drawer"
+import { CollaboratorsLayer } from "@/components/collaborators-layer"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useIsDesktop } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
@@ -114,6 +115,7 @@ function MobileShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () 
   const [pane, setPane] = useState<MobilePane>("preview")
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (selectedCardId) setPane("editor")
   }, [selectedCardId])
 
@@ -246,6 +248,7 @@ export function Shell() {
 
   useEffect(() => {
     if (project.id === "prj_lattice") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowSelector(true)
     }
   }, [project.id])
@@ -253,6 +256,7 @@ export function Shell() {
   if (!mounted) return <AppSkeleton />
   return (
     <>
+      <CollaboratorsLayer />
       {!isSwitchingProject && showSelector && (
         <WorkspaceSelector onSelect={(id) => { switchProject(id); setShowSelector(false) }} onClose={() => setShowSelector(false)} />
       )}

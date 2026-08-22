@@ -49,3 +49,29 @@ pnpm exec playwright test
 ```
 
 Tests cover compilation UI, workspace selection, and document ingestion.
+
+## Environment Variables
+The application requires several environment variables to function correctly. Copy `.env.example` to `.env.local` and configure them:
+
+| Variable | Purpose |
+|----------|---------|
+| `AI_API_URL` | Base URL for the AI API (OpenRouter compatible) |
+| `AI_API_KEY` | Bearer token for AI requests |
+| `AI_MODEL` | Default model used for chat and generation |
+| `OPENROUTER_API_KEY` | API Key for OpenRouter (used for image editing) |
+| `OPENROUTER_BASE_URL` | OpenRouter Base URL |
+| `OPENROUTER_IMAGE_MODEL` | Model used for AI image generation |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk Authentication frontend key |
+| `CLERK_SECRET_KEY` | Clerk Authentication backend key |
+
+## API Routes Reference
+- `POST /api/ingestion/parse` - Accepts PDF uploads, triggers MinerU, extracts markdown, figures, tables, and AI-generated BibTeX citations.
+- `POST /api/ingestion/image-edit` - Performs AI image editing using OpenRouter vision models.
+- `GET /api/workspaces` - Lists all user workspaces.
+- `POST /api/workspaces` - Creates a new empty workspace.
+- `GET /api/workspaces/[id]` - Retrieves workspace configuration, cards, and metadata.
+- `PUT /api/workspaces/[id]` - Updates workspace state.
+- `GET /api/workspaces/[id]/compile` - Synchronously compiles LaTeX templates to PDF output using local `pdflatex`.
+- `GET /api/workspaces/[id]/pdf` - Serves the compiled PDF output for preview.
+- `POST /api/workspaces/[id]/cards/[cardId]/generate` - Generates card content using AI grounding from the workspace corpus.
+- `POST /api/workspaces/[id]/review` - Performs a comprehensive AI review of the poster layout and content, producing deterministic lint rules and LLM insights.

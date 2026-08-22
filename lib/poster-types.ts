@@ -1,6 +1,7 @@
 export type ColumnIndex = 1 | 2 | 3
 
 import type { ExtractedAsset, IngestFile } from "./ingestion"
+import type { OutputType } from "./output-types"
 
 export type BibEntry = {
   id: string
@@ -21,6 +22,11 @@ export type ValidationResult = {
   messages: ValidationMessage[]
 }
 
+/**
+ * BlockPattern is a union of ALL patterns across all output types.
+ * Use `PATTERNS_FOR_TYPE[outputType]` from output-types.ts to get
+ * the subset valid for a specific output type.
+ */
 export type BlockPattern =
   | "bullets"
   | "bullets-image"
@@ -28,6 +34,15 @@ export type BlockPattern =
   | "bullets-table"
   | "image-focused"
   | "references"
+  // Slide-specific patterns
+  | "title-slide"
+  | "figure-slide"
+  | "two-column"
+  // Paper-specific patterns
+  | "section"
+  | "section-figure"
+  | "section-table"
+  | "section-two-figures"
 
 export const BLOCK_PATTERNS: {
   id: BlockPattern
@@ -95,7 +110,7 @@ export type ReviewTip = {
 export type AgentEvent = {
   id: string
   ts: string
-  kind: "validate" | "generate" | "suggest" | "explain" | "info" | "verify"
+  kind: "validate" | "generate" | "suggest" | "explain" | "info" | "verify" | "review"
   status: "running" | "done" | "error" | "warning"
   title: string
   detail?: string
@@ -105,7 +120,8 @@ export type AgentEvent = {
 export type Card = {
   id: string
   title: string
-  column: ColumnIndex
+  /** Column index — only meaningful for poster layout (1|2|3). Null for slides/paper. */
+  column: ColumnIndex | null
   order: number
   pattern: BlockPattern
   content: string
@@ -117,33 +133,68 @@ export type Card = {
   validation: ValidationLevel
   /** when validation === "generating" we still keep last messages */
   generatedLatex?: string
+  /** Speaker notes — only used for slides output type */
+  slideNotes?: string
 }
 
+/**
+ * An OutputConfig represents a single output variant within a workspace.
+ * Each output has its own set of cards tailored for a specific output type
+ * and graphical template.
+ */
+export type OutputConfig = {
+  id: string
+  outputType: OutputType
+  templateId: string
+  title: string
+  cards: Card[]
+}
+
+/**
+ * A Project (workspace) stores shared source material and multiple output configurations.
+ *
+ * For backward compatibility, the flat `cards`, `posterTitle`, and `templateName`
+ * fields are still present and correspond to the active output's cards.
+ * New code should use `outputs` and `activeOutputId` instead.
+ */
 export type Project = {
   id: string
   name: string
+  /** @deprecated Use outputs[activeOutputId].title instead */
   posterTitle: string
   authors: string
   venue: string
+  /** @deprecated Use outputs[activeOutputId].templateId instead */
   templateName: string
+  /** @deprecated Use outputs[activeOutputId].cards instead */
   cards: Card[]
   assets: ExtractedAsset[]
   ingestFiles: IngestFile[]
+  /** All output configurations for this workspace */
+  outputs: OutputConfig[]
+  /** ID of the currently active output */
+  activeOutputId: string
 }
 
 export function cardType(card: Card): CardType {
   switch (card.pattern) {
     case "bullets":
+    case "section":
+    case "title-slide":
+    case "references":
       return "bullets"
     case "bullets-table":
+    case "section-table":
       return card.content.trim() ? "mixed" : "table"
     case "image-focused":
+    case "figure-slide":
       return "figure"
     case "bullets-image":
     case "bullets-two-images":
+    case "two-column":
+    case "section-figure":
+    case "section-two-figures":
       return "mixed"
-    case "references":
-      return "bullets"
     default:
       return "bullets" // or throw new Error("Unknown block pattern")
   }

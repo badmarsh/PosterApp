@@ -7,7 +7,7 @@ import { rateLimit } from "@/lib/rate-limit"
 import { jsonStringify } from "@/lib/db-helpers"
 import { generateCaption } from "@/lib/services/vision-service"
 import { extractBibTeX } from "@/lib/services/bibtex-service"
-import { auth } from "@clerk/nextjs/server"
+import { auth } from "@/lib/auth"
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 const MINERU_API_URL = process.env.MINERU_API_URL ?? "http://127.0.0.1:8001"
 

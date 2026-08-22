@@ -65,7 +65,7 @@ describe('GET /api/workspaces/[id]', () => {
   })
 
   it('returns 401 when not authenticated', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: null } as any)
+    (mockAuth as any).mockResolvedValueOnce({ userId: null } as any)
 
     const req = new Request('http://localhost/api/workspaces/valid-id')
     const res = await GET(req, makeParams('valid-id'))
@@ -76,8 +76,8 @@ describe('GET /api/workspaces/[id]', () => {
   })
 
   it('returns 404 when workspace not found or not owned by user', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: 'user_123' } as any)
-    mockPrisma.workspace.findUnique.mockResolvedValueOnce(null)
+    ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce(null)
 
     const req = new Request('http://localhost/api/workspaces/not-mine')
     const res = await GET(req, makeParams('not-mine'))
@@ -88,20 +88,29 @@ describe('GET /api/workspaces/[id]', () => {
   })
 
   it('returns workspace data with parsed JSON fields', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: 'user_123' } as any)
-    mockPrisma.workspace.findUnique.mockResolvedValueOnce({
+    ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce({
       id: 'ws-1',
       name: 'Test',
       userId: 'user_123',
       agentEvents: '[]',
       chatMessages: '[]',
-      cards: [
+      outputs: [
         {
-          id: 'card-1',
-          title: 'Intro',
-          table: null,
-          figures: '[]',
-          sourceIds: '["src1"]',
+          id: 'out_1',
+          outputType: 'poster',
+          templateId: 'atlas',
+          title: 'Test',
+          isActive: true,
+          cards: [
+            {
+              id: 'card-1',
+              title: 'Intro',
+              table: null,
+              figures: '[]',
+              sourceIds: '["src1"]',
+            },
+          ],
         },
       ],
       assets: [
@@ -120,8 +129,10 @@ describe('GET /api/workspaces/[id]', () => {
     expect(res.status).toBe(200)
     expect(json.id).toBe('ws-1')
     expect(json.agentEvents).toEqual([])
-    expect(json.cards[0].figures).toEqual([])
-    expect(json.cards[0].sourceIds).toEqual(['src1'])
+    expect(json.outputs[0].cards[0].figures).toEqual([])
+    expect(json.outputs[0].cards[0].sourceIds).toEqual(['src1'])
+    // Check backward compatibility legacy fields
+    expect(json.cards[0].id).toBe('card-1')
   })
 })
 
@@ -137,7 +148,7 @@ describe('DELETE /api/workspaces/[id]', () => {
   })
 
   it('returns 401 when not authenticated', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: null } as any)
+    (mockAuth as any).mockResolvedValueOnce({ userId: null } as any)
 
     const req = new Request('http://localhost/api/workspaces/valid-id', { method: 'DELETE' })
     const res = await DELETE(req, makeParams('valid-id'))
@@ -145,8 +156,8 @@ describe('DELETE /api/workspaces/[id]', () => {
   })
 
   it('returns 404 when workspace not found or not owned', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: 'user_123' } as any)
-    mockPrisma.workspace.findUnique.mockResolvedValueOnce(null)
+    ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce(null)
 
     const req = new Request('http://localhost/api/workspaces/other-ws', { method: 'DELETE' })
     const res = await DELETE(req, makeParams('other-ws'))
@@ -170,7 +181,7 @@ describe('PUT /api/workspaces/[id]', () => {
   })
 
   it('returns 401 when not authenticated', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: null } as any)
+    (mockAuth as any).mockResolvedValueOnce({ userId: null } as any)
 
     const req = new Request('http://localhost/api/workspaces/ws-1', {
       method: 'PUT',
@@ -182,8 +193,8 @@ describe('PUT /api/workspaces/[id]', () => {
   })
 
   it('returns 404 when workspace not owned by user', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: 'user_123' } as any)
-    mockPrisma.workspace.findUnique.mockResolvedValueOnce(null)
+    ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce(null)
 
     const req = new Request('http://localhost/api/workspaces/ws-other', {
       method: 'PUT',
@@ -195,8 +206,8 @@ describe('PUT /api/workspaces/[id]', () => {
   })
 
   it('returns 400 for invalid body (bad card column)', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: 'user_123' } as any)
-    mockPrisma.workspace.findUnique.mockResolvedValueOnce({ id: 'ws-1', userId: 'user_123' } as any)
+    ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce({ id: 'ws-1', userId: 'user_123' } as any)
 
     const req = new Request('http://localhost/api/workspaces/ws-1', {
       method: 'PUT',

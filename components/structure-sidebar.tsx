@@ -2,6 +2,7 @@
 
 import { useEffect, useState, memo } from "react"
 import {
+  AlertTriangle,
   ChevronDown,
   Copy,
   FilePlus2,
@@ -38,16 +39,20 @@ import type { Card, ColumnIndex } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 
 const CardRow = memo(function CardRow({ card }: { card: Card }) {
-  const { selectedCardId, selectCard, deleteCard, getStatus } = useEditor(
+  const { selectedCardId, selectCard, deleteCard, getStatus, layoutWarnings } = useEditor(
     useShallow((s) => ({
       selectedCardId: s.selectedCardId,
       selectCard: s.selectCard,
       deleteCard: s.deleteCard,
       getStatus: s.getStatus,
+      layoutWarnings: s.layoutWarnings,
     }))
   )
   const active = card.id === selectedCardId
   const status = getStatus(card)
+  const warning = layoutWarnings.find(w => 
+    w.cardTitle && card.title && w.cardTitle.trim().toLowerCase() === card.title.trim().toLowerCase()
+  )
   return (
     <div
       role="button"
@@ -92,7 +97,27 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
           <TooltipContent>Delete card</TooltipContent>
         </Tooltip>
       </div>
-      <div className="flex items-center justify-between gap-2 pl-5">
+      {warning && (
+        <div className="flex flex-col gap-1 rounded bg-destructive/10 p-1.5 text-[10px] text-destructive mt-1">
+          <div className="flex items-center gap-1 font-semibold">
+            <AlertTriangle className="size-3" /> Overflow Detected
+          </div>
+          <span className="leading-tight">{warning.issue}</span>
+          <Button 
+            size="sm" 
+            variant="destructive" 
+            className="h-5 mt-0.5 text-[9px] uppercase tracking-wider"
+            onClick={(e) => {
+              e.stopPropagation();
+              // In the future this triggers an LLM rewrite to shrink content
+              alert(`Shrinking content for ${card.title} based on VLM recommendation...`);
+            }}
+          >
+            Auto-Shrink Content
+          </Button>
+        </div>
+      )}
+      <div className="flex items-center justify-between gap-2 pl-5 mt-1">
         <span className="truncate font-mono text-[10px] text-muted-foreground">
           {card.id}
         </span>

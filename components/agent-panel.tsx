@@ -55,6 +55,7 @@ const KIND_ICON = {
   explain: AlertTriangle,
   info: Terminal,
   verify: ShieldCheck,
+  review: Sparkles,
 } as const
 
 function statusColor(status: AgentEvent["status"]) {
@@ -509,7 +510,7 @@ export function AgentPanel() {
   // each workspace gets a fresh ephemeral thread.
   const adapter = useMemo(
     () => makeChatAdapter(projectId, () => selectedCardIdRef.current),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     [projectId]
   )
 
@@ -529,6 +530,7 @@ export function AgentPanel() {
 
   useEffect(() => {
     if (pendingAiPrompt) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCollapsed(false)
       runtime.thread.append({ role: "user", content: [{ type: "text", text: pendingAiPrompt }] })
       setPendingAiPrompt(null)

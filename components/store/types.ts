@@ -8,9 +8,16 @@ import type {
 } from "@/lib/poster-types"
 import type { ThreadMessage } from "@assistant-ui/react"
 import type { AssignSlot, ParseLogEntry } from "@/lib/ingestion"
-import type { ExportFormat } from "@/lib/latex/types"
+import type { OutputType } from "@/lib/output-types"
 
 export type InspectorTab = "basics" | "content" | "table" | "figures" | "validation" | "output"
+
+export type Collaborator = {
+  clientId: number
+  name: string
+  color: string
+  cursor: { x: number; y: number } | null
+}
 
 export interface ProjectSlice {
   project: Project
@@ -22,9 +29,11 @@ export interface ProjectSlice {
   lastSavedAt: Date | null
 
   switchProject: (id: string) => Promise<void>
+  switchOutput: (outputId: string) => void
   getStatus: (card: Card) => ValidationLevel
   selectCard: (id: string | null) => void
   updateProject: (patch: Partial<Omit<Project, "id" | "cards">>) => void
+  _setCardsFromYjs: (cards: Card[]) => void
   updateCard: (id: string, patch: Partial<Card>) => void
   addCard: (column: ColumnIndex) => void
   deleteCard: (id: string) => void
@@ -80,8 +89,14 @@ export interface UiSlice {
 
   autoCompile: boolean
   setAutoCompile: (v: boolean) => void
-  lastCompileFormat: ExportFormat
-  setLastCompileFormat: (format: ExportFormat) => void
+  lastCompileFormat: OutputType
+  setLastCompileFormat: (format: OutputType) => void
+  layoutWarnings: { cardTitle: string; issue: string; recommendation: string }[]
+  
+  collaborators: Collaborator[]
+  setCollaborators: (c: Collaborator[]) => void
+  yjsStatus: string
+  setYjsStatus: (s: string) => void
 
   pendingAiPrompt: string | null
   setPendingAiPrompt: (prompt: string | null) => void
@@ -95,7 +110,7 @@ export interface UiSlice {
 
   pushEvent: (e: Omit<AgentEvent, "id" | "ts">) => string
   updateEvent: (id: string, patch: Partial<AgentEvent>) => void
-  compileProject: (format?: ExportFormat) => Promise<void>
+  compileProject: (format?: OutputType) => Promise<void>
 }
 
 export type EditorState = ProjectSlice & IngestionSlice & BibSlice & UiSlice

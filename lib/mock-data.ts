@@ -161,10 +161,20 @@ export const sampleProject: Project = {
     "LATTICE: Latent Subgoal Anchoring for Sample-Efficient Long-Horizon Manipulation",
   authors: "A. Reyes, M. Okafor, L. Petrova, D. Chen",
   venue: "Robotics & Learning Lab · CoRL 2025",
-  templateName: "tikzposter / 3-column portrait (a0)",
+  templateName: "atlas",
   cards: posterCards,
   assets: [], // will be initialAssets below if needed
   ingestFiles: [], // will be initialIngestFiles below if needed
+  outputs: [
+    {
+      id: "out_poster_atlas",
+      outputType: "poster",
+      templateId: "atlas",
+      title: "LATTICE: Latent Subgoal Anchoring for Sample-Efficient Long-Horizon Manipulation",
+      cards: posterCards,
+    },
+  ],
+  activeOutputId: "out_poster_atlas",
 }
 
 export const otherProjects: Pick<Project, "id" | "name">[] = [

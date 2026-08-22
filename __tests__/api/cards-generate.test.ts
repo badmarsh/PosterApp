@@ -85,7 +85,7 @@ describe('POST /api/workspaces/[id]/cards/[cardId]/generate', () => {
   })
 
   it('returns 401 when not authenticated', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: null } as any)
+    (mockAuth as any).mockResolvedValueOnce({ userId: null } as any)
 
     const req = makeRequest({ topic: 'test' })
     const res = await POST(req, makeParams('ws-1', 'card-1'))
@@ -94,8 +94,8 @@ describe('POST /api/workspaces/[id]/cards/[cardId]/generate', () => {
   })
 
   it('returns 404 when workspace not found or not owned', async () => {
-    mockAuth.mockResolvedValueOnce({ userId: 'user_123' } as any)
-    mockPrisma.workspace.findUnique.mockResolvedValueOnce(null)
+    ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce(null)
 
     const req = makeRequest({ topic: 'test' })
     const res = await POST(req, makeParams('ws-1', 'card-1'))
@@ -109,8 +109,8 @@ describe('POST /api/workspaces/[id]/cards/[cardId]/generate', () => {
     delete process.env.AI_API_URL
     delete process.env.AI_API_KEY
 
-    mockAuth.mockResolvedValueOnce({ userId: 'user_123' } as any)
-    mockPrisma.workspace.findUnique.mockResolvedValueOnce({ id: 'ws-1', userId: 'user_123' } as any)
+    ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce({ id: 'ws-1', userId: 'user_123' } as any)
 
     const req = makeRequest({ topic: 'test' })
     const res = await POST(req, makeParams('ws-1', 'card-1'))
@@ -130,8 +130,8 @@ describe('POST /api/workspaces/[id]/cards/[cardId]/generate', () => {
     process.env.AI_API_URL = 'http://fake-ai-api'
     process.env.AI_API_KEY = 'fake-key'
 
-    mockAuth.mockResolvedValueOnce({ userId: 'user_123' } as any)
-    mockPrisma.workspace.findUnique.mockResolvedValueOnce({ id: 'ws-1', userId: 'user_123' } as any)
+    ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce({ id: 'ws-1', userId: 'user_123' } as any)
 
     const req = makeRequest({})
     const res = await POST(req, makeParams('ws-1', 'card-1'))

@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useRef, type ReactNode } from "react"
+import { createContext, useContext, useRef, useState, type ReactNode } from "react"
 import { createStore, useStore } from "zustand"
 import { immer } from "zustand/middleware/immer"
 import { persist } from "zustand/middleware"
@@ -36,13 +36,18 @@ type EditorStore = ReturnType<typeof createEditorStore>
 const EditorStoreContext = createContext<EditorStore | null>(null)
 
 export function EditorProvider({ children }: { children: ReactNode }) {
-  const storeRef = useRef<EditorStore | null>(null)
-  if (!storeRef.current) storeRef.current = createEditorStore()
+  const [store] = useState(() => createEditorStore())
   return (
-    <EditorStoreContext.Provider value={storeRef.current}>
+    <EditorStoreContext.Provider value={store}>
       {children}
     </EditorStoreContext.Provider>
   )
+}
+
+export function useEditorStoreInstance() {
+  const store = useContext(EditorStoreContext)
+  if (!store) throw new Error("useEditorStoreInstance must be used within EditorProvider")
+  return store
 }
 
 export function useEditor(): EditorState & { selectedCard: Card | null }
@@ -50,7 +55,7 @@ export function useEditor<T>(selector: (state: EditorState) => T): T
 export function useEditor<T>(selector?: (state: EditorState) => T): T | (EditorState & { selectedCard: Card | null }) {
   const store = useContext(EditorStoreContext)
   if (!store) throw new Error("useEditor must be used within EditorProvider")
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+   
   const state = useStore(store, selector ?? ((s) => s as unknown as T))
   if (!selector) {
     const fullState = state as EditorState

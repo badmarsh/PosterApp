@@ -62,6 +62,24 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     s.isDirty = true
   }),
 
+  _setCardsFromYjs: (cards) => set((s) => {
+    s.project.cards = cards
+  }),
+
+  switchOutput: (outputId) => set((s) => {
+    const currentActive = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
+    if (currentActive) {
+      currentActive.cards = [...s.project.cards] // Save current cards into the array before switching
+    }
+    const targetOutput = s.project.outputs?.find((o) => o.id === outputId)
+    if (targetOutput) {
+      s.project.activeOutputId = outputId
+      s.project.cards = targetOutput.cards || []
+      s.selectedCardId = null
+      s.isDirty = true
+    }
+  }),
+
   selectCard: (id) => set((s) => { s.selectedCardId = id }),
 
   updateCard: (id, patch) => set((s) => {

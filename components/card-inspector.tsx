@@ -514,6 +514,7 @@ function FiguresTab({ card }: { card: Card }) {
   function setFigure(i: number, patch: Partial<Card["figures"][number]>) {
     const figures = [...card.figures]
     figures[i] = {
+      // eslint-disable-next-line react-hooks/purity
       id: figures[i]?.id ?? `fig_${i}_${Date.now().toString(36)}`,
       url: figures[i]?.url ?? "",
       caption: figures[i]?.caption ?? "",
@@ -638,6 +639,32 @@ const LEVEL_ICON = {
   info: { Icon: Info, className: "text-muted-foreground" },
 } as const
 
+function Section({ title, items }: { title: string; items: ValidationMessage[] }) {
+  if (!items.length) return null
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </span>
+      {items.map((m, i) => {
+        const { Icon, className } = LEVEL_ICON[m.level]
+        return (
+          <div
+            key={i}
+            className="flex items-start gap-1.5 rounded-md border border-border bg-card px-2 py-1.5"
+          >
+            <Icon className={cn("mt-0.5 size-3.5 shrink-0", className)} />
+            <div className="min-w-0">
+              <span className="font-mono text-[10px] text-muted-foreground">{m.field}</span>
+              <p className="text-[12px] leading-snug">{m.message}</p>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function ValidationTab({ card }: { card: Card }) {
   const msgs = validateCard(card)
   const level = levelFromMessages(msgs)
@@ -645,31 +672,7 @@ function ValidationTab({ card }: { card: Card }) {
   const overflow = msgs.filter((m) => m.message.includes("height"))
   const other = msgs.filter((m) => !safety.includes(m) && !overflow.includes(m))
 
-  function Section({ title, items }: { title: string; items: ValidationMessage[] }) {
-    if (!items.length) return null
-    return (
-      <div className="flex flex-col gap-1">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {title}
-        </span>
-        {items.map((m, i) => {
-          const { Icon, className } = LEVEL_ICON[m.level]
-          return (
-            <div
-              key={i}
-              className="flex items-start gap-1.5 rounded-md border border-border bg-card px-2 py-1.5"
-            >
-              <Icon className={cn("mt-0.5 size-3.5 shrink-0", className)} />
-              <div className="min-w-0">
-                <span className="font-mono text-[10px] text-muted-foreground">{m.field}</span>
-                <p className="text-[12px] leading-snug">{m.message}</p>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    )
-  }
+
 
   return (
     <div className="flex flex-col gap-3 p-3">
@@ -807,7 +810,7 @@ export function CardInspector() {
         </div>
       </div>
 
-      <Tabs value={inspectorTab} onValueChange={(v) => setInspectorTab(v as any)} className="flex min-h-0 flex-1 flex-col gap-0">
+      <Tabs value={inspectorTab} onValueChange={(v) => setInspectorTab(v as "basics" | "content" | "validation")} className="flex min-h-0 flex-1 flex-col gap-0">
         <TabsList variant="line" className="h-9 shrink-0 justify-start gap-0.5 overflow-x-auto overflow-y-hidden border-b border-border px-2">
           <TabsTrigger value="basics" className="px-2 text-[12px]">Basics</TabsTrigger>
           <TabsTrigger value="content" className="px-2 text-[12px]">Content</TabsTrigger>

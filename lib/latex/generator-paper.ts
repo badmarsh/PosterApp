@@ -1,4 +1,4 @@
-import type { Card, Project } from "@/lib/poster-types"
+import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
 import { getArticleTemplate } from "./templates"
@@ -105,9 +105,12 @@ function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[
 }
 
 export class StandardPaperGenerator implements LatexGenerator {
-  generateDocument(project: Project, workspaceId = ""): string {
+  outputType = "paper" as const
+  templateId = "article-twocol"
+
+  generateDocument(project: Project, outputConfig: OutputConfig, workspaceId = ""): string {
     const usedKeys = new Set<string>()
-    for (const card of project.cards) {
+    for (const card of outputConfig.cards) {
       const textParts = [card.content]
       if (card.table?.caption) textParts.push(card.table.caption)
       if (card.figures) card.figures.forEach(f => { if (f.caption) textParts.push(f.caption) })
@@ -117,10 +120,7 @@ export class StandardPaperGenerator implements LatexGenerator {
 
     // In a paper, we just want all cards sequentially.
     // Order by column then order, to match the reading flow of the poster.
-    const sortedCards = [...project.cards].sort((a, b) => {
-      if (a.column !== b.column) return a.column - b.column
-      return a.order - b.order
-    })
+    const sortedCards = [...outputConfig.cards].sort((a, b) => (a.column || 1) - (b.column || 1) || a.order - b.order)
 
     const contentBlocks = sortedCards
       .map((c) => generateLatexForCard(c, workspaceId, usedKeysArray))
