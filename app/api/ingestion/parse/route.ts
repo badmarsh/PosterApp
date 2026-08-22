@@ -53,7 +53,7 @@ async function generateCaption(base64Image: string, context: string): Promise<{c
         "Authorization": `Bearer ${process.env.AI_API_KEY}`
       },
       body: JSON.stringify({
-        model: process.env.AI_VISION_MODEL || process.env.AI_MODEL || "gemini-3-flash",
+        model: process.env.AI_VISION_MODEL || process.env.AI_MODEL || "gemini-2.5-flash",
         messages: [
           {
             role: "user",
