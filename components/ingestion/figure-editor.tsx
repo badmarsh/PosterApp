@@ -40,6 +40,8 @@ export function FigureEditor({
     null,
   )
 
+  const isPdf = asset.thumbnailUrl?.toLowerCase().endsWith(".pdf")
+
   async function runOp(opId: string, filter: string, overridePrompt?: string) {
     const label = overridePrompt || prompt.trim() || opId
     if (!label) return
@@ -104,12 +106,20 @@ export function FigureEditor({
       {/* before / after */}
       <div className="grid grid-cols-2 gap-2">
         <figure className="flex flex-col gap-1">
-          <img
-            src={asset.thumbnailUrl || "/placeholder.svg"}
-            alt="Original extracted figure"
-            crossOrigin="anonymous"
-            className="h-20 w-full rounded border border-border bg-card object-contain"
-          />
+          {isPdf ? (
+            <object
+              data={asset.thumbnailUrl}
+              type="application/pdf"
+              className="h-20 w-full rounded border border-border bg-card object-contain"
+            />
+          ) : (
+            <img
+              src={asset.thumbnailUrl || "/placeholder.svg"}
+              alt="Original extracted figure"
+              crossOrigin="anonymous"
+              className="h-20 w-full rounded border border-border bg-card object-contain"
+            />
+          )}
           <figcaption className="text-center font-mono text-[9px] text-muted-foreground">
             Before
           </figcaption>
@@ -153,7 +163,8 @@ export function FigureEditor({
             size="xs"
             variant="outline"
             className="h-6 gap-1 px-1.5 text-[10px]"
-            disabled={applying}
+            disabled={applying || isPdf}
+            title={isPdf ? "AI edits are not supported for PDFs" : ""}
             onClick={() => runOp(op.id, op.filter, op.label)}
           >
             {op.icon}
@@ -170,14 +181,14 @@ export function FigureEditor({
           onKeyDown={(e) => {
             if (e.key === "Enter") runOp("custom", "", prompt)
           }}
-          placeholder="Freeform: e.g. enhance contrast, recolor to grayscale…"
+          placeholder={isPdf ? "AI edits are not supported for PDF previews." : "Freeform: e.g. enhance contrast, recolor to grayscale…"}
           className="h-7 text-[11px]"
-          disabled={applying}
+          disabled={applying || isPdf}
         />
         <Button
           size="xs"
           className="h-7 gap-1 px-2 text-[11px]"
-          disabled={applying || !prompt.trim()}
+          disabled={applying || !prompt.trim() || isPdf}
           onClick={() => runOp("custom", "", prompt)}
         >
           {applying ? <Loader2 className="size-3 animate-spin" /> : "Apply"}

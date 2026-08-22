@@ -166,6 +166,27 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
               </AccordionContent>
             </AccordionItem>
 
+            <AccordionItem value="chat" className="border border-border bg-card px-4 rounded-lg">
+              <AccordionTrigger className="hover:no-underline py-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-md">
+                    <Sparkles className="size-4 text-primary" />
+                  </div>
+                  <span className="font-semibold text-base">AI Chat</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground pb-4 leading-relaxed space-y-4">
+                <p>
+                  The <strong className="text-foreground font-medium">AI Chat</strong> in the right panel provides an interactive assistant to help you write and refine your poster content.
+                </p>
+                <ul className="list-disc pl-5 mt-2 text-sm space-y-2 text-foreground/80">
+                  <li><strong>Context-Aware:</strong> The AI knows about all ingested source documents, your current workspace layout, and the currently selected card.</li>
+                  <li><strong>Interactive Guidance:</strong> Ask it to summarize a section, suggest a better title, or rewrite a paragraph for clarity.</li>
+                  <li><strong>Status Strip:</strong> The top of the panel contains a collapsible event log showing the status of ongoing background tasks (like bulk auto-fill or poster compilation).</li>
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+
             <AccordionItem value="bib" className="border border-border bg-card px-4 rounded-lg">
               <AccordionTrigger className="hover:no-underline py-4">
                 <div className="flex items-center gap-3">

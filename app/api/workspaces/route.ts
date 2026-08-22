@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { WorkspaceCreateSchema } from "@/lib/validations/workspace"
 
 export async function GET() {
   try {
@@ -14,11 +15,17 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
-    const { id, name } = body
-    if (!id || !name) {
-      return NextResponse.json({ error: "id and name required" }, { status: 400 })
+    const rawBody = await req.json()
+    const parsed = WorkspaceCreateSchema.safeParse(rawBody)
+    
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Validation failed", details: parsed.error.format() },
+        { status: 400 }
+      )
     }
+    
+    const { id, name, templateName } = parsed.data
     
     const project = await prisma.workspace.create({
       data: {
@@ -27,7 +34,7 @@ export async function POST(req: Request) {
         posterTitle: name,
         authors: "",
         venue: "",
-        templateName: body.templateName || "atlas",
+        templateName: templateName || "atlas",
       },
       include: {
         cards: true,

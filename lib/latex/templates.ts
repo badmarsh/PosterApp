@@ -1,0 +1,102 @@
+import { Project } from "@/lib/poster-types"
+import { parseMarkdownToLatex } from "./parser"
+
+export function getMinimalTemplate(project: Project): string {
+  return `
+\\documentclass[a0paper,portrait, blockverticalspace=3em, colspace=2em]{tikzposter}
+\\tikzposterlatexaffectionproofoff
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{multicol}
+\\usetikzlibrary{calc}
+
+\\newcommand{\\looseitems}{\\begin{itemize}\\setlength{\\itemsep}{0.3em}}
+\\newcommand{\\tightitems}{\\begin{itemize}\\setlength{\\itemsep}{0.15em}}
+\\newcommand{\\captiontext}[1]{#1}
+
+\\usetheme{Default}
+
+\\definecolor{maincolor}{HTML}{2B4B9E}
+\\definecolor{secondarycolor}{RGB}{43, 75, 158}
+\\definecolor{lightblue}{RGB}{199, 215, 237}
+
+\\definecolorstyle{minimalcolors}{
+    \\colorlet{backgroundcolor}{white}
+    \\colorlet{titlefgcolor}{white}
+    \\colorlet{titlebgcolor}{maincolor}
+    \\colorlet{blocktitlefgcolor}{white}
+    \\colorlet{blocktitlebgcolor}{maincolor}
+    \\colorlet{blockbodyfgcolor}{black}
+    \\colorlet{blockbodybgcolor}{lightblue!25}
+}{}
+\\usecolorstyle{minimalcolors}
+
+\\title{\\parbox{0.74\\linewidth}{\\centering\\huge
+    ${parseMarkdownToLatex(project.posterTitle)}\\\\[1mm]
+    }}
+\\author{\\Large ${parseMarkdownToLatex(project.authors)}}
+\\institute{\\normalsize ${parseMarkdownToLatex(project.venue)}}
+\\date{}
+
+\\begin{document}
+\\maketitle
+`
+}
+
+export function getAtlasTemplate(project: Project): string {
+  return `
+\\documentclass[a0paper,portrait, blockverticalspace=3em, colspace=2em]{tikzposter}
+\\tikzposterlatexaffectionproofoff
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{multicol}
+\\usetikzlibrary{calc}
+
+\\newcommand{\\looseitems}{\\begin{itemize}\\setlength{\\itemsep}{0.3em}}
+\\newcommand{\\tightitems}{\\begin{itemize}\\setlength{\\itemsep}{0.15em}}
+\\newcommand{\\captiontext}[1]{#1}
+
+\\usetheme{Default}
+
+\\definecolor{maincolor}{HTML}{9e2b2f}
+\\definecolor{secondarycolor}{RGB}{158, 43, 47}
+\\definecolor{lightred}{RGB}{237, 199, 201}
+
+\\definecolorstyle{atlascolors}{
+    \\colorlet{backgroundcolor}{white}
+    \\colorlet{titlefgcolor}{white}
+    \\colorlet{titlebgcolor}{maincolor}
+    \\colorlet{blocktitlefgcolor}{white}
+    \\colorlet{blocktitlebgcolor}{maincolor}
+    \\colorlet{blockbodyfgcolor}{black}
+    \\colorlet{blockbodybgcolor}{lightred!25}
+}{}
+\\usecolorstyle{atlascolors}
+
+\\definetitlestyle{sampletitle}{width=760mm, roundedcorners=20, linewidth=2pt,
+  innersep=10pt, titletotopverticalspace=6mm, titletoblockverticalspace=8mm}{%
+  \\begin{scope}[line width=\\titlelinewidth, rounded corners=\\titleroundedcorners]
+    \\draw[color=blocktitlebgcolor, fill=titlebgcolor]
+      (\\titleposleft,\\titleposbottom) rectangle (\\titleposright,\\titlepostop);
+  \\end{scope}
+  \\node[anchor=east, fill=white, rounded corners=10pt, inner sep=10pt, xshift=5mm]
+    at ($(\\titleposright,\\titlepostop)!0.5!(\\titleposright,\\titleposbottom)$)
+    {\\includegraphics[height=8.6cm]{logos/atlas_transparent.png}};
+  \\node[anchor=west, fill=white, rounded corners=10pt, inner sep=10pt, xshift=-45mm, yshift=5mm]
+    at ($(\\titleposleft,\\titlepostop)!0.5!(\\titleposleft,\\titleposbottom)$)
+    {\\includegraphics[height=15cm]{logos/uk_logo.png}};}
+\\usetitlestyle{sampletitle}
+
+\\title{\\parbox{0.74\\linewidth}{\\centering\\huge
+    ${parseMarkdownToLatex(project.posterTitle)}\\\\[1mm]
+    }}
+\\author{\\Large ${parseMarkdownToLatex(project.authors)}}
+\\institute{\\normalsize ${parseMarkdownToLatex(project.venue)}}
+\\date{}
+
+\\begin{document}
+\\maketitle
+`
+}

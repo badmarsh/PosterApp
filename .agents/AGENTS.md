@@ -104,10 +104,12 @@ Schema at `prisma/schema.prisma`. Key notes:
 ## Known Remaining Issues
 
 ### Still Open
-1. **BibTeX deduplication** — Same reference from two PDFs will appear twice in `bibContent`. (Dedups by cite key, but same ref might have different cite keys).
-2. **AUTH_SECRET is a static bearer token** — not suitable for multi-user deployment.
+1. **AUTH_SECRET is a static bearer token** — not suitable for multi-user deployment.
 
 ### Fixed in This Session (2026-08-22)
+- ✅ **BibTeX deduplication** — Extracted titles are now normalized and deduplicated to prevent duplicates from different PDFs.
+- ✅ **PDF Previews in Figure Editor** — Figure editor natively renders `<object>` previews for `.pdf` assets and safely disables AI image operations for them.
+- ✅ Added `tests/features.spec.ts` for regression testing BibTeX dedup and PDF previews.
 - ✅ `AI_MODEL` now set in `.env.local`, model name no longer hardcoded
 - ✅ Orphaned env vars (`NVIDIA_*`, `LLM_PROVIDER`, `ONYX_MCP_URL`) documented as legacy
 - ✅ `ollama serve` removed from dev script
@@ -123,3 +125,10 @@ Schema at `prisma/schema.prisma`. Key notes:
 - ✅ FK relation Asset→Card verified as present in schema (`@relation(fields: [assignedCardId], references: [id], onDelete: SetNull)`)
 - ✅ `execSync` in compile route was replaced with async `spawn`
 - ✅ Dynamic Workspace selection UI replaced the hardcoded `prj_lattice` loading constraint
+
+---
+
+## General Agent Guidelines
+- **Always Run the App:** While developing, always make sure after you finish that the app is actively running (e.g. `npm run dev` in the background) so the user can immediately test and review the latest changes in their browser.
+- **E2E Testing:** Playwright is configured to run on port `3333`. Always run `npx playwright test` to verify there are no regressions after major features. If you are fixing a bug or adding a feature, document the behavior in a `.spec.ts` file under `tests/`.
+- **API Authentication:** All internal `/api/*` routes (except `/assets/`) require the `Authorization` header to match `process.env.AUTH_SECRET` (fallback `"change-me-in-production"`). E2E API requests MUST pass this header explicitly.

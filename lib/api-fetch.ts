@@ -11,6 +11,9 @@ export function apiFetch(
   url: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
+  // Reverted to localStorage to fix 401 Unauthorized for local user sessions.
+  // In a multi-user production environment, this should be replaced with
+  // a secure HttpOnly cookie session (e.g. NextAuth/Clerk) managed by the server.
   const token =
     (typeof window !== "undefined" && localStorage.getItem("API_SECRET")) ||
     "change-me-in-production"
