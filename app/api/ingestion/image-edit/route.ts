@@ -8,8 +8,8 @@ const OPENROUTER_BASE_URL =
   process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1"
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY ?? ""
 
-// Model to use for image editing via OpenRouter
-const IMAGE_MODEL = "openai/gpt-image-1"
+// Model to use for image editing via OpenRouter (gpt-image-1 supports image-to-image)
+const IMAGE_MODEL = process.env.OPENROUTER_IMAGE_MODEL ?? "openai/gpt-image-1"
 
 // ---------------------------------------------------------------------------
 // Request body type
@@ -45,7 +45,7 @@ function buildPrompt(operation: ImageEditOperation, customPrompt?: string): stri
  * Convert a buffer to a data-URI string (base64).
  */
 function bufferToDataUrl(buf: Buffer, mimeType: string): string {
-  return `data:${mimeType}; base64,${buf.toString("base64")}`
+  return `data:${mimeType};base64,${buf.toString("base64")}`
 }
 
 /**
@@ -202,6 +202,7 @@ export async function POST(req: Request) {
           },
         ],
       }),
+      signal: AbortSignal.timeout(120_000), // image models can take up to 2 min
     })
   } catch (err) {
     return NextResponse.json(
@@ -302,7 +303,15 @@ export async function POST(req: Request) {
   }
 
   const originalFilename = path.basename(assetPath)
-  const newFilePath = nextVersionedPath(assetsDir, originalFilename)
+  const newFilePath = await nextVersionedPath(assetsDir, originalFilename)
+  
+  if (!newFilePath) {
+    return NextResponse.json(
+      { error: 'Maximum number of edited versions reached' },
+      { status: 409 }
+    )
+  }
+
   const newFilename = path.basename(newFilePath)
 
   try {

@@ -24,3 +24,20 @@ export function parseBibKeys(bib: string): string[] {
 export function formatCiteKey(key: string): string {
   return `\\cite{${key}}`
 }
+
+/**
+ * Extract cite keys used in text, like \cite{Author2020} or \cite{Author2020,Other2021}
+ */
+export function extractCiteKeys(text: string): string[] {
+  if (!text) return []
+  const regex = /\\cite{([^}]+)}/g
+  let match
+  const keys = new Set<string>()
+  while ((match = regex.exec(text)) !== null) {
+    const splitKeys = match[1].split(",").map(k => k.trim())
+    for (const k of splitKeys) {
+      if (k) keys.add(k)
+    }
+  }
+  return Array.from(keys)
+}

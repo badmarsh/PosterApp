@@ -27,8 +27,9 @@ export interface ProjectSlice {
   reorderCard: (id: string, dir: -1 | 1) => void
   moveColumn: (id: string, column: ColumnIndex) => void
   validateCardAction: (id: string) => void
-  generateCardAction: (id: string) => void
+  generateLatexForCardAction: (id: string) => void
   autoFillCardAction: (id: string) => Promise<void>
+  autoFillAllCardsAction: () => Promise<void>
   aiReview: () => Promise<void>
   newProject: () => void
   duplicateProject: () => void
@@ -42,9 +43,12 @@ export interface IngestionSlice {
   openIngestion: () => void
   closeIngestion: () => void
   uploadFiles: (files: File[]) => void
+  processFile: (id: string) => Promise<void>
   retryFile: (id: string) => void
   removeFile: (id: string) => void
-  applyFigureOp: (assetId: string, op: string) => Promise<void>
+  removeAllLegacyAssets: () => void
+  dismissFile: (id: string) => void
+  updateAssetUrl: (assetId: string, newUrl: string) => void
   promoteAsset: (assetId: string, cardId: string, slot: AssignSlot) => void
   unassignAsset: (assetId: string) => void
   discardAsset: (assetId: string) => void

@@ -86,6 +86,12 @@ export type CardTable = {
   rows: string[][]
 }
 
+export type ReviewTip = {
+  severity: "error" | "warning" | "info"
+  category: "citation" | "typo" | "figure" | "layout" | "content" | "grounding" | string
+  message: string
+}
+
 export type AgentEvent = {
   id: string
   ts: string
@@ -93,6 +99,7 @@ export type AgentEvent = {
   status: "running" | "done" | "error" | "warning"
   title: string
   detail?: string
+  tips?: ReviewTip[]
 }
 
 export type Card = {

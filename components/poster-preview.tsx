@@ -501,11 +501,7 @@ export function PosterPreview() {
 
         {/* Right side: metadata labels + compile button */}
         <div className="flex items-center gap-2">
-          {activeTab === "structure" && (
-            <span className="hidden font-mono text-[10px] text-muted-foreground sm:inline">
-              reorder within column only
-            </span>
-          )}
+
           <button
             type="button"
             onClick={handleCompile}

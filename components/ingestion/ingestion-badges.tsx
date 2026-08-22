@@ -6,6 +6,7 @@ import {
   Loader2,
   Table2,
   XCircle,
+  Sigma,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type {
@@ -116,5 +117,6 @@ export function AssetKindIcon({
   const base = cn("size-3.5", className)
   if (kind === "text") return <FileText className={base} />
   if (kind === "figure") return <ImageIcon className={base} />
+  if (kind === "equation") return <Sigma className={base} />
   return <Table2 className={base} />
 }

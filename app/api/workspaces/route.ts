@@ -27,7 +27,7 @@ export async function POST(req: Request) {
         posterTitle: name,
         authors: "",
         venue: "",
-        templateName: "tikzposter / 3-column portrait (a0)",
+        templateName: body.templateName || "atlas",
       },
       include: {
         cards: true,

@@ -17,12 +17,27 @@ node_modules
 *.zip
 /lib/generated/prisma
 
-# Data and Workspaces
-*.db
+# Data files
 workspaces/
+*.db
+*.db-journal
+middle.json
+tables.json
+output/
+scratch/
+poster_project.zip
 
 # LaTeX artifacts
 *.aux
 *.log
 *.bbl
 *.blg
+*.pdf
+*.synctex.gz
+
+# TypeScript build cache
+tsconfig.tsbuildinfo
+
+# Test artifacts
+test-results/
+playwright-report/

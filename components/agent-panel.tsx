@@ -92,6 +92,32 @@ const EventRow = memo(function EventRow({ event, last }: { event: AgentEvent; la
             {event.detail}
           </p>
         )}
+        {event.tips && event.tips.length > 0 && (
+          <div className="mt-2 flex flex-col gap-1.5">
+            {event.tips.map((tip, i) => {
+              const severityColor = 
+                tip.severity === "error" ? "bg-destructive/10 text-destructive border-destructive/20" :
+                tip.severity === "warning" ? "bg-chart-4/10 text-chart-4 border-chart-4/20" :
+                "bg-chart-3/10 text-chart-3 border-chart-3/20";
+              
+              return (
+                <div key={i} className="flex flex-col gap-0.5 rounded-md border bg-card p-1.5 shadow-sm">
+                  <div className="flex items-center gap-1.5">
+                    <span className={cn("inline-flex items-center rounded-sm border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wider", severityColor)}>
+                      {tip.severity}
+                    </span>
+                    <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {tip.category}
+                    </span>
+                  </div>
+                  <p className="text-[11px] leading-snug text-foreground">
+                    {tip.message}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
         <span className="mt-0.5 block min-h-[12px] font-mono text-[9px] text-muted-foreground/70">
           {mounted ? event.ts : ""}
         </span>

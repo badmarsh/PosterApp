@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server"
 import fs from "fs"
 import path from "path"
-import { execFile } from "child_process"
-import { promisify } from "util"
-
-const execFileAsync = promisify(execFile)
+import { spawn } from "child_process"
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 
@@ -64,22 +61,39 @@ export async function POST(
   let ok = false
 
   try {
-    const { stdout } = await execFileAsync("wsl", wslArgs, {
-      timeout: 60_000,
-      maxBuffer: 4 * 1024 * 1024,
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn("wsl", wslArgs, {
+        signal: AbortSignal.timeout(60_000),
+      })
+
+      child.stdout.on("data", (data) => {
+        log += data.toString()
+      })
+
+      child.stderr.on("data", (data) => {
+        log += data.toString()
+      })
+
+      child.on("error", (error) => {
+        reject(error)
+      })
+
+      child.on("close", (code) => {
+        if (code !== 0) {
+          reject(new Error(`Process exited with code ${code}`))
+        } else {
+          resolve()
+        }
+      })
     })
-    log = stdout
+
     // pdflatex might fail but wsl bash still exits 0
     ok = !log.includes("Fatal error occurred") && !log.includes("! LaTeX Error:")
   } catch (err: unknown) {
-    if (
-      err &&
-      typeof err === "object" &&
-      "stdout" in err
-    ) {
-      log = (err.stdout as string | Buffer).toString()
+    if (err instanceof Error) {
+      log += "\n" + err.message
     } else {
-      log = String(err)
+      log += "\n" + String(err)
     }
     ok = false
   }

@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { safeJsonParse, jsonStringify } from "@/lib/db-helpers"
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+
+  if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+    return NextResponse.json({ error: 'Invalid workspace ID' }, { status: 400 })
+  }
+
   try {
     const workspace = await prisma.workspace.findUnique({
       where: { id },
@@ -21,13 +27,13 @@ export async function GET(
       ...workspace,
       cards: workspace.cards.map(c => ({
         ...c,
-        table: c.table ? JSON.parse(c.table) : undefined,
-        figures: c.figures ? JSON.parse(c.figures) : [],
-        sourceIds: c.sourceIds ? JSON.parse(c.sourceIds) : [],
+        table: safeJsonParse(c.table, undefined),
+        figures: safeJsonParse(c.figures, []),
+        sourceIds: safeJsonParse(c.sourceIds, []),
       })),
       assets: workspace.assets.map(a => ({
         ...a,
-        tableRows: a.tableRows ? JSON.parse(a.tableRows) : undefined,
+        tableRows: safeJsonParse(a.tableRows, undefined),
       })),
     }
 
@@ -39,23 +45,35 @@ export async function GET(
 
 import { z } from "zod"
 
+const FigureSchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  caption: z.string(),
+})
+
+const CardTableSchema = z.object({
+  hasHeader: z.boolean(),
+  caption: z.string(),
+  rows: z.array(z.array(z.string())),
+})
+
 const WorkspaceSchema = z.object({
   name: z.string().optional(),
   posterTitle: z.string().optional(),
   authors: z.string().optional(),
   venue: z.string().optional(),
-  templateName: z.string().optional(),
+  templateName: z.enum(["atlas", "minimal"]).optional(),
   cards: z.array(z.object({
     id: z.string(),
     title: z.string().optional(),
-    column: z.number().int(),
-    order: z.number().int(),
-    pattern: z.string(),
+    column: z.number().int().min(1).max(3),
+    order: z.number().int().min(0),
+    pattern: z.enum(["bullets", "bullets-image", "bullets-two-images", "bullets-table", "image-focused", "references"]),
     content: z.string().optional(),
-    table: z.any().optional().nullable(),
-    figures: z.any().optional().nullable(),
+    table: CardTableSchema.nullable().optional(),
+    figures: z.array(FigureSchema).nullable().optional(),
     figureLayout: z.string().optional(),
-    sourceIds: z.any().optional().nullable(),
+    sourceIds: z.array(z.string()).nullable().optional(),
     heightBudget: z.number().nullable().optional(),
     validation: z.string().optional(),
     generatedLatex: z.string().nullable().optional(),
@@ -65,27 +83,28 @@ const WorkspaceSchema = z.object({
     fileId: z.string(),
     filename: z.string().nullable().optional(),
     url: z.string().nullable().optional(),
-    kind: z.string(),
+    kind: z.enum(["text", "figure", "table", "equation"]),
     page: z.number().int(),
     section: z.string().nullable().optional(),
     bbox: z.string().nullable().optional(),
-    confidence: z.string(),
+    confidence: z.enum(["low", "medium", "high"]),
     heading: z.string().nullable().optional(),
     snippet: z.string().nullable().optional(),
     thumbnailUrl: z.string().nullable().optional(),
     caption: z.string().nullable().optional(),
-    tableRows: z.any().optional().nullable(),
+    tableRows: z.array(z.array(z.string())).nullable().optional(),
     assignedCardId: z.string().nullable().optional(),
     assignedSlot: z.string().nullable().optional(),
   })).optional(),
   ingestFiles: z.array(z.object({
     id: z.string(),
     name: z.string(),
-    size: z.number(),
-    method: z.string(),
-    status: z.string(),
-    progress: z.number(),
+    size: z.number().int().min(0),
+    method: z.enum(["MinerU", "Pandoc", "Auto"]),
+    status: z.enum(["queued", "parsing", "done", "failed"]),
+    progress: z.number().int().min(0).max(100),
     error: z.string().nullable().optional(),
+    dismissed: z.boolean().optional(),
   })).optional(),
 })
 
@@ -94,6 +113,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+  
+  if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+    return NextResponse.json({ error: 'Invalid workspace ID' }, { status: 400 })
+  }
+
   try {
     const rawBody = await req.json()
     const parsed = WorkspaceSchema.safeParse(rawBody)
@@ -119,16 +143,16 @@ export async function PUT(
         }
       })
 
-      // Delete existing to replace with new
-      await tx.card.deleteMany({ where: { workspaceId: id } })
-      await tx.asset.deleteMany({ where: { workspaceId: id } })
-      await tx.ingestFile.deleteMany({ where: { workspaceId: id } })
-
-      // Insert cards
-      if (body.cards && body.cards.length > 0) {
+      // Upsert cards
+      if (body.cards) {
+        const existingCardIds = new Set(
+          (await tx.card.findMany({ where: { workspaceId: id }, select: { id: true } }))
+            .map(c => c.id)
+        )
         for (const card of body.cards) {
-          await tx.card.create({
-            data: {
+          await tx.card.upsert({
+            where: { id: card.id },
+            create: {
               id: card.id,
               workspaceId: id,
               title: card.title || "",
@@ -136,60 +160,105 @@ export async function PUT(
               order: card.order,
               pattern: card.pattern,
               content: card.content || "",
-              table: card.table ? JSON.stringify(card.table) : null,
-              figures: card.figures ? JSON.stringify(card.figures) : null,
+              table: jsonStringify(card.table),
+              figures: jsonStringify(card.figures),
               figureLayout: card.figureLayout || "single",
-              sourceIds: card.sourceIds ? JSON.stringify(card.sourceIds) : null,
+              sourceIds: jsonStringify(card.sourceIds),
               heightBudget: card.heightBudget,
               validation: card.validation || "valid",
               generatedLatex: card.generatedLatex,
-            }
+            },
+            update: {
+              title: card.title || "",
+              column: card.column,
+              order: card.order,
+              pattern: card.pattern,
+              content: card.content || "",
+              table: jsonStringify(card.table),
+              figures: jsonStringify(card.figures),
+              figureLayout: card.figureLayout || "single",
+              sourceIds: jsonStringify(card.sourceIds),
+              heightBudget: card.heightBudget,
+              validation: card.validation || "valid",
+              generatedLatex: card.generatedLatex,
+            },
           })
+          existingCardIds.delete(card.id)
+        }
+        if (existingCardIds.size > 0) {
+          await tx.card.deleteMany({ where: { id: { in: Array.from(existingCardIds) } } })
         }
       }
 
-      // Insert assets
-      if (body.assets && body.assets.length > 0) {
+      // Upsert assets
+      if (body.assets) {
+        const existingAssetIds = new Set(
+          (await tx.asset.findMany({ where: { workspaceId: id }, select: { id: true } }))
+            .map(a => a.id)
+        )
         for (const asset of body.assets) {
-          await tx.asset.create({
-            data: {
+          const assetData = {
+            fileId: asset.fileId,
+            filename: asset.filename,
+            url: asset.url,
+            kind: asset.kind,
+            page: asset.page,
+            section: asset.section,
+            bbox: asset.bbox,
+            confidence: asset.confidence,
+            heading: asset.heading,
+            snippet: asset.snippet,
+            thumbnailUrl: asset.thumbnailUrl,
+            caption: asset.caption,
+            tableRows: jsonStringify(asset.tableRows),
+            assignedCardId: asset.assignedCardId,
+            assignedSlot: asset.assignedSlot,
+          }
+          await tx.asset.upsert({
+            where: { id: asset.id },
+            create: {
               id: asset.id,
               workspaceId: id,
-              fileId: asset.fileId,
-              filename: asset.filename,
-              url: asset.url,
-              kind: asset.kind,
-              page: asset.page,
-              section: asset.section,
-              bbox: asset.bbox,
-              confidence: asset.confidence,
-              heading: asset.heading,
-              snippet: asset.snippet,
-              thumbnailUrl: asset.thumbnailUrl,
-              caption: asset.caption,
-              tableRows: asset.tableRows ? JSON.stringify(asset.tableRows) : null,
-              assignedCardId: asset.assignedCardId,
-              assignedSlot: asset.assignedSlot,
-            }
+              ...assetData
+            },
+            update: assetData,
           })
+          existingAssetIds.delete(asset.id)
+        }
+        if (existingAssetIds.size > 0) {
+          await tx.asset.deleteMany({ where: { id: { in: Array.from(existingAssetIds) } } })
         }
       }
 
-      // Insert ingest files
-      if (body.ingestFiles && body.ingestFiles.length > 0) {
+      // Upsert ingest files
+      if (body.ingestFiles) {
+        const existingFileIds = new Set(
+          (await tx.ingestFile.findMany({ where: { workspaceId: id }, select: { id: true } }))
+            .map(f => f.id)
+        )
         for (const file of body.ingestFiles) {
-          await tx.ingestFile.create({
-            data: {
+          const fileData = {
+            name: file.name,
+            size: file.size,
+            method: file.method,
+            status: file.status,
+            progress: file.progress,
+            error: file.error,
+            dismissed: file.dismissed || false,
+          }
+          await tx.ingestFile.upsert({
+            where: { id: file.id },
+            create: {
               id: file.id,
               workspaceId: id,
-              name: file.name,
-              size: file.size,
-              method: file.method,
-              status: file.status,
-              progress: file.progress,
-              error: file.error,
-            }
+              ...fileData
+            },
+            update: fileData,
           })
+          existingFileIds.delete(file.id)
+        }
+        if (existingFileIds.size > 0) {
+          await tx.ingestFile.deleteMany({ where: { id: { in: Array.from(existingFileIds) } } })
         }
       }
     })
@@ -206,6 +275,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+  
+  if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+    return NextResponse.json({ error: 'Invalid workspace ID' }, { status: 400 })
+  }
+
   try {
     await prisma.workspace.delete({ where: { id } })
     return NextResponse.json({ ok: true })

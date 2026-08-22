@@ -12,20 +12,19 @@ import path from "path"
  *
  * Pure filesystem check — no files are created or modified.
  */
-export function nextVersionedPath(dir: string, filename: string): string {
+export async function nextVersionedPath(dir: string, filename: string): Promise<string | null> {
   const ext = path.extname(filename)
   const base = path.basename(filename, ext)
-
-  // Strip any existing _edited_vN suffix so re-editing an already-edited file
-  // still increments from the canonical base name.
   const coreBase = base.replace(/_edited_v\d+$/, "")
 
-  let n = 1
-  while (true) {
+  const MAX_VERSIONS = 999
+  for (let n = 1; n <= MAX_VERSIONS; n++) {
     const candidate = path.join(dir, `${coreBase}_edited_v${n}${ext}`)
-    if (!fs.existsSync(candidate)) {
+    try {
+      await fs.promises.access(candidate)
+    } catch {
       return candidate
     }
-    n++
   }
+  return null
 }

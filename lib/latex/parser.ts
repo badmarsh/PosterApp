@@ -85,7 +85,12 @@ export function parseMarkdownToLatex(input: string): string {
   text = text.replace(/\*\*([^*\n]+)\*\*/g, "\\textbf{$1}")
   text = text.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "\\textit{$1}")
   text = text.replace(/`([^`\n]+)`/g, "\\texttt{$1}")
-  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "\\href{$2}{$1}")
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, title, url) => {
+    if (/^https?:\/\//i.test(url)) {
+      return `\\href{${url}}{${title}}`
+    }
+    return title
+  })
 
   const lines = text.split("\n")
   const outLines: string[] = []

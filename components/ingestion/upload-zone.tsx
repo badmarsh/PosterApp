@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { RotateCw, Trash2, UploadCloud } from "lucide-react"
+import { RotateCw, Trash2, UploadCloud, X } from "lucide-react"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { Button } from "@/components/ui/button"
@@ -13,15 +13,16 @@ import {
 } from "@/components/ingestion/ingestion-badges"
 
 export function UploadZone() {
-  const { project, uploadFiles, retryFile, removeFile } = useEditor(
+  const { project, uploadFiles, retryFile, removeFile, dismissFile } = useEditor(
     useShallow((s) => ({
       project: s.project,
       uploadFiles: s.uploadFiles,
       retryFile: s.retryFile,
       removeFile: s.removeFile,
+      dismissFile: s.dismissFile,
     }))
   )
-  const ingestFiles = project.ingestFiles || []
+  const ingestFiles = (project.ingestFiles || []).filter((f) => !f.dismissed)
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
@@ -119,15 +120,27 @@ export function UploadZone() {
                     <RotateCw className="size-3.5" />
                   </Button>
                 )}
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label={`Remove ${file.name}`}
-                  className="text-muted-foreground hover:text-destructive"
-                  onClick={() => removeFile(file.id)}
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
+                {file.status === "done" ? (
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    aria-label={`Dismiss ${file.name}`}
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => dismissFile(file.id)}
+                  >
+                    <X className="size-3.5" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    aria-label={`Remove ${file.name}`}
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => removeFile(file.id)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
               </div>
 
               {(file.status === "parsing" || file.status === "queued") && (

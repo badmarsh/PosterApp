@@ -31,24 +31,56 @@ export function FigureEditor({
   asset: ExtractedAsset
   onClose: () => void
 }) {
-  const applyFigureOp = useEditor((s) => s.applyFigureOp)
+  const updateAssetUrl = useEditor((s) => s.updateAssetUrl)
+  const workspaceId = useEditor((s) => s.project.id)
   const [prompt, setPrompt] = useState("")
   const [applying, setApplying] = useState(false)
-  const [result, setResult] = useState<{ op: string; filter: string; checker: boolean } | null>(
+  const [result, setResult] = useState<{ op: string; url: string; checker: boolean } | null>(
     null,
   )
 
-  async function runOp(op: string, filter: string) {
-    const label = op || prompt.trim()
+  async function runOp(opId: string, filter: string, overridePrompt?: string) {
+    const label = overridePrompt || prompt.trim() || opId
     if (!label) return
     setApplying(true)
-    await applyFigureOp(asset.id, label)
-    setApplying(false)
-    setResult({
-      op: label,
-      filter: filter || "contrast(1.08) brightness(1.03)",
-      checker: op === "remove-bg",
-    })
+
+    let mappedOp = "custom"
+    if (opId === "remove-bg") mappedOp = "remove-bg"
+    if (opId === "upscale") mappedOp = "upscale"
+    if (opId === "crop") mappedOp = "crop-tight"
+
+    try {
+      const res = await fetch("/api/ingestion/image-edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assetUrl: asset.thumbnailUrl,
+          workspaceId,
+          operation: mappedOp,
+          prompt: label,
+        }),
+      })
+
+      if (!res.ok) {
+        let errMessage = "Failed to edit image"
+        try {
+          const errData = await res.json()
+          if (errData.error) errMessage += ": " + errData.error
+        } catch (_) {}
+        throw new Error(errMessage)
+      }
+
+      const data = await res.json()
+      setResult({
+        op: label,
+        url: data.url,
+        checker: mappedOp === "remove-bg",
+      })
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setApplying(false)
+    }
   }
 
   return (
@@ -91,11 +123,10 @@ export function FigureEditor({
           >
             {result ? (
               <img
-                src={asset.thumbnailUrl || "/placeholder.svg"}
+                src={result.url || "/placeholder.svg"}
                 alt={`Result after ${result.op}`}
                 crossOrigin="anonymous"
                 className="h-full w-full object-contain"
-                style={{ filter: result.filter }}
               />
             ) : (
               <div className="flex h-full items-center justify-center px-2 text-center text-[9px] text-muted-foreground">
@@ -122,7 +153,7 @@ export function FigureEditor({
             variant="outline"
             className="h-6 gap-1 px-1.5 text-[10px]"
             disabled={applying}
-            onClick={() => runOp(op.label, op.filter)}
+            onClick={() => runOp(op.id, op.filter, op.label)}
           >
             {op.icon}
             {op.label}
@@ -136,7 +167,7 @@ export function FigureEditor({
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") runOp("", "")
+            if (e.key === "Enter") runOp("custom", "", prompt)
           }}
           placeholder="Freeform: e.g. enhance contrast, recolor to grayscale…"
           className="h-7 text-[11px]"
@@ -146,7 +177,7 @@ export function FigureEditor({
           size="xs"
           className="h-7 gap-1 px-2 text-[11px]"
           disabled={applying || !prompt.trim()}
-          onClick={() => runOp("", "")}
+          onClick={() => runOp("custom", "", prompt)}
         >
           {applying ? <Loader2 className="size-3 animate-spin" /> : "Apply"}
         </Button>
@@ -162,6 +193,7 @@ export function FigureEditor({
             size="xs"
             className="h-6 gap-1 px-2 text-[10px]"
             onClick={() => {
+              updateAssetUrl(asset.id, result.url)
               setResult(null)
               onClose()
             }}

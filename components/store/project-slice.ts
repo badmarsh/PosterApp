@@ -130,7 +130,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     }, 400)
   },
 
-  generateCardAction: (id) => {
+  generateLatexForCardAction: (id) => {
     const card = get().project.cards.find((c) => c.id === id)
     if (!card) return
     const msgs = validateCard(card)
@@ -190,6 +190,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
           assets: get().project.assets,
           sourceIds: card.sourceIds,
           characterLimit,
+          bibKeys: get().bibKeys,
         })
       })
 
@@ -236,12 +237,40 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
       toast.success("Card auto-filled successfully")
 
       // Optionally, automatically trigger LaTeX generation now that content is filled
-      get().generateCardAction(id)
+      get().generateLatexForCardAction(id)
       
     } catch (err: unknown) {
       set((s) => { if (s.generatingId === id) s.generatingId = null })
       get().pushEvent({ kind: "generate", status: "error", title: `Auto-fill failed — ${id}`, detail: String(err) })
       toast.error(err instanceof Error ? err.message : "Failed to auto-fill card")
+    }
+  },
+
+  autoFillAllCardsAction: async () => {
+    const cards = get().project.cards.filter(c => 
+      c.pattern !== "references" && (!c.content || c.content.trim() === "")
+    ).sort((a, b) => a.order - b.order)
+    
+    if (cards.length === 0) {
+      toast.info("No empty cards to auto-fill.")
+      return
+    }
+
+    toast.info(`Starting auto-fill for ${cards.length} cards in parallel...`)
+    get().pushEvent({ kind: "info", status: "running", title: "Bulk Auto-fill Started", detail: `Running ${cards.length} cards in parallel.` })
+
+    const results = await Promise.allSettled(
+      cards.map(card => get().autoFillCardAction(card.id))
+    )
+
+    const failed = results.filter(r => r.status === "rejected").length
+    const succeeded = results.length - failed
+
+    get().pushEvent({ kind: "info", status: "done", title: "Bulk Auto-fill Complete", detail: `${succeeded} succeeded, ${failed} failed.` })
+    if (failed > 0) {
+      toast.warning(`Auto-fill: ${succeeded} cards done, ${failed} failed.`)
+    } else {
+      toast.success("All cards auto-filled successfully.")
     }
   },
 
@@ -252,14 +281,30 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
       const res = await fetch(`/api/workspaces/${proj.id}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(proj)
+        body: JSON.stringify({ 
+          ...proj, 
+          bibContent: get().bibContent, 
+          bibKeys: get().bibKeys 
+        })
       })
       if (!res.ok) throw new Error("Verification failed")
       
       const data = await res.json()
       const tips = data.tips || []
+      
       if (tips.length > 0) {
-        get().pushEvent({ kind: "verify", status: "warning", title: "Review Complete", detail: tips.join("\n\n") })
+        // Find if any tip is an error or warning
+        const hasError = tips.some((t: any) => t.severity === "error")
+        const hasWarning = tips.some((t: any) => t.severity === "warning")
+        const status = hasError ? "error" : hasWarning ? "warning" : "done"
+        
+        get().pushEvent({ 
+          kind: "verify", 
+          status, 
+          title: "Review Complete", 
+          detail: `Found ${tips.length} issue${tips.length === 1 ? "" : "s"}.`,
+          tips 
+        })
       } else {
         get().pushEvent({ kind: "verify", status: "done", title: "Review Complete", detail: "Looking good! No major issues found." })
       }
@@ -287,10 +332,8 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
         s.isDirty = false
         s.lastSavedAt = new Date()
       })
-      toast.success("Workspace saved")
     } catch (err: unknown) {
       set((s) => { s.isSaving = false })
-      toast.error("Failed to save workspace")
     }
   },
 })

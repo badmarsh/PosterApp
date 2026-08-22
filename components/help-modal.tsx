@@ -46,9 +46,9 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
                   The first step in creating your poster is giving the AI the literature it needs. Click <strong className="text-foreground font-medium">Ingest</strong> in the top bar to upload your research papers (.pdf).
                 </p>
                 <div className="bg-muted/50 p-4 rounded-lg border border-border">
-                  <h4 className="font-medium text-foreground mb-1">Local Processing</h4>
+                  <h4 className="font-medium text-foreground mb-1">Local Processing & Auto-Extraction</h4>
                   <p className="text-sm">
-                    The system uses MinerU locally on your machine to extract text, figures, and tables. The AI operates purely on your uploaded literature without searching the web, keeping your data private and scientifically grounded.
+                    The system uses MinerU locally on your machine to extract text, figures, and tables. During ingestion, it automatically extracts the References section and converts it into BibTeX format, ensuring your citations are ready to use.
                   </p>
                 </div>
               </AccordionContent>
@@ -78,11 +78,19 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
                   <li className="flex gap-3">
                     <div className="bg-muted rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5"><span className="text-xs font-bold text-foreground">2</span></div>
                     <div>
-                      <strong className="text-foreground block">Autonomous Generation</strong>
-                      <p className="text-sm">If you don't provide a title, the AI will autonomously analyze the literature and decide the most compelling topic to write about.</p>
+                      <strong className="text-foreground block">Bulk Auto-fill</strong>
+                      <p className="text-sm">Click <strong className="text-foreground font-medium">Generate All</strong> in the top bar to auto-fill all empty cards sequentially.</p>
                     </div>
                   </li>
                 </ul>
+                <div className="bg-primary/5 p-4 rounded-lg border border-primary/10 mt-4">
+                  <h4 className="font-medium text-foreground mb-1">Smart Digestion Features</h4>
+                  <ul className="list-disc pl-5 mt-2 text-sm space-y-1 text-foreground/80">
+                    <li><strong>Semantic Citations:</strong> The AI automatically inserts \cite{} commands corresponding to the extracted BibTeX keys.</li>
+                    <li><strong>Figure Matching:</strong> It analyzes figure filenames and assigns the most relevant visuals to your generated text.</li>
+                    <li><strong>Math Passthrough:</strong> Mathematical formulas from source documents are accurately preserved as inline LaTeX equations.</li>
+                  </ul>
+                </div>
               </AccordionContent>
             </AccordionItem>
 
@@ -169,10 +177,10 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground pb-4 leading-relaxed space-y-4">
                 <p>
-                  PosterApp maintains a central BibTeX file for your workspace.
+                  PosterApp maintains a central BibTeX file for your workspace, which is <strong>automatically populated</strong> when you ingest research papers.
                 </p>
                 <p>
-                  You can manage your bibliography by clicking <strong className="text-foreground font-medium">Edit references.bib</strong> in the Project Settings (bottom left). This allows you to upload existing .bib files or manually edit your citation keys to match those used in your cards.
+                  You can further manage your bibliography by clicking <strong className="text-foreground font-medium">Edit references.bib</strong> in the Project Settings (bottom left). Only the citations actually used by the AI (or manually added by you) will appear in the final poster's reference block, preventing your poster from overflowing with unused citations.
                 </p>
               </AccordionContent>
             </AccordionItem>

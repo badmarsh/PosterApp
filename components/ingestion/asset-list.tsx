@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, memo } from "react"
-import { Trash2, Wand2 } from "lucide-react"
+import { Trash2, Wand2, ListFilter, File } from "lucide-react"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -27,7 +27,7 @@ function OriginLabel({ asset }: { asset: ExtractedAsset }) {
   if (asset.section) parts.push(asset.section)
   if (asset.bbox) parts.push(asset.bbox)
   return (
-    <span className="truncate font-mono text-[9px] text-muted-foreground/80">
+    <span className="font-mono text-[10px] font-normal text-muted-foreground">
       {parts.join(" · ")}
     </span>
   )
@@ -91,18 +91,16 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
         )}
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <OriginLabel asset={asset} />
-            <ConfidenceMeter level={asset.confidence} />
-          </div>
 
           {/* body */}
           {asset.kind === "text" && (
             <>
-              {asset.heading && (
+              {asset.heading ? (
                 <p className="mt-0.5 text-[11px] font-medium leading-tight">
-                  {asset.heading}
+                  <OriginLabel asset={asset} /> <span className="ml-1">{asset.heading}</span>
                 </p>
+              ) : (
+                <div className="mt-0.5"><OriginLabel asset={asset} /></div>
               )}
               <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
                 {asset.snippet}
@@ -111,10 +109,12 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
           )}
           {asset.kind === "figure" && (
             <>
-              {asset.caption && (
+              {asset.caption ? (
                 <p className="mt-0.5 line-clamp-2 text-[11px] font-medium leading-tight">
-                  {asset.caption}
+                  <OriginLabel asset={asset} /> <span className="ml-1">{asset.caption}</span>
                 </p>
+              ) : (
+                <div className="mt-0.5"><OriginLabel asset={asset} /></div>
               )}
               {asset.snippet && (
                 <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
@@ -124,8 +124,17 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
             </>
           )}
           {asset.kind === "table" && (
-            <div className="mt-1">
+            <div className="mt-0.5">
+              <div className="mb-1"><OriginLabel asset={asset} /></div>
               <TablePreview rows={asset.tableRows ?? []} />
+            </div>
+          )}
+          {asset.kind === "equation" && (
+            <div className="mt-0.5">
+              <div className="mb-1"><OriginLabel asset={asset} /></div>
+              <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
+                {asset.snippet}
+              </p>
             </div>
           )}
         </div>
@@ -138,14 +147,13 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
             size="xs"
             variant="outline"
             className="h-6 gap-1 px-1.5 text-[10px]"
-            onClick={() => setEditing((v) => !v)}
-            aria-expanded={editing}
+            onClick={() => setEditing(true)}
           >
-            <Wand2 className="size-3" />
-            Edit
+            <Wand2 className="size-3 text-primary" /> Edit
           </Button>
         )}
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="flex-1" />
+        <div className="flex items-center gap-1.5">
           <PromotePopover asset={asset} />
           <Button
             size="icon-xs"
@@ -154,7 +162,7 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
             className="text-muted-foreground hover:text-destructive"
             onClick={() => discardAsset(asset.id)}
           >
-            <Trash2 className="size-3.5" />
+            <Trash2 className="size-3" />
           </Button>
         </div>
       </div>
@@ -168,20 +176,36 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
 
 export function AssetList() {
   const project = useEditor((s) => s.project)
+  const removeFile = useEditor((s) => s.removeFile)
+  const removeAllLegacyAssets = useEditor((s) => s.removeAllLegacyAssets)
   const assets = project.assets || []
   const ingestFiles = project.ingestFiles || []
 
+  const [fileFilters, setFileFilters] = useState<Record<string, AssetKind | "all">>({})
+
+  const getFilter = (id: string) => fileFilters[id] || "all"
+
   // Group assets by fileId
   const groups = ingestFiles
-    .map((file) => ({
-      file,
-      items: assets.filter((a: Asset) => a.fileId === file.id),
-    }))
-    .filter((g) => g.items.length > 0)
+    .map((file) => {
+      const allItems = assets.filter((a: Asset) => a.fileId === file.id)
+      let items = allItems
+      const fKind = getFilter(file.id)
+      if (fKind !== "all") {
+        items = items.filter((a) => a.kind === fKind)
+      }
+      return { file, items, totalCount: allItems.length }
+    })
+    .filter((g) => g.totalCount > 0)
 
-  const legacyAssets = assets.filter(
+  const allLegacyAssets = assets.filter(
     (a: Asset) => !a.fileId || !ingestFiles.find((f) => f.id === a.fileId),
   )
+  let legacyAssets = allLegacyAssets
+  const legacyFilter = getFilter("legacy")
+  if (legacyFilter !== "all") {
+    legacyAssets = legacyAssets.filter((a) => a.kind === legacyFilter)
+  }
 
   const defaultOpen = groups.length > 0 ? groups[0].file.id : "legacy"
   const [openSection, setOpenSection] = useState<string | null>(defaultOpen)
@@ -200,7 +224,8 @@ export function AssetList() {
 
   function renderGroupAssets(groupAssets: Asset[]) {
     return KIND_ORDER.map((kind) => {
-      const items = groupAssets.filter((a: Asset) => a.kind === kind)
+      let items = groupAssets.filter((a: Asset) => a.kind === kind)
+      items = items.sort((a, b) => (a.page || 0) - (b.page || 0))
       if (!items.length) return null
       return (
         <div key={kind} className="mt-3 first:mt-0">
@@ -227,31 +252,75 @@ export function AssetList() {
         const isOpen = openSection === g.file.id
         return (
           <div key={g.file.id} className="rounded-md border border-border bg-muted/10">
-            <button
-              className="flex w-full items-center justify-between px-3 py-2 text-left transition-colors hover:bg-muted/30"
-              onClick={() => setOpenSection(isOpen ? null : g.file.id)}
-            >
-              <div className="flex items-center gap-2 overflow-hidden">
+            <div className="flex w-full items-center justify-between px-3 py-2 transition-colors hover:bg-muted/30">
+              <button
+                className="flex flex-1 items-center gap-2 overflow-hidden text-left"
+                onClick={() => setOpenSection(isOpen ? null : g.file.id)}
+              >
                 <span className="truncate text-[12px] font-medium">{g.file.name}</span>
                 <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
                   {g.items.length} items
                 </span>
+              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  className="size-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (confirm("Remove this file and all its extracted assets?")) {
+                      removeFile(g.file.id)
+                    }
+                  }}
+                  aria-label="Remove ingested file"
+                >
+                  <Trash2 className="size-3" />
+                </Button>
+                <button
+                  className="p-1"
+                  onClick={() => setOpenSection(isOpen ? null : g.file.id)}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={cn(
+                      "size-3.5 text-muted-foreground transition-transform",
+                      isOpen && "rotate-180",
+                    )}
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
               </div>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")}
-              >
-                <path d="m6 9 6 6 6-6" />
-              </svg>
-            </button>
+            </div>
             {isOpen && (
               <div className="border-t border-border p-2">
+                <div className="flex items-center gap-1.5 pb-2">
+                  {(["all", "figure", "table", "equation"] as const).map((k) => {
+                    const isActive = getFilter(g.file.id) === k
+                    return (
+                      <Button
+                        key={k}
+                        variant={isActive ? "secondary" : "ghost"}
+                        size="sm"
+                        className={cn(
+                          "h-6 px-2 text-[10px]",
+                          isActive ? "font-medium text-foreground" : "text-muted-foreground"
+                        )}
+                        onClick={() => setFileFilters(prev => ({ ...prev, [g.file.id]: k }))}
+                      >
+                        {k === "all" ? <ListFilter className="mr-1 size-3" /> : <AssetKindIcon kind={k as AssetKind} className="mr-1 size-3" />}
+                        {k === "all" ? "All" : ASSET_KIND_LABEL[k as AssetKind]}
+                      </Button>
+                    )
+                  })}
+                </div>
                 {renderGroupAssets(g.items)}
               </div>
             )}
@@ -259,33 +328,77 @@ export function AssetList() {
         )
       })}
 
-      {legacyAssets.length > 0 && (
+      {allLegacyAssets.length > 0 && (
         <div className="rounded-md border border-border bg-muted/10">
-          <button
-            className="flex w-full items-center justify-between px-3 py-2 text-left transition-colors hover:bg-muted/30"
-            onClick={() => setOpenSection(openSection === "legacy" ? null : "legacy")}
-          >
-            <div className="flex items-center gap-2">
+          <div className="flex w-full items-center justify-between px-3 py-2 transition-colors hover:bg-muted/30">
+            <button
+              className="flex flex-1 items-center gap-2 overflow-hidden text-left"
+              onClick={() => setOpenSection(openSection === "legacy" ? null : "legacy")}
+            >
               <span className="text-[12px] font-medium">Other Assets</span>
               <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
                 {legacyAssets.length} items
               </span>
+            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                className="size-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (confirm("Remove all other assets?")) {
+                    removeAllLegacyAssets()
+                  }
+                }}
+                aria-label="Remove other assets"
+              >
+                <Trash2 className="size-3" />
+              </Button>
+              <button
+                className="p-1"
+                onClick={() => setOpenSection(openSection === "legacy" ? null : "legacy")}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={cn(
+                    "size-3.5 shrink-0 text-muted-foreground transition-transform",
+                    openSection === "legacy" && "rotate-180"
+                  )}
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
             </div>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", openSection === "legacy" && "rotate-180")}
-            >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
+          </div>
           {openSection === "legacy" && (
             <div className="border-t border-border p-2">
+              <div className="flex items-center gap-1.5 pb-2">
+                {(["all", "figure", "table", "equation"] as const).map((k) => {
+                  const isActive = getFilter("legacy") === k
+                  return (
+                    <Button
+                      key={k}
+                      variant={isActive ? "secondary" : "ghost"}
+                      size="sm"
+                      className={cn(
+                        "h-6 px-2 text-[10px]",
+                        isActive ? "font-medium text-foreground" : "text-muted-foreground"
+                      )}
+                      onClick={() => setFileFilters(prev => ({ ...prev, legacy: k }))}
+                    >
+                      {k === "all" ? <ListFilter className="mr-1 size-3" /> : <AssetKindIcon kind={k as AssetKind} className="mr-1 size-3" />}
+                      {k === "all" ? "All" : ASSET_KIND_LABEL[k as AssetKind]}
+                    </Button>
+                  )
+                })}
+              </div>
               {renderGroupAssets(legacyAssets)}
             </div>
           )}

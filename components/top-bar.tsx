@@ -1,9 +1,8 @@
 "use client"
 
-import { useEffect, useState, useRef, useMemo } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useTheme } from "next-themes"
 import {
-  CheckCircle2,
   Download,
   FileCode2,
   FileStack,
@@ -13,6 +12,7 @@ import {
   HelpCircle,
   Save,
   Sun,
+  FolderOpen,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -28,10 +28,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
-import { generateFullTemplate, levelFromMessages, validateCard } from "@/lib/latex"
+import { generateFullTemplate } from "@/lib/latex"
 import { cn } from "@/lib/utils"
 
 function ThemeToggle() {
@@ -68,6 +69,7 @@ type TopBarProps = {
   agentOpen: boolean
   onToggleStructure: () => void
   onToggleAgent: () => void
+  onOpenWorkspaceSelector: () => void
 }
 
 export function TopBar({
@@ -75,13 +77,15 @@ export function TopBar({
   agentOpen,
   onToggleStructure,
   onToggleAgent,
+  onOpenWorkspaceSelector,
 }: TopBarProps) {
-  const { project, aiReview, openIngestion, switchProject } = useEditor(
+  const { project, aiReview, openIngestion, switchProject, autoFillAllCardsAction } = useEditor(
     useShallow((s) => ({
       project: s.project,
       aiReview: s.aiReview,
       openIngestion: s.openIngestion,
       switchProject: s.switchProject,
+      autoFillAllCardsAction: s.autoFillAllCardsAction,
     }))
   )
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
@@ -98,7 +102,7 @@ export function TopBar({
   useEffect(() => {
     fetch("/api/workspaces")
       .then((r) => r.json())
-      .then(setWorkspaces)
+      .then((data) => setWorkspaces(Array.isArray(data) ? data : []))
       .catch(() => {})
   }, [])
 
@@ -134,25 +138,7 @@ export function TopBar({
     return () => clearTimeout(t)
   }, [project])
 
-  const counts = useMemo(
-    () =>
-      project.cards.reduce(
-        (acc, c) => {
-          const lvl = levelFromMessages(validateCard(c))
-          acc[lvl] += 1
-          return acc
-        },
-        { valid: 0, warning: 0, invalid: 0 },
-      ),
-    [project.cards]
-  )
-  const overall =
-    counts.invalid > 0 ? "invalid" : counts.warning > 0 ? "warning" : "valid"
-  const overallStyles = {
-    valid: "text-chart-3",
-    warning: "text-chart-4",
-    invalid: "text-destructive",
-  }[overall]
+
 
   function exportTex() {
     const tex = generateFullTemplate(project)
@@ -216,8 +202,29 @@ export function TopBar({
                 {ws.name}
               </DropdownMenuItem>
             ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onOpenWorkspaceSelector} className="cursor-pointer">
+              View all workspaces...
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="size-6 text-muted-foreground ml-1" 
+                onClick={onOpenWorkspaceSelector}
+                aria-label="Switch workspace"
+              >
+                <FolderOpen className="size-3" />
+              </Button>
+            }
+          />
+          <TooltipContent>Switch workspace</TooltipContent>
+        </Tooltip>
 
         <span className="hidden rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground lg:inline">
           {project.templateName}
@@ -226,19 +233,7 @@ export function TopBar({
 
       <div className="flex-1" />
 
-      <div
-        className={cn(
-          "hidden items-center gap-1.5 rounded border border-border bg-muted px-2 py-1 font-mono text-[11px] md:flex",
-          overallStyles,
-        )}
-      >
-        <CheckCircle2 className="size-3.5" />
-        <span className="text-foreground">
-          {counts.valid} ok · {counts.warning} warn · {counts.invalid} err
-        </span>
-      </div>
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
 
       <div className="flex items-center gap-1.5">
         <Button
@@ -254,12 +249,22 @@ export function TopBar({
         <Button
           variant="outline"
           size="sm"
+          className="h-8 gap-1.5 bg-blue-50/50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/40"
+          onClick={autoFillAllCardsAction}
+          aria-label="Generate All Cards"
+        >
+          <Sparkles className="size-3.5" />
+          <span className="hidden md:inline">Generate All</span>
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
           className="h-8 gap-1.5"
           onClick={aiReview}
           aria-label="AI Poster review"
         >
           <Sparkles className="size-3.5" />
-          <span className="hidden md:inline">AI Poster review</span>
+          <span className="hidden md:inline">AI Review</span>
         </Button>
         <Button
           size="sm"

@@ -743,7 +743,7 @@ function OutputTab({ card }: { card: Card }) {
 export function CardInspector() {
   const {
     validateCardAction,
-    generateCardAction,
+    generateLatexForCardAction,
     saveProject,
     deleteCard,
     selectCard,
@@ -753,7 +753,7 @@ export function CardInspector() {
   } = useEditor(
     useShallow((s) => ({
       validateCardAction: s.validateCardAction,
-      generateCardAction: s.generateCardAction,
+      generateLatexForCardAction: s.generateLatexForCardAction,
       saveProject: s.saveProject,
       deleteCard: s.deleteCard,
       selectCard: s.selectCard,
