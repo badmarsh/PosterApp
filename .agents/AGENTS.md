@@ -104,26 +104,23 @@ Schema at `prisma/schema.prisma`. Key notes:
 ## Known Remaining Issues
 
 ### Still Open
-1. **`ignoreBuildErrors: true`** in `next.config.mjs` — TypeScript errors silently ignored at build time.
-2. **`.gitignore` gaps** — `workspaces/` and `*.db` are not ignored. Sensitive data could be committed.
-3. **`fileCache` lost on refresh** — Retry file after page reload shows "File no longer available". Fix: persist File to IndexedDB during upload.
-4. **No FK relation for Asset→Card** — `Asset.assignedCardId` has no `@relation`. Deleting a card leaves orphaned asset records.
-5. **BibTeX deduplication** — Same reference from two PDFs will appear twice in `bibContent`.
-6. **Workspace hardcoded** — `page.tsx` hardcodes `switchProject("tilecal-irid-2026")`. No dynamic workspace selection UI.
-7. **`execSync` in compile route** — Blocks event loop up to 60s during LaTeX compilation. Should use `child_process.spawn` with async.
+1. **`fileCache` lost on refresh** — Retry file after page reload shows "File no longer available". Fix: persist File to IndexedDB during upload.
+2. **BibTeX deduplication** — Same reference from two PDFs will appear twice in `bibContent`. (Dedups by cite key, but same ref might have different cite keys).
+3. **AUTH_SECRET is a static bearer token** — not suitable for multi-user deployment.
 
-### Fixed in This Session (2026-06-28)
-- ✅ AI Review grounding: now loads `sources/*.md` from disk instead of always-empty text assets
-- ✅ `JSON.parse` try/catch on all AI responses + markdown fence stripping
-- ✅ `choices[0]` null-check on all AI responses
-- ✅ Image edit model: `openai/gpt-image-1` (was invalid `openai/gpt-5.4-image-2`)
-- ✅ Caption generation: parallel `Promise.all` (was sequential `for...of await`)
-- ✅ Token budget cap: 80k chars on card generation, 60k on review
-- ✅ Bulk auto-fill: parallel `Promise.allSettled` (was serial)
-- ✅ Timeouts: MinerU 5min, image-edit 2min, generate 60s, review 90s
-- ✅ Model names: all read from env vars with `gemini-3-flash` fallback
-- ✅ Dead OLLAMA env vars removed from parse route
-- ✅ `dismissed` flag on `IngestFile`: added to Prisma schema + Zod schema + saved to DB
-- ✅ `saveProject` background toasts removed (silent auto-save)
-- ✅ Legacy "Other Assets" orphaned 107 assets wiped from DB
-- ✅ Asset re-ingestion: updates `fileId` of existing assets instead of skipping them
+### Fixed in This Session (2026-08-22)
+- ✅ `AI_MODEL` now set in `.env.local`, model name no longer hardcoded
+- ✅ Orphaned env vars (`NVIDIA_*`, `LLM_PROVIDER`, `ONYX_MCP_URL`) documented as legacy
+- ✅ `ollama serve` removed from dev script
+- ✅ `WorkspaceSelector` shows auth/load errors and handles missing workspaces
+- ✅ "Switch Workspace" button added to TopBar
+- ✅ "Create New Project" is now fully functional
+- ✅ Rate limiter documented as in-memory
+- ✅ `templateName` normalized to `"atlas"` | `"minimal"` in Prisma/Zod
+- ✅ BibTeX extraction uses text model (`AI_MODEL`), not vision model
+- ✅ Dead middleware public bypass removed
+- ✅ `workspaces/` and `*.db` properly untracked from git and `.gitignore` updated
+- ✅ `ignoreBuildErrors: true` removed from `next.config.mjs` — TypeScript errors fail builds
+- ✅ FK relation Asset→Card verified as present in schema (`@relation(fields: [assignedCardId], references: [id], onDelete: SetNull)`)
+- ✅ `execSync` in compile route was replaced with async `spawn`
+- ✅ Dynamic Workspace selection UI replaced the hardcoded `prj_lattice` loading constraint

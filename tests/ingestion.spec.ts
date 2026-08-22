@@ -1,21 +1,42 @@
 import { test, expect } from '@playwright/test';
+import fs from 'fs';
+
+const filePath = process.env.E2E_TEST_PDF || 'C:\\Users\\marek\\Documents\\Robco PhD\\poster4\\Sources\\PO_152.pdf';
+
+test.beforeAll(() => {
+  if (!fs.existsSync(filePath)) {
+    console.warn(`Skipping ingestion test: File ${filePath} not found.`);
+  }
+});
+
+test('workspace selector loads and shows workspaces', async ({ page }) => {
+  await page.goto('/');
+  
+  // Wait for the UI to settle (either shell or selector modal)
+  await page.waitForLoadState('networkidle');
+  
+  // We should either see the selector title or the top bar showing project name
+  const selectorVisible = await page.isVisible('text="Select a Workspace"');
+  const topBarVisible = await page.isVisible('header');
+  
+  expect(selectorVisible || topBarVisible).toBeTruthy();
+});
 
 test('ingestion of PDF via UI', async ({ page }) => {
+  test.skip(!fs.existsSync(filePath), 'Test PDF not found');
   test.setTimeout(180000); // 3 minutes timeout
 
   // Auto-accept any confirm() dialogues (like removing a file)
   page.on('dialog', dialog => dialog.accept());
-
-  const filePath = 'C:\\Users\\marek\\Documents\\Robco PhD\\poster4\\Sources\\PO_152.pdf';
   
   // Create a test workspace via API
   const apiContext = await page.context().request;
-  await apiContext.post('http://localhost:3333/api/workspaces', {
+  await apiContext.post('/api/workspaces', {
     data: { id: 'test-workspace', name: 'Test Workspace' }
   });
 
   // Navigate to the app
-  await page.goto('http://localhost:3333/');
+  await page.goto('/');
 
   // Handle the new Workspace Selection modal properly
   try {
