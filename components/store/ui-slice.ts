@@ -19,7 +19,11 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
   agentEvents: [
     {
       id: "init",
-      ts: Date.now(),
+      ts: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
       kind: "info",
       status: "done",
       title: "Editor ready",

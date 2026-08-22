@@ -518,7 +518,9 @@ export function AgentPanel() {
   // Observe and sync chat messages back to the global store
   useEffect(() => {
     return runtime.thread.subscribe(() => {
-      const msgs = runtime.thread.messages
+      // @assistant-ui/react v0.15+ moved messages off the direct ThreadRuntime type;
+      // access via type assertion until the API stabilises.
+      const msgs = (runtime.thread as any).messages ?? []
       // Simple debounce to avoid spamming the store
       // In a real app we might use a dedicated debouncer, but a short timeout is fine here
       setTimeout(() => setChatMessages([...msgs]), 0)
