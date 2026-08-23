@@ -302,7 +302,13 @@ export async function POST(req: Request) {
                 )
               }
             }
-            generated = await generateCaption(base64Payload, contextWindow)
+            try {
+              generated = await generateCaption(base64Payload, contextWindow)
+            } catch (err) {
+              console.error(`[Ingestion] Failed to generate AI caption for ${uniqueFilename}:`, err)
+              // Graceful fallback instead of crashing the pipeline
+              generated = { caption: "Extracted Figure", snippet: "" }
+            }
           }
 
           const isTable = tableMap.has(uniqueFilename)
