@@ -3,13 +3,15 @@
 This file contains important context about the project infrastructure and dependencies for future agent sessions.
 
 ## Key Services
-- **Next.js Frontend/API**: The main application. Runs on port 3333.
+- **Next.js Frontend/API + Yjs WebSocket**: Single custom server (`server.ts`). Run via `tsx --env-file=.env.local server.ts`. Serves Next.js on port 3333 AND the Yjs WebSocket at `ws://localhost:3333/api/yjs` (authenticated via Clerk JWT query param `?token=`).
 - **MinerU**: Document parsing service. Runs in a WSL (Ubuntu) environment at `http://localhost:8001`. Source at `~/mineru`.
-- **Ollama**: Local LLM (legacy, not currently wired to any route — env vars `OLLAMA_API_URL` / `OLLAMA_VISION_MODEL` were removed from parse route). Runs on the Windows Host at `http://127.0.0.1:11434`.
+- **PostgreSQL**: Database via Docker. Run with `docker run -d --name posterapp-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=posterapp -p 5432:5432 postgres:16-alpine`. Connection: `postgresql://postgres:postgres@localhost:5432/posterapp`.
 
 ## Startup & Execution
 - **Dev Server**: Run `pnpm run dev` to start everything concurrently.
 - `start-mineru.bat`: Launches MinerU in WSL via `wsl -d Ubuntu -e bash -c "cd ~/mineru && source .venv/bin/activate && mineru-api --port 8001"`. MinerU API binds to **port 8001**.
+- **IMPORTANT**: `pnpm dev` now uses `tsx --env-file=.env.local server.ts` (NOT `next dev`) so both Next.js and the Yjs WebSocket run on the same port 3333.
+- **PostgreSQL via Docker**: Must be running before starting the app. Start with: `docker start posterapp-postgres` (or the full run command above if first time).
 
 ## Key Directories & Files
 - `workspaces/<id>/assets/` — extracted image files (figures, tables) served by `/api/workspaces/[id]/assets/[file]`
@@ -18,7 +20,12 @@ This file contains important context about the project infrastructure and depend
 - `app/api/ingestion/image-edit/route.ts` — AI image editing via OpenRouter (`openai/gpt-image-1`)
 - `app/api/workspaces/[id]/cards/[cardId]/generate/route.ts` — AI card auto-fill
 - `app/api/workspaces/[id]/review/route.ts` — AI poster review
-- `prisma/schema.prisma` — SQLite DB schema via Prisma
+- `app/api/workspaces/[id]/history/route.ts` — GET list of snapshots, POST create snapshot with optional label
+- `app/api/workspaces/[id]/history/[snapId]/route.ts` — GET snapshot, POST restore, PATCH label, DELETE
+- `prisma/schema.prisma` — PostgreSQL DB schema via Prisma (switched from SQLite 2026-08-23)
+- `server.ts` — Custom Next.js server that hosts both Next.js and the Yjs WebSocket
+- `components/store/use-yjs.tsx` — Yjs hook (now online via `NEXT_PUBLIC_YJS_WS_URL`)
+- `components/history-panel.tsx` — Save history drawer UI
 - `tests/ingestion.spec.ts` — Playwright E2E test for ingestion
 
 ## Environment Variables
@@ -36,7 +43,9 @@ All AI/model configuration is via `.env.local`. Key vars:
 | `OPENROUTER_BASE_URL` | OpenRouter API base | `https://openrouter.ai/api/v1` |
 | `OPENROUTER_IMAGE_MODEL` | Image-to-image model | `openai/gpt-image-1` |
 | `MINERU_API_URL` | MinerU parse service | `http://localhost:8001` |
-| `DATABASE_URL` | SQLite path | `file:./dev.db` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/posterapp` |
+| `NEXT_PUBLIC_YJS_WS_URL` | Yjs WebSocket URL (enables collaboration) | `ws://localhost:3333/api/yjs` |
+| `CLERK_SECRET_KEY` | Used by server.ts to verify WebSocket JWT tokens | required |
 
 ## Architecture Overview
 
@@ -74,7 +83,7 @@ autoFillCardAction(id) → POST /api/workspaces/<id>/cards/<cardId>/generate
   → trigger generateCardAction (local LaTeX gen)
 ```
 
-`autoFillAllCardsAction` runs all empty cards in **parallel** via `Promise.allSettled`.
+`autoFillAllCardsAction` runs all empty cards sequentially via the `jobQueue`.
 
 ### AI Poster Review
 ```

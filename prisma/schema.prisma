@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -20,9 +20,11 @@ model Workspace {
   bibKeys      String? // JSON string
   agentEvents  String? // JSON string
   chatMessages String? // JSON string
+  revision     Int     @default(0) // optimistic-lock revision for snapshot saves
   outputs      Output[]
   assets       Asset[]
   ingestFiles  IngestFile[]
+  snapshots    WorkspaceSnapshot[]
 }
 
 model Output {
@@ -89,4 +91,16 @@ model IngestFile {
   progress    Int
   error       String?
   dismissed   Boolean @default(false)
+}
+
+model WorkspaceSnapshot {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  savedAt     DateTime  @default(now())
+  label       String?   // optional user label, e.g. "Before AI rewrite"
+  revision    Int       // workspace revision at time of snapshot
+  snapshot    String    // full JSON of workspace GET response
+
+  @@index([workspaceId, savedAt(sort: Desc)])
 }

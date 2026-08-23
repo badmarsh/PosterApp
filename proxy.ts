@@ -1,18 +1,15 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
-// Protect all API routes except assets
+// Protect every API route. Asset bytes are workspace-private too.
 const isApiRoute = createRouteMatcher(['/api(.*)'])
-const isPublicRoute = createRouteMatcher([
-  '/api/workspaces/(.*)/assets/(.*)'
-])
 
 export default clerkMiddleware(async (auth, req) => {
-  if (process.env.NEXT_PUBLIC_E2E_TEST === '1') {
+  if (process.env.E2E_TEST === '1' && process.env.NODE_ENV !== 'production') {
     return NextResponse.next()
   }
   
-  if (isApiRoute(req) && !isPublicRoute(req)) {
+  if (isApiRoute(req)) {
     await auth.protect()
   }
   return NextResponse.next()

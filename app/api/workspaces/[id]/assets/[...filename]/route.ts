@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import * as fs from "fs/promises"
 import path from "path"
 import mime from "mime"
+import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 
@@ -16,12 +18,18 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid workspace ID' }, { status: 400 })
   }
 
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const workspace = await prisma.workspace.findUnique({ where: { id, userId }, select: { id: true } })
+  if (!workspace) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
   const filePath = path.join(WORKSPACES_DIR, id, "assets", ...filename)
 
   // Prevent path traversal
   const resolved = path.resolve(filePath)
   const base = path.resolve(path.join(WORKSPACES_DIR, id, "assets"))
-  if (!resolved.startsWith(base)) {
+  const relativePath = path.relative(base, resolved)
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
@@ -37,8 +45,7 @@ export async function GET(
   return new NextResponse(buffer, {
     headers: {
       "Content-Type": contentType,
-      "Cache-Control": "public, max-age=3600",
-      "Access-Control-Allow-Origin": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3333",
+      "Cache-Control": "private, no-store",
     },
   })
 }

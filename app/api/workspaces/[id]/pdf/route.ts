@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import fs from "fs"
 import path from "path"
+import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 
@@ -14,6 +16,12 @@ export async function GET(
   if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
     return NextResponse.json({ error: "Invalid workspace id" }, { status: 400 })
   }
+
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const owned = await prisma.workspace.findUnique({ where: { id, userId } })
+  if (!owned) return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
 
   const pdfPath = path.join(WORKSPACES_DIR, id, "main.pdf")
 

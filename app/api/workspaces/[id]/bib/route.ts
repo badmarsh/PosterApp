@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { parseBibKeys } from "@/lib/bib-parser"
+import { auth } from "@/lib/auth"
 
 export async function GET(
   _req: Request,
@@ -9,13 +10,16 @@ export async function GET(
   const { id } = await params
   
   try {
+    const { userId } = await auth()
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
     const workspace = await prisma.workspace.findUnique({
-      where: { id },
+      where: { id, userId },
       select: { bibContent: true, bibKeys: true }
     })
     
     if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
+      return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
     }
 
     const bib = workspace.bibContent || ""
@@ -34,6 +38,12 @@ export async function PUT(
   const { id } = await params
   
   try {
+    const { userId } = await auth()
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const existing = await prisma.workspace.findUnique({ where: { id, userId } })
+    if (!existing) return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
+
     const body = await req.json() as { bib: string }
     if (typeof body.bib !== "string") {
       return NextResponse.json({ error: "bib must be a string" }, { status: 400 })

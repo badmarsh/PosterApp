@@ -17,11 +17,13 @@ import {
   LayoutTemplate,
   FileText,
   CodeIcon,
+  Clock,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { HelpModal } from "@/components/help-modal"
+import { HistoryPanel } from "@/components/history-panel"
 import { UserButton } from "@clerk/nextjs"
 import { ManageWorkspaces } from "@/components/manage-workspaces"
 import {
@@ -91,7 +93,7 @@ export function TopBar({
   onToggleAgent,
   onOpenWorkspaceSelector,
 }: TopBarProps) {
-  const { project, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource } = useEditor(
+  const { project, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen } = useEditor(
     useShallow((s) => ({
       project: s.project,
       aiReview: s.aiReview,
@@ -104,18 +106,12 @@ export function TopBar({
       yjsStatus: s.yjsStatus,
       showLatexSource: s.showLatexSource,
       toggleLatexSource: s.toggleLatexSource,
+      isHistoryOpen: s.isHistoryOpen,
+      setIsHistoryOpen: s.setIsHistoryOpen,
     }))
   )
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
-  const [saving, setSaving] = useState(false)
   const [isHelpOpen, setIsHelpOpen] = useState(false)
-
-  const projectRef = useRef(project)
-  const lastSavedRef = useRef(JSON.stringify(project))
-
-  useEffect(() => {
-    projectRef.current = project
-  }, [project])
 
   useEffect(() => {
     apiFetch("/api/workspaces")
@@ -124,39 +120,10 @@ export function TopBar({
       .catch(() => {})
   }, [])
 
-  const doSave = async (proj: typeof project, isAuto = false) => {
-    setSaving(true)
-    try {
-      const bodyStr = JSON.stringify(proj)
-      const res = await apiFetch(`/api/workspaces/${proj.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: bodyStr,
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      lastSavedRef.current = bodyStr
-      if (!isAuto) toast.success("Workspace saved")
-    } catch (err) {
-      toast.error(`Save failed: ${err}`)
-    } finally {
-      setSaving(false)
-    }
-  }
 
-  async function saveProject() {
-    await doSave(projectRef.current, false)
-  }
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (JSON.stringify(project) !== lastSavedRef.current) {
-        doSave(project, true)
-      }
-    }, 2000)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project])
-
+  // NOTE: Autosave is owned exclusively by shell.tsx (3-second debounce).
+  // A duplicate timer was removed from here to prevent race conditions where
+  // two simultaneous saves could cause the isDirty flag to be cleared incorrectly.
 
 
   function exportTex() {
@@ -325,26 +292,15 @@ export function TopBar({
           <Sparkles className="size-3.5" />
           <span className="hidden md:inline">AI Review</span>
         </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                size="sm"
-                className="h-8 gap-1.5"
-                aria-label="Export as .tex file"
-              >
-                <Download className="size-3.5" />
-                <span className="hidden sm:inline">Export .tex</span>
-              </Button>
-            }
-          />
-          <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => exportTex()}>
-                    <FileCode2 className="mr-2 size-4 text-muted-foreground" />
-                    Export .tex
-                  </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          size="sm"
+          className="h-8 gap-1.5"
+          onClick={() => exportTex()}
+          aria-label="Export as .tex file"
+        >
+          <Download className="size-3.5" />
+          <span className="hidden sm:inline">Export .tex</span>
+        </Button>
 
         <Button
           variant={showLatexSource ? "default" : "outline"}
@@ -356,6 +312,23 @@ export function TopBar({
           <CodeIcon className="size-3.5" />
           <span className="hidden sm:inline">Source</span>
         </Button>
+
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("size-8", isHistoryOpen && "text-primary bg-primary/10")}
+                onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                aria-label="Save History"
+              >
+                <Clock className="size-4" />
+              </Button>
+            }
+          />
+          <TooltipContent>Save History</TooltipContent>
+        </Tooltip>
         
         <div className="flex -space-x-2 mr-2">
           {collaborators.map(c => (
@@ -403,6 +376,7 @@ export function TopBar({
         </Tooltip>
       </div>
       <HelpModal open={isHelpOpen} onOpenChange={setIsHelpOpen} />
+      <HistoryPanel />
     </header>
   )
 }

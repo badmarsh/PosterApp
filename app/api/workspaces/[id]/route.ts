@@ -4,6 +4,20 @@ import { safeJsonParse, jsonStringify } from "@/lib/db-helpers"
 import { auth } from "@/lib/auth"
 import { WorkspaceSchema } from "@/lib/validations/workspace"
 
+class ForeignChildIdError extends Error {
+  constructor() {
+    super("A referenced child record belongs to another workspace")
+    this.name = "ForeignChildIdError"
+  }
+}
+
+class WorkspaceConflictError extends Error {
+  constructor() {
+    super("This workspace was changed in another session. Reload before saving again.")
+    this.name = "WorkspaceConflictError"
+  }
+}
+
 /**
  * Helper: parse a DB Card row's JSON fields into plain objects.
  */
@@ -51,6 +65,7 @@ export async function GET(
     // Build response with both new outputs format and legacy flat fields
     const data = {
       id: workspace.id,
+      revision: workspace.revision,
       name: workspace.name,
       authors: workspace.authors,
       venue: workspace.venue,
@@ -94,6 +109,7 @@ export async function PUT(
     return NextResponse.json({ error: 'Invalid workspace ID' }, { status: 400 })
   }
 
+  let nextRevision: number | undefined
   try {
     const { userId } = await auth()
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -115,25 +131,50 @@ export async function PUT(
     
     // Use a transaction to safely replace outputs, cards, assets, and ingest files
     await prisma.$transaction(async (tx) => {
-      await tx.workspace.update({
-        where: { id },
+      // The client saves a complete object graph. Gate that destructive replace
+      // on a revision so a stale tab cannot delete another tab's newer children.
+      const expectedRevision = body.revision ?? existing.revision
+      const update = await tx.workspace.updateMany({
+        where: { id, userId, revision: expectedRevision },
         data: {
           name: body.name || id,
           authors: body.authors || "",
           venue: body.venue || "",
           agentEvents: body.agentEvents ? jsonStringify(body.agentEvents) : undefined,
           chatMessages: body.chatMessages ? jsonStringify(body.chatMessages) : undefined,
+          revision: { increment: 1 },
         }
       })
+      if (update.count !== 1) throw new WorkspaceConflictError()
+      nextRevision = expectedRevision + 1
+
+      // Pre-fetch the IDs of outputs and assets that already belong to this workspace.
+      // We use these sets to guard upserts: an existing record whose ID is NOT in these
+      // sets belongs to a different workspace and must not be touched.
+      const ownedOutputIds = new Set(
+        (await tx.output.findMany({ where: { workspaceId: id }, select: { id: true } }))
+          .map(o => o.id)
+      )
+      const ownedAssetIds = new Set(
+        (await tx.asset.findMany({ where: { workspaceId: id }, select: { id: true } }))
+          .map(a => a.id)
+      )
 
       // Upsert outputs and their cards
       if (body.outputs && body.outputs.length > 0) {
-        const existingOutputIds = new Set(
-          (await tx.output.findMany({ where: { workspaceId: id }, select: { id: true } }))
-            .map(o => o.id)
-        )
+        const existingOutputIds = new Set(ownedOutputIds)
         
         for (const output of body.outputs) {
+          // If this output ID already exists in the DB but does NOT belong to this
+          // workspace, skip it entirely to prevent cross-workspace mutation.
+          if (!ownedOutputIds.has(output.id)) {
+            // It may be a brand-new ID (not in DB yet) — that is fine, the create
+            // path will correctly set workspaceId: id.
+            // But if we somehow received a foreign owned ID, reject it.
+            const foreign = await tx.output.findUnique({ where: { id: output.id } })
+            if (foreign && foreign.workspaceId !== id) throw new ForeignChildIdError()
+          }
+
           const isActive = output.id === body.activeOutputId
           
           await tx.output.upsert({
@@ -157,11 +198,18 @@ export async function PUT(
 
           // Upsert cards for this output
           if (output.cards) {
+            // Fetch cards that actually belong to this output (scoped by outputId)
             const existingCardIds = new Set(
               (await tx.card.findMany({ where: { outputId: output.id }, select: { id: true } }))
                 .map(c => c.id)
             )
             for (const card of output.cards) {
+              // Reject cards whose ID exists in the DB under a different output
+              const foreignCard = existingCardIds.has(card.id)
+                ? null
+                : await tx.card.findUnique({ where: { id: card.id } })
+              if (foreignCard && foreignCard.outputId !== output.id) throw new ForeignChildIdError()
+
               const cardData = {
                 title: card.title || "",
                 column: card.column ?? null,
@@ -184,18 +232,37 @@ export async function PUT(
                   outputId: output.id,
                   ...cardData,
                 },
-                update: cardData,
+                update: {
+                  ...cardData,
+                },
               })
               existingCardIds.delete(card.id)
             }
             if (existingCardIds.size > 0) {
+              // Before deleting orphaned cards, clear asset FK references that point to
+              // them. Without this, the asset upsert below would try to re-apply the
+              // stale assignedCardId and violate the FK constraint, rolling back the
+              // entire transaction.
+              await tx.asset.updateMany({
+                where: { workspaceId: id, assignedCardId: { in: Array.from(existingCardIds) } },
+                data: { assignedCardId: null, assignedSlot: null },
+              })
               await tx.card.deleteMany({ where: { id: { in: Array.from(existingCardIds) } } })
             }
-          }
-        }
+          } // end if (output.cards)
+        } // end for (const output of body.outputs)
         
         if (existingOutputIds.size > 0) {
           // Delete orphaned outputs (and their cards will cascade)
+          const orphanCardIds = (await tx.card.findMany({
+            where: { outputId: { in: Array.from(existingOutputIds) } }, select: { id: true },
+          })).map((card) => card.id)
+          if (orphanCardIds.length) {
+            await tx.asset.updateMany({
+              where: { workspaceId: id, assignedCardId: { in: orphanCardIds } },
+              data: { assignedCardId: null, assignedSlot: null },
+            })
+          }
           await tx.output.deleteMany({ where: { id: { in: Array.from(existingOutputIds) } } })
         }
       } else if (body.cards) {
@@ -235,6 +302,10 @@ export async function PUT(
             .map(c => c.id)
         )
         for (const card of body.cards) {
+          if (!existingCardIds.has(card.id)) {
+            const foreignCard = await tx.card.findUnique({ where: { id: card.id } })
+            if (foreignCard && foreignCard.outputId !== activeOutput.id) throw new ForeignChildIdError()
+          }
           const cardData = {
             title: card.title || "",
             column: card.column ?? null,
@@ -262,17 +333,32 @@ export async function PUT(
           existingCardIds.delete(card.id)
         }
         if (existingCardIds.size > 0) {
+          // Clear orphaned asset FK refs before deleting cards (same reason as above)
+          await tx.asset.updateMany({
+            where: { workspaceId: id, assignedCardId: { in: Array.from(existingCardIds) } },
+            data: { assignedCardId: null, assignedSlot: null },
+          })
           await tx.card.deleteMany({ where: { id: { in: Array.from(existingCardIds) } } })
         }
       }
 
       // Upsert assets (shared across all outputs)
       if (body.assets) {
-        const existingAssetIds = new Set(
-          (await tx.asset.findMany({ where: { workspaceId: id }, select: { id: true } }))
-            .map(a => a.id)
-        )
         for (const asset of body.assets) {
+          // Reject assets whose ID exists in the DB but belongs to a different workspace
+          if (!ownedAssetIds.has(asset.id)) {
+            const foreign = await tx.asset.findUnique({ where: { id: asset.id } })
+            if (foreign && foreign.workspaceId !== id) throw new ForeignChildIdError()
+          }
+
+          if (asset.assignedCardId) {
+            const assignedCard = await tx.card.findFirst({
+              where: { id: asset.assignedCardId, output: { workspaceId: id } },
+              select: { id: true },
+            })
+            if (!assignedCard) throw new ForeignChildIdError()
+          }
+
           const assetData = {
             fileId: asset.fileId,
             filename: asset.filename,
@@ -297,12 +383,14 @@ export async function PUT(
               workspaceId: id,
               ...assetData
             },
-            update: assetData,
+            update: {
+              ...assetData,
+            },
           })
-          existingAssetIds.delete(asset.id)
+          ownedAssetIds.delete(asset.id)
         }
-        if (existingAssetIds.size > 0) {
-          await tx.asset.deleteMany({ where: { id: { in: Array.from(existingAssetIds) } } })
+        if (ownedAssetIds.size > 0) {
+          await tx.asset.deleteMany({ where: { id: { in: Array.from(ownedAssetIds) } } })
         }
       }
 
@@ -313,6 +401,10 @@ export async function PUT(
             .map(f => f.id)
         )
         for (const file of body.ingestFiles) {
+          if (!existingFileIds.has(file.id)) {
+            const foreignFile = await tx.ingestFile.findUnique({ where: { id: file.id } })
+            if (foreignFile && foreignFile.workspaceId !== id) throw new ForeignChildIdError()
+          }
           const fileData = {
             name: file.name,
             size: file.size,
@@ -337,11 +429,43 @@ export async function PUT(
           await tx.ingestFile.deleteMany({ where: { id: { in: Array.from(existingFileIds) } } })
         }
       }
+
+      // ── Auto-snapshot on every save ──────────────────────────────────────
+      // Re-fetch the updated workspace so the snapshot is up-to-date.
+      const updatedWorkspace = await tx.workspace.findUnique({
+        where: { id },
+        include: { outputs: { include: { cards: true } }, assets: true, ingestFiles: true },
+      })
+      if (updatedWorkspace) {
+        await tx.workspaceSnapshot.create({
+          data: {
+            workspaceId: id,
+            revision: nextRevision!,
+            snapshot: JSON.stringify(updatedWorkspace),
+          },
+        })
+        // Prune oldest snapshots beyond 50
+        const old = await tx.workspaceSnapshot.findMany({
+          where: { workspaceId: id },
+          orderBy: { savedAt: "desc" },
+          skip: 50,
+          select: { id: true },
+        })
+        if (old.length > 0) {
+          await tx.workspaceSnapshot.deleteMany({ where: { id: { in: old.map((s) => s.id) } } })
+        }
+      }
     })
     
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true, revision: nextRevision })
   } catch (err) {
     console.error(err)
+    if (err instanceof WorkspaceConflictError) {
+      return NextResponse.json({ error: err.message }, { status: 409 })
+    }
+    if (err instanceof ForeignChildIdError) {
+      return NextResponse.json({ error: err.message }, { status: 409 })
+    }
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }

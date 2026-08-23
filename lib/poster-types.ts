@@ -159,6 +159,8 @@ export type OutputConfig = {
  */
 export type Project = {
   id: string
+  /** Server-side optimistic-lock revision. Omitted only for legacy local samples. */
+  revision?: number
   name: string
   /** @deprecated Use outputs[activeOutputId].title instead */
   posterTitle: string

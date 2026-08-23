@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import fs from "fs"
 import path from "path"
 import { nextVersionedPath } from "@/lib/asset-versioning"
+import { requireWorkspaceOwner } from "@/lib/auth"
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 const OPENROUTER_BASE_URL =
@@ -106,6 +107,13 @@ export async function POST(req: Request) {
     )
   }
 
+  try {
+    await requireWorkspaceOwner(workspaceId)
+  } catch (err) {
+    if (err instanceof Response) return err
+    throw err
+  }
+
   const validOperations: ImageEditOperation[] = [
     "remove-bg",
     "crop-tight",
@@ -137,6 +145,13 @@ export async function POST(req: Request) {
   }
 
   const assetsDir = path.join(WORKSPACES_DIR, workspaceId, "assets")
+  
+  // Containment check to prevent path traversal
+  const relative = path.relative(assetsDir, assetPath)
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return NextResponse.json({ error: "Invalid asset path" }, { status: 400 })
+  }
+
   if (!fs.existsSync(assetsDir)) {
     return NextResponse.json(
       { error: `Workspace '${workspaceId}' not found` },

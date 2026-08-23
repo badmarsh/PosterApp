@@ -62,7 +62,7 @@ export interface IngestionSlice {
   openIngestion: () => void
   closeIngestion: () => void
   uploadFiles: (files: File[]) => void
-  processFile: (id: string) => Promise<void>
+  processFile: (id: string, workspaceId?: string) => Promise<void>
   retryFile: (id: string) => void
   removeFile: (id: string) => void
   removeAllLegacyAssets: () => void
@@ -97,11 +97,14 @@ export interface UiSlice {
   lastCompileFormat: OutputType
   setLastCompileFormat: (format: OutputType) => void
   layoutWarnings: { cardTitle: string; issue: string; recommendation: string }[]
-  
+
   collaborators: Collaborator[]
   setCollaborators: (c: Collaborator[]) => void
   yjsStatus: string
   setYjsStatus: (s: string) => void
+
+  isHistoryOpen: boolean
+  setIsHistoryOpen: (v: boolean) => void
 
   pendingAiPrompt: string | null
   setPendingAiPrompt: (prompt: string | null) => void
@@ -121,10 +124,10 @@ export interface UiSlice {
 
   pushEvent: (e: Omit<AgentEvent, "id" | "ts">) => string
   updateEvent: (id: string, patch: Partial<AgentEvent>) => void
-  
+
   jobs: Job[]
   cancelJob: (id: string) => void
-  
+
   compileProject: (format?: OutputType) => Promise<void>
 }
 

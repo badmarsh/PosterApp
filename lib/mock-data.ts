@@ -176,6 +176,7 @@ const paperCards: Card[] = [
 
 export const sampleProject: Project = {
   id: "prj_lattice",
+  revision: 0,
   name: "LATTICE — CoRL 2025",
   posterTitle:
     "LATTICE: Latent Subgoal Anchoring for Sample-Efficient Long-Horizon Manipulation",

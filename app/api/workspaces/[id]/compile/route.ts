@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import fs from "fs"
 import path from "path"
 import { spawn } from "child_process"
+import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 
@@ -20,10 +22,13 @@ export async function POST(
     return NextResponse.json({ ok: false, log: "Invalid workspace id" }, { status: 400 })
   }
 
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ ok: false, log: "Unauthorized" }, { status: 401 })
+
+  const owned = await prisma.workspace.findUnique({ where: { id, userId } })
+  if (!owned) return NextResponse.json({ ok: false, log: "Workspace not found or unauthorized" }, { status: 404 })
+
   const dir = workspaceDir(id)
-  if (!fs.existsSync(dir)) {
-    return NextResponse.json({ ok: false, log: "Workspace not found" }, { status: 404 })
-  }
 
   let tex: string
   try {
@@ -39,6 +44,7 @@ export async function POST(
   // Write the LaTeX source
   const mainTexPath = path.join(dir, "main.tex")
   try {
+    await fs.promises.mkdir(dir, { recursive: true })
     await fs.promises.writeFile(mainTexPath, tex, "utf-8")
   } catch (err) {
     return NextResponse.json({ ok: false, log: `Failed to write main.tex: ${String(err)}` }, { status: 500 })

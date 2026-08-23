@@ -2,13 +2,37 @@ import { toast } from "sonner"
 import type { EditorSlice, ProjectSlice } from "./types"
 import { sampleProject } from "@/lib/mock-data"
 import { COLUMN_BUDGET, estimateHeight, generateLatexForCard, levelFromMessages, validateCard } from "@/lib/latex"
-import type { Project, OutputConfig, BlockPattern } from "@/lib/poster-types"
+import type { Project, OutputConfig, BlockPattern, Card } from "@/lib/poster-types"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { apiFetch } from "@/lib/api-fetch"
 import type { OutputType } from "@/lib/output-types"
 import { getDefaultTemplateId, DEFAULT_STRUCTURES } from "@/lib/output-types"
 import { jobQueue } from "@/lib/job-queue"
-export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
+
+/** outputs[].cards is the persisted source of truth. `project.cards` only mirrors the active output for legacy consumers. */
+function activeOutput(project: Project) {
+  return project.outputs?.find((output) => output.id === project.activeOutputId)
+}
+
+function syncActiveCards(project: Project) {
+  const output = activeOutput(project)
+  // Older workspaces may not have been migrated to outputs yet; do not erase
+  // their legacy cards merely because no active output was found.
+  project.cards = output?.cards ?? project.cards
+  return project.cards
+}
+
+export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
+  let retryTimer: ReturnType<typeof setTimeout> | null = null
+  const scheduleRetry = () => {
+    if (retryTimer) clearTimeout(retryTimer)
+    retryTimer = setTimeout(() => {
+      retryTimer = null
+      void get().saveProject()
+    }, 3_000)
+  }
+
+  return ({
   project: sampleProject,
   selectedCardId: null,
   isSwitchingProject: false,
@@ -30,10 +54,11 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
 
       set((state) => {
         state.project = { ...projectData, assets: projectData.assets || [], ingestFiles: projectData.ingestFiles || [] }
+        syncActiveCards(state.project)
         state.selectedCardId = null
         state.isSwitchingProject = false
         state.isDirty = false
-        
+        state.isSaving = false
         // Reset legacy assets (not linked to current workspace)
         state.ingestionOpen = false
       })
@@ -67,18 +92,16 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
   }),
 
   _setCardsFromYjs: (cards) => set((s) => {
+    const output = activeOutput(s.project)
+    if (output) output.cards = cards
     s.project.cards = cards
   }),
 
   switchOutput: (outputId) => set((s) => {
-    const currentActive = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
-    if (currentActive) {
-      currentActive.cards = [...s.project.cards] // Save current cards into the array before switching
-    }
     const targetOutput = s.project.outputs?.find((o) => o.id === outputId)
     if (targetOutput) {
       s.project.activeOutputId = outputId
-      s.project.cards = targetOutput.cards || []
+      syncActiveCards(s.project)
       s.selectedCardId = null
       s.isDirty = true
     }
@@ -87,7 +110,8 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
   selectCard: (id) => set((s) => { s.selectedCardId = id }),
 
   updateCard: (id, patch) => set((s) => {
-    const card = s.project.cards.find((c) => c.id === id)
+    const cards = syncActiveCards(s.project)
+    const card = cards.find((c) => c.id === id)
     if (card) {
       Object.assign(card, patch)
       s.isDirty = true
@@ -96,11 +120,13 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
 
   addCard: (column = null) => set((s) => {
     const activeOutput = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
+    if (!activeOutput) return
+    const cards = activeOutput.cards
     const outputType: OutputType = (activeOutput?.outputType as OutputType) ?? "poster"
     const effectiveColumn = outputType === "poster" ? (column ?? 1) : null
     const order = outputType === "poster"
-      ? s.project.cards.filter((c) => c.column === effectiveColumn).length
-      : s.project.cards.length
+      ? cards.filter((c) => c.column === effectiveColumn).length
+      : cards.length
     const defaultPattern = outputType === "slides" ? "bullets"
       : outputType === "paper" ? "section"
       : "bullets"
@@ -108,7 +134,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
       : outputType === "paper" ? "New Section"
       : "Untitled card"
     const id = `blk_new_${Date.now().toString(36)}`
-    s.project.cards.push({
+    cards.push({
       id,
       title: defaultTitle,
       column: effectiveColumn as (1 | 2 | 3 | null),
@@ -123,6 +149,8 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
       validation: "warning",
     })
     s.selectedCardId = id
+    syncActiveCards(s.project)
+    s.isDirty = true
     if (outputType === "poster") {
       toast.success(`Added card to column ${effectiveColumn}`)
     } else {
@@ -131,11 +159,6 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
   }),
 
   addOutput: (outputType, templateId) => set((s) => {
-    // Save current active output's cards before switching
-    const currentActive = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
-    if (currentActive) {
-      currentActive.cards = [...s.project.cards]
-    }
     const resolvedTemplate = templateId || getDefaultTemplateId(outputType)
     const id = `out_${outputType}_${Date.now().toString(36)}`
     
@@ -165,22 +188,34 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     if (!s.project.outputs) s.project.outputs = []
     s.project.outputs.push(newOutput)
     s.project.activeOutputId = id
-    s.project.cards = newOutput.cards
+    syncActiveCards(s.project)
     s.selectedCardId = null
     s.isDirty = true
     toast.success(`Created new ${outputType} output`)
   }),
 
   deleteCard: (id) => set((s) => {
-    s.project.cards = s.project.cards.filter((c) => c.id !== id)
+    const output = activeOutput(s.project)
+    if (!output) return
+    output.cards = output.cards.filter((c) => c.id !== id)
+    syncActiveCards(s.project)
     if (s.selectedCardId === id) s.selectedCardId = null
+    // Clear orphaned asset assignments so the FK constraint isn't violated on next save
+    s.project.assets.forEach((a) => {
+      if (a.assignedCardId === id) {
+        a.assignedCardId = undefined
+        a.assignedSlot = undefined
+      }
+    })
+    s.isDirty = true
     toast.success(`Deleted ${id}`)
   }),
 
   reorderCard: (id, dir) => set((s) => {
-    const card = s.project.cards.find((c) => c.id === id)
+    const cards = syncActiveCards(s.project)
+    const card = cards.find((c) => c.id === id)
     if (!card) return
-    const col = s.project.cards
+    const col = cards
       .filter((c) => c.column === card.column)
       .sort((a, b) => a.order - b.order)
     const idx = col.findIndex((c) => c.id === id)
@@ -188,30 +223,34 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     if (swapIdx < 0 || swapIdx >= col.length) return
     const aOrder = col[idx].order
     const bOrder = col[swapIdx].order
-    const a = s.project.cards.find((c) => c.id === col[idx].id)!
-    const b = s.project.cards.find((c) => c.id === col[swapIdx].id)!
+    const a = cards.find((c) => c.id === col[idx].id)!
+    const b = cards.find((c) => c.id === col[swapIdx].id)!
     a.order = bOrder
     b.order = aOrder
+    s.isDirty = true
   }),
 
   moveColumn: (id, column) => set((s) => {
-    const card = s.project.cards.find((c) => c.id === id)
+    const cards = syncActiveCards(s.project)
+    const card = cards.find((c) => c.id === id)
     if (!card) return
     card.column = column
-    card.order = s.project.cards.filter((c) => c.column === column && c.id !== id).length
+    card.order = cards.filter((c) => c.column === column && c.id !== id).length
+    s.isDirty = true
   }),
 
   moveCard: (id, toColumn, toIndex) => set((s) => {
-    const cardIndex = s.project.cards.findIndex((c) => c.id === id)
+    const cards = syncActiveCards(s.project)
+    const cardIndex = cards.findIndex((c) => c.id === id)
     if (cardIndex === -1) return
     
-    const card = s.project.cards[cardIndex]
+    const card = cards[cardIndex]
     const fromColumn = card.column
     const fromIndex = card.order
 
     if (fromColumn === toColumn) {
       if (fromIndex === toIndex) return
-      const colCards = s.project.cards
+      const colCards = cards
         .filter(c => c.column === toColumn)
         .sort((a, b) => a.order - b.order)
         
@@ -219,30 +258,31 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
       colCards.splice(toIndex, 0, moved)
       
       colCards.forEach((c, idx) => {
-        const target = s.project.cards.find(sc => sc.id === c.id)
+        const target = cards.find(sc => sc.id === c.id)
         if (target) target.order = idx
       })
     } else {
       card.column = toColumn
       
-      const sourceCards = s.project.cards
+      const sourceCards = cards
         .filter(c => c.column === fromColumn && c.id !== id)
         .sort((a, b) => a.order - b.order)
       sourceCards.forEach((c, idx) => {
-        const target = s.project.cards.find(sc => sc.id === c.id)
+        const target = cards.find(sc => sc.id === c.id)
         if (target) target.order = idx
       })
       
-      const destCards = s.project.cards
+      const destCards = cards
         .filter(c => c.column === toColumn && c.id !== id)
         .sort((a, b) => a.order - b.order)
       
       destCards.splice(toIndex, 0, card)
       destCards.forEach((c, idx) => {
-        const target = s.project.cards.find(sc => sc.id === c.id)
+        const target = cards.find(sc => sc.id === c.id)
         if (target) target.order = idx
       })
     }
+    s.isDirty = true
   }),
 
   validateCardAction: (id) => {
@@ -265,6 +305,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
   },
 
   generateLatexForCardAction: (id) => {
+    const workspaceId = get().project.id
     const card = get().project.cards.find((c) => c.id === id)
     if (!card) return
     const msgs = validateCard(card)
@@ -276,10 +317,12 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     set((s) => { s.generatingId = id })
     const evId = get().pushEvent({ kind: "generate", status: "running", title: `Generating LaTeX — ${id}`, detail: `${card.pattern} pattern` })
     window.setTimeout(() => {
+      if (get().project.id !== workspaceId) return
       const latex = generateLatexForCard(card, get().project.id)
       set((s) => {
-        const c = s.project.cards.find((c) => c.id === id)
+        const c = syncActiveCards(s.project).find((c) => c.id === id)
         if (c) c.generatedLatex = latex
+        if (c) s.isDirty = true
         if (s.generatingId === id) s.generatingId = null
       })
       get().updateEvent(evId, {
@@ -292,6 +335,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
   },
 
   autoFillCardAction: async (id) => {
+    const workspaceId = get().project.id
     const card = get().project.cards.find((c) => c.id === id)
     if (!card) return
 
@@ -315,7 +359,6 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     toast.info("Auto-filling card...")
 
     try {
-      const workspaceId = get().project.id
       const activeOutput = get().project.outputs?.find(o => o.id === get().project.activeOutputId)
       const outputType = activeOutput?.outputType || "poster"
 
@@ -325,7 +368,10 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
         body: JSON.stringify({
           outputType,
           topic: card.title || "Introduction",
-          assets: get().project.assets,
+          // Send only the fields the server actually uses, not full asset objects
+          assets: get().project.assets.map(({ id: aid, filename, kind, caption, snippet }) => ({
+            id: aid, filename, kind, caption, snippet,
+          })),
           sourceIds: card.sourceIds,
           characterLimit,
           bibKeys: get().bibKeys,
@@ -339,12 +385,16 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
 
       const data = await res.json()
       set((s) => {
-        const c = s.project.cards.find((c) => c.id === id)
+        // A job is scoped to the workspace that started it. Never apply a late
+        // response to whichever workspace happens to be open now.
+        if (s.project.id !== workspaceId) return
+        const c = syncActiveCards(s.project).find((c) => c.id === id)
         if (c) {
           // Update title if Gemini suggested one
           if (data.title) {
             c.title = data.title
           }
+          s.isDirty = true
           // Update content as markdown bullets
           if (data.bullets && Array.isArray(data.bullets)) {
             c.content = data.bullets.map((b: string) => `* ${b}`).join("\n\n")
@@ -378,13 +428,16 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
       get().generateLatexForCardAction(id)
       
     } catch (err: unknown) {
-      set((s) => { if (s.generatingId === id) s.generatingId = null })
+      set((s) => { if (s.project.id === workspaceId && s.generatingId === id) s.generatingId = null })
       get().updateEvent(evId, { status: "error", title: `Auto-fill failed — ${id}`, detail: String(err) })
       toast.error(err instanceof Error ? err.message : "Failed to auto-fill card")
+      // Rethrow so bulk callers (autoFillAllCardsAction) can track failure counts correctly
+      throw err
     }
   },
 
   autoFillAllCardsAction: async () => {
+    const workspaceId = get().project.id
     const cards = get().project.cards.filter(c => 
       c.pattern !== "references" && (!c.content || c.content.trim() === "")
     ).sort((a, b) => a.order - b.order)
@@ -401,9 +454,11 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
       let failed = 0
       
       for (let i = 0; i < cards.length; i++) {
-        if (signal.aborted) {
+        if (signal.aborted || get().project.id !== workspaceId) {
           get().updateEvent(evId, { status: "error", title: "Bulk Auto-fill Cancelled", detail: `${succeeded} succeeded, ${failed} failed before cancellation.` })
-          throw new Error("AbortError")
+          const abortErr = new Error("Cancelled by user")
+          abortErr.name = "AbortError"
+          throw abortErr
         }
         
         try {
@@ -425,49 +480,59 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
   },
 
   convertOutputAction: async (sourceOutputId: string, targetType: OutputType) => {
+    const workspaceId = get().project.id
     const sourceOutput = get().project.outputs?.find((o) => o.id === sourceOutputId)
     if (!sourceOutput) return
 
+    const sourceCards: Card[] = sourceOutput.cards ?? []
+
     toast.info(`Converting ${sourceOutput.outputType} to ${targetType}...`)
-    const evId = get().pushEvent({ kind: "generate", status: "running", title: `Converting to ${targetType}`, detail: `Rewriting ${sourceOutput.cards.length} cards...` })
+    const evId = get().pushEvent({ kind: "generate", status: "running", title: `Converting to ${targetType}`, detail: `Rewriting ${sourceCards.length} cards...` })
 
     // Create a new output of targetType
     get().addOutput(targetType, "")
     const newOutputId = get().project.activeOutputId
     if (!newOutputId) return
 
-    const newCards = get().project.cards // active output's cards
     const results = await Promise.allSettled(
-      sourceOutput.cards.filter((c) => c.pattern !== "references" && c.content.trim() !== "").map(async (sourceCard, i) => {
+      sourceCards.filter((c) => c.pattern !== "references" && c.content.trim() !== "").map(async (sourceCard, i) => {
         // Attempt to find a corresponding card in the scaffolded output
-        const targetCard = newCards[i]
+        const currentCards = get().project.cards
+        const targetCard = currentCards[i]
         if (!targetCard) return
 
         set((s) => { s.generatingId = targetCard.id })
 
-        const res = await apiFetch(`/api/workspaces/${get().project.id}/cards/convert`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sourceContent: sourceCard.content,
-            sourceTopic: sourceCard.title,
-            sourceType: sourceOutput.outputType,
-            targetType,
-            bibKeys: get().bibKeys,
+        try {
+          const res = await apiFetch(`/api/workspaces/${workspaceId}/cards/convert`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sourceContent: sourceCard.content,
+              sourceTopic: sourceCard.title,
+              sourceType: sourceOutput.outputType,
+              targetType,
+              bibKeys: get().bibKeys,
+            })
           })
-        })
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const data = await res.json()
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          const data = await res.json()
 
-        set((s) => {
-          const c = s.project.cards.find((c) => c.id === targetCard.id)
-          if (c && data.bullets) {
-            c.content = Array.isArray(data.bullets) ? data.bullets.join("\n\n") : data.bullets
-            c.title = data.title || targetCard.title
-          }
-          if (s.generatingId === targetCard.id) s.generatingId = null
-        })
+          set((s) => {
+            if (s.project.id !== workspaceId || s.project.activeOutputId !== newOutputId) return
+            const c = syncActiveCards(s.project).find((c) => c.id === targetCard.id)
+            if (c && data.bullets) {
+              c.content = Array.isArray(data.bullets) ? data.bullets.join("\n\n") : data.bullets
+              c.title = data.title || targetCard.title
+              s.isDirty = true
+            }
+          })
+        } finally {
+          set((s) => {
+            if (s.generatingId === targetCard.id) s.generatingId = null
+          })
+        }
       })
     )
 
@@ -486,13 +551,20 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
     const evId = get().pushEvent({ kind: "verify", status: "running", title: "AI Poster review" })
     try {
       const proj = get().project
+      const activeOutput = proj.outputs?.find((o) => o.id === proj.activeOutputId)
+      // Send only what the review route actually needs — not the entire project object
       const res = await apiFetch(`/api/workspaces/${proj.id}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          ...proj, 
-          bibContent: get().bibContent, 
-          bibKeys: get().bibKeys 
+        body: JSON.stringify({
+          id: proj.id,
+          name: proj.name,
+          authors: proj.authors,
+          venue: proj.venue,
+          templateName: activeOutput?.templateId,
+          cards: proj.cards,
+          bibContent: get().bibContent,
+          bibKeys: get().bibKeys,
         })
       })
       if (!res.ok) throw new Error("Verification failed")
@@ -525,8 +597,13 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
   duplicateProject: () => toast.info(`Duplicated "${get().project.name}" — coming soon`),
 
   saveProject: async () => {
-    if (get().isSaving) return
-    set((s) => { s.isSaving = true })
+    if (get().isSaving) {
+      scheduleRetry()
+      return
+    }
+    const workspaceId = get().project.id
+    let conflict = false
+    set((s) => { s.isSaving = true; s.isDirty = false })
     try {
       const proj = get().project
       const agentEvents = get().agentEvents
@@ -541,14 +618,38 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => ({
           chatMessages,
         }),
       })
+      if (res.status === 409) {
+        conflict = true
+        throw new Error("This workspace changed in another session. Reload it before saving again.")
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const result = await res.json() as { revision?: number }
+      // Ignore a completion belonging to a workspace that was switched away.
       set((s) => {
+        if (s.project.id !== workspaceId) return
+        if (typeof result.revision === "number") s.project.revision = result.revision
         s.isSaving = false
-        s.isDirty = false
         s.lastSavedAt = new Date()
       })
     } catch (err: unknown) {
-      set((s) => { s.isSaving = false })
+      // Keep the snapshot dirty so a transient failure cannot silently strand
+      // user changes. The retry timer is de-duplicated by scheduleRetry.
+      set((s) => {
+        if (s.project.id === workspaceId) {
+          s.isSaving = false
+          s.isDirty = true
+        }
+      })
+      if (conflict) {
+        toast.error("Save blocked because this workspace changed elsewhere. Reload before saving again.")
+      }
+    } finally {
+      // If an edit arrived while the save was in-flight, isDirty will be true.
+      // Schedule a retry so the edit is never permanently stranded.
+      if (get().isDirty && !conflict) {
+        scheduleRetry()
+      }
     }
   },
 })
+}

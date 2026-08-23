@@ -420,11 +420,11 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem 
-          onClick={() => setPendingAiPrompt("Prosím, oprav chyby na tejto karte.")}
+          onClick={() => setPendingAiPrompt("Please fix the errors in this card.")}
           className="gap-2"
         >
           <Sparkles className="size-4" />
-          <span>Opraviť chyby pomocou AI</span>
+          <span>Fix errors with AI</span>
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem 

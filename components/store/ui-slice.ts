@@ -69,6 +69,9 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
   yjsStatus: "disconnected",
   setYjsStatus: (s) => set({ yjsStatus: s }),
 
+  isHistoryOpen: false,
+  setIsHistoryOpen: (v) => set({ isHistoryOpen: v }),
+
   pushEvent: (e) => {
     const ev = makeEvent(e)
     set((s) => {
@@ -91,6 +94,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
     set((s) => { s.compiling = true })
     const activeOutput = get().project.outputs?.find(o => o.id === get().project.activeOutputId)
     const effectiveFormat = format || activeOutput?.outputType || "poster"
+    const capturedWorkspaceId = get().project.id
     
     const evId = get().pushEvent({ kind: "generate", status: "running", title: `Compiling ${effectiveFormat} with pdflatex…` })
 
@@ -113,6 +117,8 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
           body: JSON.stringify({ tex }),
         })
         const data: { ok: boolean; log: string } = await res.json()
+
+        if (get().project.id !== capturedWorkspaceId) return
 
         set((s) => {
           s.compileLog = data.log ?? ""
@@ -176,7 +182,9 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
       })
       get().updateEvent(evId, { status: "error", title: "Compile error", detail: String(err) })
     } finally {
-      set((s) => { s.compiling = false })
+      if (get().project.id === capturedWorkspaceId) {
+        set((s) => { s.compiling = false })
+      }
     }
   },
 

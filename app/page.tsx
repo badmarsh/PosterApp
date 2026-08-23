@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation"
 export default function Page() {
   const { isLoaded, userId } = useAuth()
   const router = useRouter()
-  const isE2e = process.env.NEXT_PUBLIC_E2E_TEST === "1"
+  const isE2e = process.env.E2E_TEST === "1" && process.env.NODE_ENV !== "production"
 
   useEffect(() => {
     if (isLoaded && !userId && !isE2e) {

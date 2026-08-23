@@ -503,6 +503,7 @@ function TableTab({ card }: { card: Card }) {
 
 function FiguresTab({ card }: { card: Card }) {
   const updateCard = useEditor((s) => s.updateCard)
+  const projectId = useEditor((s) => s.project.id)
   const slots =
     card.pattern === "bullets-two-images"
       ? 2
@@ -523,11 +524,32 @@ function FiguresTab({ card }: { card: Card }) {
     updateCard(card.id, { figures })
   }
 
-  function onUpload(i: number, file?: File) {
+  async function onUpload(i: number, file?: File) {
     if (!file) return
-    const url = URL.createObjectURL(file)
-    setFigure(i, { url })
-    toast.success(`Loaded ${file.name}`)
+    const blobUrl = URL.createObjectURL(file)
+    setFigure(i, { url: blobUrl })
+    toast.info(`Uploading ${file.name}...`)
+    
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      
+      const res = await fetch(`/api/workspaces/${projectId}/assets/upload`, {
+        method: "POST",
+        body: formData
+      })
+      const data = await res.json()
+      
+      if (!res.ok) throw new Error(data.error || "Upload failed")
+      
+      setFigure(i, { url: data.asset.url })
+      toast.success(`Uploaded ${file.name}`)
+    } catch (err) {
+      console.error(err)
+      toast.error(`Failed to upload ${file.name}`)
+    } finally {
+      URL.revokeObjectURL(blobUrl)
+    }
   }
 
   if (slots === 0) {

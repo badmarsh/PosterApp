@@ -74,6 +74,7 @@ export const OutputSchema = z.object({
  * and new outputs-based format.
  */
 export const WorkspaceSchema = z.object({
+  revision: z.number().int().nonnegative().optional(),
   name: z.string().optional(),
   // Legacy flat fields — mapped to/from the active output
   posterTitle: z.string().optional(),
@@ -92,7 +93,7 @@ export const WorkspaceSchema = z.object({
 })
 
 export const WorkspaceCreateSchema = z.object({
-  id: z.string().min(1, "ID is required"),
+  id: z.string().regex(/^[A-Za-z0-9_-]+$/).min(3).max(64),
   name: z.string().min(1, "Name is required"),
   outputType: z.enum(["poster", "slides", "paper"]).optional().default("poster"),
   templateId: z.string().optional(),

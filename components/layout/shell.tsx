@@ -237,17 +237,19 @@ export function Shell() {
   const agentEvents = useEditor((s) => s.agentEvents)
   const chatMessages = useEditor((s) => s.chatMessages)
   const saveProject = useEditor((s) => s.saveProject)
+  const isDirty = useEditor((s) => s.isDirty)
   
   useEffect(() => {
     // Only autosave if the project is loaded and we are not in the middle of a switch
     if (isSwitchingProject || !project.id || project.id === "prj_lattice") return
+    if (!isDirty) return
 
     const timer = setTimeout(() => {
       saveProject()
     }, 3000)
 
     return () => clearTimeout(timer)
-  }, [project, agentEvents, chatMessages, isSwitchingProject, saveProject])
+  }, [project, agentEvents, chatMessages, isSwitchingProject, saveProject, isDirty])
 
   useEffect(() => {
     if (!hasAutoLoaded) {

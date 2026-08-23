@@ -20,6 +20,7 @@ function makeLog(level: ParseLogEntry["level"], message: string): ParseLogEntry 
 }
 
 const activeIntervals = new Map<string, ReturnType<typeof setInterval>>()
+const activeJobs = new Map<string, string>()
 
 export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
   return {
@@ -66,10 +67,12 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
       const f = await idbGet<File>(`file_${id}`)
       if (!f) return
       
-      jobQueue.enqueue(`Parse ${f.name}`, async (onProgress, signal) => {
+      const jobId = jobQueue.enqueue(`Parse ${f.name}`, async (onProgress, signal) => {
         const existingInterval = activeIntervals.get(id)
         if (existingInterval) clearInterval(existingInterval)
         activeIntervals.delete(id)
+        
+        const capturedWorkspaceId = get().project.id
         
         get().pushLog("info", `Parsing ${f.name} via MinerU backend.`)
         
@@ -86,15 +89,17 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         let statusIdx = 0
         const simInterval = setInterval(() => {
           if (statusIdx < statuses.length) {
-            get().pushLog("info", `[MinerU] ${statuses[statusIdx]}...`)
-            set((s) => {
-              const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
-              if (ingestFile && ingestFile.status === "parsing") {
-                const prog = 15 + (statusIdx / statuses.length) * 80
-                ingestFile.progress = prog
-                onProgress(prog)
-              }
-            })
+            if (get().project.id === capturedWorkspaceId) {
+              get().pushLog("info", `[MinerU] ${statuses[statusIdx]}...`)
+              set((s) => {
+                const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
+                if (ingestFile && ingestFile.status === "parsing") {
+                  const prog = 15 + (statusIdx / statuses.length) * 80
+                  ingestFile.progress = prog
+                  onProgress(prog)
+                }
+              })
+            }
             statusIdx++
           } else {
             clearInterval(simInterval)
@@ -128,55 +133,62 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
           const data = await res.json()
           const produced = data.assets || []
           
-          set((s) => {
-            const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
-            if (ingestFile) {
-              ingestFile.status = "done"
-              ingestFile.progress = 100
-              onProgress(100)
-            }
-            const typedAssets = produced.map((a: Partial<Asset>) => ({
-              ...a, 
-              fileId: id, 
-              confidence: "high"
-            }))
-            
-            typedAssets.forEach((newAsset: any) => {
-              const existingIndex = s.project.assets.findIndex((existing: Asset) => existing.filename === newAsset.filename)
-              if (existingIndex >= 0) {
-                s.project.assets[existingIndex] = { ...s.project.assets[existingIndex], ...newAsset }
-              } else {
-                s.project.assets.push(newAsset)
+          if (get().project.id === capturedWorkspaceId) {
+            set((s) => {
+              const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
+              if (ingestFile) {
+                ingestFile.status = "done"
+                ingestFile.progress = 100
+                onProgress(100)
               }
+              const typedAssets = produced.map((a: Partial<Asset>) => ({
+                ...a, 
+                fileId: id, 
+                confidence: "high"
+              }))
+              
+              typedAssets.forEach((newAsset: any) => {
+                const existingIndex = s.project.assets.findIndex((existing: Asset) => existing.filename === newAsset.filename)
+                if (existingIndex >= 0) {
+                  s.project.assets[existingIndex] = { ...s.project.assets[existingIndex], ...newAsset }
+                } else {
+                  s.project.assets.push(newAsset)
+                }
+              })
+              s.isDirty = true
             })
-            s.isDirty = true
-          })
-          toast.success(`${f.name} parsed successfully`)
-          get().pushLog("info", `${f.name} parsed, ${produced.length} assets extracted.`)
+            toast.success(`${f.name} parsed successfully`)
+            get().pushLog("info", `${f.name} parsed, ${produced.length} assets extracted.`)
+          }
         } catch (err) {
           clearInterval(simInterval)
           activeIntervals.delete(id)
           
           if (err instanceof Error && err.name === "AbortError") {
+            if (get().project.id === capturedWorkspaceId) {
+              set((s) => {
+                const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
+                if (ingestFile) ingestFile.status = "failed"
+              })
+              toast.warning(`Parsing cancelled for ${f.name}`)
+              get().pushLog("error", `Parsing cancelled for ${f.name}`)
+            }
+            throw err
+          }
+
+          if (get().project.id === capturedWorkspaceId) {
             set((s) => {
               const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
               if (ingestFile) ingestFile.status = "failed"
             })
-            toast.warning(`Parsing cancelled for ${f.name}`)
-            get().pushLog("error", `Parsing cancelled for ${f.name}`)
-            throw err
+            const msg = err instanceof Error ? err.message : String(err)
+            toast.error(`Failed to parse ${f.name}`)
+            get().pushLog("error", `Parse failed: ${msg}`)
           }
-
-          set((s) => {
-            const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
-            if (ingestFile) ingestFile.status = "failed"
-          })
-          const msg = err instanceof Error ? err.message : String(err)
-          toast.error(`Failed to parse ${f.name}`)
-          get().pushLog("error", `Parse failed: ${msg}`)
           throw err
         }
       })
+      activeJobs.set(id, jobId)
     },
 
     retryFile: async (id) => {
@@ -194,6 +206,11 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
     },
 
     removeFile: async (id) => {
+      const jobId = activeJobs.get(id)
+      if (jobId) {
+        import("@/lib/job-queue").then(m => m.jobQueue.cancel(jobId))
+        activeJobs.delete(id)
+      }
       await idbDel(`file_${id}`)
       set((s) => {
         s.project.ingestFiles = s.project.ingestFiles.filter((f) => f.id !== id)
