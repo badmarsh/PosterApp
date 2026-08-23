@@ -213,13 +213,13 @@ export const sampleProject: Project = {
 }
 
 
-export const otherProjects: Pick<Project, "id" | "name">[] = [
+const otherProjects: Pick<Project, "id" | "name">[] = [
   { id: "prj_lattice", name: "LATTICE — CoRL 2025" },
   { id: "prj_difftrack", name: "DiffTrack — CVPR 2025" },
   { id: "prj_genome", name: "Genome QC Pipeline — Bio Symposium" },
 ]
 
-export const initialIngestFiles: IngestFile[] = [
+const initialIngestFiles: IngestFile[] = [
   {
     id: "file_lattice_paper",
     name: "lattice_neurips_camera_ready.pdf",
@@ -247,7 +247,7 @@ export const initialIngestFiles: IngestFile[] = [
   },
 ]
 
-export const initialAssets: Asset[] = [
+const initialAssets: Asset[] = [
   {
     id: "ext_abstract",
     fileId: "file_lattice_paper",
@@ -309,7 +309,7 @@ export const initialAssets: Asset[] = [
   },
 ]
 
-export const initialParseLog: ParseLogEntry[] = [
+const initialParseLog: ParseLogEntry[] = [
   {
     id: "log_1",
     ts: "loaded",

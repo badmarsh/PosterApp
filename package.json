@@ -3,7 +3,7 @@
   "version": "0.1.1",
   "private": true,
   "scripts": {
-    "dev": "concurrently -c \"cyan,magenta\" -n \"next,mineru\" \"tsx --env-file=.env.local server.ts\" \"bash start-mineru.sh\"",
+    "dev": "npx --yes kill-port 3333 8001 && concurrently -c \"cyan,magenta\" -n \"next,mineru\" \"tsx --env-file=.env.local server.ts\" \"bash start-mineru.sh\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -28,7 +28,6 @@
     "lucide-react": "^1.16.0",
     "next": "16.2.11",
     "next-themes": "^0.4.6",
-    "p-limit": "^7.3.1",
     "react": "^19",
     "react-dom": "^19",
     "react-markdown": "^10.1.0",
@@ -71,7 +70,8 @@
       "shell-quote": ">=1.9.0",
       "sharp": ">=0.35.0",
       "postcss": ">=8.5.12",
-      "brace-expansion": ">=2.0.1"
+      "minimatch": ">=9.0.0",
+      "js-yaml": ">=4.1.0"
     },
     "supportedArchitectures": {
       "os": [

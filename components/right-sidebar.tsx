@@ -17,21 +17,16 @@ export function RightSidebar() {
   )
   
   const [activeTab, setActiveTab] = useState<"editor" | "pdf">("pdf")
+  const [prevSelectedCardId, setPrevSelectedCardId] = useState(selectedCardId)
 
-  // Auto-switch to editor when a card is selected
-  useEffect(() => {
+  if (selectedCardId !== prevSelectedCardId) {
+    setPrevSelectedCardId(selectedCardId)
     if (selectedCardId) {
       setActiveTab("editor")
-    }
-  }, [selectedCardId])
-  
-  // If no card is selected, and we are in "editor", we could auto-switch to "pdf",
-  // but maybe they just deleted a card or deselected it. Switching to PDF makes sense.
-  useEffect(() => {
-    if (!selectedCardId && activeTab === "editor") {
+    } else if (!selectedCardId && activeTab === "editor") {
       setActiveTab("pdf")
     }
-  }, [selectedCardId, activeTab])
+  }
 
   if (isSwitchingProject) {
     return (

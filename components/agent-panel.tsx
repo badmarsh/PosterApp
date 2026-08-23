@@ -97,8 +97,29 @@ const EventRow = memo(function EventRow({
 }) {
   const Icon = KIND_ICON[event.kind]
   const [mounted, setMounted] = useState(false)
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setMounted(true), [])
+  const [elapsed, setElapsed] = useState("")
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (event.status === "running" && event.createdAt) {
+      const update = () => {
+        const diff = Math.floor((Date.now() - event.createdAt!) / 1000)
+        if (diff < 60) setElapsed(`${diff}s`)
+        else setElapsed(`${Math.floor(diff / 60)}m ${diff % 60}s`)
+      }
+      update()
+      const interval = setInterval(update, 1000)
+      return () => clearInterval(interval)
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setElapsed("")
+    }
+  }, [event.status, event.createdAt])
+
   return (
     <div className="relative flex gap-2 pl-1">
       {!last && (
@@ -158,7 +179,7 @@ const EventRow = memo(function EventRow({
           </div>
         )}
         <span className="mt-0.5 block min-h-[12px] font-mono text-[9px] text-muted-foreground/70">
-          {mounted ? event.ts : ""}
+          {mounted ? (event.status === "running" && elapsed ? elapsed : event.ts) : ""}
         </span>
       </div>
     </div>
@@ -325,7 +346,7 @@ function AssistantTextContent() {
           key={i}
           size="sm"
           variant="outline"
-          className="mt-1 w-full gap-2 border-primary/50 bg-primary/5 text-primary hover:bg-primary/15"
+          className="mt-2 w-full h-auto py-2 whitespace-normal text-left justify-start gap-2 border-primary/50 bg-primary/5 text-primary hover:bg-primary/15"
           onClick={() => {
             if (selectedCardId) {
               updateCard(selectedCardId, { content: fixContent })
@@ -338,8 +359,8 @@ function AssistantTextContent() {
             }
           }}
         >
-          <Wrench className="size-3.5" />
-          Aplikovať opravu na vybranú kartu
+          <Wrench className="size-4 shrink-0" />
+          <span>Aplikovať opravu na vybranú kartu</span>
         </Button>
       ))}
     </div>

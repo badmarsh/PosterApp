@@ -141,7 +141,7 @@ export function PdfSidebar() {
         </div>
         {pdfData && (
           <a
-            href={`/api/workspaces/${projectId}/pdf?t=${Date.now()}`}
+            href={`/api/workspaces/${projectId}/pdf?t=${pdfData.byteLength || 0}`}
             download="poster.pdf"
             className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground border border-border"
           >

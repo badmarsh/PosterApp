@@ -110,6 +110,7 @@ export type ReviewTip = {
 export type AgentEvent = {
   id: string
   ts: string
+  createdAt?: number
   kind: "validate" | "generate" | "suggest" | "explain" | "info" | "verify" | "review"
   status: "running" | "done" | "error" | "warning"
   title: string

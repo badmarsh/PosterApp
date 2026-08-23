@@ -181,7 +181,7 @@ export function HistoryPanel() {
                       </div>
                     ) : (
                       <p className="text-sm font-medium mt-0.5 truncate">
-                        {snap.label || <span className="text-muted-foreground italic">No label</span>}
+                        {snap.label || <span className="text-muted-foreground italic">Auto-save</span>}
                       </p>
                     )}
                   </div>

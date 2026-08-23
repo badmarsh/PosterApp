@@ -3,10 +3,11 @@ import type { AgentEvent } from "@/lib/poster-types"
 import { generateFullTemplate } from "@/lib/latex"
 import { apiFetch } from "@/lib/api-fetch"
 
-function makeEvent(e: Omit<AgentEvent, "id" | "ts">): AgentEvent {
+function makeEvent(e: Omit<AgentEvent, "id" | "ts" | "createdAt">): AgentEvent {
   return {
     ...e,
     id: crypto.randomUUID(),
+    createdAt: Date.now(),
     ts: new Date().toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -173,10 +174,12 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
                await new Promise(r => setTimeout(r, 100))
             } else {
                get().updateEvent(evId, { status: "error", title: "Compile failed", detail: "LLM autofix could not provide a fix." })
+               get().setPendingAiPrompt(`The LaTeX compilation failed with the following error. Please analyze it, explain the issue, and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
                break;
             }
           } else {
             get().updateEvent(evId, { status: "error", title: "Compile failed", detail: (data.log ?? "").slice(0, 200) })
+            get().setPendingAiPrompt(`The LaTeX compilation failed after multiple attempts. Please analyze this error log, explain the issue, and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
           }
         }
       }

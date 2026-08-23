@@ -60,7 +60,14 @@ export async function GET() {
 
     return NextResponse.json(workspaces)
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    const msg = String(err);
+    if (msg.includes("Can't reach database") || msg.includes("PrismaClientInitializationError")) {
+      return NextResponse.json(
+        { error: "Database offline. Please start the PostgreSQL Docker container." },
+        { status: 503 }
+      )
+    }
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
 
@@ -120,6 +127,13 @@ export async function POST(req: Request) {
       activeOutputId: activeOutput?.id ?? outputId,
     }, { status: 201 })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    const msg = String(err);
+    if (msg.includes("Can't reach database") || msg.includes("PrismaClientInitializationError")) {
+      return NextResponse.json(
+        { error: "Database offline. Please start the PostgreSQL Docker container." },
+        { status: 503 }
+      )
+    }
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
