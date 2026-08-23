@@ -34,8 +34,8 @@ export class BeamerSlidesGenerator implements LatexGenerator {
         if (c.figures && c.figures.length > 0) {
           const f = c.figures[0]
           if (f.url) {
-            tex += `\\begin{center}\n\\includegraphics[height=0.6\\textheight,keepaspectratio]{${workspaceId ? assetUrlToLatexPath(f.url, workspaceId) : f.url}}\n`
-            if (f.caption) tex += `\\caption{${parseMarkdownToLatex(f.caption)}}\n`
+            tex += `\\begin{center}\n\\includegraphics[height=0.55\\textheight,keepaspectratio]{${workspaceId ? assetUrlToLatexPath(f.url, workspaceId) : f.url}}\n`
+            if (f.caption) tex += `\\\\{\\footnotesize ${parseMarkdownToLatex(f.caption)}}\n`
             tex += `\\end{center}\n`
           }
         }

@@ -41,7 +41,7 @@ function generateFigures(card: Card, workspaceId = ""): string {
     return workspaceId ? assetUrlToLatexPath(url, workspaceId) : url
   }
 
-  if (card.figureLayout === "two-up" || figs.length >= 2) {
+  if (figs.length >= 2) {
     const [a, b] = figs.slice(0, 2)
     const captionA = a.caption ? `\\caption{${parseMarkdownToLatex(a.caption)}}` : ""
     const captionB = b.caption ? `\\caption{${parseMarkdownToLatex(b.caption)}}` : ""

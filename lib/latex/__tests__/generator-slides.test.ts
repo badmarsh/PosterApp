@@ -22,9 +22,9 @@ const mockProject: Project = {
           title: "My Slide",
           content: "Content",
           order: 0,
-          column: 0,
+          column: null,
           layoutWarnings: [],
-          figures: [{ url: "/api/workspaces/test/assets/img.png", id: "fig1", prompt: "", assignedCardId: "c1" }]
+          figures: [{ url: "/api/workspaces/test/assets/img.png", id: "fig1", caption: "" }]
         },
         {
           id: "c2",
@@ -32,7 +32,7 @@ const mockProject: Project = {
           title: "Notes Slide",
           content: "Content",
           order: 1,
-          column: 0,
+          column: null,
           layoutWarnings: [],
           slideNotes: "Here are some notes"
         }

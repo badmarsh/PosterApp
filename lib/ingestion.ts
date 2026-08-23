@@ -91,11 +91,3 @@ export function detectMethod(name: string): ParseMethod {
   if (n.endsWith(".docx") || n.endsWith(".md") || n.endsWith(".txt") || n.endsWith(".tex") || n.endsWith(".bib")) return "Pandoc"
   return "Auto"
 }
-
-function aid(prefix: string) {
-  return `${prefix}_${crypto.randomUUID()}`
-}
-
-
-
-

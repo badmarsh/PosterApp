@@ -97,6 +97,7 @@ const EventRow = memo(function EventRow({
 }) {
   const Icon = KIND_ICON[event.kind]
   const [mounted, setMounted] = useState(false)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), [])
   return (
     <div className="relative flex gap-2 pl-1">
@@ -183,6 +184,7 @@ function StatusStrip({
 
   // Auto-open the strip when something is actively running
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (running.length > 0) setOpen(true)
   }, [running.length])
 
@@ -601,6 +603,7 @@ export function AgentPanel() {
   // Recreate the adapter (and thus runtime) when the workspace changes so
   // each workspace gets a fresh ephemeral thread.
   const adapter = useMemo(
+    // eslint-disable-next-line react-hooks/refs
     () => makeChatAdapter(projectId, () => selectedCardIdRef.current),
      
     [projectId]

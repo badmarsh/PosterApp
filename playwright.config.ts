@@ -18,7 +18,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
-      E2E_TEST: '1'
+      NEXT_PUBLIC_E2E_TEST: '1'
     }
   },
 })

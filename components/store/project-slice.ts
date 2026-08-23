@@ -76,6 +76,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       get().fetchBib(id)
     } catch (err) {
       set((s) => { s.isSwitchingProject = false })
+      get().setLastWorkspaceId(null)
       get().pushEvent({ kind: "info", status: "error", title: "Failed to load workspace", detail: String(err) })
       toast.error("Failed to load workspace")
     }
@@ -642,6 +643,9 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       })
       if (conflict) {
         toast.error("Save blocked because this workspace changed elsewhere. Reload before saving again.")
+      } else {
+        // Surface non-conflict failures so the user is aware their changes haven't been saved.
+        toast.error("Auto-save failed — will retry shortly.")
       }
     } finally {
       // If an edit arrived while the save was in-flight, isDirty will be true.

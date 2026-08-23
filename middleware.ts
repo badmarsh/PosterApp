@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 const isApiRoute = createRouteMatcher(['/api(.*)'])
 
 export default clerkMiddleware(async (auth, req) => {
-  if (process.env.E2E_TEST === '1' && process.env.NODE_ENV !== 'production') {
+  if (process.env.NEXT_PUBLIC_E2E_TEST === '1' && process.env.NODE_ENV !== 'production') {
     return NextResponse.next()
   }
   

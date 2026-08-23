@@ -12,7 +12,6 @@ import next from "next"
 import { WebSocketServer } from "ws"
 import { verifyToken } from "@clerk/backend"
 // y-websocket server utilities (CJS module)
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { setupWSConnection } = require("y-websocket/bin/utils")
 
 const dev = process.env.NODE_ENV !== "production"
@@ -83,7 +82,7 @@ app.prepare().then(() => {
       return
     }
 
-    console.log(`[Yjs WS] User ${userId} joined workspace ${workspaceId}`)
+
 
     wss.handleUpgrade(req, socket, head, (ws) => {
       wss.emit("connection", ws, req)

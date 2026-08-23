@@ -72,7 +72,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
                     <div className="bg-muted rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5"><span className="text-xs font-bold text-foreground">1</span></div>
                     <div>
                       <strong className="text-foreground block">Directed Generation</strong>
-                      <p className="text-sm">Give the card a title (e.g., "Methodology"), leave the content empty, and click the <Sparkles className="size-3 inline mx-1"/> icon. The AI will write the content specifically for that section.</p>
+                      <p className="text-sm">Give the card a title (e.g., &quot;Methodology&quot;), leave the content empty, and click the <Sparkles className="size-3 inline mx-1"/> icon. The AI will write the content specifically for that section.</p>
                     </div>
                   </li>
                   <li className="flex gap-3">
@@ -105,7 +105,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground pb-4 leading-relaxed space-y-4">
                 <p>
-                  Unlike a scrolling webpage, your poster is constrained by physical space. Each card is allocated a <strong className="text-foreground font-medium">Height Budget</strong> (measured in generic units "u").
+                  Unlike a scrolling webpage, your poster is constrained by physical space. Each card is allocated a <strong className="text-foreground font-medium">Height Budget</strong> (measured in generic units &quot;u&quot;).
                 </p>
                 <div className="grid sm:grid-cols-2 gap-4 mt-2">
                   <div className="border border-border p-4 rounded-lg bg-muted/30">
@@ -201,7 +201,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
                   PosterApp maintains a central BibTeX file for your workspace, which is <strong>automatically populated</strong> when you ingest research papers.
                 </p>
                 <p>
-                  You can further manage your bibliography by clicking <strong className="text-foreground font-medium">Edit references.bib</strong> in the Project Settings (bottom left). Only the citations actually used by the AI (or manually added by you) will appear in the final poster's reference block, preventing your poster from overflowing with unused citations.
+                  You can further manage your bibliography by clicking <strong className="text-foreground font-medium">Edit references.bib</strong> in the Project Settings (bottom left). Only the citations actually used by the AI (or manually added by you) will appear in the final poster&apos;s reference block, preventing your poster from overflowing with unused citations.
                 </p>
               </AccordionContent>
             </AccordionItem>

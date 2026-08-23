@@ -117,7 +117,9 @@ describe("Generator", () => {
 
     it("produces minimalcolors for minimal template", () => {
       const prj = makeProject("minimal")
-      const res = generateFullTemplate(prj, prj.outputs[0])
+      // Pass an outputConfig with templateId="minimal" — the generator reads outputConfig, not project.templateName
+      const minimalOutput = { ...prj.outputs[0], templateId: "minimal" }
+      const res = generateFullTemplate(prj, minimalOutput)
       expect(res).toContain("minimalcolors")
     })
 

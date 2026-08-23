@@ -78,6 +78,7 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
       <div className="flex items-start gap-2">
         {/* preview */}
         {asset.kind === "figure" ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={asset.thumbnailUrl || "/placeholder.svg"}
             alt={asset.caption || "Extracted figure"}

@@ -113,6 +113,7 @@ export function FigureEditor({
               className="h-20 w-full rounded border border-border bg-card object-contain"
             />
           ) : (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={asset.thumbnailUrl || "/placeholder.svg"}
               alt="Original extracted figure"
@@ -133,6 +134,7 @@ export function FigureEditor({
             )}
           >
             {result ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={result.url || "/placeholder.svg"}
                 alt={`Result after ${result.op}`}

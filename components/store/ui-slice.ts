@@ -116,6 +116,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tex }),
         })
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => "")}`)
         const data: { ok: boolean; log: string } = await res.json()
 
         if (get().project.id !== capturedWorkspaceId) return
@@ -137,7 +138,10 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
           // Background VLM Layout Check
           const vlmEv = get().pushEvent({ kind: "info", status: "running", title: `VLM Layout Check running...` })
           apiFetch(`/api/workspaces/${project.id}/review-layout`, { method: "POST" })
-            .then(res => res.json())
+            .then(async res => {
+              if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => "")}`)
+              return res.json()
+            })
             .then(vlmData => {
               if (vlmData.warnings && vlmData.warnings.length > 0) {
                  get().updateEvent(vlmEv, { kind: "review", status: "done", title: `VLM found layout issues`, detail: `${vlmData.warnings.length} layout issue(s) detected.` })
@@ -159,6 +163,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
                headers: { "Content-Type": "application/json" },
                body: JSON.stringify({ log: data.log, cards: activeOutput.cards }),
             })
+            if (!autofixRes.ok) throw new Error(`HTTP ${autofixRes.status}: ${await autofixRes.text().catch(() => "")}`)
             const autofixData = await autofixRes.json()
             if (autofixData.fixes && Array.isArray(autofixData.fixes) && autofixData.fixes.length > 0) {
                autofixData.fixes.forEach((fix: any) => {

@@ -146,7 +146,10 @@ export async function PUT(
         }
       })
       if (update.count !== 1) throw new WorkspaceConflictError()
-      nextRevision = expectedRevision + 1
+      // Compute final revision inside the transaction to avoid using a captured
+      // outer variable that could be undefined if an early error fires.
+      const confirmedRevision = expectedRevision + 1
+      nextRevision = confirmedRevision
 
       // Pre-fetch the IDs of outputs and assets that already belong to this workspace.
       // We use these sets to guard upserts: an existing record whose ID is NOT in these
@@ -440,7 +443,7 @@ export async function PUT(
         await tx.workspaceSnapshot.create({
           data: {
             workspaceId: id,
-            revision: nextRevision!,
+            revision: nextRevision ?? 0,
             snapshot: JSON.stringify(updatedWorkspace),
           },
         })

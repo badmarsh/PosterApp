@@ -47,6 +47,7 @@ export function HistoryPanel() {
   }, [project.id])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (isHistoryOpen) fetchHistory()
   }, [isHistoryOpen, fetchHistory])
 

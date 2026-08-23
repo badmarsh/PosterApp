@@ -9,10 +9,55 @@ export async function GET() {
     const { userId } = await auth()
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const workspaces = await prisma.workspace.findMany({
+    let workspaces = await prisma.workspace.findMany({
       where: { userId },
       select: { id: true, name: true },
     })
+
+    if (workspaces.length === 0) {
+      const { sampleProject } = await import("@/lib/mock-data")
+      const { jsonStringify } = await import("@/lib/db-helpers")
+
+      const demoId = `demo_${Date.now().toString(36)}`
+      
+      const project = await prisma.workspace.create({
+        data: {
+          id: demoId,
+          name: sampleProject.name,
+          authors: sampleProject.authors,
+          venue: sampleProject.venue,
+          userId,
+          outputs: {
+            create: sampleProject.outputs?.map((out) => ({
+              id: `out_${out.outputType}_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`,
+              outputType: out.outputType,
+              templateId: out.templateId,
+              title: out.title,
+              isActive: out.id === sampleProject.activeOutputId,
+              cards: {
+                create: out.cards.map((c) => ({
+                  id: `card_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`,
+                  title: c.title || "",
+                  column: c.column,
+                  order: c.order,
+                  pattern: c.pattern,
+                  content: c.content,
+                  table: jsonStringify(c.table),
+                  figures: jsonStringify(c.figures),
+                  figureLayout: c.figureLayout || "auto",
+                  sourceIds: jsonStringify(c.sourceIds),
+                  validation: c.validation || "ok",
+                })),
+              },
+            })),
+          },
+        },
+        select: { id: true, name: true }
+      })
+      
+      workspaces = [project]
+    }
+
     return NextResponse.json(workspaces)
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })

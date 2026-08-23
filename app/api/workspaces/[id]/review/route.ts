@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { Card } from "@/lib/poster-types"
-import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import * as fs from "fs"
 import * as path from "path"
 import { extractCiteKeys } from "@/lib/bib-parser"
@@ -13,7 +12,7 @@ const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 const MAX_REVIEW_SOURCE_CHARS = 60_000
 
 
-function buildLintReport(project: any, bibKeys: string[], assets: Asset[]) {
+function buildLintReport(project: any, bibKeys: string[]) {
   const missingCites = new Set<string>()
   const usedCites = new Set<string>()
   
@@ -105,9 +104,9 @@ export async function POST(
 
   try {
     const body = await req.json()
-    const { bibContent, bibKeys = [], assets = [], cards = [], title, authors, venue, templateName } = body
+    const { bibContent, bibKeys = [], cards = [], title, authors, venue, templateName } = body
 
-    const lintReport = buildLintReport(body, bibKeys, assets)
+    const lintReport = buildLintReport(body, bibKeys)
     
     // Load source markdown from disk so the reviewer has actual grounding material.
     // (Assets are only figures/tables — text content lives in sources/*.md)

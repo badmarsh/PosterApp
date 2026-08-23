@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { safeJsonParse } from "@/lib/db-helpers"
 
 export async function extractBibTeX(mdContent: string, workspaceId: string): Promise<void> {
   try {
@@ -34,7 +35,7 @@ export async function extractBibTeX(mdContent: string, workspaceId: string): Pro
       
       const currentBib = workspace.bibContent || ""
       const oldKeysStr = workspace.bibKeys || "[]"
-      const oldKeys = new Set<string>(JSON.parse(oldKeysStr))
+      const oldKeys = new Set<string>(safeJsonParse<string[]>(oldKeysStr, []))
       
       const existingTitles = new Set<string>()
       for (const entry of currentBib.split(/(?=@\w+\{)/)) {
@@ -82,7 +83,7 @@ export async function extractBibTeX(mdContent: string, workspaceId: string): Pro
             bibKeys: JSON.stringify(Array.from(oldKeys))
           }
         })
-        console.log(`Successfully extracted ${newKeysCount} new BibTeX citations for workspace ${workspaceId}`)
+
       }
     }
   } catch (err) {

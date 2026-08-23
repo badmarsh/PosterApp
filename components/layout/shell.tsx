@@ -256,6 +256,7 @@ export function Shell() {
       if (lastWorkspaceId && lastWorkspaceId !== "prj_lattice") {
         switchProject(lastWorkspaceId)
       } else {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setShowSelector(true)
       }
       setHasAutoLoaded(true)

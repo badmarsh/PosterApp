@@ -11,5 +11,8 @@ export function assetUrlToLatexPath(apiUrl: string, workspaceId: string): string
   if (apiUrl.startsWith(prefix)) {
     return `assets/${apiUrl.slice(prefix.length)}`
   }
+  if (apiUrl.startsWith("/images/")) {
+    return `../../public${apiUrl}`
+  }
   return apiUrl
 }

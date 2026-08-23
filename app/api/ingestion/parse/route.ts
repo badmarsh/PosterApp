@@ -58,6 +58,13 @@ export async function POST(req: Request) {
     )
   }
 
+  if (!/^[a-zA-Z0-9_-]+$/.test(workspaceId)) {
+    return NextResponse.json(
+      { error: "Invalid workspaceId" },
+      { status: 400 }
+    )
+  }
+
   const { userId } = await auth()
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -280,7 +287,7 @@ export async function POST(req: Request) {
 
         let generated = { caption: "", snippet: "" }
         if (existingAssets.includes(uniqueFilename)) {
-          console.log(`Skipping caption generation for ${uniqueFilename} (already exists).`)
+          // Caption already generated for this asset — skip to avoid redundant AI calls
         } else {
           let contextWindow = ""
           if (results?.md_content) {
