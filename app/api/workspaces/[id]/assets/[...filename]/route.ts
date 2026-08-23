@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import * as fs from "fs/promises"
 import path from "path"
-import mime from "mime"
+
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
@@ -40,7 +40,17 @@ export async function GET(
   }
 
   const buffer = await fs.readFile(resolved)
-  const contentType = mime.getType(resolved) || "image/png"
+const ext = path.extname(resolved).toLowerCase()
+  const map: Record<string, string> = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".pdf": "application/pdf",
+    ".svg": "image/svg+xml",
+  }
+  const contentType = map[ext] || "image/png"
 
   return new NextResponse(buffer, {
     headers: {

@@ -114,7 +114,7 @@ Schema at `prisma/schema.prisma`. Key notes:
 ## Known Remaining Issues
 
 ### Still Open
-1. **AUTH_SECRET is a static bearer token** — not suitable for multi-user deployment.
+(None currently)
 
 ### Fixed in This Session (2026-08-22)
 - ✅ **BibTeX deduplication** — Extracted titles are now normalized and deduplicated to prevent duplicates from different PDFs.

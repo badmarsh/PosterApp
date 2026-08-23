@@ -53,7 +53,7 @@ app.prepare().then(() => {
     const parsedUrl = parse(req.url || "", true)
 
     // Only handle upgrades to /api/yjs
-    if (parsedUrl.pathname !== "/api/yjs") {
+    if (!parsedUrl.pathname?.startsWith("/api/yjs")) {
       app.getUpgradeHandler()(req, socket, head)
       return
     }

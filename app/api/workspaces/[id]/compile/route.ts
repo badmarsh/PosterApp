@@ -54,8 +54,8 @@ export async function POST(
   const hasBib = tex.includes("\\bibliography{")
 
   const bashScript = hasBib
-    ? "pdflatex -interaction=nonstopmode -halt-on-error main.tex && (bibtex main || true) && pdflatex -interaction=nonstopmode -halt-on-error main.tex && pdflatex -interaction=nonstopmode -halt-on-error main.tex 2>&1"
-    : "pdflatex -interaction=nonstopmode -halt-on-error main.tex 2>&1"
+    ? "timeout 55s pdflatex -interaction=nonstopmode -halt-on-error main.tex && (timeout 55s bibtex main || true) && timeout 55s pdflatex -interaction=nonstopmode -halt-on-error main.tex && timeout 55s pdflatex -interaction=nonstopmode -halt-on-error main.tex 2>&1"
+    : "timeout 55s pdflatex -interaction=nonstopmode -halt-on-error main.tex 2>&1"
 
   const wslArgs = [
     "--cd", windowsDir,

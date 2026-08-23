@@ -273,49 +273,53 @@ export async function POST(req: Request) {
       })
     )
 
-    // Second pass: generate captions in parallel for new assets
-    await Promise.all(
-      imageEntries.map(async ([filename, base64Data]) => {
-        const uniqueFilename = filename
-        const destPath = path.join(assetsDir, uniqueFilename)
-        // Skip if file failed to write
-        if (!fs.existsSync(destPath)) return
+    // Second pass: generate captions in batches for new assets to avoid rate limits
+    const CHUNK_SIZE = 3
+    for (let i = 0; i < imageEntries.length; i += CHUNK_SIZE) {
+      const chunk = imageEntries.slice(i, i + CHUNK_SIZE)
+      await Promise.all(
+        chunk.map(async ([filename, base64Data]) => {
+          const uniqueFilename = filename
+          const destPath = path.join(assetsDir, uniqueFilename)
+          // Skip if file failed to write
+          if (!fs.existsSync(destPath)) return
 
-        const base64Payload = (base64Data as string).includes(",")
-          ? (base64Data as string).split(",")[1]
-          : (base64Data as string)
+          const base64Payload = (base64Data as string).includes(",")
+            ? (base64Data as string).split(",")[1]
+            : (base64Data as string)
 
-        let generated = { caption: "", snippet: "" }
-        if (existingAssets.includes(uniqueFilename)) {
-          // Caption already generated for this asset — skip to avoid redundant AI calls
-        } else {
-          let contextWindow = ""
-          if (results?.md_content) {
-            const idx = results.md_content.indexOf(filename)
-            if (idx !== -1) {
-              contextWindow = results.md_content.substring(
-                Math.max(0, idx - 800),
-                Math.min(results.md_content.length, idx + 800)
-              )
+          let generated = { caption: "", snippet: "" }
+          if (existingAssets.includes(uniqueFilename)) {
+            // Caption already generated for this asset — skip to avoid redundant AI calls
+          } else {
+            let contextWindow = ""
+            if (results?.md_content) {
+              const idx = results.md_content.indexOf(filename)
+              if (idx !== -1) {
+                contextWindow = results.md_content.substring(
+                  Math.max(0, idx - 800),
+                  Math.min(results.md_content.length, idx + 800)
+                )
+              }
             }
+            generated = await generateCaption(base64Payload, contextWindow)
           }
-          generated = await generateCaption(base64Payload, contextWindow)
-        }
 
-        const isTable = tableMap.has(uniqueFilename)
-        assets.push({
-          id: randomUUID(),
-          filename: uniqueFilename,
-          url: `/api/workspaces/${workspaceId}/assets/${uniqueFilename}`,
-          thumbnailUrl: `/api/workspaces/${workspaceId}/assets/${uniqueFilename}`,
-          kind: isTable ? "table" : "figure",
-          caption: isTable ? "Table" : (generated.caption || "Figure"),
-          snippet: generated.snippet,
-          tableRows: isTable ? tableMap.get(uniqueFilename) : undefined,
-          page: pageMap.get(uniqueFilename) || 1,
+          const isTable = tableMap.has(uniqueFilename)
+          assets.push({
+            id: randomUUID(),
+            filename: uniqueFilename,
+            url: `/api/workspaces/${workspaceId}/assets/${uniqueFilename}`,
+            thumbnailUrl: `/api/workspaces/${workspaceId}/assets/${uniqueFilename}`,
+            kind: isTable ? "table" : "figure",
+            caption: isTable ? "Table" : (generated.caption || "Figure"),
+            snippet: generated.snippet,
+            tableRows: isTable ? tableMap.get(uniqueFilename) : undefined,
+            page: pageMap.get(uniqueFilename) || 1,
+          })
         })
-      })
-    )
+      )
+    }
   }
 
   // Insert assets into Prisma

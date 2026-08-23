@@ -207,7 +207,7 @@ Return EXACTLY (no markdown wrappers):
         response_format: { type: "json_object" },
         temperature: 0.1
       }),
-      signal: AbortSignal.timeout(90_000)
+      signal: AbortSignal.timeout(180_000)
     })
 
     if (!response.ok) {

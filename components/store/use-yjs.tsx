@@ -39,14 +39,14 @@ export function useYjs(workspaceId: string) {
 
       ydoc = new Y.Doc()
       const wsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL!
-      // Append token + workspaceId as query params for server-side auth
-      const wsUrlWithAuth = `${wsUrl}?workspaceId=${encodeURIComponent(workspaceId)}&token=${encodeURIComponent(token)}`
-
       provider = new WebsocketProvider(
-        wsUrlWithAuth,
+        wsUrl,
         workspaceId,
         ydoc,
-        { connect: true }
+        { 
+          connect: true,
+          params: { workspaceId, token }
+        }
       )
 
       provider.on("status", (event: { status: "connected" | "disconnected" | "connecting" }) => {

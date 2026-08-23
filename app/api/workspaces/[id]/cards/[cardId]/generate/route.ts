@@ -153,7 +153,7 @@ Respond EXACTLY in this JSON format with no markdown wrappers:
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" }
       }),
-      signal: AbortSignal.timeout(60_000)
+      signal: AbortSignal.timeout(180_000)
     })
 
     if (!response.ok) {
