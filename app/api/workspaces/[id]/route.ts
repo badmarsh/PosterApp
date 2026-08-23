@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { safeJsonParse, jsonStringify } from "@/lib/db-helpers"
 import { auth } from "@/lib/auth"
 import { WorkspaceSchema } from "@/lib/validations/workspace"
+import { computeWorkspaceDiff } from "@/lib/snapshot-diff"
+import { generateSnapshotLabelAsync } from "@/lib/ai-labeler"
 
 class ForeignChildIdError extends Error {
   constructor() {
@@ -117,6 +119,11 @@ export async function PUT(
     // Check ownership first
     const existing = await prisma.workspace.findUnique({ where: { id, userId } })
     if (!existing) return NextResponse.json({ error: "Not found or unauthorized" }, { status: 404 })
+
+    const prevSnapshot = await prisma.workspaceSnapshot.findFirst({
+      where: { workspaceId: id },
+      orderBy: { savedAt: "desc" }
+    })
 
     const rawBody = await req.json()
     const parsed = WorkspaceSchema.safeParse(rawBody)
@@ -440,13 +447,26 @@ export async function PUT(
         include: { outputs: { include: { cards: true } }, assets: true, ingestFiles: true },
       })
       if (updatedWorkspace) {
-        await tx.workspaceSnapshot.create({
+        const newSnap = await tx.workspaceSnapshot.create({
           data: {
             workspaceId: id,
             revision: nextRevision ?? 0,
             snapshot: JSON.stringify(updatedWorkspace),
           },
         })
+
+        // Compute diff and dispatch background labeler
+        try {
+          const oldWs = prevSnapshot ? JSON.parse(prevSnapshot.snapshot) : null
+          const diff = computeWorkspaceDiff(oldWs, updatedWorkspace)
+          if (diff.length > 0) {
+            // fire and forget async task
+            generateSnapshotLabelAsync(newSnap.id, diff).catch(console.error)
+          }
+        } catch (e) {
+          console.error("Failed to generate AI label diff", e)
+        }
+
         // Prune oldest snapshots beyond 50
         const old = await tx.workspaceSnapshot.findMany({
           where: { workspaceId: id },
