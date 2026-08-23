@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-23
+### Added
+- Expanded LaTeX Template Architecture supporting 8 templates across 3 output types (posters, slides, papers).
+- `OutputConfig` multi-output system with AI Context injection for each template.
+- Integrated Yjs WebSocket for live collaboration in `server.ts`.
+
+### Changed
+- Migrated primary database from SQLite to PostgreSQL (Docker).
+- Centralized template types and categories in `lib/output-types.ts`.
+
+### Fixed
+- Outdated mocks in `generator-slides.test.ts` causing test failures.
+- Updated vulnerable dependencies via selective security patching.
+
 ## [0.1.1] - 2026-08-22
 ### Added
 - ESLint flat config (`eslint.config.mjs`)

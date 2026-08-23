@@ -95,13 +95,14 @@ aiReview() → POST /api/workspaces/<id>/review
 ```
 
 ### LaTeX Generation
-`lib/latex/generator.ts` builds full tikzposter `.tex`. Supports two themes:
-- `"atlas"` — CERN ATLAS colors (`#9e2b2f`), hardcoded logo paths `logos/atlas_transparent.png` + `logos/uk_logo.png`
-- `"minimal"` — blue `#2B4B9E`
+The `lib/latex/` directory contains generators for three distinct output types (`poster`, `slides`, `paper`), each supporting categorized templates defined in `lib/output-types.ts`:
+- **Posters**: Built with `generator-poster.ts`. Supports `tikzposter` (including `atlas` and `minimal` themes) and Beamerposter (`gemini`).
+- **Slides**: Built with `generator-slides.ts`. Supports Beamer templates (`metropolis`, `beamer-atlas`).
+- **Papers**: Built with `generator-paper.ts`. Supports `article-twocol` and `article-single`.
 
-Both use `a0paper, portrait, 3-column` layout. Asset URLs rewritten from `/api/workspaces/<id>/assets/<file>` → `assets/<file>` for LaTeX `\includegraphics`.
+Template preambles and AI Context comments are stored in `lib/latex/templates.ts`. Asset URLs are rewritten from `/api/workspaces/<id>/assets/<file>` → `assets/<file>` for LaTeX `\includegraphics`.
 
-### Database (Prisma + SQLite)
+### Database (Prisma + PostgreSQL)
 Schema at `prisma/schema.prisma`. Key notes:
 - `Card.figures`, `Card.table`, `Card.sourceIds` — stored as JSON strings (`String?`), parsed/stringified in route
 - `Asset.assignedCardId` / `Asset.assignedSlot` — stored but no FK `@relation` (no cascade delete)

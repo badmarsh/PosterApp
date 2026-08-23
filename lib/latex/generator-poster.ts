@@ -1,7 +1,7 @@
 import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
-import { getAtlasTemplate, getMinimalTemplate } from "./templates"
+import { getAtlasTemplate, getMinimalTemplate, getGeminiTemplate, getTikzposterTemplate } from "./templates"
 import type { LatexGenerator } from "./types"
 import { indent, assetUrlToLatexPath } from "./helpers"
 
@@ -53,7 +53,7 @@ function generateFigures(card: Card, workspaceId = ""): string {
   return `\\begin{center}\n  \\includegraphics[width=1.0\\linewidth]{${latexPath(f.url)}}\n\\end{center}${captionLine}`
 }
 
-export function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[] = []): string {
+export function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[] = [], templateId = ""): string {
   const parts: string[] = []
 
   if (card.pattern === "references") {
@@ -76,7 +76,11 @@ export function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: 
   }
 
   const body = parts.join("\n\n")
-  return `% block id: ${card.id}  (column ${card.column}, order ${card.order})\n\\block{${parseMarkdownToLatex(card.title)}}{\n${indent(body)}\n}`
+  const title = parseMarkdownToLatex(card.title)
+  if (templateId === "gemini") {
+    return `% block id: ${card.id}  (column ${card.column}, order ${card.order})\n\\begin{block}{${title}}\n${body}\n\\end{block}`
+  }
+  return `% block id: ${card.id}  (column ${card.column}, order ${card.order})\n\\block{${title}}{\n${indent(body)}\n}`
 }
 
 export class TikzPosterGenerator implements LatexGenerator {
@@ -103,17 +107,31 @@ export class TikzPosterGenerator implements LatexGenerator {
           .filter((c) => c.column === col)
           .sort((a, b) => a.order - b.order)
         const blocks = cards
-          .map((c) => indent(generateLatexForCard(c, workspaceId, usedKeysArray)))
+          .map((c) => indent(generateLatexForCard(c, workspaceId, usedKeysArray, this.templateId)))
           .join("\n\n")
+          
+        if (this.templateId === "gemini") {
+           return `% ===== Column ${col} =====\n\\begin{column}{0.31\\textwidth}\n${blocks}\n\\end{column}`
+        }
         return `% ===== Column ${col} =====\n\\column{0.333}\n\n${blocks}`
       })
       .join("\n\n")
 
     let templateContent = "";
+    let endDocumentContent = "\\end{document}";
+    let beginColumns = "\\begin{columns}";
 
     switch (outputConfig.templateId?.toLowerCase()) {
       case "minimal":
         templateContent = getMinimalTemplate(project);
+        break;
+      case "gemini":
+        templateContent = getGeminiTemplate(project);
+        beginColumns = "\\begin{columns}[t]";
+        endDocumentContent = "\\end{frame}\n\\end{document}";
+        break;
+      case "tikzposter":
+        templateContent = getTikzposterTemplate(project);
         break;
       case "atlas":
       default:
@@ -124,11 +142,11 @@ export class TikzPosterGenerator implements LatexGenerator {
     return `% =============================================================================
 ${templateContent.trim()}
 
-\\begin{columns}
+${beginColumns}
 
 ${indent(columns)}
 
 \\end{columns}
-\\end{document}`
+${endDocumentContent}`
   }
 }

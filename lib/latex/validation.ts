@@ -21,15 +21,15 @@ export function validateCard(card: Card): ValidationMessage[] {
   if (!card.title.trim()) {
     msgs.push({ level: "error", field: "title", message: "Card title is required." })
   }
-  if (!/^blk_[a-z0-9_]+$/.test(card.id)) {
+  if (!/^(blk|card)_[a-z0-9_]+$/.test(card.id)) {
     msgs.push({
       level: "error",
       field: "id",
-      message: "Block ID must match blk_[a-z0-9_].",
+      message: "Block ID must match blk_ or card_ prefix.",
     })
   }
 
-  const needsContent = card.pattern !== "image-focused"
+  const needsContent = card.pattern !== "image-focused" && card.pattern !== "references" && card.pattern !== "figure-slide"
   if (needsContent && !card.content.trim()) {
     msgs.push({
       level: "error",
@@ -63,9 +63,9 @@ export function validateCard(card: Card): ValidationMessage[] {
   }
 
   const figureCount =
-    card.pattern === "bullets-image" || card.pattern === "image-focused"
+    card.pattern === "bullets-image" || card.pattern === "image-focused" || card.pattern === "section-figure" || card.pattern === "figure-slide"
       ? 1
-      : card.pattern === "bullets-two-images"
+      : card.pattern === "bullets-two-images" || card.pattern === "section-two-figures"
         ? 2
         : 0
   const presentFigures = card.figures.filter((f) => f.url.trim()).length

@@ -1,8 +1,15 @@
 import { Project } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 
+// ---------------------------------------------------------------------------
+// POSTERS
+// ---------------------------------------------------------------------------
+
 export function getMinimalTemplate(project: Project): string {
   return `
+% [AI-CONTEXT] You are inside a tikzposter poster template.
+% Use \\block{Title}{Content} for each card section.
+% Enclose blocks within \\column{width} commands (e.g. \\column{0.33}).
 \\documentclass[a0paper,portrait, blockverticalspace=3em, colspace=2em]{tikzposter}
 \\tikzposterlatexaffectionproofoff
 \\usepackage{graphicx}
@@ -46,6 +53,9 @@ export function getMinimalTemplate(project: Project): string {
 
 export function getAtlasTemplate(project: Project): string {
   return `
+% [AI-CONTEXT] You are inside an ATLAS (CERN) tikzposter poster template.
+% Use \\block{Title}{Content} for each card section.
+% Enclose blocks within \\column{width} commands (e.g. \\column{0.33}).
 \\documentclass[a0paper,portrait, blockverticalspace=3em, colspace=2em]{tikzposter}
 \\tikzposterlatexaffectionproofoff
 \\usepackage{graphicx}
@@ -97,12 +107,119 @@ export function getAtlasTemplate(project: Project): string {
 \\date{}
 
 \\begin{document}
-\\end{document}
+\\maketitle
 `
 }
 
-export function getArticleTemplate(project: Project): string {
+export function getGeminiTemplate(project: Project): string {
   return `
+% [AI-CONTEXT] You are inside a gemini beamerposter template.
+% Use \\begin{block}{Title} ... \\end{block} for each section.
+% Enclose blocks within \\begin{column}{width} ... \\end{column} (e.g. \\begin{column}{0.33\\textwidth}).
+\\documentclass[final]{beamer}
+\\usepackage[scale=1.2]{beamerposter}
+\\usetheme{gemini}
+\\usecolortheme{gemini}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{booktabs}
+
+\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\author{${parseMarkdownToLatex(project.authors)}}
+\\institute{${parseMarkdownToLatex(project.venue)}}
+
+\\begin{document}
+\\begin{frame}[fragile]
+`
+}
+
+export function getTikzposterTemplate(project: Project): string {
+  return `
+% [AI-CONTEXT] You are inside a standard tikzposter template.
+% Use \\block{Title}{Content} for each card section.
+% Enclose blocks within \\column{width} commands (e.g. \\column{0.33}).
+\\documentclass[a0paper,portrait, blockverticalspace=3em, colspace=2em]{tikzposter}
+\\tikzposterlatexaffectionproofoff
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{multicol}
+
+\\usetheme{Board}
+
+\\title{\\parbox{0.74\\linewidth}{\\centering\\huge
+    ${parseMarkdownToLatex(project.posterTitle)}\\\\[1mm]
+    }}
+\\author{\\Large ${parseMarkdownToLatex(project.authors)}}
+\\institute{\\normalsize ${parseMarkdownToLatex(project.venue)}}
+\\date{}
+
+\\begin{document}
+\\maketitle
+`
+}
+
+// ---------------------------------------------------------------------------
+// SLIDES
+// ---------------------------------------------------------------------------
+
+export function getMetropolisTemplate(project: Project): string {
+  return `
+% [AI-CONTEXT] You are inside a Metropolis Beamer presentation.
+% Use \\begin{frame}{Title} ... \\end{frame} for each slide.
+% Note: The Metropolis theme handles title formatting automatically.
+\\documentclass{beamer}
+\\usetheme{metropolis}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
+\\usepackage{amsmath}
+
+\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\author{${parseMarkdownToLatex(project.authors)}}
+\\institute{${parseMarkdownToLatex(project.venue)}}
+
+\\begin{document}
+\\begin{frame}
+\\titlepage
+\\end{frame}
+`
+}
+
+export function getBeamerAtlasTemplate(project: Project): string {
+  return `
+% [AI-CONTEXT] You are inside an ATLAS-branded Beamer presentation.
+% Use \\begin{frame}{Title} ... \\end{frame} for each slide.
+\\documentclass{beamer}
+\\usetheme{Madrid}
+\\definecolor{atlasred}{RGB}{158,43,47}
+\\setbeamercolor{structure}{fg=atlasred}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
+\\usepackage{amsmath}
+
+\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\author{${parseMarkdownToLatex(project.authors)}}
+\\institute{${parseMarkdownToLatex(project.venue)}}
+
+\\begin{document}
+\\begin{frame}
+\\titlepage
+\\end{frame}
+`
+}
+
+// ---------------------------------------------------------------------------
+// PAPERS
+// ---------------------------------------------------------------------------
+
+export function getTwoColumnTemplate(project: Project): string {
+  return `
+% [AI-CONTEXT] You are inside a two-column article document.
+% Use standard \\section{}, \\subsection{} commands.
+% For wide figures that must span across both columns, use \\begin{figure*} ... \\end{figure*}.
 \\documentclass[11pt, a4paper, twocolumn]{article}
 \\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
@@ -110,6 +227,30 @@ export function getArticleTemplate(project: Project): string {
 \\usepackage{amssymb}
 \\usepackage{booktabs}
 \\usepackage[margin=1in]{geometry}
+\\usepackage{authblk}
+
+\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\author{${parseMarkdownToLatex(project.authors)}}
+\\affil{${parseMarkdownToLatex(project.venue)}}
+\\date{}
+
+\\begin{document}
+\\maketitle
+`
+}
+
+export function getSingleColumnTemplate(project: Project): string {
+  return `
+% [AI-CONTEXT] You are inside a single-column article document.
+% Use standard \\section{}, \\subsection{} commands.
+% Wide figures are not needed, use \\begin{figure}[htbp] ... \\end{figure}.
+\\documentclass[11pt, a4paper]{article}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{booktabs}
+\\usepackage[margin=1.5in]{geometry}
 \\usepackage{authblk}
 
 \\title{${parseMarkdownToLatex(project.posterTitle)}}

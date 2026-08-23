@@ -8,7 +8,7 @@ import { TopBar } from "@/components/top-bar"
 import { ProjectSettingsSidebar } from "@/components/project-settings-sidebar"
 import { StructureSidebar } from "@/components/structure-sidebar"
 import { PosterPreview } from "@/components/poster-preview"
-import { CardInspector } from "@/components/card-inspector"
+import { RightSidebar } from "@/components/right-sidebar"
 import { AgentPanel } from "@/components/agent-panel"
 import { IngestionDrawer } from "@/components/ingestion/ingestion-drawer"
 import { CollaboratorsLayer } from "@/components/collaborators-layer"
@@ -44,8 +44,8 @@ function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: ()
             <PosterPreview />
           </ErrorBoundary>
         </main>
-        <ErrorBoundary name="Card Inspector">
-          <CardInspector />
+        <ErrorBoundary name="Right Sidebar">
+          <RightSidebar />
         </ErrorBoundary>
         {agentOpen ? (
           <ErrorBoundary name="Agent Panel">
@@ -143,8 +143,8 @@ function MobileShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () 
             </main>
           )}
           {pane === "editor" && (
-            <ErrorBoundary name="Card Inspector">
-              <CardInspector />
+            <ErrorBoundary name="Right Sidebar">
+              <RightSidebar />
             </ErrorBoundary>
           )}
           {pane === "agent" && (

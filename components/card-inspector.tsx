@@ -76,7 +76,7 @@ function BasicsTab({ card }: { card: Card }) {
       project: s.project,
     }))
   )
-  const idValid = /^blk_[a-z0-9_]+$/.test(card.id)
+  const idValid = /^(blk|card)_[a-z0-9_]+$/.test(card.id)
   const titleInvalid = card.title.trim().length === 0
   const orderInCol =
     project.cards
@@ -112,7 +112,7 @@ function BasicsTab({ card }: { card: Card }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <FieldLabel hint="blk_[a-z0-9_]">Stable block ID</FieldLabel>
+        <FieldLabel hint="blk_ or card_">Stable block ID</FieldLabel>
         <Input
           value={card.id}
           readOnly

@@ -61,11 +61,6 @@ import type { OutputType } from "@/lib/output-types"
 import { OUTPUT_TYPE_LABELS, TEMPLATE_REGISTRY, getTemplatesForType } from "@/lib/output-types"
 
 // ---------------------------------------------------------------------------
-// Tab type
-// ---------------------------------------------------------------------------
-type Tab = "structure" | "pdf"
-
-// ---------------------------------------------------------------------------
 // OutputTypeIcon — maps output type to a small icon
 // ---------------------------------------------------------------------------
 function OutputTypeIcon({ type, className }: { type: OutputType; className?: string }) {
@@ -910,191 +905,6 @@ function StructureView() {
   return <PosterStructureView />
 }
 
-function CompileLog({ log, ok }: { log: string; ok: boolean }) {
-  const [open, setOpen] = useState(false)
-
-  return (
-    <div className="shrink-0 border-t border-border">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={cn(
-          "flex w-full items-center justify-between px-3 py-1.5 text-left text-[10px] font-mono font-semibold uppercase tracking-wide transition-colors hover:bg-muted/40",
-          ok ? "text-emerald-600 dark:text-emerald-400" : "text-destructive",
-        )}
-      >
-        <span>{ok ? "✓ Compile succeeded" : "✗ Compile failed"} — log</span>
-        <ChevronDownIcon
-          className={cn("size-3 transition-transform", open && "rotate-180")}
-        />
-      </button>
-      {open && (
-        <pre
-          className={cn(
-            "max-h-48 overflow-auto px-3 py-2 font-mono text-[9px] leading-relaxed",
-            ok
-              ? "text-emerald-700 dark:text-emerald-300"
-              : "text-destructive",
-          )}
-        >
-          {log || "(no output)"}
-        </pre>
-      )}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// PdfView — react-pdf based viewer
-// ---------------------------------------------------------------------------
-
-import dynamic from "next/dynamic"
-import { Minus, Download } from "lucide-react"
-
-const PdfViewerComponent = dynamic(
-  () => import("@/components/pdf-viewer").then((mod) => mod.PdfViewer),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-      </div>
-    ),
-  },
-)
-
-const ZOOM_OPTIONS: { value: number | "auto"; label: string }[] = [
-  { value: "auto", label: "Fit Width" },
-  { value: 0.25, label: "25%" },
-  { value: 0.5, label: "50%" },
-  { value: 0.75, label: "75%" },
-  { value: 1, label: "100%" },
-  { value: 1.25, label: "125%" },
-  { value: 1.5, label: "150%" },
-  { value: 2, label: "200%" },
-  { value: 3, label: "300%" },
-  { value: 4, label: "400%" },
-]
-
-function PdfView() {
-  const { pdfData, compileLog, compileOk, compiling, projectId } = useEditor(
-    useShallow((s) => ({
-      pdfData: s.pdfData,
-      compileLog: s.compileLog,
-      compileOk: s.compileOk,
-      compiling: s.compiling,
-      projectId: s.project.id,
-    }))
-  )
-
-  const [scale, setScale] = useState<number | "auto">("auto")
-  const [numPages, setNumPages] = useState(0)
-
-  const zoomIn = () => {
-    const idx = ZOOM_OPTIONS.findIndex((z) => z.value === scale)
-    if (idx !== -1) {
-      const next = ZOOM_OPTIONS[Math.min(idx + 1, ZOOM_OPTIONS.length - 1)]
-      if (next) setScale(next.value)
-    }
-  }
-  const zoomOut = () => {
-    const idx = ZOOM_OPTIONS.findIndex((z) => z.value === scale)
-    if (idx !== -1) {
-      const prev = ZOOM_OPTIONS[Math.max(idx - 1, 0)]
-      if (prev) setScale(prev.value)
-    }
-  }
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      {/* Zoom toolbar */}
-      {pdfData && (
-        <div className="flex shrink-0 items-center justify-between border-b border-border bg-card/60 px-3 py-1">
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={zoomOut}
-              disabled={scale === ZOOM_OPTIONS[0].value}
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
-              aria-label="Zoom out"
-            >
-              <Minus className="size-3.5" />
-            </button>
-            <select
-              value={scale}
-              onChange={(e) => {
-                const val = e.target.value
-                setScale(val === "auto" ? "auto" : Number(val))
-              }}
-              className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px]"
-            >
-              {ZOOM_OPTIONS.map((z) => (
-                <option key={z.value} value={z.value}>
-                  {z.label}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={zoomIn}
-              disabled={scale === ZOOM_OPTIONS[ZOOM_OPTIONS.length - 1].value}
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
-              aria-label="Zoom in"
-            >
-              <Plus className="size-3.5" />
-            </button>
-            {numPages > 0 && (
-              <span className="ml-2 font-mono text-[10px] text-muted-foreground">
-                {numPages} page{numPages !== 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
-          <a
-            // eslint-disable-next-line react-hooks/purity
-            href={`/api/workspaces/${projectId}/pdf?t=${Date.now()}`}
-            download="poster.pdf"
-            className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <Download className="size-3" />
-            Download
-          </a>
-        </div>
-      )}
-
-      {/* PDF render area */}
-      <div className="relative min-h-0 flex-1 bg-muted/20">
-        {compiling && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-background/70 backdrop-blur-sm">
-            <Loader2 className="size-6 animate-spin text-primary" />
-            <span className="text-[11px] text-muted-foreground">Compiling with pdflatex…</span>
-          </div>
-        )}
-        {pdfData ? (
-          <PdfViewerComponent
-            data={pdfData}
-            scale={scale}
-            onLoadSuccess={setNumPages}
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-              <FileDown className="size-8 opacity-30" />
-              <span className="text-[11px]">
-                No PDF yet — click <strong>Compile</strong> to generate one.
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Compile log (shown when there is output) */}
-      {compileLog !== null && compileOk !== null && (
-        <CompileLog log={compileLog} ok={compileOk} />
-      )}
-    </div>
-  )
-}
-
 // ---------------------------------------------------------------------------
 // PosterPreview (main export)
 // ---------------------------------------------------------------------------
@@ -1114,8 +924,6 @@ export function PosterPreview() {
     }))
   )
 
-  const [activeTab, setActiveTab] = useState<Tab>("structure")
-
   useEffect(() => {
     if (!autoCompile) return
     const t = setTimeout(() => {
@@ -1126,7 +934,6 @@ export function PosterPreview() {
 
   const handleCompile = useCallback((format: OutputType) => {
     setLastCompileFormat(format)
-    setActiveTab("pdf")
     compileProject(format)
   }, [compileProject, setLastCompileFormat])
 
@@ -1136,33 +943,8 @@ export function PosterPreview() {
       <OutputTabBar />
       {/* Header bar */}
       <div className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-card px-3">
-        {/* Tab switcher */}
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setActiveTab("structure")}
-            className={cn(
-              "rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide transition-colors",
-              activeTab === "structure"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            Structure
-          </button>
-          <span className="text-muted-foreground/40">|</span>
-          <button
-            type="button"
-            onClick={() => setActiveTab("pdf")}
-            className={cn(
-              "rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide transition-colors",
-              activeTab === "pdf"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            PDF Preview
-          </button>
+        <div className="flex items-center gap-2">
+          <span className="text-[12px] font-semibold text-foreground">Structure</span>
         </div>
 
         {/* Right side: compile button */}
@@ -1231,10 +1013,8 @@ export function PosterPreview() {
             </pre>
           </div>
         </ScrollArea>
-      ) : activeTab === "structure" ? (
-        <StructureView />
       ) : (
-        <PdfView />
+        <StructureView />
       )}
     </section>
   )

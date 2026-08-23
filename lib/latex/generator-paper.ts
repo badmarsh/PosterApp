@@ -1,7 +1,7 @@
 import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
-import { getArticleTemplate } from "./templates"
+import { getTwoColumnTemplate, getSingleColumnTemplate } from "./templates"
 import type { LatexGenerator } from "./types"
 import { assetUrlToLatexPath } from "./helpers"
 
@@ -33,7 +33,7 @@ ${body}
 \\end{table}`
 }
 
-function generateFigures(card: Card, workspaceId = ""): string {
+function generateFigures(card: Card, workspaceId = "", isTwoColumn = false): string {
   const figs = card.figures.filter((f) => f.url.trim())
   if (!figs.length) return "% no figures"
 
@@ -41,11 +41,13 @@ function generateFigures(card: Card, workspaceId = ""): string {
     return workspaceId ? assetUrlToLatexPath(url, workspaceId) : url
   }
 
+  const env = isTwoColumn ? "figure*" : "figure"
+
   if (figs.length >= 2) {
     const [a, b] = figs.slice(0, 2)
     const captionA = a.caption ? `\\caption{${parseMarkdownToLatex(a.caption)}}` : ""
     const captionB = b.caption ? `\\caption{${parseMarkdownToLatex(b.caption)}}` : ""
-    return `\\begin{figure}[htbp]
+    return `\\begin{${env}}[htbp]
   \\centering
   \\begin{minipage}[b]{0.48\\textwidth}
     \\centering
@@ -58,20 +60,20 @@ function generateFigures(card: Card, workspaceId = ""): string {
     \\includegraphics[width=\\textwidth]{${latexPath(b.url)}}
     ${captionB}
   \\end{minipage}
-\\end{figure}`
+\\end{${env}}`
   }
 
   const f = figs[0]
   const captionLine = f.caption
     ? `  \\caption{${parseMarkdownToLatex(f.caption)}}\n`
     : ""
-  return `\\begin{figure}[htbp]
+  return `\\begin{${env}}[htbp]
   \\centering
   \\includegraphics[width=0.8\\textwidth]{${latexPath(f.url)}}
-${captionLine}\\end{figure}`
+${captionLine}\\end{${env}}`
 }
 
-function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[] = []): string {
+function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[] = [], isTwoColumn = false): string {
   const parts: string[] = []
 
   if (card.pattern === "references") {
@@ -98,7 +100,7 @@ function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[
     card.pattern === "bullets-two-images" ||
     card.pattern === "image-focused"
   ) {
-    parts.push(generateFigures(card, workspaceId))
+    parts.push(generateFigures(card, workspaceId, isTwoColumn))
   }
 
   return parts.join("\n\n")
@@ -122,11 +124,18 @@ export class StandardPaperGenerator implements LatexGenerator {
     // Order by column then order, to match the reading flow of the poster.
     const sortedCards = [...outputConfig.cards].sort((a, b) => (a.column || 1) - (b.column || 1) || a.order - b.order)
 
+    const isTwoColumn = this.templateId !== "article-single";
+
     const contentBlocks = sortedCards
-      .map((c) => generateLatexForCard(c, workspaceId, usedKeysArray))
+      .map((c) => generateLatexForCard(c, workspaceId, usedKeysArray, isTwoColumn))
       .join("\n\n")
 
-    let templateContent = getArticleTemplate(project);
+    let templateContent = "";
+    if (this.templateId === "article-single") {
+      templateContent = getSingleColumnTemplate(project);
+    } else {
+      templateContent = getTwoColumnTemplate(project);
+    }
 
     return `% =============================================================================
 ${templateContent.trim()}

@@ -4,11 +4,15 @@ import type { Project, OutputConfig } from "@/lib/poster-types"
 
 const mockProject: Project = {
   id: "test",
-  title: "Test slides",
+  name: "Test slides",
+  posterTitle: "Test slides",
   authors: "Author",
   venue: "Venue",
   activeOutputId: "out1",
   cards: [],
+  assets: [],
+  ingestFiles: [],
+  templateName: "atlas",
   outputs: [
     {
       id: "out1",
@@ -23,7 +27,9 @@ const mockProject: Project = {
           content: "Content",
           order: 0,
           column: null,
-          layoutWarnings: [],
+          table: { hasHeader: false, caption: "", rows: [] },
+          figureLayout: "single",
+          validation: "valid",
           figures: [{ url: "/api/workspaces/test/assets/img.png", id: "fig1", caption: "" }]
         },
         {
@@ -33,7 +39,10 @@ const mockProject: Project = {
           content: "Content",
           order: 1,
           column: null,
-          layoutWarnings: [],
+          table: { hasHeader: false, caption: "", rows: [] },
+          figureLayout: "single",
+          validation: "valid",
+          figures: [],
           slideNotes: "Here are some notes"
         }
       ]

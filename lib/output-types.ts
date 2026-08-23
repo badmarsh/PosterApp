@@ -28,23 +28,28 @@ export const OUTPUT_TYPE_DESCRIPTIONS: Record<OutputType, string> = {
 // Template registry
 // ---------------------------------------------------------------------------
 
+export type TemplateCategory = "core" | "poster" | "institutional"
+
 export type TemplateDef = {
   id: string
   outputType: OutputType
   label: string
   description: string
+  category: TemplateCategory
 }
 
 export const TEMPLATE_REGISTRY: TemplateDef[] = [
   // Posters
-  { id: "atlas",   outputType: "poster", label: "ATLAS (CERN)",     description: "Red/white colour scheme with CERN ATLAS logos" },
-  { id: "minimal", outputType: "poster", label: "Minimal Blue",     description: "Clean blue theme without institutional branding" },
+  { id: "atlas", outputType: "poster", label: "TemplateATLAS (CERN)", description: "Red/white colour scheme with ATLAS logos", category: "institutional" },
+  { id: "minimal", outputType: "poster", label: "Minimal Blue", description: "Clean blue theme without institutional branding", category: "core" },
+  { id: "gemini", outputType: "poster", label: "gemini", description: "Modern Beamerposter theme", category: "poster" },
+  { id: "tikzposter", outputType: "poster", label: "tikzposter", description: "Highly visual, rigidly blocked poster template", category: "poster" },
   // Slides
-  { id: "beamer-metropolis", outputType: "slides", label: "Metropolis",   description: "Modern minimal Beamer theme" },
-  { id: "beamer-atlas",     outputType: "slides", label: "ATLAS Beamer", description: "CERN ATLAS branded Beamer slides" },
+  { id: "beamer-metropolis", outputType: "slides", label: "Metropolis", description: "Modern minimal Beamer theme", category: "core" },
+  { id: "beamer-atlas", outputType: "slides", label: "ATLAS Beamer", description: "CERN ATLAS branded Beamer slides", category: "institutional" },
   // Papers
-  { id: "article-twocol", outputType: "paper", label: "Two-Column Article", description: "Standard two-column article class" },
-  { id: "article-single", outputType: "paper", label: "Single-Column",      description: "Single-column article, thesis style" },
+  { id: "article-twocol", outputType: "paper", label: "Two-Column Article", description: "Standard two-column article class", category: "core" },
+  { id: "article-single", outputType: "paper", label: "Single-Column", description: "Single-column article, thesis style", category: "core" },
 ]
 
 /** Get all templates available for a given output type. */
