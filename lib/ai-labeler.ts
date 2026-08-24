@@ -33,8 +33,8 @@ Do not use punctuation at the end. Return ONLY the label string. Do not use quot
         temperature: 0.1,
         max_tokens: 15
       }),
-      // Abort quickly so we don't hold resources forever
-      signal: AbortSignal.timeout(10_000)
+      // Abort gracefully after 45s (AI APIs can be slow on cold starts)
+      signal: AbortSignal.timeout(45_000)
     })
 
     if (!response.ok) {
