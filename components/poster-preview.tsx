@@ -70,6 +70,126 @@ function OutputTypeIcon({ type, className }: { type: OutputType; className?: str
 }
 
 // ---------------------------------------------------------------------------
+// LayoutDiagram — tiny SVG schematic of a template's spatial structure
+// ---------------------------------------------------------------------------
+function LayoutDiagram({
+  kind,
+  color,
+}: {
+  kind: import("@/lib/output-types").TemplateDef["layoutPreview"]
+  color: string
+}) {
+  const W = 44
+  const H = 34
+  const accent = color
+
+  // Header bar shared by all layouts
+  const Header = () => (
+    <rect x={1} y={1} width={W - 2} height={5} rx={1} fill={accent} opacity={0.85} />
+  )
+
+  switch (kind) {
+    case "poster-columns":
+      return (
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
+          <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
+          <Header />
+          {[0, 1, 2].map((i) => {
+            const colW = (W - 8) / 3
+            const x = 2 + i * (colW + 2)
+            return (
+              <g key={i}>
+                <rect x={x} y={9} width={colW} height={4} rx={0.5} fill={accent} opacity={0.35} />
+                <rect x={x} y={14} width={colW} height={3} rx={0.5} fill="currentColor" className="text-muted-foreground/30" />
+                <rect x={x} y={18} width={colW * 0.8} height={3} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
+                <rect x={x} y={22} width={colW} height={5} rx={0.5} fill="currentColor" className="text-muted-foreground/15" />
+              </g>
+            )
+          })}
+        </svg>
+      )
+    case "poster-blocks":
+      return (
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
+          <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
+          <Header />
+          <rect x={2} y={9} width={20} height={10} rx={1} fill={accent} opacity={0.35} />
+          <rect x={24} y={9} width={18} height={10} rx={1} fill="currentColor" className="text-muted-foreground/20" />
+          <rect x={2} y={21} width={18} height={10} rx={1} fill="currentColor" className="text-muted-foreground/20" />
+          <rect x={22} y={21} width={20} height={10} rx={1} fill={accent} opacity={0.25} />
+        </svg>
+      )
+    case "slides-title":
+      return (
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
+          <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
+          {/* slide 1 */}
+          <rect x={2} y={2} width={W - 4} height={12} rx={1} fill={accent} opacity={0.8} />
+          <rect x={6} y={5} width={20} height={2.5} rx={0.5} fill="white" opacity={0.9} />
+          <rect x={6} y={9} width={14} height={1.5} rx={0.5} fill="white" opacity={0.6} />
+          {/* slide 2 */}
+          <rect x={2} y={16} width={W - 4} height={8} rx={1} fill="currentColor" className="text-muted-foreground/15" />
+          <rect x={4} y={18} width={12} height={1.5} rx={0.5} fill={accent} opacity={0.5} />
+          <rect x={4} y={21} width={20} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/30" />
+          {/* slide 3 */}
+          <rect x={2} y={26} width={W - 4} height={6} rx={1} fill="currentColor" className="text-muted-foreground/10" />
+          <rect x={4} y={28} width={10} height={1.5} rx={0.5} fill={accent} opacity={0.4} />
+        </svg>
+      )
+    case "slides-split":
+      return (
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
+          <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
+          <rect x={2} y={2} width={W - 4} height={4} rx={0.5} fill={accent} opacity={0.7} />
+          <rect x={4} y={3} width={16} height={2} rx={0.5} fill="white" opacity={0.8} />
+          {/* left col */}
+          <rect x={2} y={8} width={18} height={24} rx={1} fill={accent} opacity={0.2} />
+          <rect x={4} y={10} width={12} height={1.5} rx={0.5} fill={accent} opacity={0.6} />
+          <rect x={4} y={13} width={14} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
+          <rect x={4} y={15} width={12} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
+          {/* right col */}
+          <rect x={22} y={8} width={20} height={24} rx={1} fill="currentColor" className="text-muted-foreground/15" />
+          <rect x={24} y={10} width={14} height={8} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
+          <rect x={24} y={20} width={16} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
+          <rect x={24} y={22} width={12} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/15" />
+        </svg>
+      )
+    case "paper-columns":
+      return (
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
+          <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
+          <rect x={4} y={2} width={36} height={3} rx={0.5} fill={accent} opacity={0.7} />
+          <rect x={8} y={6} width={28} height={1.5} rx={0.5} fill="currentColor" className="text-muted-foreground/30" />
+          <rect x={2} y={10} width={19} height={22} rx={0.5} fill="currentColor" className="text-muted-foreground/10" />
+          <rect x={3} y={11} width={17} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/30" />
+          <rect x={3} y={13} width={15} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
+          <rect x={3} y={15} width={17} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
+          <rect x={3} y={18} width={17} height={6} rx={0.5} fill={accent} opacity={0.2} />
+          <rect x={23} y={10} width={19} height={22} rx={0.5} fill="currentColor" className="text-muted-foreground/10" />
+          <rect x={24} y={11} width={17} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/30" />
+          <rect x={24} y={13} width={15} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
+          <rect x={24} y={15} width={17} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
+        </svg>
+      )
+    case "paper-single":
+    default:
+      return (
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
+          <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
+          <rect x={5} y={2} width={34} height={3} rx={0.5} fill={accent} opacity={0.7} />
+          <rect x={3} y={7} width={38} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/30" />
+          <rect x={3} y={9} width={36} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
+          <rect x={3} y={11} width={38} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
+          <rect x={3} y={15} width={28} height={2} rx={0.5} fill={accent} opacity={0.4} />
+          <rect x={3} y={19} width={38} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
+          <rect x={3} y={21} width={32} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
+          <rect x={3} y={25} width={38} height={6} rx={0.5} fill="currentColor" className="text-muted-foreground/10" />
+        </svg>
+      )
+  }
+}
+
+// ---------------------------------------------------------------------------
 // AddOutputDialog — pick type + template, then create
 // ---------------------------------------------------------------------------
 function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -92,7 +212,7 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Add Output</DialogTitle>
           <DialogDescription>Choose an output format and template for this workspace.</DialogDescription>
@@ -122,20 +242,43 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
           {/* Template selector */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Template</label>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 max-h-72 overflow-y-auto pr-0.5">
               {templates.map((tmpl) => (
                 <button
                   key={tmpl.id}
                   onClick={() => setSelectedTemplate(tmpl.id)}
                   className={cn(
-                    "flex flex-col rounded-md border px-3 py-2 text-left transition-colors",
+                    "flex items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors",
                     selectedTemplate === tmpl.id
                       ? "border-primary bg-primary/10"
                       : "border-border hover:border-muted-foreground/40",
                   )}
                 >
-                  <span className="text-[12px] font-semibold">{tmpl.label}</span>
-                  <span className="text-[10px] text-muted-foreground">{tmpl.description}</span>
+                  {/* Miniature layout diagram */}
+                  <LayoutDiagram kind={tmpl.layoutPreview} color={tmpl.colors[0]} />
+                  {/* Text info */}
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[12px] font-semibold">{tmpl.label}</span>
+                      {tmpl.category === "institutional" && (
+                        <span className="rounded bg-amber-100 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                          Institutional
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{tmpl.description}</span>
+                    {/* Color palette swatches */}
+                    <div className="flex items-center gap-1 pt-0.5">
+                      {tmpl.colors.map((c) => (
+                        <span
+                          key={c}
+                          className="inline-block size-3 rounded-full border border-black/10 dark:border-white/10"
+                          style={{ backgroundColor: c }}
+                          title={c}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </button>
               ))}
             </div>
