@@ -3,7 +3,7 @@
   "version": "0.1.1",
   "private": true,
   "scripts": {
-    "dev": "npx --yes kill-port 3333 8001 && concurrently -c \"cyan,magenta\" -n \"next,mineru\" \"tsx --env-file=.env.local server.ts\" \"bash start-mineru.sh\"",
+    "dev": "npx --yes kill-port 3333 8001 && concurrently -c \"cyan,magenta\" -n \"next,mineru\" \"cross-env NODE_OPTIONS=--max-old-space-size=4096 tsx --env-file=.env.local server.ts\" \"bash start-mineru.sh\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -56,6 +56,7 @@
     "@types/ws": "^8.18.1",
     "@vitest/ui": "^4.1.9",
     "concurrently": "^10.0.3",
+    "cross-env": "^10.1.0",
     "eslint": "^9.20.0",
     "eslint-config-next": "^16.3.2",
     "postcss": "^8.5.26",
