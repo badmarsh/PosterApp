@@ -1,7 +1,7 @@
 import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
-import { getTwoColumnTemplate, getSingleColumnTemplate } from "./templates"
+import { getTwoColumnTemplate, getSingleColumnTemplate, getIEEEConfTemplate, getACMSigconfTemplate, getSpringerLLNCSTemplate } from "./templates"
 import type { LatexGenerator } from "./types"
 import { assetUrlToLatexPath } from "./helpers"
 
@@ -131,10 +131,23 @@ export class StandardPaperGenerator implements LatexGenerator {
       .join("\n\n")
 
     let templateContent = "";
-    if (this.templateId === "article-single") {
-      templateContent = getSingleColumnTemplate(project);
-    } else {
-      templateContent = getTwoColumnTemplate(project);
+    switch (this.templateId) {
+      case "article-single":
+        templateContent = getSingleColumnTemplate(project);
+        break;
+      case "ieee-conf":
+        templateContent = getIEEEConfTemplate(project);
+        break;
+      case "acm-sigconf":
+        templateContent = getACMSigconfTemplate(project);
+        break;
+      case "springer-llncs":
+        templateContent = getSpringerLLNCSTemplate(project);
+        break;
+      case "article-twocol":
+      default:
+        templateContent = getTwoColumnTemplate(project);
+        break;
     }
 
     return `% =============================================================================

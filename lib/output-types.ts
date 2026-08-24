@@ -44,12 +44,19 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
   { id: "minimal", outputType: "poster", label: "Minimal Blue", description: "Clean blue theme without institutional branding", category: "core" },
   { id: "gemini", outputType: "poster", label: "gemini", description: "Modern Beamerposter theme", category: "poster" },
   { id: "tikzposter", outputType: "poster", label: "tikzposter", description: "Highly visual, rigidly blocked poster template", category: "poster" },
+  { id: "a0poster", outputType: "poster", label: "A0 Poster", description: "Classic A0 portrait layout", category: "core" },
   // Slides
   { id: "beamer-metropolis", outputType: "slides", label: "Metropolis", description: "Modern minimal Beamer theme", category: "core" },
   { id: "beamer-atlas", outputType: "slides", label: "ATLAS Beamer", description: "CERN ATLAS branded Beamer slides", category: "institutional" },
+  { id: "beamer-madrid", outputType: "slides", label: "Madrid", description: "Classic Beamer Madrid theme", category: "core" },
+  { id: "beamer-default", outputType: "slides", label: "Default", description: "Standard default Beamer slides", category: "core" },
+  { id: "beamer-focus", outputType: "slides", label: "Focus", description: "Minimalist Focus Beamer theme", category: "core" },
   // Papers
   { id: "article-twocol", outputType: "paper", label: "Two-Column Article", description: "Standard two-column article class", category: "core" },
   { id: "article-single", outputType: "paper", label: "Single-Column", description: "Single-column article, thesis style", category: "core" },
+  { id: "ieee-conf", outputType: "paper", label: "IEEE Conference", description: "IEEE conference proceedings format", category: "core" },
+  { id: "acm-sigconf", outputType: "paper", label: "ACM SIGCONF", description: "ACM conference format", category: "core" },
+  { id: "springer-llncs", outputType: "paper", label: "Springer LLNCS", description: "Lecture Notes in Computer Science format", category: "core" },
 ]
 
 /** Get all templates available for a given output type. */

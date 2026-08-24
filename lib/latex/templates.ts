@@ -160,6 +160,24 @@ export function getTikzposterTemplate(project: Project): string {
 `
 }
 
+export function getA0PosterTemplate(project: Project): string {
+  return `
+% [AI-CONTEXT] You are inside a classic a0poster document.
+% Use standard \\section commands or minipages.
+\\documentclass[a0,portrait]{a0poster}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{multicol}
+
+\\title{\\Huge ${parseMarkdownToLatex(project.posterTitle)}}
+\\author{\\Large ${parseMarkdownToLatex(project.authors)}}
+\\date{}
+
+\\begin{document}
+\\maketitle
+`
+}
 // ---------------------------------------------------------------------------
 // SLIDES
 // ---------------------------------------------------------------------------
@@ -195,6 +213,72 @@ export function getBeamerAtlasTemplate(project: Project): string {
 \\usetheme{Madrid}
 \\definecolor{atlasred}{RGB}{158,43,47}
 \\setbeamercolor{structure}{fg=atlasred}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
+\\usepackage{amsmath}
+
+\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\author{${parseMarkdownToLatex(project.authors)}}
+\\institute{${parseMarkdownToLatex(project.venue)}}
+
+\\begin{document}
+\\begin{frame}
+\\titlepage
+\\end{frame}
+`
+}
+
+export function getMadridTemplate(project: Project): string {
+  return `
+% [AI-CONTEXT] You are inside a Madrid Beamer presentation.
+% Use \\begin{frame}{Title} ... \\end{frame} for each slide.
+\\documentclass{beamer}
+\\usetheme{Madrid}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
+\\usepackage{amsmath}
+
+\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\author{${parseMarkdownToLatex(project.authors)}}
+\\institute{${parseMarkdownToLatex(project.venue)}}
+
+\\begin{document}
+\\begin{frame}
+\\titlepage
+\\end{frame}
+`
+}
+
+export function getDefaultTemplate(project: Project): string {
+  return `
+% [AI-CONTEXT] You are inside a Default Beamer presentation.
+% Use \\begin{frame}{Title} ... \\end{frame} for each slide.
+\\documentclass{beamer}
+\\usetheme{default}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
+\\usepackage{amsmath}
+
+\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\author{${parseMarkdownToLatex(project.authors)}}
+\\institute{${parseMarkdownToLatex(project.venue)}}
+
+\\begin{document}
+\\begin{frame}
+\\titlepage
+\\end{frame}
+`
+}
+
+export function getFocusTemplate(project: Project): string {
+  return `
+% [AI-CONTEXT] You are inside a Focus Beamer presentation.
+% Use \\begin{frame}{Title} ... \\end{frame} for each slide.
+\\documentclass{beamer}
+\\usetheme{focus}
 \\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
 \\usepackage{booktabs}
@@ -257,6 +341,63 @@ export function getSingleColumnTemplate(project: Project): string {
 \\author{${parseMarkdownToLatex(project.authors)}}
 \\affil{${parseMarkdownToLatex(project.venue)}}
 \\date{}
+
+\\begin{document}
+\\maketitle
+`
+}
+
+export function getIEEEConfTemplate(project: Project): string {
+  return `
+% [AI-CONTEXT] You are inside an IEEEtran conference document.
+% Use standard \\section{}, \\subsection{} commands.
+\\documentclass[conference]{IEEEtran}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{booktabs}
+
+\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\author{${parseMarkdownToLatex(project.authors)}}
+
+\\begin{document}
+\\maketitle
+`
+}
+
+export function getACMSigconfTemplate(project: Project): string {
+  return `
+% [AI-CONTEXT] You are inside an ACM sigconf document.
+% Use standard \\section{}, \\subsection{} commands.
+\\documentclass[sigconf]{acmart}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{booktabs}
+
+\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\author{${parseMarkdownToLatex(project.authors)}}
+
+\\begin{document}
+\\maketitle
+`
+}
+
+export function getSpringerLLNCSTemplate(project: Project): string {
+  return `
+% [AI-CONTEXT] You are inside a Springer llncs document.
+% Use standard \\section{}, \\subsection{} commands.
+\\documentclass{llncs}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{booktabs}
+
+\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\author{${parseMarkdownToLatex(project.authors)}}
 
 \\begin{document}
 \\maketitle

@@ -2,7 +2,7 @@ import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
 import type { LatexGenerator } from "./types"
-import { getMetropolisTemplate, getBeamerAtlasTemplate } from "./templates"
+import { getMetropolisTemplate, getBeamerAtlasTemplate, getMadridTemplate, getDefaultTemplate, getFocusTemplate } from "./templates"
 
 import { assetUrlToLatexPath } from "./helpers"
 
@@ -59,10 +59,23 @@ export class BeamerSlidesGenerator implements LatexGenerator {
     }).join("\n\n")
 
     let templateContent = "";
-    if (this.templateId === "beamer-metropolis") {
-      templateContent = getMetropolisTemplate(project);
-    } else {
-      templateContent = getBeamerAtlasTemplate(project);
+    switch (this.templateId) {
+      case "beamer-metropolis":
+        templateContent = getMetropolisTemplate(project);
+        break;
+      case "beamer-madrid":
+        templateContent = getMadridTemplate(project);
+        break;
+      case "beamer-default":
+        templateContent = getDefaultTemplate(project);
+        break;
+      case "beamer-focus":
+        templateContent = getFocusTemplate(project);
+        break;
+      case "beamer-atlas":
+      default:
+        templateContent = getBeamerAtlasTemplate(project);
+        break;
     }
 
     return `% =============================================================================

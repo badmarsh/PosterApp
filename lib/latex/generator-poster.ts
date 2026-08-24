@@ -1,7 +1,7 @@
 import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
-import { getAtlasTemplate, getMinimalTemplate, getGeminiTemplate, getTikzposterTemplate } from "./templates"
+import { getAtlasTemplate, getMinimalTemplate, getGeminiTemplate, getTikzposterTemplate, getA0PosterTemplate } from "./templates"
 import type { LatexGenerator } from "./types"
 import { indent, assetUrlToLatexPath } from "./helpers"
 
@@ -132,6 +132,9 @@ export class TikzPosterGenerator implements LatexGenerator {
         break;
       case "tikzposter":
         templateContent = getTikzposterTemplate(project);
+        break;
+      case "a0poster":
+        templateContent = getA0PosterTemplate(project);
         break;
       case "atlas":
       default:
