@@ -1,5 +1,4 @@
 import type { Project, Card } from "./poster-types"
-import { randomUUID } from "crypto"
 
 export const sampleProject: Project = {
   id: "demo_ws",
@@ -18,7 +17,7 @@ export const sampleProject: Project = {
       title: "Advanced Layouts & Latent Dynamics (Poster)",
       cards: [
         {
-          id: randomUUID(),
+          id: "poster_card_1",
           title: "Introduction",
           column: 1,
           order: 0,
@@ -31,7 +30,7 @@ export const sampleProject: Project = {
           validation: "valid"
         },
         {
-          id: randomUUID(),
+          id: "poster_card_2",
           title: "Mathematical Framework",
           column: 1,
           order: 1,
@@ -44,7 +43,7 @@ export const sampleProject: Project = {
           validation: "valid"
         },
         {
-          id: randomUUID(),
+          id: "poster_card_3",
           title: "System Architecture",
           column: 2,
           order: 0,
@@ -57,7 +56,7 @@ export const sampleProject: Project = {
           validation: "valid"
         },
         {
-          id: randomUUID(),
+          id: "poster_card_4",
           title: "Results & Discussion",
           column: 2,
           order: 1,
@@ -79,7 +78,7 @@ export const sampleProject: Project = {
           validation: "valid"
         },
         {
-          id: randomUUID(),
+          id: "poster_card_5",
           title: "Conclusion",
           column: 3,
           order: 0,
@@ -100,7 +99,7 @@ export const sampleProject: Project = {
       title: "Advanced Layouts & Latent Dynamics",
       cards: [
         {
-          id: randomUUID(),
+          id: "paper_card_1",
           title: "Abstract",
           column: null,
           order: 0,
@@ -113,7 +112,7 @@ export const sampleProject: Project = {
           validation: "valid"
         },
         {
-          id: randomUUID(),
+          id: "paper_card_2",
           title: "Lagrangian Formulation",
           column: null,
           order: 1,
@@ -134,7 +133,7 @@ export const sampleProject: Project = {
       title: "Advanced Layouts & Latent Dynamics (Slides)",
       cards: [
         {
-          id: randomUUID(),
+          id: "slide_card_1",
           title: "Motivation",
           column: null,
           order: 0,
@@ -147,7 +146,7 @@ export const sampleProject: Project = {
           validation: "valid"
         },
         {
-          id: randomUUID(),
+          id: "slide_card_2",
           title: "Our Equation",
           column: null,
           order: 1,
