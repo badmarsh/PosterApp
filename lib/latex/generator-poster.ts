@@ -121,24 +121,25 @@ export class TikzPosterGenerator implements LatexGenerator {
     let endDocumentContent = "\\end{document}";
     let beginColumns = "\\begin{columns}";
 
+    const themeColor = outputConfig.themeColor
     switch (outputConfig.templateId?.toLowerCase()) {
       case "minimal":
-        templateContent = getMinimalTemplate(project);
+        templateContent = getMinimalTemplate(project, themeColor);
         break;
       case "gemini":
-        templateContent = getGeminiTemplate(project);
+        templateContent = getGeminiTemplate(project, themeColor);
         beginColumns = "\\begin{columns}[t]";
         endDocumentContent = "\\end{frame}\n\\end{document}";
         break;
       case "tikzposter":
-        templateContent = getTikzposterTemplate(project);
+        templateContent = getTikzposterTemplate(project, themeColor);
         break;
       case "a0poster":
-        templateContent = getA0PosterTemplate(project);
+        templateContent = getA0PosterTemplate(project, themeColor);
         break;
       case "atlas":
       default:
-        templateContent = getAtlasTemplate(project);
+        templateContent = getAtlasTemplate(project, themeColor);
         break;
     }
 

@@ -59,22 +59,23 @@ export class BeamerSlidesGenerator implements LatexGenerator {
     }).join("\n\n")
 
     let templateContent = "";
+    const themeColor = outputConfig.themeColor
     switch (this.templateId) {
       case "beamer-metropolis":
-        templateContent = getMetropolisTemplate(project);
+        templateContent = getMetropolisTemplate(project, themeColor);
         break;
       case "beamer-madrid":
-        templateContent = getMadridTemplate(project);
+        templateContent = getMadridTemplate(project, themeColor);
         break;
       case "beamer-default":
-        templateContent = getDefaultTemplate(project);
+        templateContent = getDefaultTemplate(project, themeColor);
         break;
       case "beamer-focus":
-        templateContent = getFocusTemplate(project);
+        templateContent = getFocusTemplate(project, themeColor);
         break;
       case "beamer-atlas":
       default:
-        templateContent = getBeamerAtlasTemplate(project);
+        templateContent = getBeamerAtlasTemplate(project, themeColor);
         break;
     }
 

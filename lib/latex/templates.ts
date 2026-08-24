@@ -2,10 +2,62 @@ import { Project } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 
 // ---------------------------------------------------------------------------
+// Color utilities
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert a CSS hex color (#RRGGBB) to a LaTeX RGB triplet string ("R,G,B")
+ * suitable for use in \definecolor{...}{RGB}{...}.
+ * Returns null if the input is not a valid 6-digit hex string.
+ */
+export function hexToLatexRgb(hex: string): string | null {
+  const m = hex.replace(/^#/, "").match(/^([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/)
+  if (!m) return null
+  return `${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)}`
+}
+
+/**
+ * Build the LaTeX snippet that overrides the poster accent colour when a custom
+ * themeColor is provided.  Injects \definecolor{maincolor} before the
+ * \definecolorstyle block so that all colour-style references pick it up.
+ * Returns an empty string when themeColor is absent or invalid.
+ */
+export function posterThemeOverride(themeColor?: string): string {
+  if (!themeColor) return ""
+  const rgb = hexToLatexRgb(themeColor)
+  if (!rgb) return ""
+  const hex = themeColor.replace(/^#/, "").toUpperCase()
+  return `% --- theme color override (set in PosterApp) ---
+\\definecolor{maincolor}{HTML}{${hex}}
+\\definecolor{accentlight}{RGB}{${rgb}}
+% ------------------------------------------------
+`
+}
+
+/**
+ * Build the LaTeX snippet that overrides the Beamer structure colour when a
+ * custom themeColor is provided.  Appended right after \\usetheme{}.
+ * Returns an empty string when themeColor is absent or invalid.
+ */
+export function beamerThemeOverride(themeColor?: string): string {
+  if (!themeColor) return ""
+  const rgb = hexToLatexRgb(themeColor)
+  if (!rgb) return ""
+  const hex = themeColor.replace(/^#/, "").toUpperCase()
+  return `% --- theme color override (set in PosterApp) ---
+\\definecolor{themeaccent}{HTML}{${hex}}
+\\setbeamercolor{structure}{fg=themeaccent}
+\\setbeamercolor{frametitle}{bg=themeaccent,fg=white}
+% ------------------------------------------------
+`
+}
+
+// ---------------------------------------------------------------------------
 // POSTERS
 // ---------------------------------------------------------------------------
 
-export function getMinimalTemplate(project: Project): string {
+export function getMinimalTemplate(project: Project, themeColor?: string): string {
+  const override = posterThemeOverride(themeColor)
   return `
 % [AI-CONTEXT] You are inside a tikzposter poster template.
 % Use \\block{Title}{Content} for each card section.
@@ -27,7 +79,7 @@ export function getMinimalTemplate(project: Project): string {
 \\definecolor{maincolor}{HTML}{2B4B9E}
 \\definecolor{secondarycolor}{RGB}{43, 75, 158}
 \\definecolor{lightblue}{RGB}{199, 215, 237}
-
+${override}
 \\definecolorstyle{minimalcolors}{
     \\colorlet{backgroundcolor}{white}
     \\colorlet{titlefgcolor}{white}
@@ -51,7 +103,8 @@ export function getMinimalTemplate(project: Project): string {
 `
 }
 
-export function getAtlasTemplate(project: Project): string {
+export function getAtlasTemplate(project: Project, themeColor?: string): string {
+  const override = posterThemeOverride(themeColor)
   return `
 % [AI-CONTEXT] You are inside an ATLAS (CERN) tikzposter poster template.
 % Use \\block{Title}{Content} for each card section.
@@ -73,7 +126,7 @@ export function getAtlasTemplate(project: Project): string {
 \\definecolor{maincolor}{HTML}{9e2b2f}
 \\definecolor{secondarycolor}{RGB}{158, 43, 47}
 \\definecolor{lightred}{RGB}{237, 199, 201}
-
+${override}
 \\definecolorstyle{atlascolors}{
     \\colorlet{backgroundcolor}{white}
     \\colorlet{titlefgcolor}{white}
@@ -111,7 +164,8 @@ export function getAtlasTemplate(project: Project): string {
 `
 }
 
-export function getGeminiTemplate(project: Project): string {
+export function getGeminiTemplate(project: Project, themeColor?: string): string {
+  const override = beamerThemeOverride(themeColor)
   return `
 % [AI-CONTEXT] You are inside a gemini beamerposter template.
 % Use \\begin{block}{Title} ... \\end{block} for each section.
@@ -120,7 +174,7 @@ export function getGeminiTemplate(project: Project): string {
 \\usepackage[scale=1.2]{beamerposter}
 \\usetheme{gemini}
 \\usecolortheme{gemini}
-\\usepackage{graphicx}
+${override}\\usepackage{graphicx}
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{booktabs}
@@ -134,7 +188,8 @@ export function getGeminiTemplate(project: Project): string {
 `
 }
 
-export function getTikzposterTemplate(project: Project): string {
+export function getTikzposterTemplate(project: Project, themeColor?: string): string {
+  const override = posterThemeOverride(themeColor)
   return `
 % [AI-CONTEXT] You are inside a standard tikzposter template.
 % Use \\block{Title}{Content} for each card section.
@@ -145,7 +200,7 @@ export function getTikzposterTemplate(project: Project): string {
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{multicol}
-
+${override}
 \\usetheme{Board}
 
 \\title{\\parbox{0.74\\linewidth}{\\centering\\huge
@@ -160,7 +215,7 @@ export function getTikzposterTemplate(project: Project): string {
 `
 }
 
-export function getA0PosterTemplate(project: Project): string {
+export function getA0PosterTemplate(project: Project, _themeColor?: string): string {
   return `
 % [AI-CONTEXT] You are inside a classic a0poster document.
 % Use standard \\section commands or minipages.
@@ -182,14 +237,15 @@ export function getA0PosterTemplate(project: Project): string {
 // SLIDES
 // ---------------------------------------------------------------------------
 
-export function getMetropolisTemplate(project: Project): string {
+export function getMetropolisTemplate(project: Project, themeColor?: string): string {
+  const override = beamerThemeOverride(themeColor)
   return `
 % [AI-CONTEXT] You are inside a Metropolis Beamer presentation.
 % Use \\begin{frame}{Title} ... \\end{frame} for each slide.
 % Note: The Metropolis theme handles title formatting automatically.
 \\documentclass{beamer}
 \\usetheme{metropolis}
-\\usepackage[utf8]{inputenc}
+${override}\\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
@@ -205,7 +261,8 @@ export function getMetropolisTemplate(project: Project): string {
 `
 }
 
-export function getBeamerAtlasTemplate(project: Project): string {
+export function getBeamerAtlasTemplate(project: Project, themeColor?: string): string {
+  const override = beamerThemeOverride(themeColor)
   return `
 % [AI-CONTEXT] You are inside an ATLAS-branded Beamer presentation.
 % Use \\begin{frame}{Title} ... \\end{frame} for each slide.
@@ -213,7 +270,7 @@ export function getBeamerAtlasTemplate(project: Project): string {
 \\usetheme{Madrid}
 \\definecolor{atlasred}{RGB}{158,43,47}
 \\setbeamercolor{structure}{fg=atlasred}
-\\usepackage[utf8]{inputenc}
+${override}\\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
@@ -229,13 +286,14 @@ export function getBeamerAtlasTemplate(project: Project): string {
 `
 }
 
-export function getMadridTemplate(project: Project): string {
+export function getMadridTemplate(project: Project, themeColor?: string): string {
+  const override = beamerThemeOverride(themeColor)
   return `
 % [AI-CONTEXT] You are inside a Madrid Beamer presentation.
 % Use \\begin{frame}{Title} ... \\end{frame} for each slide.
 \\documentclass{beamer}
 \\usetheme{Madrid}
-\\usepackage[utf8]{inputenc}
+${override}\\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
@@ -251,13 +309,14 @@ export function getMadridTemplate(project: Project): string {
 `
 }
 
-export function getDefaultTemplate(project: Project): string {
+export function getDefaultTemplate(project: Project, themeColor?: string): string {
+  const override = beamerThemeOverride(themeColor)
   return `
 % [AI-CONTEXT] You are inside a Default Beamer presentation.
 % Use \\begin{frame}{Title} ... \\end{frame} for each slide.
 \\documentclass{beamer}
 \\usetheme{default}
-\\usepackage[utf8]{inputenc}
+${override}\\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
@@ -273,13 +332,14 @@ export function getDefaultTemplate(project: Project): string {
 `
 }
 
-export function getFocusTemplate(project: Project): string {
+export function getFocusTemplate(project: Project, themeColor?: string): string {
+  const override = beamerThemeOverride(themeColor)
   return `
 % [AI-CONTEXT] You are inside a Focus Beamer presentation.
 % Use \\begin{frame}{Title} ... \\end{frame} for each slide.
 \\documentclass{beamer}
 \\usetheme{focus}
-\\usepackage[utf8]{inputenc}
+${override}\\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
