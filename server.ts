@@ -89,8 +89,29 @@ app.prepare().then(() => {
     })
   })
 
-  server.listen(port, () => {
+  const httpServer = server.listen(port, () => {
     console.log(`\n  ▲ Next.js (custom server) ready on http://localhost:${port}`)
     console.log(`  ⚡ Yjs WebSocket ready on ws://localhost:${port}/api/yjs\n`)
   })
+
+  // Graceful shutdown
+  const shutdown = () => {
+    console.log("\n  [Next.js] Shutting down gracefully...")
+    wss.clients.forEach((client) => client.close())
+    wss.close(() => {
+      httpServer.close(() => {
+        console.log("  [Next.js] Closed out remaining connections.")
+        process.exit(0)
+      })
+    })
+    
+    // Force close after 5s
+    setTimeout(() => {
+      console.error("  [Next.js] Forcing shutdown after timeout")
+      process.exit(1)
+    }, 5000)
+  }
+
+  process.on("SIGINT", shutdown)
+  process.on("SIGTERM", shutdown)
 })

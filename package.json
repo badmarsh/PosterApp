@@ -3,7 +3,7 @@
   "version": "0.1.1",
   "private": true,
   "scripts": {
-    "dev": "npx --yes kill-port 3333 8001 && concurrently -c \"cyan,magenta\" -n \"next,mineru\" \"cross-env NODE_OPTIONS=--max-old-space-size=4096 tsx --env-file=.env.local server.ts\" \"bash start-mineru.sh\"",
+    "dev": "node scripts/dev.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -63,6 +63,7 @@
     "prisma": "^5.0.0",
     "shadcn": "^4.19.0",
     "tailwindcss": "^4.2.0",
+    "tree-kill": "^1.2.2",
     "tsx": "^4.23.12",
     "typescript": "5.7.3",
     "vitest": "^4.1.9"
