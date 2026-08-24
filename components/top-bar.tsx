@@ -178,6 +178,7 @@ export function TopBar({
               <Button
                 variant="ghost"
                 className="h-8 px-2 font-semibold text-sm data-[state=open]:bg-muted"
+                title="Switch workspace"
               >
                 {project.name}
               </Button>

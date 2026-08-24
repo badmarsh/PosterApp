@@ -1,4 +1,6 @@
-import "dotenv/config"
+import { config } from "dotenv"
+config({ path: ".env.local" })
+config()
 import { PrismaClient } from "@prisma/client"
 
 const globalForPrisma = globalThis as unknown as {

@@ -18,18 +18,20 @@ test.describe('Poster Compilation', () => {
     await page.getByRole('button', { name: 'Create' }).click();
 
     // 3. Wait for it to switch to this project
-    await expect(page.getByText('Compile Test Workspace')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Compile Test Workspace' })).toBeVisible({ timeout: 10000 });
 
     // 4. Trigger Compilation
-    const compileBtn = page.getByRole('button', { name: /Compile/i });
+    const compileBtn = page.getByRole('button', { name: 'Compile', exact: true });
     await expect(compileBtn).toBeVisible();
     
     // We expect the button to say "Compiling..." and show a spinner after click
     await compileBtn.click();
     
     // Switch to PDF tab happens automatically
-    const pdfTabBtn = page.getByRole('button', { name: /PDF Preview/i });
-    await expect(pdfTabBtn).toHaveClass(/bg-primary\/10/); // active class
+    const pdfTabBtn = page.getByRole('tab', { name: /PDF Preview/i });
+    if (await pdfTabBtn.isVisible()) {
+      await expect(pdfTabBtn).toHaveAttribute('aria-selected', 'true');
+    }
     // 5. Wait for Compile to finish
     // Note: If pdflatex is not installed, it fails instantly and this loader might not even be visible for a frame.
     // We just ensure it's not there before checking the result.

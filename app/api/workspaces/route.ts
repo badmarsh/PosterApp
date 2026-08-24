@@ -61,9 +61,15 @@ export async function GET() {
     return NextResponse.json(workspaces)
   } catch (err) {
     const msg = String(err);
-    if (msg.includes("Can't reach database") || msg.includes("PrismaClientInitializationError")) {
+    if (
+      msg.includes("Can't reach database") || 
+      msg.includes("PrismaClientInitializationError") ||
+      msg.includes("P2021") ||
+      msg.includes("does not exist") ||
+      msg.includes("Invalid `prisma.workspace")
+    ) {
       return NextResponse.json(
-        { error: "Database offline. Please start the PostgreSQL Docker container." },
+        { error: "Database offline or not initialized. Please start PostgreSQL and run 'npx dotenv-cli -e .env.local -- npx prisma db push'." },
         { status: 503 }
       )
     }
@@ -128,9 +134,15 @@ export async function POST(req: Request) {
     }, { status: 201 })
   } catch (err) {
     const msg = String(err);
-    if (msg.includes("Can't reach database") || msg.includes("PrismaClientInitializationError")) {
+    if (
+      msg.includes("Can't reach database") || 
+      msg.includes("PrismaClientInitializationError") ||
+      msg.includes("P2021") ||
+      msg.includes("does not exist") ||
+      msg.includes("Invalid `prisma.workspace")
+    ) {
       return NextResponse.json(
-        { error: "Database offline. Please start the PostgreSQL Docker container." },
+        { error: "Database offline or not initialized. Please start PostgreSQL and run 'npx dotenv-cli -e .env.local -- npx prisma db push'." },
         { status: 503 }
       )
     }

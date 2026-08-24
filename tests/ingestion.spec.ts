@@ -29,22 +29,23 @@ test('workspace selector loads and shows workspaces', async ({ page }) => {
 
 test('ingestion of PDF via UI', async ({ page }) => {
   test.skip(!fs.existsSync(filePath), 'Test PDF not found');
-  test.setTimeout(180000); // 3 minutes timeout
+  test.setTimeout(240000); // 4 minutes timeout for full GPU VLM pipeline
 
   // Auto-accept any confirm() dialogues (like removing a file)
   page.on('dialog', dialog => dialog.accept());
   
   // Navigate to the app
+  const wsId = `test-ingest-${Date.now()}`;
   await page.goto('/');
 
   // Create new project
   await page.getByRole('button', { name: 'Create New Project' }).click();
-  await page.locator('input[placeholder="my-cool-project"]').fill('test-workspace');
-  await page.locator('input[placeholder="My Cool Project"]').fill('Test Workspace');
+  await page.locator('input[placeholder="my-cool-project"]').fill(wsId);
+  await page.locator('input[placeholder="My Cool Project"]').fill('Test Ingest Workspace');
   await page.getByRole('button', { name: 'Create' }).click();
 
   // Wait for it to switch to this project
-  await expect(page.getByText('Test Workspace')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole('heading', { name: 'Test Ingest Workspace', exact: true })).toBeVisible({ timeout: 10000 });
 
   // Handle the new Workspace Selection modal properly
   try {
@@ -77,7 +78,7 @@ test('ingestion of PDF via UI', async ({ page }) => {
   await expect(page.locator('text=PO_152.pdf')).toBeVisible({ timeout: 10000 });
   
   // Wait for parsing to finish (Done badge appears)
-  await expect(page.getByText('Done')).toBeVisible({ timeout: 150000 });
+  await expect(page.getByText('Done')).toBeVisible({ timeout: 180000 });
   
   // Verify that some assets were extracted
   await expect(page.getByText(/[1-9]\d* items/)).toBeVisible({ timeout: 10000 });

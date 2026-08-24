@@ -19,7 +19,7 @@ test.describe('Features & Regression Tests', () => {
     await page.getByRole('button', { name: 'Create' }).click();
     
     // Wait for the UI to settle
-    await expect(page.getByText('Bib Test Workspace')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Bib Test Workspace' })).toBeVisible({ timeout: 10000 });
 
     const initialBib = `@article{Smith2020,
   title = {A study on nothing},

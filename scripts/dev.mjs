@@ -8,12 +8,18 @@ console.log('🚀 Starting Dev Orchestrator...')
 
 // 1. Check if Postgres container is running (if Docker is available)
 try {
-  const containers = execSync('docker ps --format "{{.Names}}"').toString()
-  if (!containers.includes('posterapp-postgres')) {
-    console.log('📦 Starting posterapp-postgres container...')
-    execSync('docker start posterapp-postgres', { stdio: 'inherit' })
-  } else {
+  const runningContainers = execSync('docker ps --format "{{.Names}}"').toString()
+  if (runningContainers.includes('posterapp-postgres')) {
     console.log('✅ PostgreSQL container already running.')
+  } else {
+    const allContainers = execSync('docker ps -a --format "{{.Names}}"').toString()
+    if (allContainers.includes('posterapp-postgres')) {
+      console.log('📦 Starting posterapp-postgres container...')
+      execSync('docker start posterapp-postgres', { stdio: 'inherit' })
+    } else {
+      console.log('📦 Creating and starting posterapp-postgres container...')
+      execSync('docker run -d --name posterapp-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=posterapp -p 5432:5432 postgres:16-alpine', { stdio: 'inherit' })
+    }
   }
 } catch (err) {
   console.warn('⚠️ Could not check/start Docker. Make sure PostgreSQL is running locally.')
