@@ -53,6 +53,19 @@ export function useYjs(workspaceId: string) {
         store.getState().setYjsStatus(event.status)
       })
 
+      // When the connection closes (e.g. token expired, server restart), fetch a fresh token
+      // and update the URL so the exponential backoff reconnect uses the new token!
+      provider.on("connection-close", async () => {
+        try {
+          const freshToken = await getToken()
+          if (freshToken) {
+            provider!.url = `${wsUrl}/${workspaceId}?workspaceId=${workspaceId}&token=${freshToken}`
+          }
+        } catch (err) {
+          console.error("[Yjs] Failed to refresh token on reconnect", err)
+        }
+      })
+
       const yCards = ydoc.getMap<string>("cards")
 
       // Listen for remote Yjs changes and update Zustand
