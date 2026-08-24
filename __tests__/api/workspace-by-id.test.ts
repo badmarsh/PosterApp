@@ -26,9 +26,25 @@ vi.mock('@/lib/prisma', () => ({
       upsert: vi.fn(),
       deleteMany: vi.fn(),
     },
-    $transaction: vi.fn(),
+    workspaceSnapshot: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+    $transaction: vi.fn((cb: any) => cb(prismaMockTx)),
   },
 }))
+
+// Create a mock transaction client that has the same methods
+const prismaMockTx = {
+  workspace: { updateMany: vi.fn().mockResolvedValue({ count: 1 }), findUnique: vi.fn() },
+  output: { findMany: vi.fn().mockResolvedValue([]), upsert: vi.fn(), deleteMany: vi.fn(), findUnique: vi.fn() },
+  card: { findMany: vi.fn().mockResolvedValue([]), upsert: vi.fn(), deleteMany: vi.fn(), findUnique: vi.fn() },
+  asset: { findMany: vi.fn().mockResolvedValue([]), upsert: vi.fn(), deleteMany: vi.fn(), updateMany: vi.fn(), findUnique: vi.fn() },
+  ingestFile: { findMany: vi.fn().mockResolvedValue([]), upsert: vi.fn(), deleteMany: vi.fn(), findUnique: vi.fn() },
+  workspaceSnapshot: { create: vi.fn().mockResolvedValue({ id: 'snap_1' }), findMany: vi.fn().mockResolvedValue([]), deleteMany: vi.fn() }
+}
 
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'

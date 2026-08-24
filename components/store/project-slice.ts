@@ -44,6 +44,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
   switchProject: async (id) => {
     const { project, isSwitchingProject } = get()
     if (id === project.id || isSwitchingProject) return
+    jobQueue.cancelAll()
     set((s) => { s.isSwitchingProject = true; s.selectedCardId = null })
     try {
       const res = await apiFetch(`/api/workspaces/${id}`)
@@ -96,6 +97,9 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     const output = activeOutput(s.project)
     if (output) output.cards = cards
     s.project.cards = cards
+    // Remote CRDT edits must use the same persistence path as local edits. The
+    // Yjs observer ignores its own transactions, so this cannot create a loop.
+    s.isDirty = true
   }),
 
   switchOutput: (outputId) => set((s) => {

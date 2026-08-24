@@ -29,8 +29,12 @@ describe("LaTeX Parser", () => {
     expect(parseMarkdownToLatex(input)).toBe("Here is math $E=mc^2$ and some text.")
   })
 
-  it("protects LaTeX macros", () => {
+  it("escapes untrusted LaTeX macros", () => {
     const input = "Here is a macro \\textcolor{red}{Red text}."
-    expect(parseMarkdownToLatex(input)).toBe("Here is a macro \\textcolor{red}{Red text}.")
+    expect(parseMarkdownToLatex(input)).not.toContain("\\textcolor")
+  })
+
+  it("does not permit dangerous commands in math", () => {
+    expect(parseMarkdownToLatex("$\\input{secrets}$")).not.toContain("\\input")
   })
 })

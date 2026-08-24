@@ -11,9 +11,10 @@ try {
 
 try {
   console.log("🔪 Force killing orphaned Node processes...");
-  execSync("powershell -Command \"Stop-Process -Name node -Force -ErrorAction SilentlyContinue\"", { stdio: "inherit" });
+  // Safely kill other node processes, excluding this script (process.pid) and its parent (pnpm)
+  execSync(`powershell -Command "Get-Process -Name node -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne ${process.pid} -and $_.Id -ne ${process.ppid} } | Stop-Process -Force -ErrorAction SilentlyContinue"`, { stdio: "inherit" });
 } catch (e) {
-  // Ignore if no Node processes
+  // Ignore if no Node processes or permission denied
 }
 
 try {

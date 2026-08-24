@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Next.js 16 turbopack config location
-- Removed stale `middleware.ts` (replaced by `proxy.ts`)
+- Note: Next.js 16 deprecates `middleware.ts` in favor of `proxy.ts`, which was migrated.
 - BibTeX deduplication for duplicate PDFs
 - Playwright tests missing `webServer` config
 - ESLint and React Compiler warnings

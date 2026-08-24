@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { useAuth, useUser } from "@clerk/nextjs"
+import { useUser } from "@clerk/nextjs"
 import * as Y from "yjs"
 import { WebsocketProvider } from "y-websocket"
 import { useEditorStoreInstance, useEditor } from "@/components/editor-store"
@@ -12,11 +12,10 @@ import { jobQueue } from "@/lib/job-queue"
 const COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#8b5cf6", "#d946ef"]
 
 /** Minimum ms between awareness cursor broadcasts (~30 fps). */
-const CURSOR_THROTTLE_MS = 33
+const CURSOR_THROTTLE_MS = 80
 
 export function useYjs(workspaceId: string) {
   const store = useEditorStoreInstance()
-  const { getToken } = useAuth()
   const { user } = useUser()
   const lastCursorRef = useRef<number>(0)
 
@@ -35,57 +34,61 @@ export function useYjs(workspaceId: string) {
     let unsubscribeZustand: (() => void) | null = null
     let unsubscribeJobs: (() => void) | null = null
 
+    let isCancelled = false
+
     const setup = async () => {
-      // Get a fresh Clerk token to authenticate the WebSocket handshake
-      const token = await getToken()
-      if (!token) {
-        console.warn("[Yjs] No Clerk token — staying offline")
+      // Tickets are one-time, short-lived and sent as a WebSocket subprotocol.
+      // This prevents Clerk session credentials appearing in URLs, proxy logs, or
+      // browser history.
+      const ticketResponse = await fetch(`/api/workspaces/${workspaceId}/collaboration-ticket`, { method: "POST", credentials: "same-origin" })
+      if (isCancelled || !ticketResponse.ok) {
+        store.getState().setYjsStatus("disconnected")
         return
       }
+      const { ticket } = await ticketResponse.json() as { ticket?: string }
+      if (!ticket || isCancelled) return
+      const collaborationTicket: string = ticket
 
       ydoc = new Y.Doc()
       const wsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL!
+      class TicketWebSocket extends WebSocket {
+        constructor(url: string | URL, _protocols?: string | string[]) { super(url, ["posterapp-yjs-v1", collaborationTicket]) }
+      }
       provider = new WebsocketProvider(
         wsUrl,
         workspaceId,
         ydoc,
-        { 
-          connect: true,
-          params: { workspaceId, token }
-        }
+        { connect: true, params: { workspaceId }, WebSocketPolyfill: TicketWebSocket }
       )
 
       provider.on("status", (event: { status: "connected" | "disconnected" | "connecting" }) => {
         store.getState().setYjsStatus(event.status)
       })
 
-      // When the connection closes (e.g. token expired, server restart), fetch a fresh token
-      // and update the URL so the exponential backoff reconnect uses the new token!
-      provider.on("connection-close", async () => {
-        try {
-          const freshToken = await getToken()
-          if (freshToken) {
-            provider!.url = `${wsUrl}/${workspaceId}?workspaceId=${workspaceId}&token=${freshToken}`
-          }
-        } catch (err) {
-          console.error("[Yjs] Failed to refresh token on reconnect", err)
-        }
-      })
-
-      const yCards = ydoc.getMap<string>("cards")
+      const outputId = store.getState().project.activeOutputId
+      if (!outputId) return
+      const yCards = ydoc.getMap<Y.Map<string>>("outputs").get(outputId) ?? (() => {
+        const outputs = ydoc!.getMap<Y.Map<string>>("outputs")
+        const cards = new Y.Map<string>()
+        outputs.set(outputId, cards)
+        return cards
+      })()
 
       // Listen for remote Yjs changes and update Zustand
       const observer = (event: Y.YMapEvent<string>) => {
         if (event.transaction.local) return
         const newCardsArray: Card[] = Array.from(yCards.values()).map(val => JSON.parse(val))
         newCardsArray.sort((a, b) => a.order - b.order)
-        store.getState()._setCardsFromYjs(newCardsArray)
+        // Ignore changes for outputs which are no longer active locally.  This
+        // keeps poster/slides/paper documents isolated even inside one Y.Doc.
+        if (store.getState().project.activeOutputId === outputId) store.getState()._setCardsFromYjs(newCardsArray)
       }
       yCards.observe(observer)
 
       // Listen for local Zustand changes and update Yjs
       let lastCards = store.getState().project.cards
       unsubscribeZustand = store.subscribe((state) => {
+        if (state.project.activeOutputId !== outputId) return
         const newCards = state.project.cards
         if (newCards !== lastCards) {
           lastCards = newCards
@@ -162,6 +165,7 @@ export function useYjs(workspaceId: string) {
     setup()
 
     return () => {
+      isCancelled = true
       ;(ydoc as any)?._cleanup?.()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

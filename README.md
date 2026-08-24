@@ -26,7 +26,7 @@ PosterApp is an intelligent, Next.js-based academic poster editor that assists r
    pnpm install
    ```
 
-2. Configure environment variables in `.env.local` (see `AGENTS.md` for reference):
+2. Configure environment variables in `.env.local` (see `.agents/AGENTS.md` for reference):
    ```env
    AI_API_URL=...
    AI_API_KEY=...
@@ -71,7 +71,7 @@ The application requires several environment variables to function correctly. Co
 - `POST /api/workspaces` - Creates a new empty workspace.
 - `GET /api/workspaces/[id]` - Retrieves workspace configuration, cards, and metadata.
 - `PUT /api/workspaces/[id]` - Updates workspace state.
-- `GET /api/workspaces/[id]/compile` - Synchronously compiles LaTeX templates to PDF output using local `pdflatex`.
+- `POST /api/workspaces/[id]/compile` - Synchronously compiles LaTeX templates to PDF output using local `pdflatex`.
 - `GET /api/workspaces/[id]/pdf` - Serves the compiled PDF output for preview.
 - `POST /api/workspaces/[id]/cards/[cardId]/generate` - Generates card content using AI grounding from the workspace corpus.
 - `POST /api/workspaces/[id]/review` - Performs a comprehensive AI review of the poster layout and content, producing deterministic lint rules and vLLM insights.

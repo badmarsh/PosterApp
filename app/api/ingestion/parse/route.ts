@@ -7,7 +7,8 @@ import { rateLimit } from "@/lib/rate-limit"
 import { jsonStringify } from "@/lib/db-helpers"
 import { generateCaption } from "@/lib/services/vision-service"
 import { extractBibTeX } from "@/lib/services/bibtex-service"
-import { auth } from "@/lib/auth"
+import { requireWorkspaceEditor } from "@/lib/auth"
+import { detectedPdf, MAX_UPLOAD_BYTES, SAFE_FILE_ID, SAFE_FILENAME, workspacePath } from "@/lib/workspace-files"
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 const MINERU_API_URL = process.env.MINERU_API_URL ?? "http://127.0.0.1:8001"
 
@@ -65,19 +66,10 @@ export async function POST(req: Request) {
     )
   }
 
-  const { userId } = await auth()
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  try { await requireWorkspaceEditor(workspaceId) } catch (error) { if (error instanceof Response) return error; return NextResponse.json({ error: { code: "AUTH_FAILED", message: "Could not authorize ingestion" } }, { status: 500 }) }
 
-  // Verify workspace ownership
-  const workspace = await prisma.workspace.findUnique({
-    where: { id: workspaceId, userId }
-  })
-  
-  if (!workspace) {
-    return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
-  }
+  const contentLength = Number(req.headers.get("content-length"))
+  if (!Number.isFinite(contentLength) || contentLength <= 0 || contentLength > MAX_UPLOAD_BYTES + 128 * 1024) return NextResponse.json({ error: "Upload is too large" }, { status: 413 })
 
   // -- Validate workspace exists ------------------------------------------
   const assetsDir = path.join(WORKSPACES_DIR, workspaceId, "assets")
@@ -105,6 +97,9 @@ export async function POST(req: Request) {
   }
 
   const uploadedFile = fileEntry as File
+  if (uploadedFile.size <= 0 || uploadedFile.size > MAX_UPLOAD_BYTES || !/\.pdf$/i.test(uploadedFile.name) || !detectedPdf(new Uint8Array(await uploadedFile.slice(0, 5).arrayBuffer()))) {
+    return NextResponse.json({ error: "Only valid PDF documents up to 25 MB are accepted" }, { status: 415 })
+  }
 
   let existingAssets: string[] = []
   const existingAssetsStr = formData.get("existingAssets")
@@ -235,10 +230,11 @@ export async function POST(req: Request) {
 
   // Save parsed markdown to sources/ directory for RAG
   const fileId = formData.get("fileId")
+  if (fileId && (typeof fileId !== "string" || !SAFE_FILE_ID.test(fileId))) return NextResponse.json({ error: "Invalid file ID" }, { status: 400 })
   if (fileId && typeof fileId === "string" && results?.md_content) {
-    const sourcesDir = path.join(WORKSPACES_DIR, workspaceId, "sources")
+    const sourcesDir = workspacePath(workspaceId, "sources")
     if (!fs.existsSync(sourcesDir)) fs.mkdirSync(sourcesDir, { recursive: true })
-    await fs.promises.writeFile(path.join(sourcesDir, `${fileId}.md`), results.md_content)
+    await fs.promises.writeFile(workspacePath(workspaceId, "sources", `${fileId}.md`), results.md_content.slice(0, 5_000_000))
 
     // Auto-extract references to BibTeX
     await extractBibTeX(results.md_content, workspaceId)
@@ -261,12 +257,15 @@ export async function POST(req: Request) {
     const imageEntries = Object.entries(results.images).filter(([, v]) => typeof v === "string")
     await Promise.all(
       imageEntries.map(async ([filename, base64Data]) => {
-        const destPath = path.join(assetsDir, filename)
+        if (!SAFE_FILENAME.test(filename)) return
+        const destPath = workspacePath(workspaceId, "assets", filename)
         try {
           const base64Payload = (base64Data as string).includes(",")
             ? (base64Data as string).split(",")[1]
             : (base64Data as string)
-          await fs.promises.writeFile(destPath, Buffer.from(base64Payload, "base64"))
+          const image = Buffer.from(base64Payload, "base64")
+          if (image.byteLength > 10 * 1024 * 1024) return
+          await fs.promises.writeFile(destPath, image)
         } catch {
           // skip unwritable images
         }

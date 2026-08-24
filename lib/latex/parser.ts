@@ -22,39 +22,22 @@ function extractMath(input: string): { text: string; slots: MathSlot[] } {
 function restoreMath(text: string, slots: MathSlot[]): string {
   let result = text
   for (const { placeholder, original } of slots) {
-    result = result.split(placeholder).join(original)
-  }
-  return result
-}
-
-type MacroSlot = { placeholder: string; original: string }
-
-function extractMacros(input: string): { text: string; slots: MacroSlot[] } {
-  const slots: MacroSlot[] = []
-  let idx = 0
-
-  const text = input.replace(
-    /\\[a-zA-Z@]+(\{[^}]*\})*/g,
-    (match) => {
-      const placeholder = `\x00MACRO${idx++}\x00`
-      slots.push({ placeholder, original: match })
-      return placeholder
-    }
-  )
-
-  return { text, slots }
-}
-
-function restoreMacros(text: string, slots: MacroSlot[]): string {
-  let result = text
-  for (const { placeholder, original } of slots) {
-    result = result.split(placeholder).join(original)
+    const math = original.slice(original.startsWith("$$") ? 2 : 1, original.endsWith("$$") ? -2 : -1).trim()
+    // Math is opt-in and deliberately small: only common mathematical macros
+    // are accepted. Everything else is rendered as ordinary escaped text.
+    const allowed = new Set(["alpha", "beta", "gamma", "delta", "epsilon", "theta", "lambda", "mu", "pi", "sigma", "phi", "omega", "Gamma", "Delta", "Sigma", "Omega", "frac", "sqrt", "left", "right", "cdot", "times", "le", "ge", "neq", "approx", "in", "notin", "subset", "subseteq", "cap", "cup", "to", "gets", "rightarrow", "leftarrow", "Rightarrow", "Leftarrow", "text"])
+    const commands = [...math.matchAll(/\\([A-Za-z]+)/g)].map((match) => match[1])
+    const safe = /^[A-Za-z0-9\s+\-*/=<>^_{}()[\]|,.\\]+$/.test(math) && commands.every((command) => allowed.has(command))
+    result = result.split(placeholder).join(safe ? original : escapeLatex(original))
   }
   return result
 }
 
 export function escapeLatex(input: string): string {
   let text = input
+    .replace(/\\/g, "\\textbackslash{}")
+    .replace(/[{}]/g, (char) => char === "{" ? "\\{" : "\\}")
+    .replace(/\$/g, "\\$")
     .replace(/&/g, "\\&")
     .replace(/%/g, "\\%")
     .replace(/#/g, "\\#")
@@ -85,8 +68,7 @@ export function escapeLatex(input: string): string {
 
 export function parseMarkdownToLatex(input: string): string {
   const { text: afterMath, slots: mathSlots } = extractMath(input)
-  const { text: afterMacros, slots: macroSlots } = extractMacros(afterMath)
-  let text = escapeLatex(afterMacros)
+  let text = escapeLatex(afterMath)
 
   text = text.replace(/\*\*([^*\n]+)\*\*/g, "\\textbf{$1}")
   text = text.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "\\textit{$1}")
@@ -121,7 +103,6 @@ export function parseMarkdownToLatex(input: string): string {
   if (inList) outLines.push("\\end{itemize}")
 
   text = outLines.join("\n")
-  text = restoreMacros(text, macroSlots)
   text = restoreMath(text, mathSlots)
 
   return text

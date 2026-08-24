@@ -4,6 +4,7 @@ import path from "path"
 
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { workspacePath } from "@/lib/workspace-files"
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 
@@ -23,7 +24,7 @@ export async function GET(
   const workspace = await prisma.workspace.findUnique({ where: { id, userId }, select: { id: true } })
   if (!workspace) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  const filePath = path.join(WORKSPACES_DIR, id, "assets", ...filename)
+  const filePath = workspacePath(id, "assets", ...filename)
 
   // Prevent path traversal
   const resolved = path.resolve(filePath)
@@ -48,7 +49,6 @@ const ext = path.extname(resolved).toLowerCase()
     ".gif": "image/gif",
     ".webp": "image/webp",
     ".pdf": "application/pdf",
-    ".svg": "image/svg+xml",
   }
   const contentType = map[ext] || "image/png"
 
@@ -56,6 +56,8 @@ const ext = path.extname(resolved).toLowerCase()
     headers: {
       "Content-Type": contentType,
       "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Disposition": "inline",
     },
   })
 }

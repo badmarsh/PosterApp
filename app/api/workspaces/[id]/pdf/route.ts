@@ -1,45 +1,37 @@
-import { NextResponse } from "next/server"
-import fs from "fs"
+import fs from "fs/promises"
 import path from "path"
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { NextResponse } from "next/server"
+import { requireWorkspaceAccess } from "@/lib/auth"
 
-const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
+const ROOT = path.join(process.cwd(), "workspaces")
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-
-  // Validate id to prevent path traversal
-  if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
-    return NextResponse.json({ error: "Invalid workspace id" }, { status: 400 })
-  }
-
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-  const owned = await prisma.workspace.findUnique({ where: { id, userId } })
-  if (!owned) return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
-
-  const pdfPath = path.join(WORKSPACES_DIR, id, "main.pdf")
-
-  if (!fs.existsSync(pdfPath)) {
-    return NextResponse.json({ error: "PDF not found — compile first" }, { status: 404 })
-  }
-
   try {
-    const buffer = await fs.promises.readFile(pdfPath)
-    return new Response(buffer, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Length": String(buffer.byteLength),
-        "Cache-Control": "no-store",
-      },
-    })
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    await requireWorkspaceAccess(id)
+    const file = path.join(ROOT, id, "main.pdf")
+    const stat = await fs.stat(file).catch(() => null)
+    if (!stat?.isFile()) return NextResponse.json({ error: { code: "PDF_NOT_FOUND", message: "PDF not found — compile first" } }, { status: 404 })
+    const range = req.headers.get("range")
+    let start = 0
+    let end = stat.size - 1
+    if (range) {
+      const match = /^bytes=(\d*)-(\d*)$/.exec(range)
+      if (!match) return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${stat.size}` } })
+      start = match[1] ? Number(match[1]) : 0
+      end = match[2] ? Number(match[2]) : end
+      if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= stat.size) return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${stat.size}` } })
+      end = Math.min(end, stat.size - 1)
+    }
+    const length = end - start + 1
+    const handle = await fs.open(file, "r")
+    const body = new Uint8Array(length)
+    try { await handle.read(body, 0, length, start) } finally { await handle.close() }
+    return new Response(body, { status: range ? 206 : 200, headers: {
+      "Content-Type": "application/pdf", "Content-Length": String(length), "Accept-Ranges": "bytes", "Content-Range": range ? `bytes ${start}-${end}/${stat.size}` : "", "Cache-Control": "private, no-store",
+    } })
+  } catch (error) {
+    if (error instanceof Response) return error
+    return NextResponse.json({ error: { code: "PDF_READ_FAILED", message: "Could not read PDF" } }, { status: 500 })
   }
 }

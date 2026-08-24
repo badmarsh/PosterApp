@@ -6,8 +6,9 @@ import "react-pdf/dist/Page/AnnotationLayer.css"
 import "react-pdf/dist/Page/TextLayer.css"
 import { Loader2 } from "lucide-react"
 
-// Load the pdf.js worker from CDN — avoids bundler / public-dir hassle
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`
+// Keep the worker version coupled to react-pdf/pdfjs; no third-party CDN or
+// external script is involved in rendering private documents.
+pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString()
 
 interface PdfViewerProps {
   /** PDF binary data (Uint8Array) */
@@ -29,6 +30,8 @@ export function PdfViewer({
   const containerRef = useRef<HTMLDivElement>(null)
   const [numPages, setNumPages] = useState(0)
   const [containerWidth, setContainerWidth] = useState<number>(0)
+  const [windowStart, setWindowStart] = useState(1)
+  const WINDOW_SIZE = 5
 
   useEffect(() => {
     const el = containerRef.current
@@ -40,16 +43,17 @@ export function PdfViewer({
     return () => observer.disconnect()
   }, [])
 
-  // Memoize the file object so react-pdf doesn't re-parse on every render
+  // Keep the original buffer: copying a PDF here doubles memory use. A small
+  // fingerprint makes a replacement with identical byte length observable.
   const file = useMemo(() => {
-    const pdfData =
-      data instanceof Uint8Array ? data : new Uint8Array(Object.values(data))
-    return { data: pdfData.slice() }
+    const fingerprint = `${data.byteLength}:${Array.from(data.subarray(0, 16)).join(",")}:${Array.from(data.subarray(-16)).join(",")}`
+    return { data, fingerprint }
   }, [data])
 
   const handleLoadSuccess = useCallback(
     ({ numPages: n }: { numPages: number }) => {
       setNumPages(n)
+      setWindowStart(1)
       onLoadSuccess?.(n)
     },
     [onLoadSuccess],
@@ -68,6 +72,7 @@ export function PdfViewer({
       className="absolute inset-0 flex flex-col items-center gap-2 overflow-auto p-4"
     >
       <Document
+        key={file.fingerprint}
         file={file}
         onLoadSuccess={handleLoadSuccess}
         onLoadError={handleError}
@@ -83,20 +88,19 @@ export function PdfViewer({
           </div>
         }
       >
-        {Array.from({ length: numPages }, (_, i) => (
-          <Page
-            key={`page-${i + 1}`}
-            pageNumber={i + 1}
+        {Array.from({ length: numPages }, (_, i) => {
+          const page = i + 1
+          const visible = page >= windowStart && page < windowStart + WINDOW_SIZE
+          return visible ? <Page
+            key={`page-${page}`}
+            pageNumber={page}
             scale={scale === "auto" ? undefined : scale}
             width={scale === "auto" && containerWidth ? containerWidth : undefined}
             className="mb-4 shadow-lg"
-            loading={
-              <div className="flex h-32 items-center justify-center">
-                <Loader2 className="size-4 animate-spin text-muted-foreground" />
-              </div>
-            }
-          />
-        ))}
+            onRenderSuccess={() => { if (page === windowStart + WINDOW_SIZE - 1 && page < numPages) setWindowStart((current) => Math.min(current + WINDOW_SIZE, numPages)) }}
+            loading={<div className="flex h-32 items-center justify-center"><Loader2 className="size-4 animate-spin text-muted-foreground" /></div>}
+          /> : <div key={`placeholder-${page}`} className="mb-4 h-[600px] w-full max-w-[900px]" aria-label={`PDF page ${page} not yet rendered`} />
+        })}
       </Document>
     </div>
   )

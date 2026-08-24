@@ -1,6 +1,5 @@
 import type { EditorSlice, UiSlice } from "./types"
 import type { AgentEvent } from "@/lib/poster-types"
-import { generateFullTemplate } from "@/lib/latex"
 import { apiFetch } from "@/lib/api-fetch"
 
 function makeEvent(e: Omit<AgentEvent, "id" | "ts" | "createdAt">): AgentEvent {
@@ -110,14 +109,13 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
         const project = get().project
         const activeOutput = project.outputs?.find(o => o.id === project.activeOutputId) || project.outputs?.[0]
         if (!activeOutput) throw new Error("No active output config")
-        const tex = generateFullTemplate(project, activeOutput, project.id)
         
         get().updateEvent(evId, { detail: `Attempt ${attempts}/${MAX_ATTEMPTS}: Compiling...` })
         
         const res = await apiFetch(`/api/workspaces/${project.id}/compile`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tex }),
+          body: JSON.stringify({}),
         })
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => "")}`)
         const data: { ok: boolean; log: string } = await res.json()

@@ -80,6 +80,17 @@ class JobQueue {
     }
   }
 
+  cancelAll() {
+    this.queue.forEach((item) => {
+      if (item.job.status === "queued" || item.job.status === "running") {
+        item.job.status = "cancelled"
+      }
+    })
+    this.controllers.forEach((controller) => controller.abort())
+    this.controllers.clear()
+    this.notify()
+  }
+
   getJobs(): Job[] {
     return this.queue.map((q) => ({ ...q.job }))
   }

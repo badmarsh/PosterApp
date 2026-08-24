@@ -21,17 +21,28 @@ describe('project-slice', () => {
 
   it('keeps edits with the output that owns them across output switches', () => {
     const store = createEditorStore();
-    const posterId = store.getState().project.activeOutputId;
+    
+    // Add a new output first since sampleProject only has one
+    store.getState().addOutput('slides', 'metropolis');
+    const newOutputId = store.getState().project.activeOutputId;
+    
+    // Switch back to the original output
+    const posterId = store.getState().project.outputs![0].id;
+    store.getState().switchOutput(posterId);
     const posterCardId = store.getState().project.cards[0].id;
 
+    // Update the card in the poster output
     store.getState().updateCard(posterCardId, { title: 'Poster-only change' });
-    store.getState().switchOutput('out_slides_metropolis');
-    expect(store.getState().project.cards[0].id).toBe('sl_title');
+    
+    // Switch to the new slides output
+    store.getState().switchOutput(newOutputId);
+    expect(store.getState().project.cards[0].id).not.toBe(posterCardId);
 
+    // Switch back to poster output and verify the change persisted
     store.getState().switchOutput(posterId);
     expect(store.getState().project.cards.find((card) => card.id === posterCardId)?.title)
       .toBe('Poster-only change');
-    expect(store.getState().project.outputs.find((output) => output.id === posterId)?.cards
+    expect(store.getState().project.outputs?.find((output) => output.id === posterId)?.cards
       .find((card) => card.id === posterCardId)?.title).toBe('Poster-only change');
   });
 });

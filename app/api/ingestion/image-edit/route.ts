@@ -4,6 +4,7 @@ import path from "path"
 import sharp from "sharp"
 import { nextVersionedPath } from "@/lib/asset-versioning"
 import { requireWorkspaceOwner } from "@/lib/auth"
+import { rateLimit } from "@/lib/rate-limit"
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 
@@ -43,6 +44,12 @@ function resolveAssetPath(assetUrl: string): string | null {
 // ---------------------------------------------------------------------------
 
 export async function POST(req: Request) {
+  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
+  const { allowed, retryAfterMs } = rateLimit(ip, 10, 60_000)
+  if (!allowed) {
+    return NextResponse.json({ error: 'Rate limited', retryAfterMs }, { status: 429, headers: { 'Retry-After': Math.ceil(retryAfterMs / 1000).toString() } })
+  }
+
   let body: ImageEditRequest
   try {
     body = (await req.json()) as ImageEditRequest

@@ -26,6 +26,36 @@ model Workspace {
   assets       Asset[]
   ingestFiles  IngestFile[]
   snapshots    WorkspaceSnapshot[]
+  members      WorkspaceMember[]
+  collabTickets CollaborationTicket[]
+}
+
+/// Access is deliberately modelled separately from Clerk.  The userId field above
+/// remains the backwards-compatible owner reference for existing workspaces.
+model WorkspaceMember {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  role        String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model CollaborationTicket {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, userId, expiresAt])
 }
 
 model Output {
