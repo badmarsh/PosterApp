@@ -161,8 +161,77 @@ export const sampleProject: Project = {
       ]
     }
   ],
-  assets: [],
-  ingestFiles: []
+  assets: [
+    {
+      id: "asset_img_1",
+      fileId: "file_1",
+      filename: "architecture_fig_1.png",
+      url: "https://images.unsplash.com/photo-1620825937374-87fc1d62c289?w=400&q=80",
+      kind: "figure",
+      page: 3,
+      confidence: "high",
+      caption: "System Architecture: Recurrent state-space model mapping high-dimensional inputs to latent distribution.",
+      assignedCardId: "poster_card_3",
+      assignedSlot: "figure1"
+    },
+    {
+      id: "asset_img_2",
+      fileId: "file_1",
+      filename: "results_plot.png",
+      url: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&q=80",
+      kind: "figure",
+      page: 6,
+      confidence: "high",
+      caption: "Success rates across 6 simulated tasks.",
+    },
+    {
+      id: "asset_txt_1",
+      fileId: "file_1",
+      kind: "text",
+      page: 1,
+      confidence: "high",
+      heading: "Abstract",
+      snippet: "The ability to accurately model latent dynamics is critical in modern robotic environments. In this paper, we explore a novel approach for combining hindsight relabeling with continuous reinforcement learning...",
+      assignedCardId: "poster_card_1",
+      assignedSlot: "bullets"
+    },
+    {
+      id: "asset_eq_1",
+      fileId: "file_1",
+      kind: "equation",
+      page: 2,
+      confidence: "medium",
+      snippet: "\\mathcal{L}(\\theta, \\phi) = \\mathbb{E}_{q_\\phi(z|x)} [\\log p_\\theta(x|z)] - D_{\\text{KL}}(q_\\phi(z|x) || p(z))",
+      assignedCardId: "poster_card_2",
+      assignedSlot: "equation"
+    },
+    {
+      id: "asset_table_1",
+      fileId: "file_1",
+      kind: "table",
+      page: 5,
+      confidence: "high",
+      caption: "Success rates across tasks.",
+      tableRows: [
+        ["Task", "Baseline", "Ours"],
+        ["Push", "89%", "95%"],
+        ["Stack", "55%", "82%"],
+        ["CableRoute", "30%", "78%"]
+      ],
+      assignedCardId: "poster_card_4",
+      assignedSlot: "table"
+    }
+  ],
+  ingestFiles: [
+    {
+      id: "file_1",
+      name: "latent_dynamics_coRL.pdf",
+      size: 4500000,
+      method: "MinerU",
+      status: "done",
+      progress: 100,
+    }
+  ]
 }
 
 // ensure cards fallback matches the active output for legacy code
