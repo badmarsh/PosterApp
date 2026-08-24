@@ -226,23 +226,6 @@ export function StructureSidebar() {
   return (
     <aside className="flex h-full w-full shrink-0 flex-col border-r border-border bg-sidebar lg:w-72">
       <div className="flex flex-col gap-2 border-b border-border p-2.5">
-        <Select
-          value={project.id}
-          onValueChange={(v) => switchProject(String(v))}
-          items={Object.fromEntries(workspaces.map((p) => [p.id, p.name]))}
-        >
-          <SelectTrigger size="sm" className="w-full bg-card">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {workspaces.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         <div className="rounded-md border border-border bg-card p-2">
           <p className="text-[11px] font-medium leading-tight text-pretty">
             {project.posterTitle}
@@ -263,27 +246,6 @@ export function StructureSidebar() {
               </dd>
             </div>
           </dl>
-        </div>
-
-        <div className="flex gap-1.5">
-          <Button
-            variant="outline"
-            size="xs"
-            className="flex-1 gap-1"
-            onClick={newProject}
-          >
-            <FilePlus2 className="size-3" />
-            New
-          </Button>
-          <Button
-            variant="outline"
-            size="xs"
-            className="flex-1 gap-1"
-            onClick={duplicateProject}
-          >
-            <Copy className="size-3" />
-            Duplicate
-          </Button>
         </div>
 
         <Button

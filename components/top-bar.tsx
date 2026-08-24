@@ -93,7 +93,7 @@ export function TopBar({
   onToggleAgent,
   onOpenWorkspaceSelector,
 }: TopBarProps) {
-  const { project, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen } = useEditor(
+  const { project, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen, collabEnabled, setCollabEnabled } = useEditor(
     useShallow((s) => ({
       project: s.project,
       aiReview: s.aiReview,
@@ -108,6 +108,8 @@ export function TopBar({
       toggleLatexSource: s.toggleLatexSource,
       isHistoryOpen: s.isHistoryOpen,
       setIsHistoryOpen: s.setIsHistoryOpen,
+      collabEnabled: s.collabEnabled,
+      setCollabEnabled: s.setCollabEnabled,
     }))
   )
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
@@ -329,6 +331,15 @@ export function TopBar({
           />
           <TooltipContent>Save History</TooltipContent>
         </Tooltip>
+
+        <Button
+          variant={collabEnabled ? "default" : "outline"}
+          size="sm"
+          className={cn("h-8 gap-1.5 mx-2", collabEnabled ? "bg-green-600 hover:bg-green-700 text-white" : "text-muted-foreground")}
+          onClick={() => setCollabEnabled(!collabEnabled)}
+        >
+          Live Collab {collabEnabled ? "ON" : "OFF"}
+        </Button>
         
         <div className="flex -space-x-2 mr-2">
           {collaborators.map(c => (

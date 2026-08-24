@@ -17,7 +17,7 @@ const { setupWSConnection } = require("y-websocket/bin/utils")
 const dev = process.env.NODE_ENV !== "production"
 const port = parseInt(process.env.PORT || "3333", 10)
 
-const app = next({ dev, port })
+const app = next({ dev, port, turbopack: false })
 const handle = app.getRequestHandler()
 
 /** Verify a Clerk session token and return the userId, or null if invalid. */

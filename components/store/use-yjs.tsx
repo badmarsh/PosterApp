@@ -20,9 +20,15 @@ export function useYjs(workspaceId: string) {
   const { user } = useUser()
   const lastCursorRef = useRef<number>(0)
 
+  const collabEnabled = store(s => s.collabEnabled)
+
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_YJS_WS_URL) return
     if (!workspaceId) return
+    if (!collabEnabled) {
+      store.getState().setYjsStatus("disconnected")
+      return
+    }
 
     let provider: WebsocketProvider | null = null
     let ydoc: Y.Doc | null = null
@@ -159,5 +165,5 @@ export function useYjs(workspaceId: string) {
       ;(ydoc as any)?._cleanup?.()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId, store])
+  }, [workspaceId, store, collabEnabled])
 }

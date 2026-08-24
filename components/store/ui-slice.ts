@@ -67,6 +67,8 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
   
   collaborators: [],
   setCollaborators: (c) => set({ collaborators: c }),
+  collabEnabled: false,
+  setCollabEnabled: (v) => set({ collabEnabled: v }),
   yjsStatus: "disconnected",
   setYjsStatus: (s) => set({ yjsStatus: s }),
 
@@ -120,7 +122,10 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => "")}`)
         const data: { ok: boolean; log: string } = await res.json()
 
-        if (get().project.id !== capturedWorkspaceId) return
+        if (get().project.id !== capturedWorkspaceId) {
+          get().updateEvent(evId, { status: "error", title: "Canceled", detail: "Workspace changed during compilation." })
+          return
+        }
 
         set((s) => {
           s.compileLog = data.log ?? ""
