@@ -26,17 +26,12 @@ test.describe('Features & Regression Tests', () => {
   author = {Smith, John},
   year = {2020}
 }`;
-    // Get cookies to pass to the API request
-    const cookies = await page.context().cookies();
-    const clerkCookie = cookies.find(c => c.name === '__session')?.value;
-    
-    const putRes = await request.put(`/api/workspaces/${wsId}/bib`, {
-      headers: { 'Cookie': `__session=${clerkCookie}` },
+    const putRes = await page.request.put(`/api/workspaces/${wsId}/bib`, {
       data: { bib: initialBib }
     });
     expect(putRes.ok()).toBeTruthy();
 
-    const res = await request.get(`/api/workspaces/${wsId}/bib`, { headers: { 'Cookie': `__session=${clerkCookie}` } });
+    const res = await page.request.get(`/api/workspaces/${wsId}/bib`);
     const data = await res.json();
     expect(data.bib).toContain('A study on nothing');
   });

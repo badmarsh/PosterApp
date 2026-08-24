@@ -2,6 +2,13 @@
 const nextConfig = {
   images: {
     unoptimized: true,
+  },
+  serverExternalPackages: ["yjs"],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb'
+    },
+    proxyClientMaxBodySize: '50mb'
   }
 }
 

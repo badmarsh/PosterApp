@@ -26,7 +26,7 @@ export async function generateCaption(base64Image: string, context: string): Pro
           }
         ]
       }),
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(5000)
     })
 
     if (!response.ok) return { caption: "", snippet: "" }

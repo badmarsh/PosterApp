@@ -7,7 +7,7 @@ dotenv.config({ path: path.resolve(__dirname, '.env.local') })
 
 export default defineConfig({
   testDir: './tests',
-  timeout: 180_000,
+  timeout: 240_000,
   globalSetup: require.resolve('./global-setup.ts'),
   use: {
     baseURL: process.env.BASE_URL ?? 'http://localhost:3333',

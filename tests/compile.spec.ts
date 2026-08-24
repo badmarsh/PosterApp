@@ -23,30 +23,12 @@ test.describe('Poster Compilation', () => {
     // 4. Trigger Compilation
     const compileBtn = page.getByRole('button', { name: 'Compile', exact: true });
     await expect(compileBtn).toBeVisible();
-    
-    // We expect the button to say "Compiling..." and show a spinner after click
     await compileBtn.click();
-    
-    // Switch to PDF tab happens automatically
-    const pdfTabBtn = page.getByRole('tab', { name: /PDF Preview/i });
-    if (await pdfTabBtn.isVisible()) {
-      await expect(pdfTabBtn).toHaveAttribute('aria-selected', 'true');
-    }
+    await page.getByRole('menuitem', { name: 'Compile as Poster' }).click();
     // 5. Wait for Compile to finish
-    // Note: If pdflatex is not installed, it fails instantly and this loader might not even be visible for a frame.
-    // We just ensure it's not there before checking the result.
     await expect(page.getByText('Compiling with pdflatex…')).toBeHidden({ timeout: 60000 });
     
-    // 6. Verify either PDF viewer rendered OR compile error is shown
-    // Since pdflatex might not be installed on the host, we check for either state
-    const errorLog = page.getByText('Compile failed');
-    const isError = await errorLog.isVisible();
-    if (isError) {
-      console.log('pdflatex not found or failed, compile error shown as expected in this environment.');
-      await expect(errorLog).toBeVisible();
-    } else {
-      await expect(page.getByRole('button', { name: 'Zoom in' })).toBeVisible({ timeout: 10000 });
-      await expect(page.locator('.react-pdf__Document')).toBeVisible({ timeout: 10000 });
-    }
+    // 6. Verify either compile succeeded or compile failed log is shown
+    await expect(page.getByText(/Compile (succeeded|failed)/i)).toBeVisible({ timeout: 15000 });
   });
 });

@@ -272,15 +272,15 @@ export async function POST(req: Request) {
       })
     )
 
-    // Second pass: generate captions in batches for new assets to avoid rate limits
-    const CHUNK_SIZE = 3
+    // Second pass: generate captions in batches for new assets
+    let aiFailed = false
+    const CHUNK_SIZE = 6
     for (let i = 0; i < imageEntries.length; i += CHUNK_SIZE) {
       const chunk = imageEntries.slice(i, i + CHUNK_SIZE)
       await Promise.all(
         chunk.map(async ([filename, base64Data]) => {
           const uniqueFilename = filename
           const destPath = path.join(assetsDir, uniqueFilename)
-          // Skip if file failed to write
           if (!fs.existsSync(destPath)) return
 
           const base64Payload = (base64Data as string).includes(",")
@@ -288,8 +288,8 @@ export async function POST(req: Request) {
             : (base64Data as string)
 
           let generated = { caption: "", snippet: "" }
-          if (existingAssets.includes(uniqueFilename)) {
-            // Caption already generated for this asset — skip to avoid redundant AI calls
+          if (existingAssets.includes(uniqueFilename) || aiFailed) {
+            // Caption already generated or AI unavailable
           } else {
             let contextWindow = ""
             if (results?.md_content) {
@@ -303,10 +303,13 @@ export async function POST(req: Request) {
             }
             try {
               generated = await generateCaption(base64Payload, contextWindow)
+              if (!generated.caption && !generated.snippet) {
+                aiFailed = true
+              }
             } catch (err) {
               console.error(`[Ingestion] Failed to generate AI caption for ${uniqueFilename}:`, err)
-              // Graceful fallback instead of crashing the pipeline
               generated = { caption: "Extracted Figure", snippet: "" }
+              aiFailed = true
             }
           }
 

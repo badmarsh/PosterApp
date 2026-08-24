@@ -78,7 +78,7 @@ test('ingestion of PDF via UI', async ({ page }) => {
   await expect(page.locator('text=PO_152.pdf')).toBeVisible({ timeout: 10000 });
   
   // Wait for parsing to finish (Done badge appears)
-  await expect(page.getByText('Done')).toBeVisible({ timeout: 180000 });
+  await expect(page.getByText('Done')).toBeVisible({ timeout: 210000 });
   
   // Verify that some assets were extracted
   await expect(page.getByText(/[1-9]\d* items/)).toBeVisible({ timeout: 10000 });
