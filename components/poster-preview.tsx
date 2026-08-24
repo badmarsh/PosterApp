@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, memo, useMemo, useEffect } from "react"
-import { ChevronDown, ChevronUp, ImageIcon, List, Table2, FileDown, Loader2, ChevronDown as ChevronDownIcon, Plus, GripVertical, Settings2, LayoutTemplate, FileText, Sparkles, MonitorPlay, BookOpen, PanelTopOpen, X } from "lucide-react"
+import { ChevronDown, ChevronUp, ImageIcon, List, Table2, FileDown, Loader2, ChevronDown as ChevronDownIcon, Plus, GripVertical, Settings2, LayoutTemplate, FileText, Sparkles, RefreshCw, Play, MonitorPlay, BookOpen, PanelTopOpen, X } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import {
   DndContext,
@@ -156,8 +156,8 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
 // OutputTabBar — row of output tabs + add button
 // ---------------------------------------------------------------------------
 function OutputTabBar() {
-  const { project, switchOutput } = useEditor(
-    useShallow((s) => ({ project: s.project, switchOutput: s.switchOutput }))
+  const { project, switchOutput, deleteOutput } = useEditor(
+    useShallow((s) => ({ project: s.project, switchOutput: s.switchOutput, deleteOutput: s.deleteOutput }))
   )
   const [addOpen, setAddOpen] = useState(false)
   const outputs = project.outputs ?? []
@@ -168,19 +168,29 @@ function OutputTabBar() {
         {outputs.map((o) => {
           const isActive = o.id === project.activeOutputId
           return (
-            <button
-              key={o.id}
-              onClick={() => switchOutput(o.id)}
-              className={cn(
-                "flex items-center gap-1.5 rounded px-2.5 py-1 text-[11px] font-medium whitespace-nowrap transition-colors",
-                isActive
-                  ? "bg-background border border-border shadow-sm text-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/60",
+            <div key={o.id} className="relative group flex items-center">
+              <button
+                onClick={() => switchOutput(o.id)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded px-2.5 py-1 text-[11px] font-medium whitespace-nowrap transition-colors pr-6",
+                  isActive
+                    ? "bg-background border border-border shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/60",
+                )}
+              >
+                <OutputTypeIcon type={o.outputType as OutputType} className="size-3" />
+                {OUTPUT_TYPE_LABELS[o.outputType as OutputType]}
+              </button>
+              {outputs.length > 1 && !isActive && (
+                <button
+                  onClick={() => deleteOutput(o.id)}
+                  className="absolute right-1 opacity-0 group-hover:opacity-100 p-0.5 rounded-sm hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                  aria-label="Delete output"
+                >
+                  <X className="size-3" />
+                </button>
               )}
-            >
-              <OutputTypeIcon type={o.outputType as OutputType} className="size-3" />
-              {OUTPUT_TYPE_LABELS[o.outputType as OutputType]}
-            </button>
+            </div>
           )
         })}
         <button
@@ -948,53 +958,56 @@ export function PosterPreview() {
         </div>
 
         {/* Right side: compile button */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5">
-            <Switch
-              id="auto-compile"
-              checked={autoCompile}
-              onCheckedChange={setAutoCompile}
-            />
-            <label
-              htmlFor="auto-compile"
-              className="text-[11px] font-medium text-muted-foreground cursor-pointer"
-            >
-              Live Preview
-            </label>
-          </div>
+        <div className="flex items-center h-7 rounded border border-border bg-card shadow-sm overflow-hidden">
+          <button
+            onClick={() => {
+              if (autoCompile) {
+                setAutoCompile(false)
+              } else {
+                compileProject(lastCompileFormat)
+              }
+            }}
+            disabled={compiling && !autoCompile}
+            className={cn(
+              "flex items-center gap-1.5 px-3 h-full text-[11px] font-semibold transition-colors disabled:opacity-50",
+              autoCompile 
+                ? "bg-primary/10 text-primary hover:bg-primary/20" 
+                : "bg-card text-foreground hover:bg-muted",
+              (!autoCompile && compileOk === true) && "text-emerald-600 dark:text-emerald-400",
+              (!autoCompile && compileOk === false) && "text-destructive"
+            )}
+          >
+            {autoCompile ? (
+              <>
+                <RefreshCw className={cn("size-3", compiling && "animate-spin")} />
+                Live Preview
+              </>
+            ) : (
+              <>
+                {compiling ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />}
+                Compile
+              </>
+            )}
+          </button>
+          <div className="w-[1px] h-full bg-border" />
           <DropdownMenu>
             <DropdownMenuTrigger
-              render={
-                <button
-                  type="button"
-                  disabled={compiling || isSwitchingProject}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded border border-border bg-card px-2.5 py-1 text-[11px] font-semibold transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50",
-                    compileOk === true && "border-emerald-500/60 text-emerald-600 dark:text-emerald-400",
-                    compileOk === false && "border-destructive/60 text-destructive",
-                  )}
-                >
-                  {compiling ? (
-                    <Loader2 className="size-3 animate-spin" />
-                  ) : (
-                    <FileDown className="size-3" />
-                  )}
-                  {compiling ? "Compiling…" : "Compile"}
-                </button>
-              }
-            />
+              disabled={compiling || isSwitchingProject}
+              className={cn(
+                "flex items-center justify-center px-1.5 h-full transition-colors",
+                autoCompile ? "bg-primary/10 text-primary hover:bg-primary/20" : "bg-card hover:bg-muted text-muted-foreground"
+              )}
+            >
+              <ChevronDownIcon className="size-3" />
+            </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => handleCompile("poster")}>
-                <LayoutTemplate className="text-muted-foreground" />
-                Compile as Poster
+              <DropdownMenuItem onClick={() => setAutoCompile(true)} className="gap-2">
+                <RefreshCw className="size-3 text-muted-foreground" />
+                Live Preview Mode
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleCompile("slides")}>
-                <MonitorPlay className="text-muted-foreground" />
-                Compile as Slides
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleCompile("paper")}>
-                <FileText className="text-muted-foreground" />
-                Compile as Paper
+              <DropdownMenuItem onClick={() => setAutoCompile(false)} className="gap-2">
+                <Play className="size-3 text-muted-foreground" />
+                Manual Compile Mode
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -66,7 +66,11 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       get().setLastWorkspaceId(id)
 
       // Load UI history
-      get().hydrateUi(agentEvents, chatMessages)
+      // Any event that was left "running" from a previous session is definitely dead now.
+      const safeEvents = agentEvents.map((e: any) => 
+        e.status === "running" ? { ...e, status: "error", detail: "Interrupted" } : e
+      )
+      get().hydrateUi(safeEvents, chatMessages)
 
       get().pushEvent({
         kind: "info",
@@ -110,6 +114,22 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       s.selectedCardId = null
       s.isDirty = true
     }
+  }),
+
+  deleteOutput: (outputId) => set((s) => {
+    if (!s.project.outputs) return
+    const index = s.project.outputs.findIndex(o => o.id === outputId)
+    if (index === -1) return
+    s.project.outputs.splice(index, 1)
+    if (s.project.activeOutputId === outputId) {
+      const nextOutput = s.project.outputs[0]
+      if (nextOutput) {
+        s.project.activeOutputId = nextOutput.id
+        syncActiveCards(s.project)
+        s.selectedCardId = null
+      }
+    }
+    s.isDirty = true
   }),
 
   selectCard: (id) => set((s) => { s.selectedCardId = id }),

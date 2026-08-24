@@ -110,6 +110,10 @@ export class StandardPaperGenerator implements LatexGenerator {
   outputType = "paper" as const
   templateId = "article-twocol"
 
+  constructor(templateId = "article-twocol") {
+    this.templateId = templateId
+  }
+
   generateDocument(project: Project, outputConfig: OutputConfig, workspaceId = ""): string {
     const usedKeys = new Set<string>()
     for (const card of outputConfig.cards) {

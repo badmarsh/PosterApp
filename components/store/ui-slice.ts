@@ -73,6 +73,8 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
 
   isHistoryOpen: false,
   setIsHistoryOpen: (v) => set({ isHistoryOpen: v }),
+  isActionsOpen: false,
+  setIsActionsOpen: (v) => set({ isActionsOpen: v }),
 
   pushEvent: (e) => {
     const ev = makeEvent(e)

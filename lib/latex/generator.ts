@@ -14,20 +14,11 @@ export { assetUrlToLatexPath, generateLatexForCard }
 export function getGenerator(outputType: OutputType, templateId: string): LatexGenerator {
   const key = `${outputType}/${templateId}`
   
-  // Backward compatibility / Fallbacks
-  if (outputType === "paper") return new StandardPaperGenerator()
-  if (outputType === "slides") return new BeamerSlidesGenerator()
-  
-  switch (key) {
-    case "poster/atlas":
-      return new TikzPosterGenerator("atlas")
-    case "poster/minimal":
-      return new TikzPosterGenerator("minimal")
-    default:
-      // Fallback to atlas for unknown poster templates
-      if (outputType === "poster") return new TikzPosterGenerator("atlas")
-      throw new Error(`No generator found for ${key}`)
-  }
+  if (outputType === "paper") return new StandardPaperGenerator(templateId)
+  if (outputType === "slides") return new BeamerSlidesGenerator(templateId)
+  if (outputType === "poster") return new TikzPosterGenerator(templateId)
+
+  throw new Error(`No generator found for ${key}`)
 }
 
 /**

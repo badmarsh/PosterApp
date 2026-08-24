@@ -35,7 +35,6 @@ import {
 } from "@/components/ui/tooltip"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import type { Job } from "@/lib/job-queue"
 import type { AgentEvent } from "@/lib/poster-types"
@@ -66,7 +65,7 @@ function statusColor(status: AgentEvent["status"]) {
     case "running":
       return "text-primary"
     case "done":
-      return "text-chart-3"
+      return "text-muted-foreground"
     case "warning":
       return "text-chart-4"
     case "error":
@@ -202,12 +201,16 @@ function StatusStrip({
     running[running.length - 1] ?? agentEvents[agentEvents.length - 1]
   const ordered = useMemo(() => [...agentEvents].reverse(), [agentEvents])
   const [open, setOpen] = useState(false)
+  const [showAll, setShowAll] = useState(false)
 
   // Auto-open the strip when something is actively running
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (running.length > 0) setOpen(true)
   }, [running.length])
+
+  const visibleOrdered = showAll ? ordered : ordered.slice(0, 5)
+  const hiddenCount = ordered.length - visibleOrdered.length
 
   return (
     <div className="shrink-0 border-b border-border">
@@ -253,9 +256,17 @@ function StatusStrip({
           aria-live="polite"
           aria-label="Agent status timeline"
         >
-          {ordered.length ? (
-            ordered.map((e, i) => (
-              <EventRow key={e.id} event={e} last={i === ordered.length - 1} />
+          {hiddenCount > 0 && (
+            <button
+              onClick={() => setShowAll(true)}
+              className="w-full text-center py-1.5 mb-2 text-[10px] font-medium text-muted-foreground hover:bg-muted/50 rounded transition-colors"
+            >
+              Show older ({hiddenCount})
+            </button>
+          )}
+          {visibleOrdered.length ? (
+            visibleOrdered.map((e, i) => (
+              <EventRow key={e.id} event={e} last={i === visibleOrdered.length - 1} />
             ))
           ) : (
             <p className="py-2 text-center text-[11px] text-muted-foreground">
@@ -330,6 +341,9 @@ function AssistantTextContent() {
     return ""
   })
 
+  // Local state for applied fixes to quickly re-render
+  const [localApplied, setLocalApplied] = useState<Set<number>>(new Set())
+
   return (
     <div className="flex flex-col gap-2">
       <div className="prose prose-sm dark:prose-invert prose-p:leading-relaxed prose-pre:bg-card prose-pre:border prose-pre:border-border max-w-none text-[12px]">
@@ -341,28 +355,41 @@ function AssistantTextContent() {
         </ReactMarkdown>
       </div>
 
-      {fixes.map((fixContent, i) => (
-        <Button
-          key={i}
-          size="sm"
-          variant="outline"
-          className="mt-2 w-full h-auto py-2 whitespace-normal text-left justify-start gap-2 border-primary/50 bg-primary/5 text-primary hover:bg-primary/15"
-          onClick={() => {
-            if (selectedCardId) {
-              updateCard(selectedCardId, { content: fixContent })
-              pushEvent({
-                kind: "info",
-                status: "done",
-                title: "Fix applied",
-                detail: "Card content was updated by AI.",
-              })
-            }
-          }}
-        >
-          <Wrench className="size-4 shrink-0" />
-          <span>Aplikovať opravu na vybranú kartu</span>
-        </Button>
-      ))}
+      {fixes.map((fixContent, i) => {
+        const hash = fixContent.length + "_" + fixContent.slice(0, 20).replace(/\s+/g, '')
+        const isApplied = localApplied.has(i) || (typeof window !== "undefined" && localStorage.getItem(`fix_${hash}`) === "1")
+        
+        return (
+          <Button
+            key={i}
+            size="sm"
+            variant={isApplied ? "ghost" : "outline"}
+            disabled={isApplied}
+            className={cn(
+              "mt-2 w-full h-auto py-2 whitespace-normal text-left justify-start gap-2",
+              isApplied 
+                ? "bg-muted/30 text-muted-foreground border-transparent cursor-default" 
+                : "border-primary/50 bg-primary/5 text-primary hover:bg-primary/15"
+            )}
+            onClick={() => {
+              if (selectedCardId && !isApplied) {
+                updateCard(selectedCardId, { content: fixContent })
+                pushEvent({
+                  kind: "info",
+                  status: "done",
+                  title: "Fix applied",
+                  detail: "Card content was updated by AI.",
+                })
+                setLocalApplied(new Set(localApplied).add(i))
+                localStorage.setItem(`fix_${hash}`, "1")
+              }
+            }}
+          >
+            {isApplied ? <CheckCircle2 className="size-4 shrink-0" /> : <Wrench className="size-4 shrink-0" />}
+            <span>{isApplied ? "Oprava aplikovaná" : "Aplikovať opravu na vybranú kartu"}</span>
+          </Button>
+        )
+      })}
     </div>
   )
 }
@@ -459,68 +486,6 @@ function ChatThread() {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Jobs List
-// ---------------------------------------------------------------------------
-
-function JobsList({ jobs, onCancel }: { jobs: Job[]; onCancel: (id: string) => void }) {
-  if (jobs.length === 0) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center p-4 text-center">
-        <Loader2 className="size-5 mb-2 text-muted-foreground/30" />
-        <p className="text-sm font-medium text-muted-foreground">No active jobs</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex flex-1 flex-col overflow-y-auto p-3 gap-2">
-      {jobs.map((job) => (
-        <div key={job.id} className="flex flex-col gap-2 rounded-md border bg-card p-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold">{job.label}</span>
-            {job.status === "running" && (
-              <span className="flex items-center gap-1 text-[10px] text-primary font-medium">
-                <Loader2 className="size-3 animate-spin" />
-                Running
-              </span>
-            )}
-            {job.status === "queued" && (
-              <span className="text-[10px] text-muted-foreground font-medium">Queued</span>
-            )}
-            {job.status === "done" && (
-              <span className="text-[10px] text-green-500 font-medium">Done</span>
-            )}
-            {job.status === "cancelled" && (
-              <span className="text-[10px] text-muted-foreground font-medium">Cancelled</span>
-            )}
-            {job.status === "error" && (
-              <span className="text-[10px] text-destructive font-medium">Error</span>
-            )}
-          </div>
-
-          {(job.status === "running" || job.status === "queued") && (
-            <Progress value={job.progress ?? 0} className="h-1.5" />
-          )}
-
-          {job.error && (
-            <div className="text-[10px] text-destructive mt-1 bg-destructive/10 p-1.5 rounded-sm">
-              {job.error}
-            </div>
-          )}
-
-          {(job.status === "queued" || job.status === "running") && (
-            <div className="mt-1 flex justify-end">
-              <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" onClick={() => onCancel(job.id)}>
-                Cancel
-              </Button>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  )
-}
 
 // ---------------------------------------------------------------------------
 // AgentPanelInner — needs to be inside AssistantRuntimeProvider
@@ -552,42 +517,39 @@ function AgentPanelInner({
             AI Assistant
           </span>
         </div>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label="Collapse agent panel"
-          onClick={onCollapse}
-          className="hidden lg:inline-flex"
-        >
-          <PanelRightClose className="size-3.5" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            title="Vyčistiť históriu (Clear history)"
+            onClick={() => {
+              if (confirm("Naozaj chceš vymazať históriu tohto chatu a udalostí?")) {
+                useEditor.getState().hydrateUi([], [])
+                // Mark project as dirty to ensure the empty state is saved
+                useEditor.getState().updateProject({})
+              }
+            }}
+          >
+            <XCircle className="size-3.5 text-muted-foreground/70" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Collapse agent panel"
+            onClick={onCollapse}
+            className="hidden lg:inline-flex"
+          >
+            <PanelRightClose className="size-3.5" />
+          </Button>
+        </div>
       </div>
 
       {/* Status strip (collapsible event log) */}
       <StatusStrip agentEvents={agentEvents} generatingId={generatingId} />
 
-      <Tabs defaultValue="chat" className="flex flex-1 flex-col min-h-0">
-        <div className="px-3 py-2 border-b border-border">
-          <TabsList className="w-full h-8">
-            <TabsTrigger value="chat" className="flex-1 text-xs h-6">Chat</TabsTrigger>
-            <TabsTrigger value="jobs" className="flex-1 text-xs h-6">
-              Jobs
-              {jobs.filter(j => j.status === "running" || j.status === "queued").length > 0 && (
-                <span className="ml-1.5 flex size-4 items-center justify-center rounded-full bg-primary text-[9px] text-primary-foreground">
-                  {jobs.filter(j => j.status === "running" || j.status === "queued").length}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
-        </div>
-        <TabsContent value="chat" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden">
-          {/* Chat thread */}
-          <ChatThread />
-        </TabsContent>
-        <TabsContent value="jobs" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden">
-          <JobsList jobs={jobs} onCancel={onCancelJob} />
-        </TabsContent>
-      </Tabs>
+      <div className="flex-1 min-h-0 flex flex-col">
+        <ChatThread />
+      </div>
     </aside>
   )
 }

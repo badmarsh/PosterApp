@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { HelpModal } from "@/components/help-modal"
 import { HistoryPanel } from "@/components/history-panel"
+import { ActionsPanel } from "@/components/actions-panel"
 import { UserButton } from "@clerk/nextjs"
 import { ManageWorkspaces } from "@/components/manage-workspaces"
 import {
@@ -93,7 +94,7 @@ export function TopBar({
   onToggleAgent,
   onOpenWorkspaceSelector,
 }: TopBarProps) {
-  const { project, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen, collabEnabled, setCollabEnabled, duplicateProject, newProject } = useEditor(
+  const { project, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen, isActionsOpen, setIsActionsOpen, collabEnabled, setCollabEnabled, duplicateProject, newProject } = useEditor(
     useShallow((s) => ({
       project: s.project,
       aiReview: s.aiReview,
@@ -108,6 +109,8 @@ export function TopBar({
       toggleLatexSource: s.toggleLatexSource,
       isHistoryOpen: s.isHistoryOpen,
       setIsHistoryOpen: s.setIsHistoryOpen,
+      isActionsOpen: s.isActionsOpen,
+      setIsActionsOpen: s.setIsActionsOpen,
       collabEnabled: s.collabEnabled,
       setCollabEnabled: s.setCollabEnabled,
       duplicateProject: s.duplicateProject,
@@ -167,6 +170,24 @@ export function TopBar({
         <TooltipContent>Structure panel</TooltipContent>
       </Tooltip>
 
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("size-8", showLatexSource && "text-primary")}
+              onClick={toggleLatexSource}
+              aria-label="Toggle LaTeX Source View"
+              aria-pressed={showLatexSource}
+            >
+              <CodeIcon className="size-4" />
+            </Button>
+          }
+        />
+        <TooltipContent>Source code</TooltipContent>
+      </Tooltip>
+
       <div className="flex items-center gap-2">
         <div className="flex size-7 items-center justify-center rounded bg-primary text-primary-foreground">
           <FileCode2 className="size-4" />
@@ -211,44 +232,7 @@ export function TopBar({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {project.outputs && project.outputs.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="hidden h-6 rounded px-2 py-0 text-[10px] font-mono text-muted-foreground lg:flex"
-                >
-                  {project.outputs.find((o) => o.id === project.activeOutputId)?.outputType || "Output"}
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="start">
-              {project.outputs.map((o) => (
-                <DropdownMenuItem
-                  key={o.id}
-                  onClick={() => switchOutput(o.id)}
-                  className={cn("text-xs cursor-pointer", o.id === project.activeOutputId && "font-bold text-primary")}
-                >
-                  <span className="uppercase w-16 inline-block">{o.outputType}</span>
-                  <span className="text-muted-foreground ml-2">{o.title}</span>
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="text-xs cursor-pointer px-2 py-1.5 flex items-center justify-between">
-                  Convert Output...
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent>
-                  <DropdownMenuItem className="text-xs cursor-pointer" onClick={() => convertOutputAction(project.activeOutputId, "poster")}>To Poster</DropdownMenuItem>
-                  <DropdownMenuItem className="text-xs cursor-pointer" onClick={() => convertOutputAction(project.activeOutputId, "slides")}>To Slides</DropdownMenuItem>
-                  <DropdownMenuItem className="text-xs cursor-pointer" onClick={() => convertOutputAction(project.activeOutputId, "paper")}>To Paper</DropdownMenuItem>
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+
       </div>
 
       <div className="flex-1" />
@@ -269,42 +253,12 @@ export function TopBar({
         <Button
           variant="outline"
           size="sm"
-          className="h-8 gap-1.5 bg-blue-50/50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/40"
-          onClick={autoFillAllCardsAction}
-          aria-label="Generate All Cards"
+          className="h-8 gap-1.5"
+          onClick={() => setIsActionsOpen(!isActionsOpen)}
+          aria-label="Open Actions"
         >
           <Sparkles className="size-3.5" />
-          <span className="hidden md:inline">Generate All</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5"
-          onClick={aiReview}
-          aria-label="AI Poster review"
-        >
-          <Sparkles className="size-3.5" />
-          <span className="hidden md:inline">AI Review</span>
-        </Button>
-        <Button
-          size="sm"
-          className="h-8 gap-1.5"
-          onClick={() => exportTex()}
-          aria-label="Export as .tex file"
-        >
-          <Download className="size-3.5" />
-          <span className="hidden sm:inline">Export .tex</span>
-        </Button>
-
-        <Button
-          variant={showLatexSource ? "default" : "outline"}
-          size="sm"
-          className={cn("h-8 gap-1.5", showLatexSource ? "bg-primary/20 text-primary hover:bg-primary/30" : "")}
-          onClick={toggleLatexSource}
-          aria-label="Toggle LaTeX Source View"
-        >
-          <CodeIcon className="size-3.5" />
-          <span className="hidden sm:inline">Source</span>
+          <span className="hidden md:inline">Actions</span>
         </Button>
 
         <Button
@@ -376,6 +330,7 @@ export function TopBar({
       </div>
       <HelpModal open={isHelpOpen} onOpenChange={setIsHelpOpen} />
       <HistoryPanel />
+      <ActionsPanel />
     </header>
   )
 }

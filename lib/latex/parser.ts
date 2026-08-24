@@ -25,7 +25,7 @@ function restoreMath(text: string, slots: MathSlot[]): string {
     const math = original.slice(original.startsWith("$$") ? 2 : 1, original.endsWith("$$") ? -2 : -1).trim()
     // Math is opt-in and deliberately small: only common mathematical macros
     // are accepted. Everything else is rendered as ordinary escaped text.
-    const allowed = new Set(["alpha", "beta", "gamma", "delta", "epsilon", "theta", "lambda", "mu", "pi", "sigma", "phi", "omega", "Gamma", "Delta", "Sigma", "Omega", "frac", "sqrt", "left", "right", "cdot", "times", "le", "ge", "neq", "approx", "in", "notin", "subset", "subseteq", "cap", "cup", "to", "gets", "rightarrow", "leftarrow", "Rightarrow", "Leftarrow", "text"])
+    const allowed = new Set(["alpha", "beta", "gamma", "delta", "epsilon", "theta", "lambda", "mu", "pi", "sigma", "phi", "omega", "Gamma", "Delta", "Sigma", "Omega", "frac", "sqrt", "left", "right", "cdot", "times", "le", "ge", "neq", "approx", "in", "notin", "subset", "subseteq", "cap", "cup", "to", "gets", "rightarrow", "leftarrow", "Rightarrow", "Leftarrow", "text", "mathcal", "mathbb", "log", "exp", "sin", "cos", "tan", "sum", "prod", "int", "infty", "partial"])
     const commands = [...math.matchAll(/\\([A-Za-z]+)/g)].map((match) => match[1])
     const safe = /^[A-Za-z0-9\s+\-*/=<>^_{}()[\]|,.\\]+$/.test(math) && commands.every((command) => allowed.has(command))
     result = result.split(placeholder).join(safe ? original : escapeLatex(original))

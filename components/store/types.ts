@@ -33,6 +33,7 @@ export interface ProjectSlice {
 
   switchProject: (id: string) => Promise<void>
   switchOutput: (outputId: string) => void
+  deleteOutput: (outputId: string) => void
   getStatus: (card: Card) => ValidationLevel
   selectCard: (id: string | null) => void
   updateProject: (patch: Partial<Omit<Project, "id" | "cards">>) => void
@@ -107,6 +108,8 @@ export interface UiSlice {
 
   isHistoryOpen: boolean
   setIsHistoryOpen: (v: boolean) => void
+  isActionsOpen: boolean
+  setIsActionsOpen: (v: boolean) => void
 
   pendingAiPrompt: string | null
   setPendingAiPrompt: (prompt: string | null) => void
