@@ -65,9 +65,8 @@ model Output {
   outputType   String    // "poster" | "slides" | "paper"
   templateId   String    // e.g. "atlas", "beamer-metropolis", "article-twocol"
   title        String    // output-specific title (e.g. "My Poster Title")
-  themeColor   String?   // output-specific accent token, validated by the API
+  themeColor   String?   // output-specific accent token (hex, e.g. "#C8102E"), validated by the API
   isActive     Boolean   @default(false)
-  themeColor   String?   // optional theme color override (e.g. "blue", "#ff0000")
   cards        Card[]
 }
 
