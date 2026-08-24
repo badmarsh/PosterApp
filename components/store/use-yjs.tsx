@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react"
 import { useAuth, useUser } from "@clerk/nextjs"
 import * as Y from "yjs"
 import { WebsocketProvider } from "y-websocket"
-import { useEditorStoreInstance } from "@/components/editor-store"
+import { useEditorStoreInstance, useEditor } from "@/components/editor-store"
 import type { Card } from "@/lib/poster-types"
 import type { Collaborator } from "./types"
 import { jobQueue } from "@/lib/job-queue"
@@ -20,7 +20,7 @@ export function useYjs(workspaceId: string) {
   const { user } = useUser()
   const lastCursorRef = useRef<number>(0)
 
-  const collabEnabled = store(s => s.collabEnabled)
+  const collabEnabled = useEditor(s => s.collabEnabled)
 
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_YJS_WS_URL) return
