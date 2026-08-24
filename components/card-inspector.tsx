@@ -387,7 +387,13 @@ function ContentTab({ card }: { card: Card }) {
 }
 
 function TableTab({ card }: { card: Card }) {
-  const updateCard = useEditor((s) => s.updateCard)
+  const { updateCard, project } = useEditor(
+    useShallow((s) => ({
+      updateCard: s.updateCard,
+      project: s.project,
+    }))
+  )
+  const parsedTables = (project.assets || []).filter(a => a.kind === "table" && a.tableRows && a.tableRows.length > 0)
   const { table } = card
   const cols = table.rows[0]?.length ?? 0
   const enabled = card.pattern === "bullets-table"
@@ -427,6 +433,41 @@ function TableTab({ card }: { card: Card }) {
           This pattern does not render a table. Select <span className="font-mono">bullets-table</span> in Basics to include it.
         </p>
       )}
+
+      {enabled && parsedTables.length > 0 && (
+        <div className="flex flex-col gap-1.5 rounded-md border border-border bg-muted/20 p-2.5 mb-2">
+          <FieldLabel>Populate from parsed tables</FieldLabel>
+          <Select
+            value=""
+            onValueChange={(val) => {
+              if (!val) return
+              const asset = parsedTables.find(a => a.id === val)
+              if (asset && asset.tableRows) {
+                updateCard(card.id, {
+                  table: {
+                    hasHeader: true,
+                    caption: asset.caption ?? table.caption,
+                    rows: asset.tableRows,
+                  }
+                })
+                toast.success("Table populated from parsed asset")
+              }
+            }}
+          >
+            <SelectTrigger size="sm" className="w-full bg-card text-[11px] h-7">
+              <SelectValue placeholder="Select a parsed table..." />
+            </SelectTrigger>
+            <SelectContent>
+              {parsedTables.map(t => (
+                <SelectItem key={t.id} value={t.id} className="text-[11px]">
+                  {t.filename ? `${t.filename} - ` : ""} {t.caption || `Table from p.${t.page}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Switch

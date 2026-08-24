@@ -64,6 +64,7 @@ export const OutputSchema = z.object({
   outputType: z.enum(["poster", "slides", "paper"]),
   templateId: z.string(),
   title: z.string(),
+  themeColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   isActive: z.boolean().optional(),
   cards: z.array(CardSchema).optional(),
 })

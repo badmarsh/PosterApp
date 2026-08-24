@@ -6,7 +6,7 @@ import type { Project, OutputConfig, BlockPattern, Card } from "@/lib/poster-typ
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { apiFetch } from "@/lib/api-fetch"
 import type { OutputType } from "@/lib/output-types"
-import { getDefaultTemplateId, DEFAULT_STRUCTURES } from "@/lib/output-types"
+import { getDefaultTemplateId, DEFAULT_STRUCTURES, getTemplateDef } from "@/lib/output-types"
 import { jobQueue } from "@/lib/job-queue"
 
 /** outputs[].cards is the persisted source of truth. `project.cards` only mirrors the active output for legacy consumers. */
@@ -208,6 +208,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       outputType,
       templateId: resolvedTemplate,
       title: s.project.name,
+      themeColor: getTemplateDef(resolvedTemplate)?.colors[0],
       cards: newCards,
     }
     if (!s.project.outputs) s.project.outputs = []

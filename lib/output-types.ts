@@ -36,27 +36,31 @@ export type TemplateDef = {
   label: string
   description: string
   category: TemplateCategory
+  /** Curated accent choices exposed in the template chooser and settings. */
+  colors: readonly string[]
+  /** Small semantic layout diagram, rendered by the UI without image assets. */
+  layoutPreview: "poster-columns" | "poster-blocks" | "slides-title" | "slides-split" | "paper-single" | "paper-columns"
 }
 
 export const TEMPLATE_REGISTRY: TemplateDef[] = [
   // Posters
-  { id: "atlas", outputType: "poster", label: "TemplateATLAS (CERN)", description: "Red/white colour scheme with ATLAS logos", category: "institutional" },
-  { id: "minimal", outputType: "poster", label: "Minimal Blue", description: "Clean blue theme without institutional branding", category: "core" },
-  { id: "gemini", outputType: "poster", label: "gemini", description: "Modern Beamerposter theme", category: "poster" },
-  { id: "tikzposter", outputType: "poster", label: "tikzposter", description: "Highly visual, rigidly blocked poster template", category: "poster" },
-  { id: "a0poster", outputType: "poster", label: "A0 Poster", description: "Classic A0 portrait layout", category: "core" },
+  { id: "atlas", outputType: "poster", label: "TemplateATLAS (CERN)", description: "Red/white colour scheme with ATLAS logos", category: "institutional", colors: ["#C8102E", "#00205B", "#006F62"], layoutPreview: "poster-columns" },
+  { id: "minimal", outputType: "poster", label: "Minimal Blue", description: "Clean blue theme without institutional branding", category: "core", colors: ["#1D4ED8", "#0F766E", "#7C3AED"], layoutPreview: "poster-columns" },
+  { id: "gemini", outputType: "poster", label: "gemini", description: "Modern Beamerposter theme", category: "poster", colors: ["#059669", "#2563EB", "#D97706"], layoutPreview: "poster-blocks" },
+  { id: "tikzposter", outputType: "poster", label: "tikzposter", description: "Highly visual, rigidly blocked poster template", category: "poster", colors: ["#9333EA", "#DB2777", "#0891B2"], layoutPreview: "poster-blocks" },
+  { id: "a0poster", outputType: "poster", label: "A0 Poster", description: "Classic A0 portrait layout", category: "core", colors: ["#334155", "#047857", "#B45309"], layoutPreview: "poster-columns" },
   // Slides
-  { id: "beamer-metropolis", outputType: "slides", label: "Metropolis", description: "Modern minimal Beamer theme", category: "core" },
-  { id: "beamer-atlas", outputType: "slides", label: "ATLAS Beamer", description: "CERN ATLAS branded Beamer slides", category: "institutional" },
-  { id: "beamer-madrid", outputType: "slides", label: "Madrid", description: "Classic Beamer Madrid theme", category: "core" },
-  { id: "beamer-default", outputType: "slides", label: "Default", description: "Standard default Beamer slides", category: "core" },
-  { id: "beamer-focus", outputType: "slides", label: "Focus", description: "Minimalist Focus Beamer theme", category: "core" },
+  { id: "beamer-metropolis", outputType: "slides", label: "Metropolis", description: "Modern minimal Beamer theme", category: "core", colors: ["#23373B", "#E4572E", "#006D77"], layoutPreview: "slides-title" },
+  { id: "beamer-atlas", outputType: "slides", label: "ATLAS Beamer", description: "CERN ATLAS branded Beamer slides", category: "institutional", colors: ["#C8102E", "#00205B", "#006F62"], layoutPreview: "slides-title" },
+  { id: "beamer-madrid", outputType: "slides", label: "Madrid", description: "Classic Beamer Madrid theme", category: "core", colors: ["#7F1D1D", "#1D4ED8", "#047857"], layoutPreview: "slides-split" },
+  { id: "beamer-default", outputType: "slides", label: "Default", description: "Standard default Beamer slides", category: "core", colors: ["#1E3A8A", "#475569", "#0F766E"], layoutPreview: "slides-title" },
+  { id: "beamer-focus", outputType: "slides", label: "Focus", description: "Minimalist Focus Beamer theme", category: "core", colors: ["#2563EB", "#9333EA", "#0F766E"], layoutPreview: "slides-split" },
   // Papers
-  { id: "article-twocol", outputType: "paper", label: "Two-Column Article", description: "Standard two-column article class", category: "core" },
-  { id: "article-single", outputType: "paper", label: "Single-Column", description: "Single-column article, thesis style", category: "core" },
-  { id: "ieee-conf", outputType: "paper", label: "IEEE Conference", description: "IEEE conference proceedings format", category: "core" },
-  { id: "acm-sigconf", outputType: "paper", label: "ACM SIGCONF", description: "ACM conference format", category: "core" },
-  { id: "springer-llncs", outputType: "paper", label: "Springer LLNCS", description: "Lecture Notes in Computer Science format", category: "core" },
+  { id: "article-twocol", outputType: "paper", label: "Two-Column Article", description: "Standard two-column article class", category: "core", colors: ["#1E40AF", "#0F766E", "#7C2D12"], layoutPreview: "paper-columns" },
+  { id: "article-single", outputType: "paper", label: "Single-Column", description: "Single-column article, thesis style", category: "core", colors: ["#334155", "#1D4ED8", "#047857"], layoutPreview: "paper-single" },
+  { id: "ieee-conf", outputType: "paper", label: "IEEE Conference", description: "IEEE conference proceedings format", category: "core", colors: ["#1D4ED8", "#0F766E", "#B45309"], layoutPreview: "paper-columns" },
+  { id: "acm-sigconf", outputType: "paper", label: "ACM SIGCONF", description: "ACM conference format", category: "core", colors: ["#B91C1C", "#1E3A8A", "#047857"], layoutPreview: "paper-columns" },
+  { id: "springer-llncs", outputType: "paper", label: "Springer LLNCS", description: "Lecture Notes in Computer Science format", category: "core", colors: ["#0F4C5C", "#7C3AED", "#B45309"], layoutPreview: "paper-single" },
 ]
 
 /** Get all templates available for a given output type. */

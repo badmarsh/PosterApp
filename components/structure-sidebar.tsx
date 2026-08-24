@@ -25,6 +25,16 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import {
@@ -39,13 +49,15 @@ import type { Card, ColumnIndex } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 
 const CardRow = memo(function CardRow({ card }: { card: Card }) {
-  const { selectedCardId, selectCard, deleteCard, getStatus, layoutWarnings } = useEditor(
+  const { selectedCardId, selectCard, deleteCard, getStatus, layoutWarnings, reorderCard, moveColumn } = useEditor(
     useShallow((s) => ({
       selectedCardId: s.selectedCardId,
       selectCard: s.selectCard,
       deleteCard: s.deleteCard,
       getStatus: s.getStatus,
       layoutWarnings: s.layoutWarnings,
+      reorderCard: s.reorderCard,
+      moveColumn: s.moveColumn,
     }))
   )
   const active = card.id === selectedCardId
@@ -54,10 +66,12 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
     w.cardTitle && card.title && w.cardTitle.trim().toLowerCase() === card.title.trim().toLowerCase()
   )
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-current={active ? "true" : undefined}
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          role="button"
+          tabIndex={0}
+          aria-current={active ? "true" : undefined}
       aria-label={`Edit card ${card.title || "Untitled"} (${card.id})`}
       onClick={() => selectCard(card.id)}
       onKeyDown={(e) => {
@@ -132,6 +146,23 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
         </span>
       </div>
     </div>
+    </ContextMenuTrigger>
+    <ContextMenuContent className="w-48 text-[12px]">
+      <ContextMenuItem onClick={() => reorderCard(card.id, -1)}>Move up</ContextMenuItem>
+      <ContextMenuItem onClick={() => reorderCard(card.id, 1)}>Move down</ContextMenuItem>
+      <ContextMenuSeparator />
+      <ContextMenuSub>
+        <ContextMenuSubTrigger>Move to column</ContextMenuSubTrigger>
+        <ContextMenuSubContent className="text-[12px]">
+          <ContextMenuItem onClick={() => moveColumn(card.id, 1)} disabled={card.column === 1}>Column 1</ContextMenuItem>
+          <ContextMenuItem onClick={() => moveColumn(card.id, 2)} disabled={card.column === 2}>Column 2</ContextMenuItem>
+          <ContextMenuItem onClick={() => moveColumn(card.id, 3)} disabled={card.column === 3}>Column 3</ContextMenuItem>
+        </ContextMenuSubContent>
+      </ContextMenuSub>
+      <ContextMenuSeparator />
+      <ContextMenuItem onClick={() => deleteCard(card.id)} className="text-destructive focus:bg-destructive/10 focus:text-destructive">Delete block</ContextMenuItem>
+    </ContextMenuContent>
+  </ContextMenu>
   )
 })
 

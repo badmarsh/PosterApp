@@ -81,6 +81,7 @@ export async function GET(
         outputType: o.outputType,
         templateId: o.templateId,
         title: o.title,
+        themeColor: o.themeColor,
         isActive: o.isActive,
         cards: o.cards.map(parseCard),
       })),
@@ -195,12 +196,14 @@ export async function PUT(
               outputType: output.outputType,
               templateId: output.templateId,
               title: output.title,
+              themeColor: output.themeColor,
               isActive,
             },
             update: {
               outputType: output.outputType,
               templateId: output.templateId,
               title: output.title,
+              themeColor: output.themeColor,
               isActive,
             },
           })
@@ -292,6 +295,7 @@ export async function PUT(
               outputType: "poster",
               templateId: body.templateName || "atlas",
               title: body.posterTitle || body.name || "",
+              themeColor: undefined,
               isActive: true,
             },
           })
