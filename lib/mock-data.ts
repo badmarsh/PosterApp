@@ -170,9 +170,7 @@ export const sampleProject: Project = {
       kind: "figure",
       page: 3,
       confidence: "high",
-      caption: "System Architecture: Recurrent state-space model mapping high-dimensional inputs to latent distribution.",
-      assignedCardId: "poster_card_3",
-      assignedSlot: "figure1"
+      caption: "System Architecture: Recurrent state-space model mapping high-dimensional inputs to latent distribution."
     },
     {
       id: "asset_img_2",
@@ -191,9 +189,7 @@ export const sampleProject: Project = {
       page: 1,
       confidence: "high",
       heading: "Abstract",
-      snippet: "The ability to accurately model latent dynamics is critical in modern robotic environments. In this paper, we explore a novel approach for combining hindsight relabeling with continuous reinforcement learning...",
-      assignedCardId: "poster_card_1",
-      assignedSlot: "bullets"
+      snippet: "The ability to accurately model latent dynamics is critical in modern robotic environments. In this paper, we explore a novel approach for combining hindsight relabeling with continuous reinforcement learning..."
     },
     {
       id: "asset_eq_1",
@@ -201,9 +197,7 @@ export const sampleProject: Project = {
       kind: "equation",
       page: 2,
       confidence: "medium",
-      snippet: "\\mathcal{L}(\\theta, \\phi) = \\mathbb{E}_{q_\\phi(z|x)} [\\log p_\\theta(x|z)] - D_{\\text{KL}}(q_\\phi(z|x) || p(z))",
-      assignedCardId: "poster_card_2",
-      assignedSlot: "equation"
+      snippet: "\\mathcal{L}(\\theta, \\phi) = \\mathbb{E}_{q_\\phi(z|x)} [\\log p_\\theta(x|z)] - D_{\\text{KL}}(q_\\phi(z|x) || p(z))"
     },
     {
       id: "asset_table_1",
@@ -217,9 +211,7 @@ export const sampleProject: Project = {
         ["Push", "89%", "95%"],
         ["Stack", "55%", "82%"],
         ["CableRoute", "30%", "78%"]
-      ],
-      assignedCardId: "poster_card_4",
-      assignedSlot: "table"
+      ]
     }
   ],
   ingestFiles: [
