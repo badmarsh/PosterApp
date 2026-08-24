@@ -93,7 +93,7 @@ export function TopBar({
   onToggleAgent,
   onOpenWorkspaceSelector,
 }: TopBarProps) {
-  const { project, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen, collabEnabled, setCollabEnabled } = useEditor(
+  const { project, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen, collabEnabled, setCollabEnabled, duplicateProject, newProject } = useEditor(
     useShallow((s) => ({
       project: s.project,
       aiReview: s.aiReview,
@@ -110,6 +110,8 @@ export function TopBar({
       setIsHistoryOpen: s.setIsHistoryOpen,
       collabEnabled: s.collabEnabled,
       setCollabEnabled: s.setCollabEnabled,
+      duplicateProject: s.duplicateProject,
+      newProject: s.newProject,
     }))
   )
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
@@ -196,28 +198,17 @@ export function TopBar({
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={duplicateProject} className="cursor-pointer">
+              Duplicate workspace
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={newProject} className="cursor-pointer">
+              New workspace
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={onOpenWorkspaceSelector} className="cursor-pointer">
               View all workspaces...
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="size-6 text-muted-foreground ml-1" 
-                onClick={onOpenWorkspaceSelector}
-                aria-label="Switch workspace"
-              >
-                <FolderOpen className="size-3" />
-              </Button>
-            }
-          />
-          <TooltipContent>Switch workspace</TooltipContent>
-        </Tooltip>
 
         {project.outputs && project.outputs.length > 0 && (
           <DropdownMenu>
@@ -315,23 +306,6 @@ export function TopBar({
           <span className="hidden sm:inline">Source</span>
         </Button>
 
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("size-8", isHistoryOpen && "text-primary bg-primary/10")}
-                onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                aria-label="Save History"
-              >
-                <Clock className="size-4" />
-              </Button>
-            }
-          />
-          <TooltipContent>Save History</TooltipContent>
-        </Tooltip>
-
         <Button
           variant={collabEnabled ? "default" : "outline"}
           size="sm"
@@ -352,23 +326,9 @@ export function TopBar({
                1
              </div>
           )}
-          {yjsStatus !== "connected" && (
-             <div className="size-8 rounded-full border-2 border-background flex items-center justify-center text-xs bg-destructive text-destructive-foreground font-semibold animate-pulse" title="Yjs Offline">
-               !
-             </div>
-          )}
         </div>
 
         <ThemeToggle />
-        <UserButton>
-          <UserButton.UserProfilePage 
-            label="Manage Workspaces" 
-            url="workspaces" 
-            labelIcon={<Folders className="h-4 w-4" />}
-          >
-            <ManageWorkspaces />
-          </UserButton.UserProfilePage>
-        </UserButton>
         <Tooltip>
           <TooltipTrigger
             render={
@@ -385,6 +345,33 @@ export function TopBar({
           />
           <TooltipContent>Help Guide</TooltipContent>
         </Tooltip>
+        
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("size-8", isHistoryOpen && "text-primary bg-primary/10")}
+                onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                aria-label="Save History"
+              >
+                <Clock className="size-4" />
+              </Button>
+            }
+          />
+          <TooltipContent>Save History</TooltipContent>
+        </Tooltip>
+
+        <UserButton>
+          <UserButton.UserProfilePage 
+            label="Manage Workspaces" 
+            url="workspaces" 
+            labelIcon={<Folders className="h-4 w-4" />}
+          >
+            <ManageWorkspaces />
+          </UserButton.UserProfilePage>
+        </UserButton>
       </div>
       <HelpModal open={isHelpOpen} onOpenChange={setIsHelpOpen} />
       <HistoryPanel />

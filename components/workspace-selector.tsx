@@ -72,10 +72,19 @@ export function WorkspaceSelector({ onSelect, onClose }: { onSelect: (id: string
           ✕
         </button>
         <h2 className="text-xl font-semibold pr-8">Select a Workspace</h2>
-        {error && <p className="text-sm text-destructive">Failed to load workspaces: {error}</p>}
+        
+        {error && error.includes("Database offline") ? (
+          <div className="p-4 bg-destructive/10 text-destructive border border-destructive/20 rounded-md">
+            <h3 className="font-semibold mb-1">Database Connection Failed</h3>
+            <p className="text-sm">Cannot reach the database. Please make sure the PostgreSQL container is running.</p>
+          </div>
+        ) : error ? (
+          <p className="text-sm text-destructive">Failed to load workspaces: {error}</p>
+        ) : null}
+
         {loading ? (
           <div className="text-sm text-muted-foreground">Loading...</div>
-        ) : (
+        ) : !error || !error.includes("Database offline") ? (
           <div className="flex flex-col gap-2 max-h-[60vh] overflow-auto">
             {workspaces.map(ws => (
               <button
@@ -91,69 +100,71 @@ export function WorkspaceSelector({ onSelect, onClose }: { onSelect: (id: string
               <div className="text-sm text-muted-foreground">No workspaces found.</div>
             )}
           </div>
-        )}
+        ) : null}
         
-        {!isCreating ? (
-          <button
-            onClick={() => setIsCreating(true)}
-            className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
-          >
-            Create New Project
-          </button>
-        ) : (
-          <form onSubmit={handleCreate} className="mt-4 flex flex-col gap-3 rounded-md border p-4 bg-muted/30">
-            <h3 className="font-medium text-sm">New Workspace</h3>
-            {createError && <p className="text-xs text-destructive">{createError}</p>}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium">Workspace ID (slug)</label>
-              <input 
-                value={newId} 
-                onChange={e => setNewId(e.target.value)}
-                className="rounded border bg-background px-2 py-1 text-sm"
-                placeholder="my-cool-project"
-                disabled={isSubmitting}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium">Project Name</label>
-              <input 
-                value={newName} 
-                onChange={e => setNewName(e.target.value)}
-                className="rounded border bg-background px-2 py-1 text-sm"
-                placeholder="My Cool Project"
-                disabled={isSubmitting}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium">Template</label>
-              <select 
-                value={newTemplate} 
-                onChange={e => setNewTemplate(e.target.value)}
-                className="rounded border bg-background px-2 py-1 text-sm"
-                disabled={isSubmitting}
-              >
-                <option value="atlas">Atlas</option>
-                <option value="minimal">Minimal</option>
-              </select>
-            </div>
-            <div className="flex justify-end gap-2 mt-2">
-              <button 
-                type="button" 
-                onClick={() => setIsCreating(false)}
-                className="px-3 py-1 text-sm rounded hover:bg-accent"
-                disabled={isSubmitting}
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit" 
-                className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Creating..." : "Create"}
-              </button>
-            </div>
-          </form>
+        {(!error || !error.includes("Database offline")) && (
+          !isCreating ? (
+            <button
+              onClick={() => setIsCreating(true)}
+              className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
+            >
+              Create New Project
+            </button>
+          ) : (
+            <form onSubmit={handleCreate} className="mt-4 flex flex-col gap-3 rounded-md border p-4 bg-muted/30">
+              <h3 className="font-medium text-sm">New Workspace</h3>
+              {createError && <p className="text-xs text-destructive">{createError}</p>}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium">Workspace ID (slug)</label>
+                <input 
+                  value={newId} 
+                  onChange={e => setNewId(e.target.value)}
+                  className="rounded border bg-background px-2 py-1 text-sm"
+                  placeholder="my-cool-project"
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium">Project Name</label>
+                <input 
+                  value={newName} 
+                  onChange={e => setNewName(e.target.value)}
+                  className="rounded border bg-background px-2 py-1 text-sm"
+                  placeholder="My Cool Project"
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium">Template</label>
+                <select 
+                  value={newTemplate} 
+                  onChange={e => setNewTemplate(e.target.value)}
+                  className="rounded border bg-background px-2 py-1 text-sm"
+                  disabled={isSubmitting}
+                >
+                  <option value="atlas">Atlas</option>
+                  <option value="minimal">Minimal</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 mt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setIsCreating(false)}
+                  className="px-3 py-1 text-sm rounded hover:bg-accent"
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Creating..." : "Create"}
+                </button>
+              </div>
+            </form>
+          )
         )}
       </div>
     </div>

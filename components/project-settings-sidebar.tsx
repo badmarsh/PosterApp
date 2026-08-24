@@ -83,48 +83,7 @@ export function ProjectSettingsSidebar() {
       className="flex w-64 shrink-0 flex-col border-r border-border bg-sidebar"
       aria-label="Project settings sidebar"
     >
-      {/* Project Switcher Header */}
-      <div className="flex items-center justify-between border-b border-border p-2">
-        <Select
-          value={project.id}
-          onValueChange={(val) => {
-            if (val) switchProject(val)
-          }}
-        >
-          <SelectTrigger className="h-8 flex-1 border-transparent bg-transparent px-2 font-mono text-[11px] font-semibold tracking-tight shadow-none hover:bg-muted/50 focus:ring-0">
-            <div className="flex items-center gap-1.5 truncate">
-              <FileStack className="size-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate">{project.name}</span>
-            </div>
-          </SelectTrigger>
-          <SelectContent alignItemWithTrigger={false} align="start" className="w-[240px]">
-            <SelectItem value={project.id}>{project.name}</SelectItem>
-            {workspaces.filter(p => p.id !== project.id).map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="flex gap-1">
-          <button
-            type="button"
-            aria-label="Duplicate project"
-            onClick={duplicateProject}
-            className="rounded p-1.5 text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
-          >
-            <Copy className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            aria-label="New project"
-            onClick={newProject}
-            className="rounded p-1.5 text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
-          >
-            <FilePlus2 className="size-3.5" />
-          </button>
-        </div>
-      </div>
+      {/* Project Switcher Header removed as requested */}
 
       <ScrollArea className="flex-1 px-4 py-4">
         <div className="mb-4">

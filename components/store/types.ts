@@ -100,6 +100,8 @@ export interface UiSlice {
 
   collaborators: Collaborator[]
   setCollaborators: (c: Collaborator[]) => void
+  collabEnabled: boolean
+  setCollabEnabled: (v: boolean) => void
   yjsStatus: string
   setYjsStatus: (s: string) => void
 
