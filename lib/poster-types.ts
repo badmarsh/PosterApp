@@ -149,7 +149,7 @@ export type OutputConfig = {
   templateId: string
   title: string
   /** Accent token selected from the template's supported palette. */
-  themeColor?: string
+  themeColor?: string | null
   cards: Card[]
 }
 

@@ -121,7 +121,7 @@ export class TikzPosterGenerator implements LatexGenerator {
     let endDocumentContent = "\\end{document}";
     let beginColumns = "\\begin{columns}";
 
-    const themeColor = outputConfig.themeColor
+    const themeColor = outputConfig.themeColor ?? undefined
     switch (outputConfig.templateId?.toLowerCase()) {
       case "minimal":
         templateContent = getMinimalTemplate(project, themeColor);

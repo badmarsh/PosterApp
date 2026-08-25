@@ -2,8 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { WorkspaceCreateSchema } from "@/lib/validations/workspace"
 import { auth } from "@/lib/auth"
-import { getDefaultTemplateId } from "@/lib/output-types"
-import { getTemplateDef } from "@/lib/output-types"
+import { getDefaultTemplateId, getTemplateDef } from "@/lib/output-types"
 
 export async function GET() {
   try {
@@ -34,7 +33,7 @@ export async function GET() {
               outputType: out.outputType,
               templateId: out.templateId,
               title: out.title,
-              themeColor: out.themeColor ?? getTemplateDef(out.templateId)?.colors[0],
+              themeColor: out.themeColor ?? getTemplateDef(out.templateId)?.colors[0]?.hex ?? null,
               isActive: out.id === sampleProject.activeOutputId,
               cards: {
                 create: out.cards.map((c) => ({
@@ -111,7 +110,7 @@ export async function POST(req: Request) {
             outputType,
             templateId: resolvedTemplateId,
             title: name,
-            themeColor: getTemplateDef(resolvedTemplateId)?.colors[0],
+            themeColor: getTemplateDef(resolvedTemplateId)?.colors[0]?.hex ?? null,
             isActive: true,
           },
         },

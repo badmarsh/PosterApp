@@ -31,7 +31,7 @@ import { OUTPUT_TYPE_LABELS, getTemplateDef } from "@/lib/output-types"
 import type { OutputType } from "@/lib/output-types"
 
 export function ProjectSettingsSidebar() {
-  const { project, updateProject, isSwitchingProject, switchProject, newProject, duplicateProject, bibContent, updateBib } = useEditor(
+  const { project, updateProject, isSwitchingProject, switchProject, newProject, duplicateProject, bibContent, updateBib, switchOutput, updateActiveThemeColor } = useEditor(
     useShallow((s) => ({
       project: s.project,
       updateProject: s.updateProject,
@@ -41,6 +41,8 @@ export function ProjectSettingsSidebar() {
       duplicateProject: s.duplicateProject,
       bibContent: s.bibContent,
       updateBib: s.updateBib,
+      switchOutput: s.switchOutput,
+      updateActiveThemeColor: s.updateActiveThemeColor,
     }))
   )
 
@@ -48,6 +50,8 @@ export function ProjectSettingsSidebar() {
   const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
   const activeOutputType = (activeOutput?.outputType ?? "poster") as OutputType
   const activeTitle = activeOutput?.title ?? project.posterTitle
+  const activeThemeColor = activeOutput?.themeColor ?? null
+  const templateDef = getTemplateDef(activeOutput?.templateId ?? "atlas")
   const outputTypeLabel = OUTPUT_TYPE_LABELS[activeOutputType]
   const [localBib, setLocalBib] = useState(bibContent)
   const [workspaces, setWorkspaces] = useState<{id: string, name: string}[]>([])
@@ -213,52 +217,34 @@ export function ProjectSettingsSidebar() {
             </div>
           </div>
 
-          {/* Theme Color */}
-          {activeOutput && (() => {
-            const tmplDef = getTemplateDef(activeOutput.templateId)
-            if (!tmplDef || tmplDef.colors.length === 0) return null
-            const currentColor = activeOutput.themeColor ?? tmplDef.colors[0]
-            return (
-              <div className="space-y-1.5 pt-4 border-t border-border">
-                <div className="flex items-center gap-1.5">
-                  <Palette className="size-3 text-muted-foreground" />
-                  <Label className="text-[11px] font-medium text-muted-foreground">Theme Color</Label>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  Accent colour used in the LaTeX template output.
-                </p>
-                <div className="flex items-center gap-2 flex-wrap pt-0.5">
-                  {tmplDef.colors.map((c) => (
-                    <button
-                      key={c}
-                      title={c}
-                      aria-label={`Set theme color to ${c}`}
-                      onClick={() => {
-                        const updatedOutputs = project.outputs?.map((o) =>
-                          o.id === activeOutput.id ? { ...o, themeColor: c } : o
-                        )
-                        if (updatedOutputs) updateProject({ outputs: updatedOutputs } as any)
-                      }}
-                      className="relative size-6 rounded-full border-2 transition-all hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      style={{
-                        backgroundColor: c,
-                        borderColor: currentColor === c ? "hsl(var(--foreground))" : "transparent",
-                        boxShadow: currentColor === c ? `0 0 0 1px hsl(var(--background)), 0 0 0 3px ${c}40` : undefined,
-                      }}
-                    >
-                      {currentColor === c && (
-                        <span className="absolute inset-0 flex items-center justify-center">
-                          <span className="size-1.5 rounded-full bg-white/80 shadow-sm" />
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-                {/* Show hex value */}
-                <p className="font-mono text-[10px] text-muted-foreground">{currentColor}</p>
+          {/* Theme color picker */}
+          {templateDef && templateDef.colors.length > 1 && (
+            <div className="space-y-1.5 pt-4 border-t border-border">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Palette className="size-3 text-muted-foreground" />
+                <Label className="text-[11px] font-medium text-muted-foreground">Accent colour</Label>
               </div>
-            )
-          })()}
+              <div className="flex flex-wrap gap-1.5">
+                {templateDef.colors.map((c) => (
+                  <button
+                    key={c.id}
+                    title={c.name}
+                    onClick={() => updateActiveThemeColor(c.hex)}
+                    className="group relative size-6 rounded-full border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    style={{
+                      backgroundColor: c.hex,
+                      borderColor: activeThemeColor === c.hex ? c.hex : "transparent",
+                      boxShadow: activeThemeColor === c.hex ? `0 0 0 2px var(--background), 0 0 0 4px ${c.hex}` : undefined,
+                    }}
+                    aria-pressed={activeThemeColor === c.hex}
+                  />
+                ))}
+              </div>
+              {activeThemeColor && (
+                <p className="text-[10px] font-mono text-muted-foreground">{activeThemeColor}</p>
+              )}
+            </div>
+          )}
         </div>
       </ScrollArea>
     </aside>

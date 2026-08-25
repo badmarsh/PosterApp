@@ -59,7 +59,7 @@ export class BeamerSlidesGenerator implements LatexGenerator {
     }).join("\n\n")
 
     let templateContent = "";
-    const themeColor = outputConfig.themeColor
+    const themeColor = outputConfig.themeColor ?? undefined
     switch (this.templateId) {
       case "beamer-metropolis":
         templateContent = getMetropolisTemplate(project, themeColor);

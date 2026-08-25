@@ -67,9 +67,8 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
   )
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div
-          role="button"
+      <ContextMenuTrigger
+        role="button"
           tabIndex={0}
           aria-current={active ? "true" : undefined}
       aria-label={`Edit card ${card.title || "Untitled"} (${card.id})`}
@@ -145,7 +144,6 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
           {PATTERN_SHORT[card.pattern]}
         </span>
       </div>
-    </div>
     </ContextMenuTrigger>
     <ContextMenuContent className="w-48 text-[12px]">
       <ContextMenuItem onClick={() => reorderCard(card.id, -1)}>Move up</ContextMenuItem>

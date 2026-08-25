@@ -37,6 +37,7 @@ export interface ProjectSlice {
   getStatus: (card: Card) => ValidationLevel
   selectCard: (id: string | null) => void
   updateProject: (patch: Partial<Omit<Project, "id" | "cards">>) => void
+  updateActiveThemeColor: (hex: string) => void
   _setCardsFromYjs: (cards: Card[]) => void
   updateCard: (id: string, patch: Partial<Card>) => void
   addCard: (column?: ColumnOrNull) => void

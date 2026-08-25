@@ -504,6 +504,10 @@ function AgentPanelInner({
   onCancelJob: (id: string) => void
   onCollapse: () => void
 }) {
+  const { hydrateUi, updateProject } = useEditor(
+    useShallow((s) => ({ hydrateUi: s.hydrateUi, updateProject: s.updateProject }))
+  )
+
   return (
     <aside
       aria-label="Agent panel"
@@ -524,9 +528,9 @@ function AgentPanelInner({
             title="Vyčistiť históriu (Clear history)"
             onClick={() => {
               if (confirm("Naozaj chceš vymazať históriu tohto chatu a udalostí?")) {
-                useEditor.getState().hydrateUi([], [])
+                hydrateUi([], [])
                 // Mark project as dirty to ensure the empty state is saved
-                useEditor.getState().updateProject({})
+                updateProject({})
               }
             }}
           >

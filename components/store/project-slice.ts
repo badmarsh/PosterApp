@@ -97,6 +97,12 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     s.isDirty = true
   }),
 
+  updateActiveThemeColor: (hex) => set((s) => {
+    const output = activeOutput(s.project)
+    if (output) output.themeColor = hex
+    s.isDirty = true
+  }),
+
   _setCardsFromYjs: (cards) => set((s) => {
     const output = activeOutput(s.project)
     if (output) output.cards = cards
@@ -208,7 +214,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       outputType,
       templateId: resolvedTemplate,
       title: s.project.name,
-      themeColor: getTemplateDef(resolvedTemplate)?.colors[0],
+      themeColor: getTemplateDef(resolvedTemplate)?.colors[0]?.hex ?? null,
       cards: newCards,
     }
     if (!s.project.outputs) s.project.outputs = []

@@ -89,7 +89,7 @@ function LayoutDiagram({
   )
 
   switch (kind) {
-    case "poster-columns":
+    case "poster-3col":
       return (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
           <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
@@ -108,7 +108,7 @@ function LayoutDiagram({
           })}
         </svg>
       )
-    case "poster-blocks":
+    case "slides-wide":
       return (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
           <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
@@ -119,7 +119,7 @@ function LayoutDiagram({
           <rect x={22} y={21} width={20} height={10} rx={1} fill={accent} opacity={0.25} />
         </svg>
       )
-    case "slides-title":
+    case "paper-twocol":
       return (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
           <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
@@ -136,7 +136,7 @@ function LayoutDiagram({
           <rect x={4} y={28} width={10} height={1.5} rx={0.5} fill={accent} opacity={0.4} />
         </svg>
       )
-    case "slides-split":
+    case "paper-single":
       return (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
           <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
@@ -154,24 +154,6 @@ function LayoutDiagram({
           <rect x={24} y={22} width={12} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/15" />
         </svg>
       )
-    case "paper-columns":
-      return (
-        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
-          <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
-          <rect x={4} y={2} width={36} height={3} rx={0.5} fill={accent} opacity={0.7} />
-          <rect x={8} y={6} width={28} height={1.5} rx={0.5} fill="currentColor" className="text-muted-foreground/30" />
-          <rect x={2} y={10} width={19} height={22} rx={0.5} fill="currentColor" className="text-muted-foreground/10" />
-          <rect x={3} y={11} width={17} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/30" />
-          <rect x={3} y={13} width={15} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
-          <rect x={3} y={15} width={17} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
-          <rect x={3} y={18} width={17} height={6} rx={0.5} fill={accent} opacity={0.2} />
-          <rect x={23} y={10} width={19} height={22} rx={0.5} fill="currentColor" className="text-muted-foreground/10" />
-          <rect x={24} y={11} width={17} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/30" />
-          <rect x={24} y={13} width={15} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
-          <rect x={24} y={15} width={17} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
-        </svg>
-      )
-    case "paper-single":
     default:
       return (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
@@ -183,7 +165,6 @@ function LayoutDiagram({
           <rect x={3} y={15} width={28} height={2} rx={0.5} fill={accent} opacity={0.4} />
           <rect x={3} y={19} width={38} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
           <rect x={3} y={21} width={32} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
-          <rect x={3} y={25} width={38} height={6} rx={0.5} fill="currentColor" className="text-muted-foreground/10" />
         </svg>
       )
   }
@@ -255,7 +236,7 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
                   )}
                 >
                   {/* Miniature layout diagram */}
-                  <LayoutDiagram kind={tmpl.layoutPreview} color={tmpl.colors[0]} />
+                  <LayoutDiagram kind={tmpl.layoutPreview} color={tmpl.colors[0]?.hex ?? "#2563EB"} />
                   {/* Text info */}
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -271,10 +252,10 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
                     <div className="flex items-center gap-1 pt-0.5">
                       {tmpl.colors.map((c) => (
                         <span
-                          key={c}
+                          key={c.id}
                           className="inline-block size-3 rounded-full border border-black/10 dark:border-white/10"
-                          style={{ backgroundColor: c }}
-                          title={c}
+                          style={{ backgroundColor: c.hex }}
+                          title={c.name}
                         />
                       ))}
                     </div>
