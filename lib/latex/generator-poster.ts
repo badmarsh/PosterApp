@@ -93,17 +93,17 @@ export class TikzPosterGenerator implements LatexGenerator {
 
   generateDocument(project: Project, outputConfig: OutputConfig, workspaceId = ""): string {
     const usedKeys = new Set<string>()
-    for (const card of project.cards) {
+    for (const card of (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])) {
       const textParts = [card.content]
       if (card.table?.caption) textParts.push(card.table.caption)
-      if (card.figures) card.figures.forEach(f => { if (f.caption) textParts.push(f.caption) })
+      if (Array.isArray(card.figures)) card.figures.forEach(f => { if (f.caption) textParts.push(f.caption) })
       extractCiteKeys(textParts.join("\n")).forEach(k => usedKeys.add(k))
     }
     const usedKeysArray = Array.from(usedKeys)
 
     const columns = [1, 2, 3]
       .map((col) => {
-        const cards = project.cards
+        const cards = (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])
           .filter((c) => c.column === col)
           .sort((a, b) => a.order - b.order)
         const blocks = cards
@@ -154,3 +154,6 @@ ${indent(columns)}
 ${endDocumentContent}`
   }
 }
+
+
+

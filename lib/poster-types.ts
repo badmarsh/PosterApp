@@ -166,13 +166,11 @@ export type Project = {
   revision?: number
   name: string
   /** @deprecated Use outputs[activeOutputId].title instead */
-  posterTitle: string
+  posterTitle?: string
   authors: string
   venue: string
   /** @deprecated Use outputs[activeOutputId].templateId instead */
-  templateName: string
-  /** @deprecated Use outputs[activeOutputId].cards instead */
-  cards: Card[]
+  templateName?: string
   assets: ExtractedAsset[]
   ingestFiles: IngestFile[]
   /** All output configurations for this workspace */

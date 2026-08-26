@@ -49,10 +49,10 @@ export function validateCard(card: Card): ValidationMessage[] {
 
   const needsTable = card.pattern === "bullets-table"
   if (needsTable) {
-    if (card.table.rows.length < 1) {
+    if (!Array.isArray(card.table?.rows) || card.table.rows.length < 1) {
       msgs.push({ level: "error", field: "table", message: "Table has no rows." })
     }
-    const widths = new Set(card.table.rows.map((r) => r.length))
+    const widths = new Set(Array.isArray(card.table?.rows) ? card.table.rows.map((r) => Array.isArray(r) ? r.length : 0) : [])
     if (widths.size > 1) {
       msgs.push({
         level: "error",
@@ -68,7 +68,7 @@ export function validateCard(card: Card): ValidationMessage[] {
       : card.pattern === "bullets-two-images" || card.pattern === "section-two-figures"
         ? 2
         : 0
-  const presentFigures = card.figures.filter((f) => f.url.trim()).length
+  const presentFigures = Array.isArray(card.figures) ? card.figures.filter((f) => f && typeof f.url === "string" && f.url.trim()).length : 0
   if (figureCount > 0 && presentFigures < figureCount) {
     msgs.push({
       level: "error",
@@ -102,3 +102,4 @@ export function levelFromMessages(
   if (msgs.some((m) => m.level === "warning")) return "warning"
   return "valid"
 }
+

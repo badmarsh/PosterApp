@@ -6,21 +6,42 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('workspace selection modal appears and functions', async ({ page }) => {
-  // Navigate to the app
-  await page.goto('http://localhost:3333/');
+  // Create a dummy workspace so we don't get the forced selection modal on load
+  const wsId = 'test-workspace-sel-' + Date.now();
+  await page.goto('/'); // navigate to root to get the auth cookie ready
+  await page.waitForLoadState('networkidle'); // let Clerk initialize
+  const realWsId = await page.evaluate(async (id) => {
+    const res = await fetch('/api/workspaces', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name: 'Selection Test' })
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Failed to create workspace: ${res.status} ${text}`);
+    }
+    const data = await res.json();
+    
+    // Set the selected workspace in localStorage so the app loads it
+    window.localStorage.setItem('posterapp-editor-storage', JSON.stringify({
+      state: { selectedCardId: null, lastWorkspaceId: data.id },
+      version: 1
+    }));
+  }, wsId);
   
-  const modalVisible = await page.getByText('Select a Workspace').isVisible({ timeout: 5000 }).catch(() => false);
-  if (!modalVisible) {
-    // Open the workspace selector dropdown
-    const projBtn = page.locator('header').locator('button[data-slot="dropdown-menu-trigger"]').first();
-    await projBtn.click();
+  // Reload the app to pick up the local storage state
+  await page.goto('/');
+  
+  // Wait for topbar
+  await expect(page.locator('header')).toBeVisible();
+
+  // Open the workspace selector dropdown
+  const projBtn = page.locator('header').locator('button[data-slot="dropdown-menu-trigger"]').first();
+  await projBtn.click();
     
     // Click 'View all workspaces...'
     const viewAllBtn = page.getByText('View all workspaces...');
-    if (await viewAllBtn.isVisible()) {
-      await viewAllBtn.click();
-    }
-  }
+    await viewAllBtn.click();
   
   // Verify the Workspace Selector modal is visible
   await expect(page.getByText('Select a Workspace')).toBeVisible({ timeout: 10000 });

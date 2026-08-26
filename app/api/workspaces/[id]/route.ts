@@ -26,9 +26,9 @@ class WorkspaceConflictError extends Error {
 function parseCard(c: any) {
   return {
     ...c,
-    table: safeJsonParse(c.table, undefined),
-    figures: safeJsonParse(c.figures, []),
-    sourceIds: safeJsonParse(c.sourceIds, []),
+    table: c.table ?? undefined,
+    figures: c.figures ?? [],
+    sourceIds: c.sourceIds ?? [],
   }
 }
 
@@ -89,11 +89,11 @@ export async function GET(
       // Shared workspace data
       assets: workspace.assets.map((a) => ({
         ...a,
-        tableRows: safeJsonParse(a.tableRows, undefined),
+        tableRows: a.tableRows ?? undefined,
       })),
       ingestFiles: workspace.ingestFiles,
-      agentEvents: safeJsonParse(workspace.agentEvents, []),
-      chatMessages: safeJsonParse(workspace.chatMessages, []),
+      agentEvents: workspace.agentEvents ?? [],
+      chatMessages: workspace.chatMessages ?? [],
     }
 
     return NextResponse.json(data)
@@ -148,8 +148,8 @@ export async function PUT(
           name: body.name || id,
           authors: body.authors || "",
           venue: body.venue || "",
-          agentEvents: body.agentEvents ? jsonStringify(body.agentEvents) : undefined,
-          chatMessages: body.chatMessages ? jsonStringify(body.chatMessages) : undefined,
+          agentEvents: body.agentEvents ?? undefined,
+          chatMessages: body.chatMessages ?? undefined,
           revision: { increment: 1 },
         }
       })
@@ -229,10 +229,10 @@ export async function PUT(
                 order: card.order,
                 pattern: card.pattern || "bullets",
                 content: card.content || "",
-                table: jsonStringify(card.table),
-                figures: jsonStringify(card.figures),
+                table: card.table ?? undefined,
+                figures: card.figures ?? undefined,
                 figureLayout: card.figureLayout || "single",
-                sourceIds: jsonStringify(card.sourceIds),
+                sourceIds: card.sourceIds ?? undefined,
                 heightBudget: card.heightBudget,
                 validation: card.validation || "valid",
                 generatedLatex: card.generatedLatex,
@@ -326,10 +326,10 @@ export async function PUT(
             order: card.order,
             pattern: card.pattern || "bullets",
             content: card.content || "",
-            table: jsonStringify(card.table),
-            figures: jsonStringify(card.figures),
+            table: card.table ?? undefined,
+            figures: card.figures ?? undefined,
             figureLayout: card.figureLayout || "single",
-            sourceIds: jsonStringify(card.sourceIds),
+            sourceIds: card.sourceIds ?? undefined,
             heightBudget: card.heightBudget,
             validation: card.validation || "valid",
             generatedLatex: card.generatedLatex,
@@ -386,7 +386,7 @@ export async function PUT(
             snippet: asset.snippet,
             thumbnailUrl: asset.thumbnailUrl,
             caption: asset.caption,
-            tableRows: jsonStringify(asset.tableRows),
+            tableRows: asset.tableRows ?? undefined,
             assignedCardId: asset.assignedCardId,
             assignedSlot: asset.assignedSlot,
           }

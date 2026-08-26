@@ -23,7 +23,7 @@ export async function GET(
     }
 
     const bib = workspace.bibContent || ""
-    const keys = workspace.bibKeys ? JSON.parse(workspace.bibKeys) : parseBibKeys(bib)
+    const keys = workspace.bibKeys ? (workspace.bibKeys as string[]) : parseBibKeys(bib)
     
     return NextResponse.json({ bib, keys })
   } catch (err) {
@@ -55,7 +55,7 @@ export async function PUT(
       where: { id },
       data: {
         bibContent: body.bib,
-        bibKeys: JSON.stringify(keys),
+        bibKeys: keys,
       }
     })
     

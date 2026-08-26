@@ -11,7 +11,7 @@ export function estimateHeight(card: Card): number {
   h += bulletCount * 10
 
   if (card.pattern === "bullets-table") {
-    h += 30 + card.table.rows.length * 26
+    h += 30 + (Array.isArray(card.table?.rows) ? card.table.rows.length : 0) * 26
   }
   if (card.pattern === "bullets-image" || card.pattern === "image-focused") {
     h += card.pattern === "image-focused" ? 260 : 190
@@ -19,3 +19,4 @@ export function estimateHeight(card: Card): number {
   if (card.pattern === "bullets-two-images") h += 150
   return h
 }
+

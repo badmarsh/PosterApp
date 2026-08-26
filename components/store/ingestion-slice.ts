@@ -244,7 +244,8 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
       const asset = get().project.assets.find((a) => a.id === assetId)
       if (!asset) return
       set((s) => {
-        const card = s.project.cards.find((c) => c.id === cardId)
+        const output = s.project.outputs.find((o) => o.id === s.project.activeOutputId)
+        const card = output?.cards.find((c) => c.id === cardId)
         if (!card) return
         if (slot === "bullets" && asset.snippet) {
           const prefix = card.content.trim() ? "\n" : ""

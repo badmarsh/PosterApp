@@ -161,7 +161,7 @@ function MobileShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () 
         <MobileNavButton
           active={pane === "structure"}
           label="Structure"
-          badge={project.cards.length}
+          badge={(project.outputs?.find((o) => o.id === project.activeOutputId)?.cards || []).length}
           onClick={() => setPane("structure")}
         >
           <PanelsTopLeft className="size-5" />

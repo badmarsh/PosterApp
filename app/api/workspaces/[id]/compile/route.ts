@@ -20,16 +20,15 @@ function asProject(workspace: any): Project {
     ...output,
     cards: output.cards.map((card: any): Card => ({
       ...card,
-      table: safeJsonParse(card.table, { hasHeader: true, caption: "", rows: [] }),
-      figures: safeJsonParse(card.figures, []),
-      sourceIds: safeJsonParse(card.sourceIds, []),
+      table: card.table ?? { hasHeader: true, caption: "", rows: [] },
+      figures: card.figures ?? [],
+      sourceIds: card.sourceIds ?? [],
     })),
   }))
   const active = outputs.find((output: any) => output.isActive) ?? outputs[0]
   return {
     id: workspace.id, revision: workspace.revision, name: workspace.name, authors: workspace.authors, venue: workspace.venue,
-    posterTitle: active?.title ?? workspace.name, templateName: active?.templateId ?? "atlas", cards: active?.cards ?? [],
-    outputs, activeOutputId: active?.id ?? "", assets: workspace.assets.map((asset: any) => ({ ...asset, tableRows: safeJsonParse(asset.tableRows, undefined) })), ingestFiles: [],
+    outputs, activeOutputId: active?.id ?? "", assets: workspace.assets.map((asset: any) => ({ ...asset, tableRows: asset.tableRows ?? undefined })), ingestFiles: [],
   }
 }
 

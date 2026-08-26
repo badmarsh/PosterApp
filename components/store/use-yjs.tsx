@@ -86,10 +86,10 @@ export function useYjs(workspaceId: string) {
       yCards.observe(observer)
 
       // Listen for local Zustand changes and update Yjs
-      let lastCards = store.getState().project.cards
+      let lastCards = (store.getState().project.outputs?.find(o => o.id === store.getState().project.activeOutputId)?.cards ?? [])
       unsubscribeZustand = store.subscribe((state) => {
         if (state.project.activeOutputId !== outputId) return
-        const newCards = state.project.cards
+        const newCards = (state.project.outputs?.find(o => o.id === state.project.activeOutputId)?.cards ?? [])
         if (newCards !== lastCards) {
           lastCards = newCards
           ydoc!.transact(() => {

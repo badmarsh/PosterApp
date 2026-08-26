@@ -34,8 +34,7 @@ export async function extractBibTeX(mdContent: string, workspaceId: string): Pro
       if (!workspace) return
       
       const currentBib = workspace.bibContent || ""
-      const oldKeysStr = workspace.bibKeys || "[]"
-      const oldKeys = new Set<string>(safeJsonParse<string[]>(oldKeysStr, []))
+      const oldKeys = new Set<string>((workspace.bibKeys as string[]) || [])
       
       const existingTitles = new Set<string>()
       for (const entry of currentBib.split(/(?=@\w+\{)/)) {

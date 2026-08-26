@@ -6,13 +6,14 @@ import type { LatexGenerator } from "./types"
 import { assetUrlToLatexPath } from "./helpers"
 
 function generateTable(card: Card): string {
+  if (!card.table || !Array.isArray(card.table.rows) || card.table.rows.length === 0 || !Array.isArray(card.table.rows[0])) return ""
+
   const rows = card.table.rows
-  if (!rows.length) return "% no table rows"
   const cols = rows[0].length
   const colSpec = Array.from({ length: cols }, (_, i) => (i === 0 ? "l" : "c")).join("|")
   const body = rows
     .map((r, idx) => {
-      const cells = r.map((c) => parseMarkdownToLatex(c)).join(" & ")
+      const cells = Array.isArray(r) ? r.map((c) => parseMarkdownToLatex(c)).join(" & ") : ""
       if (idx === 0 && card.table.hasHeader) {
         return `\\hline\n${cells} \\\\\n\\hline`
       }
@@ -119,7 +120,7 @@ export class StandardPaperGenerator implements LatexGenerator {
     for (const card of outputConfig.cards) {
       const textParts = [card.content]
       if (card.table?.caption) textParts.push(card.table.caption)
-      if (card.figures) card.figures.forEach(f => { if (f.caption) textParts.push(f.caption) })
+      if (Array.isArray(card.figures)) card.figures.forEach(f => { if (f.caption) textParts.push(f.caption) })
       extractCiteKeys(textParts.join("\n")).forEach(k => usedKeys.add(k))
     }
     const usedKeysArray = Array.from(usedKeys)
@@ -162,3 +163,6 @@ ${contentBlocks}
 \\end{document}`
   }
 }
+
+
+

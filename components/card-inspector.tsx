@@ -78,12 +78,15 @@ function BasicsTab({ card }: { card: Card }) {
   )
   const idValid = /^(blk|card)_[a-z0-9_]+$/.test(card.id)
   const titleInvalid = card.title.trim().length === 0
+  const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
+  const cards = activeOutput?.cards || []
+
   const orderInCol =
-    project.cards
+    cards
       .filter((c) => c.column === card.column)
       .sort((a, b) => a.order - b.order)
       .findIndex((c) => c.id === card.id) + 1
-  const colCount = project.cards.filter((c) => c.column === card.column).length
+  const colCount = cards.filter((c) => c.column === card.column).length
 
   return (
     <div className="flex flex-col gap-3 p-3">
@@ -832,7 +835,10 @@ export function CardInspector() {
       setInspectorTab: s.setInspectorTab,
     }))
   )
-  const selectedCard = useEditor((s) => s.project.cards.find((c) => c.id === s.selectedCardId) ?? null)
+  const selectedCard = useEditor((s) => {
+    const activeOutput = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
+    return activeOutput?.cards.find((c) => c.id === s.selectedCardId) ?? null
+  })
 
   if (!selectedCard) {
     return (

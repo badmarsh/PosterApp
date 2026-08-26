@@ -15,11 +15,7 @@ function activeOutput(project: Project) {
 }
 
 function syncActiveCards(project: Project) {
-  const output = activeOutput(project)
-  // Older workspaces may not have been migrated to outputs yet; do not erase
-  // their legacy cards merely because no active output was found.
-  project.cards = output?.cards ?? project.cards
-  return project.cards
+  return activeOutput(project)?.cards ?? []
 }
 
 export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
@@ -106,7 +102,6 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
   _setCardsFromYjs: (cards) => set((s) => {
     const output = activeOutput(s.project)
     if (output) output.cards = cards
-    s.project.cards = cards
     // Remote CRDT edits must use the same persistence path as local edits. The
     // Yjs observer ignores its own transactions, so this cannot create a loop.
     s.isDirty = true
@@ -318,7 +313,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
   }),
 
   validateCardAction: (id) => {
-    const card = get().project.cards.find((c) => c.id === id)
+    const card = (activeOutput(get().project)?.cards ?? []).find((c) => c.id === id)
     if (!card) return
     const evId = get().pushEvent({ kind: "validate", status: "running", title: `Validating — ${id}` })
     const msgs = validateCard(card)
@@ -338,7 +333,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
 
   generateLatexForCardAction: (id) => {
     const workspaceId = get().project.id
-    const card = get().project.cards.find((c) => c.id === id)
+    const card = (activeOutput(get().project)?.cards ?? []).find((c) => c.id === id)
     if (!card) return
     const msgs = validateCard(card)
     if (levelFromMessages(msgs) === "invalid") {
@@ -368,11 +363,11 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
 
   autoFillCardAction: async (id) => {
     const workspaceId = get().project.id
-    const card = get().project.cards.find((c) => c.id === id)
+    const card = (activeOutput(get().project)?.cards ?? []).find((c) => c.id === id)
     if (!card) return
 
     // Calculate available text budget
-    const otherCards = get().project.cards.filter(c => c.column === card.column && c.id !== card.id)
+    const otherCards = (activeOutput(get().project)?.cards ?? []).filter(c => c.column === card.column && c.id !== card.id)
     const otherHeights = otherCards.reduce((acc, c) => acc + estimateHeight(c), 0)
     const remainingBudget = Math.max(0, COLUMN_BUDGET - otherHeights)
     
@@ -470,7 +465,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
 
   autoFillAllCardsAction: async () => {
     const workspaceId = get().project.id
-    const cards = get().project.cards.filter(c => 
+    const cards = (activeOutput(get().project)?.cards ?? []).filter(c => 
       c.pattern !== "references" && (!c.content || c.content.trim() === "")
     ).sort((a, b) => a.order - b.order)
     
@@ -529,7 +524,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     const results = await Promise.allSettled(
       sourceCards.filter((c) => c.pattern !== "references" && c.content.trim() !== "").map(async (sourceCard, i) => {
         // Attempt to find a corresponding card in the scaffolded output
-        const currentCards = get().project.cards
+        const currentCards = (activeOutput(get().project)?.cards ?? [])
         const targetCard = currentCards[i]
         if (!targetCard) return
 
@@ -594,7 +589,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
           authors: proj.authors,
           venue: proj.venue,
           templateName: activeOutput?.templateId,
-          cards: proj.cards,
+          cards: activeOutput?.cards ?? [],
           bibContent: get().bibContent,
           bibKeys: get().bibKeys,
         })

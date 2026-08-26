@@ -7,7 +7,6 @@ export const sampleProject: Project = {
   authors: "A. Reyes, M. Okafor, L. Petrova, D. Chen",
   venue: "Robotics & Learning Lab - CoRL 2026",
   templateName: "gemini",
-  cards: [],
   activeOutputId: "out_poster_1",
           outputs: [
     {
@@ -345,5 +344,5 @@ export const sampleProject: Project = {
 // ensure cards fallback matches the active output for legacy code
 const activeOut = sampleProject.outputs.find(o => o.id === sampleProject.activeOutputId)
 if (activeOut) {
-  sampleProject.cards = activeOut.cards
+  
 }

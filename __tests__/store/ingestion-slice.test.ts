@@ -191,7 +191,7 @@ describe('ingestion-slice', () => {
     const store = createEditorStore()
 
     store.setState((s) => {
-      s.project.cards = [
+      s.project.outputs[0].cards = [
         {
           id: 'card_1',
           title: 'Results',
@@ -220,7 +220,7 @@ describe('ingestion-slice', () => {
 
     store.getState().promoteAsset('a1', 'card_1', 'figure1')
 
-    const card = store.getState().project.cards.find((c) => c.id === 'card_1')
+    const card = store.getState().project.outputs[0].cards.find((c) => c.id === 'card_1')
     expect(card?.figures[0]).toBeDefined()
     expect(card?.figures[0].url).toBe('/fig.png')
     expect(card?.figures[0].caption).toBe('Test caption')
@@ -234,7 +234,7 @@ describe('ingestion-slice', () => {
     const store = createEditorStore()
 
     store.setState((s) => {
-      s.project.cards = [
+      s.project.outputs[0].cards = [
         {
           id: 'card_1',
           title: 'Introduction',
@@ -262,7 +262,7 @@ describe('ingestion-slice', () => {
 
     store.getState().promoteAsset('a1', 'card_1', 'bullets')
 
-    const card = store.getState().project.cards.find((c) => c.id === 'card_1')
+    const card = store.getState().project.outputs[0].cards.find((c) => c.id === 'card_1')
     expect(card?.content).toContain('Important finding from the paper.')
     expect(card?.content).toContain('- Existing point')
   })

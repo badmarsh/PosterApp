@@ -19,7 +19,7 @@ export class BeamerSlidesGenerator implements LatexGenerator {
     for (const card of outputConfig.cards) {
       const textParts = [card.content]
       if (card.table?.caption) textParts.push(card.table.caption)
-      if (card.figures) card.figures.forEach(f => { if (f.caption) textParts.push(f.caption) })
+      if (Array.isArray(card.figures)) card.figures.forEach(f => { if (f.caption) textParts.push(f.caption) })
       extractCiteKeys(textParts.join("\n")).forEach(k => usedKeys.add(k))
     }
 
@@ -41,8 +41,8 @@ export class BeamerSlidesGenerator implements LatexGenerator {
           }
         }
       } else if (c.pattern === "bullets-table") {
-        if (c.table && c.table.rows.length > 0) {
-          const rows = c.table.rows
+        if (c.table && Array.isArray(c.table.rows) && c.table.rows.length > 0 && Array.isArray(c.table.rows[0])) {
+          const rows = Array.isArray(c.table.rows) ? c.table.rows : []
           const cols = rows[0].length
           const colSpec = Array.from({ length: cols }, () => "c").join("|")
           const body = rows.map(r => r.map(cell => parseMarkdownToLatex(cell)).join(" & ")).join(" \\\\\n")
@@ -89,4 +89,7 @@ ${slides}
 \\end{document}`
   }
 }
+
+
+
 

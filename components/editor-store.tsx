@@ -63,7 +63,8 @@ export function useEditor<T>(selector?: (state: EditorState) => T): T | (EditorS
     return {
       ...fullState,
       get selectedCard() {
-        return fullState.project.cards.find((c) => c.id === fullState.selectedCardId) ?? null
+        const activeOutput = fullState.project.outputs?.find((o) => o.id === fullState.project.activeOutputId)
+        return activeOutput?.cards.find((c) => c.id === fullState.selectedCardId) ?? null
       },
     }
   }

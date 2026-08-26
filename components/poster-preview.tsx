@@ -179,6 +179,14 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
   const templates = getTemplatesForType(selectedType)
   const [selectedTemplate, setSelectedTemplate] = useState(templates[0]?.id ?? "")
 
+  useEffect(() => {
+    if (open) {
+      setSelectedType("slides")
+      const ts = getTemplatesForType("slides")
+      setSelectedTemplate(ts[0]?.id ?? "")
+    }
+  }, [open])
+
   // Sync template when type changes
   const handleTypeChange = (t: OutputType) => {
     setSelectedType(t)
@@ -380,10 +388,10 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
   }
 
   const colCards = useMemo(
-    () => project.cards
+    () => (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])
       .filter((c) => c.column === card.column)
       .sort((a, b) => a.order - b.order),
-    [project.cards, card.column]
+    [(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []), card.column]
   )
   const idx = colCards.findIndex((c) => c.id === card.id)
 
@@ -580,7 +588,7 @@ function PosterColumn({ column }: { column: ColumnIndex }) {
       addCard: s.addCard,
     }))
   )
-  const cards = project.cards
+  const cards = (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])
     .filter((c) => c.column === column)
     .sort((a, b) => a.order - b.order)
   const total = cards.reduce((s, c) => s + estimateHeight(c), 0)
@@ -686,8 +694,8 @@ function PosterStructureView() {
     
     if (activeId === overId) return
     
-    const activeCard = project.cards.find(c => c.id === activeId)
-    const overCard = project.cards.find(c => c.id === overId)
+    const activeCard = (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []).find(c => c.id === activeId)
+    const overCard = (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []).find(c => c.id === overId)
     
     if (!activeCard || !overCard) return
     
@@ -706,8 +714,8 @@ function PosterStructureView() {
     
     if (activeId === overId) return
 
-    const activeCard = project.cards.find(c => c.id === activeId)
-    const overCard = project.cards.find(c => c.id === overId)
+    const activeCard = (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []).find(c => c.id === activeId)
+    const overCard = (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []).find(c => c.id === overId)
     
     if (activeCard && overCard && overCard.column != null) {
       moveCard(activeId, overCard.column as ColumnIndex, overCard.order)
@@ -715,8 +723,8 @@ function PosterStructureView() {
   }
 
   const activeCardData = useMemo(
-    () => project.cards.find(c => c.id === activeId),
-    [project.cards, activeId]
+    () => (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []).find(c => c.id === activeId),
+    [(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []), activeId]
   )
 
   return (
@@ -915,7 +923,7 @@ function SlidesView() {
     }))
   )
   const [activeId, setActiveId] = useState<string | null>(null)
-  const cards = useMemo(() => [...project.cards].sort((a, b) => a.order - b.order), [project.cards])
+  const cards = useMemo(() => [...(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])].sort((a, b) => a.order - b.order), [(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])])
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -976,7 +984,7 @@ function PaperView() {
     }))
   )
   const [activeId, setActiveId] = useState<string | null>(null)
-  const cards = useMemo(() => [...project.cards].sort((a, b) => a.order - b.order), [project.cards])
+  const cards = useMemo(() => [...(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])].sort((a, b) => a.order - b.order), [(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])])
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })

@@ -24,7 +24,6 @@ test.describe('Poster Compilation', () => {
     const compileBtn = page.getByRole('button', { name: 'Compile', exact: true });
     await expect(compileBtn).toBeVisible();
     await compileBtn.click();
-    await page.getByRole('menuitem', { name: 'Compile as Poster' }).click();
     // 5. Wait for Compile to finish
     await expect(page.getByText('Compiling with pdflatex…')).toBeHidden({ timeout: 60000 });
     

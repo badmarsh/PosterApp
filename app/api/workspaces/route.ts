@@ -43,10 +43,10 @@ export async function GET() {
                   order: c.order,
                   pattern: c.pattern,
                   content: c.content,
-                  table: jsonStringify(c.table),
-                  figures: jsonStringify(c.figures),
+                  table: c.table ?? undefined,
+                  figures: c.figures ?? undefined,
                   figureLayout: c.figureLayout || "auto",
-                  sourceIds: jsonStringify(c.sourceIds),
+                  sourceIds: c.sourceIds ?? undefined,
                   validation: c.validation || "ok",
                 })),
               },
@@ -131,7 +131,6 @@ export async function POST(req: Request) {
       // Legacy flat fields for backward compat
       posterTitle: activeOutput?.title ?? name,
       templateName: activeOutput?.templateId ?? resolvedTemplateId,
-      cards: activeOutput?.cards ?? [],
       activeOutputId: activeOutput?.id ?? outputId,
     }, { status: 201 })
   } catch (err) {

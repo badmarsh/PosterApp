@@ -37,7 +37,7 @@ export function PromotePopover({ asset }: { asset: ExtractedAsset }) {
   const slots = slotsForKind(asset.kind)
   const [open, setOpen] = useState(false)
   const [cardId, setCardId] = useState<string>(
-    asset.assignedCardId ?? project.cards[0]?.id ?? "",
+    asset.assignedCardId ?? (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])[0]?.id ?? "",
   )
   const [slot, setSlot] = useState<AssignSlot>(asset.assignedSlot ?? slots[0])
 
@@ -79,14 +79,14 @@ export function PromotePopover({ asset }: { asset: ExtractedAsset }) {
             value={cardId}
             onValueChange={(v) => setCardId(String(v))}
             items={Object.fromEntries(
-              project.cards.map((c) => [c.id, c.title || c.id]),
+              (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []).map((c) => [c.id, c.title || c.id]),
             )}
           >
             <SelectTrigger size="sm" className="h-7 w-full bg-card text-[11px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {project.cards.map((c) => (
+              {(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []).map((c) => (
                 <SelectItem key={c.id} value={c.id} className="text-[11px]">
                   {c.title || c.id}
                   <span className="ml-1 font-mono text-[9px] text-muted-foreground">

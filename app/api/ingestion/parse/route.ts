@@ -337,7 +337,7 @@ export async function POST(req: Request) {
       assets.map(a => prisma.asset.create({
         data: {
           ...a,
-          tableRows: a.tableRows ? jsonStringify(a.tableRows) : undefined,
+          tableRows: a.tableRows ?? undefined,
           workspaceId,
           fileId: parsedFileId,
           confidence: "high",

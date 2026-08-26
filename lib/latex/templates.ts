@@ -92,7 +92,7 @@ ${override}
 \\usecolorstyle{minimalcolors}
 
 \\title{\\parbox{0.74\\linewidth}{\\centering\\huge
-    ${parseMarkdownToLatex(project.posterTitle)}\\\\[1mm]
+    ${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}\\\\[1mm]
     }}
 \\author{\\Large ${parseMarkdownToLatex(project.authors)}}
 \\institute{\\normalsize ${parseMarkdownToLatex(project.venue)}}
@@ -153,7 +153,7 @@ ${override}
 \\usetitlestyle{sampletitle}
 
 \\title{\\parbox{0.74\\linewidth}{\\centering\\huge
-    ${parseMarkdownToLatex(project.posterTitle)}\\\\[1mm]
+    ${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}\\\\[1mm]
     }}
 \\author{\\Large ${parseMarkdownToLatex(project.authors)}}
 \\institute{\\normalsize ${parseMarkdownToLatex(project.venue)}}
@@ -179,7 +179,7 @@ ${override}\\usepackage{graphicx}
 \\usepackage{amssymb}
 \\usepackage{booktabs}
 
-\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
 \\author{${parseMarkdownToLatex(project.authors)}}
 \\institute{${parseMarkdownToLatex(project.venue)}}
 
@@ -204,7 +204,7 @@ ${override}
 \\usetheme{Board}
 
 \\title{\\parbox{0.74\\linewidth}{\\centering\\huge
-    ${parseMarkdownToLatex(project.posterTitle)}\\\\[1mm]
+    ${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}\\\\[1mm]
     }}
 \\author{\\Large ${parseMarkdownToLatex(project.authors)}}
 \\institute{\\normalsize ${parseMarkdownToLatex(project.venue)}}
@@ -225,7 +225,7 @@ export function getA0PosterTemplate(project: Project, _themeColor?: string): str
 \\usepackage{amssymb}
 \\usepackage{multicol}
 
-\\title{\\Huge ${parseMarkdownToLatex(project.posterTitle)}}
+\\title{\\Huge ${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
 \\author{\\Large ${parseMarkdownToLatex(project.authors)}}
 \\date{}
 
@@ -250,7 +250,7 @@ ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
 
-\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
 \\author{${parseMarkdownToLatex(project.authors)}}
 \\institute{${parseMarkdownToLatex(project.venue)}}
 
@@ -275,7 +275,7 @@ ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
 
-\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
 \\author{${parseMarkdownToLatex(project.authors)}}
 \\institute{${parseMarkdownToLatex(project.venue)}}
 
@@ -298,7 +298,7 @@ ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
 
-\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
 \\author{${parseMarkdownToLatex(project.authors)}}
 \\institute{${parseMarkdownToLatex(project.venue)}}
 
@@ -321,7 +321,7 @@ ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
 
-\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
 \\author{${parseMarkdownToLatex(project.authors)}}
 \\institute{${parseMarkdownToLatex(project.venue)}}
 
@@ -344,7 +344,7 @@ ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
 
-\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
 \\author{${parseMarkdownToLatex(project.authors)}}
 \\institute{${parseMarkdownToLatex(project.venue)}}
 
@@ -373,7 +373,7 @@ export function getTwoColumnTemplate(project: Project): string {
 \\usepackage[margin=1in]{geometry}
 \\usepackage{authblk}
 
-\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
 \\author{${parseMarkdownToLatex(project.authors)}}
 \\affil{${parseMarkdownToLatex(project.venue)}}
 \\date{}
@@ -397,7 +397,7 @@ export function getSingleColumnTemplate(project: Project): string {
 \\usepackage[margin=1.5in]{geometry}
 \\usepackage{authblk}
 
-\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
 \\author{${parseMarkdownToLatex(project.authors)}}
 \\affil{${parseMarkdownToLatex(project.venue)}}
 \\date{}
@@ -418,7 +418,7 @@ export function getIEEEConfTemplate(project: Project): string {
 \\usepackage{amssymb}
 \\usepackage{booktabs}
 
-\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
 \\author{${parseMarkdownToLatex(project.authors)}}
 
 \\begin{document}
@@ -437,7 +437,7 @@ export function getACMSigconfTemplate(project: Project): string {
 \\usepackage{amssymb}
 \\usepackage{booktabs}
 
-\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
 \\author{${parseMarkdownToLatex(project.authors)}}
 
 \\begin{document}
@@ -456,7 +456,7 @@ export function getSpringerLLNCSTemplate(project: Project): string {
 \\usepackage{amssymb}
 \\usepackage{booktabs}
 
-\\title{${parseMarkdownToLatex(project.posterTitle)}}
+\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
 \\author{${parseMarkdownToLatex(project.authors)}}
 
 \\begin{document}

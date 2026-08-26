@@ -171,7 +171,7 @@ function ColumnGroup({ column }: { column: ColumnIndex }) {
       addCard: s.addCard,
     }))
   )
-  const cards = project.cards
+  const cards = (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])
     .filter((c) => c.column === column)
     .sort((a, b) => a.order - b.order)
 
@@ -271,7 +271,7 @@ export function StructureSidebar() {
             <div className="flex gap-1">
               <dt className="text-muted-foreground/70">Cards</dt>
               <dd>
-                {project.cards.length} blocks · {columnCount} columns
+                {(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []).length} blocks · {columnCount} columns
               </dd>
             </div>
           </dl>

@@ -1,6 +1,7 @@
 type MathSlot = { placeholder: string; original: string }
 
-function extractMath(input: string): { text: string; slots: MathSlot[] } {
+export function extractMath(input: string): { text: string; slots: MathSlot[] } {
+  if (typeof input !== "string") return { text: "", slots: [] }
   const slots: MathSlot[] = []
   let idx = 0
 

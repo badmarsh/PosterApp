@@ -19,9 +19,11 @@ function buildLintReport(project: any, bibKeys: string[]) {
   const emptyCaptions: { cardId: string, figId: string }[] = []
   const emptyCards: string[] = []
   const layoutOverflows: string[] = []
-  
+  const activeOutput = project.outputs?.find((o: any) => o.id === project.activeOutputId)
+  const cards = activeOutput?.cards || []
+
   // 1. Citation and Layout Audit
-  for (const card of (project.cards || []) as Card[]) {
+  for (const card of cards as Card[]) {
     // Audit Content for cites
     const textParts = [card.content]
     if (card.table?.caption) textParts.push(card.table.caption)

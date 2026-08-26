@@ -89,8 +89,8 @@ export const WorkspaceSchema = z.object({
   // Shared workspace data
   assets: z.array(AssetSchema).optional(),
   ingestFiles: z.array(IngestFileSchema).optional(),
-  agentEvents: z.array(z.any()).optional(),
-  chatMessages: z.array(z.any()).optional(),
+  agentEvents: z.any().nullable().optional(),
+  chatMessages: z.any().nullable().optional(),
 })
 
 export const WorkspaceCreateSchema = z.object({
