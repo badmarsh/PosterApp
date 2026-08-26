@@ -215,15 +215,35 @@ export async function POST(req: Request) {
       let newFilename = ""
       if (tableMap.has(normName)) {
         newFilename = `${basename}_table_${tableIndex++}${ext}`
-        tableMap.set(newFilename, tableMap.get(normName)!)
+        const rows = tableMap.get(normName)!
+        tableMap.set(newFilename, rows)
         pageMap.set(newFilename, pageMap.get(normName) || 1)
+        
+        // Inject the parsed table directly into the Markdown so the AI can read the data!
+        let mdTable = "\n\n"
+        for (let i = 0; i < rows.length; i++) {
+          mdTable += "| " + rows[i].map((c: string) => c.replace(/\|/g, "-")).join(" | ") + " |\n"
+          if (i === 0) {
+            mdTable += "| " + rows[i].map(() => "---").join(" | ") + " |\n"
+          }
+        }
+        mdTable += "\n"
+        
+        // Try to replace the exact image markdown, or just append it near the image link
+        // MinerU usually writes ![]({filename})
+        const imgRegex = new RegExp(`\\!\\[.*\\]\\(` + filename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + `\\)`, "g")
+        if (imgRegex.test(results.md_content)) {
+          results.md_content = results.md_content.replace(imgRegex, `![](${newFilename})${mdTable}`)
+        } else {
+          // Fallback if not found as an image tag
+          results.md_content = results.md_content.split(filename).join(newFilename + '")\n' + mdTable + '\n[comment]: <> ("')
+        }
       } else {
         newFilename = `${basename}_figure_${figureIndex++}${ext}`
         pageMap.set(newFilename, pageMap.get(normName) || 1)
+        results.md_content = results.md_content.split(filename).join(newFilename)
       }
       newImages[newFilename] = base64Data
-      // Replace references to the old filename globally in the markdown
-      results.md_content = results.md_content.split(filename).join(newFilename)
     }
     results.images = newImages
   }

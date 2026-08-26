@@ -62,14 +62,62 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
     let log = ""
     const image = process.env.LATEX_COMPILER_IMAGE
-    if (image) {
-      // Production worker: an isolated container with no network and only this job's staging directory mounted.
-      log = await run("docker", ["run", "--rm", "--network", "none", "--cpus", "1", "--memory", "512m", "--pids-limit", "64", "--security-opt", "no-new-privileges", "-v", `${stage}:/work`, "-w", "/work", image, "pdflatex", "-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error", "main.tex"], stage)
-    } else if (process.env.NODE_ENV !== "production") {
-      // Development-only WSL fallback; production must configure LATEX_COMPILER_IMAGE.
-      log = await run("wsl", ["--cd", stage, "bash", "-lc", "ulimit -t 55 -v 524288 -f 20480 -u 64; exec pdflatex -no-shell-escape -interaction=nonstopmode -halt-on-error main.tex"], stage)
-    } else {
-      return NextResponse.json({ error: { code: "COMPILER_UNAVAILABLE", message: "The production compiler worker is not configured" } }, { status: 503 })
+    
+    const runCompiler = async () => {
+      if (image) {
+        // Production worker: an isolated container with no network and only this job's staging directory mounted.
+        return await run("docker", ["run", "--rm", "--network", "none", "--cpus", "1", "--memory", "512m", "--pids-limit", "64", "--security-opt", "no-new-privileges", "-v", `${stage}:/work`, "-w", "/work", image, "pdflatex", "-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error", "main.tex"], stage)
+      } else if (process.env.NODE_ENV !== "production") {
+        // Development-only WSL fallback; production must configure LATEX_COMPILER_IMAGE.
+        return await run("wsl", ["--cd", stage, "bash", "-lc", "ulimit -t 55 -v 524288 -f 20480 -u 64; exec pdflatex -no-shell-escape -interaction=nonstopmode -halt-on-error main.tex"], stage)
+      } else {
+        throw new Error("COMPILER_UNAVAILABLE")
+      }
+    }
+
+    try {
+      log = await runCompiler()
+    } catch (initialError: any) {
+      if (!process.env.AI_API_URL || !process.env.AI_API_KEY) throw initialError
+      
+      const errorLog = initialError instanceof Error ? initialError.message : String(initialError)
+      if (errorLog.includes("COMPILER_UNAVAILABLE")) {
+        return NextResponse.json({ error: { code: "COMPILER_UNAVAILABLE", message: "The production compiler worker is not configured" } }, { status: 503 })
+      }
+      
+      console.log("[compile] Compilation failed, attempting AI recovery...")
+      
+      const modelToUse = process.env.AI_REVIEW_MODEL || process.env.AI_MODEL || "gemini-3-flash"
+      const systemPrompt = "You are a LaTeX expert. The user's pdflatex compilation failed. Fix the following compilation error. Return ONLY the fully corrected raw LaTeX document."
+      const userPrompt = `=== COMPILER ERROR LOG ===\n${errorLog}\n\n=== ORIGINAL LATEX ===\n${tex}\n\nPlease fix the LaTeX errors and return the entire document. Do not include any explanations.`
+      
+      const response = await fetch(process.env.AI_API_URL as string, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${process.env.AI_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: modelToUse,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          temperature: 0.1,
+        })
+      })
+
+      if (!response.ok) throw initialError
+      const data = await response.json()
+      let fixedTex = data.choices?.[0]?.message?.content || ""
+      if (!fixedTex) throw initialError
+      
+      fixedTex = fixedTex.replace(/^```(?:latex|tex)?\s*\n?/i, "").replace(/\n?\s*```\s*$/i, "").trim()
+      await fs.writeFile(path.join(stage, "main.tex"), fixedTex, "utf8")
+      
+      try {
+        const recoveryLog = await runCompiler()
+        log = errorLog + "\n\n--- AI AUTO-RECOVERY SUCCESSFUL ---\n\n" + recoveryLog
+      } catch (recoveryError: any) {
+        throw new Error(errorLog + "\n\n--- AI AUTO-RECOVERY FAILED ---\n\n" + (recoveryError instanceof Error ? recoveryError.message : String(recoveryError)))
+      }
     }
 
     const compiled = path.join(stage, "main.pdf")
