@@ -143,8 +143,9 @@ export async function POST(req: Request) {
 
     const resultBuffer = await pipeline.toBuffer()
 
-    const originalFilename = path.basename(assetPath)
-    const draftName = `draft-${Date.now()}-${Math.random().toString(36).slice(2)}-${originalFilename}`
+    const parsed = path.parse(assetPath)
+    const originalBasename = parsed.name
+    const draftName = `draft-${Date.now()}-${Math.random().toString(36).slice(2)}-${originalBasename}.png`
     const draftPath = path.join(assetsDir, draftName)
     
     await fs.promises.writeFile(draftPath, resultBuffer)

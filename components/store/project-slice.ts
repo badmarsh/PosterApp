@@ -381,6 +381,11 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     // roughly 14u per 60 characters
     const characterLimit = Math.floor(textBudgetUnits * (60 / 14))
 
+    if (characterLimit <= 0) {
+      toast.warning("Not enough space in this column. Reduce other content first.")
+      return
+    }
+
     set((s) => { s.generatingIds.push(id) })
     const evId = get().pushEvent({ kind: "generate", status: "running", title: `Auto-filling content — ${id}`, detail: `Reading workspace sources with Gemini (Target limit: ${characterLimit} chars)` })
     toast.info("Auto-filling card...")
@@ -425,8 +430,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
           s.isDirty = true
           // Update content as markdown bullets (or paragraphs for paper)
           if (data.bullets && Array.isArray(data.bullets)) {
-            const isPaper = activeOutput(s.project)?.outputType === "paper";
-            c.content = data.bullets.map((b: string) => isPaper ? b : `* ${b}`).join("\n\n")
+            c.content = data.bullets.map((b: string) => outputType === "paper" ? b : `* ${b}`).join("\n\n")
           }
           
           // Update figures if recommended

@@ -10,6 +10,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -49,7 +50,7 @@ import type { Card, ColumnIndex } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 
 const CardRow = memo(function CardRow({ card }: { card: Card }) {
-  const { selectedCardId, selectCard, deleteCard, getStatus, layoutWarnings, reorderCard, moveColumn } = useEditor(
+  const { selectedCardId, selectCard, deleteCard, getStatus, layoutWarnings, reorderCard, moveColumn, updateCard, saveProject, project } = useEditor(
     useShallow((s) => ({
       selectedCardId: s.selectedCardId,
       selectCard: s.selectCard,
@@ -145,7 +146,7 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
                   await saveProject()
                 }
               } catch (err: unknown) {
-                alert("Failed to shrink content: " + (err instanceof Error ? err.message : String(err)))
+                toast.error("Failed to shrink content: " + (err instanceof Error ? err.message : String(err)))
               } finally {
                 setIsShrinking(false)
               }
