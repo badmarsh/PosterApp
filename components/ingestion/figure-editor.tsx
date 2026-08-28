@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { toast } from "sonner"
 import {
   Check,
   Crop,
@@ -84,7 +83,7 @@ export function FigureEditor({
         checker: mappedOp === "remove-bg",
       })
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Image processing failed")
+      console.error(err)
     } finally {
       setApplying(false)
     }
@@ -226,7 +225,7 @@ export function FigureEditor({
                   onClose()
                 } else throw new Error("Accept failed")
               } catch(err) {
-                toast.error("Failed to accept edit")
+                console.error(err)
               } finally {
                 setApplying(false)
               }

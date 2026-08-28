@@ -42,6 +42,8 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
 
   inspectorTab: "basics",
   isInspectorOpen: true,
+  isHeaderUnlocked: false,
+  setHeaderUnlocked: (v) => set({ isHeaderUnlocked: v }),
   showLatexSource: false,
   toggleLatexSource: () => set((s) => { s.showLatexSource = !s.showLatexSource }),
   lastWorkspaceId: null,
@@ -167,7 +169,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
                  get().updateEvent(vlmEv, { kind: "info", status: "done", title: `VLM Layout Check passed!`, detail: "No overflow or overlapping issues detected." })
                  set((s) => { s.layoutWarnings = [] })
               }
-              set((s) => { s.lastReviewedRevision = revision })
+              set((s) => { s.lastReviewedRevision = revision ?? null })
             }).catch(err => {
                  get().updateEvent(vlmEv, { status: "error", title: `VLM Layout Check failed`, detail: String(err) })
             })
@@ -185,26 +187,15 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
             if (!autofixRes.ok) throw new Error(`HTTP ${autofixRes.status}: ${await autofixRes.text().catch(() => "")}`)
             const autofixData = await autofixRes.json()
             if (autofixData.fixes && Array.isArray(autofixData.fixes) && autofixData.fixes.length > 0) {
-               // Use dynamic import or just standard toast
-               import("sonner").then(({ toast }) => {
-                 toast("Autofix available", {
-                   description: "The AI found a fix for the compile error.",
-                   action: {
-                     label: "Apply Fixes",
-                     onClick: async () => {
-                       autofixData.fixes.forEach((fix: any) => {
-                         get().updateCard(fix.id, { content: fix.content })
-                       })
-                       await new Promise(r => setTimeout(r, 100))
-                       await get().saveProject()
-                       toast.success("Autofix applied. Recompiling...")
-                       get().compileProject()
-                     }
-                   },
-                   duration: 10000,
-                 })
+               const explanation = autofixData.explanation
+                 ? `${autofixData.explanation} Click 'Apply Fixes' below.`
+                 : "The AI generated a fix for the compile error. Click 'Apply Fixes' below."
+               get().updateEvent(evId, {
+                 status: "warning",
+                 title: "Compile failed — Autofix ready",
+                 detail: explanation,
+                 fixes: autofixData.fixes,
                })
-               get().updateEvent(evId, { status: "warning", title: "Compile failed", detail: "Autofix available. Click 'Apply Fixes' in the toast notification." })
                break;
             } else {
                get().updateEvent(evId, { status: "error", title: "Compile failed", detail: "LLM autofix could not provide a fix." })

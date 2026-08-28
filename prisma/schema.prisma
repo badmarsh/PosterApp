@@ -13,6 +13,8 @@ model Workspace {
   name          String
   authors       String
   venue         String
+  logoUrl       String?
+  secondaryLogoUrl String?
   userId        String                @default("unauthenticated")
   bibContent    String?
   revision      Int                   @default(0)
@@ -61,8 +63,13 @@ model Output {
   outputType  String
   templateId  String
   title       String
+  authors     String?
+  venue       String?
+  logoUrl     String?
+  secondaryLogoUrl String?
   isActive    Boolean   @default(false)
   themeColor  String?
+  sourceIds   Json?
   cards       Card[]
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }

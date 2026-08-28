@@ -23,11 +23,59 @@ export class BeamerSlidesGenerator implements LatexGenerator {
       extractCiteKeys(textParts.join("\n")).forEach(k => usedKeys.add(k))
     }
 
+    const usedKeysArray = Array.from(usedKeys)
+
     const sortedCards = [...outputConfig.cards].sort((a, b) => (a.column || 1) - (b.column || 1) || a.order - b.order)
 
     const slides = sortedCards.map((c) => {
+      // ── References slide ──────────────────────────────────────────────────
+      if (c.pattern === "references") {
+        const nociteCmd = usedKeysArray.length > 0
+          ? `\\nocite{${usedKeysArray.join(",")}}`
+          : "% no citations used"
+        let tex = `\\begin{frame}[allowframebreaks]{${parseMarkdownToLatex(c.title)}}\n`
+        tex += `${nociteCmd}\n`
+        tex += `\\bibliographystyle{plain}\n`
+        tex += `\\bibliography{references}\n`
+        if (c.slideNotes) tex += `\\note{${parseMarkdownToLatex(c.slideNotes)}}\n`
+        tex += `\\end{frame}`
+        return tex
+      }
+
+      // ── Two-column slide ──────────────────────────────────────────────────
+      if (c.pattern === "two-column") {
+        const hasFigure = c.figures && c.figures.length > 0 && c.figures[0].url
+        let leftContent: string
+        let rightContent: string
+
+        if (hasFigure) {
+          // Text left, figure right
+          leftContent = parseMarkdownToLatex(c.content)
+          const f = c.figures[0]
+          const imgPath = workspaceId ? assetUrlToLatexPath(f.url, workspaceId) : f.url
+          rightContent = `\\includegraphics[width=\\linewidth,keepaspectratio]{${imgPath}}`
+          if (f.caption) rightContent += `\n\\\\\n{\\footnotesize ${parseMarkdownToLatex(f.caption)}}`
+          rightContent = `\\centering\n${rightContent}`
+        } else {
+          // Split prose at first blank line
+          const paragraphs = c.content.split(/\n\s*\n/)
+          const mid = Math.ceil(paragraphs.length / 2)
+          leftContent = parseMarkdownToLatex(paragraphs.slice(0, mid).join("\n\n"))
+          rightContent = parseMarkdownToLatex(paragraphs.slice(mid).join("\n\n"))
+        }
+
+        let tex = `\\begin{frame}{${parseMarkdownToLatex(c.title)}}\n`
+        tex += `\\begin{columns}[t]\n`
+        tex += `  \\begin{column}{0.48\\textwidth}\n${leftContent}\n  \\end{column}\n`
+        tex += `  \\begin{column}{0.48\\textwidth}\n${rightContent}\n  \\end{column}\n`
+        tex += `\\end{columns}\n`
+        if (c.slideNotes) tex += `\\note{${parseMarkdownToLatex(c.slideNotes)}}\n`
+        tex += `\\end{frame}`
+        return tex
+      }
+
+      // ── Standard slide ────────────────────────────────────────────────────
       let content = parseMarkdownToLatex(c.content)
-      
       let tex = `\\begin{frame}{${parseMarkdownToLatex(c.title)}}\n`
       tex += `${content}\n`
 

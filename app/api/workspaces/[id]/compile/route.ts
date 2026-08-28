@@ -77,6 +77,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
     const assets = path.join(ROOT, id, "assets")
     await fs.cp(assets, path.join(stage, "assets"), { recursive: true, force: true, errorOnExist: false }).catch(() => undefined)
+    const defaultLogos = path.join(process.cwd(), "public", "logos")
+    await fs.cp(defaultLogos, path.join(stage, "logos"), { recursive: true, force: true, errorOnExist: false }).catch(() => undefined)
+    const workspaceLogos = path.join(ROOT, id, "logos")
+    await fs.cp(workspaceLogos, path.join(stage, "logos"), { recursive: true, force: true, errorOnExist: false }).catch(() => undefined)
 
     let log = ""
     const image = process.env.LATEX_COMPILER_IMAGE

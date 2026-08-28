@@ -94,6 +94,14 @@ const EventRow = memo(function EventRow({
   event: AgentEvent
   last: boolean
 }) {
+  const { updateCard, saveProject, compileProject, updateEvent } = useEditor(
+    useShallow((s) => ({
+      updateCard: s.updateCard,
+      saveProject: s.saveProject,
+      compileProject: s.compileProject,
+      updateEvent: s.updateEvent,
+    }))
+  )
   const Icon = KIND_ICON[event.kind]
   const [mounted, setMounted] = useState(false)
   const [elapsed, setElapsed] = useState("")
@@ -175,6 +183,38 @@ const EventRow = memo(function EventRow({
                 </div>
               )
             })}
+          </div>
+        )}
+        {event.fixes && event.fixes.length > 0 && (
+          <div className="mt-2 flex flex-col gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                {event.fixesApplied
+                  ? "✓ Fixes Applied"
+                  : `${event.fixes.length} AI Fix${event.fixes.length === 1 ? "" : "es"} Available`}
+              </span>
+              {!event.fixesApplied && (
+                <Button
+                  size="sm"
+                  className="h-6 px-2.5 text-[10px] font-semibold bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:text-black dark:hover:bg-amber-400 border-0"
+                  onClick={async () => {
+                    event.fixes?.forEach((fix) => {
+                      updateCard(fix.id, { content: fix.content })
+                    })
+                    updateEvent(event.id, {
+                      fixesApplied: true,
+                      status: "done",
+                      detail: "Fixes applied. Recompiling…",
+                    })
+                    await saveProject()
+                    compileProject()
+                  }}
+                >
+                  <Sparkles className="size-3 mr-1" />
+                  Apply Fixes
+                </Button>
+              )}
+            </div>
           </div>
         )}
         <span className="mt-0.5 block min-h-[12px] font-mono text-[9px] text-muted-foreground/70">

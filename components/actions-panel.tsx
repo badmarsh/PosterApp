@@ -4,7 +4,6 @@ import { X, Sparkles, Download, Layers } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
-import { toast } from "sonner"
 import { generateFullTemplate } from "@/lib/latex"
 
 export function ActionsPanel() {
@@ -13,7 +12,8 @@ export function ActionsPanel() {
     setIsActionsOpen, 
     project, 
     autoFillAllCardsAction, 
-    aiReview 
+    aiReview,
+    pushEvent,
   } = useEditor(
     useShallow((s) => ({
       isActionsOpen: s.isActionsOpen,
@@ -21,6 +21,7 @@ export function ActionsPanel() {
       project: s.project,
       autoFillAllCardsAction: s.autoFillAllCardsAction,
       aiReview: s.aiReview,
+      pushEvent: s.pushEvent,
     }))
   )
 
@@ -29,7 +30,7 @@ export function ActionsPanel() {
   function exportTex() {
     const activeOutput = project.outputs?.find(o => o.id === project.activeOutputId) || project.outputs?.[0]
     if (!activeOutput) {
-      toast.error("No active output")
+      pushEvent({ kind: "info", status: "error", title: "Export Failed", detail: "No active output found." })
       return
     }
     const tex = generateFullTemplate(project, activeOutput, project.id)
@@ -40,7 +41,7 @@ export function ActionsPanel() {
     a.download = `${project.id}_${activeOutput.outputType}.tex`
     a.click()
     URL.revokeObjectURL(url)
-    toast.success(`Exported ${activeOutput.outputType}.tex`)
+    pushEvent({ kind: "info", status: "done", title: `Exported ${activeOutput.outputType}.tex`, detail: "LaTeX source file downloaded." })
   }
 
   return (
@@ -67,7 +68,7 @@ export function ActionsPanel() {
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <div className="space-y-1">
-            <h3 className="text-sm font-medium">Generate All</h3>
+            <h3 className="text-sm font-medium">Generate Empty Items</h3>
             <p className="text-xs text-muted-foreground mb-2">
               Automatically fill all empty cards in your project using AI and ingested context.
             </p>
@@ -80,7 +81,7 @@ export function ActionsPanel() {
               }}
             >
               <Sparkles className="size-4" />
-              Generate All
+              Generate contents for empty items
             </Button>
           </div>
 

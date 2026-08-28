@@ -80,6 +80,9 @@ export function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: 
   if (templateId === "gemini") {
     return `% block id: ${card.id}  (column ${card.column}, order ${card.order})\n\\begin{block}{${title}}\n${body}\n\\end{block}`
   }
+  if (templateId === "a0poster") {
+    return `% block id: ${card.id}  (column ${card.column}, order ${card.order})\n\\section*{${title}}\n${body}`
+  }
   return `% block id: ${card.id}  (column ${card.column}, order ${card.order})\n\\block{${title}}{\n${indent(body)}\n}`
 }
 
@@ -109,9 +112,13 @@ export class TikzPosterGenerator implements LatexGenerator {
         const blocks = cards
           .map((c) => indent(generateLatexForCard(c, workspaceId, usedKeysArray, this.templateId)))
           .join("\n\n")
-          
+
         if (this.templateId === "gemini") {
            return `% ===== Column ${col} =====\n\\begin{column}{0.31\\textwidth}\n${blocks}\n\\end{column}`
+        }
+        if (this.templateId === "a0poster") {
+          // a0poster uses \begin{multicols}{3} — no \column{} wrappers needed
+          return `% ===== Column ${col} =====\n${blocks}`
         }
         return `% ===== Column ${col} =====\n\\column{0.333}\n\n${blocks}`
       })
@@ -120,6 +127,7 @@ export class TikzPosterGenerator implements LatexGenerator {
     let templateContent = "";
     let endDocumentContent = "\\end{document}";
     let beginColumns = "\\begin{columns}";
+    let endColumns = "\\end{columns}";
 
     const themeColor = outputConfig.themeColor ?? undefined
     switch (outputConfig.templateId?.toLowerCase()) {
@@ -136,10 +144,12 @@ export class TikzPosterGenerator implements LatexGenerator {
         break;
       case "a0poster":
         templateContent = getA0PosterTemplate(project, themeColor);
+        beginColumns = "\\begin{multicols}{3}";
+        endColumns = "\\end{multicols}";
         break;
       case "atlas":
       default:
-        templateContent = getAtlasTemplate(project, themeColor);
+        templateContent = getAtlasTemplate(project, themeColor, workspaceId);
         break;
     }
 
@@ -150,7 +160,7 @@ ${beginColumns}
 
 ${indent(columns)}
 
-\\end{columns}
+${endColumns}
 ${endDocumentContent}`
   }
 }

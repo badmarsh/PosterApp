@@ -1,4 +1,3 @@
-import { toast } from "sonner"
 import type { EditorSlice, ProjectSlice } from "./types"
 import { sampleProject } from "@/lib/mock-data"
 import { COLUMN_BUDGET, estimateHeight, generateLatexForCard, levelFromMessages, validateCard } from "@/lib/latex"
@@ -6,7 +5,7 @@ import type { Project, OutputConfig, BlockPattern, Card } from "@/lib/poster-typ
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { apiFetch } from "@/lib/api-fetch"
 import type { OutputType } from "@/lib/output-types"
-import { getDefaultTemplateId, DEFAULT_STRUCTURES, getTemplateDef } from "@/lib/output-types"
+import { getDefaultTemplateId, DEFAULT_STRUCTURES, getTemplateDef, buildDefaultStructure } from "@/lib/output-types"
 import { jobQueue } from "@/lib/job-queue"
 
 /** outputs[].cards is the persisted source of truth. `project.cards` only mirrors the active output for legacy consumers. */
@@ -79,7 +78,6 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       set((s) => { s.isSwitchingProject = false })
       get().setLastWorkspaceId(null)
       get().pushEvent({ kind: "info", status: "error", title: "Failed to load workspace", detail: String(err) })
-      toast.error("Failed to load workspace")
     }
   },
 
@@ -91,6 +89,14 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
   updateProject: (patch) => set((s) => {
     Object.assign(s.project, patch)
     s.isDirty = true
+  }),
+
+  updateActiveOutput: (patch) => set((s) => {
+    const output = activeOutput(s.project)
+    if (output) {
+      Object.assign(output, patch)
+      s.isDirty = true
+    }
   }),
 
   updateActiveThemeColor: (hex) => set((s) => {
@@ -113,6 +119,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       s.project.activeOutputId = outputId
       syncActiveCards(s.project)
       s.selectedCardId = null
+      s.isHeaderUnlocked = false
       s.isDirty = true
     }
   }),
@@ -128,12 +135,16 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         s.project.activeOutputId = nextOutput.id
         syncActiveCards(s.project)
         s.selectedCardId = null
+        s.isHeaderUnlocked = false
       }
     }
     s.isDirty = true
   }),
 
-  selectCard: (id) => set((s) => { s.selectedCardId = id }),
+  selectCard: (id) => set((s) => {
+    s.selectedCardId = id
+    if (id) s.isHeaderUnlocked = false
+  }),
 
   updateCard: (id, patch) => set((s) => {
     const cards = syncActiveCards(s.project)
@@ -177,11 +188,6 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     s.selectedCardId = id
     syncActiveCards(s.project)
     s.isDirty = true
-    if (outputType === "poster") {
-      toast.success(`Added card to column ${effectiveColumn}`)
-    } else {
-      toast.success("Added card")
-    }
   }),
 
   addOutput: (outputType, templateId) => set((s) => {
@@ -218,7 +224,6 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     syncActiveCards(s.project)
     s.selectedCardId = null
     s.isDirty = true
-    toast.success(`Created new ${outputType} output`)
   }),
 
   deleteCard: (id) => set((s) => {
@@ -235,7 +240,6 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       }
     })
     s.isDirty = true
-    toast.success(`Deleted ${id}`)
   }),
 
   reorderCard: (id, dir) => set((s) => {
@@ -338,7 +342,6 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     const msgs = validateCard(card)
     if (levelFromMessages(msgs) === "invalid") {
       get().pushEvent({ kind: "generate", status: "error", title: `Generation blocked — ${id}`, detail: "Fix input errors first." })
-      toast.error("Cannot generate: card has input errors.")
       return
     }
     set((s) => { s.generatingIds.push(id) })
@@ -357,42 +360,58 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         title: `LaTeX ready — ${id}`,
         detail: `${latex.split("\n").length} lines generated.`,
       })
-      toast.success(`Generated LaTeX for ${id}`)
     }, 800)
   },
 
   autoFillCardAction: async (id) => {
     const workspaceId = get().project.id
-    const card = (activeOutput(get().project)?.cards ?? []).find((c) => c.id === id)
+    const currOutput = activeOutput(get().project)
+    const card = (currOutput?.cards ?? []).find((c) => c.id === id)
     if (!card) return
 
-    // Calculate available text budget
-    const otherCards = (activeOutput(get().project)?.cards ?? []).filter(c => c.column === card.column && c.id !== card.id)
-    const otherHeights = otherCards.reduce((acc, c) => acc + estimateHeight(c), 0)
-    const remainingBudget = Math.max(0, COLUMN_BUDGET - otherHeights)
-    
-    const targetHeight = card.heightBudget || remainingBudget
-    
-    // Card's height overhead without text
-    const clone = { ...card, content: "" }
-    const baseHeight = estimateHeight(clone)
-    
-    const textBudgetUnits = targetHeight - baseHeight
-    // roughly 14u per 60 characters
-    const characterLimit = Math.floor(textBudgetUnits * (60 / 14))
+    const outputType = currOutput?.outputType || "poster"
 
-    if (characterLimit <= 0) {
-      toast.warning("Not enough space in this column. Reduce other content first.")
-      return
+    let characterLimit = 300
+
+    if (outputType === "poster") {
+      // Calculate available text budget for this specific poster column
+      const otherCards = (currOutput?.cards ?? []).filter(c => c.column === card.column && c.id !== card.id)
+      const otherHeights = otherCards.reduce((acc, c) => acc + estimateHeight(c), 0)
+      const remainingBudget = Math.max(0, COLUMN_BUDGET - otherHeights)
+      
+      const targetHeight = card.heightBudget || remainingBudget
+      
+      // Card's height overhead without text
+      const clone = { ...card, content: "" }
+      const baseHeight = estimateHeight(clone)
+      
+      const textBudgetUnits = targetHeight - baseHeight
+      // roughly 14u per 60 characters
+      characterLimit = Math.floor(textBudgetUnits * (60 / 14))
+
+      if (characterLimit <= 0) {
+        get().pushEvent({ kind: "info", status: "warning", title: `Auto-fill skipped — ${id}`, detail: "Not enough space in this column. Reduce other content first." })
+        return
+      }
+    } else if (outputType === "slides") {
+      // Presentation slides: short, focused bullet points per slide
+      characterLimit = card.pattern === "two-column" ? 400 : 250
+    } else if (outputType === "paper") {
+      // Academic paper: section prose
+      characterLimit = 900
     }
 
     set((s) => { s.generatingIds.push(id) })
     const evId = get().pushEvent({ kind: "generate", status: "running", title: `Auto-filling content — ${id}`, detail: `Reading workspace sources with Gemini (Target limit: ${characterLimit} chars)` })
-    toast.info("Auto-filling card...")
 
     try {
-      const activeOutput = get().project.outputs?.find(o => o.id === get().project.activeOutputId)
-      const outputType = activeOutput?.outputType || "poster"
+
+      const effectiveSourceIds =
+        card.sourceIds && card.sourceIds.length > 0
+          ? card.sourceIds
+          : currOutput?.sourceIds && currOutput.sourceIds.length > 0
+          ? currOutput.sourceIds
+          : undefined
 
       const res = await apiFetch(`/api/workspaces/${workspaceId}/cards/${id}/generate`, {
         method: "POST",
@@ -404,7 +423,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
           assets: get().project.assets.map(({ id: aid, filename, kind, caption, snippet }) => ({
             id: aid, filename, kind, caption, snippet,
           })),
-          sourceIds: card.sourceIds,
+          sourceIds: effectiveSourceIds,
           characterLimit,
           bibKeys: get().bibKeys,
         })
@@ -454,7 +473,6 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         title: `Auto-fill complete — ${id}`,
         detail: `Filled ${data.bullets?.length || 0} bullets.`,
       })
-      toast.success("Card auto-filled successfully")
 
       // Optionally, automatically trigger LaTeX generation now that content is filled
       get().generateLatexForCardAction(id)
@@ -462,32 +480,44 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     } catch (err: unknown) {
       set((s) => { if (s.project.id === workspaceId) s.generatingIds = s.generatingIds.filter(gid => gid !== id) })
       get().updateEvent(evId, { status: "error", title: `Auto-fill failed — ${id}`, detail: String(err) })
-      toast.error(err instanceof Error ? err.message : "Failed to auto-fill card")
       // Rethrow so bulk callers (autoFillAllCardsAction) can track failure counts correctly
       throw err
     }
   },
 
+
   autoFillAllCardsAction: async () => {
     const workspaceId = get().project.id
-    const cards = (activeOutput(get().project)?.cards ?? []).filter(c => 
-      c.pattern !== "references" && (!c.content || c.content.trim() === "")
-    ).sort((a, b) => a.order - b.order)
+
+    // Patterns that cannot be AI-filled via text content generation
+    const SKIP_PATTERNS = new Set(["references", "title-slide"])
+
+    // A card is eligible for Generate All if:
+    // 1. Its pattern can produce text content
+    // 2. Its text content field is empty (title-only state)
+    const cards = (activeOutput(get().project)?.cards ?? []).filter(c =>
+      !SKIP_PATTERNS.has(c.pattern) && (!c.content || c.content.trim() === "")
+    ).sort((a, b) => (a.column ?? 0) - (b.column ?? 0) || a.order - b.order)
     
     if (cards.length === 0) {
-      toast.info("No empty cards to auto-fill.")
+      get().pushEvent({ kind: "info", status: "done", title: "Generate All", detail: "No empty blocks found — all cards already have content." })
       return
     }
 
     jobQueue.enqueue("Bulk Auto-fill", async (onProgress, signal) => {
-      const evId = get().pushEvent({ kind: "info", status: "running", title: "Bulk Auto-fill Started", detail: `Processing ${cards.length} cards...` })
+      const evId = get().pushEvent({
+        kind: "info",
+        status: "running",
+        title: "Generate All — Started",
+        detail: `Filling ${cards.length} block${cards.length === 1 ? "" : "s"} using their datasources…`,
+      })
 
       let succeeded = 0
       let failed = 0
       
       for (let i = 0; i < cards.length; i++) {
         if (signal.aborted || get().project.id !== workspaceId) {
-          get().updateEvent(evId, { status: "error", title: "Bulk Auto-fill Cancelled", detail: `${succeeded} succeeded, ${failed} failed before cancellation.` })
+          get().updateEvent(evId, { status: "error", title: "Generate All — Cancelled", detail: `${succeeded} succeeded, ${failed} failed before cancellation.` })
           const abortErr = new Error("Cancelled by user")
           abortErr.name = "AbortError"
           throw abortErr
@@ -502,14 +532,57 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         onProgress(Math.round(((i + 1) / cards.length) * 100))
       }
 
-      get().updateEvent(evId, { status: "done", title: "Bulk Auto-fill Complete", detail: `${succeeded} succeeded, ${failed} failed.` })
-      if (failed > 0) {
-        toast.warning(`Auto-fill: ${succeeded} cards done, ${failed} failed.`)
-      } else {
-        toast.success("All cards auto-filled successfully.")
-      }
+      get().updateEvent(evId, {
+        status: failed > 0 ? "warning" : "done",
+        title: "Generate All — Complete",
+        detail: `${succeeded} succeeded, ${failed} failed.`,
+      })
     })
   },
+
+  generateNewOutputStructure: async (outputType: OutputType, count?: number) => {
+    const workspaceId = get().project.id
+    const output = activeOutput(get().project)
+    if (!output) return
+
+    const structure = buildDefaultStructure(outputType, count)
+    const newCards: Card[] = structure.map((def, i) => ({
+      id: `blk_${output.id}_${Date.now().toString(36)}_${i}`,
+      title: def.title,
+      column: (def.column ?? null) as 1 | 2 | 3 | null,
+      order: i,
+      pattern: def.pattern as BlockPattern,
+      content: "",
+      table: { hasHeader: true, caption: "", rows: [] },
+      figures: [],
+      figureLayout: "single" as const,
+      sourceIds: [],
+      heightBudget: null,
+      validation: "warning" as const,
+    }))
+
+    set((s) => {
+      const target = activeOutput(s.project)
+      if (target) {
+        target.cards = newCards
+        s.selectedCardId = null
+        s.isDirty = true
+      }
+    })
+
+    const unitName = output?.outputType === "slides" ? "slides" : output?.outputType === "paper" ? "pages" : "cards"
+
+    get().pushEvent({
+      kind: "generate",
+      status: "done",
+      title: `New ${outputType} structure created`,
+      detail: `Created ${newCards.length} skeleton ${unitName}. Filling contents from sources…`,
+    })
+
+    await get().saveProject()
+    await get().autoFillAllCardsAction()
+  },
+
 
   convertOutputAction: async (sourceOutputId: string, targetType: OutputType) => {
     const workspaceId = get().project.id
@@ -518,7 +591,6 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
 
     const sourceCards: Card[] = sourceOutput.cards ?? []
 
-    toast.info(`Converting ${sourceOutput.outputType} to ${targetType}...`)
     const evId = get().pushEvent({ kind: "generate", status: "running", title: `Converting to ${targetType}`, detail: `Rewriting ${sourceCards.length} cards...` })
 
     // Create a new output of targetType
@@ -571,12 +643,11 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     const failed = results.filter((r) => r.status === "rejected").length
     const succeeded = results.length - failed
 
-    get().updateEvent(evId, { status: "done", title: `Conversion Complete`, detail: `${succeeded} succeeded, ${failed} failed.` })
-    if (failed > 0) {
-      toast.warning(`Conversion: ${succeeded} cards done, ${failed} failed.`)
-    } else {
-      toast.success("Output successfully converted.")
-    }
+    get().updateEvent(evId, {
+      status: failed > 0 ? "warning" : "done",
+      title: `Conversion Complete`,
+      detail: `${succeeded} succeeded, ${failed} failed.`
+    })
   },
 
   aiReview: async () => {
@@ -621,12 +692,11 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       }
     } catch (e: unknown) {
       get().updateEvent(evId, { status: "error", title: "Review Failed", detail: e instanceof Error ? e.message : String(e) })
-      toast.error("Failed to run AI verification.")
     }
   },
 
-  newProject: () => toast.info("New project — coming soon"),
-  duplicateProject: () => toast.info(`Duplicated "${get().project.name}" — coming soon`),
+  newProject: () => get().pushEvent({ kind: "info", status: "done", title: "New project", detail: "Create a new project from the top bar workspace selector." }),
+  duplicateProject: () => get().pushEvent({ kind: "info", status: "done", title: "Duplicate project", detail: `Duplicating "${get().project.name}" feature coming soon.` }),
 
   saveProject: async () => {
     if (get().isSaving) {
@@ -673,10 +743,19 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         }
       })
       if (conflict) {
-        toast.error("Save blocked because this workspace changed elsewhere. Reload before saving again.")
+        get().pushEvent({
+          kind: "info",
+          status: "error",
+          title: "Save Conflict",
+          detail: "This workspace changed in another session. Reload before saving again.",
+        })
       } else {
-        // Surface non-conflict failures so the user is aware their changes haven't been saved.
-        toast.error("Auto-save failed — will retry shortly.")
+        get().pushEvent({
+          kind: "info",
+          status: "warning",
+          title: "Auto-save Pending",
+          detail: "Save will retry automatically.",
+        })
       }
     } finally {
       // If an edit arrived while the save was in-flight, isDirty will be true.

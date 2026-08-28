@@ -1,4 +1,3 @@
-import { toast } from "sonner"
 import type { EditorSlice, IngestionSlice } from "./types"
 import { detectMethod, type ParseLogEntry, type IngestFile } from "@/lib/ingestion"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
@@ -60,7 +59,6 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         await idbSet(`file_${fileMeta.id}`, f)
         get().processFile(fileMeta.id)
       })
-      toast.info(`Uploading ${created.length} file${created.length === 1 ? "" : "s"}...`)
     },
 
     processFile: async (id) => {
@@ -157,7 +155,6 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
               })
               s.isDirty = true
             })
-            toast.success(`${f.name} parsed successfully`)
             get().pushLog("info", `${f.name} parsed, ${produced.length} assets extracted.`)
           }
         } catch (err) {
@@ -170,7 +167,6 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
                 const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
                 if (ingestFile) ingestFile.status = "failed"
               })
-              toast.warning(`Parsing cancelled for ${f.name}`)
               get().pushLog("error", `Parsing cancelled for ${f.name}`)
             }
             throw err
@@ -182,7 +178,6 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
               if (ingestFile) ingestFile.status = "failed"
             })
             const msg = err instanceof Error ? err.message : String(err)
-            toast.error(`Failed to parse ${f.name}`)
             get().pushLog("error", `Parse failed: ${msg}`)
           }
           throw err
@@ -194,7 +189,7 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
     retryFile: async (id) => {
       const f = await idbGet<File>(`file_${id}`)
       if (!f) {
-        toast.error("File no longer available in memory. Please re-upload.")
+        get().pushLog("error", "File no longer available in memory. Please re-upload.")
         return
       }
       set((s) => {
@@ -217,7 +212,6 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         // Also remove assets produced by this file
         s.project.assets = s.project.assets.filter((a) => a.fileId !== id)
       })
-      toast.success("File removed")
       get().saveProject()
     },
 
@@ -279,7 +273,6 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         if (a) { a.assignedCardId = cardId; a.assignedSlot = slot }
       })
       get().pushEvent({ kind: "info", status: "done", title: `Asset promoted — ${cardId}`, detail: `${asset.kind} → ${cardId} (${slot})` })
-      toast.success(`Promoted to ${cardId}`)
     },
 
     unassignAsset: (assetId) => set((s) => {
@@ -292,7 +285,6 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         const fileIds = new Set(s.project.ingestFiles.map(f => f.id))
         s.project.assets = s.project.assets.filter(a => a.fileId && fileIds.has(a.fileId))
       })
-      toast.success("Other assets removed")
       get().saveProject()
     },
 
@@ -300,7 +292,6 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
       set((s) => {
         s.project.assets = s.project.assets.filter((a) => a.id !== assetId)
       })
-      toast.success("Asset discarded")
       get().saveProject()
     },
   }

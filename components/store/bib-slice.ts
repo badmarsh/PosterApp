@@ -1,8 +1,7 @@
-import { toast } from "sonner"
 import type { EditorSlice, BibSlice } from "./types"
 import { apiFetch } from "@/lib/api-fetch"
 
-export const createBibSlice: EditorSlice<BibSlice> = (set) => ({
+export const createBibSlice: EditorSlice<BibSlice> = (set, get) => ({
   bibContent: "",
   bibKeys: [],
 
@@ -18,7 +17,7 @@ export const createBibSlice: EditorSlice<BibSlice> = (set) => ({
       } else {
         set((s) => { s.bibContent = ""; s.bibKeys = [] })
       }
-    } catch (err) {
+    } catch {
       set((s) => { s.bibContent = ""; s.bibKeys = [] })
     }
   },
@@ -36,7 +35,12 @@ export const createBibSlice: EditorSlice<BibSlice> = (set) => ({
         set((s) => { s.bibKeys = data.keys ?? [] })
       }
     } catch (err) {
-      toast.error("Failed to save bibliography")
+      get().pushEvent({
+        kind: "info",
+        status: "error",
+        title: "Bibliography Save Failed",
+        detail: err instanceof Error ? err.message : String(err),
+      })
     }
   },
 })

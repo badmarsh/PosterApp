@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { apiFetch } from "@/lib/api-fetch"
 
 import { useEditor } from "@/components/editor-store"
@@ -26,7 +26,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 
-import { FileStack, Copy, FilePlus2, BookOpen, Upload, Palette } from "lucide-react"
+import { FileStack, Copy, FilePlus2, BookOpen, Upload, Palette, Trash2, Loader2 } from "lucide-react"
 import { OUTPUT_TYPE_LABELS, getTemplateDef } from "@/lib/output-types"
 import type { OutputType } from "@/lib/output-types"
 
@@ -45,6 +45,37 @@ export function ProjectSettingsSidebar() {
       updateActiveThemeColor: s.updateActiveThemeColor,
     }))
   )
+
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const secondaryLogoInputRef = useRef<HTMLInputElement>(null)
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+  const [isUploadingSecondaryLogo, setIsUploadingSecondaryLogo] = useState(false)
+
+  async function handleLogoUpload(file: File, isSecondary = false) {
+    const setUploading = isSecondary ? setIsUploadingSecondaryLogo : setIsUploadingLogo
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await apiFetch(`/api/workspaces/${project.id}/assets/upload`, {
+        method: "POST",
+        body: formData,
+      })
+      const data = await res.json()
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Failed to upload logo")
+      }
+      if (isSecondary) {
+        updateProject({ secondaryLogoUrl: data.asset.url })
+      } else {
+        updateProject({ logoUrl: data.asset.url })
+      }
+    } catch (err: any) {
+      console.error("Logo upload error:", err)
+    } finally {
+      setUploading(false)
+    }
+  }
 
   // Derive active output metadata
   const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
@@ -89,15 +120,18 @@ export function ProjectSettingsSidebar() {
       {/* Project Switcher Header removed as requested */}
 
       <ScrollArea className="flex-1 px-4 py-4">
-        <div className="mb-4">
+        <div className="mb-4 space-y-1">
           <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Project Settings
+            Project Defaults
           </h2>
+          <p className="text-[10px] text-muted-foreground leading-tight">
+            Global defaults inherited by Poster, Slides, and Paper.
+          </p>
         </div>
 
         <div className="flex flex-col gap-4">
           <div className="space-y-1.5">
-            <Label htmlFor="internalName" className="text-[11px] font-medium text-muted-foreground">Internal Name</Label>
+            <Label htmlFor="internalName" className="text-[11px] font-medium text-muted-foreground">Project Name</Label>
             <Input
               id="internalName"
               value={project.name}
@@ -107,43 +141,171 @@ export function ProjectSettingsSidebar() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="outputTitle" className="text-[11px] font-medium text-muted-foreground">{outputTypeLabel} Title</Label>
+            <Label htmlFor="outputTitle" className="text-[11px] font-medium text-muted-foreground">Default Title</Label>
             <Textarea
               id="outputTitle"
-              value={activeTitle}
-              onChange={(e) => {
-                // Update the active output's title and the legacy flat field
-                updateProject({ posterTitle: e.target.value })
-                if (activeOutput) {
-                  // Patch the active output title via switchOutput (no-op) + direct update
-                  const updatedOutputs = project.outputs?.map((o) =>
-                    o.id === activeOutput.id ? { ...o, title: e.target.value } : o
-                  )
-                  if (updatedOutputs) updateProject({ outputs: updatedOutputs } as any)
-                }
-              }}
+              value={project.posterTitle ?? ""}
+              onChange={(e) => updateProject({ posterTitle: e.target.value })}
+              placeholder="e.g. Advanced Layouts & Latent Dynamics"
               className="min-h-16 resize-none text-[12px] font-medium leading-tight"
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="authors" className="text-[11px] font-medium text-muted-foreground">Authors & Affiliations</Label>
+            <Label htmlFor="authors" className="text-[11px] font-medium text-muted-foreground">Default Authors & Affiliations</Label>
             <Textarea
               id="authors"
-              value={project.authors}
+              value={project.authors ?? ""}
               onChange={(e) => updateProject({ authors: e.target.value })}
+              placeholder="e.g. A. Reyes, M. Okafor, L. Petrova, D. Chen"
               className="min-h-16 resize-none text-[11px]"
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="venue" className="text-[11px] font-medium text-muted-foreground">Conference / Venue</Label>
+            <Label htmlFor="venue" className="text-[11px] font-medium text-muted-foreground">Default Conference / Venue</Label>
             <Input
               id="venue"
-              value={project.venue}
+              value={project.venue ?? ""}
               onChange={(e) => updateProject({ venue: e.target.value })}
+              placeholder="e.g. CoRL 2026 / Lab Name"
               className="h-8 text-[11px]"
             />
+          </div>
+
+          {/* Project Logo Upload */}
+          <div className="space-y-2 pt-4 border-t border-border">
+            <div>
+              <Label className="text-[11px] font-medium text-muted-foreground">Project Logo</Label>
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+                Default institutional logo for templates with branding.
+              </p>
+            </div>
+
+            {project.logoUrl ? (
+              <div className="flex items-center justify-between gap-2 p-2 rounded-md border border-border bg-muted/20">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="size-9 rounded border border-border bg-background flex items-center justify-center overflow-hidden p-1 shrink-0">
+                    <img
+                      src={project.logoUrl}
+                      alt="Project Logo"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium truncate">Primary Logo</p>
+                    <button
+                      type="button"
+                      onClick={() => logoInputRef.current?.click()}
+                      className="text-[10px] text-primary hover:underline"
+                      disabled={isUploadingLogo}
+                    >
+                      {isUploadingLogo ? "Uploading..." : "Replace logo"}
+                    </button>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => updateProject({ logoUrl: null })}
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                  title="Remove logo"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-center text-[11px] h-8 gap-2 border-dashed"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={isUploadingLogo}
+              >
+                {isUploadingLogo ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Upload className="size-3.5" />
+                )}
+                {isUploadingLogo ? "Uploading..." : "Upload Logo"}
+              </Button>
+            )}
+
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/svg+xml,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleLogoUpload(file, false)
+                e.target.value = ""
+              }}
+            />
+
+            {/* Secondary Logo (Optional) */}
+            <div className="space-y-1 pt-1.5">
+              <Label className="text-[10px] font-medium text-muted-foreground/80">Secondary Logo (Optional)</Label>
+              {project.secondaryLogoUrl ? (
+                <div className="flex items-center justify-between gap-2 p-1.5 rounded-md border border-border bg-muted/20">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="size-7 rounded border border-border bg-background flex items-center justify-center overflow-hidden p-0.5 shrink-0">
+                      <img
+                        src={project.secondaryLogoUrl}
+                        alt="Secondary Logo"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-medium truncate">Secondary Logo</p>
+                      <button
+                        type="button"
+                        onClick={() => secondaryLogoInputRef.current?.click()}
+                        className="text-[9px] text-primary hover:underline"
+                        disabled={isUploadingSecondaryLogo}
+                      >
+                        {isUploadingSecondaryLogo ? "Uploading..." : "Replace"}
+                      </button>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => updateProject({ secondaryLogoUrl: null })}
+                    className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
+                    title="Remove secondary logo"
+                  >
+                    <Trash2 className="size-3" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-[10px] h-7 gap-1.5 text-muted-foreground hover:text-foreground border border-dashed border-border/60"
+                  onClick={() => secondaryLogoInputRef.current?.click()}
+                  disabled={isUploadingSecondaryLogo}
+                >
+                  {isUploadingSecondaryLogo ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <Upload className="size-3" />
+                  )}
+                  {isUploadingSecondaryLogo ? "Uploading..." : "Add Secondary Logo"}
+                </Button>
+              )}
+              <input
+                ref={secondaryLogoInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleLogoUpload(file, true)
+                  e.target.value = ""
+                }}
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5 pt-4 border-t border-border">

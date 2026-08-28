@@ -20,12 +20,10 @@ import {
   Clock,
   Loader2,
 } from "lucide-react"
-import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { HelpModal } from "@/components/help-modal"
 import { HistoryPanel } from "@/components/history-panel"
-import { ActionsPanel } from "@/components/actions-panel"
 import { UserButton } from "@clerk/nextjs"
 import { ManageWorkspaces } from "@/components/manage-workspaces"
 import {
@@ -95,9 +93,10 @@ export function TopBar({
   onToggleAgent,
   onOpenWorkspaceSelector,
 }: TopBarProps) {
-  const { project, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen, isActionsOpen, setIsActionsOpen, collabEnabled, setCollabEnabled, duplicateProject, newProject, saveProject, isDirty, isSaving } = useEditor(
+  const { project, pushEvent, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen, collabEnabled, setCollabEnabled, duplicateProject, newProject, saveProject, isDirty, isSaving } = useEditor(
     useShallow((s) => ({
       project: s.project,
+      pushEvent: s.pushEvent,
       aiReview: s.aiReview,
       openIngestion: s.openIngestion,
       switchProject: s.switchProject,
@@ -110,8 +109,6 @@ export function TopBar({
       toggleLatexSource: s.toggleLatexSource,
       isHistoryOpen: s.isHistoryOpen,
       setIsHistoryOpen: s.setIsHistoryOpen,
-      isActionsOpen: s.isActionsOpen,
-      setIsActionsOpen: s.setIsActionsOpen,
       collabEnabled: s.collabEnabled,
       setCollabEnabled: s.setCollabEnabled,
       duplicateProject: s.duplicateProject,
@@ -134,7 +131,7 @@ export function TopBar({
   function exportTex() {
     const activeOutput = project.outputs?.find(o => o.id === project.activeOutputId) || project.outputs?.[0]
     if (!activeOutput) {
-      toast.error("No active output")
+      pushEvent({ kind: "info", status: "error", title: "Export Failed", detail: "No active output found." })
       return
     }
     const tex = generateFullTemplate(project, activeOutput, project.id)
@@ -145,7 +142,7 @@ export function TopBar({
     a.download = `${project.id}_${activeOutput.outputType}.tex`
     a.click()
     URL.revokeObjectURL(url)
-    toast.success(`Exported ${activeOutput.outputType}.tex`)
+    pushEvent({ kind: "info", status: "done", title: `Exported ${activeOutput.outputType}.tex`, detail: "LaTeX source file downloaded." })
   }
 
   return (
@@ -265,16 +262,6 @@ export function TopBar({
           <FileStack className="size-3.5" />
           <span className="hidden md:inline">Ingest</span>
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5"
-          onClick={() => setIsActionsOpen(!isActionsOpen)}
-          aria-label="Open Actions"
-        >
-          <Sparkles className="size-3.5" />
-          <span className="hidden md:inline">Actions</span>
-        </Button>
 
         <Button
           variant={collabEnabled ? "default" : "outline"}
@@ -345,7 +332,6 @@ export function TopBar({
       </div>
       <HelpModal open={isHelpOpen} onOpenChange={setIsHelpOpen} />
       <HistoryPanel />
-      <ActionsPanel />
     </header>
   )
 }

@@ -49,6 +49,7 @@ export const BLOCK_PATTERNS: {
   label: string
   description: string
 }[] = [
+  // Poster patterns
   { id: "bullets", label: "Bullets only", description: "A bulleted list of findings." },
   {
     id: "bullets-image",
@@ -74,6 +75,27 @@ export const BLOCK_PATTERNS: {
     id: "references",
     label: "References / Bibliography",
     description: "Auto-generates the bibliography.",
+  },
+  // Slide patterns
+  { id: "title-slide", label: "Title slide", description: "Title page with authors and venue." },
+  { id: "figure-slide", label: "Full figure", description: "A slide dominated by a single figure." },
+  { id: "two-column", label: "Two-column", description: "Split slide with two content columns." },
+  // Paper patterns
+  { id: "section", label: "Text section", description: "Full prose section with optional bullets." },
+  {
+    id: "section-figure",
+    label: "Section + figure",
+    description: "Text section followed by a figure float.",
+  },
+  {
+    id: "section-table",
+    label: "Section + table",
+    description: "Text section followed by a table float.",
+  },
+  {
+    id: "section-two-figures",
+    label: "Section + two figures",
+    description: "Text section with two figure floats.",
   },
 ]
 
@@ -107,6 +129,11 @@ export type ReviewTip = {
   message: string
 }
 
+export type EventFix = {
+  id: string
+  content: string
+}
+
 export type AgentEvent = {
   id: string
   ts: string
@@ -116,6 +143,8 @@ export type AgentEvent = {
   title: string
   detail?: string
   tips?: ReviewTip[]
+  fixes?: EventFix[]
+  fixesApplied?: boolean
 }
 
 export type Card = {
@@ -148,8 +177,18 @@ export type OutputConfig = {
   outputType: OutputType
   templateId: string
   title: string
+  /** Specific authors override for this output instance (falls back to project.authors if omitted) */
+  authors?: string | null
+  /** Specific venue override for this output instance (falls back to project.venue if omitted) */
+  venue?: string | null
+  /** Specific logo override for this output instance (falls back to project.logoUrl if omitted) */
+  logoUrl?: string | null
+  /** Specific secondary logo override for this output instance (falls back to project.secondaryLogoUrl if omitted) */
+  secondaryLogoUrl?: string | null
   /** Accent token selected from the template's supported palette. */
   themeColor?: string | null
+  /** Document-level default source files to restrict Gemini RAG autofill context */
+  sourceIds?: string[]
   cards: Card[]
 }
 
@@ -169,6 +208,10 @@ export type Project = {
   posterTitle?: string
   authors: string
   venue: string
+  /** Global default logo URL */
+  logoUrl?: string | null
+  /** Global default secondary logo URL */
+  secondaryLogoUrl?: string | null
   /** @deprecated Use outputs[activeOutputId].templateId instead */
   templateName?: string
   assets: ExtractedAsset[]
@@ -199,6 +242,50 @@ export function cardType(card: Card): CardType {
     case "section-two-figures":
       return "mixed"
     default:
-      return "bullets" // or throw new Error("Unknown block pattern")
+      return "bullets"
+  }
+}
+
+/**
+ * Resolves title, authors, venue, and logo for an output variant.
+ * If the output has specific override values, they are used;
+ * otherwise it inherits from the top-level project defaults.
+ */
+export function resolveOutputMetadata(project: Project, output?: OutputConfig | null) {
+  const active = output ?? project.outputs?.find((o) => o.id === project.activeOutputId)
+  const defaultTitle = project.posterTitle || project.name || "Untitled Project"
+  const defaultAuthors = project.authors || ""
+  const defaultVenue = project.venue || ""
+  const defaultLogoUrl = project.logoUrl ?? null
+  const defaultSecondaryLogoUrl = project.secondaryLogoUrl ?? null
+
+  const title = (active?.title && active.title.trim()) ? active.title : defaultTitle
+  const authors = (active?.authors && active.authors.trim()) ? active.authors : defaultAuthors
+  const venue = (active?.venue && active.venue.trim()) ? active.venue : defaultVenue
+  const logoUrl = (active?.logoUrl !== undefined && active?.logoUrl !== null && active.logoUrl.trim() !== "") ? active.logoUrl : defaultLogoUrl
+  const secondaryLogoUrl = (active?.secondaryLogoUrl !== undefined && active?.secondaryLogoUrl !== null && active.secondaryLogoUrl.trim() !== "") ? active.secondaryLogoUrl : defaultSecondaryLogoUrl
+
+  const isTitleOverridden = Boolean(active?.title && active.title.trim() && active.title !== defaultTitle)
+  const isAuthorsOverridden = Boolean(active?.authors && active.authors.trim() && active.authors !== defaultAuthors)
+  const isVenueOverridden = Boolean(active?.venue && active.venue.trim() && active.venue !== defaultVenue)
+  const isLogoOverridden = Boolean(active?.logoUrl && active.logoUrl !== defaultLogoUrl)
+  const isSecondaryLogoOverridden = Boolean(active?.secondaryLogoUrl && active.secondaryLogoUrl !== defaultSecondaryLogoUrl)
+
+  return {
+    title,
+    authors,
+    venue,
+    logoUrl,
+    secondaryLogoUrl,
+    defaultTitle,
+    defaultAuthors,
+    defaultVenue,
+    defaultLogoUrl,
+    defaultSecondaryLogoUrl,
+    isTitleOverridden,
+    isAuthorsOverridden,
+    isVenueOverridden,
+    isLogoOverridden,
+    isSecondaryLogoOverridden,
   }
 }

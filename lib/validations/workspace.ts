@@ -64,7 +64,12 @@ export const OutputSchema = z.object({
   outputType: z.enum(["poster", "slides", "paper"]),
   templateId: z.string(),
   title: z.string(),
+  authors: z.string().nullable().optional(),
+  venue: z.string().nullable().optional(),
+  logoUrl: z.string().nullable().optional(),
+  secondaryLogoUrl: z.string().nullable().optional(),
   themeColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
+  sourceIds: z.array(z.string()).nullable().optional(),
   isActive: z.boolean().optional(),
   cards: z.array(CardSchema).optional(),
 })
@@ -81,6 +86,8 @@ export const WorkspaceSchema = z.object({
   posterTitle: z.string().optional(),
   authors: z.string().optional(),
   venue: z.string().optional(),
+  logoUrl: z.string().nullable().optional(),
+  secondaryLogoUrl: z.string().nullable().optional(),
   templateName: z.string().optional(),
   cards: z.array(CardSchema).optional(),
   // New outputs-based fields

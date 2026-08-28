@@ -252,3 +252,61 @@ export const DEFAULT_STRUCTURES: Record<OutputType, DefaultCardTemplate[]> = {
     { title: "References", pattern: "references" },
   ],
 }
+
+/**
+ * Builds a default or custom-sized skeleton structure for an output type.
+ * For slides, supports custom count (e.g. 5, 8, 12 slides).
+ */
+export function buildDefaultStructure(outputType: OutputType, count?: number): DefaultCardTemplate[] {
+  if (outputType === "poster") {
+    return [
+      { title: "Abstract", pattern: "bullets", column: 1 },
+      { title: "Introduction", pattern: "bullets", column: 1 },
+      { title: "Methodology", pattern: "bullets-image", column: 2 },
+      { title: "Key Results", pattern: "bullets-table", column: 2 },
+      { title: "Discussion & Impact", pattern: "bullets", column: 3 },
+      { title: "References", pattern: "references", column: 3 },
+    ]
+  }
+
+  if (outputType === "paper") {
+    return [
+      { title: "Abstract", pattern: "section" },
+      { title: "1 Introduction", pattern: "section" },
+      { title: "2 Related Work", pattern: "section" },
+      { title: "3 Methodology", pattern: "section-figure" },
+      { title: "4 Experiments & Results", pattern: "section-table" },
+      { title: "5 Discussion & Limitations", pattern: "section" },
+      { title: "6 Conclusion", pattern: "section" },
+      { title: "References", pattern: "references" },
+    ]
+  }
+
+  // Slides: dynamic count based on user input (default 7)
+  const n = count && count >= 3 ? Math.min(count, 30) : 7
+  const slides: DefaultCardTemplate[] = []
+  slides.push({ title: "Title Slide", pattern: "title-slide" })
+
+  const midCount = n - 2
+  const standardSlideTopics = [
+    { title: "Motivation & Background", pattern: "bullets" },
+    { title: "Problem Formulation", pattern: "bullets" },
+    { title: "Methodology Overview", pattern: "bullets-image" },
+    { title: "Core Architecture", pattern: "bullets" },
+    { title: "Experimental Results", pattern: "bullets-table" },
+    { title: "Comparative Evaluation", pattern: "bullets-image" },
+    { title: "Discussion & Findings", pattern: "bullets" },
+    { title: "Conclusion & Future Work", pattern: "bullets" },
+  ]
+
+  for (let i = 0; i < midCount; i++) {
+    const topic = standardSlideTopics[i % standardSlideTopics.length]
+    const cycle = Math.floor(i / standardSlideTopics.length)
+    const title = cycle > 0 ? `${topic.title} (${cycle + 1})` : topic.title
+    slides.push({ title, pattern: topic.pattern })
+  }
+
+  slides.push({ title: "References", pattern: "references" })
+  return slides
+}
+

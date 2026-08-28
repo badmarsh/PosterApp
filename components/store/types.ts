@@ -3,6 +3,7 @@ import type {
   AgentEvent,
   Card,
   ColumnIndex,
+  OutputConfig,
   Project,
   ValidationLevel,
 } from "@/lib/poster-types"
@@ -37,6 +38,7 @@ export interface ProjectSlice {
   getStatus: (card: Card) => ValidationLevel
   selectCard: (id: string | null) => void
   updateProject: (patch: Partial<Omit<Project, "id" | "cards">>) => void
+  updateActiveOutput: (patch: Partial<OutputConfig>) => void
   updateActiveThemeColor: (hex: string) => void
   _setCardsFromYjs: (cards: Card[]) => void
   updateCard: (id: string, patch: Partial<Card>) => void
@@ -50,6 +52,7 @@ export interface ProjectSlice {
   generateLatexForCardAction: (id: string) => void
   autoFillCardAction: (id: string) => Promise<void>
   autoFillAllCardsAction: () => Promise<void>
+  generateNewOutputStructure: (outputType: OutputType, count?: number) => Promise<void>
   aiReview: () => Promise<void>
   newProject: () => void
   duplicateProject: () => void
@@ -119,6 +122,8 @@ export interface UiSlice {
 
   inspectorTab: InspectorTab
   isInspectorOpen: boolean
+  isHeaderUnlocked: boolean
+  setHeaderUnlocked: (v: boolean) => void
   showLatexSource: boolean
   toggleLatexSource: () => void
   lastWorkspaceId: string | null

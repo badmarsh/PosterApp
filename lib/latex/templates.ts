@@ -1,5 +1,18 @@
-import { Project } from "@/lib/poster-types"
+import { Project, resolveOutputMetadata } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
+import { assetUrlToLatexPath } from "./helpers"
+
+// ---------------------------------------------------------------------------
+// Helper: Resolve title, authors, venue for the active output
+// ---------------------------------------------------------------------------
+function getMeta(project: Project) {
+  const m = resolveOutputMetadata(project)
+  return {
+    title: parseMarkdownToLatex(m.title),
+    authors: parseMarkdownToLatex(m.authors),
+    venue: parseMarkdownToLatex(m.venue),
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Color utilities
@@ -36,19 +49,15 @@ export function posterThemeOverride(themeColor?: string): string {
 
 /**
  * Build the LaTeX snippet that overrides the Beamer structure colour when a
- * custom themeColor is provided.  Appended right after \\usetheme{}.
+ * custom themeColor is provided.  Injects \setbeamercolor{structure}{fg=...}
+ * immediately after the color theme declaration.
  * Returns an empty string when themeColor is absent or invalid.
  */
 export function beamerThemeOverride(themeColor?: string): string {
   if (!themeColor) return ""
-  const rgb = hexToLatexRgb(themeColor)
-  if (!rgb) return ""
   const hex = themeColor.replace(/^#/, "").toUpperCase()
-  return `% --- theme color override (set in PosterApp) ---
-\\definecolor{themeaccent}{HTML}{${hex}}
-\\setbeamercolor{structure}{fg=themeaccent}
-\\setbeamercolor{frametitle}{bg=themeaccent,fg=white}
-% ------------------------------------------------
+  return `\\definecolor{customaccent}{HTML}{${hex}}
+\\setbeamercolor{structure}{fg=customaccent}
 `
 }
 
@@ -58,6 +67,7 @@ export function beamerThemeOverride(themeColor?: string): string {
 
 export function getMinimalTemplate(project: Project, themeColor?: string): string {
   const override = posterThemeOverride(themeColor)
+  const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside a tikzposter poster template.
 % Use \\block{Title}{Content} for each card section.
@@ -92,10 +102,10 @@ ${override}
 \\usecolorstyle{minimalcolors}
 
 \\title{\\parbox{0.74\\linewidth}{\\centering\\huge
-    ${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}\\\\[1mm]
+    ${title}\\\\[1mm]
     }}
-\\author{\\Large ${parseMarkdownToLatex(project.authors)}}
-\\institute{\\normalsize ${parseMarkdownToLatex(project.venue)}}
+\\author{\\Large ${authors}}
+\\institute{\\normalsize ${venue}}
 \\date{}
 
 \\begin{document}
@@ -103,8 +113,19 @@ ${override}
 `
 }
 
-export function getAtlasTemplate(project: Project, themeColor?: string): string {
+export function getAtlasTemplate(project: Project, themeColor?: string, workspaceId = ""): string {
   const override = posterThemeOverride(themeColor)
+  const m = resolveOutputMetadata(project)
+  const title = parseMarkdownToLatex(m.title)
+  const authors = parseMarkdownToLatex(m.authors)
+  const venue = parseMarkdownToLatex(m.venue)
+  const rightLogo = m.secondaryLogoUrl
+    ? (workspaceId ? assetUrlToLatexPath(m.secondaryLogoUrl, workspaceId) : m.secondaryLogoUrl)
+    : "logos/atlas_transparent.png"
+  const leftLogo = m.logoUrl
+    ? (workspaceId ? assetUrlToLatexPath(m.logoUrl, workspaceId) : m.logoUrl)
+    : "logos/uk_logo.png"
+
   return `
 % [AI-CONTEXT] You are inside an ATLAS (CERN) tikzposter poster template.
 % Use \\block{Title}{Content} for each card section.
@@ -146,17 +167,17 @@ ${override}
   \\end{scope}
   \\node[anchor=east, fill=white, rounded corners=10pt, inner sep=10pt, xshift=5mm]
     at ($(\\titleposright,\\titlepostop)!0.5!(\\titleposright,\\titleposbottom)$)
-    {\\includegraphics[height=8.6cm]{logos/atlas_transparent.png}};
+    {\\includegraphics[height=8.6cm]{${rightLogo}}};
   \\node[anchor=west, fill=white, rounded corners=10pt, inner sep=10pt, xshift=-45mm, yshift=5mm]
     at ($(\\titleposleft,\\titlepostop)!0.5!(\\titleposleft,\\titleposbottom)$)
-    {\\includegraphics[height=15cm]{logos/uk_logo.png}};}
+    {\\includegraphics[height=15cm]{${leftLogo}}};}
 \\usetitlestyle{sampletitle}
 
 \\title{\\parbox{0.74\\linewidth}{\\centering\\huge
-    ${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}\\\\[1mm]
+    ${title}\\\\[1mm]
     }}
-\\author{\\Large ${parseMarkdownToLatex(project.authors)}}
-\\institute{\\normalsize ${parseMarkdownToLatex(project.venue)}}
+\\author{\\Large ${authors}}
+\\institute{\\normalsize ${venue}}
 \\date{}
 
 \\begin{document}
@@ -166,6 +187,7 @@ ${override}
 
 export function getGeminiTemplate(project: Project, themeColor?: string): string {
   const override = beamerThemeOverride(themeColor)
+  const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside a gemini beamerposter template.
 % Use \\begin{block}{Title} ... \\end{block} for each section.
@@ -179,9 +201,9 @@ ${override}\\usepackage{graphicx}
 \\usepackage{amssymb}
 \\usepackage{booktabs}
 
-\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
-\\author{${parseMarkdownToLatex(project.authors)}}
-\\institute{${parseMarkdownToLatex(project.venue)}}
+\\title{${title}}
+\\author{${authors}}
+\\institute{${venue}}
 
 \\begin{document}
 \\begin{frame}[fragile]
@@ -190,6 +212,7 @@ ${override}\\usepackage{graphicx}
 
 export function getTikzposterTemplate(project: Project, themeColor?: string): string {
   const override = posterThemeOverride(themeColor)
+  const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside a standard tikzposter template.
 % Use \\block{Title}{Content} for each card section.
@@ -204,10 +227,10 @@ ${override}
 \\usetheme{Board}
 
 \\title{\\parbox{0.74\\linewidth}{\\centering\\huge
-    ${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}\\\\[1mm]
+    ${title}\\\\[1mm]
     }}
-\\author{\\Large ${parseMarkdownToLatex(project.authors)}}
-\\institute{\\normalsize ${parseMarkdownToLatex(project.venue)}}
+\\author{\\Large ${authors}}
+\\institute{\\normalsize ${venue}}
 \\date{}
 
 \\begin{document}
@@ -216,6 +239,7 @@ ${override}
 }
 
 export function getA0PosterTemplate(project: Project, _themeColor?: string): string {
+  const { title, authors } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside a classic a0poster document.
 % Use standard \\section commands or minipages.
@@ -225,8 +249,8 @@ export function getA0PosterTemplate(project: Project, _themeColor?: string): str
 \\usepackage{amssymb}
 \\usepackage{multicol}
 
-\\title{\\Huge ${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
-\\author{\\Large ${parseMarkdownToLatex(project.authors)}}
+\\title{\\Huge ${title}}
+\\author{\\Large ${authors}}
 \\date{}
 
 \\begin{document}
@@ -239,6 +263,7 @@ export function getA0PosterTemplate(project: Project, _themeColor?: string): str
 
 export function getMetropolisTemplate(project: Project, themeColor?: string): string {
   const override = beamerThemeOverride(themeColor)
+  const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside a Metropolis Beamer presentation.
 % Use \\begin{frame}{Title} ... \\end{frame} for each slide.
@@ -250,9 +275,9 @@ ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
 
-\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
-\\author{${parseMarkdownToLatex(project.authors)}}
-\\institute{${parseMarkdownToLatex(project.venue)}}
+\\title{${title}}
+\\author{${authors}}
+\\institute{${venue}}
 
 \\begin{document}
 \\begin{frame}
@@ -263,6 +288,7 @@ ${override}\\usepackage[utf8]{inputenc}
 
 export function getBeamerAtlasTemplate(project: Project, themeColor?: string): string {
   const override = beamerThemeOverride(themeColor)
+  const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside an ATLAS-branded Beamer presentation.
 % Use \\begin{frame}{Title} ... \\end{frame} for each slide.
@@ -275,9 +301,9 @@ ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
 
-\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
-\\author{${parseMarkdownToLatex(project.authors)}}
-\\institute{${parseMarkdownToLatex(project.venue)}}
+\\title{${title}}
+\\author{${authors}}
+\\institute{${venue}}
 
 \\begin{document}
 \\begin{frame}
@@ -288,6 +314,7 @@ ${override}\\usepackage[utf8]{inputenc}
 
 export function getMadridTemplate(project: Project, themeColor?: string): string {
   const override = beamerThemeOverride(themeColor)
+  const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside a Madrid Beamer presentation.
 % Use \\begin{frame}{Title} ... \\end{frame} for each slide.
@@ -298,9 +325,9 @@ ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
 
-\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
-\\author{${parseMarkdownToLatex(project.authors)}}
-\\institute{${parseMarkdownToLatex(project.venue)}}
+\\title{${title}}
+\\author{${authors}}
+\\institute{${venue}}
 
 \\begin{document}
 \\begin{frame}
@@ -311,6 +338,7 @@ ${override}\\usepackage[utf8]{inputenc}
 
 export function getDefaultTemplate(project: Project, themeColor?: string): string {
   const override = beamerThemeOverride(themeColor)
+  const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside a Default Beamer presentation.
 % Use \\begin{frame}{Title} ... \\end{frame} for each slide.
@@ -321,9 +349,9 @@ ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
 
-\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
-\\author{${parseMarkdownToLatex(project.authors)}}
-\\institute{${parseMarkdownToLatex(project.venue)}}
+\\title{${title}}
+\\author{${authors}}
+\\institute{${venue}}
 
 \\begin{document}
 \\begin{frame}
@@ -334,6 +362,7 @@ ${override}\\usepackage[utf8]{inputenc}
 
 export function getFocusTemplate(project: Project, themeColor?: string): string {
   const override = beamerThemeOverride(themeColor)
+  const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside a Focus Beamer presentation.
 % Use \\begin{frame}{Title} ... \\end{frame} for each slide.
@@ -344,9 +373,9 @@ ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
 
-\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
-\\author{${parseMarkdownToLatex(project.authors)}}
-\\institute{${parseMarkdownToLatex(project.venue)}}
+\\title{${title}}
+\\author{${authors}}
+\\institute{${venue}}
 
 \\begin{document}
 \\begin{frame}
@@ -360,6 +389,7 @@ ${override}\\usepackage[utf8]{inputenc}
 // ---------------------------------------------------------------------------
 
 export function getTwoColumnTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside a two-column article document.
 % Use standard \\section{}, \\subsection{} commands.
@@ -373,9 +403,9 @@ export function getTwoColumnTemplate(project: Project): string {
 \\usepackage[margin=1in]{geometry}
 \\usepackage{authblk}
 
-\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
-\\author{${parseMarkdownToLatex(project.authors)}}
-\\affil{${parseMarkdownToLatex(project.venue)}}
+\\title{${title}}
+\\author{${authors}}
+\\affil{${venue}}
 \\date{}
 
 \\begin{document}
@@ -384,6 +414,7 @@ export function getTwoColumnTemplate(project: Project): string {
 }
 
 export function getSingleColumnTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside a single-column article document.
 % Use standard \\section{}, \\subsection{} commands.
@@ -397,9 +428,9 @@ export function getSingleColumnTemplate(project: Project): string {
 \\usepackage[margin=1.5in]{geometry}
 \\usepackage{authblk}
 
-\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
-\\author{${parseMarkdownToLatex(project.authors)}}
-\\affil{${parseMarkdownToLatex(project.venue)}}
+\\title{${title}}
+\\author{${authors}}
+\\affil{${venue}}
 \\date{}
 
 \\begin{document}
@@ -408,6 +439,7 @@ export function getSingleColumnTemplate(project: Project): string {
 }
 
 export function getIEEEConfTemplate(project: Project): string {
+  const { title, authors } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside an IEEEtran conference document.
 % Use standard \\section{}, \\subsection{} commands.
@@ -418,8 +450,8 @@ export function getIEEEConfTemplate(project: Project): string {
 \\usepackage{amssymb}
 \\usepackage{booktabs}
 
-\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
-\\author{${parseMarkdownToLatex(project.authors)}}
+\\title{${title}}
+\\author{${authors}}
 
 \\begin{document}
 \\maketitle
@@ -427,6 +459,7 @@ export function getIEEEConfTemplate(project: Project): string {
 }
 
 export function getACMSigconfTemplate(project: Project): string {
+  const { title, authors } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside an ACM sigconf document.
 % Use standard \\section{}, \\subsection{} commands.
@@ -437,8 +470,8 @@ export function getACMSigconfTemplate(project: Project): string {
 \\usepackage{amssymb}
 \\usepackage{booktabs}
 
-\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
-\\author{${parseMarkdownToLatex(project.authors)}}
+\\title{${title}}
+\\author{${authors}}
 
 \\begin{document}
 \\maketitle
@@ -446,6 +479,7 @@ export function getACMSigconfTemplate(project: Project): string {
 }
 
 export function getSpringerLLNCSTemplate(project: Project): string {
+  const { title, authors } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside a Springer llncs document.
 % Use standard \\section{}, \\subsection{} commands.
@@ -456,8 +490,8 @@ export function getSpringerLLNCSTemplate(project: Project): string {
 \\usepackage{amssymb}
 \\usepackage{booktabs}
 
-\\title{${parseMarkdownToLatex((project.outputs?.find(o => o.id === project.activeOutputId)?.title ?? project.name ?? ''))}}
-\\author{${parseMarkdownToLatex(project.authors)}}
+\\title{${title}}
+\\author{${authors}}
 
 \\begin{document}
 \\maketitle

@@ -30,6 +30,7 @@ export const CompilePatchSchema = z.object({
   content: z.string() // The updated card content
 })
 export const CompileFixesSchema = z.object({
+  explanation: z.string().optional(),
   patches: z.array(CompilePatchSchema)
 })
 export type CompileFixesResult = z.infer<typeof CompileFixesSchema>

@@ -1,12 +1,11 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { X, Clock, RotateCcw, Tag, Trash2, ChevronRight } from "lucide-react"
+import { X, Clock, RotateCcw, Tag, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { apiFetch } from "@/lib/api-fetch"
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
 type Snapshot = {
@@ -17,12 +16,12 @@ type Snapshot = {
 }
 
 export function HistoryPanel() {
-  const { isHistoryOpen, setIsHistoryOpen, project, saveProject } = useEditor(
+  const { isHistoryOpen, setIsHistoryOpen, project, pushEvent } = useEditor(
     useShallow((s) => ({
       isHistoryOpen: s.isHistoryOpen,
       setIsHistoryOpen: s.setIsHistoryOpen,
       project: s.project,
-      saveProject: s.saveProject,
+      pushEvent: s.pushEvent,
     }))
   )
 
@@ -57,10 +56,10 @@ export function HistoryPanel() {
     try {
       const res = await apiFetch(`/api/workspaces/${project.id}/history/${snapId}`, { method: "POST" })
       if (res.ok) {
-        toast.success("Snapshot restored — reloading workspace…")
+        pushEvent({ kind: "info", status: "done", title: "Snapshot Restored", detail: "Reloading workspace…" })
         setTimeout(() => window.location.reload(), 800)
       } else {
-        toast.error("Failed to restore snapshot")
+        pushEvent({ kind: "info", status: "error", title: "Restore Failed", detail: "Failed to restore snapshot." })
       }
     } finally {
       setRestoringId(null)
@@ -73,10 +72,9 @@ export function HistoryPanel() {
       const res = await apiFetch(`/api/workspaces/${project.id}/history/${snapId}`, { method: "DELETE" })
       if (res.ok) {
         setSnapshots(s => s.filter(x => x.id !== snapId))
-        toast.success("Snapshot deleted")
       }
-    } catch {
-      toast.error("Failed to delete snapshot")
+    } catch (err) {
+      pushEvent({ kind: "info", status: "error", title: "Delete Failed", detail: err instanceof Error ? err.message : String(err) })
     }
   }
 
@@ -91,7 +89,6 @@ export function HistoryPanel() {
       })
       if (res.ok) {
         setSnapshots(s => s.map(x => x.id === snapId ? { ...x, label } : x))
-        toast.success("Label saved")
       }
     } finally {
       setLabelingId(null)

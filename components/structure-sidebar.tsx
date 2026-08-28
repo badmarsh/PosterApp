@@ -10,7 +10,6 @@ import {
   Plus,
   Trash2,
 } from "lucide-react"
-import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -50,7 +49,7 @@ import type { Card, ColumnIndex } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 
 const CardRow = memo(function CardRow({ card }: { card: Card }) {
-  const { selectedCardId, selectCard, deleteCard, getStatus, layoutWarnings, reorderCard, moveColumn, updateCard, saveProject, project } = useEditor(
+  const { selectedCardId, selectCard, deleteCard, getStatus, layoutWarnings, reorderCard, moveColumn, updateCard, saveProject, project, pushEvent } = useEditor(
     useShallow((s) => ({
       selectedCardId: s.selectedCardId,
       selectCard: s.selectCard,
@@ -62,6 +61,7 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
       updateCard: s.updateCard,
       saveProject: s.saveProject,
       project: s.project,
+      pushEvent: s.pushEvent,
     }))
   )
   const [isShrinking, setIsShrinking] = useState(false)
@@ -152,7 +152,12 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
                   await saveProject()
                 }
               } catch (err: unknown) {
-                toast.error("Failed to shrink content: " + (err instanceof Error ? err.message : String(err)))
+                pushEvent({
+                  kind: "info",
+                  status: "error",
+                  title: "Shrink Failed",
+                  detail: err instanceof Error ? err.message : String(err),
+                })
               } finally {
                 setIsShrinking(false)
               }
@@ -262,6 +267,7 @@ export function StructureSidebar() {
     switchProject,
     isSwitchingProject,
     openIngestion,
+    layoutWarnings,
   } = useEditor(
     useShallow((s) => ({
       project: s.project,

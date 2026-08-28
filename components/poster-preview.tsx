@@ -58,6 +58,7 @@ import type { Card, ColumnIndex } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 import { apiFetch } from "@/lib/api-fetch"
 import type { OutputType } from "@/lib/output-types"
+import { TemplateHeader } from "@/components/template-header"
 import { OUTPUT_TYPE_LABELS, TEMPLATE_REGISTRY, getTemplatesForType } from "@/lib/output-types"
 
 // ---------------------------------------------------------------------------
@@ -749,20 +750,7 @@ function PosterStructureView() {
           <div className="mx-auto w-full max-w-5xl p-5 pb-20">
           <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
             {/* fixed header area */}
-            <div className="border-b-2 border-primary/30 bg-gradient-to-b from-muted/60 to-card px-4 py-3 text-center">
-              <div className="mb-1 inline-block rounded border border-border bg-muted px-1.5 py-px font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
-                template header — locked
-              </div>
-              <h2 className="text-balance text-[13px] font-bold leading-tight">
-                {project.posterTitle}
-              </h2>
-              <p className="mt-0.5 text-[10px] text-muted-foreground">
-                {project.authors}
-              </p>
-              <p className="text-[9px] text-muted-foreground/80">
-                {project.venue}
-              </p>
-            </div>
+            <TemplateHeader variant="poster" />
 
             {/* three columns */}
             <div className="flex gap-3 p-3">
@@ -955,6 +943,7 @@ function SlidesView() {
     <ScrollArea className="min-h-0 flex-1">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="mx-auto w-full max-w-2xl px-5 py-6 pb-20 flex flex-col gap-2">
+          <TemplateHeader variant="slides" />
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <MonitorPlay className="size-4 text-primary" />
@@ -1019,6 +1008,7 @@ function PaperView() {
     <ScrollArea className="min-h-0 flex-1">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="mx-auto w-full max-w-2xl px-5 py-6 pb-20 flex flex-col gap-2">
+          <TemplateHeader variant="paper" />
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <BookOpen className="size-4 text-primary" />

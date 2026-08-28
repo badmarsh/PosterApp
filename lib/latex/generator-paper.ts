@@ -92,14 +92,16 @@ function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[
     parts.push(parseMarkdownToLatex(card.content.trim()))
   }
   
-  if (card.pattern === "bullets-table") {
+  if (card.pattern === "bullets-table" || card.pattern === "section-table") {
     parts.push(generateTable(card))
   }
-  
+
   if (
     card.pattern === "bullets-image" ||
     card.pattern === "bullets-two-images" ||
-    card.pattern === "image-focused"
+    card.pattern === "image-focused" ||
+    card.pattern === "section-figure" ||
+    card.pattern === "section-two-figures"
   ) {
     parts.push(generateFigures(card, workspaceId, isTwoColumn))
   }

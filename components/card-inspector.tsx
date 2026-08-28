@@ -25,8 +25,8 @@ import {
   Save,
   MoreHorizontal,
   SaveAll,
+  RotateCcw,
 } from "lucide-react"
-import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
@@ -57,7 +57,40 @@ import {
   type ColumnIndex,
   type ValidationMessage,
 } from "@/lib/poster-types"
+import { PATTERNS_FOR_TYPE, OUTPUT_TYPE_LABELS, type OutputType } from "@/lib/output-types"
 import { cn } from "@/lib/utils"
+
+function RagSourcesIllustration() {
+  return (
+    <svg
+      viewBox="0 0 56 40"
+      className="size-full shrink-0"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Back doc */}
+      <rect x="14" y="6" width="22" height="28" rx="2" className="fill-muted stroke-border/70" strokeWidth="1" />
+      {/* Front doc */}
+      <rect x="8" y="10" width="22" height="28" rx="2" className="fill-card stroke-border" strokeWidth="1.2" />
+      <rect x="12" y="14" width="8" height="2" rx="0.5" className="fill-primary" />
+      <rect x="12" y="18" width="14" height="1.5" rx="0.5" className="fill-muted-foreground/40" />
+      <rect x="12" y="21" width="12" height="1.5" rx="0.5" className="fill-muted-foreground/30" />
+      <rect x="12" y="24" width="14" height="1.5" rx="0.5" className="fill-muted-foreground/30" />
+
+      {/* RAG Context Filter Shield / Funnel */}
+      <circle cx="38" cy="22" r="10" className="fill-background stroke-primary/50" strokeWidth="1.2" />
+      <path
+        d="M33 17H43L39 22V27L37 28V22L33 17Z"
+        className="fill-primary/20 stroke-primary"
+        strokeWidth="1"
+        strokeLinejoin="round"
+      />
+      {/* Sparkle */}
+      <path d="M47 8L48 11L51 12L48 13L47 16L46 13L43 12L46 11L47 8Z" className="fill-amber-500" />
+    </svg>
+  )
+}
 
 function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
@@ -80,6 +113,8 @@ function BasicsTab({ card }: { card: Card }) {
   const titleInvalid = card.title.trim().length === 0
   const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
   const cards = activeOutput?.cards || []
+  const outputType = activeOutput?.outputType ?? "poster"
+  const isPosters = outputType === "poster"
 
   const orderInCol =
     cards
@@ -87,6 +122,11 @@ function BasicsTab({ card }: { card: Card }) {
       .sort((a, b) => a.order - b.order)
       .findIndex((c) => c.id === card.id) + 1
   const colCount = cards.filter((c) => c.column === card.column).length
+
+  // Patterns valid for the current output type
+  const patternsForOutput = BLOCK_PATTERNS.filter((p) =>
+    PATTERNS_FOR_TYPE[outputType]?.some((q) => q.id === p.id)
+  )
 
   return (
     <div className="flex flex-col gap-3 p-3">
@@ -129,32 +169,43 @@ function BasicsTab({ card }: { card: Card }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div className="flex flex-col gap-1">
-          <FieldLabel>Column</FieldLabel>
-          <Select
-            value={String(card.column)}
-            onValueChange={(v) => moveColumn(card.id, Number(v) as ColumnIndex)}
-          >
-            <SelectTrigger size="sm" className="w-full">
-              <SelectValue>{`Column ${card.column}`}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1">Column 1</SelectItem>
-              <SelectItem value="2">Column 2</SelectItem>
-              <SelectItem value="3">Column 3</SelectItem>
-            </SelectContent>
-          </Select>
+      {isPosters ? (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-1">
+            <FieldLabel>Column</FieldLabel>
+            <Select
+              value={String(card.column)}
+              onValueChange={(v) => moveColumn(card.id, Number(v) as ColumnIndex)}
+            >
+              <SelectTrigger size="sm" className="w-full">
+                <SelectValue>{`Column ${card.column}`}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Column 1</SelectItem>
+                <SelectItem value="2">Column 2</SelectItem>
+                <SelectItem value="3">Column 3</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <FieldLabel>Order in column</FieldLabel>
+            <div className="flex h-7 items-center gap-1.5 rounded-md border border-input bg-muted/40 px-2.5 font-mono text-xs text-muted-foreground">
+              <GripVertical className="size-3.5" />
+              {orderInCol} / {colCount}
+              <span className="ml-auto text-[9px] normal-case">reorder in preview</span>
+            </div>
+          </div>
         </div>
+      ) : (
         <div className="flex flex-col gap-1">
-          <FieldLabel>Order in column</FieldLabel>
+          <FieldLabel>Order</FieldLabel>
           <div className="flex h-7 items-center gap-1.5 rounded-md border border-input bg-muted/40 px-2.5 font-mono text-xs text-muted-foreground">
             <GripVertical className="size-3.5" />
-            {orderInCol} / {colCount}
+            {[...cards].sort((a, b) => a.order - b.order).findIndex((c) => c.id === card.id) + 1} / {cards.length}
             <span className="ml-auto text-[9px] normal-case">reorder in preview</span>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="flex flex-col gap-1">
         <FieldLabel>Block pattern</FieldLabel>
@@ -164,11 +215,11 @@ function BasicsTab({ card }: { card: Card }) {
         >
           <SelectTrigger size="sm" className="w-full">
             <SelectValue>
-              {BLOCK_PATTERNS.find((p) => p.id === card.pattern)?.label}
+              {patternsForOutput.find((p) => p.id === card.pattern)?.label ?? card.pattern}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {BLOCK_PATTERNS.map((p) => (
+            {patternsForOutput.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.label}
               </SelectItem>
@@ -176,7 +227,7 @@ function BasicsTab({ card }: { card: Card }) {
           </SelectContent>
         </Select>
         <p className="text-[10px] text-muted-foreground">
-          {BLOCK_PATTERNS.find((p) => p.id === card.pattern)?.description}
+          {patternsForOutput.find((p) => p.id === card.pattern)?.description}
         </p>
       </div>
     </div>
@@ -194,7 +245,7 @@ function ContentTab({ card }: { card: Card }) {
     }))
   )
   const ingestFiles = project.ingestFiles || []
-  const disabled = card.pattern === "image-focused" || card.pattern === "references"
+  const disabled = card.pattern === "image-focused" || card.pattern === "figure-slide" || card.pattern === "references"
   const isReferences = card.pattern === "references"
   const isGenerating = generatingIds.includes(card.id)
   const contentRef = useRef<HTMLTextAreaElement>(null)
@@ -346,45 +397,78 @@ function ContentTab({ card }: { card: Card }) {
         </div>
       )}
 
-      {!disabled && ingestFiles.length > 0 && (
-        <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-3">
-          <FieldLabel>Data Sources for Auto-Fill</FieldLabel>
-          <div className="flex flex-col gap-2">
-            {ingestFiles.map((file: {id: string, name: string}) => {
-              const isSelected = !card.sourceIds || card.sourceIds.length === 0 || card.sourceIds.includes(file.id)
-              return (
-                <div key={file.id} className="flex items-center gap-2">
-                  <Switch
-                    size="sm"
-                    checked={isSelected}
-                    onCheckedChange={(checked) => {
-                      const current = card.sourceIds || []
-                      // If empty/all, and turning one off, we must implicitly select the others
-                      let next: string[]
-                      if (current.length === 0) {
-                        next = checked ? [] : ingestFiles.filter((f: {id: string}) => f.id !== file.id).map(f => f.id)
-                      } else {
-                        next = checked ? [...current, file.id] : current.filter(id => id !== file.id)
-                      }
-                      
-                      // If all are selected, reset to empty array for cleaner state
-                      if (next.length === ingestFiles.length) {
-                        next = []
-                      }
-                      
-                      updateCard(card.id, { sourceIds: next })
-                    }}
-                  />
-                  <span className="truncate text-[11px] text-muted-foreground">{file.name}</span>
-                </div>
-              )
-            })}
+      {!disabled && ingestFiles.length > 0 && (() => {
+        const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
+        const outputType = (activeOutput?.outputType ?? "poster") as OutputType
+        const outputTypeLabel = OUTPUT_TYPE_LABELS[outputType]
+        const isCardOverridden = Array.isArray(card.sourceIds) && card.sourceIds.length > 0
+        const inheritedSourceIds = activeOutput?.sourceIds || []
+
+        return (
+          <div className="rounded-lg border border-border bg-card p-3 space-y-2.5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] font-semibold text-foreground">
+                Data Sources for Autofill
+              </Label>
+              {isCardOverridden ? (
+                <button
+                  type="button"
+                  onClick={() => updateCard(card.id, { sourceIds: [] })}
+                  className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline"
+                >
+                  <RotateCcw className="size-2.5" /> Inherit from {outputTypeLabel}
+                </button>
+              ) : (
+                <span className="text-[10px] font-mono text-muted-foreground/70">
+                  (Inherited from {outputTypeLabel})
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-9 shrink-0">
+                <RagSourcesIllustration />
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                Restrict the Gemini RAG context for this item. Overrides the {outputTypeLabel} setting when toggled.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-1.5 pt-1.5 border-t border-border/50">
+              {ingestFiles.map((file: { id: string; name: string }) => {
+                const isSelected = isCardOverridden
+                  ? (card.sourceIds || []).includes(file.id)
+                  : inheritedSourceIds.length === 0 || inheritedSourceIds.includes(file.id)
+
+                return (
+                  <div key={file.id} className="flex items-center justify-between gap-2 py-0.5">
+                    <span className="truncate text-[11px] text-foreground font-medium" title={file.name}>
+                      {file.name}
+                    </span>
+                    <Switch
+                      size="sm"
+                      checked={isSelected}
+                      onCheckedChange={(checked) => {
+                        const currentSelection = isCardOverridden
+                          ? card.sourceIds || []
+                          : inheritedSourceIds.length === 0
+                          ? ingestFiles.map((f: { id: string }) => f.id)
+                          : inheritedSourceIds
+
+                        const next = checked
+                          ? [...currentSelection.filter((id: string) => id !== file.id), file.id]
+                          : currentSelection.filter((id: string) => id !== file.id)
+
+                        updateCard(card.id, { sourceIds: next })
+                      }}
+                    />
+                  </div>
+                )
+              })}
+            </div>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1">
-            Restrict the Gemini RAG context to these specific files.
-          </p>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
@@ -434,7 +518,7 @@ function TableTab({ card }: { card: Card }) {
     <div className="flex flex-col gap-3 p-3">
       {!enabled && (
         <p className="rounded-md border border-dashed border-border bg-muted/40 px-2.5 py-2 text-[11px] text-muted-foreground">
-          This pattern does not render a table. Select <span className="font-mono">bullets-table</span> in Basics to include it.
+          This pattern does not render a table. Select <span className="font-mono">bullets-table</span> (poster/slides) or <span className="font-mono">section-table</span> (paper) in Basics to include it.
         </p>
       )}
 
@@ -454,7 +538,6 @@ function TableTab({ card }: { card: Card }) {
                     rows: asset.tableRows,
                   }
                 })
-                toast.success("Table populated from parsed asset")
               }
             }}
           >
@@ -550,9 +633,12 @@ function FiguresTab({ card }: { card: Card }) {
   const updateCard = useEditor((s) => s.updateCard)
   const projectId = useEditor((s) => s.project.id)
   const slots =
-    card.pattern === "bullets-two-images"
+    card.pattern === "bullets-two-images" || card.pattern === "section-two-figures"
       ? 2
-      : card.pattern === "bullets-image" || card.pattern === "image-focused"
+      : card.pattern === "bullets-image" ||
+        card.pattern === "image-focused" ||
+        card.pattern === "figure-slide" ||
+        card.pattern === "section-figure"
         ? 1
         : 0
   const fileRefs = useRef<(HTMLInputElement | null)[]>([])
@@ -573,7 +659,6 @@ function FiguresTab({ card }: { card: Card }) {
     if (!file) return
     const blobUrl = URL.createObjectURL(file)
     setFigure(i, { url: blobUrl })
-    toast.info(`Uploading ${file.name}...`)
     
     try {
       const formData = new FormData()
@@ -588,10 +673,8 @@ function FiguresTab({ card }: { card: Card }) {
       if (!res.ok) throw new Error(data.error || "Upload failed")
       
       setFigure(i, { url: data.asset.url })
-      toast.success(`Uploaded ${file.name}`)
     } catch (err) {
       console.error(err)
-      toast.error(`Failed to upload ${file.name}`)
     } finally {
       URL.revokeObjectURL(blobUrl)
     }
@@ -793,7 +876,6 @@ function OutputTab({ card }: { card: Card }) {
           className="gap-1"
           onClick={() => {
             navigator.clipboard?.writeText(latex)
-            toast.success("LaTeX copied")
           }}
         >
           <Copy className="size-3" /> Copy
@@ -840,6 +922,10 @@ export function CardInspector() {
     const activeOutput = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
     return activeOutput?.cards.find((c) => c.id === s.selectedCardId) ?? null
   })
+  const activeOutputType = useEditor((s) => {
+    const activeOutput = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
+    return activeOutput?.outputType ?? "poster"
+  })
 
   if (!selectedCard) {
     return (
@@ -862,6 +948,9 @@ export function CardInspector() {
   const card = selectedCard
   const status = getStatus(card)
   const isGenerating = generatingIds.includes(card.id)
+  const cardSubtitle = activeOutputType === "poster"
+    ? `${card.id} · column ${card.column}`
+    : `${card.id} · ${BLOCK_PATTERNS.find((p) => p.id === card.pattern)?.label ?? card.pattern}`
 
   return (
     <section
@@ -875,7 +964,7 @@ export function CardInspector() {
             <StatusBadge level={status} />
           </div>
           <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-            {card.id} · column {card.column}
+            {cardSubtitle}
           </p>
         </div>
       </div>
@@ -926,14 +1015,7 @@ export function CardInspector() {
             size="sm"
             variant="outline"
             className="flex-1"
-            onClick={async () => {
-              try {
-                await saveProject()
-                toast.success("Card saved")
-              } catch (e) {
-                toast.error("Save card failed")
-              }
-            }}
+            onClick={() => saveProject()}
             disabled={isGenerating}
           >
             <Save className="size-4 mr-2" /> Save Card
