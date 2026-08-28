@@ -8,13 +8,14 @@ import { rateLimit } from "@/lib/rate-limit"
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 
-type ImageEditOperation = "remove-bg" | "crop-tight" | "upscale" | "custom"
+type ImageEditOperation = "remove-bg" | "crop-tight" | "upscale" | "custom" | "discard" | "accept"
 
 interface ImageEditRequest {
   assetUrl: string
   workspaceId: string
   operation: ImageEditOperation
   prompt?: string
+  originalFilename?: string
 }
 
 function resolveAssetPath(assetUrl: string): string | null {
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Rate limited', retryAfterMs }, { status: 429, headers: { 'Retry-After': Math.ceil(retryAfterMs / 1000).toString() } })
   }
 
-  const validOperations: ImageEditOperation[] = ["remove-bg", "crop-tight", "upscale", "custom"]
+  const validOperations: ImageEditOperation[] = ["remove-bg", "crop-tight", "upscale", "custom", "discard", "accept"]
   if (!validOperations.includes(operation)) {
     return NextResponse.json(
       { error: `operation must be one of: ${validOperations.join(", ")}` },
@@ -84,6 +85,31 @@ export async function POST(req: Request) {
 
   if (assetPath.toLowerCase().endsWith(".pdf")) {
     return NextResponse.json({ error: "PDF assets cannot be image-edited directly." }, { status: 400 })
+  }
+
+  if (operation === "discard") {
+    if (assetPath.includes("draft-")) {
+      await fs.promises.unlink(assetPath).catch(() => {})
+    }
+    return NextResponse.json({ ok: true })
+  }
+
+  if (operation === "accept") {
+    if (!assetPath.includes("draft-")) {
+      return NextResponse.json({ error: "Not a draft asset" }, { status: 400 })
+    }
+    const originalName = body.originalFilename || path.basename(assetPath).replace(/draft-\d+-[a-z0-9]+-/, "") || "image.png"
+    const newFilePath = await atomicCreateVersionedFile(assetsDir, originalName, ".png")
+    if (!newFilePath) return NextResponse.json({ error: 'Maximum number of edited versions reached' }, { status: 409 })
+    
+    await fs.promises.copyFile(assetPath, newFilePath)
+    await fs.promises.unlink(assetPath).catch(() => {})
+    
+    const newFilename = path.basename(newFilePath)
+    return NextResponse.json({
+      url: `/api/workspaces/${workspaceId}/assets/${newFilename}`,
+      filename: newFilename,
+    })
   }
 
   if (operation === "remove-bg" || operation === "custom") {
@@ -118,20 +144,14 @@ export async function POST(req: Request) {
     const resultBuffer = await pipeline.toBuffer()
 
     const originalFilename = path.basename(assetPath)
-    // Pass .png as forceExtension to ensure the path ends in .png
-    const newFilePath = await atomicCreateVersionedFile(assetsDir, originalFilename, ".png")
+    const draftName = `draft-${Date.now()}-${Math.random().toString(36).slice(2)}-${originalFilename}`
+    const draftPath = path.join(assetsDir, draftName)
     
-    if (!newFilePath) {
-      return NextResponse.json({ error: 'Maximum number of edited versions reached' }, { status: 409 })
-    }
-
-    // atomicCreateVersionedFile created the file empty to reserve it, now we just write the content
-    await fs.promises.writeFile(newFilePath, resultBuffer)
-    const newFilename = path.basename(newFilePath)
+    await fs.promises.writeFile(draftPath, resultBuffer)
 
     return NextResponse.json({
-      url: `/api/workspaces/${workspaceId}/assets/${newFilename}`,
-      filename: newFilename,
+      url: `/api/workspaces/${workspaceId}/assets/${draftName}`,
+      filename: draftName,
     })
 
   } catch (err) {

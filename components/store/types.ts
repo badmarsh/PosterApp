@@ -98,7 +98,7 @@ export interface UiSlice {
   setAutoCompile: (v: boolean) => void
   lastCompileFormat: OutputType
   setLastCompileFormat: (format: OutputType) => void
-  layoutWarnings: { cardTitle: string; issue: string; recommendation: string }[]
+  layoutWarnings: { cardId?: string; cardTitle: string; issue: string; recommendation: string; estimatedOverflowCharacters?: number; compiledRevision?: number }[]
 
   collaborators: Collaborator[]
   setCollaborators: (c: Collaborator[]) => void

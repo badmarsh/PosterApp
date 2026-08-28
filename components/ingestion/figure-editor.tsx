@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { toast } from "sonner"
 import {
   Check,
   Crop,
@@ -70,6 +71,9 @@ export function FigureEditor({
           const errData = await res.json()
           if (errData.error) errMessage += ": " + errData.error
         } catch (_) {}
+        if (res.status === 501) {
+          throw new Error("Semantic operations require a configured AI vision provider. Please check your settings.");
+        }
         throw new Error(errMessage)
       }
 
@@ -79,8 +83,8 @@ export function FigureEditor({
         url: data.url,
         checker: mappedOp === "remove-bg",
       })
-    } catch (err) {
-      console.error(err)
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Image processing failed")
     } finally {
       setApplying(false)
     }
@@ -206,10 +210,26 @@ export function FigureEditor({
           <Button
             size="xs"
             className="h-6 gap-1 px-2 text-[10px]"
-            onClick={() => {
-              updateAssetUrl(asset.id, result.url)
-              setResult(null)
-              onClose()
+            disabled={applying}
+            onClick={async () => {
+              setApplying(true)
+              try {
+                const res = await apiFetch("/api/ingestion/image-edit", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ assetUrl: result.url, workspaceId, operation: "accept", originalFilename: asset.filename }),
+                })
+                if (res.ok) {
+                  const data = await res.json()
+                  updateAssetUrl(asset.id, data.url)
+                  setResult(null)
+                  onClose()
+                } else throw new Error("Accept failed")
+              } catch(err) {
+                toast.error("Failed to accept edit")
+              } finally {
+                setApplying(false)
+              }
             }}
           >
             <Check className="size-3" />
@@ -219,7 +239,15 @@ export function FigureEditor({
             size="xs"
             variant="ghost"
             className="h-6 gap-1 px-2 text-[10px]"
-            onClick={() => setResult(null)}
+            disabled={applying}
+            onClick={() => {
+              apiFetch("/api/ingestion/image-edit", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ assetUrl: result.url, workspaceId, operation: "discard" }),
+              }).catch(() => {})
+              setResult(null)
+            }}
           >
             Discard
           </Button>

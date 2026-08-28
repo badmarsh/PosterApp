@@ -379,7 +379,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     
     const textBudgetUnits = targetHeight - baseHeight
     // roughly 14u per 60 characters
-    const characterLimit = Math.max(50, Math.floor(textBudgetUnits * (60 / 14)))
+    const characterLimit = Math.floor(textBudgetUnits * (60 / 14))
 
     set((s) => { s.generatingIds.push(id) })
     const evId = get().pushEvent({ kind: "generate", status: "running", title: `Auto-filling content — ${id}`, detail: `Reading workspace sources with Gemini (Target limit: ${characterLimit} chars)` })
@@ -423,13 +423,14 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
             c.title = data.title
           }
           s.isDirty = true
-          // Update content as markdown bullets
+          // Update content as markdown bullets (or paragraphs for paper)
           if (data.bullets && Array.isArray(data.bullets)) {
-            c.content = data.bullets.map((b: string) => `* ${b}`).join("\n\n")
+            const isPaper = activeOutput(s.project)?.outputType === "paper";
+            c.content = data.bullets.map((b: string) => isPaper ? b : `* ${b}`).join("\n\n")
           }
           
           // Update figures if recommended
-          if (data.assignedAssets && Array.isArray(data.assignedAssets)) {
+          if (data.assignedAssets && Array.isArray(data.assignedAssets) && data.assignedAssets.length > 0) {
             c.figures = [] // clear existing
             data.assignedAssets?.forEach((assignment: {assetId: string, slot: string}) => {
               const assetId = assignment.assetId

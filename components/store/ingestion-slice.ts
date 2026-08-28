@@ -236,6 +236,16 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
           a.url = newUrl
           a.thumbnailUrl = newUrl
         }
+        s.project.outputs?.forEach(output => {
+          output.cards?.forEach(card => {
+             card.figures?.forEach(fig => {
+                // The fig.id might be fig_<assetId> or the original asset url could match. Just replace it.
+                if (fig.id === `fig_${assetId}` || fig.id === assetId) {
+                   fig.url = newUrl
+                }
+             })
+          })
+        })
       })
       get().saveProject()
     },

@@ -36,9 +36,12 @@ export type CompileFixesResult = z.infer<typeof CompileFixesSchema>
 
 // 4. Layout Warnings
 export const LayoutWarningSchema = z.object({
-  cardId: z.string(),
-  message: z.string(),
-  estimatedOverflowCharacters: z.number().optional()
+  cardId: z.string().optional(),
+  cardTitle: z.string(),
+  issue: z.string(),
+  recommendation: z.string(),
+  estimatedOverflowCharacters: z.number().optional(),
+  compiledRevision: z.number().optional()
 })
 export const LayoutWarningsSchema = z.object({
   warnings: z.array(LayoutWarningSchema)
@@ -47,6 +50,6 @@ export type LayoutWarningsResult = z.infer<typeof LayoutWarningsSchema>
 
 // 5. Shrink Content Patch
 export const ShrinkContentSchema = z.object({
-  content: z.string()
+  content: z.string().min(1)
 })
 export type ShrinkContentResult = z.infer<typeof ShrinkContentSchema>

@@ -58,12 +58,16 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
       layoutWarnings: s.layoutWarnings,
       reorderCard: s.reorderCard,
       moveColumn: s.moveColumn,
+      updateCard: s.updateCard,
+      saveProject: s.saveProject,
+      project: s.project,
     }))
   )
+  const [isShrinking, setIsShrinking] = useState(false)
   const active = card.id === selectedCardId
   const status = getStatus(card)
   const warning = layoutWarnings.find(w => 
-    w.cardTitle && card.title && w.cardTitle.trim().toLowerCase() === card.title.trim().toLowerCase()
+    w.cardId === card.id || (!w.cardId && w.cardTitle && card.title && w.cardTitle.trim().toLowerCase() === card.title.trim().toLowerCase())
   )
   return (
     <ContextMenu>
@@ -120,13 +124,34 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
             size="sm" 
             variant="destructive" 
             className="h-5 mt-0.5 text-[9px] uppercase tracking-wider"
-            onClick={(e) => {
+            disabled={isShrinking}
+            onClick={async (e) => {
               e.stopPropagation();
-              // In the future this triggers an LLM rewrite to shrink content
-              alert(`Shrinking content for ${card.title} based on VLM recommendation...`);
+              setIsShrinking(true);
+              try {
+                const res = await apiFetch(`/api/workspaces/${project.id}/cards/${card.id}/shrink?revision=${project.revision}`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ 
+                    content: card.content, 
+                    warning: warning.issue,
+                    sourceIds: card.sourceIds
+                  })
+                })
+                if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => "")}`)
+                const data = await res.json()
+                if (data.content && confirm("Review the proposed shorter content:\n\n" + data.content + "\n\nApply this change?")) {
+                  updateCard(card.id, { content: data.content })
+                  await saveProject()
+                }
+              } catch (err: unknown) {
+                alert("Failed to shrink content: " + (err instanceof Error ? err.message : String(err)))
+              } finally {
+                setIsShrinking(false)
+              }
             }}
           >
-            Auto-Shrink Content
+            {isShrinking ? "Shrinking..." : "Auto-Shrink Content"}
           </Button>
         </div>
       )}

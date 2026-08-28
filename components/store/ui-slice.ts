@@ -126,7 +126,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({}),
         })
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => "")}`)
+        if (!res.ok && res.status !== 422) throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => "")}`)
         const data: { ok: boolean; log: string } = await res.json()
 
         if (get().project.id !== capturedWorkspaceId) {
@@ -156,6 +156,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
               return res.json()
             })
             .then(vlmData => {
+              if (get().project.revision !== revision) return // Ignore stale response
               if (vlmData.warnings && vlmData.warnings.length > 0) {
                  get().updateEvent(vlmEv, { kind: "review", status: "done", title: `VLM found layout issues`, detail: `${vlmData.warnings.length} layout issue(s) detected.` })
                  set((s) => { s.layoutWarnings = vlmData.warnings })
@@ -171,7 +172,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
         } else {
           if (attempts < MAX_ATTEMPTS) {
             get().updateEvent(evId, { detail: `Attempt ${attempts} failed. Requesting LLM autofix...` })
-            const autofixRes = await apiFetch(`/api/workspaces/${project.id}/autofix-compile`, {
+            const autofixRes = await apiFetch(`/api/workspaces/${project.id}/autofix-compile?revision=${revision}`, {
                method: "POST",
                headers: { "Content-Type": "application/json" },
                body: JSON.stringify({ log: data.log, cards: activeOutput.cards }),

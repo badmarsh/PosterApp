@@ -4,6 +4,8 @@ import * as path from "path"
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 export const MAX_SOURCE_CHARS = 80_000
 
+const contextCache = new Map<string, { snippets: string; timestamp: number }>()
+
 export interface LoadContextOptions {
   workspaceId: string;
   sourceIds?: string[];
@@ -26,6 +28,21 @@ export async function loadSourceContext(options: LoadContextOptions): Promise<st
   
   // Sort files deterministically to ensure stable cache hits if we implement one
   const mdFiles = files.filter(f => f.endsWith(".md")).sort();
+  
+  let latestTimestamp = 0;
+  try {
+    const stats = await Promise.all(mdFiles.map(f => fs.promises.stat(path.join(sourcesDir, f))));
+    latestTimestamp = Math.max(...stats.map(s => s.mtimeMs), 0);
+  } catch (e) {
+    // Ignore stat errors
+  }
+
+  const cacheKey = `${workspaceId}:${maxChars}:${Array.isArray(sourceIds) ? sourceIds.join(",") : "all"}`;
+  const cached = contextCache.get(cacheKey);
+  
+  if (cached && cached.timestamp === latestTimestamp) {
+    return cached.snippets;
+  }
   
   let sourceContext = "";
   
@@ -51,6 +68,8 @@ export async function loadSourceContext(options: LoadContextOptions): Promise<st
     
     sourceContext += chunk;
   }
+  const finalContext = sourceContext.trim();
+  contextCache.set(cacheKey, { snippets: finalContext, timestamp: latestTimestamp });
   
-  return sourceContext.trim();
+  return finalContext;
 }
