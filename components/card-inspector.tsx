@@ -184,19 +184,19 @@ function BasicsTab({ card }: { card: Card }) {
 }
 
 function ContentTab({ card }: { card: Card }) {
-  const { updateCard, project, bibKeys, autoFillCardAction, generatingId } = useEditor(
+  const { updateCard, project, bibKeys, autoFillCardAction, generatingIds } = useEditor(
     useShallow((s) => ({
       updateCard: s.updateCard,
       project: s.project,
       bibKeys: s.bibKeys,
       autoFillCardAction: s.autoFillCardAction,
-      generatingId: s.generatingId,
+      generatingIds: s.generatingIds,
     }))
   )
   const ingestFiles = project.ingestFiles || []
   const disabled = card.pattern === "image-focused" || card.pattern === "references"
   const isReferences = card.pattern === "references"
-  const isGenerating = generatingId === card.id
+  const isGenerating = generatingIds.includes(card.id)
   const contentRef = useRef<HTMLTextAreaElement>(null)
 
   function insertMarkdown(prefix: string, suffix: string) {
@@ -817,7 +817,7 @@ export function CardInspector() {
     deleteCard,
     selectCard,
     getStatus,
-    generatingId,
+    generatingIds,
     projectId,
     inspectorTab,
     setInspectorTab,
@@ -829,7 +829,7 @@ export function CardInspector() {
       deleteCard: s.deleteCard,
       selectCard: s.selectCard,
       getStatus: s.getStatus,
-      generatingId: s.generatingId,
+      generatingIds: s.generatingIds,
       projectId: s.project.id,
       inspectorTab: s.inspectorTab,
       setInspectorTab: s.setInspectorTab,
@@ -860,7 +860,7 @@ export function CardInspector() {
 
   const card = selectedCard
   const status = getStatus(card)
-  const isGenerating = generatingId === card.id
+  const isGenerating = generatingIds.includes(card.id)
 
   return (
     <section

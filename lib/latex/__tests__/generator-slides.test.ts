@@ -4,15 +4,13 @@ import type { Project, OutputConfig } from "@/lib/poster-types"
 
 const mockProject: Project = {
   id: "test",
+  revision: 1,
   name: "Test slides",
-  posterTitle: "Test slides",
   authors: "Author",
   venue: "Venue",
   activeOutputId: "out1",
-  cards: [],
   assets: [],
   ingestFiles: [],
-  templateName: "atlas",
   outputs: [
     {
       id: "out1",

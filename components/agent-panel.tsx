@@ -191,10 +191,10 @@ const EventRow = memo(function EventRow({
 
 function StatusStrip({
   agentEvents,
-  generatingId,
+  generatingIds,
 }: {
   agentEvents: AgentEvent[]
-  generatingId: string | null
+  generatingIds: string[]
 }) {
   const running = agentEvents.filter((e) => e.status === "running")
   const current =
@@ -229,9 +229,9 @@ function StatusStrip({
           <span className="truncate text-[11px] font-medium leading-tight">
             {current?.title ?? "Idle"}
           </span>
-          {generatingId && (
+          {generatingIds.length > 0 && (
             <span className="ml-1 shrink-0 font-mono text-[9px] text-muted-foreground">
-              {generatingId}
+              {generatingIds[0]}
             </span>
           )}
         </div>
@@ -493,13 +493,13 @@ function ChatThread() {
 
 function AgentPanelInner({
   agentEvents,
-  generatingId,
+  generatingIds,
   jobs,
   onCancelJob,
   onCollapse,
 }: {
   agentEvents: AgentEvent[]
-  generatingId: string | null
+  generatingIds: string[]
   jobs: Job[]
   onCancelJob: (id: string) => void
   onCollapse: () => void
@@ -549,7 +549,7 @@ function AgentPanelInner({
       </div>
 
       {/* Status strip (collapsible event log) */}
-      <StatusStrip agentEvents={agentEvents} generatingId={generatingId} />
+      <StatusStrip agentEvents={agentEvents} generatingIds={generatingIds} />
 
       <div className="flex-1 min-h-0 flex flex-col">
         <ChatThread />
@@ -563,10 +563,10 @@ function AgentPanelInner({
 // ---------------------------------------------------------------------------
 
 export function AgentPanel() {
-  const { agentEvents, generatingId, jobs, cancelJob, projectId, selectedCardId, pendingAiPrompt, setPendingAiPrompt, chatMessages, setChatMessages } = useEditor(
+  const { agentEvents, generatingIds, jobs, cancelJob, projectId, selectedCardId, pendingAiPrompt, setPendingAiPrompt, chatMessages, setChatMessages } = useEditor(
     useShallow((s) => ({
       agentEvents: s.agentEvents,
-      generatingId: s.generatingId,
+      generatingIds: s.generatingIds,
       jobs: s.jobs,
       cancelJob: s.cancelJob,
       projectId: s.project.id,
@@ -637,7 +637,7 @@ export function AgentPanel() {
           />
           <TooltipContent side="left">AI Chat</TooltipContent>
         </Tooltip>
-        {generatingId ? (
+        {generatingIds.length > 0 ? (
           <Loader2 className="size-3.5 animate-spin text-primary" />
         ) : (
           <CircleDot className="size-3.5 text-chart-3" />
@@ -656,7 +656,7 @@ export function AgentPanel() {
     <AssistantRuntimeProvider runtime={runtime}>
       <AgentPanelInner
         agentEvents={agentEvents}
-        generatingId={generatingId}
+        generatingIds={generatingIds}
         jobs={jobs}
         onCancelJob={cancelJob}
         onCollapse={() => setCollapsed(true)}

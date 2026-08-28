@@ -16,20 +16,8 @@ vi.mock('@/lib/rate-limit', () => ({
   rateLimit: vi.fn(() => ({ allowed: true, retryAfterMs: 0 })),
 }))
 
-// Mock fs module
-vi.mock('fs', () => ({
-  default: {
-    existsSync: vi.fn(),
-    promises: {
-      readdir: vi.fn(),
-      readFile: vi.fn(),
-    },
-  },
-  existsSync: vi.fn(),
-  promises: {
-    readdir: vi.fn(),
-    readFile: vi.fn(),
-  },
+vi.mock('@/lib/ai/context', () => ({
+  loadSourceContext: vi.fn(() => Promise.resolve('Mock source context')),
 }))
 
 import { auth } from '@clerk/nextjs/server'
@@ -73,6 +61,8 @@ describe('POST /api/workspaces/[id]/cards/[cardId]/generate', () => {
   })
 
   it('returns 429 when rate limited', async () => {
+    ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce({ id: 'ws-1', userId: 'user_123' } as any)
     mockRateLimit.mockReturnValueOnce({ allowed: false, retryAfterMs: 30000 })
 
     const req = makeRequest({ topic: 'test' })
@@ -103,7 +93,7 @@ describe('POST /api/workspaces/[id]/cards/[cardId]/generate', () => {
     expect(res.status).toBe(404)
   })
 
-  it('returns 503 when AI API not configured', async () => {
+  it('returns 500 when AI API not configured', async () => {
     const originalUrl = process.env.AI_API_URL
     const originalKey = process.env.AI_API_KEY
     delete process.env.AI_API_URL
@@ -116,8 +106,8 @@ describe('POST /api/workspaces/[id]/cards/[cardId]/generate', () => {
     const res = await POST(req, makeParams('ws-1', 'card-1'))
     const json = await res.json()
 
-    expect(res.status).toBe(503)
-    expect(json.error).toBe('AI API configuration missing')
+    expect(res.status).toBe(500)
+    expect(json.error).toBe('AI API configuration missing (AI_API_URL or AI_API_KEY)')
 
     // Restore
     if (originalUrl) process.env.AI_API_URL = originalUrl

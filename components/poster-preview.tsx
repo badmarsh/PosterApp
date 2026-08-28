@@ -84,7 +84,7 @@ function LayoutDiagram({
   const accent = color
 
   // Header bar shared by all layouts
-  const Header = () => (
+  const headerElem = (
     <rect x={1} y={1} width={W - 2} height={5} rx={1} fill={accent} opacity={0.85} />
   )
 
@@ -93,7 +93,7 @@ function LayoutDiagram({
       return (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
           <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
-          <Header />
+          {headerElem}
           {[0, 1, 2].map((i) => {
             const colW = (W - 8) / 3
             const x = 2 + i * (colW + 2)
@@ -112,7 +112,7 @@ function LayoutDiagram({
       return (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
           <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
-          <Header />
+          {headerElem}
           <rect x={2} y={9} width={20} height={10} rx={1} fill={accent} opacity={0.35} />
           <rect x={24} y={9} width={18} height={10} rx={1} fill="currentColor" className="text-muted-foreground/20" />
           <rect x={2} y={21} width={18} height={10} rx={1} fill="currentColor" className="text-muted-foreground/20" />
@@ -181,6 +181,7 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedType("slides")
       const ts = getTemplatesForType("slides")
       setSelectedTemplate(ts[0]?.id ?? "")
@@ -388,10 +389,13 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
   }
 
   const colCards = useMemo(
-    () => (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])
-      .filter((c) => c.column === card.column)
-      .sort((a, b) => a.order - b.order),
-    [(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []), card.column]
+    () => {
+      const activeCards = project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []
+      return activeCards
+        .filter((c) => c.column === card.column)
+        .sort((a, b) => a.order - b.order)
+    },
+    [project.outputs, project.activeOutputId, card.column]
   )
   const idx = colCards.findIndex((c) => c.id === card.id)
 
@@ -723,8 +727,11 @@ function PosterStructureView() {
   }
 
   const activeCardData = useMemo(
-    () => (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []).find(c => c.id === activeId),
-    [(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []), activeId]
+    () => {
+      const activeCards = project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []
+      return activeCards.find(c => c.id === activeId)
+    },
+    [project.outputs, project.activeOutputId, activeId]
   )
 
   return (
@@ -923,7 +930,10 @@ function SlidesView() {
     }))
   )
   const [activeId, setActiveId] = useState<string | null>(null)
-  const cards = useMemo(() => [...(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])].sort((a, b) => a.order - b.order), [(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])])
+  const cards = useMemo(() => {
+    const activeCards = project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []
+    return [...activeCards].sort((a, b) => a.order - b.order)
+  }, [project.outputs, project.activeOutputId])
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -984,7 +994,10 @@ function PaperView() {
     }))
   )
   const [activeId, setActiveId] = useState<string | null>(null)
-  const cards = useMemo(() => [...(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])].sort((a, b) => a.order - b.order), [(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])])
+  const cards = useMemo(() => {
+    const activeCards = project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []
+    return [...activeCards].sort((a, b) => a.order - b.order)
+  }, [project.outputs, project.activeOutputId])
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })

@@ -102,16 +102,16 @@ function MobileNavButton({
 }
 
 function MobileShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () => void }) {
-  const { selectedCardId, project, agentEvents, isSwitchingProject, generatingId } = useEditor(
+  const { selectedCardId, project, agentEvents, isSwitchingProject, generatingIds } = useEditor(
     useShallow((s) => ({
       selectedCardId: s.selectedCardId,
       project: s.project,
       agentEvents: s.agentEvents,
       isSwitchingProject: s.isSwitchingProject,
-      generatingId: s.generatingId,
+      generatingIds: s.generatingIds,
     }))
   )
-  const busy = isSwitchingProject || generatingId !== null
+  const busy = isSwitchingProject || generatingIds.length > 0
   const [pane, setPane] = useState<MobilePane>("preview")
 
   useEffect(() => {

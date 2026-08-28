@@ -2,15 +2,11 @@ import { NextResponse } from "next/server"
 import fs from "fs"
 import path from "path"
 import sharp from "sharp"
-import { nextVersionedPath } from "@/lib/asset-versioning"
-import { requireWorkspaceOwner } from "@/lib/auth"
+import { atomicCreateVersionedFile } from "@/lib/asset-versioning"
+import { requireWorkspaceEditor } from "@/lib/auth"
 import { rateLimit } from "@/lib/rate-limit"
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
-
-// ---------------------------------------------------------------------------
-// Request body type
-// ---------------------------------------------------------------------------
 
 type ImageEditOperation = "remove-bg" | "crop-tight" | "upscale" | "custom"
 
@@ -21,13 +17,6 @@ interface ImageEditRequest {
   prompt?: string
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Resolve the filesystem path for an internal asset URL
- */
 function resolveAssetPath(assetUrl: string): string | null {
   const prefix = "/api/workspaces/"
   if (!assetUrl.startsWith(prefix)) return null
@@ -39,17 +28,7 @@ function resolveAssetPath(assetUrl: string): string | null {
   return path.join(WORKSPACES_DIR, workspaceId, "assets", filename)
 }
 
-// ---------------------------------------------------------------------------
-// POST /api/ingestion/image-edit
-// ---------------------------------------------------------------------------
-
 export async function POST(req: Request) {
-  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
-  const { allowed, retryAfterMs } = rateLimit(ip, 10, 60_000)
-  if (!allowed) {
-    return NextResponse.json({ error: 'Rate limited', retryAfterMs }, { status: 429, headers: { 'Retry-After': Math.ceil(retryAfterMs / 1000).toString() } })
-  }
-
   let body: ImageEditRequest
   try {
     body = (await req.json()) as ImageEditRequest
@@ -66,11 +45,18 @@ export async function POST(req: Request) {
     )
   }
 
+  let userId: string;
   try {
-    await requireWorkspaceOwner(workspaceId)
+    const access = await requireWorkspaceEditor(workspaceId);
+    userId = access.userId;
   } catch (err) {
-    if (err instanceof Response) return err
-    throw err
+    if (err instanceof Response) return err;
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed, retryAfterMs } = rateLimit(`${userId}:image-edit`, 10, 60_000)
+  if (!allowed) {
+    return NextResponse.json({ error: 'Rate limited', retryAfterMs }, { status: 429, headers: { 'Retry-After': Math.ceil(retryAfterMs / 1000).toString() } })
   }
 
   const validOperations: ImageEditOperation[] = ["remove-bg", "crop-tight", "upscale", "custom"]
@@ -96,20 +82,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Asset or workspace not found" }, { status: 404 })
   }
 
+  if (assetPath.toLowerCase().endsWith(".pdf")) {
+    return NextResponse.json({ error: "PDF assets cannot be image-edited directly." }, { status: 400 })
+  }
+
+  if (operation === "remove-bg" || operation === "custom") {
+    // Note: To support true semantic AI edits, integrate with a Vision provider (e.g. OpenAI DALL-E or OpenRouter) here.
+    return NextResponse.json(
+      { error: "Semantic image edits are not supported without a configured AI vision/generation provider." },
+      { status: 501 }
+    )
+  }
+
   try {
     let pipeline = sharp(assetPath)
     
-    // Convert to PNG for any operation that might output transparency
+    // Always convert output to PNG for consistency and alpha channel support
     pipeline = pipeline.png()
 
     switch (operation) {
       case "crop-tight":
-        // Trim transparent or white borders automatically
         pipeline = pipeline.trim({ threshold: 20 })
         break
       
       case "upscale":
-        // Upscale 2x using Lanczos3 (default high-quality resampling)
         const metadata = await sharp(assetPath).metadata()
         if (metadata.width && metadata.height) {
           pipeline = pipeline.resize(metadata.width * 2, null, {
@@ -117,24 +113,19 @@ export async function POST(req: Request) {
           })
         }
         break
-        
-      case "remove-bg":
-      case "custom":
-        // Local node without heavy neural nets can't easily do semantic background removal.
-        // We will perform a simple auto-level and unsharp mask to improve the image as a "fast edit" fallback.
-        pipeline = pipeline.normalize().sharpen()
-        break
     }
 
     const resultBuffer = await pipeline.toBuffer()
 
     const originalFilename = path.basename(assetPath)
-    const newFilePath = await nextVersionedPath(assetsDir, originalFilename)
+    // Pass .png as forceExtension to ensure the path ends in .png
+    const newFilePath = await atomicCreateVersionedFile(assetsDir, originalFilename, ".png")
     
     if (!newFilePath) {
       return NextResponse.json({ error: 'Maximum number of edited versions reached' }, { status: 409 })
     }
 
+    // atomicCreateVersionedFile created the file empty to reserve it, now we just write the content
     await fs.promises.writeFile(newFilePath, resultBuffer)
     const newFilename = path.basename(newFilePath)
 

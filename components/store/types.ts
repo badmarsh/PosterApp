@@ -86,7 +86,7 @@ export interface BibSlice {
 
 export interface UiSlice {
   agentEvents: AgentEvent[]
-  generatingId: string | null
+  generatingIds: string[]
 
   // Compile state (persisted across tab switches)
   compiling: boolean

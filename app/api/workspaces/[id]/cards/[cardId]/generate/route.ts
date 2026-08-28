@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import * as fs from "fs"
-import * as path from "path"
 import { rateLimit } from "@/lib/rate-limit"
-import { parseAiJson } from "@/lib/ai-helpers"
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
-
-const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
-
-// Max characters of source context to send to the AI (≈ 60k tokens safe limit)
-const MAX_SOURCE_CHARS = 80_000
+import { requireWorkspaceEditor } from "@/lib/auth"
+import { loadSourceContext } from "@/lib/ai/context"
+import { generateAIResponse } from "@/lib/ai/client"
+import { CardGenerationSchema } from "@/lib/ai/contracts"
 
 export async function POST(
   req: NextRequest,
@@ -21,26 +15,18 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid workspace or card ID' }, { status: 400 })
   }
 
-  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
-  const { allowed, retryAfterMs } = rateLimit(ip, 10, 60_000)
+  let userId: string;
+  try {
+    const access = await requireWorkspaceEditor(workspaceId);
+    userId = access.userId;
+  } catch (err) {
+    if (err instanceof Response) return err;
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed, retryAfterMs } = rateLimit(`${userId}:generate`, 10, 60_000)
   if (!allowed) {
     return NextResponse.json({ error: 'Rate limited', retryAfterMs }, { status: 429, headers: { 'Retry-After': Math.ceil(retryAfterMs / 1000).toString() } })
-  }
-
-  const { userId } = await auth()
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const workspace = await prisma.workspace.findUnique({
-    where: { id: workspaceId, userId }
-  })
-  if (!workspace) {
-    return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
-  }
-
-  if (!process.env.AI_API_URL || !process.env.AI_API_KEY) {
-    return NextResponse.json({ error: "AI API configuration missing" }, { status: 503 })
   }
 
   try {
@@ -51,33 +37,14 @@ export async function POST(
       return NextResponse.json({ error: "Card topic is required" }, { status: 400 })
     }
 
-    // 1. Load source markdown files (with token budget cap)
-    const sourcesDir = path.join(WORKSPACES_DIR, workspaceId, "sources")
-    let sourceContext = ""
-    if (fs.existsSync(sourcesDir)) {
-      const files = await fs.promises.readdir(sourcesDir)
-      for (const file of files) {
-        if (file.endsWith(".md")) {
-          const id = file.replace(".md", "")
-          // If sourceIds is provided and not empty, skip files not in the array
-          if (Array.isArray(sourceIds) && sourceIds.length > 0 && !sourceIds.includes(id)) {
-            continue
-          }
-          const content = await fs.promises.readFile(path.join(sourcesDir, file), "utf-8")
-          const chunk = `\n\n--- Source Document: ${file} ---\n\n${content}`
-          // Stop adding sources once we approach the token budget
-          if (sourceContext.length + chunk.length > MAX_SOURCE_CHARS) {
-            // Truncate this chunk to fit the remaining budget
-            const remaining = MAX_SOURCE_CHARS - sourceContext.length
-            if (remaining > 500) {
-              sourceContext += chunk.slice(0, remaining) + "\n\n[...truncated for length...]"
-            }
-            break
-          }
-          sourceContext += chunk
-        }
-      }
+    if (characterLimit <= 0) {
+      return NextResponse.json({ 
+        error: "No available space for this card. Please increase the height budget, free up space, or move it to another column before auto-filling." 
+      }, { status: 400 })
     }
+
+    // 1. Load source markdown files deterministically
+    const sourceContext = await loadSourceContext({ workspaceId, sourceIds });
 
     if (!sourceContext) {
       return NextResponse.json({ error: "No parsed documents found in workspace. Please ingest PDFs first." }, { status: 400 })
@@ -142,45 +109,16 @@ Respond EXACTLY in this JSON format with no markdown wrappers:
 
     const model = process.env.AI_GENERATION_MODEL || process.env.AI_MODEL || "gemini-3-flash"
 
-    const response = await fetch(process.env.AI_API_URL as string, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.AI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }
-      }),
+    const parsedData = await generateAIResponse("generate-card", {
+      model,
+      userPrompt: prompt,
+      schema: CardGenerationSchema,
       signal: AbortSignal.timeout(180_000)
-    })
+    });
 
-    if (!response.ok) {
-      const errText = await response.text()
-      throw new Error(`AI API failed (${response.status}): ${errText}`)
-    }
-
-    const data = await response.json()
-
-    // Safe null-check: model may return 0 choices on safety block / rate limit
-    if (!data.choices?.length) {
-      throw new Error("AI returned no choices — possible rate limit or safety block")
-    }
-
-    const responseText = data.choices[0].message?.content
-    
-    if (!responseText) {
-      throw new Error("Empty response from AI")
-    }
-    
-    const { data: parsed, error } = parseAiJson(responseText)
-    if (error) {
-      throw new Error(error)
-    }
-    
-    return NextResponse.json(parsed)
+    return NextResponse.json(parsedData)
   } catch (err: unknown) {
+    if (err instanceof Response) return err;
     console.error("Card generation failed:", err)
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to generate card content" },

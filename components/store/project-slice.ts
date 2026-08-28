@@ -84,7 +84,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
   },
 
   getStatus: (card) => {
-    if (get().generatingId === card.id) return "generating"
+    if (get().generatingIds.includes(card.id)) return "generating"
     return levelFromMessages(validateCard(card))
   },
 
@@ -341,7 +341,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       toast.error("Cannot generate: card has input errors.")
       return
     }
-    set((s) => { s.generatingId = id })
+    set((s) => { s.generatingIds.push(id) })
     const evId = get().pushEvent({ kind: "generate", status: "running", title: `Generating LaTeX — ${id}`, detail: `${card.pattern} pattern` })
     window.setTimeout(() => {
       if (get().project.id !== workspaceId) return
@@ -350,7 +350,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         const c = syncActiveCards(s.project).find((c) => c.id === id)
         if (c) c.generatedLatex = latex
         if (c) s.isDirty = true
-        if (s.generatingId === id) s.generatingId = null
+        s.generatingIds = s.generatingIds.filter(gid => gid !== id)
       })
       get().updateEvent(evId, {
         status: "done",
@@ -381,7 +381,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     // roughly 14u per 60 characters
     const characterLimit = Math.max(50, Math.floor(textBudgetUnits * (60 / 14)))
 
-    set((s) => { s.generatingId = id })
+    set((s) => { s.generatingIds.push(id) })
     const evId = get().pushEvent({ kind: "generate", status: "running", title: `Auto-filling content — ${id}`, detail: `Reading workspace sources with Gemini (Target limit: ${characterLimit} chars)` })
     toast.info("Auto-filling card...")
 
@@ -415,6 +415,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         // A job is scoped to the workspace that started it. Never apply a late
         // response to whichever workspace happens to be open now.
         if (s.project.id !== workspaceId) return
+        s.generatingIds = s.generatingIds.filter(gid => gid !== id)
         const c = syncActiveCards(s.project).find((c) => c.id === id)
         if (c) {
           // Update title if Gemini suggested one
@@ -441,7 +442,6 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
             })
           }
         }
-        if (s.generatingId === id) s.generatingId = null
       })
 
       get().updateEvent(evId, {
@@ -455,7 +455,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       get().generateLatexForCardAction(id)
       
     } catch (err: unknown) {
-      set((s) => { if (s.project.id === workspaceId && s.generatingId === id) s.generatingId = null })
+      set((s) => { if (s.project.id === workspaceId) s.generatingIds = s.generatingIds.filter(gid => gid !== id) })
       get().updateEvent(evId, { status: "error", title: `Auto-fill failed — ${id}`, detail: String(err) })
       toast.error(err instanceof Error ? err.message : "Failed to auto-fill card")
       // Rethrow so bulk callers (autoFillAllCardsAction) can track failure counts correctly
@@ -528,7 +528,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         const targetCard = currentCards[i]
         if (!targetCard) return
 
-        set((s) => { s.generatingId = targetCard.id })
+        set((s) => { s.generatingIds.push(targetCard.id) })
 
         try {
           const res = await apiFetch(`/api/workspaces/${workspaceId}/cards/convert`, {
@@ -557,7 +557,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
           })
         } finally {
           set((s) => {
-            if (s.generatingId === targetCard.id) s.generatingId = null
+              s.generatingIds = s.generatingIds.filter(gid => gid !== targetCard.id)
           })
         }
       })

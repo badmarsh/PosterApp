@@ -1,29 +1,22 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { Card } from "@/lib/poster-types"
-import * as fs from "fs"
-import * as path from "path"
 import { extractCiteKeys } from "@/lib/bib-parser"
 import { rateLimit } from "@/lib/rate-limit"
-import { parseAiJson } from "@/lib/ai-helpers"
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
-const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
-// Max characters of source markdown to include in review context
-const MAX_REVIEW_SOURCE_CHARS = 60_000
+import { requireWorkspaceEditor } from "@/lib/auth"
+import { loadSourceContext } from "@/lib/ai/context"
+import { generateAIResponse } from "@/lib/ai/client"
+import { ReviewTipsSchema } from "@/lib/ai/contracts"
 
-
-function buildLintReport(project: any, bibKeys: string[]) {
+function buildLintReport(cards: Card[], bibKeys: string[]) {
   const missingCites = new Set<string>()
   const usedCites = new Set<string>()
   
   const emptyCaptions: { cardId: string, figId: string }[] = []
   const emptyCards: string[] = []
   const layoutOverflows: string[] = []
-  const activeOutput = project.outputs?.find((o: any) => o.id === project.activeOutputId)
-  const cards = activeOutput?.cards || []
 
   // 1. Citation and Layout Audit
-  for (const card of cards as Card[]) {
+  for (const card of cards) {
     // Audit Content for cites
     const textParts = [card.content]
     if (card.table?.caption) textParts.push(card.table.caption)
@@ -82,54 +75,28 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid workspace ID' }, { status: 400 })
   }
 
-  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
-  const { allowed, retryAfterMs } = rateLimit(ip, 10, 60_000)
+  let userId: string;
+  try {
+    const access = await requireWorkspaceEditor(workspaceId);
+    userId = access.userId;
+  } catch (err) {
+    if (err instanceof Response) return err;
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed, retryAfterMs } = rateLimit(`${userId}:review`, 5, 60_000)
   if (!allowed) {
     return NextResponse.json({ error: 'Rate limited', retryAfterMs }, { status: 429, headers: { 'Retry-After': Math.ceil(retryAfterMs / 1000).toString() } })
-  }
-
-  const { userId } = await auth()
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const workspace = await prisma.workspace.findUnique({
-    where: { id: workspaceId, userId }
-  })
-  if (!workspace) {
-    return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
-  }
-
-  if (!process.env.AI_API_URL || !process.env.AI_API_KEY) {
-    return NextResponse.json({ error: "AI API configuration missing" }, { status: 503 })
   }
 
   try {
     const body = await req.json()
     const { bibContent, bibKeys = [], cards = [], title, authors, venue, templateName } = body
 
-    const lintReport = buildLintReport(body, bibKeys)
+    const lintReport = buildLintReport(cards, bibKeys)
     
-    // Load source markdown from disk so the reviewer has actual grounding material.
-    // (Assets are only figures/tables — text content lives in sources/*.md)
-    let sourceSnippets = ""
-    const sourcesDir = path.join(WORKSPACES_DIR, workspaceId, "sources")
-    if (fs.existsSync(sourcesDir)) {
-      const files = await fs.promises.readdir(sourcesDir)
-      for (const file of files) {
-        if (!file.endsWith(".md")) continue
-        const content = await fs.promises.readFile(path.join(sourcesDir, file), "utf-8")
-        const chunk = `\n\n--- ${file} ---\n\n${content}`
-        if (sourceSnippets.length + chunk.length > MAX_REVIEW_SOURCE_CHARS) {
-          const remaining = MAX_REVIEW_SOURCE_CHARS - sourceSnippets.length
-          if (remaining > 500) {
-            sourceSnippets += chunk.slice(0, remaining) + "\n\n[...truncated for length...]"
-          }
-          break
-        }
-        sourceSnippets += chunk
-      }
-    }
+    // Load source markdown from disk deterministically
+    const sourceSnippets = await loadSourceContext({ workspaceId, maxChars: 60_000 });
 
     const fullCardContents = cards.map((c: Card) => {
       let content = `[${c.id}] | column ${c.column} | pattern: ${c.pattern} | height budget: ${c.heightBudget || "N/A"}\n`
@@ -192,53 +159,21 @@ verified against any provided source snippet.
 Return EXACTLY (no markdown wrappers):
 {"tips": [{"severity":"...", "category":"...", "message":"..."}]}`
 
-    const modelToUse = process.env.AI_REVIEW_MODEL || process.env.AI_MODEL || "gemini-3-flash"
+    const model = process.env.AI_REVIEW_MODEL || process.env.AI_MODEL || "gemini-3-flash"
 
-    const response = await fetch(process.env.AI_API_URL as string, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.AI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: modelToUse,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.1
-      }),
+    const parsedData = await generateAIResponse("review", {
+      model,
+      systemPrompt,
+      userPrompt,
+      schema: ReviewTipsSchema,
+      temperature: 0.1,
       signal: AbortSignal.timeout(180_000)
-    })
+    });
 
-    if (!response.ok) {
-      const errText = await response.text()
-      console.error("AI Review error:", errText)
-      return NextResponse.json({ error: `AI Review failed: ${response.statusText}` }, { status: response.status })
-    }
-
-    const data = await response.json()
-
-    if (!data.choices?.length) {
-      return NextResponse.json({ error: "AI returned no choices — possible rate limit or safety block" }, { status: 500 })
-    }
-
-    const content = data.choices[0].message?.content
-    
-    if (!content) {
-      return NextResponse.json({ error: "Empty response from AI" }, { status: 500 })
-    }
-
-    const { data: parsed, error } = parseAiJson(content)
-    if (error) {
-      console.error(error)
-      return NextResponse.json({ error: "AI returned invalid JSON response" }, { status: 500 })
-    }
-
-    return NextResponse.json(parsed)
+    return NextResponse.json(parsedData)
 
   } catch (error: unknown) {
+    if (error instanceof Response) return error;
     console.error("Error in AI Review:", error)
     return NextResponse.json({ error: error instanceof Error ? error.message : "Internal server error" }, { status: 500 })
   }

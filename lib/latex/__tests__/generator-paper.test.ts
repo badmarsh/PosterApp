@@ -23,14 +23,11 @@ function makeCard(patch: Partial<Card>): Card {
 describe("Generator Paper", () => {
   const makeProject = (templateName: string, posterCards: Card[] = []): Project => ({
     id: "prj_1",
+    revision: 1,
     name: "Test",
-    posterTitle: "My Paper Title",
     authors: "John Doe",
     venue: "Test Venue",
-    templateName,
-    cards: posterCards,
-    assets: [],
-    ingestFiles: [],
+    activeOutputId: "out_paper_twocol",
     outputs: [
       {
         id: "out_paper_twocol",
@@ -40,7 +37,8 @@ describe("Generator Paper", () => {
         cards: posterCards,
       },
     ],
-    activeOutputId: "out_paper_twocol",
+    assets: [],
+    ingestFiles: [],
   })
 
   it("produces valid article documentclass", () => {
@@ -54,7 +52,7 @@ describe("Generator Paper", () => {
   it("includes title, author, and date", () => {
     const prj = makeProject("minimal")
     const res = new StandardPaperGenerator().generateDocument(prj, prj.outputs[0], "prj_1")
-    expect(res).toContain("\\title{My Paper Title}")
+    expect(res).toContain("\\title{Test Paper}")
     expect(res).toContain("\\author{John Doe}")
     expect(res).toContain("\\affil{Test Venue}")
     expect(res).toContain("\\maketitle")

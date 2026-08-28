@@ -5,7 +5,6 @@ import os from "os"
 import { spawn } from "child_process"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { generateFullTemplate } from "@/lib/latex"
-import { safeJsonParse } from "@/lib/db-helpers"
 import type { Card, Project } from "@/lib/poster-types"
 
 const ROOT = path.join(process.cwd(), "workspaces")
@@ -43,16 +42,26 @@ async function run(command: string, args: string[], cwd: string) {
   })
 }
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   let stage = ""
   try {
+    const url = new URL(req.url)
+    const expectedRevision = url.searchParams.get("revision")
+
     const { workspace } = await requireWorkspaceEditor(id)
+    
+    if (expectedRevision && workspace.revision !== parseInt(expectedRevision, 10)) {
+      return NextResponse.json({ error: { code: "CONFLICT", message: "Workspace modified concurrently" } }, { status: 409 })
+    }
+
     const full = await (await import("@/lib/prisma")).prisma.workspace.findUnique({ where: { id }, include: { outputs: { include: { cards: true } }, assets: true } })
     if (!full) return NextResponse.json({ error: { code: "WORKSPACE_NOT_FOUND", message: "Workspace not found" } }, { status: 404 })
+    
     const project = asProject(full)
     const output = project.outputs.find((item) => item.id === project.activeOutputId)
     if (!output) return NextResponse.json({ error: { code: "NO_OUTPUT", message: "No output is selected" } }, { status: 400 })
+    
     const tex = generateFullTemplate(project, output, id)
 
     stage = await fs.mkdtemp(path.join(os.tmpdir(), `posterapp-${id}-`))
@@ -78,46 +87,13 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     try {
       log = await runCompiler()
     } catch (initialError: any) {
-      if (!process.env.AI_API_URL || !process.env.AI_API_KEY) throw initialError
-      
       const errorLog = initialError instanceof Error ? initialError.message : String(initialError)
       if (errorLog.includes("COMPILER_UNAVAILABLE")) {
         return NextResponse.json({ error: { code: "COMPILER_UNAVAILABLE", message: "The production compiler worker is not configured" } }, { status: 503 })
       }
       
-      console.log("[compile] Compilation failed, attempting AI recovery...")
-      
-      const modelToUse = process.env.AI_REVIEW_MODEL || process.env.AI_MODEL || "gemini-3-flash"
-      const systemPrompt = "You are a LaTeX expert. The user's pdflatex compilation failed. Fix the following compilation error. Return ONLY the fully corrected raw LaTeX document."
-      const userPrompt = `=== COMPILER ERROR LOG ===\n${errorLog}\n\n=== ORIGINAL LATEX ===\n${tex}\n\nPlease fix the LaTeX errors and return the entire document. Do not include any explanations.`
-      
-      const response = await fetch(process.env.AI_API_URL as string, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${process.env.AI_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: modelToUse,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          temperature: 0.1,
-        })
-      })
-
-      if (!response.ok) throw initialError
-      const data = await response.json()
-      let fixedTex = data.choices?.[0]?.message?.content || ""
-      if (!fixedTex) throw initialError
-      
-      fixedTex = fixedTex.replace(/^```(?:latex|tex)?\s*\n?/i, "").replace(/\n?\s*```\s*$/i, "").trim()
-      await fs.writeFile(path.join(stage, "main.tex"), fixedTex, "utf8")
-      
-      try {
-        const recoveryLog = await runCompiler()
-        log = errorLog + "\n\n--- AI AUTO-RECOVERY SUCCESSFUL ---\n\n" + recoveryLog
-      } catch (recoveryError: any) {
-        throw new Error(errorLog + "\n\n--- AI AUTO-RECOVERY FAILED ---\n\n" + (recoveryError instanceof Error ? recoveryError.message : String(recoveryError)))
-      }
+      // Removed server-side AI fallback. The frontend now calls /autofix-compile when compile fails.
+      throw new Error(errorLog)
     }
 
     const compiled = path.join(stage, "main.pdf")
@@ -128,6 +104,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     const produced = candidates.filter((name) => /^main\.\d+\.pdf$/.test(name)).sort().at(-1)
     if (!produced) throw new Error("Compiler produced no PDF")
     await fs.rename(path.join(targetDir, produced), path.join(targetDir, "main.pdf"))
+    
     return NextResponse.json({ ok: true, log: safeLog(log) })
   } catch (error) {
     if (error instanceof Response) return error

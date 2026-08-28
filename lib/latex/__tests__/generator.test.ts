@@ -82,19 +82,16 @@ describe("Generator", () => {
   describe("generateFullTemplate", () => {
     const makeProject = (templateName: string, posterCards: Card[] = []): Project => ({
       id: "prj_1",
+      revision: 1,
       name: "Test",
-      posterTitle: "Title",
       authors: "Authors",
       venue: "Venue",
-      templateName,
-      cards: posterCards,
-      assets: [],
-      ingestFiles: [],
+      activeOutputId: "out_poster_atlas",
       outputs: [
         {
           id: "out_poster_atlas",
           outputType: "poster",
-          templateId: "atlas",
+          templateId: templateName,
           title: "Test Poster",
           cards: posterCards,
         },
@@ -106,7 +103,8 @@ describe("Generator", () => {
           cards: posterCards,
         },
       ],
-      activeOutputId: "out_poster_atlas",
+      assets: [],
+      ingestFiles: [],
     })
 
     it("produces atlascolors for atlas template", () => {

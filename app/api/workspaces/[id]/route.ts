@@ -26,9 +26,9 @@ class WorkspaceConflictError extends Error {
 function parseCard(c: any) {
   return {
     ...c,
-    table: c.table ?? undefined,
-    figures: c.figures ?? [],
-    sourceIds: c.sourceIds ?? [],
+    table: typeof c.table === "string" ? safeJsonParse(c.table, undefined) : (c.table ?? undefined),
+    figures: typeof c.figures === "string" ? safeJsonParse(c.figures, []) : (c.figures ?? []),
+    sourceIds: typeof c.sourceIds === "string" ? safeJsonParse(c.sourceIds, []) : (c.sourceIds ?? []),
   }
 }
 
@@ -92,8 +92,8 @@ export async function GET(
         tableRows: a.tableRows ?? undefined,
       })),
       ingestFiles: workspace.ingestFiles,
-      agentEvents: workspace.agentEvents ?? [],
-      chatMessages: workspace.chatMessages ?? [],
+      agentEvents: typeof workspace.agentEvents === "string" ? safeJsonParse(workspace.agentEvents, []) : (workspace.agentEvents ?? []),
+      chatMessages: typeof workspace.chatMessages === "string" ? safeJsonParse(workspace.chatMessages, []) : (workspace.chatMessages ?? []),
     }
 
     return NextResponse.json(data)

@@ -2,28 +2,26 @@ import fs from "fs"
 import path from "path"
 
 /**
- * Given a directory and an original filename, return the first non-existing
- * versioned path of the form `basename_edited_v{n}.ext`.
- *
- * Example:
- *   nextVersionedPath("/workspaces/ws1/assets", "plot1.pdf")
- *   → "/workspaces/ws1/assets/plot1_edited_v1.pdf"   (if that doesn't exist)
- *   → "/workspaces/ws1/assets/plot1_edited_v2.pdf"   (if v1 already exists)
- *
- * Pure filesystem check — no files are created or modified.
+ * Creates an empty file using an exclusive flag ('wx') to prevent race conditions.
+ * Returns the atomic path generated.
  */
-export async function nextVersionedPath(dir: string, filename: string): Promise<string | null> {
-  const ext = path.extname(filename)
-  const base = path.basename(filename, ext)
+export async function atomicCreateVersionedFile(dir: string, filename: string, forceExtension?: string): Promise<string | null> {
+  const originalExt = path.extname(filename)
+  const base = path.basename(filename, originalExt)
   const coreBase = base.replace(/_edited_v\d+$/, "")
+  const ext = forceExtension || originalExt
 
   const MAX_VERSIONS = 999
   for (let n = 1; n <= MAX_VERSIONS; n++) {
     const candidate = path.join(dir, `${coreBase}_edited_v${n}${ext}`)
     try {
-      await fs.promises.access(candidate)
-    } catch {
+      const handle = await fs.promises.open(candidate, "wx")
+      await handle.close()
       return candidate
+    } catch (err: any) {
+      if (err.code !== "EEXIST") {
+        throw err;
+      }
     }
   }
   return null

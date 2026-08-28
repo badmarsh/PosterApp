@@ -30,7 +30,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
       detail: "Loading workspace…",
     },
   ],
-  generatingId: null,
+  generatingIds: [],
 
   chatMessages: [],
   setChatMessages: (messages) => set({ chatMessages: messages }),
@@ -112,9 +112,16 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
         const activeOutput = project.outputs?.find(o => o.id === project.activeOutputId) || project.outputs?.[0]
         if (!activeOutput) throw new Error("No active output config")
         
+        // Ensure changes are flushed before compiling for revision safety
+        if (get().isDirty) {
+          get().updateEvent(evId, { detail: `Attempt ${attempts}/${MAX_ATTEMPTS}: Saving workspace...` })
+          await get().saveProject()
+        }
+        const revision = get().project.revision
+
         get().updateEvent(evId, { detail: `Attempt ${attempts}/${MAX_ATTEMPTS}: Compiling...` })
         
-        const res = await apiFetch(`/api/workspaces/${project.id}/compile`, {
+        const res = await apiFetch(`/api/workspaces/${project.id}/compile?revision=${revision}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({}),
@@ -143,7 +150,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
           
           // Background VLM Layout Check
           const vlmEv = get().pushEvent({ kind: "info", status: "running", title: `VLM Layout Check running...` })
-          apiFetch(`/api/workspaces/${project.id}/review-layout`, { method: "POST" })
+          apiFetch(`/api/workspaces/${project.id}/review-layout?revision=${revision}`, { method: "POST" })
             .then(async res => {
               if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => "")}`)
               return res.json()
@@ -175,8 +182,9 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
                autofixData.fixes.forEach((fix: any) => {
                  get().updateCard(fix.id, { content: fix.content })
                })
-               // Short pause to let state settle
+               // Short pause and force save before next compile attempt
                await new Promise(r => setTimeout(r, 100))
+               await get().saveProject()
             } else {
                get().updateEvent(evId, { status: "error", title: "Compile failed", detail: "LLM autofix could not provide a fix." })
                get().setPendingAiPrompt(`The LaTeX compilation failed with the following error. Please analyze it, explain the issue, and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
