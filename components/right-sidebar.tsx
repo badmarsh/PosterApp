@@ -10,8 +10,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LayoutGrid, FileText, Heading } from "lucide-react"
 
 export function RightSidebar() {
-  const { selectedCardId, isHeaderUnlocked, isSwitchingProject } = useEditor(
+  const { project, selectedCardId, isHeaderUnlocked, isSwitchingProject } = useEditor(
     useShallow((s) => ({
+      project: s.project,
       selectedCardId: s.selectedCardId,
       isHeaderUnlocked: s.isHeaderUnlocked,
       isSwitchingProject: s.isSwitchingProject,
@@ -20,6 +21,12 @@ export function RightSidebar() {
   
   const [activeTab, setActiveTab] = useState<"editor" | "pdf">("pdf")
   const [prevSelectionKey, setPrevSelectionKey] = useState<string | null>(null)
+
+  const activeOutput = project?.outputs?.find((o) => o.id === project.activeOutputId)
+  const outputTypeName = activeOutput?.outputType === "poster" ? "Poster" 
+    : activeOutput?.outputType === "slides" ? "Slides" 
+    : activeOutput?.outputType === "paper" ? "Paper" 
+    : "Document"
 
   const currentSelectionKey = selectedCardId ? `card:${selectedCardId}` : isHeaderUnlocked ? "header" : null
 
@@ -52,7 +59,7 @@ export function RightSidebar() {
               {isEditingHeader ? (
                 <>
                   <Heading className="size-3.5 mr-1.5 text-primary" />
-                  Header Settings
+                  Edit {outputTypeName} Settings + Ops
                 </>
               ) : (
                 <>

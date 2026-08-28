@@ -10,7 +10,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string; cardId: string }> }
 ) {
   const { id: workspaceId, cardId } = await params
-  
+
   if (!/^[a-zA-Z0-9_-]+$/.test(workspaceId) || !/^[a-zA-Z0-9_-]+$/.test(cardId)) {
     return NextResponse.json({ error: 'Invalid workspace or card ID' }, { status: 400 })
   }
@@ -38,12 +38,12 @@ export async function POST(
     }
 
     if (characterLimit <= 0) {
-      return NextResponse.json({ 
-        error: "No available space for this card. Please increase the height budget, free up space, or move it to another column before auto-filling." 
+      return NextResponse.json({
+        error: "No available space for this card. Please increase the height budget, free up space, or move it to another column before auto-filling."
       }, { status: 400 })
     }
 
-    // 1. Load source markdown files deterministically
+    // 1. Load source markdown files
     const sourceContext = await loadSourceContext({ workspaceId, sourceIds });
 
     if (!sourceContext) {
@@ -59,53 +59,18 @@ export async function POST(
       snippet: a.snippet
     }))
 
-    // 3. Build prompt
-    const isAutonomous = topic === "Untitled card" || topic.trim() === ""
-    const typeLabel = outputType === "paper" ? "an academic paper" : outputType === "slides" ? "presentation slides" : "a scientific poster"
-    const topicInstruction = isAutonomous 
-      ? `The user has NOT specified a topic. You must autonomously analyze the <Source Material> and <Available Figures/Tables>, and decide on the most compelling scientific section to create for this ${outputType} (e.g., "Methodology", "Key Results", "Conclusion"). Choose the topic that has the most solid content and supporting figures.`
-      : `The user explicitly wants a ${outputType} section about: "${topic}". You must focus ONLY on this topic.`
+    // 3. Build output-type-specific prompt
+    const isAutonomous = !topic || topic === "Untitled card" || topic.trim() === ""
 
-    const formatConstraint = outputType === "paper" 
-      ? `- Write cohesive academic paragraphs. Return the paragraphs as an array of strings (one string per paragraph) in the "bullets" JSON field. Do not use markdown bullet syntax (*), just return raw paragraphs.`
-      : outputType === "slides"
-      ? `- Write very short, punchy bullet points suitable for presentation slides. Each bullet must be at most 1 sentence.`
-      : `- Each bullet should be no longer than 1-2 sentences.`
-
-    const prompt = `You are an expert academic assistant tasked with writing a section for ${typeLabel}.
-
-<Source Material>
-${sourceContext}
-</Source Material>
-
-<Available Figures/Tables>
-${JSON.stringify(availableAssets, null, 2)}
-</Available Figures/Tables>
-
-<Valid Cite Keys>
-${JSON.stringify(bibKeys)}
-</Valid Cite Keys>
-
-${topicInstruction}
-
-IMPORTANT constraints:
-- STRICT GROUNDING: You MUST base your content STRICTLY and ONLY on the provided <Source Material>. Do NOT use outside knowledge, do NOT search the web, and do NOT hallucinate facts.
-- NO HALLUCINATED CITATIONS: If you use the \\cite{} command, you MUST ONLY use keys from the <Valid Cite Keys> array. If the array is empty, do not use citations.
-- INLINE EQUATIONS: If the topic involves equations or math from the source text, you may reproduce them verbatim in the bullets as LaTeX math (e.g. $E=mc^2$ or $$...$$).
-- The TOTAL combined length of all text you generate MUST be strictly around ${characterLimit} characters to fit the physical constraints of the ${outputType} layout.
-${formatConstraint}
-
-Also, review the available figures/tables. If any of them strongly support the points you made, assign them to 'figure1' or 'figure2'. You can assign up to 2 assets. To accurately identify the assets, look for their \`filename\` in the <Source Material>.
-
-Respond EXACTLY in this JSON format with no markdown wrappers:
-{
-  "title": "The topic title you wrote about (e.g. 'Methods', 'Results')",
-  "bullets": ["Point 1...", "Point 2..."],
-  "assignedAssets": [
-    { "slot": "figure1", "assetId": "..." },
-    { "slot": "figure2", "assetId": "..." }
-  ]
-}`
+    const prompt = buildCardPrompt({
+      outputType,
+      topic,
+      isAutonomous,
+      sourceContext,
+      availableAssets,
+      bibKeys,
+      characterLimit,
+    })
 
     const model = process.env.AI_GENERATION_MODEL || process.env.AI_MODEL || "gemini-3-flash"
 
@@ -125,4 +90,147 @@ Respond EXACTLY in this JSON format with no markdown wrappers:
       { status: 500 }
     )
   }
+}
+
+// ─── Per-type card content prompts ───────────────────────────────────────────
+
+interface CardPromptOptions {
+  outputType: string
+  topic: string
+  isAutonomous: boolean
+  sourceContext: string
+  availableAssets: object[]
+  bibKeys: string[]
+  characterLimit: number
+}
+
+function buildCardPrompt(opts: CardPromptOptions): string {
+  const { outputType, topic, isAutonomous, sourceContext, availableAssets, bibKeys, characterLimit } = opts
+
+  const topicInstruction = isAutonomous
+    ? `The card title is unspecified or generic. Autonomously choose the most compelling scientific topic from the <Source Material> that has not yet been covered elsewhere, and write about it.`
+    : `Write the content for the card titled: "${topic}". Stay strictly on this topic.`
+
+  const citeNote = bibKeys.length > 0
+    ? `You may use \\cite{key} citations but ONLY with keys from: ${JSON.stringify(bibKeys)}. Never invent citation keys.`
+    : `Do NOT use \\cite{} commands — no valid cite keys are available.`
+
+  // ─── POSTER card ────────────────────────────────────────────────────────
+  if (outputType === "poster") {
+    return `You are an expert scientific poster author.
+
+<Source Material>
+${sourceContext}
+</Source Material>
+
+<Available Figures/Tables>
+${JSON.stringify(availableAssets, null, 2)}
+</Available Figures/Tables>
+
+<Valid Cite Keys>
+${JSON.stringify(bibKeys)}
+</Valid Cite Keys>
+
+${topicInstruction}
+
+POSTER CARD WRITING RULES:
+- STRICT GROUNDING: Use ONLY information from the <Source Material>. Do not invent facts.
+- Write 3–6 concise bullet points. Each bullet = 1–2 sentences max. Dense, information-rich.
+- Prefer quantitative claims where the source provides numbers (e.g. "Achieves 94.2% accuracy on X benchmark").
+- You may include brief inline LaTeX math if the topic involves formulas from the source (e.g. $\\mathcal{L} = ...$).
+- The TOTAL character count of all bullets combined must be around ${characterLimit} characters to fit the poster column.
+- ${citeNote}
+
+Figure assignment: If any figure/table in <Available Figures/Tables> directly supports this card's topic, assign up to 2.
+
+Respond EXACTLY in this JSON format (no markdown wrapper):
+{
+  "title": "Refined card title (keep close to original topic)",
+  "bullets": ["Bullet 1...", "Bullet 2...", ...],
+  "assignedAssets": [
+    { "slot": "figure1", "assetId": "..." }
+  ]
+}`
+  }
+
+  // ─── SLIDES card ────────────────────────────────────────────────────────
+  if (outputType === "slides") {
+    return `You are an expert scientific presenter writing slide content.
+
+<Source Material>
+${sourceContext}
+</Source Material>
+
+<Available Figures/Tables>
+${JSON.stringify(availableAssets, null, 2)}
+</Available Figures/Tables>
+
+<Valid Cite Keys>
+${JSON.stringify(bibKeys)}
+</Valid Cite Keys>
+
+${topicInstruction}
+
+PRESENTATION SLIDE WRITING RULES:
+- STRICT GROUNDING: Use ONLY information from the <Source Material>. Do not invent facts.
+- Write 4–6 bullet points. Each bullet must be a SHORT, punchy statement — ideally 1 sentence, max 15 words. Suitable for reading at a glance.
+- Think "slide bullets", not essay prose. Each bullet = one clear takeaway or fact.
+- Quantitative results are highly valued (e.g. "97% efficiency gain over baseline").
+- You may use brief inline LaTeX math if the slide topic involves an equation (e.g. $E = mc^2$).
+- The TOTAL character count of all bullets combined must be around ${characterLimit} characters.
+- ${citeNote}
+- Do NOT write long sentences or full paragraphs.
+
+Figure assignment: Assign a figure/table if it directly illustrates the slide's key point.
+
+Respond EXACTLY in this JSON format (no markdown wrapper):
+{
+  "title": "Refined slide title",
+  "bullets": ["Short bullet 1", "Short bullet 2", ...],
+  "assignedAssets": [
+    { "slot": "figure1", "assetId": "..." }
+  ]
+}`
+  }
+
+  // ─── PAPER section ───────────────────────────────────────────────────────
+  // Paper sections contain full academic prose paragraphs (returned in "bullets" array as one string per paragraph)
+  return `You are an expert academic writer writing a section of a research paper.
+
+<Source Material>
+${sourceContext}
+</Source Material>
+
+<Available Figures/Tables>
+${JSON.stringify(availableAssets, null, 2)}
+</Available Figures/Tables>
+
+<Valid Cite Keys>
+${JSON.stringify(bibKeys)}
+</Valid Cite Keys>
+
+${topicInstruction}
+
+ACADEMIC PAPER SECTION WRITING RULES:
+- STRICT GROUNDING: Use ONLY information from the <Source Material>. Do not invent facts or extrapolate beyond what is stated.
+- Write 2–4 coherent academic paragraphs. Each paragraph = one string in the "bullets" array.
+- Use formal academic prose: no bullet points or markdown syntax inside the text.
+- You may use inline LaTeX math to reproduce equations from the source verbatim (e.g. $\\mathcal{L}_{total} = ...$).
+- ${citeNote}
+- The TOTAL character count of all paragraphs combined must be around ${characterLimit} characters.
+- If this is the Abstract section: write a single compact paragraph summarising objectives, methods, and results.
+- If this is an Introduction: motivate the problem, state the research gap, and outline the paper structure.
+- If this is a Methods/Architecture section: describe the technical approach precisely.
+- If this is a Results section: report quantitative findings with numbers and comparisons.
+
+Figure assignment: If a figure or table in <Available Figures/Tables> is referenced or supports this section, assign it.
+
+Respond EXACTLY in this JSON format (no markdown wrapper). Return paragraphs as plain prose strings — no bullet asterisks (*):
+{
+  "title": "Section title (keep numbered prefix if original had one, e.g. '3 Methodology')",
+  "bullets": ["Full paragraph 1...", "Full paragraph 2...", ...],
+  "assignedAssets": [
+    { "slot": "figure1", "assetId": "..." }
+  ]
+}`
 }

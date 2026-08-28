@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import dynamic from "next/dynamic"
-import { Minus, Download, Plus, FileDown, Loader2, ChevronDownIcon } from "lucide-react"
+import { Minus, Download, Plus, FileDown, Loader2, ChevronDownIcon, Maximize } from "lucide-react"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { cn } from "@/lib/utils"
@@ -95,8 +95,20 @@ export function PdfSidebar() {
     }
   }
 
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen().catch(err => {
+        console.error("Error attempting to enable fullscreen:", err)
+      })
+    } else {
+      document.exitFullscreen()
+    }
+  }
+
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex flex-col h-full w-full bg-background" ref={containerRef}>
       {/* Zoom toolbar */}
       <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/10 px-3 h-10">
         <div className="flex items-center gap-1.5">
@@ -140,14 +152,24 @@ export function PdfSidebar() {
           )}
         </div>
         {pdfData && (
-          <a
-            href={`/api/workspaces/${projectId}/pdf?t=${pdfData.byteLength || 0}`}
-            download="poster.pdf"
-            className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground border border-border"
-          >
-            <Download className="size-3" />
-            Download
-          </a>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleFullscreen}
+              className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground border border-border"
+              aria-label="Toggle Fullscreen"
+            >
+              <Maximize className="size-3" />
+              Fullscreen
+            </button>
+            <a
+              href={`/api/workspaces/${projectId}/pdf?t=${pdfData.byteLength || 0}`}
+              download="poster.pdf"
+              className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground border border-border"
+            >
+              <Download className="size-3" />
+              Download
+            </a>
+          </div>
         )}
       </div>
 

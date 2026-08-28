@@ -67,13 +67,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     stage = await fs.mkdtemp(path.join(os.tmpdir(), `posterapp-${id}-`))
     await fs.writeFile(path.join(stage, "main.tex"), tex, "utf8")
     
-    // Extract bibliography content from any references cards
+    // Extract bibliography content from references cards or workspace bibContent
     const refCards = output.cards.filter(c => c.pattern === "references")
-    if (refCards.length > 0) {
-      const bibContent = refCards.map(c => c.content).join("\n\n")
-      if (bibContent.trim()) {
-        await fs.writeFile(path.join(stage, "references.bib"), bibContent, "utf8")
-      }
+    const cardBib = refCards.map(c => c.content).filter(Boolean).join("\n\n")
+    const bibContent = (cardBib && cardBib.includes("@")) ? cardBib : (workspace.bibContent || cardBib || "")
+    if (bibContent.trim()) {
+      await fs.writeFile(path.join(stage, "references.bib"), bibContent, "utf8")
     }
     const assets = path.join(ROOT, id, "assets")
     await fs.cp(assets, path.join(stage, "assets"), { recursive: true, force: true, errorOnExist: false }).catch(() => undefined)

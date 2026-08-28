@@ -146,7 +146,7 @@ const EventRow = memo(function EventRow({
           </span>
         </div>
         {event.detail && (
-          <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+          <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground whitespace-pre-line">
             {event.detail}
           </p>
         )}

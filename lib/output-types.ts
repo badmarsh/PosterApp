@@ -51,46 +51,62 @@ export type TemplateDef = {
   label: string
   description: string
   category: TemplateCategory
-  /** Curated accent colors the template natively supports */
   colors: TemplateColor[]
-  /** Which layout preview thumbnail to render */
   layoutPreview: TemplateLayoutPreview
+  detailFeatures: string[]
+  latexClass: string
+  colorSystem: string
 }
 
 export const TEMPLATE_REGISTRY: TemplateDef[] = [
   // Posters
-  { id: "atlas",       outputType: "poster", label: "TemplateATLAS (CERN)",  description: "Red/white colour scheme with ATLAS logos",      category: "institutional",
-    colors: [{id:"red",name:"ATLAS Red",hex:"#C8102E"},{id:"navy",name:"Navy",hex:"#003366"},{id:"black",name:"Black",hex:"#222222"}], layoutPreview: "poster-3col" },
-  { id: "minimal",    outputType: "poster", label: "Minimal Blue",           description: "Clean blue theme without institutional branding", category: "core",
-    colors: [{id:"blue",name:"Cobalt",hex:"#2563EB"},{id:"teal",name:"Teal",hex:"#0D9488"},{id:"violet",name:"Violet",hex:"#7C3AED"}], layoutPreview: "poster-3col" },
-  { id: "gemini",     outputType: "poster", label: "Gemini",                 description: "Modern Beamerposter theme",                      category: "poster",
-    colors: [{id:"indigo",name:"Indigo",hex:"#4F46E5"},{id:"emerald",name:"Emerald",hex:"#059669"},{id:"rose",name:"Rose",hex:"#E11D48"}], layoutPreview: "poster-3col" },
-  { id: "tikzposter", outputType: "poster", label: "tikzposter",             description: "Highly visual, rigidly blocked poster template",  category: "poster",
-    colors: [{id:"blue",name:"Blue",hex:"#1D4ED8"},{id:"orange",name:"Orange",hex:"#EA580C"}], layoutPreview: "poster-3col" },
-  { id: "a0poster",   outputType: "poster", label: "A0 Poster",              description: "Classic A0 portrait layout",                    category: "core",
-    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"Blue",hex:"#1E40AF"}], layoutPreview: "poster-3col" },
+  { id: "atlas",       outputType: "poster", label: "TemplateATLAS (CERN)",  description: "Red/white scheme with dual logo support (Project Settings). Fully custom title bar.",      category: "institutional",
+    colors: [{id:"red",name:"ATLAS Red",hex:"#C8102E"},{id:"navy",name:"Navy",hex:"#003366"},{id:"black",name:"Black",hex:"#222222"}], layoutPreview: "poster-3col",
+    detailFeatures: ["Dual logo support via Project Defaults", "Fully custom rounded-corner title bar", "Block backgrounds tinted light-red!25", "Built for A0/A1 portrait printing"], latexClass: "tikzposter", colorSystem: "Custom \\definecolorstyle" },
+  { id: "minimal",    outputType: "poster", label: "Minimal Blue",           description: "Clean academic layout. No logos. Full color override supported.", category: "core",
+    colors: [{id:"blue",name:"Cobalt",hex:"#2563EB"},{id:"teal",name:"Teal",hex:"#0D9488"},{id:"violet",name:"Violet",hex:"#7C3AED"}], layoutPreview: "poster-3col",
+    detailFeatures: ["Clean, non-institutional academic look", "Standard title block (no logos)", "Block backgrounds tinted light-blue!25", "Perfect for general-purpose research"], latexClass: "tikzposter", colorSystem: "Custom \\definecolorstyle" },
+  { id: "gemini",     outputType: "poster", label: "Gemini",                 description: "Modern Beamerposter theme using standard block syntax.",                      category: "poster",
+    colors: [{id:"indigo",name:"Indigo",hex:"#4F46E5"},{id:"emerald",name:"Emerald",hex:"#059669"},{id:"rose",name:"Rose",hex:"#E11D48"}], layoutPreview: "poster-3col",
+    detailFeatures: ["Uses standard Beamer \\begin{block} syntax", "Sleek, modern flat-design layout", "Full color override via Beamer structure fg", "Highly customizable preamble"], latexClass: "beamer + beamerposter", colorSystem: "\\usecolortheme{gemini}" },
+  { id: "tikzposter", outputType: "poster", label: "tikzposter",             description: "Built-in tikzposter Board theme. Standard blocks.",  category: "poster",
+    colors: [{id:"blue",name:"Blue",hex:"#1D4ED8"},{id:"orange",name:"Orange",hex:"#EA580C"}], layoutPreview: "poster-3col",
+    detailFeatures: ["Uses the built-in Board theme natively", "Block headers and bodies inherit native theme colors", "Classic modular block appearance"], latexClass: "tikzposter", colorSystem: "\\usetheme{Board}" },
+  { id: "a0poster",   outputType: "poster", label: "A0 Poster",              description: "Classic A0 layout. Raw LaTeX sections (no blocks). Color override ignored.",                    category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"Blue",hex:"#1E40AF"}], layoutPreview: "poster-3col",
+    detailFeatures: ["Raw LaTeX sections (no tikzposter blocks)", "Uses standard \\begin{multicols}{3}", "Minimal styling, very close to a raw document", "Note: Color overrides are ignored"], latexClass: "a0poster", colorSystem: "None" },
   // Slides
-  { id: "beamer-metropolis", outputType: "slides", label: "Metropolis",    description: "Modern minimal Beamer theme",             category: "core",
-    colors: [{id:"charcoal",name:"Charcoal",hex:"#2D3748"},{id:"blue",name:"Blue",hex:"#3B82F6"},{id:"green",name:"Green",hex:"#10B981"}], layoutPreview: "slides-wide" },
-  { id: "beamer-atlas",      outputType: "slides", label: "ATLAS Beamer",  description: "CERN ATLAS branded Beamer slides",         category: "institutional",
-    colors: [{id:"red",name:"ATLAS Red",hex:"#C8102E"},{id:"navy",name:"Navy",hex:"#003366"}], layoutPreview: "slides-wide" },
-  { id: "beamer-madrid",     outputType: "slides", label: "Madrid",         description: "Classic Beamer Madrid theme",             category: "core",
-    colors: [{id:"blue",name:"Blue",hex:"#1D4ED8"},{id:"red",name:"Red",hex:"#DC2626"},{id:"green",name:"Green",hex:"#16A34A"}], layoutPreview: "slides-wide" },
-  { id: "beamer-default",    outputType: "slides", label: "Default",        description: "Standard default Beamer slides",          category: "core",
-    colors: [{id:"blue",name:"Blue",hex:"#1E40AF"},{id:"gray",name:"Gray",hex:"#4B5563"}], layoutPreview: "slides-wide" },
-  { id: "beamer-focus",      outputType: "slides", label: "Focus",          description: "Minimalist Focus Beamer theme",           category: "core",
-    colors: [{id:"dark",name:"Dark",hex:"#1C1C1C"},{id:"blue",name:"Blue",hex:"#007AB8"}], layoutPreview: "slides-wide" },
+  { id: "beamer-metropolis", outputType: "slides", label: "Metropolis",    description: "Modern minimal theme with progress bar. (Requires 'metropolis' package).",             category: "core",
+    colors: [{id:"charcoal",name:"Charcoal",hex:"#2D3748"},{id:"blue",name:"Blue",hex:"#3B82F6"},{id:"green",name:"Green",hex:"#10B981"}], layoutPreview: "slides-wide",
+    detailFeatures: ["Modern, flat design", "Distinctive progress bar in footer", "Clean, minimalist slide titles", "Requires the 'metropolis' LaTeX package"], latexClass: "beamer", colorSystem: "\\usetheme{metropolis}" },
+  { id: "beamer-atlas",      outputType: "slides", label: "ATLAS Beamer",  description: "Madrid theme with hardcoded ATLAS red base color.",         category: "institutional",
+    colors: [{id:"red",name:"ATLAS Red",hex:"#C8102E"},{id:"navy",name:"Navy",hex:"#003366"}], layoutPreview: "slides-wide",
+    detailFeatures: ["Based on the classic Madrid theme", "Pre-configured with ATLAS Red base color", "Supports dynamic color override if needed", "Standard navigation bars"], latexClass: "beamer", colorSystem: "\\usetheme{Madrid}" },
+  { id: "beamer-madrid",     outputType: "slides", label: "Madrid",         description: "Pure Madrid theme. Supports full color override.",             category: "core",
+    colors: [{id:"blue",name:"Blue",hex:"#1D4ED8"},{id:"red",name:"Red",hex:"#DC2626"},{id:"green",name:"Green",hex:"#16A34A"}], layoutPreview: "slides-wide",
+    detailFeatures: ["Classic academic Beamer theme", "Clean header and footer navigation boxes", "Supports full color override via structure fg"], latexClass: "beamer", colorSystem: "\\usetheme{Madrid}" },
+  { id: "beamer-default",    outputType: "slides", label: "Default",        description: "Bare-bones Beamer. Highly portable, no extra packages needed.",          category: "core",
+    colors: [{id:"blue",name:"Blue",hex:"#1E40AF"},{id:"gray",name:"Gray",hex:"#4B5563"}], layoutPreview: "slides-wide",
+    detailFeatures: ["Bare-bones default Beamer style", "Extremely portable, works everywhere", "No extraneous packages required"], latexClass: "beamer", colorSystem: "\\usetheme{default}" },
+  { id: "beamer-focus",      outputType: "slides", label: "Focus",          description: "Dark, minimalist full-bleed title slides. (Requires 'focus' package).",           category: "core",
+    colors: [{id:"dark",name:"Dark",hex:"#1C1C1C"},{id:"blue",name:"Blue",hex:"#007AB8"}], layoutPreview: "slides-wide",
+    detailFeatures: ["Dark, minimalist aesthetic", "Full-bleed title and section slides", "Requires the 'focus' LaTeX package"], latexClass: "beamer", colorSystem: "\\usetheme{focus}" },
   // Papers
-  { id: "article-twocol",   outputType: "paper", label: "Two-Column Article",   description: "Standard two-column article class",               category: "core",
-    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"Blue",hex:"#1E40AF"}], layoutPreview: "paper-twocol" },
-  { id: "article-single",   outputType: "paper", label: "Single-Column",        description: "Single-column article, thesis style",             category: "core",
-    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"Blue",hex:"#1E40AF"}], layoutPreview: "paper-single" },
-  { id: "ieee-conf",        outputType: "paper", label: "IEEE Conference",       description: "IEEE conference proceedings format",              category: "core",
-    colors: [{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-twocol" },
-  { id: "acm-sigconf",      outputType: "paper", label: "ACM SIGCONF",           description: "ACM conference format",                           category: "core",
-    colors: [{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-twocol" },
-  { id: "springer-llncs",   outputType: "paper", label: "Springer LLNCS",        description: "Lecture Notes in Computer Science format",         category: "core",
-    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"Blue",hex:"#1A56DB"}], layoutPreview: "paper-single" },
+  { id: "article-twocol",   outputType: "paper", label: "Two-Column Article",   description: "Standard preprint format. Uses geometry and authblk packages.",               category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"Blue",hex:"#1E40AF"}], layoutPreview: "paper-twocol",
+    detailFeatures: ["Standard two-column preprint layout", "Uses geometry package for 1-inch margins", "Clean author affiliations via authblk", "Figures correctly span columns using figure*"], latexClass: "article [twocolumn]", colorSystem: "None" },
+  { id: "article-single",   outputType: "paper", label: "Single-Column",        description: "Wider margins, thesis style. Figures don't span columns.",             category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"Blue",hex:"#1E40AF"}], layoutPreview: "paper-single",
+    detailFeatures: ["Single-column thesis/report layout", "Wider 1.5-inch margins for readability", "Uses authblk for affiliations", "Uses standard figure environments"], latexClass: "article", colorSystem: "None" },
+  { id: "ieee-conf",        outputType: "paper", label: "IEEE Conference",       description: "IEEE standards formatting. (Requires 'IEEEtran' class).",              category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-twocol",
+    detailFeatures: ["Complies with IEEE conference standards", "Two-column automatic layout", "Requires the 'IEEEtran' document class"], latexClass: "IEEEtran [conference]", colorSystem: "None" },
+  { id: "acm-sigconf",      outputType: "paper", label: "ACM SIGCONF",           description: "ACM conference format. (Requires 'acmart' class).",                           category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-twocol",
+    detailFeatures: ["Complies with ACM SIGCONF standards", "Two-column automatic layout", "Requires the 'acmart' document class"], latexClass: "acmart [sigconf]", colorSystem: "None" },
+  { id: "springer-llncs",   outputType: "paper", label: "Springer LLNCS",        description: "Single-col Lecture Notes format. (Requires 'llncs' class).",         category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"Blue",hex:"#1A56DB"}], layoutPreview: "paper-single",
+    detailFeatures: ["Complies with Springer LNCS formatting", "Single-column layout", "Requires the 'llncs' document class"], latexClass: "llncs", colorSystem: "None" },
 ]
 
 /** Get all templates available for a given output type. */
@@ -255,31 +271,82 @@ export const DEFAULT_STRUCTURES: Record<OutputType, DefaultCardTemplate[]> = {
 
 /**
  * Builds a default or custom-sized skeleton structure for an output type.
- * For slides, supports custom count (e.g. 5, 8, 12 slides).
+ * Supports custom count for posters, slides, and papers.
  */
 export function buildDefaultStructure(outputType: OutputType, count?: number): DefaultCardTemplate[] {
   if (outputType === "poster") {
-    return [
-      { title: "Abstract", pattern: "bullets", column: 1 },
-      { title: "Introduction", pattern: "bullets", column: 1 },
-      { title: "Methodology", pattern: "bullets-image", column: 2 },
-      { title: "Key Results", pattern: "bullets-table", column: 2 },
-      { title: "Discussion & Impact", pattern: "bullets", column: 3 },
-      { title: "References", pattern: "references", column: 3 },
+    const n = count && count >= 3 ? Math.min(count, 15) : 6
+    const cards: DefaultCardTemplate[] = []
+
+    const basePerCol = Math.floor(n / 3)
+    const remainder = n % 3
+    const col1Count = basePerCol + (remainder >= 1 ? 1 : 0)
+    const col2Count = basePerCol + (remainder === 2 ? 1 : 0)
+    const col3Count = n - col1Count - col2Count
+
+    const defaultTopics: { title: string; pattern: PosterPattern }[] = [
+      { title: "Abstract & Overview", pattern: "bullets" },
+      { title: "Introduction & Motivation", pattern: "bullets" },
+      { title: "Theoretical Framework", pattern: "bullets" },
+      { title: "Methodology & Architecture", pattern: "bullets-image" },
+      { title: "Experimental Setup", pattern: "bullets-image" },
+      { title: "Primary Results", pattern: "bullets-table" },
+      { title: "Comparative Evaluation", pattern: "bullets-table" },
+      { title: "Key Findings & Discussion", pattern: "bullets" },
+      { title: "Conclusion & Future Work", pattern: "bullets" },
     ]
+
+    let topicIdx = 0
+
+    // Column 1
+    for (let i = 0; i < col1Count; i++) {
+      const topic = defaultTopics[topicIdx++ % defaultTopics.length]
+      cards.push({ title: topic.title, pattern: topic.pattern, column: 1 })
+    }
+
+    // Column 2
+    for (let i = 0; i < col2Count; i++) {
+      const topic = defaultTopics[topicIdx++ % defaultTopics.length]
+      cards.push({ title: topic.title, pattern: topic.pattern, column: 2 })
+    }
+
+    // Column 3 (last card is always References)
+    const col3NonRef = Math.max(0, col3Count - 1)
+    for (let i = 0; i < col3NonRef; i++) {
+      const topic = defaultTopics[topicIdx++ % defaultTopics.length]
+      cards.push({ title: topic.title, pattern: topic.pattern, column: 3 })
+    }
+    cards.push({ title: "References", pattern: "references", column: 3 })
+
+    return cards
   }
 
   if (outputType === "paper") {
-    return [
-      { title: "Abstract", pattern: "section" },
-      { title: "1 Introduction", pattern: "section" },
-      { title: "2 Related Work", pattern: "section" },
-      { title: "3 Methodology", pattern: "section-figure" },
-      { title: "4 Experiments & Results", pattern: "section-table" },
-      { title: "5 Discussion & Limitations", pattern: "section" },
-      { title: "6 Conclusion", pattern: "section" },
-      { title: "References", pattern: "references" },
+    const n = count && count >= 3 ? Math.min(count, 20) : 7
+    const cards: DefaultCardTemplate[] = []
+    cards.push({ title: "Abstract", pattern: "section" })
+
+    const midCount = Math.max(1, n - 2)
+    const paperTopics: { title: string; pattern: PaperPattern }[] = [
+      { title: "Introduction", pattern: "section" },
+      { title: "Related Work", pattern: "section" },
+      { title: "Methodology", pattern: "section-figure" },
+      { title: "System Architecture", pattern: "section-figure" },
+      { title: "Experiments & Results", pattern: "section-table" },
+      { title: "Discussion & Limitations", pattern: "section" },
+      { title: "Conclusion", pattern: "section" },
     ]
+
+    for (let i = 0; i < midCount; i++) {
+      const topic = paperTopics[i % paperTopics.length]
+      const cycle = Math.floor(i / paperTopics.length)
+      const num = i + 1
+      const title = cycle > 0 ? `${num} ${topic.title} (${cycle + 1})` : `${num} ${topic.title}`
+      cards.push({ title, pattern: topic.pattern })
+    }
+
+    cards.push({ title: "References", pattern: "references" })
+    return cards
   }
 
   // Slides: dynamic count based on user input (default 7)
@@ -288,12 +355,12 @@ export function buildDefaultStructure(outputType: OutputType, count?: number): D
   slides.push({ title: "Title Slide", pattern: "title-slide" })
 
   const midCount = n - 2
-  const standardSlideTopics = [
+  const standardSlideTopics: { title: string; pattern: SlidePattern }[] = [
     { title: "Motivation & Background", pattern: "bullets" },
     { title: "Problem Formulation", pattern: "bullets" },
     { title: "Methodology Overview", pattern: "bullets-image" },
     { title: "Core Architecture", pattern: "bullets" },
-    { title: "Experimental Results", pattern: "bullets-table" },
+    { title: "Experimental Results", pattern: "bullets" },
     { title: "Comparative Evaluation", pattern: "bullets-image" },
     { title: "Discussion & Findings", pattern: "bullets" },
     { title: "Conclusion & Future Work", pattern: "bullets" },

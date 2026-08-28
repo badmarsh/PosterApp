@@ -47,11 +47,14 @@ function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: ()
         <ErrorBoundary name="Right Sidebar">
           <RightSidebar />
         </ErrorBoundary>
-        {agentOpen ? (
-          <ErrorBoundary name="Agent Panel">
+        {/* Always mounted — using CSS width-0 to hide rather than unmounting, so the
+            RightSidebar / PdfViewer ResizeObserver is not triggered by layout reflow.
+            Conditionally unmounting caused the PDF to re-render with incorrect containerWidth. */}
+        <ErrorBoundary name="Agent Panel">
+          <div style={{ display: agentOpen ? "contents" : "none" }}>
             <AgentPanel />
-          </ErrorBoundary>
-        ) : null}
+          </div>
+        </ErrorBoundary>
       </div>
     </div>
   )

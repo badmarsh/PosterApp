@@ -78,9 +78,9 @@ function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[
   const parts: string[] = []
 
   if (card.pattern === "references") {
-    const nociteCmd = usedBibKeys.length > 0 ? `\\nocite{${usedBibKeys.join(",")}}` : "% no citations used"
+    const nociteCmd = usedBibKeys.length > 0 ? `\\nocite{${usedBibKeys.join(",")}}` : "\\nocite{*}"
     parts.push(`\\begingroup\n${nociteCmd}\n\\bibliographystyle{plain}\n\\bibliography{references}\n\\endgroup`)
-    // Notice we do NOT output a \section for references here, it's usually automatic in article class
+    // Notice we do NOT output a \\section for references here, it's usually automatic in article class
     return parts.join("\n\n")
   } 
 

@@ -163,7 +163,15 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
             .then(vlmData => {
               if (get().project.revision !== revision) return // Ignore stale response
               if (vlmData.warnings && vlmData.warnings.length > 0) {
-                 get().updateEvent(vlmEv, { kind: "review", status: "done", title: `VLM found layout issues`, detail: `${vlmData.warnings.length} layout issue(s) detected.` })
+                 const issueLines = vlmData.warnings
+                   .map((w: any) => `• ${w.cardTitle}: ${w.issue}`)
+                   .join("\n")
+                 const vlmTips = vlmData.warnings.map((w: any) => ({
+                   severity: "warning" as const,
+                   category: `Card: ${w.cardTitle}`,
+                   message: `${w.issue} — ${w.recommendation}`,
+                 }))
+                 get().updateEvent(vlmEv, { kind: "review", status: "done", title: `VLM found layout issues`, detail: `${vlmData.warnings.length} layout issue(s) detected:\n${issueLines}`, tips: vlmTips })
                  set((s) => { s.layoutWarnings = vlmData.warnings })
               } else {
                  get().updateEvent(vlmEv, { kind: "info", status: "done", title: `VLM Layout Check passed!`, detail: "No overflow or overlapping issues detected." })

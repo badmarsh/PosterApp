@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import {
   Lock,
   Sparkles,
@@ -25,9 +25,16 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { generateFullTemplate } from "@/lib/latex"
-import { OUTPUT_TYPE_LABELS, getTemplateDef } from "@/lib/output-types"
+import { OUTPUT_TYPE_LABELS, getTemplateDef, getTemplatesForType } from "@/lib/output-types"
 import { resolveOutputMetadata } from "@/lib/poster-types"
 import type { OutputType } from "@/lib/output-types"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const SKIP_PATTERNS = new Set(["title-slide", "references"])
 
@@ -316,15 +323,20 @@ export function HeaderInspector() {
     }))
   )
 
-  const [slideCount, setSlideCount] = useState<number>(7)
-  const headerLogoInputRef = useRef<HTMLInputElement>(null)
-  const [isUploadingHeaderLogo, setIsUploadingHeaderLogo] = useState(false)
-
   const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
   const activeOutputType = (activeOutput?.outputType ?? "poster") as OutputType
   const templateDef = getTemplateDef(activeOutput?.templateId ?? "atlas")
   const activeThemeColor = activeOutput?.themeColor ?? null
   const outputTypeLabel = OUTPUT_TYPE_LABELS[activeOutputType]
+
+  const ITEM_COUNT_DEFAULTS: Record<OutputType, number> = { poster: 9, slides: 10, paper: 6 }
+  const [itemCount, setItemCount] = useState<number>(ITEM_COUNT_DEFAULTS[activeOutputType])
+  const headerLogoInputRef = useRef<HTMLInputElement>(null)
+  const [isUploadingHeaderLogo, setIsUploadingHeaderLogo] = useState(false)
+
+  useEffect(() => {
+    setItemCount(ITEM_COUNT_DEFAULTS[activeOutputType])
+  }, [activeOutputType])
 
   const metadata = resolveOutputMetadata(project, activeOutput)
 
@@ -337,16 +349,12 @@ export function HeaderInspector() {
   ).length
 
   const handleGenerateNew = async () => {
-    const countInfo = activeOutputType === "slides" ? ` (${slideCount} slides)` : ""
     if (
       confirm(
-        `Generate new ${activeOutputType}${countInfo}?\n\nThis will remove all existing ${unit.plural} in this ${activeOutputType} and generate a fresh structure filled with content from your sources.`
+        `Generate new ${activeOutputType} (${itemCount} ${unit.plural})?\n\nThis will replace existing ${unit.plural} with a fresh structure tailored to your RAG sources, and fill it with grounded content.`
       )
     ) {
-      await generateNewOutputStructure(
-        activeOutputType,
-        activeOutputType === "slides" ? slideCount : undefined
-      )
+      await generateNewOutputStructure(activeOutputType, itemCount)
     }
   }
 
@@ -441,49 +449,42 @@ export function HeaderInspector() {
                 </p>
               </div>
 
-              <div className="pt-0.5">
-                {activeOutputType === "slides" ? (
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                        Slides:
-                      </span>
-                      <Input
-                        type="number"
-                        min={3}
-                        max={25}
-                        value={slideCount}
-                        onChange={(e) =>
-                          setSlideCount(
-                            Math.max(3, Math.min(25, parseInt(e.target.value) || 3))
-                          )
-                        }
-                        className="h-7 w-12 text-center text-xs bg-background px-1 font-mono"
-                      />
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 flex-1 justify-center gap-1.5 text-[11px]"
-                      onClick={handleGenerateNew}
-                      disabled={isBulkRunning}
-                    >
-                      <Sparkles className="size-3 text-amber-500 dark:text-amber-400" />
-                      Generate New Slides
-                    </Button>
+              <div className="pt-0.5 space-y-1.5">
+                {activeOutputType === "paper" && (
+                  <p className="text-[10px] text-muted-foreground italic leading-snug">
+                    Sections include Abstract + numbered body sections + References.
+                  </p>
+                )}
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                      {activeOutputType === "paper" ? "Sections:" : activeOutputType === "slides" ? "Slides:" : "Cards:"}
+                    </span>
+                    <Input
+                      type="number"
+                      min={activeOutputType === "paper" ? 3 : 3}
+                      max={activeOutputType === "slides" ? 25 : activeOutputType === "poster" ? 15 : 12}
+                      value={itemCount}
+                      onChange={(e) => {
+                        const maxVal = activeOutputType === "slides" ? 25 : activeOutputType === "poster" ? 15 : 12
+                        setItemCount(
+                          Math.max(3, Math.min(maxVal, parseInt(e.target.value) || 3))
+                        )
+                      }}
+                      className="h-7 w-12 text-center text-xs bg-background px-1 font-mono"
+                    />
                   </div>
-                ) : (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full h-7 justify-center gap-1.5 text-[11px]"
+                    className="h-7 flex-1 justify-center gap-1.5 text-[11px]"
                     onClick={handleGenerateNew}
                     disabled={isBulkRunning}
                   >
                     <Sparkles className="size-3 text-amber-500 dark:text-amber-400" />
                     Generate New {outputTypeLabel}
                   </Button>
-                )}
+                </div>
               </div>
             </div>
 
@@ -656,11 +657,52 @@ export function HeaderInspector() {
           <div className="space-y-3.5 pt-2">
             <div className="flex items-center justify-between border-b border-border pb-2">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Header Overrides
+                Document & Header Settings
               </span>
               <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                 <Info className="size-3" /> Inherits from left panel
               </span>
+            </div>
+
+            {/* Template Switcher */}
+            <div className="space-y-1.5 pb-2 border-b border-border/50">
+              <div className="flex items-center justify-between">
+                <Label className="text-[11px] font-medium text-foreground">
+                  Active Template
+                </Label>
+                <span className="text-[10px] font-mono text-muted-foreground/70">
+                  {getTemplatesForType(activeOutputType).length} available
+                </span>
+              </div>
+              <Select
+                value={activeOutput?.templateId ?? "atlas"}
+                onValueChange={(val) => {
+                  if (val) updateActiveOutput({ templateId: val })
+                }}
+              >
+                <SelectTrigger className="w-full h-8 text-[12px] bg-background">
+                  <SelectValue placeholder="Choose a template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getTemplatesForType(activeOutputType).map((tmpl) => (
+                    <SelectItem key={tmpl.id} value={tmpl.id} className="text-[12px]">
+                      <div className="flex items-center justify-between gap-2 w-full">
+                        <span>{tmpl.label}</span>
+                        {tmpl.category === "institutional" && (
+                          <span className="rounded bg-amber-100 dark:bg-amber-900/40 px-1 py-px text-[9px] font-bold text-amber-700 dark:text-amber-400">
+                            ATLAS
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {templateDef && (
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  {templateDef.description}
+                </p>
+              )}
             </div>
 
             {/* Title */}

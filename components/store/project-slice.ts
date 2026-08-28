@@ -394,11 +394,17 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         return
       }
     } else if (outputType === "slides") {
-      // Presentation slides: short, focused bullet points per slide
-      characterLimit = card.pattern === "two-column" ? 400 : 250
+      // Slides: punchy, short bullets per slide — one topic per slide
+      // two-column slides get slightly more space
+      characterLimit = card.pattern === "two-column" ? 450 : 300
     } else if (outputType === "paper") {
-      // Academic paper: section prose
-      characterLimit = 900
+      // Academic paper: full prose paragraphs — need substantial character budget
+      // Abstract is usually ~1500 chars; body sections ~2000-3000 chars
+      if (card.title?.toLowerCase().startsWith("abstract")) {
+        characterLimit = 1500
+      } else {
+        characterLimit = 2500
+      }
     }
 
     set((s) => { s.generatingIds.push(id) })
@@ -545,8 +551,44 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     const output = activeOutput(get().project)
     if (!output) return
 
-    const structure = buildDefaultStructure(outputType, count)
-    const newCards: Card[] = structure.map((def, i) => ({
+    const unitName = output?.outputType === "slides" ? "slides" : output?.outputType === "paper" ? "pages" : "cards"
+
+    const evId = get().pushEvent({
+      kind: "generate",
+      status: "running",
+      title: `Analyzing sources for new ${outputType}...`,
+      detail: `Generating tailored section titles and structure...`,
+    })
+
+    // Resolve RAG context for this output (or workspace)
+    const effectiveSourceIds = output.sourceIds && output.sourceIds.length > 0 ? output.sourceIds : undefined
+
+    let structureCards: { title: string; pattern: string; column?: number }[] = []
+    try {
+      const res = await apiFetch(`/api/workspaces/${workspaceId}/structure/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outputType,
+          count,
+          sourceIds: effectiveSourceIds,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.cards && Array.isArray(data.cards) && data.cards.length > 0) {
+          structureCards = data.cards
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch generated structure, using fallback:", err)
+    }
+
+    if (!structureCards || structureCards.length === 0) {
+      structureCards = buildDefaultStructure(outputType, count)
+    }
+
+    const newCards: Card[] = structureCards.map((def, i) => ({
       id: `blk_${output.id}_${Date.now().toString(36)}_${i}`,
       title: def.title,
       column: (def.column ?? null) as 1 | 2 | 3 | null,
@@ -570,13 +612,11 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       }
     })
 
-    const unitName = output?.outputType === "slides" ? "slides" : output?.outputType === "paper" ? "pages" : "cards"
-
     get().pushEvent({
       kind: "generate",
       status: "done",
       title: `New ${outputType} structure created`,
-      detail: `Created ${newCards.length} skeleton ${unitName}. Filling contents from sources…`,
+      detail: `Created ${newCards.length} ${unitName}. Filling contents from sources…`,
     })
 
     await get().saveProject()

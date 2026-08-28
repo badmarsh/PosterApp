@@ -174,6 +174,164 @@ function LayoutDiagram({
 // ---------------------------------------------------------------------------
 // AddOutputDialog — pick type + template, then create
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// LargeLayoutDiagram — larger, richer version for the detail panel
+// ---------------------------------------------------------------------------
+function LargeLayoutDiagram({
+  kind,
+  colors,
+}: {
+  kind: import("@/lib/output-types").TemplateDef["layoutPreview"]
+  colors: import("@/lib/output-types").TemplateDef["colors"]
+}) {
+  const W = 320
+  const H = 190
+  const accent = colors[0]?.hex ?? "#2563EB"
+  const accent2 = colors[1]?.hex ?? accent
+  const bg = "currentColor"
+
+  switch (kind) {
+    case "poster-3col":
+      return (
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="w-full max-w-[340px] h-auto drop-shadow-sm rounded">
+          {/* Background */}
+          <rect x={0} y={0} width={W} height={H} rx={6} fill={bg} className="text-muted/40" />
+          {/* Header bar with title */}
+          <rect x={0} y={0} width={W} height={34} rx={6} fill={accent} opacity={0.92} />
+          <rect x={0} y={26} width={W} height={8} fill={accent} opacity={0.92} />
+          <rect x={14} y={9} width={120} height={8} rx={1.5} fill="white" opacity={0.95} />
+          <rect x={14} y={20} width={80} height={4} rx={1} fill="white" opacity={0.6} />
+          {/* 3 columns */}
+          {[0, 1, 2].map(i => {
+            const colW = (W - 24) / 3
+            const x = 6 + i * (colW + 6)
+            return (
+              <g key={i}>
+                {/* Block 1 */}
+                <rect x={x} y={40} width={colW} height={18} rx={3} fill={accent} opacity={0.28} />
+                <rect x={x+4} y={44} width={colW * 0.7} height={4} rx={1} fill={accent} opacity={0.8} />
+                <rect x={x+4} y={51} width={colW - 8} height={3} rx={0.5} fill={bg} className="text-muted-foreground/40" />
+                {/* Block 2 */}
+                <rect x={x} y={63} width={colW} height={44} rx={3} fill={accent} opacity={0.12} />
+                <rect x={x+4} y={67} width={colW * 0.6} height={4} rx={1} fill={accent} opacity={0.6} />
+                <rect x={x+4} y={74} width={colW - 8} height={3} rx={0.5} fill={bg} className="text-muted-foreground/35" />
+                <rect x={x+4} y={80} width={colW - 16} height={3} rx={0.5} fill={bg} className="text-muted-foreground/30" />
+                <rect x={x+4} y={86} width={colW - 8} height={3} rx={0.5} fill={bg} className="text-muted-foreground/30" />
+                <rect x={x+4} y={92} width={colW - 12} height={3} rx={0.5} fill={bg} className="text-muted-foreground/25" />
+                <rect x={x+4} y={98} width={colW - 18} height={3} rx={0.5} fill={bg} className="text-muted-foreground/20" />
+                {/* Block 3 */}
+                <rect x={x} y={112} width={colW} height={34} rx={3} fill={accent} opacity={0.12} />
+                <rect x={x+4} y={116} width={colW * 0.5} height={4} rx={1} fill={accent} opacity={0.5} />
+                <rect x={x+4} y={123} width={colW - 8} height={3} rx={0.5} fill={bg} className="text-muted-foreground/30" />
+                <rect x={x+4} y={129} width={colW - 12} height={3} rx={0.5} fill={bg} className="text-muted-foreground/25" />
+                {/* Image placeholder on middle col */}
+                {i === 1 && <rect x={x+4} y={150} width={colW - 8} height={32} rx={3} fill={accent2} opacity={0.22} />}
+                {i === 1 && <rect x={x + colW/2 - 10} y={161} width={20} height={11} rx={1.5} fill={accent2} opacity={0.4} />}
+              </g>
+            )
+          })}
+          {/* References bottom label in 3rd col */}
+          <rect x={6 + 2*(((W-24)/3)+6)} y={150} width={(W-24)/3} height={24} rx={3} fill={accent} opacity={0.25} />
+          <rect x={6 + 2*(((W-24)/3)+6)+4} y={155} width={45} height={4} rx={1} fill={accent} opacity={0.7} />
+          <rect x={6 + 2*(((W-24)/3)+6)+4} y={162} width={65} height={3} rx={0.5} fill={bg} className="text-muted-foreground/30" />
+        </svg>
+      )
+    case "slides-wide":
+      return (
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="w-full max-w-[340px] h-auto drop-shadow-sm rounded">
+          <rect x={0} y={0} width={W} height={H} rx={6} fill={bg} className="text-muted/40" />
+          {/* Slide 1 - title slide */}
+          <rect x={6} y={6} width={W - 12} height={52} rx={4} fill={accent} opacity={0.9} />
+          <rect x={20} y={16} width={120} height={9} rx={1.5} fill="white" opacity={0.95} />
+          <rect x={20} y={30} width={85} height={5} rx={1} fill="white" opacity={0.65} />
+          <rect x={20} y={40} width={50} height={4} rx={1} fill="white" opacity={0.45} />
+          {/* Slide 2 - bullet content */}
+          <rect x={6} y={64} width={W - 12} height={56} rx={4} fill={accent} opacity={0.08} />
+          <rect x={16} y={70} width={80} height={6} rx={1.5} fill={accent} opacity={0.75} />
+          <rect x={16} y={82} width={W - 36} height={3.5} rx={0.5} fill={bg} className="text-muted-foreground/40" />
+          <rect x={16} y={88} width={W - 50} height={3.5} rx={0.5} fill={bg} className="text-muted-foreground/35" />
+          <rect x={16} y={94} width={W - 40} height={3.5} rx={0.5} fill={bg} className="text-muted-foreground/30" />
+          <rect x={16} y={100} width={W - 60} height={3.5} rx={0.5} fill={bg} className="text-muted-foreground/25" />
+          {/* Slide 3 - two-col split */}
+          <rect x={6} y={126} width={W - 12} height={56} rx={4} fill={accent} opacity={0.08} />
+          <rect x={16} y={132} width={75} height={6} rx={1.5} fill={accent} opacity={0.7} />
+          <rect x={16} y={144} width={(W-44)/2} height={3} rx={0.5} fill={bg} className="text-muted-foreground/35" />
+          <rect x={16} y={150} width={(W-44)/2 - 10} height={3} rx={0.5} fill={bg} className="text-muted-foreground/30" />
+          <rect x={16} y={156} width={(W-44)/2 - 5} height={3} rx={0.5} fill={bg} className="text-muted-foreground/25" />
+          <rect x={W/2 + 4} y={132} width={(W-44)/2} height={42} rx={3} fill={accent2} opacity={0.22} />
+          <rect x={W/2 + (W-44)/4 - 6} y={148} width={20} height={12} rx={1.5} fill={accent2} opacity={0.4} />
+          {/* Slide progress footer */}
+          <rect x={6} y={116} width={W - 12} height={4} rx={1} fill={accent} opacity={0.35} />
+          <rect x={W - 40} y={117} width={28} height={2} rx={0.5} fill={accent} opacity={0.7} />
+        </svg>
+      )
+    case "paper-twocol": {
+      const midX = W / 2
+      return (
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="w-full max-w-[340px] h-auto drop-shadow-sm rounded">
+          <rect x={0} y={0} width={W} height={H} rx={6} fill={bg} className="text-muted/40" />
+          {/* Title block */}
+          <rect x={6} y={6} width={W - 12} height={30} rx={3} fill={accent} opacity={0.8} />
+          <rect x={14} y={12} width={140} height={7} rx={1} fill="white" opacity={0.95} />
+          <rect x={14} y={23} width={95} height={4} rx={1} fill="white" opacity={0.65} />
+          {/* Left col */}
+          <rect x={6} y={42} width={midX - 10} height={6} rx={1} fill={accent} opacity={0.6} />
+          {[51, 58, 65, 72, 79, 86, 93, 100].map(y => (
+            <rect key={y} x={6} y={y} width={midX - 10 - (y % 14 === 0 ? 15 : 0)} height={3} rx={0.5} fill={bg} className="text-muted-foreground/35" />
+          ))}
+          {/* Figure in left column */}
+          <rect x={6} y={108} width={midX - 10} height={32} rx={3} fill={accent2} opacity={0.22} />
+          <rect x={6 + (midX-10)/2 - 12} y={118} width={24} height={12} rx={1.5} fill={accent2} opacity={0.4} />
+          <rect x={6} y={144} width={midX - 10} height={3} rx={0.5} fill={bg} className="text-muted-foreground/30" />
+          <rect x={6} y={150} width={midX - 25} height={3} rx={0.5} fill={bg} className="text-muted-foreground/25" />
+          {/* Right col */}
+          <rect x={midX + 4} y={42} width={midX - 10} height={6} rx={1} fill={accent} opacity={0.6} />
+          {[51, 58, 65, 72, 79, 86, 93, 100, 107, 114, 121, 128, 135, 142, 149].map(y => (
+            <rect key={y} x={midX + 4} y={y} width={midX - 10 - (y % 11 === 0 ? 18 : 0)} height={3} rx={0.5} fill={bg} className="text-muted-foreground/35" />
+          ))}
+          {/* Bibliography bottom */}
+          <rect x={6} y={160} width={W - 12} height={6} rx={1} fill={accent} opacity={0.3} />
+          <rect x={6} y={170} width={W - 12} height={3} rx={0.5} fill={bg} className="text-muted-foreground/30" />
+          <rect x={6} y={176} width={W - 40} height={3} rx={0.5} fill={bg} className="text-muted-foreground/25" />
+        </svg>
+      )
+    }
+    case "paper-single":
+      return (
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="w-full max-w-[340px] h-auto drop-shadow-sm rounded">
+          <rect x={0} y={0} width={W} height={H} rx={6} fill={bg} className="text-muted/40" />
+          {/* Title */}
+          <rect x={24} y={6} width={W - 48} height={26} rx={3} fill={accent} opacity={0.8} />
+          <rect x={36} y={12} width={130} height={7} rx={1} fill="white" opacity={0.95} />
+          <rect x={36} y={22} width={85} height={4} rx={1} fill="white" opacity={0.65} />
+          {/* Abstract heading */}
+          <rect x={24} y={38} width={55} height={5} rx={1} fill={accent} opacity={0.65} />
+          {[47, 54, 61, 68].map(y => (
+            <rect key={y} x={24} y={y} width={W - 48 - (y % 12 === 0 ? 20 : 0)} height={3} rx={0.5} fill={bg} className="text-muted-foreground/35" />
+          ))}
+          {/* Section 1 */}
+          <rect x={24} y={80} width={80} height={5} rx={1} fill={accent} opacity={0.65} />
+          {[89, 96, 103, 110, 117].map(y => (
+            <rect key={y} x={24} y={y} width={W - 48 - (y % 10 === 0 ? 25 : 0)} height={3} rx={0.5} fill={bg} className="text-muted-foreground/35" />
+          ))}
+          {/* Centered Figure */}
+          <rect x={50} y={128} width={W - 100} height={34} rx={3} fill={accent2} opacity={0.22} />
+          <rect x={W/2 - 16} y={138} width={32} height={14} rx={1.5} fill={accent2} opacity={0.4} />
+          <rect x={60} y={166} width={W - 120} height={3} rx={0.5} fill={bg} className="text-muted-foreground/30" />
+          <rect x={75} y={172} width={W - 150} height={3} rx={0.5} fill={bg} className="text-muted-foreground/25" />
+        </svg>
+      )
+    default:
+      return (
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="w-full max-w-[340px] h-auto drop-shadow-sm rounded">
+          <rect x={0} y={0} width={W} height={H} rx={6} fill={bg} className="text-muted/40" />
+          <rect x={6} y={6} width={W - 12} height={24} rx={3} fill={accent} opacity={0.75} />
+          <rect x={16} y={14} width={100} height={6} rx={1} fill="white" opacity={0.85} />
+        </svg>
+      )
+  }
+}
+
 function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const addOutput = useEditor((s) => s.addOutput)
   const [selectedType, setSelectedType] = useState<OutputType>("slides")
@@ -189,7 +347,6 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
     }
   }, [open])
 
-  // Sync template when type changes
   const handleTypeChange = (t: OutputType) => {
     setSelectedType(t)
     const ts = getTemplatesForType(t)
@@ -201,82 +358,157 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
     onClose()
   }
 
+  const activeTmpl = templates.find(t => t.id === selectedTemplate) ?? templates[0]
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add Output</DialogTitle>
-          <DialogDescription>Choose an output format and template for this workspace.</DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-4 pt-2">
-          {/* Type selector */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Output type</label>
-            <div className="flex gap-2">
-              {(["poster", "slides", "paper"] as OutputType[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => handleTypeChange(t)}
-                  className={cn(
-                    "flex flex-1 flex-col items-center gap-1 rounded-md border px-2 py-3 text-[11px] font-medium transition-colors",
-                    selectedType === t
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground",
-                  )}
-                >
-                  <OutputTypeIcon type={t} className="size-4" />
-                  {OUTPUT_TYPE_LABELS[t]}
-                </button>
-              ))}
-            </div>
+      <DialogContent showCloseButton={false} className="w-[92vw] max-w-4xl sm:max-w-4xl p-0 overflow-hidden shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-border shrink-0 bg-card">
+          <div>
+            <DialogTitle className="text-base font-semibold">Add Output</DialogTitle>
+            <DialogDescription className="text-[12px] text-muted-foreground mt-0.5">
+              Choose a format and template for this workspace.
+            </DialogDescription>
           </div>
-          {/* Template selector */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Template</label>
-            <div className="flex flex-col gap-1 max-h-72 overflow-y-auto pr-0.5">
-              {templates.map((tmpl) => (
-                <button
-                  key={tmpl.id}
-                  onClick={() => setSelectedTemplate(tmpl.id)}
-                  className={cn(
-                    "flex items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors",
-                    selectedTemplate === tmpl.id
-                      ? "border-primary bg-primary/10"
-                      : "border-border hover:border-muted-foreground/40",
-                  )}
-                >
-                  {/* Miniature layout diagram */}
-                  <LayoutDiagram kind={tmpl.layoutPreview} color={tmpl.colors[0]?.hex ?? "#2563EB"} />
-                  {/* Text info */}
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[12px] font-semibold">{tmpl.label}</span>
-                      {tmpl.category === "institutional" && (
-                        <span className="rounded bg-amber-100 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
-                          Institutional
+          {/* Output type pills */}
+          <div className="flex gap-2">
+            {(["poster", "slides", "paper"] as OutputType[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => handleTypeChange(t)}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg border px-3.5 py-1.5 text-[12px] font-medium transition-all",
+                  selectedType === t
+                    ? "border-primary bg-primary/10 text-primary shadow-xs"
+                    : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground",
+                )}
+              >
+                <OutputTypeIcon type={t} className="size-4" />
+                {OUTPUT_TYPE_LABELS[t]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Body: left list + right detail panel */}
+        <div className="flex min-h-0" style={{ height: "620px" }}>
+          {/* Left: template list */}
+          <div className="flex flex-col gap-1 overflow-y-auto p-3.5 border-r border-border shrink-0 bg-muted/10" style={{ width: "270px" }}>
+            <p className="px-1.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Select Template ({templates.length})
+            </p>
+            {templates.map((tmpl) => (
+              <button
+                key={tmpl.id}
+                onClick={() => setSelectedTemplate(tmpl.id)}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg border p-2.5 text-left transition-all",
+                  selectedTemplate === tmpl.id
+                    ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/20"
+                    : "border-transparent hover:border-border hover:bg-muted/40",
+                )}
+              >
+                <LayoutDiagram kind={tmpl.layoutPreview} color={tmpl.colors[0]?.hex ?? "#2563EB"} />
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={cn("text-[12px] font-semibold truncate", selectedTemplate === tmpl.id ? "text-primary font-bold" : "")}>
+                      {tmpl.label}
+                    </span>
+                    {tmpl.category === "institutional" && (
+                      <span className="rounded bg-amber-100 px-1 py-px text-[8px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 shrink-0">
+                        ATLAS
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-1 items-center mt-0.5">
+                    {tmpl.colors.slice(0, 4).map((c) => (
+                      <span key={c.id} className="inline-block size-2.5 rounded-full border border-black/10 dark:border-white/10" style={{ backgroundColor: c.hex }} title={c.name} />
+                    ))}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Right: detail panel */}
+          {activeTmpl && (
+            <div className="flex flex-1 flex-col min-h-0 overflow-y-auto bg-card">
+              {/* Large layout preview sample */}
+              <div className="shrink-0 bg-muted/20 border-b border-border p-5 flex items-center justify-center">
+                <LargeLayoutDiagram kind={activeTmpl.layoutPreview} colors={activeTmpl.colors} />
+              </div>
+
+              {/* Detail content */}
+              <div className="flex flex-1 flex-col gap-4 p-5">
+                {/* Title + badges */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <span className="text-base font-bold">{activeTmpl.label}</span>
+                    {activeTmpl.category === "institutional" && (
+                      <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                        Institutional
+                      </span>
+                    )}
+                    <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground border border-border">
+                      {activeTmpl.latexClass}
+                    </span>
+                  </div>
+                  <p className="text-[12px] text-muted-foreground leading-relaxed">
+                    {activeTmpl.description}
+                  </p>
+                </div>
+
+                {/* Feature bullets */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Key Features &amp; Layout
+                  </p>
+                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {activeTmpl.detailFeatures.map((f, i) => (
+                      <li key={i} className="flex items-start gap-2 text-[12px] text-foreground/90 bg-muted/30 p-2 rounded-md border border-border/50">
+                        <span className="mt-1 shrink-0 size-2 rounded-full" style={{ backgroundColor: activeTmpl.colors[0]?.hex ?? "#2563EB" }} />
+                        <span className="leading-snug">{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Technical info row */}
+                <div className="flex flex-wrap items-center gap-6 pt-3 border-t border-border mt-auto">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">LaTeX class</span>
+                    <code className="text-[11px] font-mono text-foreground font-medium">{activeTmpl.latexClass}</code>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Theme system</span>
+                    <code className="text-[11px] font-mono text-foreground font-medium">{activeTmpl.colorSystem}</code>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Palette</span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {activeTmpl.colors.map((c) => (
+                        <span key={c.id} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <span className="inline-block size-3 rounded-full border border-black/10 dark:border-white/10" style={{ backgroundColor: c.hex }} />
+                          {c.name}
                         </span>
-                      )}
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">{tmpl.description}</span>
-                    {/* Color palette swatches */}
-                    <div className="flex items-center gap-1 pt-0.5">
-                      {tmpl.colors.map((c) => (
-                        <span
-                          key={c.id}
-                          className="inline-block size-3 rounded-full border border-black/10 dark:border-white/10"
-                          style={{ backgroundColor: c.hex }}
-                          title={c.name}
-                        />
                       ))}
                     </div>
                   </div>
-                </button>
-              ))}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t border-border px-6 py-3.5 shrink-0 bg-muted/20">
+          <p className="text-[11px] text-muted-foreground">
+            You can change theme settings or switch templates anytime in Header Settings.
+          </p>
           <button
             onClick={handleCreate}
-            className="rounded-md bg-primary px-4 py-2 text-[12px] font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="rounded-lg bg-primary px-6 py-2 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90 transition-all shadow-xs"
           >
             Create Output
           </button>

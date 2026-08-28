@@ -83,7 +83,13 @@ export class BeamerSlidesGenerator implements LatexGenerator {
         if (c.figures && c.figures.length > 0) {
           const f = c.figures[0]
           if (f.url) {
-            tex += `\\begin{center}\n\\includegraphics[height=0.55\\textheight,keepaspectratio]{${workspaceId ? assetUrlToLatexPath(f.url, workspaceId) : f.url}}\n`
+            const hasBullets = c.pattern === "bullets-image" && c.content.trim().length > 0
+            const bulletLines = c.content.split("\n").filter(l => l.trim().length > 0).length
+            // Scale down image height if there are many bullets or long captions
+            const imgHeight = hasBullets 
+              ? (bulletLines > 3 ? "0.32\\textheight" : bulletLines > 1 ? "0.36\\textheight" : "0.42\\textheight")
+              : "0.62\\textheight"
+            tex += `\\begin{center}\n\\includegraphics[height=${imgHeight},width=0.9\\linewidth,keepaspectratio]{${workspaceId ? assetUrlToLatexPath(f.url, workspaceId) : f.url}}\n`
             if (f.caption) tex += `\\\\{\\footnotesize ${parseMarkdownToLatex(f.caption)}}\n`
             tex += `\\end{center}\n`
           }

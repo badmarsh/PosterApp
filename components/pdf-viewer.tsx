@@ -30,14 +30,14 @@ export function PdfViewer({
   const containerRef = useRef<HTMLDivElement>(null)
   const [numPages, setNumPages] = useState(0)
   const [containerWidth, setContainerWidth] = useState<number>(0)
-  const [windowStart, setWindowStart] = useState(1)
-  const WINDOW_SIZE = 5
 
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
     const observer = new ResizeObserver((entries) => {
-      setContainerWidth(entries[0].contentRect.width)
+      if (entries[0]) {
+        setContainerWidth(entries[0].contentRect.width)
+      }
     })
     observer.observe(el)
     return () => observer.disconnect()
@@ -53,7 +53,9 @@ export function PdfViewer({
   const handleLoadSuccess = useCallback(
     ({ numPages: n }: { numPages: number }) => {
       setNumPages(n)
-      setWindowStart(1)
+      if (containerRef.current) {
+        containerRef.current.scrollTop = 0
+      }
       onLoadSuccess?.(n)
     },
     [onLoadSuccess],
@@ -90,16 +92,20 @@ export function PdfViewer({
       >
         {Array.from({ length: numPages }, (_, i) => {
           const page = i + 1
-          const visible = page >= windowStart && page < windowStart + WINDOW_SIZE
-          return visible ? <Page
-            key={`page-${page}`}
-            pageNumber={page}
-            scale={scale === "auto" ? undefined : scale}
-            width={scale === "auto" && containerWidth ? containerWidth : undefined}
-            className="mb-4 shadow-lg"
-            onRenderSuccess={() => { if (page === windowStart + WINDOW_SIZE - 1 && page < numPages) setWindowStart((current) => Math.min(current + WINDOW_SIZE, numPages)) }}
-            loading={<div className="flex h-32 items-center justify-center"><Loader2 className="size-4 animate-spin text-muted-foreground" /></div>}
-          /> : <div key={`placeholder-${page}`} className="mb-4 h-[600px] w-full max-w-[900px]" aria-label={`PDF page ${page} not yet rendered`} />
+          return (
+            <Page
+              key={`page-${page}`}
+              pageNumber={page}
+              scale={scale === "auto" ? undefined : scale}
+              width={scale === "auto" && containerWidth ? containerWidth : undefined}
+              className="mb-4 shadow-lg shrink-0"
+              loading={
+                <div className="flex h-32 items-center justify-center">
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                </div>
+              }
+            />
+          )
         })}
       </Document>
     </div>

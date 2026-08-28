@@ -54,3 +54,29 @@ export const ShrinkContentSchema = z.object({
   content: z.string().min(1)
 })
 export type ShrinkContentResult = z.infer<typeof ShrinkContentSchema>
+
+// 6. Document Structure Generation
+export const StructureCardDefSchema = z.object({
+  title: z.string(),
+  pattern: z.enum([
+    "bullets",
+    "bullets-image",
+    "bullets-two-images",
+    "bullets-table",
+    "image-focused",
+    "title-slide",
+    "figure-slide",
+    "two-column",
+    "section",
+    "section-figure",
+    "section-table",
+    "references"
+  ]),
+  column: z.number().int().min(1).max(3).optional()
+})
+
+export const StructureGenerationSchema = z.object({
+  cards: z.array(StructureCardDefSchema)
+})
+export type StructureGenerationResult = z.infer<typeof StructureGenerationSchema>
+

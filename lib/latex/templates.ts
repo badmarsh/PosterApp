@@ -191,22 +191,43 @@ export function getGeminiTemplate(project: Project, themeColor?: string): string
   return `
 % [AI-CONTEXT] You are inside a gemini beamerposter template.
 % Use \\begin{block}{Title} ... \\end{block} for each section.
-% Enclose blocks within \\begin{column}{width} ... \\end{column} (e.g. \\begin{column}{0.33\\textwidth}).
+% Enclose blocks within \\begin{column}{width} ... \\end{column} (e.g. \\begin{column}{0.31\\textwidth}).
 \\documentclass[final]{beamer}
-\\usepackage[scale=1.2]{beamerposter}
-\\usetheme{gemini}
-\\usecolortheme{gemini}
-${override}\\usepackage{graphicx}
+\\usepackage[orientation=portrait,size=a0,scale=1.2]{beamerposter}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{booktabs}
 
-\\title{${title}}
-\\author{${authors}}
-\\institute{${venue}}
+\\usetheme{Madrid}
+\\usecolortheme{default}
+
+% Gemini-inspired minimalist styling for Beamerposter
+\\definecolor{customaccent}{HTML}{4F46E5}
+${override}
+\\setbeamercolor{headline}{fg=white,bg=customaccent}
+\\setbeamercolor{title in headline}{fg=white}
+\\setbeamercolor{author in headline}{fg=white!90}
+\\setbeamercolor{institute in headline}{fg=white!80}
+\\setbeamercolor{structure}{fg=customaccent}
+\\setbeamercolor{block title}{fg=white,bg=customaccent}
+\\setbeamercolor{block body}{fg=black,bg=customaccent!8}
+\\setbeamertemplate{navigation symbols}{}
+\\setbeamertemplate{headline}{
+  \\leavevmode
+  \\begin{beamercolorbox}[wd=\\paperwidth,leftskip=2cm,rightskip=2cm,sep=1.5cm]{headline}
+    \\usebeamerfont{title in headline}{\\huge \\bfseries ${title}\\par}
+    \\vspace{0.8ex}
+    \\usebeamerfont{author in headline}{\\Large ${authors}\\par}
+    \\vspace{0.4ex}
+    \\usebeamerfont{institute in headline}{\\large ${venue}\\par}
+  \\end{beamercolorbox}
+  \\vspace{1cm}
+}
 
 \\begin{document}
-\\begin{frame}[fragile]
+\\begin{frame}[fragile,t]
 `
 }
 
@@ -367,7 +388,7 @@ export function getFocusTemplate(project: Project, themeColor?: string): string 
 % [AI-CONTEXT] You are inside a Focus Beamer presentation.
 % Use \\begin{frame}{Title} ... \\end{frame} for each slide.
 \\documentclass{beamer}
-\\usetheme{focus}
+\\usetheme[nofirafonts]{focus}
 ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
 \\usepackage{booktabs}
@@ -466,8 +487,6 @@ export function getACMSigconfTemplate(project: Project): string {
 \\documentclass[sigconf]{acmart}
 \\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
-\\usepackage{amsmath}
-\\usepackage{amssymb}
 \\usepackage{booktabs}
 
 \\title{${title}}
