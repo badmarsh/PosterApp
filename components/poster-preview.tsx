@@ -371,7 +371,7 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
   const figs = card.figures.filter((f) => f.url.trim()).length
   const hasBullets =
     card.pattern !== "image-focused" && card.content.trim().length > 0
-  const hasTable = card.pattern === "bullets-table" && card.table.rows.length > 0
+  const hasTable = card.pattern === "bullets-table" && card.table?.rows?.length > 0
 
   const {
     attributes,
