@@ -88,7 +88,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         return await run("docker", ["run", "--rm", "--network", "none", "--cpus", "1", "--memory", "512m", "--pids-limit", "64", "--security-opt", "no-new-privileges", "-v", `${stage}:/work`, "-w", "/work", image, "sh", "-c", buildCmd], stage)
       } else if (process.env.NODE_ENV !== "production") {
         // Development-only WSL fallback; production must configure LATEX_COMPILER_IMAGE.
-        return await run("wsl", ["--cd", stage, "bash", "-lc", `ulimit -t 55 -v 524288 -f 20480 -u 64; ${buildCmd}`], stage)
+        return await run("wsl", ["--cd", stage, "bash", "-lc", `ulimit -t 55 -v 524288 -f 20480; ${buildCmd}`], stage)
       } else {
         throw new Error("COMPILER_UNAVAILABLE")
       }

@@ -240,15 +240,9 @@ export function Shell() {
   const isDirty = useEditor((s) => s.isDirty)
   
   useEffect(() => {
-    // Only autosave if the project is loaded and we are not in the middle of a switch
-    if (isSwitchingProject || !project.id || project.id === "prj_lattice") return
-    if (!isDirty) return
-
-    const timer = setTimeout(() => {
-      saveProject()
-    }, 3000)
-
-    return () => clearTimeout(timer)
+    // Autosave has been disabled per user request.
+    // The manual Save button in top-bar.tsx is now the primary way to save.
+    return
   }, [project, agentEvents, chatMessages, isSwitchingProject, saveProject, isDirty])
 
   useEffect(() => {

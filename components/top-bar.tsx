@@ -18,6 +18,7 @@ import {
   FileText,
   CodeIcon,
   Clock,
+  Loader2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -94,7 +95,7 @@ export function TopBar({
   onToggleAgent,
   onOpenWorkspaceSelector,
 }: TopBarProps) {
-  const { project, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen, isActionsOpen, setIsActionsOpen, collabEnabled, setCollabEnabled, duplicateProject, newProject } = useEditor(
+  const { project, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen, isActionsOpen, setIsActionsOpen, collabEnabled, setCollabEnabled, duplicateProject, newProject, saveProject, isDirty, isSaving } = useEditor(
     useShallow((s) => ({
       project: s.project,
       aiReview: s.aiReview,
@@ -115,6 +116,9 @@ export function TopBar({
       setCollabEnabled: s.setCollabEnabled,
       duplicateProject: s.duplicateProject,
       newProject: s.newProject,
+      saveProject: s.saveProject,
+      isDirty: s.isDirty,
+      isSaving: s.isSaving,
     }))
   )
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
@@ -126,12 +130,6 @@ export function TopBar({
       .then((data) => setWorkspaces(Array.isArray(data) ? data : []))
       .catch(() => {})
   }, [])
-
-
-  // NOTE: Autosave is owned exclusively by shell.tsx (3-second debounce).
-  // A duplicate timer was removed from here to prevent race conditions where
-  // two simultaneous saves could cause the isDirty flag to be cleared incorrectly.
-
 
   function exportTex() {
     const activeOutput = project.outputs?.find(o => o.id === project.activeOutputId) || project.outputs?.[0]
@@ -237,7 +235,24 @@ export function TopBar({
 
       <div className="flex-1" />
 
-
+      {/* Manual Save Button */}
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn("mr-1", isDirty && "border-primary text-primary")}
+              disabled={!isDirty || isSaving}
+              onClick={() => saveProject()}
+            >
+              {isSaving ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Save className="size-4 mr-1.5" />}
+              {isDirty ? "Save changes" : "Saved"}
+            </Button>
+          }
+        />
+        <TooltipContent>Save Project</TooltipContent>
+      </Tooltip>
 
       <div className="flex items-center gap-1.5">
         <Button

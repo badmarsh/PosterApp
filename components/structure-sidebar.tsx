@@ -67,9 +67,15 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
   const [isShrinking, setIsShrinking] = useState(false)
   const active = card.id === selectedCardId
   const status = getStatus(card)
-  const warning = layoutWarnings.find(w => 
-    w.cardId === card.id || (!w.cardId && w.cardTitle && card.title && w.cardTitle.trim().toLowerCase() === card.title.trim().toLowerCase())
-  )
+  const warning = layoutWarnings.find(w => {
+    if (w.cardId === card.id) return true;
+    if (!w.cardId && w.cardTitle && card.title) {
+      const vlmTitle = w.cardTitle.trim().toLowerCase();
+      const actualTitle = card.title.trim().toLowerCase();
+      return vlmTitle.includes(actualTitle) || actualTitle.includes(vlmTitle);
+    }
+    return false;
+  })
   return (
     <ContextMenu>
       <ContextMenuTrigger
@@ -265,8 +271,22 @@ export function StructureSidebar() {
       switchProject: s.switchProject,
       isSwitchingProject: s.isSwitchingProject,
       openIngestion: s.openIngestion,
+      layoutWarnings: s.layoutWarnings,
     }))
   )
+
+  const activeCards = project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []
+  const unmatchedWarnings = layoutWarnings.filter(w => {
+    return !activeCards.some(card => {
+      if (w.cardId === card.id) return true;
+      if (!w.cardId && w.cardTitle && card.title) {
+        const vlmTitle = w.cardTitle.trim().toLowerCase();
+        const actualTitle = card.title.trim().toLowerCase();
+        return vlmTitle.includes(actualTitle) || actualTitle.includes(vlmTitle);
+      }
+      return false;
+    })
+  })
 
   const promotedCount = (project.assets || []).filter((a: { assignedCardId?: string | null }) => a.assignedCardId).length
 
@@ -324,6 +344,19 @@ export function StructureSidebar() {
           Poster structure
         </span>
       </div>
+      
+      {unmatchedWarnings.length > 0 && (
+        <div className="px-2.5 pb-2">
+          {unmatchedWarnings.map((w, i) => (
+            <div key={i} className="flex flex-col gap-1 rounded bg-destructive/10 p-1.5 text-[10px] text-destructive mb-1.5">
+              <div className="flex items-center gap-1 font-semibold">
+                <AlertTriangle className="size-3" /> Overflow Detected: {w.cardTitle}
+              </div>
+              <span className="leading-tight">{w.issue}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <ScrollArea className="min-h-0 flex-1">
         {isSwitchingProject ? (
