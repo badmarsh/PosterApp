@@ -99,6 +99,8 @@ export interface UiSlice {
   lastCompileFormat: OutputType
   setLastCompileFormat: (format: OutputType) => void
   layoutWarnings: { cardId?: string; cardTitle: string; issue: string; recommendation: string; estimatedOverflowCharacters?: number; compiledRevision?: number }[]
+  lastReviewedRevision: number | null
+  setLastReviewedRevision: (r: number | null) => void
 
   collaborators: Collaborator[]
   setCollaborators: (c: Collaborator[]) => void

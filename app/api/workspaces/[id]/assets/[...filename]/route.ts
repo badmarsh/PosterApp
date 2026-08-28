@@ -2,8 +2,7 @@ import { NextResponse } from "next/server"
 import * as fs from "fs/promises"
 import path from "path"
 
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { requireWorkspaceEditor } from "@/lib/auth"
 import { workspacePath } from "@/lib/workspace-files"
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
@@ -19,10 +18,12 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid workspace ID' }, { status: 400 })
   }
 
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const workspace = await prisma.workspace.findUnique({ where: { id, userId }, select: { id: true } })
-  if (!workspace) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  try {
+    await requireWorkspaceEditor(id)
+  } catch (err) {
+    if (err instanceof Response) return err
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
   const filePath = workspacePath(id, "assets", ...filename)
 

@@ -63,6 +63,8 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
   lastCompileFormat: "poster",
   setLastCompileFormat: (format) => set({ lastCompileFormat: format }),
   layoutWarnings: [],
+  lastReviewedRevision: null,
+  setLastReviewedRevision: (r) => set({ lastReviewedRevision: r }),
   
   collaborators: [],
   setCollaborators: (c) => set({ collaborators: c }),
@@ -149,8 +151,9 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
           get().updateEvent(evId, { status: "done", title: "Compile succeeded", detail: "PDF ready for preview." })
           
           // Background VLM Layout Check
-          const vlmEv = get().pushEvent({ kind: "info", status: "running", title: `VLM Layout Check running...` })
-          apiFetch(`/api/workspaces/${project.id}/review-layout?revision=${revision}`, { method: "POST" })
+          if (get().lastReviewedRevision !== revision) {
+            const vlmEv = get().pushEvent({ kind: "info", status: "running", title: `VLM Layout Check running...` })
+            apiFetch(`/api/workspaces/${project.id}/review-layout?revision=${revision}`, { method: "POST" })
             .then(async res => {
               if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => "")}`)
               return res.json()
@@ -164,9 +167,11 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
                  get().updateEvent(vlmEv, { kind: "info", status: "done", title: `VLM Layout Check passed!`, detail: "No overflow or overlapping issues detected." })
                  set((s) => { s.layoutWarnings = [] })
               }
+              set((s) => { s.lastReviewedRevision = revision })
             }).catch(err => {
                  get().updateEvent(vlmEv, { status: "error", title: `VLM Layout Check failed`, detail: String(err) })
             })
+          }
 
           break; // Exit loop on success
         } else {
@@ -180,12 +185,27 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
             if (!autofixRes.ok) throw new Error(`HTTP ${autofixRes.status}: ${await autofixRes.text().catch(() => "")}`)
             const autofixData = await autofixRes.json()
             if (autofixData.fixes && Array.isArray(autofixData.fixes) && autofixData.fixes.length > 0) {
-               autofixData.fixes.forEach((fix: any) => {
-                 get().updateCard(fix.id, { content: fix.content })
+               // Use dynamic import or just standard toast
+               import("sonner").then(({ toast }) => {
+                 toast("Autofix available", {
+                   description: "The AI found a fix for the compile error.",
+                   action: {
+                     label: "Apply Fixes",
+                     onClick: async () => {
+                       autofixData.fixes.forEach((fix: any) => {
+                         get().updateCard(fix.id, { content: fix.content })
+                       })
+                       await new Promise(r => setTimeout(r, 100))
+                       await get().saveProject()
+                       toast.success("Autofix applied. Recompiling...")
+                       get().compileProject()
+                     }
+                   },
+                   duration: 10000,
+                 })
                })
-               // Short pause and force save before next compile attempt
-               await new Promise(r => setTimeout(r, 100))
-               await get().saveProject()
+               get().updateEvent(evId, { status: "warning", title: "Compile failed", detail: "Autofix available. Click 'Apply Fixes' in the toast notification." })
+               break;
             } else {
                get().updateEvent(evId, { status: "error", title: "Compile failed", detail: "LLM autofix could not provide a fix." })
                get().setPendingAiPrompt(`The LaTeX compilation failed with the following error. Please analyze it, explain the issue, and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)

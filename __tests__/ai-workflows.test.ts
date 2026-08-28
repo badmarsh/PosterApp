@@ -2,14 +2,28 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import * as fs from 'fs'
 import * as path from 'path'
 
-vi.mock('fs', () => ({
-  existsSync: vi.fn(),
-  promises: {
-    readdir: vi.fn(),
-    stat: vi.fn(),
-    readFile: vi.fn(),
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs')>()
+  const mocks = {
+    existsSync: vi.fn(),
+    promises: {
+      ...actual.promises,
+      readdir: vi.fn(),
+      stat: vi.fn(),
+      readFile: vi.fn(),
+      writeFile: vi.fn(),
+      unlink: vi.fn(),
+    }
   }
-}))
+  return {
+    ...actual,
+    ...mocks,
+    default: {
+      ...actual,
+      ...mocks,
+    }
+  }
+})
 
 vi.mock('@/lib/auth', () => ({
   requireWorkspaceEditor: vi.fn(),
@@ -38,6 +52,8 @@ import { rateLimit } from '@/lib/rate-limit'
 import { POST as AutofixCompilePOST } from '@/app/api/workspaces/[id]/autofix-compile/route'
 import { POST as ShrinkPOST } from '@/app/api/workspaces/[id]/cards/[cardId]/shrink/route'
 import { loadSourceContext } from '@/lib/ai/context'
+import { POST as ImageEditPOST } from '@/app/api/ingestion/image-edit/route'
+import { POST as ChatPOST } from '@/app/api/workspaces/[id]/chat/route'
 import { NextRequest } from 'next/server'
 
 const mockAuth = vi.mocked(requireWorkspaceEditor)
@@ -137,6 +153,45 @@ describe('AI Workflows Integration', () => {
        const context3 = await loadSourceContext({ workspaceId: 'fake-ws' })
        expect(context3).toContain('Hello World Updated')
        expect(readFileMock).toHaveBeenCalledTimes(2) 
+    })
+  })
+
+  describe('Image Edit Route', () => {
+
+    it('unlinks the draft file on discard', async () => {
+      mockAuth.mockResolvedValueOnce({ userId: 'user-1' } as any)
+      ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce({ id: 'ws-1' })
+      const existsSyncMock = vi.mocked(fs.existsSync).mockReturnValue(true)
+      const unlinkMock = vi.mocked(fs.promises.unlink).mockResolvedValue()
+
+      const req = new NextRequest('http://localhost/api/ingestion/image-edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assetUrl: '/api/workspaces/ws-1/assets/draft-123-test.png',
+          workspaceId: 'ws-1',
+          operation: 'discard',
+        }),
+      })
+
+      const res = await ImageEditPOST(req)
+      expect(res.status).toBe(200)
+      expect(unlinkMock).toHaveBeenCalled()
+    })
+  })
+
+  describe('Chat Route', () => {
+    it('requires workspace editor access', async () => {
+      mockAuth.mockRejectedValueOnce(new Error('Unauthorized'))
+      
+      const req = new NextRequest('http://localhost/api/workspaces/ws-1/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [] }),
+      })
+
+      const res = await ChatPOST(req, { params: Promise.resolve({ id: 'ws-1' }) })
+      expect(res.status).toBe(401)
     })
   })
 })
