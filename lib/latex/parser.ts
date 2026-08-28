@@ -80,6 +80,9 @@ export function parseMarkdownToLatex(input: string): string {
     }
     return title
   })
+  text = text.replace(/\[@([^\]]+)\]/g, (match, keys) => {
+    return `\\cite{${keys.replace(/@/g, "")}}`
+  })
 
   const lines = text.split("\n")
   const outLines: string[] = []

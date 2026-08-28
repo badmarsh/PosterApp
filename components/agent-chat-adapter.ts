@@ -40,7 +40,8 @@ export function makeChatAdapter(
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }))
-        throw new Error(`Error ${res.status}: ${err?.error ?? res.statusText}`)
+        const errMsg = typeof err?.error === "object" ? err.error.message : err?.error
+        throw new Error(`Error ${res.status}: ${errMsg ?? res.statusText}`)
       }
 
       const data: { role: string; content: string } = await res.json()

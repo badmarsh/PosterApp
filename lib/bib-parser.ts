@@ -30,14 +30,26 @@ export function formatCiteKey(key: string): string {
  */
 export function extractCiteKeys(text: string): string[] {
   if (!text) return []
-  const regex = /\\cite{([^}]+)}/g
-  let match
   const keys = new Set<string>()
-  while ((match = regex.exec(text)) !== null) {
+
+  // Match \cite{key1, key2}
+  const regexLatex = /\\cite{([^}]+)}/g
+  let match
+  while ((match = regexLatex.exec(text)) !== null) {
     const splitKeys = match[1].split(",").map(k => k.trim())
     for (const k of splitKeys) {
       if (k) keys.add(k)
     }
   }
+
+  // Match [@key1, @key2] or [@key]
+  const regexMarkdown = /\[@([^\]]+)\]/g
+  while ((match = regexMarkdown.exec(text)) !== null) {
+    const splitKeys = match[1].split(",").map(k => k.trim().replace(/^@/, ""))
+    for (const k of splitKeys) {
+      if (k) keys.add(k)
+    }
+  }
+
   return Array.from(keys)
 }

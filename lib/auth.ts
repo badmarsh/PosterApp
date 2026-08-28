@@ -12,7 +12,10 @@ export async function auth() {
 }
 
 export function apiError(code: string, message: string, status: number) {
-  return NextResponse.json({ error: { code, message } }, { status })
+  return new Response(JSON.stringify({ error: { code, message } }), { 
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  })
 }
 
 /** Central authorization boundary; legacy Workspace.userId remains the owner. */

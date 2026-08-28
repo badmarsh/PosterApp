@@ -397,35 +397,36 @@ function TableTab({ card }: { card: Card }) {
     }))
   )
   const parsedTables = (project.assets || []).filter(a => a.kind === "table" && a.tableRows && a.tableRows.length > 0)
-  const { table } = card
-  const cols = table.rows[0]?.length ?? 0
-  const enabled = card.pattern === "bullets-table"
+  const table = card.table || { hasHeader: false, caption: "", rows: [] }
+  const rows = table.rows || []
+  const cols = rows[0]?.length ?? 0
+  const enabled = card.pattern === "bullets-table" || card.pattern === "section-table"
 
   function setCell(r: number, c: number, val: string) {
-    const rows = table.rows.map((row) => [...row])
-    rows[r][c] = val
-    updateCard(card.id, { table: { ...table, rows } })
+    const newRows = rows.map((row) => [...row])
+    newRows[r][c] = val
+    updateCard(card.id, { table: { ...table, rows: newRows } })
   }
   function addRow() {
     const width = cols || 2
     updateCard(card.id, {
-      table: { ...table, rows: [...table.rows, Array(width).fill("")] },
+      table: { ...table, rows: [...rows, Array(width).fill("")] },
     })
   }
   function removeRow(r: number) {
     updateCard(card.id, {
-      table: { ...table, rows: table.rows.filter((_, i) => i !== r) },
+      table: { ...table, rows: rows.filter((_, i) => i !== r) },
     })
   }
   function addCol() {
     updateCard(card.id, {
-      table: { ...table, rows: table.rows.map((row) => [...row, ""]) },
+      table: { ...table, rows: rows.map((row) => [...row, ""]) },
     })
   }
   function removeCol() {
     if (cols <= 1) return
     updateCard(card.id, {
-      table: { ...table, rows: table.rows.map((row) => row.slice(0, -1)) },
+      table: { ...table, rows: rows.map((row) => row.slice(0, -1)) },
     })
   }
 
