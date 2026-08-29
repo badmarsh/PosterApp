@@ -8,9 +8,12 @@ import {
   FilePlus2,
   FileStack,
   Plus,
+  Search,
   Trash2,
+  XCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -217,16 +220,23 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
   )
 })
 
-function ColumnGroup({ column }: { column: ColumnIndex }) {
+function ColumnGroup({ column, searchQuery = "" }: { column: ColumnIndex; searchQuery?: string }) {
   const { project, addCard } = useEditor(
     useShallow((s) => ({
       project: s.project,
       addCard: s.addCard,
     }))
   )
-  const cards = (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])
+  const q = searchQuery.trim().toLowerCase()
+  const allCards = (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])
     .filter((c) => c.column === column)
     .sort((a, b) => a.order - b.order)
+  
+  const cards = q
+    ? allCards.filter(c => c.title.toLowerCase().includes(q) || c.content.toLowerCase().includes(q))
+    : allCards
+
+  if (q && cards.length === 0) return null
 
   return (
     <div className="flex flex-col gap-1">
@@ -320,6 +330,8 @@ export function StructureSidebar() {
       .catch(console.error)
   }, [project.id])
 
+  const [cardSearch, setCardSearch] = useState("")
+
   return (
     <aside className="flex h-full w-full shrink-0 flex-col border-r border-border bg-sidebar lg:w-72">
       <div className="flex flex-col gap-2 border-b border-border p-2.5">
@@ -361,10 +373,37 @@ export function StructureSidebar() {
         </Button>
       </div>
 
-      <div className="flex items-center justify-between px-3 pt-2.5 pb-1">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground">
-          Poster structure
-        </span>
+      <div className="flex flex-col gap-1.5 px-2.5 pt-2.5 pb-1">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-foreground">
+            Document structure
+          </span>
+          {activeCards.length > 0 && (
+            <span className="text-[10px] text-muted-foreground font-mono">
+              {activeCards.length} cards
+            </span>
+          )}
+        </div>
+        {activeCards.length > 3 && (
+          <div className="relative">
+            <Search className="absolute left-2 top-2 size-3 text-muted-foreground" />
+            <Input
+              value={cardSearch}
+              onChange={(e) => setCardSearch(e.target.value)}
+              placeholder="Filter sections..."
+              className="h-7 pl-6 pr-6 text-[11px] bg-card"
+            />
+            {cardSearch && (
+              <button
+                type="button"
+                onClick={() => setCardSearch("")}
+                className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
+              >
+                <XCircle className="size-3" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
       
       {unmatchedWarnings.length > 0 && (
@@ -399,9 +438,9 @@ export function StructureSidebar() {
           </div>
         ) : (
           <div className="flex flex-col gap-3 px-2.5 pb-4">
-            <ColumnGroup column={1} />
-            <ColumnGroup column={2} />
-            <ColumnGroup column={3} />
+            <ColumnGroup column={1} searchQuery={cardSearch} />
+            <ColumnGroup column={2} searchQuery={cardSearch} />
+            <ColumnGroup column={3} searchQuery={cardSearch} />
           </div>
         )}
       </ScrollArea>

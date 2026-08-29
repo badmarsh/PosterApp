@@ -35,7 +35,6 @@ import {
 } from "@/components/ui/tooltip"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
-import { Progress } from "@/components/ui/progress"
 import type { Job } from "@/lib/job-queue"
 import type { AgentEvent } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
@@ -48,7 +47,7 @@ import remarkGfm from "remark-gfm"
 import "katex/dist/katex.min.css"
 
 // ---------------------------------------------------------------------------
-// Status event log helpers (unchanged from previous implementation)
+// Status event log helpers
 // ---------------------------------------------------------------------------
 
 const KIND_ICON = {
@@ -95,13 +94,14 @@ const EventRow = memo(function EventRow({
   event: AgentEvent
   last: boolean
 }) {
-  const { updateCard, saveProject, compileProject, updateEvent, project } = useEditor(
+  const { updateCard, saveProject, compileProject, updateEvent, project, selectCard } = useEditor(
     useShallow((s) => ({
       updateCard: s.updateCard,
       saveProject: s.saveProject,
       compileProject: s.compileProject,
       updateEvent: s.updateEvent,
       project: s.project,
+      selectCard: s.selectCard,
     }))
   )
   const Icon = KIND_ICON[event.kind]
@@ -109,7 +109,6 @@ const EventRow = memo(function EventRow({
   const [elapsed, setElapsed] = useState("")
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
 
@@ -124,7 +123,6 @@ const EventRow = memo(function EventRow({
       const interval = setInterval(update, 1000)
       return () => clearInterval(interval)
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setElapsed("")
     }
   }, [event.status, event.createdAt])
@@ -153,35 +151,79 @@ const EventRow = memo(function EventRow({
           </p>
         )}
         {event.tips && event.tips.length > 0 && (
-          <div className="mt-2 flex flex-col gap-1.5">
-            {event.tips.map((tip, i) => {
+          <div className="mt-2 flex flex-col gap-2">
+            {event.tips.map((tip: any, i: number) => {
               const severityColor =
                 tip.severity === "error"
                   ? "bg-destructive/10 text-destructive border-destructive/20"
                   : tip.severity === "warning"
-                    ? "bg-chart-4/10 text-chart-4 border-chart-4/20"
-                    : "bg-chart-3/10 text-chart-3 border-chart-3/20"
+                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                    : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+
+              // Separate issue description from suggested fix
+              let issueText = tip.issue || ""
+              let fixText = tip.recommendation || ""
+
+              if (!issueText && tip.message) {
+                if (tip.message.includes(" — ")) {
+                  const parts = tip.message.split(" — ")
+                  issueText = parts[0]
+                  fixText = parts.slice(1).join(" — ")
+                } else {
+                  issueText = tip.message
+                }
+              }
+
+              // Strip redundant leading "Card: " or numbers from title
+              const displayCategory = (tip.category || "Layout")
+                .replace(/^card:\s*/i, "")
+                .replace(/^\d+[\.\s]*/, "")
+
               return (
                 <div
                   key={i}
-                  className="flex flex-col gap-0.5 rounded-md border bg-card p-1.5 shadow-sm"
+                  className="flex flex-col gap-1.5 rounded-lg border bg-card p-2 shadow-xs transition-colors hover:border-border/80"
                 >
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-sm border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
-                        severityColor
-                      )}
-                    >
-                      {tip.severity}
-                    </span>
-                    <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                      {tip.category}
-                    </span>
+                  <div className="flex items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span
+                        className={cn(
+                          "inline-flex shrink-0 items-center rounded-sm border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
+                          severityColor
+                        )}
+                      >
+                        {tip.severity}
+                      </span>
+                      <span className="truncate text-[10.5px] font-medium text-foreground">
+                        {displayCategory}
+                      </span>
+                    </div>
+                    {tip.cardId && (
+                      <button
+                        type="button"
+                        onClick={() => selectCard(tip.cardId)}
+                        className="shrink-0 text-[10px] font-medium text-primary hover:underline"
+                      >
+                        Jump to Card →
+                      </button>
+                    )}
                   </div>
-                  <p className="text-[11px] leading-snug text-foreground">
-                    {tip.message}
-                  </p>
+
+                  {issueText && (
+                    <p className="text-[11px] leading-snug text-foreground/90 font-normal">
+                      {issueText}
+                    </p>
+                  )}
+
+                  {fixText && (
+                    <div className="mt-0.5 flex items-start gap-1.5 rounded-md bg-muted/60 px-2 py-1.5 text-[11px] border border-border/40">
+                      <Sparkles className="size-3.5 mt-0.5 text-amber-500 dark:text-amber-400 shrink-0" />
+                      <div className="flex-1 leading-snug">
+                        <span className="font-semibold text-foreground">Action: </span>
+                        <span className="text-muted-foreground">{fixText}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -270,9 +312,7 @@ function StatusStrip({
   const [open, setOpen] = useState(false)
   const [showAll, setShowAll] = useState(false)
 
-  // Auto-open the strip when something is actively running
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (running.length > 0) setOpen(true)
   }, [running.length])
 
@@ -370,13 +410,28 @@ function UserTextContent() {
 }
 
 function AssistantMessageBubble() {
+  const { isAiStreaming } = useEditor(useShallow((s) => ({ isAiStreaming: s.isAiStreaming })))
+
   return (
     <MessagePrimitive.Root className="flex flex-col gap-1 px-3 py-1">
       <div className="flex items-center gap-1.5">
-        <Sparkles className="size-3 text-primary" />
+        {/* Subtle, non-distracting sparkle animation during AI response */}
+        <Sparkles
+          className={cn(
+            "size-3 text-primary transition-all duration-300",
+            isAiStreaming && "animate-pulse text-primary scale-110"
+          )}
+        />
         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           AI
         </span>
+        {isAiStreaming && (
+          <span className="inline-flex items-center gap-0.5 ml-0.5" title="AI rozmýšľa / odpovedá…">
+            <span className="size-1 rounded-full bg-primary/70 animate-bounce [animation-delay:-0.3s]" />
+            <span className="size-1 rounded-full bg-primary/70 animate-bounce [animation-delay:-0.15s]" />
+            <span className="size-1 rounded-full bg-primary/70 animate-bounce" />
+          </span>
+        )}
       </div>
       <div className="max-w-[92%] rounded-xl rounded-tl-sm bg-muted/60 px-3 py-2 text-[12px] leading-relaxed text-foreground">
         <MessagePrimitive.Content
@@ -391,12 +446,13 @@ function AssistantMessageBubble() {
 
 function AssistantTextContent() {
   const { text } = useMessagePartText()
-  const { updateCard, selectedCardId, pushEvent, project } = useEditor(
+  const { updateCard, selectedCardId, pushEvent, project, isAiStreaming } = useEditor(
     useShallow((s) => ({
       updateCard: s.updateCard,
       selectedCardId: s.selectedCardId,
       pushEvent: s.pushEvent,
       project: s.project,
+      isAiStreaming: s.isAiStreaming,
     }))
   )
 
@@ -412,8 +468,18 @@ function AssistantTextContent() {
     return ""
   })
 
-  // Local state for applied fixes to quickly re-render
   const [localApplied, setLocalApplied] = useState<Set<number>>(new Set())
+
+  // If text is still empty while streaming, show subtle typing placeholder dots
+  if ((!cleanText || cleanText.trim() === "") && isAiStreaming) {
+    return (
+      <div className="flex items-center gap-1.5 py-1 text-muted-foreground/60">
+        <span className="size-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.3s]" />
+        <span className="size-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.15s]" />
+        <span className="size-1.5 rounded-full bg-current animate-bounce" />
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -524,11 +590,9 @@ function ChatComposer() {
         className={cn(
           "min-h-[40px] w-full resize-none bg-transparent px-3 py-2.5 text-[12px] leading-relaxed placeholder:text-muted-foreground/60",
           "focus:outline-none",
-          // Grow up to 5 lines
-          "max-h-[120px] overflow-y-auto",
+          "max-h-[120px] overflow-y-auto"
         )}
         onKeyDown={(e) => {
-          // Submit on Enter (no shift), allow Shift+Enter for newlines
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault()
             ;(e.target as HTMLTextAreaElement)
@@ -561,10 +625,16 @@ function ChatComposer() {
 
 function ChatThread() {
   const viewportRef = useRef<HTMLDivElement>(null)
+  const { isAiStreaming } = useEditor(useShallow((s) => ({ isAiStreaming: s.isAiStreaming })))
+
+  useEffect(() => {
+    if (isAiStreaming && viewportRef.current) {
+      viewportRef.current.scrollTop = viewportRef.current.scrollHeight
+    }
+  }, [isAiStreaming])
 
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
-      {/* Scrollable messages area */}
       <ThreadPrimitive.Viewport
         ref={viewportRef}
         className="flex min-h-0 flex-1 flex-col overflow-y-auto py-2"
@@ -599,7 +669,6 @@ function ChatThread() {
   )
 }
 
-
 // ---------------------------------------------------------------------------
 // AgentPanelInner — needs to be inside AssistantRuntimeProvider
 // ---------------------------------------------------------------------------
@@ -617,8 +686,12 @@ function AgentPanelInner({
   onCancelJob: (id: string) => void
   onCollapse: () => void
 }) {
-  const { hydrateUi, updateProject } = useEditor(
-    useShallow((s) => ({ hydrateUi: s.hydrateUi, updateProject: s.updateProject }))
+  const { hydrateUi, updateProject, isAiStreaming } = useEditor(
+    useShallow((s) => ({
+      hydrateUi: s.hydrateUi,
+      updateProject: s.updateProject,
+      isAiStreaming: s.isAiStreaming,
+    }))
   )
 
   return (
@@ -633,6 +706,11 @@ function AgentPanelInner({
           <span className="text-[11px] font-semibold uppercase tracking-wide">
             AI Assistant
           </span>
+          {isAiStreaming ? (
+            <span className="size-1.5 rounded-full bg-primary animate-pulse" title="Generuje…" />
+          ) : (
+            <span className="size-1.5 rounded-full bg-chart-3/80" title="Pripravený" />
+          )}
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -642,7 +720,6 @@ function AgentPanelInner({
             onClick={() => {
               if (confirm("Naozaj chceš vymazať históriu tohto chatu a udalostí?")) {
                 hydrateUi([], [])
-                // Mark project as dirty to ensure the empty state is saved
                 updateProject({})
               }
             }}
@@ -676,7 +753,7 @@ function AgentPanelInner({
 // ---------------------------------------------------------------------------
 
 export function AgentPanel() {
-  const { agentEvents, generatingIds, jobs, cancelJob, projectId, selectedCardId, pendingAiPrompt, setPendingAiPrompt, chatMessages, setChatMessages } = useEditor(
+  const { agentEvents, generatingIds, jobs, cancelJob, projectId, selectedCardId, pendingAiPrompt, setPendingAiPrompt, chatMessages, setChatMessages, isAiStreaming, setIsAiStreaming } = useEditor(
     useShallow((s) => ({
       agentEvents: s.agentEvents,
       generatingIds: s.generatingIds,
@@ -688,44 +765,35 @@ export function AgentPanel() {
       setPendingAiPrompt: s.setPendingAiPrompt,
       chatMessages: s.chatMessages,
       setChatMessages: s.setChatMessages,
+      isAiStreaming: s.isAiStreaming,
+      setIsAiStreaming: s.setIsAiStreaming,
     }))
   )
 
   const [collapsed, setCollapsed] = useState(false)
 
-  // Keep a stable ref to selectedCardId so the adapter closure always reads
-  // the latest value without needing to be recreated.
   const selectedCardIdRef = useRef(selectedCardId)
   useEffect(() => {
     selectedCardIdRef.current = selectedCardId
   }, [selectedCardId])
 
-  // Recreate the adapter (and thus runtime) when the workspace changes so
-  // each workspace gets a fresh ephemeral thread.
   const adapter = useMemo(
     // eslint-disable-next-line react-hooks/refs
-    () => makeChatAdapter(projectId, () => selectedCardIdRef.current),
-     
-    [projectId]
+    () => makeChatAdapter(projectId, () => selectedCardIdRef.current, setIsAiStreaming),
+    [projectId, setIsAiStreaming]
   )
 
   const runtime = useLocalRuntime(adapter, { initialMessages: chatMessages })
 
-  // Observe and sync chat messages back to the global store
   useEffect(() => {
     return runtime.thread.subscribe(() => {
-      // @assistant-ui/react v0.15+ moved messages off the direct ThreadRuntime type;
-      // access via type assertion until the API stabilises.
       const msgs = (runtime.thread as any).messages ?? []
-      // Simple debounce to avoid spamming the store
-      // In a real app we might use a dedicated debouncer, but a short timeout is fine here
       setTimeout(() => setChatMessages([...msgs]), 0)
     })
   }, [runtime, setChatMessages])
 
   useEffect(() => {
     if (pendingAiPrompt) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCollapsed(false)
       runtime.thread.append({ role: "user", content: [{ type: "text", text: pendingAiPrompt }] })
       setPendingAiPrompt(null)
@@ -750,7 +818,7 @@ export function AgentPanel() {
           />
           <TooltipContent side="left">AI Chat</TooltipContent>
         </Tooltip>
-        {generatingIds.length > 0 ? (
+        {generatingIds.length > 0 || isAiStreaming ? (
           <Loader2 className="size-3.5 animate-spin text-primary" />
         ) : (
           <CircleDot className="size-3.5 text-chart-3" />

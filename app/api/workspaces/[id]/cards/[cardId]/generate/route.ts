@@ -52,18 +52,6 @@ export async function POST(
       )
     }
 
-    // Verify card exists in workspace active output before spending an AI call
-    const full = await (await import("@/lib/prisma")).prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      include: { outputs: { include: { cards: true } } },
-    })
-    const activeOutput = full?.outputs.find((item: any) => item.isActive) ?? full?.outputs[0]
-    const cardExists = activeOutput?.cards.some((c: any) => c.id === cardId)
-
-    if (!cardExists) {
-      return NextResponse.json({ error: "Card does not exist in active output" }, { status: 404 })
-    }
-
     // 1. Load source markdown files
     const sourceContext = await loadSourceContext({ workspaceId, sourceIds })
 

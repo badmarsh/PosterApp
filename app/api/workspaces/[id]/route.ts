@@ -138,6 +138,7 @@ export async function PUT(
     const parsed = WorkspaceSchema.safeParse(rawBody)
     
     if (!parsed.success) {
+      console.error("[Workspace PUT] Validation failed:", JSON.stringify(parsed.error.format(), null, 2))
       return NextResponse.json(
         { error: "Validation failed", details: parsed.error.format() },
         { status: 400 }
@@ -400,21 +401,22 @@ export async function PUT(
           )
           for (const asset of body.assets) {
             if (asset.assignedCardId && !validCards.has(asset.assignedCardId)) {
-              throw new ForeignChildIdError()
+              asset.assignedCardId = null
+              asset.assignedSlot = null
             }
           }
         }
 
         for (const asset of body.assets) {
           const assetData = {
-            fileId: asset.fileId,
+            fileId: asset.fileId || "",
             filename: asset.filename,
             url: asset.url,
             kind: asset.kind,
             page: asset.page,
             section: asset.section,
             bbox: asset.bbox,
-            confidence: asset.confidence,
+            confidence: asset.confidence || "high",
             heading: asset.heading,
             snippet: asset.snippet,
             thumbnailUrl: asset.thumbnailUrl,
@@ -427,11 +429,11 @@ export async function PUT(
             create: {
               id: asset.id,
               workspaceId: id,
-              assignedCardId: asset.assignedCardId ?? undefined,
+              assignedCardId: asset.assignedCardId ?? null,
               ...assetData,
             },
             update: {
-              assignedCardId: asset.assignedCardId ?? undefined,
+              assignedCardId: asset.assignedCardId ?? null,
               ...assetData,
             },
           })

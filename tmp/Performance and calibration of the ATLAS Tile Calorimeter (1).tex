@@ -1,0 +1,137 @@
+\documentclass[presentation]{beamer}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\title{Performance and Calibration of the ATLAS Tile Calorimeter}
+\author{Tade\'a\v{s} Petr\'u\\ Charles University\\ On behalf of the ATLAS Collaboration}
+\date{26 August - 4 September 2024, Kolymbari\\ XIII International Conference on New Frontiers in Physics}
+
+\begin{document}
+
+\begin{frame}
+    \titlepage
+\end{frame}
+
+\begin{frame}{Introduction}
+    \begin{itemize}
+        \item The Tile Calorimeter (TileCal) is the hadronic calorimeter of the ATLAS detector.
+        \item Covers central pseudorapidity range of $|\eta| < 1.7$.
+        \item Identifies and measures energy of hadrons, jets, tau leptons.
+        \item Provides input for L1Calo Trigger and muon identification.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Signal Reconstruction}
+    \begin{itemize}
+        \item TileCal consists of plastic scintillator tiles and steel absorbers.
+        \item Light from scintillating tiles is collected by WLS fibres to PMTs.
+        \item Signal shaped and digitized in front-end electronics.
+        \item Two readout gains (high and low, 64:1 ratio).
+        \item Signal sampled every 25 ns, reconstructed using optimal filtering algorithm.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{TileCal Readout Geometry}
+    \begin{itemize}
+        \item WLS fibres grouped to PMTs to form readout cell geometry.
+        \item Two PMTs per readout cell, total of 9852 channels and 5182 cells.
+        \item TileCal has four partitions: LBA, LBC, EBA, EBC.
+        \item Readout cells divided into three layers in LB and EB.
+        \item Each barrel has 64 modules in azimuthal direction.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Energy Calibration}
+    \begin{itemize}
+        \item Several calibration systems:
+        \begin{itemize}
+            \item Cesium system
+            \item Laser calibration system
+            \item Charge injection system
+            \item Minimum-bias system
+        \end{itemize}
+        \item Energy in GeV calculated as:
+        \begin{equation}
+            E [GeV] = \frac{A[ADC]}{C_{ADC \to pC} \times C_{pC \to GeV} \times C_{Cs} \times C_{MB} \times C_{Las}}
+        \end{equation}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Charge Injection System}
+    \begin{itemize}
+        \item CIS calibrates front-end electronics by injecting defined charge.
+        \item Covers full dynamic range.
+        \item Estimates conversion constant from ADC to pC with precision of $\sim0.7\%$.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Cesium System}
+    \begin{itemize}
+        \item Calibrates entire readout chain (optical components, PMTs).
+        \item $^{137}$Cs capsule ($\gamma$-source, $E_\gamma = 0.662$ MeV) measures tile responses.
+        \item Cesium scans performed monthly with accuracy of $\sim0.3\%$.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Laser System}
+    \begin{itemize}
+        \item Produces 10 ns light pulses at 532 nm distributed to all PMTs.
+        \item Calibrates readout variations and PMT gain changes.
+        \item Runs every 2-3 days, precision at $\sim0.5\%$.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Minimum Bias System}
+    \begin{itemize}
+        \item Measures PMT current proportional to LHC luminosity.
+        \item Data collected with integrator readout system.
+        \item Calibration constant $C_{MB}$ used for energy reconstruction.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Time Calibration and Performance}
+    \begin{itemize}
+        \item Precise timing calibration critical for optimal filtering algorithm.
+        \item Time-of-flight measurements used for long-lived particle searches.
+        \item Calibration corrects timing jumps (threshold reduced to 1 ns).
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Performance - Isolated Muons}
+    \begin{itemize}
+        \item Studied using isolated muons from $W \to \mu \nu$ decays.
+        \item Response quantified using $\Delta E / \Delta x$ distributions.
+        \item Double ratio given by:
+        \begin{equation}
+            R = \frac{\langle\Delta E / \Delta x\rangle_{\text{Data}}}{\langle\Delta E / \Delta x\rangle_{\text{MC}}}
+        \end{equation}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Performance - Single Isolated Hadrons}
+    \begin{itemize}
+        \item Isolated hadrons used to measure deposited energy.
+        \item Particles selected with $p < 20$ GeV.
+        \item Response characterized by $R = E/p$.
+        \item Run 2 results: $\langle E/p \rangle = 0.5896 \pm 0.0001$ (data), $0.593 \pm 0.001$ (MC).
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Summary}
+    \begin{itemize}
+        \item TileCal continues operations in Run 3.
+        \item Calibration ensures good performance.
+        \item Performance studies validate procedures using isolated muons, hadrons, and jets.
+        \item First Run 3 results presented, more to come.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{References}
+    \begin{itemize}
+        \item \href{https://twiki.cern.ch/twiki/bin/view/AtlasPublic/ApprovedPlotsTile}{Public plots for TileCal}
+        \item \href{https://twiki.cern.ch/twiki/bin/view/AtlasPublic/TileCaloPublicResults}{Collision Data Public Plots}
+        \item \href{https://arxiv.org/abs/2401.16034}{ATLAS TileCal Performance in LHC Run 2}
+    \end{itemize}
+\end{frame}
+
+\end{document}

@@ -15,39 +15,45 @@ import { apiFetch } from "@/lib/api-fetch"
 
 export function makeChatAdapter(
   projectId: string,
-  getSelectedCardId: () => string | null
+  getSelectedCardId: () => string | null,
+  setIsAiStreaming?: (v: boolean) => void
 ): ChatModelAdapter {
   return {
     async run({ messages, abortSignal }) {
-      // Convert assistant-ui message objects to plain {role, content} pairs
-      const history = messages.map((m) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content
-          .filter((c) => c.type === "text")
-          .map((c) => (c.type === "text" ? c.text : ""))
-          .join(""),
-      }))
+      setIsAiStreaming?.(true)
+      try {
+        // Convert assistant-ui message objects to plain {role, content} pairs
+        const history = messages.map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content
+            .filter((c) => c.type === "text")
+            .map((c) => (c.type === "text" ? c.text : ""))
+            .join(""),
+        }))
 
-      const res = await apiFetch(`/api/workspaces/${projectId}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: history,
-          selectedCardId: getSelectedCardId() ?? undefined,
-        }),
-        signal: abortSignal,
-      })
+        const res = await apiFetch(`/api/workspaces/${projectId}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: history,
+            selectedCardId: getSelectedCardId() ?? undefined,
+          }),
+          signal: abortSignal,
+        })
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }))
-        const errMsg = typeof err?.error === "object" ? err.error.message : err?.error
-        throw new Error(`Error ${res.status}: ${errMsg ?? res.statusText}`)
-      }
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: res.statusText }))
+          const errMsg = typeof err?.error === "object" ? err.error.message : err?.error
+          throw new Error(`Error ${res.status}: ${errMsg ?? res.statusText}`)
+        }
 
-      const data: { role: string; content: string } = await res.json()
+        const data: { role: string; content: string } = await res.json()
 
-      return {
-        content: [{ type: "text", text: data.content }],
+        return {
+          content: [{ type: "text", text: data.content }],
+        }
+      } finally {
+        setIsAiStreaming?.(false)
       }
     },
   }

@@ -107,6 +107,12 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
   { id: "springer-llncs",   outputType: "paper", label: "Springer LLNCS",        description: "Single-col Lecture Notes format. (Requires 'llncs' class).",         category: "core",
     colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"Blue",hex:"#1A56DB"}], layoutPreview: "paper-single",
     detailFeatures: ["Complies with Springer LNCS formatting", "Single-column layout", "Requires the 'llncs' document class"], latexClass: "llncs", colorSystem: "None" },
+  { id: "jinst-proceedings", outputType: "paper", label: "JINST Proceedings",   description: "Journal of Instrumentation (SISSA/IOP) proceedings style using jinstpub.", category: "institutional",
+    colors: [{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
+    detailFeatures: ["Complies with JINST SISSA/IOP proceedings format", "Uses jinstpub package and linenumbers", "Single-column layout with standard JHEP bibliography style"], latexClass: "article + jinstpub", colorSystem: "None" },
+  { id: "pos-proceedings",   outputType: "paper", label: "PoS Proceedings",     description: "SISSA Proceedings of Science format using pos package.", category: "institutional",
+    colors: [{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
+    detailFeatures: ["Complies with SISSA Proceedings of Science format", "Uses pos package and linenumbers", "Single-column proceedings layout"], latexClass: "article + pos", colorSystem: "None" },
 ]
 
 /** Get all templates available for a given output type. */

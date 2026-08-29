@@ -31,6 +31,8 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
     },
   ],
   generatingIds: [],
+  isAiStreaming: false,
+  setIsAiStreaming: (v) => set({ isAiStreaming: v }),
 
   chatMessages: [],
   setChatMessages: (messages) => set({ chatMessages: messages }),
@@ -162,19 +164,40 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
             })
             .then(vlmData => {
               if (get().project.revision !== revision) return // Ignore stale response
-              if (vlmData.warnings && vlmData.warnings.length > 0) {
-                 const issueLines = vlmData.warnings
-                   .map((w: any) => `• ${w.cardTitle}: ${w.issue}`)
-                   .join("\n")
-                 const vlmTips = vlmData.warnings.map((w: any) => ({
-                   severity: "warning" as const,
-                   category: `Card: ${w.cardTitle}`,
-                   message: `${w.issue} — ${w.recommendation}`,
-                 }))
-                 get().updateEvent(vlmEv, { kind: "review", status: "done", title: `VLM found layout issues`, detail: `${vlmData.warnings.length} layout issue(s) detected:\n${issueLines}`, tips: vlmTips })
-                 set((s) => { s.layoutWarnings = vlmData.warnings })
+              const isFalseWarning = (w: any) => {
+                const text = `${w?.issue || ""} ${w?.recommendation || ""}`.toLowerCase()
+                return (
+                  /no\s+(significant\s+)?(issue|overflow|problem|warning|defect|error)/i.test(text) ||
+                  /^(none|clean|ok|n\/a|all\s+good)[\.\s]*$/i.test(w?.issue?.trim() || "") ||
+                  /^(none|n\/a|clean|ok)[\.\s]*$/i.test(w?.recommendation?.trim() || "")
+                )
+              }
+              const realWarnings = (vlmData.warnings || []).filter((w: any) => !isFalseWarning(w))
+
+              if (realWarnings.length > 0) {
+                 const vlmTips = realWarnings.map((w: any) => {
+                   const rawTitle = w.cardTitle || "Card"
+                   const cleanCardTitle = rawTitle.replace(/^(\d+\.?\s*|card:\s*|table\s*\d+:?\s*|figure\s*\d+:?\s*)/i, "").trim() || rawTitle
+                   const shortTitle = cleanCardTitle.length > 28 ? cleanCardTitle.slice(0, 27) + "…" : cleanCardTitle
+                   return {
+                     severity: "warning" as const,
+                     category: `Card: ${shortTitle}`,
+                     cardId: w.cardId,
+                     issue: w.issue,
+                     recommendation: w.recommendation,
+                     message: `${w.issue} — ${w.recommendation}`,
+                   }
+                 })
+                 get().updateEvent(vlmEv, {
+                   kind: "review",
+                   status: "done",
+                   title: `Layout Inspection`,
+                   detail: `${realWarnings.length} layout issue${realWarnings.length === 1 ? "" : "s"} detected`,
+                   tips: vlmTips
+                 })
+                 set((s) => { s.layoutWarnings = realWarnings })
               } else {
-                 get().updateEvent(vlmEv, { kind: "info", status: "done", title: `VLM Layout Check passed!`, detail: "No overflow or overlapping issues detected." })
+                 get().updateEvent(vlmEv, { kind: "info", status: "done", title: `Layout Inspection Passed`, detail: "No visual overflows detected." })
                  set((s) => { s.layoutWarnings = [] })
               }
               set((s) => { s.lastReviewedRevision = revision ?? null })

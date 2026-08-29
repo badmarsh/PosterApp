@@ -2,14 +2,14 @@ import { z } from "zod"
 
 export const FigureSchema = z.object({
   id: z.string(),
-  url: z.string(),
-  caption: z.string(),
+  url: z.string().nullable().optional(),
+  caption: z.string().nullable().optional(),
 })
 
 export const CardTableSchema = z.object({
-  hasHeader: z.boolean(),
-  caption: z.string(),
-  rows: z.array(z.array(z.string())),
+  hasHeader: z.boolean().optional(),
+  caption: z.string().nullable().optional(),
+  rows: z.array(z.array(z.any())).optional(),
 })
 
 export const CardSchema = z.object({
@@ -31,19 +31,19 @@ export const CardSchema = z.object({
 
 export const AssetSchema = z.object({
   id: z.string(),
-  fileId: z.string(),
+  fileId: z.string().nullable().optional(),
   filename: z.string().nullable().optional(),
   url: z.string().nullable().optional(),
-  kind: z.enum(["text", "figure", "table", "equation"]),
-  page: z.number().int(),
+  kind: z.string(),
+  page: z.number().int().optional().default(1),
   section: z.string().nullable().optional(),
   bbox: z.string().nullable().optional(),
-  confidence: z.enum(["low", "medium", "high"]),
+  confidence: z.string().nullable().optional(),
   heading: z.string().nullable().optional(),
   snippet: z.string().nullable().optional(),
   thumbnailUrl: z.string().nullable().optional(),
   caption: z.string().nullable().optional(),
-  tableRows: z.array(z.array(z.string())).nullable().optional(),
+  tableRows: z.any().nullable().optional(),
   assignedCardId: z.string().nullable().optional(),
   assignedSlot: z.string().nullable().optional(),
 })
@@ -51,10 +51,10 @@ export const AssetSchema = z.object({
 export const IngestFileSchema = z.object({
   id: z.string(),
   name: z.string(),
-  size: z.number().int().min(0),
-  method: z.enum(["MinerU", "Pandoc", "Auto"]),
-  status: z.enum(["queued", "parsing", "done", "failed"]),
-  progress: z.number().int().min(0).max(100),
+  size: z.number().optional().default(0),
+  method: z.string().optional().default("MinerU"),
+  status: z.string().optional().default("done"),
+  progress: z.number().optional().default(100),
   error: z.string().nullable().optional(),
   dismissed: z.boolean().optional(),
 })
@@ -68,7 +68,7 @@ export const OutputSchema = z.object({
   venue: z.string().nullable().optional(),
   logoUrl: z.string().nullable().optional(),
   secondaryLogoUrl: z.string().nullable().optional(),
-  themeColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
+  themeColor: z.string().nullable().optional(),
   sourceIds: z.array(z.string()).nullable().optional(),
   isActive: z.boolean().optional(),
   cards: z.array(CardSchema).optional(),

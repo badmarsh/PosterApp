@@ -92,6 +92,8 @@ export interface BibSlice {
 export interface UiSlice {
   agentEvents: AgentEvent[]
   generatingIds: string[]
+  isAiStreaming: boolean
+  setIsAiStreaming: (v: boolean) => void
 
   // Compile state (persisted across tab switches)
   compiling: boolean

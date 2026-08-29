@@ -20,12 +20,33 @@ export function parseAiJson<T>(raw: string): { data: T | null; error: string | n
   try {
     return { data: JSON.parse(cleaned) as T, error: null }
   } catch {
-    const match = cleaned.match(/\{[\s\S]*\}/)
-    if (match) {
+    // Try matching array first or object depending on whichever appears first
+    const objIdx = cleaned.indexOf("{")
+    const arrIdx = cleaned.indexOf("[")
+
+    if (arrIdx !== -1 && (objIdx === -1 || arrIdx < objIdx)) {
+      const matchArr = cleaned.match(/\[[\s\S]*\]/)
+      if (matchArr) {
+        try {
+          return { data: JSON.parse(matchArr[0]) as T, error: null }
+        } catch {}
+      }
+    }
+
+    const matchObj = cleaned.match(/\{[\s\S]*\}/)
+    if (matchObj) {
       try {
-        return { data: JSON.parse(match[0]) as T, error: null }
+        return { data: JSON.parse(matchObj[0]) as T, error: null }
       } catch {}
     }
+
+    const matchArr = cleaned.match(/\[[\s\S]*\]/)
+    if (matchArr) {
+      try {
+        return { data: JSON.parse(matchArr[0]) as T, error: null }
+      } catch {}
+    }
+
     return { data: null, error: `AI returned invalid JSON: ${cleaned.slice(0, 200)}` }
   }
 }

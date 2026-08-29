@@ -1,0 +1,198 @@
+% Please make sure you insert your
+% data according to the instructions in PoSauthmanual.pdf
+\documentclass[a4paper,11pt]{article}
+\usepackage{pos}
+\usepackage{lineno}
+
+\title{Performance and calibration of the ATLAS Tile Calorimeter}
+%% \ShortTitle{Short Title for header}
+\manuallySeparateAuthors
+\author*[a]{Róbert Astaloš} % on behalf of the ATLAS Tile Calorimeter system
+\author{ on behalf of the ATLAS Collaboration}
+
+\affiliation[a]{Faculty of Mathematics, Physics and Informatics, Comenius University,\\
+ Mlynska dolina F1, Bratislava, Slovakia}
+
+%\affiliation[b]{Department, University,\\
+%Street number, City, Country}
+
+\emailAdd{robert.astalos@fmph.uniba.sk}
+%\emailAdd{s.author@univ.country}
+
+\abstract{
+The Tile Calorimeter (TileCal) is a sampling hadronic calorimeter covering the central region of the ATLAS experiment, with steel as absorber and plastic scintillators as active medium. The scintillators are read-out by the wavelength shifting fibres coupled to the photomultiplier tubes (PMTs). The analogue signals from the PMTs are amplified, shaped, digitized by sampling the signal every 25 ns and stored on detector until a trigger decision is received. The TileCal front-end electronics reads out the signals produced by about 10000 channels measuring energies ranging from about 30 MeV to about 2 TeV. Each stage of the signal production from scintillation light to the signal
+reconstruction is monitored and calibrated. During LHC Run-2, high-momentum isolated muons have been used to study and validate the electromagnetic scale, while hadronic response has been probed with isolated hadrons. The calorimeter time resolution has been studied with multi-jet events. First results using early LHC Run-3 data will be shown. A summary of the performance results, including the calibration, stability, absolute energy scale, uniformity and time resolution, will be presented.
+}
+
+\FullConference{XXXII International Workshop on Deep Inelastic Scattering and Related Subjects (DIS2025)\\
+24-28 March, 2025\\
+Cape Town, South Africa\\}
+
+%% \tableofcontents
+
+\begin{document}
+%\linenumbers
+\maketitle
+
+
+\section{Tile Calorimeter}
+Tile Calorimeter (TileCal) is the central hadronic calorimeter of the ATLAS detector  \cite{ATLAS} at the Large Hadron Collider (LHC) \cite{LHC}, covering pseudorapidity\footnote{The pseudorapidity $\eta$ is defined in terms of the polar angle $\theta$ measured from the beam pipe axis as $\eta = -\ln\tan(\theta/2)$.} of $|\eta| < 1.7$ (Figure \ref{fig:1} left). Its purpose is identification and energy measurements of hadrons, jets and tau leptons decaying hadronically and also measurements of missing transverse energy. 
+%            \\resolution of $\sigma_\mathrm{E} / E = 56.4\%/\sqrt{E\mathrm{(GeV)}}\oplus5.5\%$
+            %\item Provides inputs for the L1Calo Trigger and muon identification
+It is divided into 4 partitions: 2 halves of central long barrel (LB) and 2 extended barrels (EB). Each barrel consists of 64 modules in azimuthal direction $\varphi$. Each module consists of plastic scintillating tiles serving as active medium and steel plates serving as absorber as shown in Figure \ref{fig:1} right. Light produced by particles passing through scintillating tiles is transmitted to photomultipliers (PMTs) via the wavelength-shifting fibres. In radial direction, the readout cells are divided into 3 layers in LB (A, BC, and D) and 3 layers in EB (A, B, and D). Typically, there are 2 PMTs (channels) for a given readout cell, accounting for a total of 9852 readout channels for the 5182 cells (special E1 - E4 cells have single readout). Signals from channels are divided into 2 branches: low gain (LG) and high gain (HG) and amplified with a relative ratio of 1:64.
+
+\begin{figure}[ht!]
+\begin{center}
+%\begin{tabular}{cc}
+\includegraphics[width=0.64\linewidth]{plots/plot1.pdf}
+\includegraphics[width=0.34\linewidth]{plots/plot2.pdf}
+\caption{The ATLAS calorimeter system (left) and components and mechanical structure of a single TileCal module (right) \cite{ATLAS}.}
+\label{fig:1}
+%\end{tabular}
+\end{center}
+\end{figure}
+
+%        \begin{center}
+%            \includegraphics[width=0.95\linewidth]{plots/plot3.pdf}
+%        \end{center}
+
+\section{Calibration Systems}
+Various calibration systems used to calibrate each step of the TileCal cell energy reconstruction are summarized in Figure \ref{fig:2}. The reconstructed energy $E$ is calculated from the signal amplitude $A$ in analogue to digital converter (ADC) counts using calibration constants:
+
+\begin{center}
+{\Large $E \text{ [GeV]} = \frac{A\text{[ADC]}}{{C_{\text{ADC}\rightarrow\text{pC}}} \times {C_{\text{pC}\rightarrow\text{GeV}}} \times {C_{\text{Cs}}} \times {C_{\text{MB}}} \times {C_{\text{Las}}}},$}
+\end{center}
+where $C_{\text{Cs}}$, $C_{\text{MB}}$, $C_{\text{Las}}$, $C_{\text{ADC}\rightarrow\text{pC}}$ are determined using Cesium, Minimum Bias, Laser and Charge Injection System calibrations while the conversion from pC to GeV ($C_{\text{pC}\rightarrow\text{GeV}}$) is determined by measuring the response of the calorimeter to electrons (EM scale) in test beam campaigns.
+
+\begin{figure}[ht!]
+\begin{center}
+%\begin{tabular}{cc}
+\includegraphics[width=0.7\linewidth]{plots/plot5.pdf}
+\caption{The signal paths for calibration systems used by the TileCal \cite{tile_performance_paper}.}
+\label{fig:2}
+%\end{tabular}
+\end{center}
+\end{figure}
+
+%\vspace{-0.5cm}
+\subsection{Cesium System}
+Calibration with the Cesium system is performed on a monthly basis and is able to calibrate variations of the entire readout chain (optical components as well as PMTs). A capsule containing $^{137}$Cs (radioactive $\gamma$-source with $E_{\gamma} = 0.662$ MeV) is moved by an hydraulic system through the calorimeter system measuring the response of every single tile. The signals are readout by a dedicated integrator system separate from the standard readout system. For typical cells, the precision of cesium calibration is $\sim 0.3\%$. In Figure \ref{fig:3} left, one can see down-drifts in the response variation caused by degradation in the fibers, scintillating tiles, and PMTs and their recovery in the periods without collisions. Highest degradation is seen for A layer cells as they are closest to the beam pipe. 
+
+\begin{figure}[ht!]
+\begin{center}
+\includegraphics[width=0.485\textwidth]{plots/plot6.png}
+\includegraphics[width=0.5\textwidth]{plots/plot8.pdf}
+\caption{
+The average (over all cells in a given radial layer) response variation of the TileCal cells relative to the expected value to the $^{137}$Cs source, $\Delta R_\mathrm{Cs}$, (left) and in the PMTs obtained from the Laser calibration runs, $\Delta R_\mathrm{Las}$, as functions of time \cite{tile_public}.
+}
+\label{fig:3}
+\end{center}
+\end{figure}
+
+%\begin{figure}[ht!]
+%\begin{center}
+%\includegraphics[width=0.49\textwidth]{plots/plot6.png}
+%\includegraphics[width=0.49\textwidth]{plots/plot6a.png}
+%\caption{The average (over all cells in three radial layers) response variation of the TileCal cells to the $^{137}$Cs source relative to the expected value, $\Delta R_\mathrm{Cs}$, as a function of time (left) and as a function of the cell position in $\eta$ (right).}
+%\label{fig:3}
+%\end{center}
+%\end{figure}
+
+\vspace{-0.5cm}
+\subsection{Laser System}
+Calibration with the laser system is performed approximately every two weeks during data taking. A single laser source is used emitting short 10 ns light pulses with 532 nm wavelength which are simultaneously distributed to all 9852 PMTs. It is used to calibrate variations due to electronics and PMTs and in addition also to monitor timing in all channels. Precision of the laser calibration is at the level of $\sim0.5\%$. In Figure \ref{fig:3} right, one can see the same down-drifts in the response variation caused by degradation and their recovery as in the case of the Cesium calibration. %The effect is less profound for the special demonstrator module.
+%Used also for PMT gain and timing corrections and monitoring
+
+%\begin{figure}[ht!]
+%\begin{center}
+%\includegraphics[width=0.49\textwidth]{plots/plot8.pdf}
+%*\includegraphics[width=0.49\textwidth]{plots/plot8a.pdf}
+%\caption{
+%The mean response variation in the PMTs obtained from the Laser calibration runs for each layer of the TileCal cells relative to the expected value, $\Delta R_\mathrm{Las}$, as a function of time.}
+%\label{fig:4}
+%\end{center}
+%\end{figure}
+
+\subsection{Charge Injection System}
+Charge Injection System (CIS) calibration constants are updated on a monthly basis during data taking. A well defined charge signal covering the full dynamic range is injected to the readout electronics to calibrate the response of ADCs and to determine the $C_{\text{ADC}\rightarrow\text{pC}}$ conversion constant from sample amplitude (ADC counts) to charge units (pC). Precision of the CIS calibration is at the level of $\sim0.7\%$. In Figure \ref{fig:5}, one can see that the response is very stable over time.
+        
+\begin{figure}[ht!]
+\begin{center}
+\includegraphics[width=0.49\textwidth]{plots/plot12.png}
+\includegraphics[width=0.49\textwidth]{plots/plot11.png}
+\caption{
+The charge injection system constants ($C_{\text{ADC}\rightarrow\text{pC}}$) for the low-gain (left) and high-gain (right) ADCs, as a functions of time \cite{tile_public}.}
+\label{fig:5}
+\end{center}
+\end{figure}
+
+\subsection{Minimum Bias System}
+Calibration with the Minimum Bias (MB) system, performed yearly during reprocessing, uses MB $pp$ collisions with low momentum transfer to study the response in the cells most exposed to radiation. Minimum bias events produce a PMT current proportional to the LHC instantaneous luminosity and allow monitoring of the response of the entire readout chain over time. Data are collected with the special integrator readout system used also by Cesium calibration (signal integrated in the 10--20 ms window).
+This calibration is especially useful for degradation studies of cells in the gap region (E cells) which are inaccessible to the cesium system. Precision of the calibration is at the level of $\sim1.2\%$. In the Figure \ref{fig:6}, one can see that response variations of Minimum Bias and Cesium Calibrations are compatible.
+        
+\begin{figure}[ht!]
+\begin{center}
+\includegraphics[width=0.56\textwidth]{plots/plot13.png}
+\includegraphics[width=0.43\textwidth]{plots/plot13a.pdf}
+\caption{
+The variation of the average response to MB events, $\Delta R_\mathrm{MB}$, for the cells in the gap/crack region of the extended barrel as a function of time (left) and the average response variation of A14 cells measured by the laser, cesium and minimum-bias integrator systems as a function of time (right) \cite{tile_public}.}
+\label{fig:6}
+\end{center}
+\end{figure}
+
+\section{Performance Studies}
+\subsection{Isolated Muons}
+Isolated muons produced in $W \rightarrow \mu\nu$ decays from $pp$ collisions are used for calorimeter performance tests. 
+               % \item Uniformity and stability of the cells' response and the EM scale setting checks
+Energy loss per unit path ($\Delta E/\Delta x$) of muon is close to the minimum ionizing level, which makes a muon an ideal particle to scan the entire TileCal volume. Energy Response $R$ is calculated as ratio of data and MC for the truncated mean of the $\Delta E/\Delta x$ calculated without considering 1\% of events in the upper tail:
+                \begin{equation}
+                  R = \frac{\langle\Delta E/\Delta x\rangle_{F=1\%}^{\text{Data}}}{\langle\Delta E/\Delta x\rangle_{F=1\%}^{\text{MC}}}\nonumber
+                \end{equation}
+Response uniformity in azimuthal direction is measured by fitting the double ratio distribution to a Gaussian likelihood function:
+                \begin{equation}
+                  \mathcal{L} = \prod_{m=1}^{64} \frac{1}{\sqrt{2\pi\sqrt{\sigma_m^2 + s^2}}} \exp\left[-\frac{1}{2}\frac{(R_m - \mu)^2}{\sigma_m^2 + s^2}\right], \nonumber
+                \end{equation}   
+where $\mu$ is the average energy response and $s$ is a non-uniformity estimator.
+In the Figure \ref{fig:7}, one can see that there is a good uniformity across all azimuthal modules as illustrated by example cells BC-7 and D-6. On average, $s \sim 2.6\%$ for 2022 data and $s \sim 2.2\%$ for 2023 data.
+            
+\begin{figure}[ht!]
+\begin{center}
+\includegraphics[width=0.49\textwidth]{plots/plot16.pdf}
+\includegraphics[width=0.49\textwidth]{plots/plot17.pdf}
+\caption{
+Distribution of the ratio $R$ between data and MC (error bars representing statistical uncertainties) across the azimuthal modules of the TileCal for the long barrel cell BC-7 and the extended barrel cell D-6 \cite{tile_public_with_collision_data}.}
+\label{fig:7}
+\end{center}
+\end{figure}
+            
+\subsection{Time Performance}
+Time performance is studied using reconstructed jets with $p_\mathrm{T}>$ 20 GeV. In Figure \ref{fig:8}, one can see that the mean cell time decreases with cell energy due to less neutrons and slow hadronic components of shower. There is a transition between high and low gain at cell energy of $\sim$22~GeV. The cell time resolution is calculated as $\sigma$ of a Gaussian fit of the timing distribution in a given energy slice. There is a worse resolution for the extended barrel due to larger cell size. %and also for the outermost D-layer. 
+The resolution is better than 1 ns for cell energy $>$ 4 GeV.
+
+\begin{figure}[ht!]
+\begin{center}
+\includegraphics[width=0.8\textwidth]{plots/plot19.pdf}
+\caption{
+The mean cell time (Gaussian mean, left) and time resolution (Gaussian $\sigma$, right) in jet events as functions of the cell energy \cite{tile_public_with_collision_data}.}
+\label{fig:8}
+\end{center}
+\end{figure}
+\vspace{-0.1cm}
+\section*{Summary}
+The ATLAS Tile Calorimeter is operating well in LHC Run 3 data taking period. The good performance is ensured and monitored by several calibration systems. Calibration and monitoring procedures are being validated with dedicated performance studies with isolated muons, hadrons, and jets. Updates on the Tile performance studies using Run 3 data were presented. EM response is validated using isolated muons where a good uniformity is seen across all azimuthal modules. Time performance is studied using jets in collision data. The time resolution is observed to be better than 1 ns for cell energy $>$ 4 GeV.
+
+\begin{thebibliography}{99}
+\bibitem{ATLAS} ATLAS Collaboration, The ATLAS Experiment at the CERN Large Hadron Collider, JINST 3 (2008) S08003, \url{https://doi.org/10.1088/1748-0221/3/08/S08003}
+
+\bibitem{LHC} Lyndon Evans and Philip Bryant, JINST 3, S08001 (2008), \url{https://doi:10.1088/1748-0221/3/08/s08001}
+
+\bibitem{tile_performance_paper} ATLAS Collaboration, Operation and performance of the ATLAS tile calorimeter in LHC Run 2, Eur. Phys. J. C (2024) 84: 1313, \url{https://doi.org/10.1140/epjc/s10052-024-13151-4} 
+%arXiv:2401.16034\\
+%\url{https://arxiv.org/abs/2401.16034}
+
+\bibitem{tile_public} \url{https://twiki.cern.ch/twiki/bin/view/AtlasPublic/ApprovedPlotsTile}
+
+\bibitem{tile_public_with_collision_data} \url{https://twiki.cern.ch/twiki/bin/view/AtlasPublic/TileCaloPublicResults}
+\end{thebibliography}
+
+\end{document}

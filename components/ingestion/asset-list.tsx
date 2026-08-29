@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useMemo, memo } from "react"
-import { Trash2, Wand2, ListFilter, File, Sparkles, Loader2 } from "lucide-react"
+import { Trash2, Wand2, ListFilter, File, Sparkles, Loader2, Search, XCircle } from "lucide-react"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import katex from "katex"
 import "katex/dist/katex.min.css"
@@ -257,8 +258,21 @@ export function AssetList() {
   const ingestFiles = project.ingestFiles || []
 
   const [fileFilters, setFileFilters] = useState<Record<string, AssetKind | "all">>({})
+  const [searchQuery, setSearchQuery] = useState("")
 
   const getFilter = (id: string) => fileFilters[id] || "all"
+
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const matchesSearch = (a: Asset) => {
+    if (!normalizedQuery) return true
+    const captionMatch = a.caption?.toLowerCase().includes(normalizedQuery)
+    const snippetMatch = a.snippet?.toLowerCase().includes(normalizedQuery)
+    const headingMatch = a.heading?.toLowerCase().includes(normalizedQuery)
+    const filenameMatch = a.filename?.toLowerCase().includes(normalizedQuery)
+    const pageMatch = a.page ? `p.${a.page}`.includes(normalizedQuery) || `page ${a.page}`.includes(normalizedQuery) || String(a.page) === normalizedQuery : false
+    const tableMatch = a.tableRows ? JSON.stringify(a.tableRows).toLowerCase().includes(normalizedQuery) : false
+    return Boolean(captionMatch || snippetMatch || headingMatch || filenameMatch || pageMatch || tableMatch)
+  }
 
   const handleBackfill = async () => {
     setIsBackfilling(true)
@@ -273,23 +287,25 @@ export function AssetList() {
   const groups = ingestFiles
     .map((file) => {
       const allItems = assets.filter((a: Asset) => a.fileId === file.id)
-      let items = allItems
+      let items = allItems.filter(matchesSearch)
       const fKind = getFilter(file.id)
       if (fKind !== "all") {
         items = items.filter((a) => a.kind === fKind)
       }
-      return { file, items, totalCount: allItems.length }
+      return { file, items, totalCount: allItems.length, filteredCount: items.length }
     })
     .filter((g) => g.totalCount > 0)
 
   const allLegacyAssets = assets.filter(
     (a: Asset) => !a.fileId || !ingestFiles.find((f) => f.id === a.fileId),
   )
-  let legacyAssets = allLegacyAssets
+  let legacyAssets = allLegacyAssets.filter(matchesSearch)
   const legacyFilter = getFilter("legacy")
   if (legacyFilter !== "all") {
     legacyAssets = legacyAssets.filter((a) => a.kind === legacyFilter)
   }
+
+  const matchingAssetsCount = groups.reduce((acc, g) => acc + g.filteredCount, 0) + legacyAssets.length
 
   const defaultOpen = groups.length > 0 ? groups[0].file.id : "legacy"
   const [openSection, setOpenSection] = useState<string | null>(defaultOpen)
@@ -332,25 +348,58 @@ export function AssetList() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between px-1">
-        <span className="text-[11px] font-medium text-muted-foreground">
-          {assets.length} extracted assets
-        </span>
-        <Button
-          size="xs"
-          variant="outline"
-          className="h-6 gap-1 px-2 text-[10px]"
-          disabled={isBackfilling || assets.length === 0}
-          onClick={handleBackfill}
-        >
-          {isBackfilling ? (
-            <Loader2 className="size-3 animate-spin text-primary" />
-          ) : (
-            <Sparkles className="size-3 text-primary" />
+      {/* Search and stats bar */}
+      <div className="flex flex-col gap-2">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search figures, tables, text, formulas..."
+            className="h-8 pl-8 pr-8 text-xs bg-card"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+            >
+              <XCircle className="size-3.5" />
+            </button>
           )}
-          {isBackfilling ? "Backfilling..." : "Backfill captions"}
-        </Button>
+        </div>
+
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[11px] font-medium text-muted-foreground">
+            {searchQuery
+              ? `${matchingAssetsCount} of ${assets.length} assets`
+              : `${assets.length} extracted assets`}
+          </span>
+          <Button
+            size="xs"
+            variant="outline"
+            className="h-6 gap-1 px-2 text-[10px]"
+            disabled={isBackfilling || assets.length === 0}
+            onClick={handleBackfill}
+          >
+            {isBackfilling ? (
+              <Loader2 className="size-3 animate-spin text-primary" />
+            ) : (
+              <Sparkles className="size-3 text-primary" />
+            )}
+            {isBackfilling ? "Backfilling..." : "Backfill captions"}
+          </Button>
+        </div>
       </div>
+
+      {searchQuery && matchingAssetsCount === 0 && (
+        <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border px-4 py-8 text-center">
+          <p className="text-xs font-medium text-foreground">No assets match &ldquo;{searchQuery}&rdquo;</p>
+          <Button size="xs" variant="outline" onClick={() => setSearchQuery("")}>
+            Clear Search
+          </Button>
+        </div>
+      )}
       {groups.map((g) => {
         const isOpen = openSection === g.file.id
         return (

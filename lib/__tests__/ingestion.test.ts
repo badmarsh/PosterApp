@@ -32,11 +32,11 @@ describe("Ingestion", () => {
   })
 
   describe("slotsForKind", () => {
-    it("returns figure1, figure2 for figure", () => {
-      expect(slotsForKind("figure")).toEqual(["figure1", "figure2"])
+    it("returns figure1, figure2, bullets for figure", () => {
+      expect(slotsForKind("figure")).toEqual(["figure1", "figure2", "bullets"])
     })
-    it("returns table for table", () => {
-      expect(slotsForKind("table")).toEqual(["table"])
+    it("returns table, bullets for table", () => {
+      expect(slotsForKind("table")).toEqual(["table", "bullets"])
     })
     it("returns bullets for text", () => {
       expect(slotsForKind("text")).toEqual(["bullets"])

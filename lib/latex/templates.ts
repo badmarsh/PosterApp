@@ -14,6 +14,17 @@ function getMeta(project: Project) {
   }
 }
 
+export const FITMATH_MACRO = `\\newsavebox{\\eqbox}
+\\providecommand{\\fitmath}[1]{%
+  \\sbox{\\eqbox}{\\ensuremath{\\displaystyle #1}}%
+  \\ifdim\\wd\\eqbox>\\linewidth
+    \\resizebox{\\linewidth}{!}{\\usebox{\\eqbox}}%
+  \\else
+    \\usebox{\\eqbox}%
+  \\fi
+}
+`
+
 // ---------------------------------------------------------------------------
 // Color utilities
 // ---------------------------------------------------------------------------
@@ -80,6 +91,8 @@ export function getMinimalTemplate(project: Project, themeColor?: string): strin
 \\usepackage{multicol}
 \\usetikzlibrary{calc}
 
+${FITMATH_MACRO}
+
 \\newcommand{\\looseitems}{\\begin{itemize}\\setlength{\\itemsep}{0.3em}}
 \\newcommand{\\tightitems}{\\begin{itemize}\\setlength{\\itemsep}{0.15em}}
 \\newcommand{\\captiontext}[1]{#1}
@@ -137,6 +150,8 @@ export function getAtlasTemplate(project: Project, themeColor?: string, workspac
 \\usepackage{amssymb}
 \\usepackage{multicol}
 \\usetikzlibrary{calc}
+
+${FITMATH_MACRO}
 
 \\newcommand{\\looseitems}{\\begin{itemize}\\setlength{\\itemsep}{0.3em}}
 \\newcommand{\\tightitems}{\\begin{itemize}\\setlength{\\itemsep}{0.15em}}
@@ -200,6 +215,8 @@ export function getGeminiTemplate(project: Project, themeColor?: string): string
 \\usepackage{amssymb}
 \\usepackage{booktabs}
 
+${FITMATH_MACRO}
+
 \\usetheme{Madrid}
 \\usecolortheme{default}
 
@@ -244,6 +261,9 @@ export function getTikzposterTemplate(project: Project, themeColor?: string): st
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{multicol}
+
+${FITMATH_MACRO}
+
 ${override}
 \\usetheme{Board}
 
@@ -269,6 +289,8 @@ export function getA0PosterTemplate(project: Project, _themeColor?: string): str
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{multicol}
+
+${FITMATH_MACRO}
 
 \\title{\\Huge ${title}}
 \\author{\\Large ${authors}}
@@ -296,6 +318,8 @@ ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
 
+${FITMATH_MACRO}
+
 \\title{${title}}
 \\author{${authors}}
 \\institute{${venue}}
@@ -322,6 +346,8 @@ ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
 
+${FITMATH_MACRO}
+
 \\title{${title}}
 \\author{${authors}}
 \\institute{${venue}}
@@ -345,6 +371,8 @@ ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
+
+${FITMATH_MACRO}
 
 \\title{${title}}
 \\author{${authors}}
@@ -370,6 +398,8 @@ ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
 
+${FITMATH_MACRO}
+
 \\title{${title}}
 \\author{${authors}}
 \\institute{${venue}}
@@ -393,6 +423,8 @@ ${override}\\usepackage[utf8]{inputenc}
 \\usepackage{graphicx}
 \\usepackage{booktabs}
 \\usepackage{amsmath}
+
+${FITMATH_MACRO}
 
 \\title{${title}}
 \\author{${authors}}
@@ -424,6 +456,8 @@ export function getTwoColumnTemplate(project: Project): string {
 \\usepackage[margin=1in]{geometry}
 \\usepackage{authblk}
 
+${FITMATH_MACRO}
+
 \\title{${title}}
 \\author{${authors}}
 \\affil{${venue}}
@@ -449,6 +483,8 @@ export function getSingleColumnTemplate(project: Project): string {
 \\usepackage[margin=1.5in]{geometry}
 \\usepackage{authblk}
 
+${FITMATH_MACRO}
+
 \\title{${title}}
 \\author{${authors}}
 \\affil{${venue}}
@@ -471,6 +507,8 @@ export function getIEEEConfTemplate(project: Project): string {
 \\usepackage{amssymb}
 \\usepackage{booktabs}
 
+${FITMATH_MACRO}
+
 \\title{${title}}
 \\author{${authors}}
 
@@ -481,19 +519,26 @@ export function getIEEEConfTemplate(project: Project): string {
 
 export function getACMSigconfTemplate(project: Project): string {
   const { title, authors } = getMeta(project)
+  const authorList = authors
+    .split(/[,;]\s*/)
+    .filter(Boolean)
+    .map(a => `\\author{${a.trim()}}`)
+    .join("\n") || `\\author{${authors}}`
+
   return `
 % [AI-CONTEXT] You are inside an ACM sigconf document.
 % Use standard \\section{}, \\subsection{} commands.
-\\documentclass[sigconf]{acmart}
-\\usepackage[utf8]{inputenc}
-\\usepackage{graphicx}
+\\documentclass[sigconf,nonacm]{acmart}
+\\settopmatter{printacmref=false}
+\\renewcommand\\footnotetextcopyrightpermission[1]{}
 \\usepackage{booktabs}
 
+${FITMATH_MACRO}
+
 \\title{${title}}
-\\author{${authors}}
+${authorList}
 
 \\begin{document}
-\\maketitle
 `
 }
 
@@ -509,8 +554,55 @@ export function getSpringerLLNCSTemplate(project: Project): string {
 \\usepackage{amssymb}
 \\usepackage{booktabs}
 
+${FITMATH_MACRO}
+
 \\title{${title}}
 \\author{${authors}}
+
+\\begin{document}
+\\maketitle
+`
+}
+
+export function getJinstProceedingsTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside a JINST (Journal of Instrumentation) proceedings document.
+% Use standard \\section{}, \\subsection{} commands.
+\\documentclass[a4paper,11pt]{article}
+\\usepackage{jinstpub}
+\\usepackage{lineno}
+\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\proceeding{${venue || "Conference Proceedings"}}
+
+\\title{\\boldmath ${title}}
+
+\\author{${authors}}
+
+\\begin{document}
+\\maketitle
+\\flushbottom
+`
+}
+
+export function getPosProceedingsTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside a PoS (Proceedings of Science) proceedings document.
+% Use standard \\section{}, \\subsection{} commands.
+\\documentclass[a4paper,11pt]{article}
+\\usepackage{pos}
+\\usepackage{lineno}
+\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\title{${title}}
+\\author{${authors}}
+\\FullConference{${venue || "Conference Proceedings"}}
 
 \\begin{document}
 \\maketitle

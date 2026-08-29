@@ -1,0 +1,1047 @@
+%\documentclass{beamer}
+%\mode<presentation>
+%{
+%  \usetheme{Warsaw}
+% %\useoutertheme{infolines}
+% %\setbeamertemplate{headline}{}
+% %\setbeamertemplate{footline}{\insertframenumber/\inserttotalframenumber}
+%\setbeamertemplate{footline}{\hspace{12.2cm}\scriptsize{\textbf{\insertframenumber}}\vspace{0.2cm} }
+%\setbeamertemplate{navigation symbols}{}%remove navigation symbols !!!!!!!!!!!!!!!!!!!!!!!
+%%\setbeamercolor{headline,footline}{bg=red!80!red}
+%\setbeamercolor{headline,footline}{bg=red!80!red}
+%\makeatletter
+%\newenvironment{noheadline}{\setbeamertemplate{headline}[default] \def\beamer@entrycode{\vspace*{-\headheight}}
+%}{}
+%\makeatother
+%\usebeamercolor[red]{headline}
+%  \setbeamercovered{transparent}
+%  % or whatever (possibly just delete it)
+%}
+
+\documentclass[xcolor=dvipsnames]{beamer}
+%\documentclass{beamer}
+\mode<presentation>
+{
+  \usetheme{Warsaw}
+  \useoutertheme{infolines}
+  \setbeamercolor{section in head/foot}{bg=Black}
+%  \useoutertheme{shadow}
+
+ %\useoutertheme{infolines}
+ %\setbeamertemplate{headline}{}
+ %\setbeamertemplate{footline}{\insertframenumber/\inserttotalframenumber}
+\setbeamertemplate{footline}{\hspace{12.2cm}\scriptsize{\textbf{\insertframenumber}}\vspace{0.2cm} }
+
+\setbeamertemplate{headline}{\vspace{0.3cm}}  % !!!!!!!!!!!!!!! odstranuje vrchny riadok s nazvom kapitol !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+\setbeamertemplate{navigation symbols}{}%remove navigation symbols !!!!!!!!!!!!!!!!!!!!!!!
+%\setbeamercolor{headline,footline}{bg=red!80!red}
+%\setbeamercolor{headline,footline}{bg=red!80!red}
+\setbeamercolor{headline,footline}{bg=green!80!red}
+\makeatletter
+\newenvironment{noheadline}{\setbeamertemplate{headline}[default] \def\beamer@entrycode{\vspace*{-\headheight}}
+%\setbeamerfont{section in toc}{size=\small}
+}{}
+\makeatother
+\usebeamercolor[red]{headline}
+  \setbeamercovered{transparent}
+  % or whatever (possibly just delete it)
+}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows,shapes,backgrounds}
+\usepackage[euler]{textgreek}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{makeidx}
+\usepackage{palatino}
+\usepackage{graphicx}
+\usepackage{epstopdf}
+\usepackage{color}
+\usepackage[absolute,overlay]{textpos}
+\usepackage{bm}
+%\usepackage[slovak]{babel}
+\usepackage[cp1250]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usepackage{verbatim}
+\usepackage{amsbsy}
+\usepackage{makecell}
+
+\usepackage{hyperref}
+\hypersetup{hidelinks=true}
+
+\usepackage{xcolor}
+\definecolor{olive}{rgb}{0.3, 0.4, .1}
+\definecolor{fore}{RGB}{249,242,215}
+\definecolor{back}{RGB}{51,51,51}
+\definecolor{title}{RGB}{255,0,90}
+\definecolor{dgreen}{rgb}{0.,0.6,0.}
+\definecolor{gold}{rgb}{1.,0.84,0.}
+\definecolor{JungleGreen}{cmyk}{0.99,0,0.52,0}
+\definecolor{BlueGreen}{cmyk}{0.85,0,0.33,0}
+\definecolor{RawSienna}{cmyk}{0,0.72,1,0.45}
+\definecolor{Magenta}{cmyk}{0,1,0,0}
+
+
+
+\title[]{Charged particle correlations with ATLAS}
+\author[]{{\large R\'{o}bert Astalo\v{s}}\\
+\and
+%{\footnotesize (Comenius University Bratislava)}\\
+{\scriptsize (Comenius University Bratislava)}\\
+\and
+\and\\
+{\large on behalf of the ATLAS Collaboration\vspace{1cm}}}
+
+\institute{\small ICHEP 2022 -- XLI International Conference on High Energy Physics\\
+Bologna, Italy, 6 - 13 July 2022\vspace{0.6cm}}
+\date{July 9, 2022}
+
+\begin{document}
+
+\begin{frame}
+\titlepage
+\begin{textblock*}{5cm}(10.35cm,3.1cm) % {block width} (coords)
+\includegraphics[width=1.9cm]{atlas.eps}
+\end{textblock*}
+
+%\begin{textblock*}{5cm}(0.6cm,3.6cm) % {block width} (coords)
+%\includegraphics[width=1.9cm]{uk_logo_BP_Eng.png}
+\begin{textblock*}{5cm}(-0.2cm,2.1cm) % {block width} (coords)
+\includegraphics[width=3.3cm]{uk_logo_text_BP_vertical_Eng.png}
+\end{textblock*}
+\end{frame}
+
+%\AtBeginSection[]
+%{
+%\begin{frame}
+%  \frametitle{Overview}
+%  \tableofcontents[currentsection,hideothersubsections]
+%\end{frame}
+%}
+%\section[pp cross-section]{Measurement of the Inelastic Proton-Proton Cross Section at $\sqrt{s} = 13 \;\rm{TeV}$ with the ATLAS Detector at the LHC\newline
+%\hspace{0.5cm}\footnotesize{Phys. Rev. Lett. 117 (2016) 182002 [arXiv:1606.02625]}}
+
+
+\begin{frame}
+\frametitle{Overview}
+
+\begin{textblock*}{0.5\linewidth}(0.55\linewidth, 6.5cm)
+%\includegraphics[width=0.7\linewidth]{atlas1}
+\end{textblock*}
+\vspace{0.1cm}
+Two-particle \alert{Bose-Einstein correlations} in $pp$ collisions at $\sqrt{s} = 13 \;\rm{TeV}$ measured with the ATLAS Detector at the LHC\\
+ {\footnotesize accepted by EPJC, \;\;\;\href{https://arxiv.org/abs/2202.02218}{arXiv:2202.02218}}\\[5pt]
+\small{
+data collected in special low-luminosity config. with minimum-bias trigger (integrated luminosity of 151$\mu \mathrm{b}^{-1}$) and high-multiplicity track trigger (8.4$\mathrm{nb}^{-1}$)\\[10pt]
+}
+\small{
+Motivation: \\
+source of information about early stages of hadron formation \\
+probe of space-time geometry of the hadronization region \\
+better understanding of quark confinement effects\\[10pt]
+}
+\begin{itemize}
+\normalsize{
+ \item Plane wave model approach \\of the origin of BEC\\[6pt]
+ % \item Motivation: source of information about early stages of hadron formation, probe of space-time geometry of the hadronization region, better understanding of quark confinement effects\\[2pt]
+ % \item use of the Lorentz-invariant four-momentum difference $Q=\sqrt{-(p_1-p_2)^2}$\\[2pt] %(for $pp$ collisions data)\\[2pt]
+ \item Recent results of the ATLAS \\collaboration\\[6pt]
+ \item Comparison to CMS results\\
+}
+\end{itemize}
+
+%\begin{textblock*}{0.5\linewidth}(0.73\linewidth, 6.9cm)
+%\includegraphics[width=0.55\linewidth]{BEC13_300920/gamow.eps}
+%\end{textblock*}
+
+\begin{textblock*}{0.5\linewidth}(0.55\linewidth, 5.8cm)
+\includegraphics[width=0.89\linewidth]{atlas1-eps-converted-to.pdf}
+\end{textblock*}
+\end{frame}
+
+
+
+
+
+\begin{frame}
+\frametitle{Bose-Einstein correlations}
+
+\begin{textblock*}{0.5\linewidth}(0.685\linewidth, 1.25cm)
+\includegraphics[width=0.7\linewidth]{BEC13_300920/bec_1.pdf}
+\end{textblock*}
+
+%\begin{textblock*}{0.5\linewidth}(0.59\linewidth, 4.8cm)
+%\includegraphics[width=0.8\linewidth]{BEC13_300920/Fig_3_a_erased.pdf}
+%%\includegraphics[width=0.8\linewidth]{BEC13_300920/Fig_3_a.eps}
+%\end{textblock*}
+
+%\begin{tikzpicture}
+%    \node[preaction={fill=cyan,fill opacity=0.5},rounded corners=1ex,font=\fontsize{12pt}{12pt}\itshape] {This is a \textcolor{blue}{\textbf{very}}, \textcolor{red}{\textbf{long}} and \textcolor{blue}{\textbf{stupid}} \\line of text without purpose};
+%  \end{tikzpicture}
+
+\begin{textblock*}{12.45cm}(0.5cm,1.3cm) % {block width} (coords)
+\small{
+symmetrical two-particle (boson) wave function:\\\vspace{0.1cm}
+$\psi_{{p_1},{p_2}}({r_1},{r_2})=\frac{1}{\sqrt{2}}\left[e^{i({p_1}{r_1}+{p_2}{r_2})}+e^{i({p_1}{r_2}+{p_2}{r_1})}\right]$\\\vspace{0.4cm}
+
+spherically symmetrical source emmision \\probability distribution described by a single \\width parameter \textcolor{blue}{R} -- hadronization source radius\\\vspace{0.4cm}
+%probe of space-time geometry of the hadronization region, size and shape of the source, better understanding of quark confinement effects\\
+two-particle correlation function:\\\vspace{0.1cm}
+$C_2(p_1,p_2)=\frac{P(p_1,p_2)}{P(p_1)P(p_2)} = \cdots =\alert{C_0[1+\textcolor{dgreen}{\lambda} e^{-\textcolor{blue}{R}Q}](1+\varepsilon Q)}$ -- Cauchy-Lorentz fit\\%fit\\
+\hspace{4.36cm}$=C_0[1+\textcolor{dgreen}{\lambda} e^{-\textcolor{blue}{R}^2Q^2}](1+\varepsilon Q)$ -- Gaussian fit\\\vspace{0.35cm}
+$C_2(p_1,p_2)=\frac{\rho(p_1,p_2)}{\rho_0(p_1,p_2)}=\frac{\rho(++,--)}{\rho(+,-)}$\\
+\vspace{0.35cm}
+$\rho$ -- two particle density function\\\vspace{0.05cm}
+\hspace{0.3cm}-- like-sign charge pairs $\rho(++,--)$\\\vspace{0.2cm}
+$\rho_0$ -- reference function without BEC \\\vspace{0.05cm}
+\hspace{0.45cm}-- unlike-sign charge pairs $\rho(+,-)$\\\vspace{0.3cm}
+%\hspace{0.45cm}-- opposite hemisphere and mixed events \\\hspace{0.75cm}were also studied\\\vspace{0.25cm}
+%reference sample: \alert{unlike-sign} particle \alert{pairs} from the same event\\\vspace{0.2cm}
+%function corrected to MC:\\\vspace{0.1cm}
+}
+%\normalsize{
+%$R_2=\frac{C_2^\mathrm{data}}{C_2^\mathrm{MC}}=\frac{\rho^\mathrm{data}(++,--)/%\rho^\mathrm{data}(+-)}{\rho^\mathrm{MC}(++,--)/\rho^\mathrm{MC}(+-)}$\\%\vspace{0.2cm}
+%}
+%Gaussian parametrization: $R_2(Q)=C_0[1+\lambda e^{-R^2Q^2}](1+\varepsilon Q)$\\\vspace{0.2cm}
+%exponential parametrization: $R_2(Q)=C_0[1+\lambda e^{-RQ}](1+\varepsilon Q)$\\\vspace{0.2cm}
+
+%Event selection: primary vertex with $\geq2$ associated tracks, no additional \\
+%\hspace{2.85cm}vertex with $\geq4$ tracks, $\geq2$ good tracks in the event\\
+%\vspace{0.1cm}
+%Track selection: \alert{$p_{\rm T} >$ 100 MeV}, hit in first Pixel layer if expected, $\geq1$ \\
+%\hspace{2.7cm}Pixel hit, at least 2 ($p_{\rm T}> 100$~MeV), 4 ($p_{\rm T}>  200$~MeV) or \\
+%\hspace{2.7cm}6 ($p_{\rm T}> 300$~MeV) SCT hits, $|d_0|<1.5$~mm, \\
+%\hspace{2.7cm}$|z_0|\cdot  \sin(\theta)<1.5$~mm, $-2.5<\eta<2.5$
+\end{textblock*}
+
+\begin{textblock*}{0.5\linewidth}(0.61\linewidth, 6.5cm)
+\small{
+%\textcolor{blue}{R} - width of the source emmision \\\hspace{0.6cm}probability distribution \\\hspace{0.6cm}$\sim$ hadronization source radius\\\vspace{0.2cm}
+\textcolor{dgreen}{$\lambda$} - \hspace{0.02cm} incoherence factor\\\vspace{0.2cm}
+$C_0$, $\varepsilon$ - experimental parameters\\
+\vspace{0.3cm}
+function parametrized in terms of \\
+Lorentz-invariant four-momentum \\
+difference $Q=\sqrt{-(p_1-p_2)^2}$\
+}
+\end{textblock*}
+\end{frame}
+
+
+\begin{frame}
+\frametitle{$C_2(Q)$ and $R_2(Q)$ functions}
+
+\begin{textblock*}{6.9cm}(0.cm,1.4cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/figaux_02h.pdf}\\\vspace{-0.3cm}\hspace{0.4cm}\includegraphics[width=0.65\linewidth]{plots_BEC_final/fig_16.pdf}  
+\end{textblock*}
+
+\begin{textblock*}{6.2cm}(6.7cm,1.4cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_03a.pdf}
+\end{textblock*}
+
+\begin{textblock*}{10.4cm}(1.7cm,1.15cm) % {block width} (coords)
+\footnotesize{
+BEC results in enhancement of same-sign particle pairs at low $Q$
+}
+\end{textblock*}
+
+\begin{textblock*}{6.4cm}(6.8cm,7.55cm) % {block width} (coords)
+\scriptsize{
+\hspace{-1.85cm}$\mathrm{n}_\mathrm{ch}$ - unfolded number of charged particles with pT > 100 MeV\\\vspace{0.cm}
+}
+\scriptsize{
+to remove undesired correlations:\vspace{0.cm}
+}
+\large{
+$R_2=\frac{C_2^\mathrm{data}}{C_2^\mathrm{MC}}=\frac{\frac{\rho^\mathrm{data}(++,--)}{\rho^\mathrm{data}(+-)}}{\frac{\rho^\mathrm{MC}(++,--)}{\rho^\mathrm{MC}(+-)}}$\\%\vspace{0.2cm}
+}
+\end{textblock*}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Multiplicity dependence of the fit parameters}
+
+\begin{textblock*}{6.4cm}(0.cm,1.05cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_04c.pdf}
+\end{textblock*}
+
+\begin{textblock*}{6.4cm}(6.3cm,1.05cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_04b.pdf}
+\end{textblock*}
+
+\begin{textblock*}{12.4cm}(0.3cm,5.8cm) % {block width} (coords)
+\scriptsize{
+%reference sample: unlike-sign particle pairs from the same event\\
+fit results of Cauchy-Lorentz parametrization: $R_2(Q)=C_0[1+\textcolor{dgreen}{\lambda} e^{-\textcolor{blue}{R}Q}](1+\varepsilon Q)$\\\vspace{0.1cm}
+scaled charged-particle multiplicity: $\alert{\mathrm{m}_\mathrm{ch}} \equiv \mathrm{n}_\mathrm{ch} / \left< \mathrm{n}_\mathrm{ch}^{|\eta|<2.5}\right> \cong \mathrm{n}_\mathrm{ch} / 32.5$ ($p_\mathrm{T} > 100$ MeV)\\
+\hspace{7.4cm}$\cong\mathrm{n}_\mathrm{ch}/16.2$ ($p_\mathrm{T} > 500$ MeV)\vspace{0.1cm}
+\begin{itemize}
+ \item \textcolor{blue}{$R$} increases with multiplicity, similarly for both $p_\mathrm{T}$ thresholds \\
+linear increase of \textcolor{blue}{$R$} with $\root 3 \of {\mathrm{m}_\mathrm{ch}}$ up to $\mathrm{m}_\mathrm{ch} = 1.2$ \\
+$\rightarrow$ hadronization volume proportional to the number of produced particles \vspace{0.1cm}
+ \item \alert{saturation of \textcolor{blue}{$R$} for high multiplicity} at: $3.35^{+0.20}_{-0.09}$ [fm] ($p_\mathrm{T} > 100$ MeV)\\\vspace{0.1cm}
+\hspace{4.7cm}$2.78^{+0.23}_{-0.09}$ [fm] ($p_\mathrm{T} > 500$ MeV)\\%\vspace{-0.05cm}
+% \item $\lambda$ at $p_\mathrm{T} > 100$ MeV decreases with multiplicity, well described by exponential decrease\vspace{-0.05cm}
+% \item $\lambda$ at $p_\mathrm{T} > 500$ MeV only a weak dependence on multiplicity, constant within measurement uncertainties, indicating relatively high level of incoherence
+\end{itemize}
+}
+\end{textblock*}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Multiplicity dependence of the fit parameters}
+
+\begin{textblock*}{6.4cm}(0.cm,1.05cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_04c.pdf}
+\end{textblock*}
+
+\begin{textblock*}{6.4cm}(6.3cm,1.05cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_04a.pdf}
+\end{textblock*}
+
+\begin{textblock*}{12.4cm}(0.3cm,5.8cm) % {block width} (coords)
+\scriptsize{
+%reference sample: unlike-sign particle pairs from the same event\\
+fit results of Cauchy-Lorentz parametrization: $R_2(Q)=C_0[1+\textcolor{dgreen}{\lambda} e^{-\textcolor{blue}{R}Q}](1+\varepsilon Q)$\\\vspace{0.1cm}
+scaled charged-particle multiplicity: $\alert{\mathrm{m}_\mathrm{ch}} \equiv \mathrm{n}_\mathrm{ch} / \left< \mathrm{n}_\mathrm{ch}^{|\eta|<2.5}\right> \cong \mathrm{n}_\mathrm{ch} / 32.5$ ($p_\mathrm{T} > 100$ MeV)\\
+\hspace{7.4cm}$\cong\mathrm{n}_\mathrm{ch}/16.2$ ($p_\mathrm{T} > 500$ MeV)\vspace{0.1cm}
+\begin{itemize}
+% \item $R$ increases with multiplicity, similarly for both $p_\mathrm{T}$ thresholds \\
+%linear increase of $R$ with $\root 3 \of {\mathrm{m}_\mathrm{ch}}$ up to $\mathrm{m}_\mathrm{ch} = 1.2$ \\
+%$\rightarrow$ hadronization volume proportional to the number of produced particles \vspace{0.1cm}
+% \item \alert{saturation of $R$ for high multiplicity} at: $3.35^{+0.20}_{-0.09}$ [fm] ($p_\mathrm{T} > 100$ MeV)\\\vspace{0.1cm}
+%\hspace{4.7cm}$2.78^{+0.23}_{-0.09}$ [fm] ($p_\mathrm{T} > 500$ MeV)\\%\vspace{-0.05cm}
+ \item \textcolor{dgreen}{$\lambda$} at $p_\mathrm{T} > 100$ MeV decreases with multiplicity\vspace{0.1cm} %, well described by exponential decrease\vspace{0.1cm}
+ \item \textcolor{dgreen}{$\lambda$} at $p_\mathrm{T} > 500$ MeV only a weak dependence on multiplicity, constant within measurement uncertainties%, indicating relatively high level of incoherence
+ \vspace{0.1cm}
+ \item different behaviour for 2 $p_\mathrm{T}$ cuts explained in 3 slides
+\end{itemize}
+}
+\end{textblock*}
+
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Pair transverse momentum dependence}
+
+\begin{textblock*}{6.4cm}(0.cm,1.3cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_06b.pdf}  %\includegraphics[width=0.333\linewidth]{fig_03b}  \includegraphics[width=0.333\linewidth]{fig_03c}
+\end{textblock*}
+
+\begin{textblock*}{6.4cm}(6.3cm,1.3cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_06a.pdf}  %\includegraphics[width=0.333\linewidth]{fig_03b}  \includegraphics[width=0.333\linewidth]{fig_03c}
+\end{textblock*}
+
+\begin{textblock*}{12.4cm}(0.5cm,6.2cm) % {block width} (coords)
+\small{
+%reference sample: unlike-sign particle pairs from the same event\\
+fit results of Cauchy-Lorentz parametrization: $R_2(Q)=C_0[1+\textcolor{dgreen}{\lambda} e^{-\textcolor{blue}{R}Q}](1+\varepsilon Q)$\\\vspace{0.3cm}
+pair transverse momentum $\alert{\mathrm{k}_\mathrm{T}} = \frac{|{\bf p}_{{\rm T}, 1} + {\bf p}_{{\rm T}, 2}|}{2}$\\\vspace{0.2cm}
+\begin{itemize}
+ \item \textcolor{blue}{$R$} and \textcolor{dgreen}{$\lambda$} decrease with $\mathrm{k}_\mathrm{T}$ \\
+ \item dependences well described by exponential decrease \\
+\end{itemize}
+}
+\end{textblock*}
+
+\end{frame}
+
+
+
+
+\begin{frame}
+\frametitle{Double-differential dependence of fit parameters}
+
+\begin{textblock*}{6.4cm}(0.cm,1.3cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_07b.pdf}  %\includegraphics[width=0.333\linewidth]{fig_03b}  \includegraphics[width=0.333\linewidth]{fig_03c}
+\end{textblock*}
+
+\begin{textblock*}{6.4cm}(6.3cm,1.3cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_07a.pdf}  %\includegraphics[width=0.333\linewidth]{fig_03b}  \includegraphics[width=0.333\linewidth]{fig_03c}
+\end{textblock*}
+
+\begin{textblock*}{12.4cm}(0.3cm,5.9cm) % {block width} (coords)
+\small{
+%reference sample: unlike-sign particle pairs from the same event\\
+%fit results of exponential parametrization: $R_2(Q)=C_0[1+\alert{\lambda} e^{-\alert{R}Q}](1+\varepsilon Q)$\\\vspace{0.15cm}
+%pair transverse momentum $\alert{\mathrm{k}_\mathrm{T}} = \frac{|{\bf p}_{{\rm T}, 1} + {\bf p}_{{\rm T}, 2}|}{2}$\\
+\begin{itemize}
+% \item sufficient statistics at 13 TeV to study the double-differential dependence\\\vspace{-0.05cm}
+% \item good agreement between MB and HMT samples \\\vspace{-0.05cm}
+% \item $R$ increases linearly with $\root 3 \of {\mathrm{n}_\mathrm{ch}}$ and is saturated for high $\mathrm{n}_\mathrm{ch}$\\\vspace{-0.05cm}
+ \item \textcolor{blue}{$R$} monotonically decreases with $\mathrm{k}_\mathrm{T}$ in all $\mathrm{m}_\mathrm{ch}$ intervals\\%\vspace{-0.05cm}
+ \item \textcolor{blue}{$R$} increases with $\mathrm{m}_\mathrm{ch}$ in all $\mathrm{k}_\mathrm{T}$ intervals \& and flatterns of to a plateau\\%\vspace{-0.05cm}
+ \item \textcolor{dgreen}{$\lambda$} monotonically decreases with $\mathrm{k}_\mathrm{T}$ in all $\mathrm{m}_\mathrm{ch}$ intervals\\%\vspace{-0.05cm}
+ \item \textcolor{dgreen}{$\lambda$} vs $\mathrm{m}_\mathrm{ch}$: rather flat for $\mathrm{k}_\mathrm{T} \lesssim 500$ MeV \& slight rise for $\mathrm{k}_\mathrm{T} \gtrsim 500$ MeV\\\vspace{-0.05cm}
+% \begin{itemize}
+%  \item slight decrease of \textcolor{dgreen}{$\lambda$} with $\mathrm{m}_\mathrm{ch}$ when integrated over all $\mathrm{k}_\mathrm{T}$ because particle $\mathrm{p}_\mathrm{T}$ ($\Rightarrow$ pair $\mathrm{k}_\mathrm{T}$) increases with $\mathrm{m}_\mathrm{ch}$
+% \end{itemize}
+\end{itemize}
+}
+\end{textblock*}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Double-differential dependence of fit parameters}
+
+\begin{textblock*}{6.4cm}(0.cm,1.3cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_04a.pdf}  %\includegraphics[width=0.333\linewidth]{fig_03b}  \includegraphics[width=0.333\linewidth]{fig_03c}
+\end{textblock*}
+
+\begin{textblock*}{6.4cm}(6.3cm,1.3cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_07a.pdf}  %\includegraphics[width=0.333\linewidth]{fig_03b}  \includegraphics[width=0.333\linewidth]{fig_03c}
+\end{textblock*}
+
+\begin{textblock*}{12.4cm}(0.3cm,5.9cm) % {block width} (coords)
+\small{
+%reference sample: unlike-sign particle pairs from the same event\\
+%fit results of exponential parametrization: $R_2(Q)=C_0[1+\alert{\lambda} e^{-\alert{R}Q}](1+\varepsilon Q)$\\\vspace{0.15cm}
+%pair transverse momentum $\alert{\mathrm{k}_\mathrm{T}} = \frac{|{\bf p}_{{\rm T}, 1} + {\bf p}_{{\rm T}, 2}|}{2}$\\
+\begin{itemize}
+% \item sufficient statistics at 13 TeV to study the double-differential dependence\\\vspace{-0.05cm}
+% \item good agreement between MB and HMT samples \\\vspace{-0.05cm}
+% \item $R$ increases linearly with $\root 3 \of {\mathrm{n}_\mathrm{ch}}$ and is saturated for high $\mathrm{n}_\mathrm{ch}$\\\vspace{-0.05cm}
+ \item \textcolor{blue}{$R$} monotonically decreases with $\mathrm{k}_\mathrm{T}$ in all $\mathrm{m}_\mathrm{ch}$ intervals\\%\vspace{-0.05cm}
+ \item \textcolor{blue}{$R$} increases with $\mathrm{m}_\mathrm{ch}$ in all $\mathrm{k}_\mathrm{T}$ intervals \& and flatterns of to a plateau\\%\vspace{-0.05cm}
+ \item \textcolor{dgreen}{$\lambda$} monotonically decreases with $\mathrm{k}_\mathrm{T}$ in all $\mathrm{m}_\mathrm{ch}$ intervals\\%\vspace{-0.05cm}
+ \item \textcolor{dgreen}{$\lambda$} vs $\mathrm{m}_\mathrm{ch}$: rather flat for $\mathrm{k}_\mathrm{T} \lesssim 500$ MeV \& slight rise for $\mathrm{k}_\mathrm{T} \gtrsim 500$ MeV\\\vspace{-0.05cm}
+ \begin{itemize}
+  \item slight decrease of \textcolor{dgreen}{$\lambda$} with $\mathrm{m}_\mathrm{ch}$ when integrated over all $\mathrm{k}_\mathrm{T}$ because particle $\mathrm{p}_\mathrm{T}$ ($\Rightarrow$ pair $\mathrm{k}_\mathrm{T}$) increases with $\mathrm{m}_\mathrm{ch}$
+ \end{itemize}
+\end{itemize}
+}
+\end{textblock*}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{$p_\mathrm{T} > 100$ MeV vs $p_\mathrm{T} > 500$ MeV}
+
+\begin{textblock*}{6.cm}(0.cm,1.1cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_07b.pdf}  
+\end{textblock*}
+
+\begin{textblock*}{6.cm}(6.1cm,1.1cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_07a.pdf}  
+\end{textblock*}
+
+\begin{textblock*}{6.cm}(0.cm,5.1cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_12b.pdf}  
+\end{textblock*}
+
+\begin{textblock*}{6.cm}(6.1cm,5.1cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_12a.pdf}  
+\end{textblock*}
+
+\begin{textblock*}{12.4cm}(0.3cm,9.2cm) % {block width} (coords)
+\footnotesize{
+features similar for both $p_\mathrm{T}$ cuts, \textcolor{blue}{$R$} plateau systematically lower for $p_\mathrm{T} > 500$ MeV
+}
+\end{textblock*}
+
+%\begin{textblock*}{12.4cm}(0.3cm,10.9cm) % {block width} (coords)
+%\small{
+%\begin{itemize}
+% \item $R$ monotonically decreases $\mathrm{k}_\mathrm{T}$ in all $\mathrm{m}_\mathrm{ch}$ intervals\\%\vspace{-0.05cm}
+% \item $R$ increases with $\mathrm{m}_\mathrm{ch}$ in all $\mathrm{k}_\mathrm{T}$ intervals \& and flatterns of to a plateau\\%\vspace{-0.05cm}
+% \item $\lambda$ monotonically decreases with $\mathrm{k}_\mathrm{T}$ in all $\mathrm{m}_\mathrm{ch}$ intervals\\%\vspace{-0.05cm}
+% \item $\lambda$ vs $\mathrm{m}_\mathrm{ch}$: rather flat for $\mathrm{k}_\mathrm{T} \lesssim 500$ MeV \& slight rise for $\mathrm{k}_\mathrm{T} \gtrsim 500$ MeV\\\vspace{-0.05cm}
+% \begin{itemize}
+%  \item slight decrease of $\lambda$ with $\mathrm{m}_\mathrm{ch}$ when integrated over all $\mathrm{k}_\mathrm{T}$ because particle $\mathrm{p}_\mathrm{T}$ (pair $\Rightarrow\mathrm{k}_\mathrm{T}$) increases with $\mathrm{m}_\mathrm{ch}$
+% \end{itemize}
+%\end{itemize}
+%}
+%\end{textblock*}
+%
+\end{frame}
+
+
+%\begin{frame}
+%\frametitle{Double-differential dependence for $\mathrm{p}_\mathrm{T} > 500$ MeV}
+%
+%\begin{textblock*}{6.4cm}(0.cm,1.3cm) % {block width} (coords)
+%\includegraphics[width=\linewidth]{plots_BEC_final/fig_12b.pdf}  
+%\end{textblock*}
+%
+%\begin{textblock*}{6.4cm}(6.3cm,1.3cm) % {block width} (coords)
+%\includegraphics[width=\linewidth]{plots_BEC_final/fig_12a.pdf}  
+%\end{textblock*}
+%
+%\begin{textblock*}{12.4cm}(0.3cm,5.9cm) % {block width} (coords)
+%\small{
+%\begin{itemize}
+% \item $R$ monotonically decreases $\mathrm{k}_\mathrm{T}$ in all $\mathrm{m}_\mathrm{ch}$ intervals\\%\vspace{-0.05cm}
+% \item $R$ increases with $\mathrm{m}_\mathrm{ch}$ in all $\mathrm{k}_\mathrm{T}$ intervals \& and flatterns of to a plateau\\%\vspace{-0.05cm}
+% \item $\lambda$ monotonically decreases with $\mathrm{k}_\mathrm{T}$ in all $\mathrm{m}_\mathrm{ch}$ intervals\\%\vspace{-0.05cm}
+% \item $\lambda$ vs $\mathrm{m}_\mathrm{ch}$: rather flat for $\mathrm{k}_\mathrm{T} \lesssim 500$ MeV \& slight rise for $\mathrm{k}_\mathrm{T} \gtrsim 500$ MeV\\\vspace{-0.05cm}
+% \begin{itemize}
+%  \item slight decrease of $\lambda$ with $\mathrm{m}_\mathrm{ch}$ when integrated over all $\mathrm{k}_\mathrm{T}$ because particle $\mathrm{p}_\mathrm{T}$ (pair $\Rightarrow\mathrm{k}_\mathrm{T}$) increases with $\mathrm{m}_\mathrm{ch}$
+% \end{itemize}
+%\end{itemize}
+%}
+%\end{textblock*}
+%
+%\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Comparison of $\mathrm{C}_2^\mathrm{data}(Q)$ functions at 13 and 7 TeV}
+
+\begin{textblock*}{4.8cm}(0.2cm,1.2cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_05a.pdf}  %\includegraphics[width=0.333\linewidth]{fig_03b}  \includegraphics[width=0.333\linewidth]{fig_03c}
+\end{textblock*}
+
+\begin{textblock*}{4.8cm}(5.cm,1.2cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_05b.pdf}  %\includegraphics[width=0.333\linewidth]{fig_03b}  \includegraphics[width=0.333\linewidth]{fig_03c}
+\end{textblock*}
+
+\begin{textblock*}{12.4cm}(9.9cm,2.cm) % {block width} (coords)
+\scriptsize{
+$\mathrm{m}_\mathrm{ch}^\mathrm{13 TeV} \cong \mathrm{n}_\mathrm{ch}^\mathrm{13 TeV} / 32.5$\\\vspace{0.4cm}
+$\mathrm{m}_\mathrm{ch}^\mathrm{7\, TeV} \cong \mathrm{n}_\mathrm{ch}^\mathrm{7\, TeV} / 29.4$\\\vspace{0.7cm}
+$\mathrm{k}_\mathrm{T} = \frac{|{\bf p}_{{\rm T}, 1} + {\bf p}_{{\rm T}, 2}|}{2}$
+}
+\end{textblock*}
+
+\begin{textblock*}{12.4cm}(0.cm,7.8cm) % {block width} (coords)
+\small{
+\begin{itemize}
+ \item $\mathrm{C}_2^\mathrm{data}(Q)$ functions at \alert{13} and \alert{7 TeV} are \alert{in agreement} within total uncertainty\\\vspace{0.1cm}
+% \item in the first bin the $\mathrm{C}_2^\mathrm{data}(Q)$ functions at 7 TeV are systematically higher %\\(up to $\sim$10 \%) 
+% \\than at 13 TeV 
+% $\rightarrow$ probably due to upgrade of the innermost part of the ATLAS tracking detector.
+\end{itemize}
+}
+\end{textblock*}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Comparison with CMS results}
+
+\begin{textblock*}{6.4cm}(0.cm,1.3cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_15a.pdf}
+\end{textblock*}
+
+\begin{textblock*}{6.4cm}(6.3cm,1.3cm) % {block width} (coords)
+\includegraphics[width=\linewidth]{plots_BEC_final/fig_15b.pdf}
+\end{textblock*}
+
+\begin{textblock*}{12.cm}(0.3cm,5.9cm) % {block width} (coords)
+\small{
+\begin{itemize}
+ \item CMS results: $\mathrm{p}_\mathrm{T} > 200$ MeV, $|\eta|<2.4$, $\mathrm{k}_\mathrm{T} < 1$ GeV \\
+ hybrid cluster substraction method \\
+ adjusted to match ATLAS kinematic region ($\mathrm{p}_\mathrm{T} > 100$ MeV, $|\eta|<2.5$)\\%\vspace{-0.05cm}
+ \item qualitatively similar behaviour of $R$ in both experiments\\%\vspace{-0.05cm}
+ \item differences at low $\mathrm{n}_\mathrm{ch}$ probably caused by different kinematic coverage and reference sample constructing approaches $\rightarrow$ further investigation\\%\vspace{-0.05cm}
+\end{itemize}
+}
+\end{textblock*}
+
+\end{frame}
+
+
+%\begin{frame}
+%\frametitle{$\mathrm{C}_2^\mathrm{data}(Q)$ functions with UCP and OHP refer. samples}
+%\begin{textblock*}{11.8cm}(0.5cm,8.6cm)
+%\footnotesize{
+%$\mathrm{C}_2^\mathrm{data}(Q)$ functions for UCP and OHP reference samples including systematic uncertainties will be made public in parallel with the paper
+%}
+%\end{textblock*}
+%
+%\begin{textblock*}{12.6cm}(0.5cm,1.3cm) % {block width} (coords)
+%\includegraphics[width=0.37\linewidth]{C2_syst_data_ULS_incl_unclosure_and_unfolding/C2_syst_data_ULS_incl_unclosure_and_unfolding_n_71_80.pdf} %figures_chains/
+%\end{textblock*}
+%
+%\begin{textblock*}{12.6cm}(5.9cm,1.3cm) % {block width} (coords)
+%\includegraphics[width=0.37\linewidth]{C2_syst_data_ULS_incl_unclosure_and_unfolding/C2_syst_data_ULS_incl_unclosure_and_unfolding_kt_400_500.pdf} %figures_chains/
+%\end{textblock*}
+%
+%\begin{textblock*}{12.6cm}(0.5cm,4.9cm) % {block width} (coords)
+%\includegraphics[width=0.37\linewidth]{C2_syst_data_OHP_incl_unclosure_and_unfolding/C2_syst_data_OHP_incl_unclosure_and_unfolding_n_71_80.pdf} %figures_chains/
+%\end{textblock*}
+%
+%\begin{textblock*}{12.6cm}(5.9cm,4.9cm) % {block width} (coords)
+%\includegraphics[width=0.37\linewidth]{C2_syst_data_OHP_incl_unclosure_and_unfolding/C2_syst_data_OHP_incl_unclosure_and_unfolding_kt_400_500.pdf} %figures_chains/
+%\end{textblock*}
+%\end{frame}
+
+
+
+
+
+
+
+
+
+%\begin{frame}
+%\frametitle{Ordered hadron chains}
+%
+%\begin{textblock*}{3.6cm}(8.9cm,3.3cm)
+%\includegraphics[width=\linewidth]{helix.eps}
+%\end{textblock*}
+%
+%\begin{textblock*}{11.8cm}(0.5cm,1.5cm) % {block width} (coords)
+%{\small
+%%Correlation phenomena in hadron production:\\
+%%\hspace{0.7cm}important source of information about early stages of %hadron formation\\\hspace{0.7cm}not yet understood from first %principles\\\vspace{0.1cm}
+%3D QCD string (helix-like shaped) fragmentation model \& coherent %emission of adjacent hadrons:\\
+% \begin{itemize}
+%  \vspace{-0.25cm}\item cross-talk (causal constraint) between %breakup vertices is imposed
+%  \vspace{-0.15cm}\item transverse shape of the string generates both %the transverse momentum and the mass of the hadron
+%%  \vspace{-0.15cm}\item quantization enables the build-up of the %hadron mass spectrum 
+%%  \vspace{-0.15cm}\item mass spectrum of pseudoscalar mesons can be\%\used to extract parameters of the helical QCD field
+% \end{itemize}
+%\vspace{0.4cm}%\vspace{0.2cm}
+%\hspace{0.6cm}assuming local homogenity of the fragmenting\\\hspace{0.6cm}QCD field, $Q$ between ground state pion\\\hspace{0.6cm}%can be predicted as function of their rank:\\
+%\vspace{0.05cm}
+%\hspace{0.6cm}\scriptsize{($Q(r)=2p_\mathrm{T}^{thr}|\sin(r\Delta\Phi/2)|,\;\;p_\mathrm{T}^{thr}\simeq 134$ MeV,$\;\;\Delta\Phi\simeq 2.82$)}\\\vspace{-0.1cm}
+%\hspace{0.6cm}{\tiny \href{https://journals.aps.org/prd/abstract/%10.1103/PhysRevD.89.015002}{Phys. Rev. D 89, 015002 (2014)}}
+%}
+%\end{textblock*}
+%
+%\begin{textblock*}{6.cm}(0.5cm,6.2cm)
+%{\scriptsize
+%\begin{table}[ht!]
+%\centering
+%\begin{tabular}{c||c|c|c|c}
+%Pair rank difference & 1 & \alert{2} & 3 & 4 \\%& 5 \\
+%\hline
+%$Q$ expected [MeV] & 266$\pm$8 & \alert{91$\pm$3} & 236$\pm$7 & 171$%\pm$5 \\%& 178$\pm$5 \\
+%\end{tabular}
+%\end{table}
+%}
+%\end{textblock*}
+%
+%\begin{textblock*}{12.cm}(0.5cm,8.cm)
+%\small{
+%rather than ratio, the observable is difference of unlike-sign and %like-sign $Q$ spectra: $\Delta Q = [N(Q)^{+-}-N(Q)^{\pm\pm}]/%N_\mathrm{ch}$
+%}
+%\end{textblock*}
+%
+%\begin{textblock*}{4cm}(8.9cm,6.4cm) % {block width} (coords)
+%{\small \alert{charge conservation} constraint/ordering\\
+%$\rightarrow$ $[+-+]$ or $[-+-]$\\
+%}
+%\end{textblock*}
+%
+%\end{frame}
+
+
+%\begin{frame}
+%\frametitle{Low-mass three-hadron chains}
+%\begin{textblock*}{12.cm}(0.5cm,1.15cm)
+%{\footnotesize
+%upper limit on the mass of the triplet chain $\mathrm{m}_\mathrm{3h}$ obtained from the region of adjustment:\\\vspace{1.7cm}
+%\hspace{-0.35cm}$\Delta_\mathrm{3h}(Q)=f_\mathrm{LS}(Q;Q_\mathrm{LS},\sigma_\mathrm{LS})+f_\mathrm{OS}(Q;Q_\mathrm{OS},\sigma_\mathrm{OS})=n_\mathrm{LS}\exp\left(\frac{-(Q-Q_\mathrm{LS})^2}{2\sigma^2_\mathrm{LS}}\right)+n_\mathrm{OS}\exp\left(\frac{-(Q-Q_\mathrm{OS})^2}{2\sigma^2_\mathrm{OS}}\right)$\\
+%\vspace{2.9cm}
+%variations of multiplicity and correlation strength with change of acceptance region:\\\vspace{1.3cm}
+%correlation strength: \alert{stable within restricted $|\eta|$ region}; \alert{reduced by a factor of 2 with $p_\mathrm{T}$ threshold increased} $\rightarrow$ in MB sample strings oriented mainly along the beam axis $\rightarrow$ 
+%correlated hadrons have small intrinsic $p_\mathrm{T}$ $\rightarrow$ quantized fragm. model: $\sim$134 MeV\\ 
+%}
+%\end{textblock*}
+
+%\begin{textblock*}{12.6cm}(0.5cm,1.5cm) % {block width} (coords)
+%\includegraphics[width=0.93\linewidth]{figures_Helix/tab_02.pdf}  %\includegraphics[width=0.333\linewidth]{fig_03b}  \includegraphics[width=0.333\linewidth]{fig_03c}
+%\end{textblock*}
+
+%\begin{textblock*}{12.6cm}(0.5cm,3.9cm) % {block width} (coords)
+%\includegraphics[width=0.93\linewidth]{figures_Helix/tab_04.pdf}  %\includegraphics[width=0.333\linewidth]{fig_03b}  \includegraphics[width=0.333\linewidth]{fig_03c}
+%\end{textblock*}
+
+%\begin{textblock*}{12.6cm}(0.5cm,7.05cm) % {block width} (coords)
+%\includegraphics[width=0.93\linewidth]{figures_Helix/tab_05.pdf}  %\includegraphics[width=0.333\linewidth]{fig_03b}  \includegraphics[width=0.333\linewidth]{fig_03c}
+%\end{textblock*}
+%\end{frame}
+
+
+%\begin{frame}
+%\frametitle{Subtraction of selected three-hadron chains}
+%\begin{textblock*}{5.8cm}(6.6cm,1.3cm)
+%\scriptsize{
+%\hspace{1.2cm}$\Delta^\mathrm{A}(Q)=\Delta(Q)-\Delta_\mathrm{3h}(Q)$\\
+%$\Delta^\mathrm{B}(Q)=\Delta(Q)-\Delta_\mathrm{3h}(Q)-f_\mathrm{OS}(Q;Q_\mathrm{OS},\sigma_\mathrm{OS})$\\\vspace{0.2cm}
+%data in agreement with the prediction of a thresholdlike behavior: after substraction of selected three-hadron chains from inclusive $\Delta(Q)$ no adjacent pairs up to a certain value\\\vspace{0.2cm}
+%B scenario: threshold value up to \alert{$\sim$0.25 GeV} $\rightarrow$ coincides with threshold predicted by helical QCD string fragmentation model \& fits position of the \alert{peak formed by closest opposite-sign pairs}\\
+%\vspace{0.6cm}
+%enhanced production of like-sign charge pairs traditionally atributed to Bose-Einstein effect\\\vspace{0.2cm}
+%\hspace{1.2cm}$R=N(Q)^\mathrm{LS}/N(Q)^\mathrm{OS}$\\\vspace{0.2cm}
+%substraction of estimated contribution from ordered hadron chains from both LS and OS\\\vspace{0.2cm}
+%in both scenarios: the chain selection contains source of enhanced like-sign pair production $\rightarrow$ alternative explanation of the data\\
+%}
+%\end{textblock*}
+
+%\begin{textblock*}{12.6cm}(0.15cm,1.1cm) % {block width} (coords)
+%\includegraphics[width=0.5\linewidth]{figures_Helix/fig_11.pdf}  %\includegraphics[width=0.333\linewidth]{fig_03b}  \includegraphics[width=0.333\linewidth]{fig_03c}
+%\end{textblock*}
+
+%\begin{textblock*}{12.6cm}(0.15cm,5.3cm) % {block width} (coords)
+%\includegraphics[width=0.5\linewidth]{figures_Helix/fig_12.pdf}  %\includegraphics[width=0.333\linewidth]{fig_03b}  \includegraphics[width=0.333\linewidth]{fig_03c}
+%\end{textblock*}
+%\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\section{Summary}
+\begin{frame}
+\frametitle{Summary}
+\begin{textblock*}{7.35cm}(8.15cm,1.05cm) % {block width} (coords)
+%\includegraphics[width=0.57\linewidth]{figures_cross_section/fig_03.pdf}\\
+\includegraphics[width=0.52\linewidth]{plots_BEC_final/fig_04c.pdf}\\\vspace{-0.1cm}
+\includegraphics[width=0.52\linewidth]{plots_BEC_final/fig_07b.pdf}\\
+\vspace{-0.1cm}
+\includegraphics[width=0.52\linewidth]{plots_BEC_final/fig_07a.pdf} %figures_chains/fig7a.pdf
+\end{textblock*}
+
+\begin{textblock*}{7.9cm}(0.05cm,1.3cm)
+\footnotesize{
+\begin{itemize}
+ \item Source radius parameter increases linearly with $\root 3 \of {\mathrm{m}_\mathrm{ch}}$ up to $\mathrm{m}_\mathrm{ch}\lesssim 1.7$ \\($\mathrm{n}_\mathrm{ch}\lesssim 56$ for $\mathrm{p}_\mathrm{T} > 100$ MeV)  \\$\rightarrow$ hadronization volume proportional to the number of produced particles\\\vspace{0.25cm}
+ \item The BEC radius $R$ found to be independent of the charged-particle multiplicity for high multiplicity ($\mathrm{n}_\mathrm{ch}\gtrsim 100$ for $\mathrm{p}_\mathrm{T} > 100$ MeV)\\
+$\rightarrow$ confirming previous observation at lower energy\\
+$\rightarrow$ saturation occurs independently of pair $\mathrm{k}_\mathrm{T}$\\\vspace{0.cm}
+\begin{itemize}
+\footnotesize{
+ \item saturation of $R$ at:\\\vspace{0.1cm}
+$3.35^{+0.20}_{-0.09}$ [fm] ($p_\mathrm{T} > 100$ MeV)\\\vspace{0.1cm}
+$2.78^{+0.23}_{-0.09}$ [fm] ($p_\mathrm{T} > 500$ MeV)
+}
+\vspace{0.25cm}
+\end{itemize}
+ \item double-differential dependences of fit parameters all monotonic\\\vspace{0.25cm}
+%{\tiny \href{https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.117.182002}{Phys. Rev. Lett. 117 (2016) 182002}}\\\vspace{1.cm}
+%{\tiny \href{http://www.sciencedirect.com/science/article/pii/S0370269317310201}{Phys. Lett. B 777 (2018) 303}}\\\vspace{0.9cm}
+ \item results compatible with previous measurements by ATLAS $\rightarrow$ collision energy independence
+%{\tiny \href{https://journals.aps.org/prd/abstract/10.1103/PhysRevD.96.092008}{Phys. Rev. D 96 (2017) 092008}}
+\end{itemize}
+}
+\end{textblock*}
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Selection criteria}
+\begin{textblock*}{12.45cm}(0.3cm,1.3cm) % {block width} (coords)
+\small{
+minimum-bias (MB) data selected by MBTS trigger: \\one counter above threshold from either side of the detector\\[7pt]
+high-multiplicity track (HMT) trigger: \\> 900 SCT space-points, \\> 60 reconstructed good charged tracks with $p_{\rm T} >$ 400 MeV associated with highest multiplicity vertex\\[10pt]
+data collected in special configuration with low beam currents \& reduced beam focusing, producing low mean number of interactions per bunch-crossing $\langle\mu\rangle$:\\
+0.003 -- 0.007 (MB events)\\
+0.01 -- 0.04 (HMT events)\\[10pt]
+Event selection: primary vertex with $\geq2$ associated tracks\\%, no additional \\
+%\hspace{2.85cm}vertex with $\geq4$ tracks, $\geq2$ good tracks in the event\\
+\vspace{0.3cm}
+Track selection: $p_{\rm T} >$ 100 MeV, $|\eta|<2.5$,\\
+\hspace{2.5cm}$\geq1$ Pixel hit, hit in first Pixel layer if expected, \\
+\hspace{2.5cm}at least 2 ($p_{\rm T}< 300$~MeV), 4 ($p_{\rm T}<  400$~MeV) or \\\hspace{2.5cm}6 ($p_{\rm T}> 400$~MeV) SCT hits,\\
+\hspace{2.5cm}$|d_0|<1.5$~mm,\hspace{0.4cm} $|z_0|\cdot  \sin(\theta)<1.5$~mm
+}
+
+%Event selection: primary vertex with $\geq2$ associated tracks, no additional \\
+%\hspace{2.85cm}vertex with $\geq4$ tracks, $\geq2$ good tracks in the event\\
+%\vspace{0.1cm}
+%Track selection: \alert{$p_{\rm T} >$ 100 MeV}, hit in first Pixel layer if expected, $\geq1$ \\
+%\hspace{2.7cm}Pixel hit, at least 2 ($p_{\rm T}> 100$~MeV), 4 ($p_{\rm T}>  200$~MeV) or \\
+%\hspace{2.7cm}6 ($p_{\rm T}> 300$~MeV) SCT hits, $|d_0|<1.5$~mm, \\
+%\hspace{2.7cm}$|z_0|\cdot  \sin(\theta)<1.5$~mm, $-2.5<\eta<2.5$
+\end{textblock*}
+\end{frame}
+
+
+%\begin{frame}
+%\frametitle{Summary. Underlying event in jet events at $7 \;\rm{TeV}$}
+%\small{
+%\begin{itemize}
+%\item the MC tunes based on the underlying event properties show in general better agreement with the data than those based on the inclusive distributions measured in minimum-bias events
+%\item the PYTHIA6 MC generator with the Z1 tune: the most accurate description of the observed distributions
+%\end{itemize}
+%
+%\vspace{0.7cm}
+%Underlying Event Analysis:
+%\begin{itemize}
+%\item measurements sensitive to the underlying event in 7 TeV $pp$ collisions at the LHC is presented, observables constructed with respect to calorimeter jets with $p_T$ up to 800 GeV
+%\item using inclusive jet and exclusive dijet events, UE activity azimuthally transverse to the leading jet was computed
+%%\item the observables subdivided into trans-max and trans-min regions on an event-by-event basis depending on which side of the event had more activity
+%\end{itemize}
+%}
+%\end{frame}
+
+\begin{comment}
+
+\begin{noheadline}
+\begin{frame}
+
+\definecolor{beamer@blendedblue}{rgb}{0.7,0.5,0.8} % use structure theme to change
+\setbeamercolor{structure}{fg=beamer@blendedblue}
+\setbeamercolor{palette primary}{use=structure,fg=structure.fg}
+\setbeamercolor{palette secondary}{use=structure,fg=structure.fg!75!black}
+%\setbeamercolor{palette tertiary}{use=structure,fg=structure.fg!50!black}
+%\setbeamercolor{palette quaternary}{fg=black}
+
+%\begin{center}
+%\useinnertheme{shadow}
+%\definecolor{beamer@darkred}{RGB}{190,0,0}
+%\setbeamercolor{palette primary}{use=structure,fg=structure.fg}
+%\usebeamercolor{palette primary}
+
+ % fancy color gradient, see
+ % /usr/share/texmf/doc/generic/pgf/version-for-pdftex/en/pgfmanual.pdf
+ 
+%\setbeamercolor{test}{bg=structure.fg,fg=white}
+%\setbeamercolor{postit}{fg=white,bg=blue!60!black}
+%\hspace{2cm}{
+%\begin{beamercolorbox}[sep=2em,wd=10cm,rounded=true,shadow=true]{postit}
+\definecolor{darkblue}{RGB}{0,0,70}
+ 
+\tikzstyle{abstract}=[rounded corners,text centered, anchor=north, text=white, drop shadow]
+\begin{tikzpicture}[x=\linewidth,y=0.5pt,abstract, font=\LARGE]
+   \shade[left color=blue,right color=darkblue, abstract] (0.0cm,0.0) rectangle (\linewidth,100);
+    \draw (3.2cm,2.3em) node[right] {Backup slides};
+%\node[draw,align=left] at (3,0) {some text\\ spanning three lines\\ with manual line breaks};
+%\node[draw,text width=4cm] at (2,-2) {some text spanning three lines with automatic line breaks};
+     \end{tikzpicture}
+%\setbeamertemplate{frametitle}[left=palette primary.bg,right=black]
+
+
+%\end{beamercolorbox}}
+%\color{red}
+
+%\end{center}
+
+\end{frame}
+\end{noheadline}
+
+
+\begin{noheadline}
+\begin{frame}
+\frametitle{Atlas Detector}
+
+ \begin{tikzpicture} 
+            \node [inner sep=0pt,above right]{
+          
+         \put(-30,50){\includegraphics[width=0.7\linewidth]{atlas1}} 
+         \put(185,80){\includegraphics[width=0.5\linewidth]{atlas2}}
+         
+    };
+    \path (3.45,4.95) coordinate (a1);
+      \path (3.45,5.12) coordinate (a2);
+    \path (8.05,3.92) coordinate (b1);
+    \path (8.,6.27) coordinate (b2);
+       \end{tikzpicture}
+     % \end{figure}
+
+
+
+\begin{tikzpicture}[overlay]
+        \path[-, red,thick]<1-> (a1) edge (b1);
+         \path[-, red,thick]<1-> (a2) edge (b2);
+        \end{tikzpicture}\\ \vspace{-2.2cm}
+\scriptsize{
+the ATLAS detector - almost full solid angle around the collision point coverage\\[3pt]
+tracking detectors - azimuthal angle $\phi $: full coverage, pseudorapidity coverage: $\eta < 2.5$
+\begin{itemize}
+\item {\it pixel detector} (pixel); \;\;\;{\it semiconductor tracker} (SCT)
+\item for $\vert\eta\vert < 2.0$ {\it transition radiation tracker} (TRT)
+%\item {\it pixel detector} (pixel) - $r-\phi$ resolution: 10 \textmu m, $z$ resolution: 115 \textmu m
+%\item {\it semiconductor tracker} (SCT) - $r-\phi$ resolution: 17 \textmu m, $z$ resolution: 580 \textmu m
+%\item for $\vert\eta\vert < 2.0$ {\it transition radiation tracker} (TRT) - $r-\phi$ resolution: 130 \textmu m
+\end{itemize}\vspace{0.1cm}
+{\it Minimum Bias Trigger Scintillator} (MBTS) - mounted at each end of the tracking\\[-0.5pt]
+detector at $z=\pm 3.56 \;\rm{m}$ segmented into 8 sectors in azimuth and two concentric rings\\[-3.5pt]
+in pseudorapidity $2.09<|\eta|<2.82$ and $2.82<|\eta|<3.84$ 
+}
+\end{frame}
+\end{noheadline}
+
+
+
+\begin{frame}
+\frametitle{Event and Track Selection at $\sqrt{s}=13$ TeV UE analysis}
+\footnotesize{
+$\sqrt{s}=13$ TeV data taken in a special configuration of the LHC:\\ 
+low beam currents, reduced beam focusing, producing a low mean number of interactions per bunch 
+(\alert{0.003 $\leq\bigl< \mu \bigr>\leq$ 0.03})\\[3pt]
+trigger: one or more MBTS counters above threshold on either side of the detector\\
+integrated luminosity of $1.6\;\rm{{nb}^{-1}}$\\[7pt]
+
+events: required to contain a primary vertex (one with highest $\sum p_\mathrm{T}^2$) reconstructed\\
+\hspace{1.15cm}from $\geq 2$ tracks with $p_\mathrm{T}>$ 100 MeV\\
+\hspace{1.15cm}rejected if they contain any other vertex with $\geq$ 4 tracks apart from the\\ 
+\hspace{1.15cm}primary interaction vertex of the event, to reduce pile-up\\
+\hspace{1.15cm}required to contain at least one track with \alert{$p_\mathrm{T}^\mathrm{lead}>1$ GeV}\\
+\hspace{1.15cm}corrected to the particle level, incl. a correction for leading particle realignment\\
+\hspace{1.15cm}a total of \alert{66 million} data \alert{events passed} the trigger and vertex selection\\[7pt]
+
+track selection criteria:
+\begin{itemize}
+\item at least one pixel hit; at least six SCT hits;
+\item a hit in the innermost pixel layer, if the trajectory traversed an active pixel module;
+%%\item at least six SCT hits;
+\item \alert{$p_{\rm T} > 0.5 \;\rm GeV$}; \alert{$\vert \eta\vert < 2.5$};
+\item transverse and longitudinal impact parameters with respect to the the primary vertex,  ${\vert d_{0}\vert < 1.5}$ mm and
+%${\vert z_{0}\vert \sin \theta < 1.5}$ mm;
+\item a track-fit probability $\chi^{2} > 0.01$ for tracks with $p_{\rm T} > 10 \;\rm GeV$ %in order to remove mis-measured tracks.
+\end{itemize}
+}
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Corrections in event shapes analysis}
+%\framesubtitle{}
+\footnotesize{
+{\bf Lepton track removal}: electrons can interact with material in front of the ECAL\\ $\rightarrow$ bremsstrahlung \& photon conversion $\rightarrow$ multiple tracks\\
+$\rightarrow$ tracks \alert{not used} if they fell inside a cone of \alert{$\Delta R_{e \mathrm{,trk}}=0.1$} around any selected $e^\pm$ \\
+applied also to the muon channel to treat two channels as similarly as possible\\[9pt]
+
+{\bf Pile-up correction}: Hit Backspace Once More (\alert{HBOM}) approach: arXiv:1012.5104\\%New J. Phys. {\bf 13}, 053033 (2011)
+$f_{\cal O}^0$ - an event shape distribution without pile-up tracks\\ 
+$f_{\cal O}^1$ - distribution obtained when taking pile-up tracks passing the selection into account\\
+$f_{\cal O}^2$ - distribution obtained by adding pile-up tracks once more\\
+procedure repeated $k$ times $\rightarrow$ $f_{\cal O}^k$ as a function of $k$ $\rightarrow$ extrapolate $f_{\cal O}^0$ from $f_{\cal O}^1$\\[9pt]
+
+%{\bf Background treatment}: leptons from hadron decays, production of $t \bar t$ pairs, production of $Z$-boson dacaying into $\tau^+\tau^-$, 
+%diboson production $ZZ$ and $WZ$ with gauge bosons decaying into leptons -- very small contribution $\rightarrow$ no explicit correction\\
+{\bf Background treatment}: hadron decays, $t \bar t$ pairs, $Z$-boson dacaying into $\tau^+\tau^-$, diboson production $ZZ$ and $WZ$ -- very small contribution 
+$\rightarrow$ no explicit correction\\[3pt]
+5\hspace{0cm}\alert{multijet events} with misidentified lepton candidates $\rightarrow$ estimated from data:\\
+modified selection criteria (same-sign charged electrons, looser electron selection, cone around muon) $\rightarrow$ estimate shape $\rightarrow$ scaled to match the 
+total amount of multijet background (obtained from the dilepton invariant mass distribution $m_{\ell\ell}^\mathrm{multijet}$ fitted omitting the 
+peak region [77, 97] GeV) $\rightarrow$ correction factor applied bin-wise.\\[8pt]
+
+{\bf Unfolding}: ${\cal O}$ corrected for contributions from non-primary particles, detector efficiency and resolution effects, Bayesian approach, PYTHIA 8 and SHERPA
+}
+\end{frame}
+
+\end{comment}
+
+%\begin{noheadline}
+%\begin{frame}
+%  \frametitle{Sphericity}
+%full momentum tensor of the event:
+%%\begin{equation*}
+%%\begin{array}{ccc}
+%%  M_{xyz}\,=\,\sum\limits_{i}\left(\begin{matrix}
+%%p_{xi}^2\,&\,p_{xi}p_{yi}\,&\,p_{xi}p_{zi}\\
+%%p_{yi}p_{xi}\,&\,p_{yi}^2\,&\,p_{yi}p_{zi}\\
+%%p_{zi}p_{xi}\,&\,p_{zi}p_{yi}\,&\,p_{zi}^2\\
+%%\end{matrix}\right)
+%%\end{array}
+%%\end{equation*}
+%\begin{equation*}
+%  M_{\alpha\beta}\,=\,\sum\limits_{i}p_{\alpha}^i\,p_{\beta}^{i}\;\;\;\;\;\;\;\;\;\;\alpha,\beta=x,y,z
+%\end{equation*}
+%\vspace{-0.3cm}
+%  \begin{itemize}
+%\item sum runs over all charged particles in the event
+%\item eigenvalues $\lambda_1,\lambda_2,\lambda_3$ are normalized $\sum_{i}\lambda_i=1$ and ordered that $\lambda_1>\lambda_2>\lambda_3$
+%\end{itemize}
+%\vspace{0.3cm}
+%{\bf Sphericity} ${\bf S}$ measures the summed $p_T^2$ with respect to the event axis (the line passing through the interaction point and oriented along the eigenvector associated with the largest eigenvalue, $\lambda_1$)
+%\begin{equation*}
+% S\,=\,\frac{3}{2}(\lambda_2+\lambda_3)
+%\end{equation*}
+%
+%  \begin{itemize}
+%\item $S=0$ - for a balanced dijet event
+%\item $S=1$ - for an isotropic event
+%\end{itemize}
+%\end{frame}
+%\end{noheadline}
+
+
+%\begin{noheadline}
+%\begin{frame}
+%
+%\frametitle{Monte Carlo Models in Event Shapes Analysis
+%}
+%\begin{table}
+%\begin{center}
+%%\caption{Celkový difúzny koeficient pre Na$ ^{+} $, molekulu DF a DFNa bez beta-CD ako aj v komplexe s beta-CD}
+%\scriptsize
+%\begin{tabular}{lllllll}
+%\Xhline{2\arrayrulewidth}\\[-2pt]
+%Generator& Version & Tune & PDF & Focus & Data & From\\[2pt]
+%\hline\\[-2pt]
+%PYTHIA 6 & 6.425 & AMBT2B & CTEQ6L1 & MB & LHC & ATLAS\\
+%PYTHIA 6 & 6.421 &DW & CTEQ5L & UE & Tevatron & CDF\\
+%PYTHIA 6 & 6.425 & Z1 & CTEQ5L & UE & LHC & CMS\\
+%PYTHIA 8 & 8.157 & A2 & MSTW2008LO & MB & LHC & ATLAS\\
+%HERWIG $++$ & 2.5.1 & UE7-2 & MRST LO** & UE & LHC & Authors\\
+%PYTHIA 6 & 6.425 & AMBT1 & MRST LO** & MB & Early LHC & ATLAS\\
+%HERWIG $++$ & 2.5.0 & Default & MRST LO** & UE & LHC & Authors\\[2pt]
+%\Xhline{2\arrayrulewidth}
+%\end{tabular}
+%\end{center}
+%\end{table}
+%\begin{itemize}
+% \item predictions from 5 different MC models (PYTHIA 6 AMBT2B, PYTHIA 6 DW, PYTHIA 6 Z1, PYTHIA 8 A2, and HERWIG $++$ UE7-2) are compared to observed data
+% \item PYTHIA 6 AMBT1 - reference model for the analysis - used to correct the data for detector effects
+% \item HERWIG ++ 2.5.0 - used for systematic studies
+%\end{itemize}
+%
+%\end{frame}
+%\end{noheadline}
+
+
+%\begin{noheadline}
+% \begin{frame}
+
+%\frametitle{Monte Carlo Models of Underlying Event}
+%\footnotesize{All leading-order parton shower generators, differ in hadronisation models and parton shower formalisms:}
+%\begin{itemize}\scriptsize{
+%\item \alert{PYTHIA6} - hadronisation model based on the Lund string and a $p_{\rm T}$- or virtuality-ordered parton shower
+%\begin{itemize}\tiny{
+%\item {\bf AMBT1} - first LHC-data tune, diffraction-suppressed observables from the early ATLA MB measurements, MRST LO$*$ parton density functions (PDFs) and the Pythia $p_{\rm T}$-ordered parton shower - in this analysis used to correct the data for detector effects
+%\item \alert{AUET2B CTEQ6L1} - latest set ATLAS UE tunes, improvement: inclusion of a LEP-based retuning of final state shower and hadronisation efects, optimising initial state shower parameters by comparison to ATLAS track
+%jet, jet shapes and dijet decorrelations data; CTEQ6L1 PDF variant
+%\item \alert{DW} - virtuality-ordered parton shower and a MPI model not interleaved with the ISR, description of CDF Run II UE and Drell-Yan data, leading-order CTEQ5L1 PDF}
+%\end{itemize}
+%\item \alert{PYTHIA8} - also the FSR, together with ISR emission and MPI scatterings
+%\begin{itemize}\tiny{
+%\item \alert{AU2 CT10} - variant of latest ATLAS UE tune, next-to-leading order CT10 PDF}
+%\end{itemize}
+%\item HERWIG/JIMMY and HERWIG$^{++}$ - cluster hadronisation
+%scheme, parton showers ordered in emission angle; Herwig not simulating multiple partonic interactions: added by the Jimmy package\\
+%ALPGEN - leading-order multi-leg matrix element events, more complex hard process topologies, loop diagram contributions omitted
+%\begin{itemize}\tiny{
+%\item \alert{HERWIG/JIMMY AUET2 LO$^{++}$}
+%\item \alert{ALPGEN + HERWIG/JIMMY AUET1} - older tune
+%\item \alert{HERWIG++ UE7-2 MRST LO$^{++}$} - includes a colour reconnection model - good description of both UE and MB data at 7 TeV}
+%\end{itemize}}
+%\end{itemize}
+%
+%\end{frame}
+%\end{noheadline}
+
+%\begin{frame}
+%Shown on first slide.
+%\onslide<2-3>
+%Shown on second and third slide.
+%\begin{itemize}
+%\item
+%Still shown on the second and third slide.
+%\onslide+<4->
+%\item
+%Shown from slide 4 on.
+%\end{itemize}
+%Shown from slide 4 on.
+%\onslide
+%Shown on all slides.
+%\end{frame}
+
+\end{document}

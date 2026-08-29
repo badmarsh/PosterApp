@@ -100,7 +100,7 @@ export class BeamerSlidesGenerator implements LatexGenerator {
           const cols = rows[0].length
           const colSpec = Array.from({ length: cols }, () => "c").join("|")
           const body = rows.map(r => r.map(cell => parseMarkdownToLatex(cell)).join(" & ")).join(" \\\\\n")
-          tex += `\\begin{table}\n\\begin{tabular}{|${colSpec}|}\\hline\n${body} \\\\\\hline\n\\end{tabular}\n\\end{table}\n`
+          tex += `\\begin{table}\n\\centering\n\\resizebox{\\linewidth}{!}{\n\\begin{tabular}{|${colSpec}|}\\hline\n${body} \\\\\\hline\n\\end{tabular}\n}\n\\end{table}\n`
         }
       }
 

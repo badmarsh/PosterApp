@@ -11,8 +11,13 @@ export function assetUrlToLatexPath(apiUrl: string, workspaceId: string): string
   if (apiUrl.startsWith(prefix)) {
     return `assets/${apiUrl.slice(prefix.length)}`
   }
-  if (apiUrl.startsWith("/images/")) {
-    return `../../public${apiUrl}`
-  }
   return apiUrl
+}
+
+export function cleanCaption(caption: string | undefined, prefix: "Figure" | "Table"): string {
+  if (!caption || typeof caption !== "string") return ""
+  const regex = prefix === "Figure" 
+    ? /^(?:Figure|Fig\.?)\s*\d*[:\.\s-]*/i 
+    : /^(?:Table|Tab\.?)\s*\d*[:\.\s-]*/i
+  return caption.replace(regex, "").trim()
 }

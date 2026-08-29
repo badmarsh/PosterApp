@@ -151,29 +151,22 @@ describe('AI Workflows Integration', () => {
       expect(res.status).toBe(409)
     })
 
-    it('rejects with 404 if card does not exist in active output', async () => {
+    it('rejects with 400 if content is missing', async () => {
       mockAuth.mockResolvedValueOnce({ 
         userId: 'user-1', 
         workspace: { id: 'ws-1', revision: 5 } 
       } as any)
-      
-      ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce({
-        id: 'ws-1',
-        outputs: [
-          { isActive: true, cards: [{ id: 'other-card' }] }
-        ]
-      })
 
       const req = new NextRequest('http://localhost/api/workspaces/ws-1/cards/c-1/shrink?revision=5', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: 'test' }),
+        body: JSON.stringify({}),
       })
 
       const res = await ShrinkPOST(req, { params: Promise.resolve({ id: 'ws-1', cardId: 'c-1' }) })
-      expect(res.status).toBe(404)
+      expect(res.status).toBe(400)
       const data = await res.json()
-      expect(data.error).toBe('Card does not exist in active output')
+      expect(data.error).toBe('Current card content is required')
     })
   })
 

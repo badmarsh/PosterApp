@@ -29,11 +29,11 @@ export function formatCiteKey(key: string): string {
  * Extract cite keys used in text, like \cite{Author2020} or \cite{Author2020,Other2021}
  */
 export function extractCiteKeys(text: string): string[] {
-  if (!text) return []
+  if (!text || typeof text !== "string") return []
   const keys = new Set<string>()
 
-  // Match \cite{key1, key2}
-  const regexLatex = /\\cite{([^}]+)}/g
+  // Match \cite{key1, key2}, \citep{...}, \citet{...}, \nocite{...}, \autocite{...}
+  const regexLatex = /\\(?:cite[pt]?|nocite|autocite)\{([^}]+)\}/g
   let match
   while ((match = regexLatex.exec(text)) !== null) {
     const splitKeys = match[1].split(",").map(k => k.trim())
@@ -42,10 +42,10 @@ export function extractCiteKeys(text: string): string[] {
     }
   }
 
-  // Match [@key1, @key2] or [@key]
+  // Match [@key1; @key2] or [@key1, @key2] or [@key]
   const regexMarkdown = /\[@([^\]]+)\]/g
   while ((match = regexMarkdown.exec(text)) !== null) {
-    const splitKeys = match[1].split(",").map(k => k.trim().replace(/^@/, ""))
+    const splitKeys = match[1].split(/[,;]/).map(k => k.trim().replace(/^@/, ""))
     for (const k of splitKeys) {
       if (k) keys.add(k)
     }

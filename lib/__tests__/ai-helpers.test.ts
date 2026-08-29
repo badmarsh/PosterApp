@@ -30,5 +30,13 @@ describe("AiHelpers", () => {
       const res = parseAiJson<{ tips: [] }>('{"tips": []}')
       expect(res.data?.tips).toEqual([])
     })
+    it("parses array JSON correctly", () => {
+      const res = parseAiJson<any[]>('```json\n[{"cardTitle": "Test", "issue": "Overflow"}]\n```')
+      expect(res.data).toEqual([{ cardTitle: "Test", issue: "Overflow" }])
+    })
+    it("recovers array JSON surrounded by commentary", () => {
+      const res = parseAiJson<any[]>('Here are the issues:\n[{"cardTitle": "Intro", "issue": "Text bleed"}]\nHope this helps!')
+      expect(res.data).toEqual([{ cardTitle: "Intro", issue: "Text bleed" }])
+    })
   })
 })

@@ -107,20 +107,15 @@ describe('POST /api/workspaces/[id]/cards/[cardId]/generate', () => {
     expect(res.status).toBe(404)
   })
 
-  it('returns 404 when card does not exist in active output', async () => {
+  it('returns 400 when characterLimit is non-positive', async () => {
     ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
-    ;(mockPrisma.workspace.findUnique as any).mockResolvedValue({
-      id: 'ws-1',
-      userId: 'user_123',
-      outputs: [{ isActive: true, cards: [{ id: 'other-card' }] }],
-    } as any)
 
-    const req = makeRequest({ topic: 'test' })
+    const req = makeRequest({ topic: 'test', characterLimit: 0 })
     const res = await POST(req, makeParams('ws-1', 'card-1'))
     const json = await res.json()
 
-    expect(res.status).toBe(404)
-    expect(json.error).toBe('Card does not exist in active output')
+    expect(res.status).toBe(400)
+    expect(json.error).toContain('No available space for this card')
   })
 
   it('returns 500 when AI API not configured', async () => {

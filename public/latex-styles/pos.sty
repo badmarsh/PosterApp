@@ -1,0 +1,49 @@
+%% pos.sty - Proceedings of Science (PoS) LaTeX Package
+%% SISSA Medialab
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{pos}[2021/09/20 v.2.1 PoS style file]
+
+\RequirePackage{newtxtext}
+\RequirePackage{amsthm}
+\RequirePackage{newtxmath}
+\RequirePackage[zerostyle=e]{newtxtt}
+\RequirePackage{amsmath}
+\RequirePackage{graphicx}
+\RequirePackage[numbers,sort&compress]{natbib}
+\RequirePackage[colorlinks=true,urlcolor=blue,citecolor=blue,linkcolor=blue]{hyperref}
+\RequirePackage[a4paper,margin=2.5cm]{geometry}
+\RequirePackage{authblk}
+
+\newcommand{\FullConference}[1]{\gdef\@FullConference{#1}}
+\gdef\@FullConference{}
+
+\newcommand{\emailAdd}[1]{\gdef\@emailAdd{#1}}
+\gdef\@emailAdd{}
+
+\newcommand{\notes}[1]{\gdef\@notes{#1}}
+\gdef\@notes{}
+
+\renewcommand{\maketitle}{%
+  \begin{center}
+    \ifx\@FullConference\@empty\else
+      {\footnotesize\itshape \@FullConference}\par\vspace{1.5em}
+    \fi
+    {\LARGE\bfseries \@title \par}\vspace{1.5em}
+    {\large \@author \par}\vspace{1em}
+    \ifx\@date\@empty\else
+      {\small \@date \par}\vspace{1em}
+    \fi
+  \end{center}
+  \vspace{1em}
+}
+
+\renewenvironment{abstract}{%
+  \begin{center}
+    {\bfseries\abstractname\vspace{-.5em}\vspace{0pt}}
+  \end{center}
+  \quotation\small
+}{%
+  \endquotation\vspace{1.5em}
+}
+
+\endinput

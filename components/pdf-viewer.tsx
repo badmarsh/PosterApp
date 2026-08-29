@@ -43,11 +43,19 @@ export function PdfViewer({
     return () => observer.disconnect()
   }, [])
 
-  // Keep the original buffer: copying a PDF here doubles memory use. A small
-  // fingerprint makes a replacement with identical byte length observable.
+  // Clone the buffer for react-pdf so its worker transfer does not detach the store's buffer.
   const file = useMemo(() => {
-    const fingerprint = `${data.byteLength}:${Array.from(data.subarray(0, 16)).join(",")}:${Array.from(data.subarray(-16)).join(",")}`
-    return { data, fingerprint }
+    let fingerprint = ""
+    try {
+      if (data && data.byteLength > 0 && !(data.buffer as any)?.detached) {
+        fingerprint = `${data.byteLength}:${Array.from(data.subarray(0, 16)).join(",")}:${Array.from(data.subarray(-16)).join(",")}`
+      } else {
+        fingerprint = `pdf-${Date.now()}`
+      }
+    } catch {
+      fingerprint = `pdf-${Date.now()}`
+    }
+    return { data: data.slice(), fingerprint }
   }, [data])
 
   const handleLoadSuccess = useCallback(

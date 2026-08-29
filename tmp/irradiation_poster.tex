@@ -1,0 +1,257 @@
+% =============================================================================
+\documentclass[a0paper,portrait, blockverticalspace=3em, colspace=2em]{tikzposter}
+\tikzposterlatexaffectionproofoff
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{multicol}
+\usetikzlibrary{calc}
+
+% ---------------------------------------------------------------------------
+\definecolor{maincolor}{HTML}{9e2b2f}
+\definecolor{secondarycolor}{RGB}{158, 43, 47}
+\definecolor{lightred}{RGB}{237, 199, 201}
+
+\definecolor{tid}{RGB}{254,128,2}   
+\definecolor{niel}{RGB}{0,140,0}    
+\definecolor{see}{RGB}{190,0,62}    
+\definecolor{seu}{RGB}{128,0,128}    
+\definecolor{sel}{RGB}{0,90,170}    
+
+\newcommand{\looseitems}{\begin{itemize}\setlength{\itemsep}{0.3em}}
+\newcommand{\tightitems}{\begin{itemize}\setlength{\itemsep}{0.05em}}
+\newcommand{\captiontext}[1]{#1}
+
+\usetheme{Default}
+\definecolorstyle{atlascolors}{
+    \colorlet{backgroundcolor}{white}
+    \colorlet{titlefgcolor}{white}
+    \colorlet{titlebgcolor}{maincolor}
+    \colorlet{blocktitlefgcolor}{white}
+    \colorlet{blocktitlebgcolor}{maincolor}
+    \colorlet{blockbodyfgcolor}{black}
+    \colorlet{blockbodybgcolor}{lightred!25}
+}{}
+\usecolorstyle{atlascolors}
+
+\definetitlestyle{sampletitle}{width=630mm, roundedcorners=20, linewidth=2pt,
+  innersep=5pt, titletotopverticalspace=6mm, titletoblockverticalspace=8mm}{%
+  \begin{scope}[line width=\titlelinewidth, rounded corners=\titleroundedcorners, xshift=-5mm]
+    \draw[color=blocktitlebgcolor, fill=titlebgcolor]
+      (\titleposleft,\titleposbottom) rectangle (\titleposright,\titlepostop);
+  \end{scope}
+  \node[anchor=east, fill=white, rounded corners=10pt, inner sep=10pt, xshift=85mm]
+    at ($(\titleposright,\titlepostop)!0.5!(\titleposright,\titleposbottom)$)
+    {\includegraphics[height=8.6cm]{logos/atlas_transparent.png}};
+  \node[anchor=west, fill=white, rounded corners=10pt, inner sep=10pt, xshift=-85mm, yshift=0mm]
+    at ($(\titleposleft,\titlepostop)!0.5!(\titleposleft,\titleposbottom)$)
+    {\includegraphics[height=8.6cm]{logos/uk_logo.png}};}
+\usetitlestyle{sampletitle}
+
+\title{\parbox{1\linewidth}{\hspace{-5mm}\centering\huge
+    Irradiation Studies and Design Optimization of the ATLAS Tile Calorimeter for the High-Luminosity LHC\\[1mm]
+    }}
+\author{%
+    \Large R\'obert Astalo\v{s} \normalsize(Comenius University Bratislava), on behalf of the ATLAS Tile Calorimeter System}
+\institute{%
+    \normalsize International Workshops on Radiation Imaging Detectors, Ghent, 28.6. - 02.07.2026}
+\date{}
+
+\setlength{\columnsep}{0.4cm}
+
+\begin{document}
+\maketitle
+
+\begin{columns}
+
+\column{0.333}
+
+\block{The ATLAS Hadronic Tile Calorimeter (TileCal)}{
+    \tightitems
+        \item The \textbf{ATLAS} detector is a multi-purpose particle physics experiment at the CERN Large Hadron Collider (LHC). The High-Luminosity LHC (HL-LHC) upgrade will drastically increase the collision rate, delivering an unprecedented integrated luminosity of up to 4000\,fb$^{-1}$.
+        \item The \textbf{Tile Calorimeter} is a hadronic calorimeter composed of wedge-shaped modules arranged in a Long Barrel (LB) and two Extended Barrels (EB). It consists of 256 modules containing 5182 calorimetric cells, utilizing scintillating tiles and wavelength shifting fibers to transfer light to photomultiplier tubes (PMTs). Most cells are read out by two PMTs, except for special E1--E4 gap/crack cells read out by one PMT.
+    \end{itemize}
+    \vspace{-0.1cm}
+    \begin{center}
+        \begin{minipage}{0.6\linewidth}
+            \includegraphics[width=\linewidth]{assets/plot1.pdf}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{0.37\linewidth}
+            \includegraphics[width=\linewidth]{assets/plot2.pdf}
+        \end{minipage}
+    \end{center}
+    \vspace{-0.1cm}
+    {\small \captiontext{Figure 1: ATLAS Tile Calorimeter (left) and a wedge-shaped module slice (right) [1].}}
+    \vspace{-0.1cm}
+    \tightitems
+        \item Components located in the highest radiation regions of TileCal, particularly the LB LVPS and readout electronics close to the detector gap regions, must tolerate elevated \textcolor{tid}{TID} and \textcolor{niel}{NIEL} levels.
+    \end{itemize}
+    \vspace{-0.1cm}
+    \begin{center}
+        \includegraphics[width=0.9\linewidth]{assets/fig_architecture.png}
+    \end{center}
+    \vspace{-0.3cm}
+    {\small \captiontext{Figure 2: Tile HL-LHC On-detector architecture.}}
+    \vspace{-0.1cm}
+    \tightitems
+        \item \textbf{1792 $\times$ Low Voltage power supply bricks (LVPS)}: Utilize switching DC-DC converters at 300\,kHz to step down a bulk 200\,V input to distribute stable power to the on-detector readout electronics.
+        \item \textbf{$\sim$1000 $\times$ new PMTs}: Hamamatsu R11187, Quantum Efficiency $>15\%$.
+        \item \textbf{9852 $\times$ Active Dividers}: Provide stable high voltage division for the PMTs to minimize gain variations at high event rates.
+        \item \textbf{9852 $\times$ FENICS cards}: PMT pulse shaping with bi-gain amplification (1:40). Current integrator for luminosity measurements and Cs calibration.
+        \item \textbf{896 $\times$ MainBoards (MB)}: Control and configuration, FENICS signal digitization, 2 $\times$ 12-bit ADCs @ 40\,Msps, and 1 $\times$ 16-bit ADC for integrator.
+        \item \textbf{896 $\times$ DaughterBoards (DB)}: Central communication hub of each module. They transmit $\sim$35\,Tbps of physics data (digitized PMT signals) to off-detector systems via 3584 optical uplinks (9.6\,Gbps), while receiving configuration and timing commands via 1792 downlinks (4.8\,Gbps).
+    \end{itemize}
+}
+
+
+
+\block{Radiation Criteria}{
+    \tightitems
+        \item Total Ionizing Dose (\textcolor{tid}{TID}), Non-Ionizing Energy Loss (\textcolor{niel}{NIEL}), and Single Event Effects (\textcolor{see}{SEE}), in particular Single Event Upsets (\textcolor{seu}{SEU}) and Single Event Latch-ups (\textcolor{sel}{SEL}), must be evaluated and mitigated.
+    \end{itemize}
+    \vspace{-0.1cm}
+    \resizebox{\linewidth}{!}{
+    \begin{tabular}{|l|c|c|c|}
+    \hline
+    \multicolumn{1}{|c|}{Component} & \multicolumn{3}{c|}{Dose, fitted in region of max} \\
+    \cline{2-4}
+     & \textcolor{tid}{TID} [Gy] & \textcolor{niel}{NIEL} [n/cm$^2$] & \textcolor{see}{SEE} [p/cm$^2$] \\
+    \hline
+    PMT Divider - Barrel  & 17.6 & $2.0\times 10^{12}$ & $1.9\times 10^{11}$ \\
+    FENICS - Barrel& 10.6 & $1.6\times 10^{12}$ & $1.8\times 10^{11}$ \\
+    MB - Barrel     & 10.0 & $1.4\times 10^{12}$ & $9.2\times 10^{10}$ \\
+    LVPS - Barrel  & 53.6 & $3.5\times 10^{12}$ & $5.3\times 10^{11}$ \\
+    DB - Endcap    & 6.8  & $9.7\times 10^{11}$ & $4.9\times 10^{10}$ \\
+    \hline
+    \end{tabular}
+    }
+    \vspace{-0.2cm}
+    {\small \\\captiontext{Table 1: Simulated worst-case doses for 4000\,fb$^{-1}$ (no safety factors), only higher doses from Barrel/Endcap are shown.}}
+    \vspace{0.2cm}
+    \looseitems
+        \item Different safety factors were applied to the expected doses according to the internal ATLAS guidelines.
+    \end{itemize}
+}
+
+\column{0.333}
+
+\block{FENICS \& Active Divider Radiation Qualification}{
+    \textbf{FENICS Boards}
+    \tightitems
+        \item Over 40 FENICS boards (plus pre-production tracking) were irradiated with X-rays and neutrons to test for \textcolor{tid}{TID} and \textcolor{niel}{NIEL} limits (up to 51\,Gy and $4.7 \times 10^{12}$\,n/cm$^2$).
+        \item Fast channels showed no performance degradation. Slow channels exhibited a reasonable and fully acceptable noise increase, officially certifying all active Commercial Off-The-Shelf (COTS) components for production.
+    \end{itemize}
+    \vspace{-0.2cm}
+    \begin{center}
+        \includegraphics[width=0.9\linewidth]{assets/fig_fenics_test.png}
+    \end{center}
+    \vspace{-0.4cm}
+    {\small \captiontext{Figure 5: FENICS channel noise level over burn-in time.}}
+
+    \vspace{0.2cm}
+    \textbf{Active Dividers}
+    \tightitems
+        \item Qualified at 424\,Gy \textcolor{tid}{TID}, $1.37 \times 10^{13}$\,n/cm$^2$ \textcolor{niel}{NIEL}, and $2.97 \times 10^{12}$\,had/cm$^2$ \textcolor{see}{SEE}.
+        \item Extensive proton, gamma, and neutron beam tests: \textbf{No \textcolor{see}{SEE}s were observed during irradiation}.
+        \item Relative PMT gain decrease due to \textcolor{tid}{TID} effects (at 480\,Gy) remained strictly within tolerances at just $-1.92 \pm 0.20\%$.
+    \end{itemize}
+    \vspace{-0.2cm}
+    \begin{center}
+        \includegraphics[width=1.0\linewidth]{assets/fig_divider_test.png}
+    \end{center}
+    \vspace{-0.4cm}
+    {\small \captiontext{Figure 6: Active Divider relative \textcolor{tid}{TID} effects on channels.}}
+}
+
+\block{DB Radiation Qualification}{
+
+    \tightitems
+        \item \textbf{DB Qualification:} Requires 108\,Gy \textcolor{tid}{TID} and $13.16 \times 10^{12}$\,n/cm$^2$ \textcolor{niel}{NIEL} limits. Kintex Ultrascale (KU) and ProASIC FPGAs successfully withstood over 108\,Gy and $14 \times 10^{12}$\,n/cm$^2$. No \textcolor{sel}{SEL} was observed in the selected KU FPGAs. Measured \textcolor{seu}{SEU} rates for the KU FPGA were effectively mitigated by Xilinx SEM.
+    \end{itemize}
+    \vspace{-0.2cm}
+    \begin{center}
+        \includegraphics[width=0.9\linewidth]{assets/fig_db6_tid_test_part_0.png}\\
+        \vspace{0.4cm}
+        \includegraphics[width=0.9\linewidth]{assets/fig_db6_tid_test_part_1.png}
+    \end{center}
+    \vspace{-0.4cm}
+    {\small \captiontext{Figure 4: Monitored KU FPGA temperatures and currents during 54\,MeV proton beam \textcolor{tid}{TID} testing. Drops correspond to active \textcolor{seu}{SEU} corrections by the Xilinx SEM and resets applied during uncorrectable \textcolor{seu}{SEU}s [5].}}
+}
+
+
+\column{0.333}
+
+\block{MB Radiation Qualification}{
+    \tightitems
+        \item All components passed \textcolor{tid}{TID} (up to 640\,Gy) and \textcolor{niel}{NIEL} (up to $1.4 \times 10^{13}$\,n/cm$^2$) tests with no performance degradation.
+        \item Critical components (Fast ADCs, FPGAs) showed zero \textcolor{seu}{SEU} effects up to $10^{13}$\,p/cm$^2$ during 800\,MeV proton testing. Point-of-Load regulators successfully passed stringent testing at 570\,Gy \textcolor{tid}{TID} and $1.2 \times 10^{13}$\,n/cm$^2$ \textcolor{niel}{NIEL}.
+    \end{itemize}
+}
+
+\block{LVPS Component Radiation Testing}{
+    \textbf{LVPS Design}
+    \tightitems
+        \item 8 identical bricks for LB modules and 6 bricks for EB modules inside a box convert the 200\,V input to a 10\,V output at a nominal power of 23\,W. Each brick powers an independent side of the readout electronics, preserving the TileCal dual-PMT cell redundancy.
+        \item Replacing original STB57N65M5 power MOSFETs with SIHFS9N60A reduced gate-source capacitance and switching losses. Efficiency improved from 58\% to 72\%, meeting the 77\,kW TileCal cooling system capacity.
+    \end{itemize}
+    \vspace{1.0cm}
+    \textbf{Radiation Testing}
+    \tightitems
+        \item SIHFS9N60A MOSFET (main high-power switching transistor): 2.5\,V shift in gate-source threshold observed after 200\,Gy of \textcolor{tid}{TID}, minimal deviation from \textcolor{niel}{NIEL}.
+        \item SI8920 Isolation Amplifier (safe analog signal isolation for over-voltage protection): Initial tests showed voltage fluctuations at 150\,mV, but performance is completely stable below 100\,mV. It has been selected for final production with circuits restricting the input voltage.
+        \item LT1681 Controller (feedback loop \& switching pulse generator) \& LT3080 Regulator (maintains stable local voltages): \textcolor{tid}{TID} tests at 502\,Gy/h showed minor drifts ($\leq$ 5\%) in output voltages, within acceptable limits.
+        % \item LTC6241 Op-Amp (signal conditioning): Single Event Transients (SETs) had small amplitudes ($\approx$50\,mV) and short durations ($\approx$100\,ns) posing no effect on brick performance.
+    \end{itemize}
+    \vspace{0.65cm}
+    \resizebox{\linewidth}{!}{
+    \begin{tabular}{|l|c|c|c|c|}
+    \hline
+    \textbf{Component} & \textbf{Flux [p/cm$^2$/s]} & \textbf{Fluence [p/cm$^2$]} & \textbf{\textcolor{see}{SEE} Count} & \textbf{Cross Section [cm$^2$]} \\
+    \hline
+    LT1681 & $2.4 \times 10^8$ & $7.05 \times 10^{11}$ & 64 (2 chips) & $4.54 \times 10^{-11}$ \\
+    LTC6241 & $2.4 \times 10^8$ & $7.05 \times 10^{11}$ & 133 (4 op-amps) & $4.72 \times 10^{-11}$ \\
+    LT3080 & $2.4 \times 10^8$ & $7.05 \times 10^{11}$ & 198 (4 chips) & $7.02 \times 10^{-11}$ \\
+    IR2110 & $3.5 \times 10^8$ & $3.4 \times 10^{11}$ & None (2 chips) & $>1.47 \times 10^{-12}$ \\
+    SIHFS9N60A & $3.5 \times 10^8$ & $3.4 \times 10^{11}$ & None (8 chips) & $>3.67 \times 10^{-13}$ \\
+    SI8920 & $1 \times 10^7$ & $1.96 \times 10^{11}$ & 1 (20 chips) & $2.55 \times 10^{-13}$ \\
+    \hline
+    \end{tabular}
+    }
+     \vspace{0.1cm}
+    {\small \\\captiontext{Table 2: Summary of \textcolor{see}{SEE} tests conditions and results for different components [3].}}
+    \vspace{0.2cm}
+    \begin{center}
+        \begin{minipage}{0.495\linewidth}
+            \includegraphics[width=\linewidth]{assets/Moayedi_2026_J._Inst._21_C05002_slide_7_item_1.png}
+        \end{minipage}%
+        \hfill
+        \begin{minipage}{0.495\linewidth}
+            \includegraphics[width=\linewidth]{assets/Moayedi_2026_J._Inst._21_C05002_slide_7_item_2.png}
+        \end{minipage}
+    \end{center}
+    \vspace{0.3cm}
+    {\small \captiontext{Figure 3: SIHFS9N60A MOSFET characterization at $V_\mathrm{DS}$ = 1\,V after 200\,Gy of \textcolor{tid}{TID} (left) and after \textcolor{niel}{NIEL} tests (right) [3].}}
+}
+
+\block{Conclusions}{
+    \tightitems
+        \item The optimized power distribution scheme improves readout reliability and power efficiency, and mitigates failure impact by utilizing identical and independent LVPS bricks.
+        \item All critical components for the upgrade of the TileCal on-detector electronics successfully passed \textcolor{tid}{TID}, \textcolor{niel}{NIEL}, and \textcolor{see}{SEE} qualification, meeting the ATLAS radiation requirements for production.
+    \end{itemize}
+}
+
+\block{References}{
+    \footnotesize
+    \begin{enumerate}\setlength{\itemsep}{0em}
+        \item ATLAS Collaboration, \emph{The ATLAS Experiment at the CERN Large Hadron Collider}, JINST3 (2008)S08003, https://doi.org/10.1088/1748-0221/3/08/S08003
+        \item ATLAS collaboration, \emph{Technical Design Report for the Phase-II Upgrade of the ATLAS Tile Calorimeter}, CERN-LHCC-2017-019, 2017. https://cds.cern.ch/record/2285583/files/CERNLHCC-2017-019.pdf
+        \item S.\ Moayedi, \emph{Upgrade of the ATLAS Tile Calorimeter front-end power supply for the HL-LHC}, 2026 JINST \textbf{21} C05002.
+        \item S.\ Moayedi, \emph{Upgrade of the ATLAS Tile Calorimeter Front-End Power Supply for the HL-LHC}, ATL-TILECAL-SLIDE-2025-552.
+        \item E.\ Vald\'es Santurio et al., \emph{Radiation studies performed on the High Luminosity ATLAS TileCal link Daughterboard}, 2023 JINST \textbf{18} C04011.
+
+    \end{enumerate}
+}
+
+\end{columns}
+\end{document}

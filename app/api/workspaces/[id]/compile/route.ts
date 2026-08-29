@@ -76,6 +76,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
     const assets = path.join(ROOT, id, "assets")
     await fs.cp(assets, path.join(stage, "assets"), { recursive: true, force: true, errorOnExist: false }).catch(() => undefined)
+    const stylesDir = path.join(process.cwd(), "public", "latex-styles")
+    await fs.cp(stylesDir, stage, { recursive: true, force: true, errorOnExist: false }).catch(() => undefined)
+    const workspaceStyles = path.join(ROOT, id)
+    // Also copy any workspace root .sty or .cls files if present
+    const wsFiles = await fs.readdir(workspaceStyles).catch(() => [] as string[])
+    for (const f of wsFiles) {
+      if (f.endsWith(".sty") || f.endsWith(".cls") || f.endsWith(".bst")) {
+        await fs.copyFile(path.join(workspaceStyles, f), path.join(stage, f)).catch(() => undefined)
+      }
+    }
     const defaultLogos = path.join(process.cwd(), "public", "logos")
     await fs.cp(defaultLogos, path.join(stage, "logos"), { recursive: true, force: true, errorOnExist: false }).catch(() => undefined)
     const workspaceLogos = path.join(ROOT, id, "logos")

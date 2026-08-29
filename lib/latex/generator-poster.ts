@@ -3,7 +3,7 @@ import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
 import { getAtlasTemplate, getMinimalTemplate, getGeminiTemplate, getTikzposterTemplate, getA0PosterTemplate } from "./templates"
 import type { LatexGenerator } from "./types"
-import { indent, assetUrlToLatexPath } from "./helpers"
+import { indent, assetUrlToLatexPath, cleanCaption } from "./helpers"
 
 function generateTable(card: Card): string {
   const rows = card.table.rows
@@ -19,8 +19,9 @@ function generateTable(card: Card): string {
       return `${cells} \\\\`
     })
     .join("\n")
-  const caption = card.table.caption
-    ? `\n{\\small ${parseMarkdownToLatex(card.table.caption)}}`
+  const rawCap = cleanCaption(card.table.caption, "Table")
+  const caption = rawCap
+    ? `\n{\\small ${parseMarkdownToLatex(rawCap)}}`
     : ""
   return `\\resizebox{\\linewidth}{!}{\n\\begin{tabular}{|${colSpec}|}\\hline\n${indent(body)}\n\\hline\n\\end{tabular}\n}${caption}`
 }
@@ -35,22 +36,25 @@ function generateFigures(card: Card, workspaceId = ""): string {
 
   if (figs.length >= 2) {
     const [a, b] = figs.slice(0, 2)
-    const captionA = a.caption ? `\\\\\n  {\\small ${parseMarkdownToLatex(a.caption)}}` : ""
-    const captionB = b.caption ? `\\\\\n  {\\small ${parseMarkdownToLatex(b.caption)}}` : ""
+    const rawCapA = cleanCaption(a.caption, "Figure")
+    const rawCapB = cleanCaption(b.caption, "Figure")
+    const captionA = rawCapA ? `\\\\\n  {\\small ${parseMarkdownToLatex(rawCapA)}}` : ""
+    const captionB = rawCapB ? `\\\\\n  {\\small ${parseMarkdownToLatex(rawCapB)}}` : ""
     return [
-      `\\begin{minipage}[t]{0.495\\linewidth}\n  \\centering\n  \\includegraphics[width=\\linewidth]{${latexPath(a.url)}}${captionA}\n\\end{minipage}%`,
+      `\\begin{minipage}[t]{0.495\\linewidth}\n  \\centering\n  \\includegraphics[width=\\linewidth,keepaspectratio]{${latexPath(a.url)}}${captionA}\n\\end{minipage}%`,
       `\\hfill`,
-      `\\begin{minipage}[t]{0.495\\linewidth}\n  \\centering\n  \\includegraphics[width=\\linewidth]{${latexPath(b.url)}}${captionB}\n\\end{minipage}`
+      `\\begin{minipage}[t]{0.495\\linewidth}\n  \\centering\n  \\includegraphics[width=\\linewidth,keepaspectratio]{${latexPath(b.url)}}${captionB}\n\\end{minipage}`
     ]
       .filter(Boolean)
       .join("\n")
   }
 
   const f = figs[0]
-  const captionLine = f.caption
-    ? `\n{\\small ${parseMarkdownToLatex(f.caption)}}`
+  const rawCap = cleanCaption(f.caption, "Figure")
+  const captionLine = rawCap
+    ? `\n{\\small ${parseMarkdownToLatex(rawCap)}}`
     : ""
-  return `\\begin{center}\n  \\includegraphics[width=1.0\\linewidth]{${latexPath(f.url)}}\n\\end{center}${captionLine}`
+  return `\\begin{center}\n  \\includegraphics[width=1.0\\linewidth,keepaspectratio]{${latexPath(f.url)}}\n\\end{center}${captionLine}`
 }
 
 export function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[] = [], templateId = ""): string {

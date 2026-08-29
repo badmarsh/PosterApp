@@ -1,14 +1,47 @@
 import type { Card, ValidationMessage } from "@/lib/poster-types"
 import { COLUMN_BUDGET, estimateHeight } from "./layout"
 
+const DANGEROUS_LATEX_COMMANDS = [
+  "\\write",
+  "\\openout",
+  "\\immediate",
+  "\\input",
+  "\\include",
+  "\\catcode",
+  "\\csname",
+  "\\batchmode",
+  "\\nonstopmode",
+  "\\scrollmode",
+  "\\errorstopmode",
+  "\\def",
+  "\\let",
+  "\\gdef",
+  "\\edef",
+  "\\xdef",
+]
+
 export function hasUnsafeLatex(input: string): string[] {
+  if (!input || typeof input !== "string") return []
   const found = new Set<string>()
 
+  // Check for dangerous TeX primitives
+  for (const cmd of DANGEROUS_LATEX_COMMANDS) {
+    if (input.includes(cmd)) {
+      found.add(`prohibited command ${cmd}`)
+    }
+  }
+
+  // Count brace balance, ignoring escaped braces like \{ and \}
   let depth = 0
-  for (const ch of input) {
-    if (ch === "{") depth++
-    else if (ch === "}") depth--
-    if (depth < 0) { found.add("unbalanced {}"); break }
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i]
+    const prev = i > 0 ? input[i - 1] : ""
+    if (ch === "{" && prev !== "\\") depth++
+    else if (ch === "}" && prev !== "\\") depth--
+    if (depth < 0) {
+      found.add("unbalanced {}")
+      break
+    }
   }
   if (depth !== 0) found.add("unbalanced {}")
 

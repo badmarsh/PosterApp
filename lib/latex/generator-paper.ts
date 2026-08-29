@@ -1,11 +1,17 @@
 import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
-import { getTwoColumnTemplate, getSingleColumnTemplate, getIEEEConfTemplate, getACMSigconfTemplate, getSpringerLLNCSTemplate } from "./templates"
+import { getTwoColumnTemplate, getSingleColumnTemplate, getIEEEConfTemplate, getACMSigconfTemplate, getSpringerLLNCSTemplate, getJinstProceedingsTemplate, getPosProceedingsTemplate } from "./templates"
 import type { LatexGenerator } from "./types"
 import { assetUrlToLatexPath } from "./helpers"
 
-function generateTable(card: Card): string {
+function cleanCaption(caption: string | undefined, prefix: "Figure" | "Table"): string {
+  if (!caption) return ""
+  const regex = prefix === "Figure" ? /^(Figure\s*\d*:?\s*|Fig\.\s*\d*:?\s*)/i : /^(Table\s*\d*:?\s*)/i
+  return caption.replace(regex, "").trim()
+}
+
+function generateTable(card: Card, isTwoColumn = false): string {
   if (!card.table || !Array.isArray(card.table.rows) || card.table.rows.length === 0 || !Array.isArray(card.table.rows[0])) return ""
 
   const rows = card.table.rows
@@ -21,17 +27,25 @@ function generateTable(card: Card): string {
     })
     .join("\n")
     
-  const caption = card.table.caption
-    ? `  \\caption{${parseMarkdownToLatex(card.table.caption)}}\n`
+  const rawCaption = cleanCaption(card.table.caption, "Table")
+  const caption = rawCaption
+    ? `  \\caption{${parseMarkdownToLatex(rawCaption)}}\n`
     : ""
     
-  return `\\begin{table}[htbp]
+  // Wide tables (>3 columns in two-column paper) should span across both columns via table*
+  const useTwoColTable = isTwoColumn && cols > 3
+  const env = useTwoColTable ? "table*" : "table"
+  const maxWidth = useTwoColTable ? "\\textwidth" : "\\linewidth"
+
+  return `\\begin{${env}}[htbp]
   \\centering
-${caption}  \\begin{tabular}{|${colSpec}|}\\hline
+${caption}  \\resizebox{${maxWidth}}{!}{%
+  \\begin{tabular}{|${colSpec}|}\\hline
 ${body}
   \\hline
-  \\end{tabular}
-\\end{table}`
+  \\end{tabular}%
+  }
+\\end{${env}}`
 }
 
 function generateFigures(card: Card, workspaceId = "", isTwoColumn = false): string {
@@ -46,31 +60,34 @@ function generateFigures(card: Card, workspaceId = "", isTwoColumn = false): str
 
   if (figs.length >= 2) {
     const [a, b] = figs.slice(0, 2)
-    const captionA = a.caption ? `\\caption{${parseMarkdownToLatex(a.caption)}}` : ""
-    const captionB = b.caption ? `\\caption{${parseMarkdownToLatex(b.caption)}}` : ""
+    const rawCapA = cleanCaption(a.caption, "Figure")
+    const rawCapB = cleanCaption(b.caption, "Figure")
+    const captionA = rawCapA ? `\\caption{${parseMarkdownToLatex(rawCapA)}}` : ""
+    const captionB = rawCapB ? `\\caption{${parseMarkdownToLatex(rawCapB)}}` : ""
     return `\\begin{${env}}[htbp]
   \\centering
-  \\begin{minipage}[b]{0.48\\textwidth}
+  \\begin{minipage}[b]{0.48\\linewidth}
     \\centering
-    \\includegraphics[width=\\textwidth]{${latexPath(a.url)}}
+    \\includegraphics[width=\\linewidth,keepaspectratio]{${latexPath(a.url)}}
     ${captionA}
   \\end{minipage}
   \\hfill
-  \\begin{minipage}[b]{0.48\\textwidth}
+  \\begin{minipage}[b]{0.48\\linewidth}
     \\centering
-    \\includegraphics[width=\\textwidth]{${latexPath(b.url)}}
+    \\includegraphics[width=\\linewidth,keepaspectratio]{${latexPath(b.url)}}
     ${captionB}
   \\end{minipage}
 \\end{${env}}`
   }
 
   const f = figs[0]
-  const captionLine = f.caption
-    ? `  \\caption{${parseMarkdownToLatex(f.caption)}}\n`
+  const rawCap = cleanCaption(f.caption, "Figure")
+  const captionLine = rawCap
+    ? `  \\caption{${parseMarkdownToLatex(rawCap)}}\n`
     : ""
   return `\\begin{${env}}[htbp]
   \\centering
-  \\includegraphics[width=0.8\\textwidth]{${latexPath(f.url)}}
+  \\includegraphics[width=\\linewidth,keepaspectratio]{${latexPath(f.url)}}
 ${captionLine}\\end{${env}}`
 }
 
@@ -80,12 +97,19 @@ function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[
   if (card.pattern === "references") {
     const nociteCmd = usedBibKeys.length > 0 ? `\\nocite{${usedBibKeys.join(",")}}` : "\\nocite{*}"
     parts.push(`\\begingroup\n${nociteCmd}\n\\bibliographystyle{plain}\n\\bibliography{references}\n\\endgroup`)
-    // Notice we do NOT output a \\section for references here, it's usually automatic in article class
     return parts.join("\n\n")
-  } 
+  }
 
-  // Output standard section
-  const sectionTitle = parseMarkdownToLatex(card.title)
+  const isAbstract = card.title.trim().toLowerCase() === "abstract" || (card.pattern as string) === "abstract"
+
+  if (isAbstract) {
+    parts.push(`\\begin{abstract}\n${parseMarkdownToLatex(card.content.trim())}\n\\end{abstract}`)
+    return parts.join("\n\n")
+  }
+
+  // Strip leading redundant section number prefix (e.g. "1 Introduction" -> "Introduction")
+  const cleanTitle = card.title.replace(/^(\d+\.?\s*)/, "")
+  const sectionTitle = parseMarkdownToLatex(cleanTitle)
   parts.push(`\\section{${sectionTitle}}`)
 
   if (card.pattern !== "image-focused" && card.content.trim()) {
@@ -93,7 +117,7 @@ function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[
   }
   
   if (card.pattern === "bullets-table" || card.pattern === "section-table") {
-    parts.push(generateTable(card))
+    parts.push(generateTable(card, isTwoColumn))
   }
 
   if (
@@ -133,9 +157,18 @@ export class StandardPaperGenerator implements LatexGenerator {
 
     const isTwoColumn = this.templateId !== "article-single";
 
-    const contentBlocks = sortedCards
-      .map((c) => generateLatexForCard(c, workspaceId, usedKeysArray, isTwoColumn))
-      .join("\n\n")
+    let contentBlocks = ""
+    if (this.templateId === "acm-sigconf") {
+      const abstractCard = sortedCards.find(c => c.title.trim().toLowerCase() === "abstract" || (c.pattern as string) === "abstract")
+      const otherCards = sortedCards.filter(c => c !== abstractCard)
+      const abstractTex = abstractCard ? generateLatexForCard(abstractCard, workspaceId, usedKeysArray, isTwoColumn) : ""
+      const otherTex = otherCards.map(c => generateLatexForCard(c, workspaceId, usedKeysArray, isTwoColumn)).join("\n\n")
+      contentBlocks = [abstractTex, "\\maketitle", otherTex].filter(Boolean).join("\n\n")
+    } else {
+      contentBlocks = sortedCards
+        .map((c) => generateLatexForCard(c, workspaceId, usedKeysArray, isTwoColumn))
+        .join("\n\n")
+    }
 
     let templateContent = "";
     switch (this.templateId) {
@@ -150,6 +183,12 @@ export class StandardPaperGenerator implements LatexGenerator {
         break;
       case "springer-llncs":
         templateContent = getSpringerLLNCSTemplate(project);
+        break;
+      case "jinst-proceedings":
+        templateContent = getJinstProceedingsTemplate(project);
+        break;
+      case "pos-proceedings":
+        templateContent = getPosProceedingsTemplate(project);
         break;
       case "article-twocol":
       default:

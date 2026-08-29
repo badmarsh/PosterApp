@@ -1,12 +1,22 @@
-type MathSlot = { placeholder: string; original: string }
+type Slot = { placeholder: string; original: string }
 
-export function extractMath(input: string): { text: string; slots: MathSlot[] } {
+export function extractMath(input: string): { text: string; slots: Slot[] } {
   if (typeof input !== "string") return { text: "", slots: [] }
-  const slots: MathSlot[] = []
+  const slots: Slot[] = []
   let idx = 0
 
   const text = input
     .replace(/\$\$([\s\S]+?)\$\$/g, (match) => {
+      const placeholder = `\x00MATH${idx++}\x00`
+      slots.push({ placeholder, original: match })
+      return placeholder
+    })
+    .replace(/\\\[([\s\S]+?)\\\]/g, (match) => {
+      const placeholder = `\x00MATH${idx++}\x00`
+      slots.push({ placeholder, original: match })
+      return placeholder
+    })
+    .replace(/\\\(([\s\S]+?)\\\)/g, (match) => {
       const placeholder = `\x00MATH${idx++}\x00`
       slots.push({ placeholder, original: match })
       return placeholder
@@ -20,16 +30,63 @@ export function extractMath(input: string): { text: string; slots: MathSlot[] } 
   return { text, slots }
 }
 
-function restoreMath(text: string, slots: MathSlot[]): string {
+function restoreMath(text: string, slots: Slot[]): string {
+  let result = text
+  const dangerousCommands = new Set([
+    "input", "include", "write", "openout", "immediate", "catcode", "csname",
+    "def", "let", "gdef", "edef", "xdef", "loop", "repeat", "read", "special",
+    "shell", "exec", "openin", "closein", "closeout", "batchmode", "nonstopmode",
+    "scrollmode", "errorstopmode", "primitive", "escapechar"
+  ])
+
+  for (const { placeholder, original } of slots) {
+    const math = original
+      .replace(/^(\$\$|\\\[|\$|\\\()/, "")
+      .replace(/(\$\$|\\\]|\$|\\\))$/, "")
+      .trim()
+
+    const commands = [...math.matchAll(/\\([A-Za-z]+)/g)].map((match) => match[1])
+    const safe = !commands.some((cmd) => dangerousCommands.has(cmd))
+    if (!safe) {
+      result = result.split(placeholder).join(escapeLatex(original))
+    } else if (original.startsWith("$$") || original.startsWith("\\[")) {
+      result = result.split(placeholder).join(`\\begin{equation*}\\fitmath{${math}}\\end{equation*}`)
+    } else {
+      result = result.split(placeholder).join(original)
+    }
+  }
+  return result
+}
+
+function extractCitations(input: string): { text: string; slots: Slot[] } {
+  if (typeof input !== "string") return { text: "", slots: [] }
+  const slots: Slot[] = []
+  let idx = 0
+
+  const text = input
+    .replace(/\\(?:cite[pt]?|nocite|autocite)\{([A-Za-z0-9_:\-,\s]+)\}/g, (match) => {
+      const placeholder = `\x00CITE${idx++}\x00`
+      slots.push({ placeholder, original: match })
+      return placeholder
+    })
+    .replace(/\[@([A-Za-z0-9_:\-,\s@;]+)\]/g, (_match: string, keys: string) => {
+      const placeholder = `\x00CITE${idx++}\x00`
+      const cleanKeys = keys
+        .split(/[,;]/)
+        .map((k: string) => k.replace(/@/g, "").trim())
+        .filter(Boolean)
+        .join(", ")
+      slots.push({ placeholder, original: `\\cite{${cleanKeys}}` })
+      return placeholder
+    })
+
+  return { text, slots }
+}
+
+function restoreCitations(text: string, slots: Slot[]): string {
   let result = text
   for (const { placeholder, original } of slots) {
-    const math = original.slice(original.startsWith("$$") ? 2 : 1, original.endsWith("$$") ? -2 : -1).trim()
-    // Math is opt-in and deliberately small: only common mathematical macros
-    // are accepted. Everything else is rendered as ordinary escaped text.
-    const allowed = new Set(["alpha", "beta", "gamma", "delta", "epsilon", "theta", "lambda", "mu", "pi", "sigma", "phi", "omega", "Gamma", "Delta", "Sigma", "Omega", "frac", "sqrt", "left", "right", "cdot", "times", "le", "ge", "neq", "approx", "in", "notin", "subset", "subseteq", "cap", "cup", "to", "gets", "rightarrow", "leftarrow", "Rightarrow", "Leftarrow", "text", "mathcal", "mathbb", "log", "exp", "sin", "cos", "tan", "sum", "prod", "int", "infty", "partial"])
-    const commands = [...math.matchAll(/\\([A-Za-z]+)/g)].map((match) => match[1])
-    const safe = /^[A-Za-z0-9\s+\-*/=<>^_{}()[\]|,.\\]+$/.test(math) && commands.every((command) => allowed.has(command))
-    result = result.split(placeholder).join(safe ? original : escapeLatex(original))
+    result = result.split(placeholder).join(original)
   }
   return result
 }
@@ -69,7 +126,8 @@ export function escapeLatex(input: string): string {
 
 export function parseMarkdownToLatex(input: string): string {
   const { text: afterMath, slots: mathSlots } = extractMath(input)
-  let text = escapeLatex(afterMath)
+  const { text: afterCites, slots: citeSlots } = extractCitations(afterMath)
+  let text = escapeLatex(afterCites)
 
   text = text.replace(/\*\*([^*\n]+)\*\*/g, "\\textbf{$1}")
   text = text.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "\\textit{$1}")
@@ -79,9 +137,6 @@ export function parseMarkdownToLatex(input: string): string {
       return `\\href{${url}}{${title}}`
     }
     return title
-  })
-  text = text.replace(/\[@([^\]]+)\]/g, (match, keys) => {
-    return `\\cite{${keys.replace(/@/g, "")}}`
   })
 
   const lines = text.split("\n")
@@ -107,6 +162,7 @@ export function parseMarkdownToLatex(input: string): string {
   if (inList) outLines.push("\\end{itemize}")
 
   text = outLines.join("\n")
+  text = restoreCitations(text, citeSlots)
   text = restoreMath(text, mathSlots)
 
   return text
