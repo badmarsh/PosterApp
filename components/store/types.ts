@@ -76,6 +76,7 @@ export interface IngestionSlice {
   promoteAsset: (assetId: string, cardId: string, slot: AssignSlot) => void
   unassignAsset: (assetId: string) => void
   discardAsset: (assetId: string) => void
+  backfillCaptions: () => Promise<void>
   pushLog: (level: ParseLogEntry["level"], message: string) => void
 }
 
@@ -85,6 +86,7 @@ export interface BibSlice {
 
   fetchBib: (projectId: string) => Promise<void>
   updateBib: (projectId: string, bib: string) => Promise<void>
+  insertCitation: (key: string, cardId: string) => void
 }
 
 export interface UiSlice {

@@ -80,3 +80,11 @@ export const StructureGenerationSchema = z.object({
 })
 export type StructureGenerationResult = z.infer<typeof StructureGenerationSchema>
 
+// 7. Vision Captioning & Naming
+export const VisionCaptionSchema = z.object({
+  name: z.string().optional().default(""),
+  originalCaption: z.string().optional().default(""),
+  description: z.string().optional().default(""),
+})
+export type VisionCaptionResult = z.infer<typeof VisionCaptionSchema>
+

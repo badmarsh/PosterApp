@@ -1,8 +1,9 @@
 import * as fs from "fs"
 import * as path from "path"
+import { AI_CONFIG } from "@/lib/config/ai"
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
-export const MAX_SOURCE_CHARS = 80_000
+export const MAX_SOURCE_CHARS = AI_CONFIG.generation.maxSourceChars
 
 const contextCache = new Map<string, { snippets: string; timestamp: number }>()
 

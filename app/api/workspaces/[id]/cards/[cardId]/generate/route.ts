@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { rateLimit } from "@/lib/rate-limit"
+import { rateLimitAsync } from "@/lib/rate-limit"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { loadSourceContext } from "@/lib/ai/context"
 import { generateAIResponse } from "@/lib/ai/client"
 import { CardGenerationSchema } from "@/lib/ai/contracts"
+import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
+import { buildCitationInstruction, buildGroundingInstruction, wrapUntrustedContext } from "@/lib/ai/prompts"
 
 export async function POST(
   req: NextRequest,
@@ -12,22 +14,26 @@ export async function POST(
   const { id: workspaceId, cardId } = await params
 
   if (!/^[a-zA-Z0-9_-]+$/.test(workspaceId) || !/^[a-zA-Z0-9_-]+$/.test(cardId)) {
-    return NextResponse.json({ error: 'Invalid workspace or card ID' }, { status: 400 })
+    return NextResponse.json({ error: "Invalid workspace or card ID" }, { status: 400 })
   }
 
-  let userId: string;
+  let userId: string
   try {
-    const access = await requireWorkspaceEditor(workspaceId);
-    userId = access.userId;
+    const access = await requireWorkspaceEditor(workspaceId)
+    userId = access.userId
   } catch (err) {
-    if (err instanceof Response) return err;
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (err instanceof Response) return err
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { allowed, retryAfterMs } = rateLimit(`${userId}:generate`, 10, 60_000)
+  const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:generate`, 10, 60_000)
   if (!allowed) {
-    return NextResponse.json({ error: 'Rate limited', retryAfterMs }, { status: 429, headers: { 'Retry-After': Math.ceil(retryAfterMs / 1000).toString() } })
+    return NextResponse.json(
+      { error: "Rate limited", retryAfterMs },
+      { status: 429, headers: { "Retry-After": Math.ceil(retryAfterMs / 1000).toString() } }
+    )
   }
+
 
   try {
     const body = await req.json()
@@ -38,26 +44,46 @@ export async function POST(
     }
 
     if (characterLimit <= 0) {
-      return NextResponse.json({
-        error: "No available space for this card. Please increase the height budget, free up space, or move it to another column before auto-filling."
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          error: "No available space for this card. Please increase the height budget, free up space, or move it to another column before auto-filling.",
+        },
+        { status: 400 }
+      )
+    }
+
+    // Verify card exists in workspace active output before spending an AI call
+    const full = await (await import("@/lib/prisma")).prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      include: { outputs: { include: { cards: true } } },
+    })
+    const activeOutput = full?.outputs.find((item: any) => item.isActive) ?? full?.outputs[0]
+    const cardExists = activeOutput?.cards.some((c: any) => c.id === cardId)
+
+    if (!cardExists) {
+      return NextResponse.json({ error: "Card does not exist in active output" }, { status: 404 })
     }
 
     // 1. Load source markdown files
-    const sourceContext = await loadSourceContext({ workspaceId, sourceIds });
+    const sourceContext = await loadSourceContext({ workspaceId, sourceIds })
 
     if (!sourceContext) {
-      return NextResponse.json({ error: "No parsed documents found in workspace. Please ingest PDFs first." }, { status: 400 })
+      return NextResponse.json(
+        { error: "No parsed documents found in workspace. Please ingest PDFs first." },
+        { status: 400 }
+      )
     }
 
     // 2. Format available assets
-    const availableAssets = (assets || []).map((a: {id: string, kind: string, caption?: string, snippet?: string, filename?: string}) => ({
-      id: a.id,
-      filename: a.filename,
-      kind: a.kind,
-      caption: a.caption,
-      snippet: a.snippet
-    }))
+    const availableAssets = (assets || []).map(
+      (a: { id: string; kind: string; caption?: string; snippet?: string; filename?: string }) => ({
+        id: a.id,
+        filename: a.filename,
+        kind: a.kind,
+        caption: a.caption,
+        snippet: a.snippet,
+      })
+    )
 
     // 3. Build output-type-specific prompt
     const isAutonomous = !topic || topic === "Untitled card" || topic.trim() === ""
@@ -72,18 +98,23 @@ export async function POST(
       characterLimit,
     })
 
-    const model = process.env.AI_GENERATION_MODEL || process.env.AI_MODEL || "gemini-3-flash"
-
     const parsedData = await generateAIResponse("generate-card", {
-      model,
+      model: resolveAiModel("generation"),
       userPrompt: prompt,
       schema: CardGenerationSchema,
-      signal: AbortSignal.timeout(180_000)
-    });
+      signal: AbortSignal.timeout(AI_TIMEOUTS.generation),
+    })
 
-    return NextResponse.json(parsedData)
+    // Soft check: check if total length massively exceeds characterLimit
+    const totalLength = (parsedData.bullets || []).join(" ").length
+    const isOverBudget = characterLimit > 0 && totalLength > characterLimit * 1.4
+
+    return NextResponse.json({
+      ...parsedData,
+      overBudget: isOverBudget,
+    })
   } catch (err: unknown) {
-    if (err instanceof Response) return err;
+    if (err instanceof Response) return err
     console.error("Card generation failed:", err)
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to generate card content" },
@@ -108,20 +139,18 @@ function buildCardPrompt(opts: CardPromptOptions): string {
   const { outputType, topic, isAutonomous, sourceContext, availableAssets, bibKeys, characterLimit } = opts
 
   const topicInstruction = isAutonomous
-    ? `The card title is unspecified or generic. Autonomously choose the most compelling scientific topic from the <Source Material> that has not yet been covered elsewhere, and write about it.`
+    ? `The card title is unspecified or generic. Autonomously choose the most compelling scientific topic from the source material that has not yet been covered elsewhere, and write about it.`
     : `Write the content for the card titled: "${topic}". Stay strictly on this topic.`
 
-  const citeNote = bibKeys.length > 0
-    ? `You may use \\cite{key} citations but ONLY with keys from: ${JSON.stringify(bibKeys)}. Never invent citation keys.`
-    : `Do NOT use \\cite{} commands — no valid cite keys are available.`
+  const citeNote = buildCitationInstruction(bibKeys)
+  const groundingRule = buildGroundingInstruction()
+  const wrappedSource = wrapUntrustedContext("Source Material", sourceContext)
 
   // ─── POSTER card ────────────────────────────────────────────────────────
   if (outputType === "poster") {
     return `You are an expert scientific poster author.
 
-<Source Material>
-${sourceContext}
-</Source Material>
+${wrappedSource}
 
 <Available Figures/Tables>
 ${JSON.stringify(availableAssets, null, 2)}
@@ -134,7 +163,7 @@ ${JSON.stringify(bibKeys)}
 ${topicInstruction}
 
 POSTER CARD WRITING RULES:
-- STRICT GROUNDING: Use ONLY information from the <Source Material>. Do not invent facts.
+- ${groundingRule}
 - Write 3–6 concise bullet points. Each bullet = 1–2 sentences max. Dense, information-rich.
 - Prefer quantitative claims where the source provides numbers (e.g. "Achieves 94.2% accuracy on X benchmark").
 - You may include brief inline LaTeX math if the topic involves formulas from the source (e.g. $\\mathcal{L} = ...$).
@@ -157,9 +186,7 @@ Respond EXACTLY in this JSON format (no markdown wrapper):
   if (outputType === "slides") {
     return `You are an expert scientific presenter writing slide content.
 
-<Source Material>
-${sourceContext}
-</Source Material>
+${wrappedSource}
 
 <Available Figures/Tables>
 ${JSON.stringify(availableAssets, null, 2)}
@@ -172,7 +199,7 @@ ${JSON.stringify(bibKeys)}
 ${topicInstruction}
 
 PRESENTATION SLIDE WRITING RULES:
-- STRICT GROUNDING: Use ONLY information from the <Source Material>. Do not invent facts.
+- ${groundingRule}
 - Write 4–6 bullet points. Each bullet must be a SHORT, punchy statement — ideally 1 sentence, max 15 words. Suitable for reading at a glance.
 - Think "slide bullets", not essay prose. Each bullet = one clear takeaway or fact.
 - Quantitative results are highly valued (e.g. "97% efficiency gain over baseline").
@@ -194,12 +221,9 @@ Respond EXACTLY in this JSON format (no markdown wrapper):
   }
 
   // ─── PAPER section ───────────────────────────────────────────────────────
-  // Paper sections contain full academic prose paragraphs (returned in "bullets" array as one string per paragraph)
   return `You are an expert academic writer writing a section of a research paper.
 
-<Source Material>
-${sourceContext}
-</Source Material>
+${wrappedSource}
 
 <Available Figures/Tables>
 ${JSON.stringify(availableAssets, null, 2)}
@@ -212,7 +236,7 @@ ${JSON.stringify(bibKeys)}
 ${topicInstruction}
 
 ACADEMIC PAPER SECTION WRITING RULES:
-- STRICT GROUNDING: Use ONLY information from the <Source Material>. Do not invent facts or extrapolate beyond what is stated.
+- ${groundingRule}
 - Write 2–4 coherent academic paragraphs. Each paragraph = one string in the "bullets" array.
 - Use formal academic prose: no bullet points or markdown syntax inside the text.
 - You may use inline LaTeX math to reproduce equations from the source verbatim (e.g. $\\mathcal{L}_{total} = ...$).
@@ -234,3 +258,4 @@ Respond EXACTLY in this JSON format (no markdown wrapper). Return paragraphs as 
   ]
 }`
 }
+

@@ -4,6 +4,9 @@ import { parseAiJson } from "@/lib/ai-helpers"
 
 interface AIClientOptions<T> {
   model: string;
+  role?: string;
+  apiUrl?: string;
+  apiKey?: string;
   systemPrompt?: string;
   userPrompt: string | any[];
   schema: ZodSchema<T>;
@@ -20,8 +23,9 @@ export async function generateAIResponse<T>(
   operationName: string,
   options: AIClientOptions<T>
 ): Promise<T> {
-  const apiUrl = process.env.AI_API_URL;
-  const apiKey = process.env.AI_API_KEY;
+  const isVision = options.role === "vision" || options.model.includes("omni") || options.model.includes("vl")
+  const apiUrl = options.apiUrl || (isVision && process.env.AI_VISION_API_URL ? process.env.AI_VISION_API_URL : process.env.AI_API_URL);
+  const apiKey = options.apiKey || (isVision && process.env.AI_VISION_API_KEY ? process.env.AI_VISION_API_KEY : process.env.AI_API_KEY);
 
   if (!apiUrl || !apiKey) {
     throw new Error("AI API configuration missing (AI_API_URL or AI_API_KEY)");
@@ -59,6 +63,7 @@ export async function generateAIResponse<T>(
       body: JSON.stringify(payload),
       signal: options.signal
     });
+
 
     const durationMs = Date.now() - startTime;
 

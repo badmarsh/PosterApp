@@ -26,7 +26,7 @@ function generateTable(card: Card): string {
 }
 
 function generateFigures(card: Card, workspaceId = ""): string {
-  const figs = card.figures.filter((f) => f.url.trim())
+  const figs = (card.figures ?? []).filter((f): f is NonNullable<typeof f> => Boolean(f?.url?.trim()))
   if (!figs.length) return "% no figures"
 
   function latexPath(url: string): string {
@@ -99,7 +99,7 @@ export class TikzPosterGenerator implements LatexGenerator {
     for (const card of (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])) {
       const textParts = [card.content]
       if (card.table?.caption) textParts.push(card.table.caption)
-      if (Array.isArray(card.figures)) card.figures.forEach(f => { if (f.caption) textParts.push(f.caption) })
+      if (Array.isArray(card.figures)) card.figures.forEach(f => { if (f?.caption) textParts.push(f.caption) })
       extractCiteKeys(textParts.join("\n")).forEach(k => usedKeys.add(k))
     }
     const usedKeysArray = Array.from(usedKeys)

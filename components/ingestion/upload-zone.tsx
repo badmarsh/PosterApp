@@ -25,6 +25,17 @@ export function UploadZone() {
   const ingestFiles = (project.ingestFiles || []).filter((f) => !f.dismissed)
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
+  const [retryingIds, setRetryingIds] = useState<string[]>([])
+
+  async function handleRetry(fileId: string) {
+    if (retryingIds.includes(fileId)) return
+    setRetryingIds((prev) => [...prev, fileId])
+    try {
+      await Promise.resolve(retryFile(fileId))
+    } finally {
+      setRetryingIds((prev) => prev.filter((id) => id !== fileId))
+    }
+  }
 
   function handleFiles(list: FileList | null) {
     if (!list || !list.length) return
@@ -115,9 +126,10 @@ export function UploadZone() {
                     size="icon-xs"
                     variant="ghost"
                     aria-label={`Retry parsing ${file.name}`}
-                    onClick={() => retryFile(file.id)}
+                    disabled={retryingIds.includes(file.id)}
+                    onClick={() => handleRetry(file.id)}
                   >
-                    <RotateCw className="size-3.5" />
+                    <RotateCw className={cn("size-3.5", retryingIds.includes(file.id) && "animate-spin opacity-50")} />
                   </Button>
                 )}
                 {file.status === "done" ? (

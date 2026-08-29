@@ -1,13 +1,15 @@
 "use client"
 
-import { useState, memo } from "react"
-import { Trash2, Wand2, ListFilter, File } from "lucide-react"
+import { useState, useMemo, memo } from "react"
+import { Trash2, Wand2, ListFilter, File, Sparkles, Loader2 } from "lucide-react"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import katex from "katex"
+import "katex/dist/katex.min.css"
 import {
   ASSET_KIND_LABEL,
   type AssetKind,
@@ -20,7 +22,7 @@ import {
 import { FigureEditor } from "@/components/ingestion/figure-editor"
 import { PromotePopover } from "@/components/ingestion/promote-popover"
 
-const KIND_ORDER: AssetKind[] = ["text", "figure", "table"]
+const KIND_ORDER: AssetKind[] = ["text", "figure", "table", "equation"]
 
 function OriginLabel({ asset }: { asset: ExtractedAsset }) {
   const parts = [`p.${asset.page}`]
@@ -33,8 +35,63 @@ function OriginLabel({ asset }: { asset: ExtractedAsset }) {
   )
 }
 
-function TablePreview({ rows }: { rows: string[][] }) {
-  const preview = rows.slice(0, 3)
+function EquationPreview({ formula }: { formula: string }) {
+  const html = useMemo(() => {
+    try {
+      const clean = formula
+        .replace(/^\$\$|\$\$$/g, "")
+        .replace(/^\\\[|\\\]$/g, "")
+        .replace(/\\tag\{[^}]+\}/g, "")
+        .trim()
+      return katex.renderToString(clean, {
+        throwOnError: false,
+        displayMode: true,
+      })
+    } catch {
+      return null
+    }
+  }, [formula])
+
+  if (!html) {
+    return (
+      <div className="overflow-x-auto rounded border border-border/80 bg-muted/40 px-2 py-1 font-mono text-[10px] text-foreground select-all whitespace-pre-wrap">
+        {formula}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="my-1 overflow-x-auto rounded border border-border/60 bg-muted/20 px-2 py-1 text-center text-foreground [&_.katex-display]:my-0 select-all"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  )
+}
+
+function TablePreview({ rows }: { rows: string[][] | string | undefined | null }) {
+  let parsedRows: string[][] = []
+  if (Array.isArray(rows)) {
+    parsedRows = rows.filter((r) => Array.isArray(r))
+  } else if (typeof rows === "string") {
+    try {
+      const parsed = JSON.parse(rows)
+      if (Array.isArray(parsed)) {
+        parsedRows = parsed.filter((r) => Array.isArray(r))
+      }
+    } catch {
+      parsedRows = []
+    }
+  }
+
+  if (!parsedRows || parsedRows.length === 0) {
+    return (
+      <div className="rounded border border-border bg-muted/20 px-2 py-1 text-[10px] text-muted-foreground italic">
+        Table data extracted
+      </div>
+    )
+  }
+
+  const preview = parsedRows.slice(0, 3)
   return (
     <div className="overflow-hidden rounded border border-border">
       <table className="w-full border-collapse text-[9px]">
@@ -46,16 +103,16 @@ function TablePreview({ rows }: { rows: string[][] }) {
                   key={ci}
                   className="truncate border border-border px-1 py-0.5"
                 >
-                  {cell}
+                  {String(cell ?? "")}
                 </td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
-      {rows.length > 3 && (
+      {parsedRows.length > 3 && (
         <p className="bg-card px-1 py-0.5 text-[8px] text-muted-foreground">
-          +{rows.length - 3} more rows
+          +{parsedRows.length - 3} more rows
         </p>
       )}
     </div>
@@ -126,16 +183,31 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
           )}
           {asset.kind === "table" && (
             <div className="mt-0.5">
-              <div className="mb-1"><OriginLabel asset={asset} /></div>
+              {asset.caption ? (
+                <p className="mt-0.5 line-clamp-2 text-[11px] font-medium leading-tight">
+                  <OriginLabel asset={asset} /> <span className="ml-1">{asset.caption}</span>
+                </p>
+              ) : (
+                <div className="mb-1"><OriginLabel asset={asset} /></div>
+              )}
+              {asset.snippet && (
+                <p className="mt-0.5 mb-1 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
+                  {asset.snippet}
+                </p>
+              )}
               <TablePreview rows={asset.tableRows ?? []} />
             </div>
           )}
           {asset.kind === "equation" && (
-            <div className="mt-0.5">
-              <div className="mb-1"><OriginLabel asset={asset} /></div>
-              <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
-                {asset.snippet}
-              </p>
+            <div className="mt-1">
+              {asset.caption ? (
+                <p className="mb-1 line-clamp-2 text-[11px] font-medium leading-tight">
+                  <OriginLabel asset={asset} /> <span className="ml-1">{asset.caption}</span>
+                </p>
+              ) : (
+                <div className="mb-1"><OriginLabel asset={asset} /></div>
+              )}
+              <EquationPreview formula={asset.snippet || asset.caption || ""} />
             </div>
           )}
         </div>
@@ -179,12 +251,23 @@ export function AssetList() {
   const project = useEditor((s) => s.project)
   const removeFile = useEditor((s) => s.removeFile)
   const removeAllLegacyAssets = useEditor((s) => s.removeAllLegacyAssets)
+  const backfillCaptions = useEditor((s) => s.backfillCaptions)
+  const [isBackfilling, setIsBackfilling] = useState(false)
   const assets = project.assets || []
   const ingestFiles = project.ingestFiles || []
 
   const [fileFilters, setFileFilters] = useState<Record<string, AssetKind | "all">>({})
 
   const getFilter = (id: string) => fileFilters[id] || "all"
+
+  const handleBackfill = async () => {
+    setIsBackfilling(true)
+    try {
+      await backfillCaptions()
+    } finally {
+      setIsBackfilling(false)
+    }
+  }
 
   // Group assets by fileId
   const groups = ingestFiles
@@ -249,6 +332,25 @@ export function AssetList() {
 
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between px-1">
+        <span className="text-[11px] font-medium text-muted-foreground">
+          {assets.length} extracted assets
+        </span>
+        <Button
+          size="xs"
+          variant="outline"
+          className="h-6 gap-1 px-2 text-[10px]"
+          disabled={isBackfilling || assets.length === 0}
+          onClick={handleBackfill}
+        >
+          {isBackfilling ? (
+            <Loader2 className="size-3 animate-spin text-primary" />
+          ) : (
+            <Sparkles className="size-3 text-primary" />
+          )}
+          {isBackfilling ? "Backfilling..." : "Backfill captions"}
+        </Button>
+      </div>
       {groups.map((g) => {
         const isOpen = openSection === g.file.id
         return (

@@ -16,7 +16,8 @@ export type JobFn = (
 
 class JobQueue {
   private queue: Array<{ job: Job; fn: JobFn }> = []
-  private running = false
+  private activeCount = 0
+  private maxConcurrency = 3
   private controllers = new Map<string, AbortController>()
   private listeners = new Set<(jobs: Job[]) => void>()
 
@@ -27,16 +28,21 @@ class JobQueue {
         const stored = localStorage.getItem("posterapp-jobs")
         if (stored) {
           const parsed = JSON.parse(stored) as Job[]
-          // Any job that was queued or running is now an error (killed)
-          this.queue = parsed.map(job => {
-            if (job.status === "queued" || job.status === "running") {
-              return {
-                job: { ...job, status: "error", error: "Process was killed" },
-                fn: async () => {},
+          const RETENTION_MS = 10 * 60_000
+          const now = Date.now()
+          // Any job that was interrupted on previous page session, pruned by retention
+          this.queue = parsed
+            .filter((job) => now - job.createdAt < RETENTION_MS)
+            .slice(0, 50)
+            .map((job) => {
+              if (job.status === "queued" || job.status === "running") {
+                return {
+                  job: { ...job, status: "error", error: "Interrupted by reload" },
+                  fn: async () => {},
+                }
               }
-            }
-            return { job, fn: async () => {} }
-          })
+              return { job, fn: async () => {} }
+            })
         }
       } catch (err) {
         console.error("Failed to load jobs from localStorage", err)
@@ -45,9 +51,22 @@ class JobQueue {
   }
 
   private notify() {
+    const RETENTION_MS = 10 * 60_000
+    const now = Date.now()
+    this.queue = this.queue
+      .filter(
+        ({ job }) =>
+          job.status === "queued" || job.status === "running" || now - job.createdAt < RETENTION_MS
+      )
+      .slice(0, 50)
+
     const jobs = this.getJobs()
     if (typeof window !== "undefined") {
-      localStorage.setItem("posterapp-jobs", JSON.stringify(jobs))
+      try {
+        localStorage.setItem("posterapp-jobs", JSON.stringify(jobs))
+      } catch (err) {
+        console.error("Failed to persist jobs to localStorage", err)
+      }
     }
     this.listeners.forEach((cb) => cb(jobs))
   }
@@ -104,13 +123,18 @@ class JobQueue {
   }
 
   private async processNext() {
-    if (this.running) return
+    if (this.activeCount >= this.maxConcurrency) return
     const nextItem = this.queue.slice().reverse().find((q) => q.job.status === "queued")
     if (!nextItem) return
 
-    this.running = true
+    this.activeCount++
     nextItem.job.status = "running"
     this.notify()
+
+    // Trigger next item concurrently if quota permits
+    if (this.activeCount < this.maxConcurrency) {
+      this.processNext()
+    }
 
     const controller = new AbortController()
     this.controllers.set(nextItem.job.id, controller)
@@ -138,8 +162,8 @@ class JobQueue {
       }
     } finally {
       this.controllers.delete(nextItem.job.id)
+      this.activeCount--
       this.notify()
-      this.running = false
       this.processNext() // process next in queue
     }
   }

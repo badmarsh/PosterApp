@@ -34,6 +34,10 @@ async function canAccessWorkspace(workspaceId: string, userId: string) {
 }
 
 app.prepare().then(() => {
+  try {
+    require("./lib/services/mineru-bridge").ensureMinerUBridge()
+  } catch {}
+
   const server = createServer((req, res) => {
     const parsedUrl = parse(req.url!, true)
     handle(req, res, parsedUrl)
@@ -73,9 +77,21 @@ app.prepare().then(() => {
       return
     }
 
-    const userId = await consumeCollaborationTicket(ticket, workspaceId)
-    if (!userId || !(await canAccessWorkspace(workspaceId, userId))) {
-      console.warn("[Yjs WS] Rejected authorization")
+    const authTimeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
+    const authCheck = (async () => {
+      try {
+        const userId = await consumeCollaborationTicket(ticket, workspaceId)
+        if (!userId || !(await canAccessWorkspace(workspaceId, userId))) return null
+        return userId
+      } catch (err) {
+        console.error("[Yjs WS] Error during auth check:", err)
+        return null
+      }
+    })()
+
+    const userId = await Promise.race([authCheck, authTimeout])
+    if (!userId) {
+      console.warn("[Yjs WS] Rejected authorization (or timed out)")
       socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n")
       socket.destroy()
       return

@@ -52,16 +52,42 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         status: "parsing" as const,
         progress: 10,
       }))
-      set((s) => { s.project.ingestFiles.unshift(...created) })
+      set((s) => {
+        s.project.ingestFiles.unshift(...created)
+        s.isDirty = true
+      })
+      get().saveProject()
       
-      files.forEach(async (f, i) => {
+      files.forEach((f, i) => {
         const fileMeta = created[i]
-        await idbSet(`file_${fileMeta.id}`, f)
-        get().processFile(fileMeta.id)
+        idbSet(`file_${fileMeta.id}`, f)
+          .then(() => {
+            get().processFile(fileMeta.id)
+          })
+          .catch((err) => {
+            set((s) => {
+              const ingestFile = s.project.ingestFiles.find((x) => x.id === fileMeta.id)
+              if (ingestFile) {
+                ingestFile.status = "failed"
+                ingestFile.error = String(err)
+              }
+              s.isDirty = true
+            })
+            get().saveProject()
+            get().pushLog("error", `Failed to buffer ${f.name} for parsing: ${err}`)
+          })
       })
     },
 
     processFile: async (id) => {
+      const existingJobId = activeJobs.get(id)
+      if (existingJobId) {
+        const existing = jobQueue.getJobs().find((j) => j.id === existingJobId)
+        if (existing && (existing.status === "queued" || existing.status === "running")) {
+          return
+        }
+      }
+
       const f = await idbGet<File>(`file_${id}`)
       if (!f) return
       
@@ -75,8 +101,8 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         get().pushLog("info", `Parsing ${f.name} via MinerU backend.`)
         
         const statuses = [
-          "Layout Predict",
-          "Table orientation",
+          "Layout Analysis",
+          "Table Extraction",
           "External Layout Extraction",
           "MFR Predict",
           "OCR-det",
@@ -85,25 +111,26 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
           "Generating captions"
         ]
         let statusIdx = 0
+        let currentProgress = 15
         const simInterval = setInterval(() => {
-          if (statusIdx < statuses.length) {
-            if (get().project.id === capturedWorkspaceId) {
+          if (get().project.id === capturedWorkspaceId) {
+            if (statusIdx < statuses.length) {
               get().pushLog("info", `[MinerU] ${statuses[statusIdx]}...`)
-              set((s) => {
-                const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
-                if (ingestFile && ingestFile.status === "parsing") {
-                  const prog = 15 + (statusIdx / statuses.length) * 80
-                  ingestFile.progress = prog
-                  onProgress(prog)
-                }
-              })
+              currentProgress = Math.min(85, 15 + ((statusIdx + 1) / statuses.length) * 70)
+              statusIdx++
+            } else {
+              // Asymptotic progress for large files: slowly creep from 85% towards 95%
+              currentProgress = Math.min(95, currentProgress + 1.2)
             }
-            statusIdx++
-          } else {
-            clearInterval(simInterval)
-            activeIntervals.delete(id)
+            set((s) => {
+              const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
+              if (ingestFile && ingestFile.status === "parsing") {
+                ingestFile.progress = Math.round(currentProgress)
+                onProgress(Math.round(currentProgress))
+              }
+            })
           }
-        }, 3000)
+        }, 2500)
         activeIntervals.set(id, simInterval)
 
         try {
@@ -126,7 +153,10 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
 
           if (!res.ok) {
              const errData = await res.json().catch(() => ({}))
-             throw new Error(errData.detail || errData.error || `HTTP ${res.status}`)
+             const msg = errData.detail && errData.error && errData.detail !== errData.error
+               ? `${errData.error}: ${errData.detail}`
+               : (errData.detail || errData.error || `HTTP ${res.status}`)
+             throw new Error(msg)
           }
           const data = await res.json()
           const produced = data.assets || []
@@ -155,7 +185,16 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
               })
               s.isDirty = true
             })
-            get().pushLog("info", `${f.name} parsed, ${produced.length} assets extracted.`)
+
+            // Clean up PDF blob in IndexedDB on success to prevent storage leaks
+            await idbDel(`file_${id}`).catch(() => undefined)
+            await get().saveProject()
+
+            if (produced.length === 0) {
+              get().pushLog("warning", `${f.name} parsed, but no assets were extracted.`)
+            } else {
+              get().pushLog("info", `${f.name} parsed, ${produced.length} assets extracted.`)
+            }
           }
         } catch (err) {
           clearInterval(simInterval)
@@ -166,18 +205,25 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
               set((s) => {
                 const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
                 if (ingestFile) ingestFile.status = "failed"
+                s.isDirty = true
               })
+              get().saveProject()
               get().pushLog("error", `Parsing cancelled for ${f.name}`)
             }
             throw err
           }
 
           if (get().project.id === capturedWorkspaceId) {
+            const msg = err instanceof Error ? err.message : String(err)
             set((s) => {
               const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
-              if (ingestFile) ingestFile.status = "failed"
+              if (ingestFile) {
+                ingestFile.status = "failed"
+                ingestFile.error = msg
+              }
+              s.isDirty = true
             })
-            const msg = err instanceof Error ? err.message : String(err)
+            get().saveProject()
             get().pushLog("error", `Parse failed: ${msg}`)
           }
           throw err
@@ -195,7 +241,9 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
       set((s) => {
         const f = s.project.ingestFiles.find((f) => f.id === id)
         if (f) { f.status = "parsing"; f.progress = 10; f.error = undefined }
+        s.isDirty = true
       })
+      get().saveProject()
       get().pushLog("info", `Retrying parse for file ${id}.`)
       get().processFile(id)
     },
@@ -251,24 +299,79 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         const output = s.project.outputs.find((o) => o.id === s.project.activeOutputId)
         const card = output?.cards.find((c) => c.id === cardId)
         if (!card) return
-        if (slot === "bullets" && asset.snippet) {
+
+        // ── Equation ──────────────────────────────────────────────────────
+        if (asset.kind === "equation") {
+          const formula = asset.snippet || asset.caption || ""
+          if (slot === "equation" || slot === "bullets") {
+            const formattedFormula = formula.includes("$$") || formula.includes("\\[")
+              ? formula
+              : `$$\n${formula}\n$$`
+            const prefix = card.content.trim() ? "\n\n" : ""
+            card.content = card.content + prefix + formattedFormula
+          }
+
+        // ── Table ─────────────────────────────────────────────────────────
+        } else if (asset.kind === "table") {
+          const parsedRows: string[][] = Array.isArray(asset.tableRows)
+            ? (asset.tableRows as string[][])
+            : typeof asset.tableRows === "string"
+            ? (() => {
+                try {
+                  const p = JSON.parse(asset.tableRows as string)
+                  return Array.isArray(p) ? (p as string[][]) : []
+                } catch { return [] }
+              })()
+            : []
+
+          if (slot === "table") {
+            card.table = {
+              hasHeader: card.table?.hasHeader ?? true,
+              caption: asset.caption ?? card.table?.caption ?? "",
+              rows: parsedRows,
+            }
+          } else if (slot === "bullets") {
+            // Insert as markdown table into bullets content
+            if (parsedRows.length > 0) {
+              const header = parsedRows[0]
+              const sep = header.map(() => "---")
+              const body = parsedRows.slice(1)
+              const mdTable = [
+                `| ${header.join(" | ")} |`,
+                `| ${sep.join(" | ")} |`,
+                ...body.map((r) => `| ${r.join(" | ")} |`),
+              ].join("\n")
+              const captionLine = asset.caption ? `**${asset.caption}**\n\n` : ""
+              const prefix = card.content.trim() ? "\n\n" : ""
+              card.content = card.content + prefix + captionLine + mdTable
+            }
+          }
+
+        // ── Figure ────────────────────────────────────────────────────────
+        } else if (asset.kind === "figure") {
+          if (slot === "figure1" || slot === "figure2") {
+            if (!card.figures) card.figures = []
+            const idx = slot === "figure1" ? 0 : 1
+            while (card.figures.length <= idx) {
+              card.figures.push({ id: `fig_ph_${card.figures.length}_${Date.now().toString(36)}`, url: "", caption: "" })
+            }
+            card.figures[idx] = {
+              id: `fig_${assetId}`,
+              url: asset.thumbnailUrl ?? "",
+              caption: asset.caption ?? "",
+            }
+            card.figureLayout = card.figures.filter(f => Boolean(f?.url?.trim())).length > 1 ? "two-up" : "single"
+          } else if (slot === "bullets" && asset.caption) {
+            const prefix = card.content.trim() ? "\n" : ""
+            card.content = card.content + prefix + `- ${asset.caption}`
+          }
+
+        // ── Text ──────────────────────────────────────────────────────────
+        } else if (slot === "bullets" && asset.snippet) {
           const prefix = card.content.trim() ? "\n" : ""
           card.content = card.content + prefix + "- " + asset.snippet
-        } else if ((slot === "figure1" || slot === "figure2") && asset.thumbnailUrl) {
-          const idx = slot === "figure1" ? 0 : 1
-          card.figures[idx] = {
-            id: `fig_${assetId}`,
-            url: asset.thumbnailUrl,
-            caption: asset.caption ?? "",
-          }
-          card.figureLayout = card.figures.filter(Boolean).length > 1 ? "two-up" : "single"
-        } else if (slot === "table" && asset.tableRows) {
-          card.table = {
-            hasHeader: true,
-            caption: asset.caption ?? card.table.caption,
-            rows: asset.tableRows,
-          }
         }
+
         const a = s.project.assets.find((a) => a.id === assetId)
         if (a) { a.assignedCardId = cardId; a.assignedSlot = slot }
       })
@@ -293,6 +396,48 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         s.project.assets = s.project.assets.filter((a) => a.id !== assetId)
       })
       get().saveProject()
+    },
+
+    backfillCaptions: async () => {
+      const workspaceId = get().project.id
+      if (!workspaceId) return
+      get().pushLog("info", "Backfilling AI captions for workspace assets...")
+      try {
+        const res = await apiFetch(`/api/workspaces/${workspaceId}/assets/backfill-captions`, {
+          method: "POST",
+        })
+        if (!res.ok) {
+          throw new Error(`Backfill failed with status ${res.status}`)
+        }
+        const data = await res.json()
+        if (Array.isArray(data.assets) && data.assets.length > 0) {
+          set((s) => {
+            const updateMap = new Map<string, { caption?: string; snippet?: string }>(
+              data.assets.map((a: any) => [a.id, a])
+            )
+            for (const a of s.project.assets) {
+              const u = updateMap.get(a.id)
+              if (u) {
+                if (u.caption) a.caption = u.caption
+                if (u.snippet) a.snippet = u.snippet
+              }
+            }
+          })
+          get().saveProject()
+          get().pushLog("info", `Backfilled captions for ${data.updatedCount} assets.`)
+          get().pushEvent({
+            kind: "info",
+            status: "done",
+            title: "Captions backfilled",
+            detail: `Updated ${data.updatedCount} asset captions`,
+          })
+        } else {
+          get().pushLog("info", data.message || "All assets already have captions.")
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        get().pushLog("error", `Backfill captions error: ${msg}`)
+      }
     },
   }
 }

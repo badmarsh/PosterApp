@@ -33,140 +33,182 @@ export function useYjs(workspaceId: string) {
     let ydoc: Y.Doc | null = null
     let unsubscribeZustand: (() => void) | null = null
     let unsubscribeJobs: (() => void) | null = null
-
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
     let isCancelled = false
 
-    const setup = async () => {
-      // Tickets are one-time, short-lived and sent as a WebSocket subprotocol.
-      // This prevents Clerk session credentials appearing in URLs, proxy logs, or
-      // browser history.
-      const ticketResponse = await fetch(`/api/workspaces/${workspaceId}/collaboration-ticket`, { method: "POST", credentials: "same-origin" })
-      if (isCancelled || !ticketResponse.ok) {
-        store.getState().setYjsStatus("disconnected")
-        return
+    let currentBoundOutputId = store.getState().project.activeOutputId
+    let currentObserver: ((event: Y.YMapEvent<string>) => void) | null = null
+    let currentYCards: Y.Map<string> | null = null
+
+    ydoc = new Y.Doc()
+    const wsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL!
+
+    const bindOutput = (outputId: string) => {
+      if (currentYCards && currentObserver) {
+        currentYCards.unobserve(currentObserver)
       }
-      const { ticket } = await ticketResponse.json() as { ticket?: string }
-      if (!ticket || isCancelled) return
-      const collaborationTicket: string = ticket
+      currentBoundOutputId = outputId
+      if (!outputId || !ydoc) return
 
-      ydoc = new Y.Doc()
-      const wsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL!
-      class TicketWebSocket extends WebSocket {
-        constructor(url: string | URL, _protocols?: string | string[]) { super(url, ["posterapp-yjs-v1", collaborationTicket]) }
-      }
-      provider = new WebsocketProvider(
-        wsUrl,
-        workspaceId,
-        ydoc,
-        { connect: true, params: { workspaceId }, WebSocketPolyfill: TicketWebSocket }
-      )
-
-      provider.on("status", (event: { status: "connected" | "disconnected" | "connecting" }) => {
-        store.getState().setYjsStatus(event.status)
-      })
-
-      const outputId = store.getState().project.activeOutputId
-      if (!outputId) return
-      const yCards = ydoc.getMap<Y.Map<string>>("outputs").get(outputId) ?? (() => {
-        const outputs = ydoc!.getMap<Y.Map<string>>("outputs")
-        const cards = new Y.Map<string>()
+      const outputs = ydoc.getMap<Y.Map<string>>("outputs")
+      let cards = outputs.get(outputId)
+      if (!cards) {
+        cards = new Y.Map<string>()
         outputs.set(outputId, cards)
-        return cards
-      })()
+      }
+      currentYCards = cards
 
-      // Listen for remote Yjs changes and update Zustand
-      const observer = (event: Y.YMapEvent<string>) => {
+      currentObserver = (event: Y.YMapEvent<string>) => {
         if (event.transaction.local) return
-        const newCardsArray: Card[] = Array.from(yCards.values()).map(val => JSON.parse(val))
+        const newCardsArray: Card[] = Array.from(cards!.values()).map((val) => JSON.parse(val))
         newCardsArray.sort((a, b) => a.order - b.order)
-        // Ignore changes for outputs which are no longer active locally.  This
-        // keeps poster/slides/paper documents isolated even inside one Y.Doc.
-        if (store.getState().project.activeOutputId === outputId) store.getState()._setCardsFromYjs(newCardsArray)
-      }
-      yCards.observe(observer)
-
-      // Listen for local Zustand changes and update Yjs
-      let lastCards = (store.getState().project.outputs?.find(o => o.id === store.getState().project.activeOutputId)?.cards ?? [])
-      unsubscribeZustand = store.subscribe((state) => {
-        if (state.project.activeOutputId !== outputId) return
-        const newCards = (state.project.outputs?.find(o => o.id === state.project.activeOutputId)?.cards ?? [])
-        if (newCards !== lastCards) {
-          lastCards = newCards
-          ydoc!.transact(() => {
-            newCards.forEach((card) => {
-              const currentStr = yCards.get(card.id)
-              const newStr = JSON.stringify(card)
-              if (currentStr !== newStr) yCards.set(card.id, newStr)
-            })
-            const currentIds = new Set(newCards.map(c => c.id))
-            Array.from(yCards.keys()).forEach(key => {
-              if (!currentIds.has(key)) yCards.delete(key)
-            })
-          }, "local")
+        if (store.getState().project.activeOutputId === outputId) {
+          store.getState()._setCardsFromYjs(newCardsArray)
         }
-      })
-
-      // Awareness — use real Clerk identity
-      const myColor = COLORS[Math.floor(Math.random() * COLORS.length)]
-      const displayName = user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress || "Anonymous"
-
-      provider.awareness.setLocalStateField("user", {
-        name: displayName,
-        color: myColor,
-        cursor: null,
-      })
-
-      provider.awareness.on("change", () => {
-        const states = Array.from(provider!.awareness.getStates().entries())
-          .map(([clientId, state]) => ({
-            clientId,
-            ...(state.user as Omit<Collaborator, "clientId">),
-          }))
-          .filter(u => u.clientId !== ydoc!.clientID && u.name)
-        store.getState().setCollaborators(states)
-      })
-
-      // Track mouse for cursor — throttled
-      const handleMouseMove = (e: MouseEvent) => {
-        const now = Date.now()
-        if (now - lastCursorRef.current < CURSOR_THROTTLE_MS) return
-        lastCursorRef.current = now
-        provider!.awareness.setLocalStateField("user", {
-          ...provider!.awareness.getLocalState()?.user,
-          cursor: { x: e.clientX, y: e.clientY },
-        })
       }
-      const handleMouseLeave = () => {
-        lastCursorRef.current = 0
-        provider!.awareness.setLocalStateField("user", {
-          ...provider!.awareness.getLocalState()?.user,
+      cards.observe(currentObserver)
+    }
+
+    const connect = async () => {
+      if (isCancelled) return
+
+      try {
+        const ticketResponse = await fetch(`/api/workspaces/${workspaceId}/collaboration-ticket`, {
+          method: "POST",
+          credentials: "same-origin",
+        })
+        if (isCancelled || !ticketResponse.ok) {
+          store.getState().setYjsStatus("disconnected")
+          return
+        }
+        const { ticket } = (await ticketResponse.json()) as { ticket?: string }
+        if (!ticket || isCancelled) return
+
+        class TicketWebSocket extends WebSocket {
+          constructor(url: string | URL, _protocols?: string | string[]) {
+            super(url, ["posterapp-yjs-v1", ticket!])
+          }
+        }
+
+        provider = new WebsocketProvider(
+          wsUrl,
+          workspaceId,
+          ydoc!,
+          { connect: true, params: { workspaceId }, WebSocketPolyfill: TicketWebSocket }
+        )
+
+        provider.on("status", (event: { status: "connected" | "disconnected" | "connecting" }) => {
+          store.getState().setYjsStatus(event.status)
+        })
+
+        provider.on("connection-close", () => {
+          if (isCancelled) return
+          store.getState().setYjsStatus("disconnected")
+          provider?.destroy()
+          provider = null
+          if (reconnectTimer) clearTimeout(reconnectTimer)
+          reconnectTimer = setTimeout(connect, 2000)
+        })
+
+        // Awareness — use real Clerk identity
+        const myColor = COLORS[Math.floor(Math.random() * COLORS.length)]
+        const displayName =
+          user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress || "Anonymous"
+
+        provider.awareness.setLocalStateField("user", {
+          name: displayName,
+          color: myColor,
           cursor: null,
         })
-      }
-      window.addEventListener("mousemove", handleMouseMove)
-      window.addEventListener("mouseleave", handleMouseLeave)
 
-      unsubscribeJobs = jobQueue.subscribe((jobs) => {
-        store.setState({ jobs })
-      })
-
-      // Store cleanup refs on the ydoc for teardown
-      ;(ydoc as any)._cleanup = () => {
-        yCards.unobserve(observer)
-        unsubscribeZustand?.()
-        unsubscribeJobs?.()
-        window.removeEventListener("mousemove", handleMouseMove)
-        window.removeEventListener("mouseleave", handleMouseLeave)
-        provider?.destroy()
-        ydoc?.destroy()
+        provider.awareness.on("change", () => {
+          if (!provider) return
+          const states = Array.from(provider.awareness.getStates().entries())
+            .map(([clientId, state]) => ({
+              clientId,
+              ...(state.user as Omit<Collaborator, "clientId">),
+            }))
+            .filter((u) => u.clientId !== ydoc!.clientID && u.name)
+          store.getState().setCollaborators(states)
+        })
+      } catch (err) {
+        console.error("[Yjs] Connection failed:", err)
+        store.getState().setYjsStatus("disconnected")
+        if (!isCancelled) {
+          if (reconnectTimer) clearTimeout(reconnectTimer)
+          reconnectTimer = setTimeout(connect, 3000)
+        }
       }
     }
 
-    setup()
+    if (currentBoundOutputId) {
+      bindOutput(currentBoundOutputId)
+    }
+
+    // Listen for local Zustand changes and update Yjs
+    let lastCards =
+      store.getState().project.outputs?.find((o) => o.id === store.getState().project.activeOutputId)?.cards ?? []
+    unsubscribeZustand = store.subscribe((state) => {
+      const activeId = state.project.activeOutputId
+      if (activeId !== currentBoundOutputId) {
+        bindOutput(activeId)
+      }
+      if (!currentYCards || !activeId) return
+      const newCards = state.project.outputs?.find((o) => o.id === activeId)?.cards ?? []
+      if (newCards !== lastCards) {
+        lastCards = newCards
+        ydoc!.transact(() => {
+          newCards.forEach((card) => {
+            const currentStr = currentYCards!.get(card.id)
+            const newStr = JSON.stringify(card)
+            if (currentStr !== newStr) currentYCards!.set(card.id, newStr)
+          })
+          const currentIds = new Set(newCards.map((c) => c.id))
+          Array.from(currentYCards!.keys()).forEach((key) => {
+            if (!currentIds.has(key)) currentYCards!.delete(key)
+          })
+        }, "local")
+      }
+    })
+
+    // Track mouse for cursor — throttled
+    const handleMouseMove = (e: MouseEvent) => {
+      const now = Date.now()
+      if (now - lastCursorRef.current < CURSOR_THROTTLE_MS) return
+      lastCursorRef.current = now
+      provider?.awareness.setLocalStateField("user", {
+        ...provider?.awareness.getLocalState()?.user,
+        cursor: { x: e.clientX, y: e.clientY },
+      })
+    }
+    const handleMouseLeave = () => {
+      lastCursorRef.current = 0
+      provider?.awareness.setLocalStateField("user", {
+        ...provider?.awareness.getLocalState()?.user,
+        cursor: null,
+      })
+    }
+    window.addEventListener("mousemove", handleMouseMove)
+    window.addEventListener("mouseleave", handleMouseLeave)
+
+    unsubscribeJobs = jobQueue.subscribe((jobs) => {
+      store.setState({ jobs })
+    })
+
+    connect()
 
     return () => {
       isCancelled = true
-      ;(ydoc as any)?._cleanup?.()
+      if (reconnectTimer) clearTimeout(reconnectTimer)
+      if (currentYCards && currentObserver) {
+        currentYCards.unobserve(currentObserver)
+      }
+      unsubscribeZustand?.()
+      unsubscribeJobs?.()
+      window.removeEventListener("mousemove", handleMouseMove)
+      window.removeEventListener("mouseleave", handleMouseLeave)
+      provider?.destroy()
+      ydoc?.destroy()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId, store, collabEnabled])

@@ -48,7 +48,7 @@ export function ParseLogPanel() {
       {open && (
         <div className="max-h-40 overflow-y-auto border-t border-border px-2 py-1.5">
           <ul className="flex flex-col gap-1">
-            {parseLog.map((entry) => (
+            {parseLog.slice().reverse().map((entry) => (
               <li key={entry.id} className="flex gap-1.5 font-mono text-[10px] leading-snug">
                 <span className="shrink-0 text-muted-foreground/60">
                   {entry.ts === "loaded" ? "·" : entry.ts}

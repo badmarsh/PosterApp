@@ -531,11 +531,23 @@ function TableTab({ card }: { card: Card }) {
               if (!val) return
               const asset = parsedTables.find(a => a.id === val)
               if (asset && asset.tableRows) {
+                const parsedRows: string[][] = Array.isArray(asset.tableRows)
+                  ? asset.tableRows
+                  : typeof asset.tableRows === "string"
+                  ? (() => {
+                      try {
+                        const p = JSON.parse(asset.tableRows)
+                        return Array.isArray(p) ? p : []
+                      } catch {
+                        return []
+                      }
+                    })()
+                  : []
                 updateCard(card.id, {
                   table: {
                     hasHeader: true,
                     caption: asset.caption ?? table.caption,
-                    rows: asset.tableRows,
+                    rows: parsedRows,
                   }
                 })
               }
@@ -644,7 +656,17 @@ function FiguresTab({ card }: { card: Card }) {
   const fileRefs = useRef<(HTMLInputElement | null)[]>([])
 
   function setFigure(i: number, patch: Partial<Card["figures"][number]>) {
-    const figures = [...card.figures]
+    const figures = [...(card.figures || [])]
+    for (let j = 0; j < i; j++) {
+      if (!figures[j]) {
+        figures[j] = {
+          // eslint-disable-next-line react-hooks/purity
+          id: `fig_${j}_${Date.now().toString(36)}`,
+          url: "",
+          caption: "",
+        }
+      }
+    }
     figures[i] = {
       // eslint-disable-next-line react-hooks/purity
       id: figures[i]?.id ?? `fig_${i}_${Date.now().toString(36)}`,

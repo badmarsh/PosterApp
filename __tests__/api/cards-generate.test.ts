@@ -14,6 +14,7 @@ vi.mock('@/lib/prisma', () => ({
 
 vi.mock('@/lib/rate-limit', () => ({
   rateLimit: vi.fn(() => ({ allowed: true, retryAfterMs: 0 })),
+  rateLimitAsync: vi.fn(async () => ({ allowed: true, retryAfterMs: 0 })),
 }))
 
 vi.mock('@/lib/ai/context', () => ({
@@ -22,13 +23,14 @@ vi.mock('@/lib/ai/context', () => ({
 
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimit, rateLimitAsync } from '@/lib/rate-limit'
 import { POST } from '@/app/api/workspaces/[id]/cards/[cardId]/generate/route'
 import { NextRequest } from 'next/server'
 
 const mockAuth = vi.mocked(auth)
 const mockPrisma = vi.mocked(prisma)
 const mockRateLimit = vi.mocked(rateLimit)
+const mockRateLimitAsync = vi.mocked(rateLimitAsync)
 
 function makeParams(id: string, cardId: string) {
   return { params: Promise.resolve({ id, cardId }) }
@@ -42,10 +44,23 @@ function makeRequest(body: Record<string, unknown>) {
   })
 }
 
+const mockWorkspaceWithCard = {
+  id: 'ws-1',
+  userId: 'user_123',
+  outputs: [
+    {
+      isActive: true,
+      cards: [{ id: 'card-1', title: 'Test Card' }],
+    },
+  ],
+}
+
 describe('POST /api/workspaces/[id]/cards/[cardId]/generate', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockRateLimit.mockReturnValue({ allowed: true, retryAfterMs: 0 })
+    mockRateLimitAsync.mockResolvedValue({ allowed: true, retryAfterMs: 0 })
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValue(mockWorkspaceWithCard as any)
   })
 
   it('returns 400 for invalid workspace ID', async () => {
@@ -62,8 +77,7 @@ describe('POST /api/workspaces/[id]/cards/[cardId]/generate', () => {
 
   it('returns 429 when rate limited', async () => {
     ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
-    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce({ id: 'ws-1', userId: 'user_123' } as any)
-    mockRateLimit.mockReturnValueOnce({ allowed: false, retryAfterMs: 30000 })
+    mockRateLimitAsync.mockResolvedValueOnce({ allowed: false, retryAfterMs: 30000 })
 
     const req = makeRequest({ topic: 'test' })
     const res = await POST(req, makeParams('ws-1', 'card-1'))
@@ -85,12 +99,28 @@ describe('POST /api/workspaces/[id]/cards/[cardId]/generate', () => {
 
   it('returns 404 when workspace not found or not owned', async () => {
     ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
-    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce(null)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValue(null)
 
     const req = makeRequest({ topic: 'test' })
     const res = await POST(req, makeParams('ws-1', 'card-1'))
 
     expect(res.status).toBe(404)
+  })
+
+  it('returns 404 when card does not exist in active output', async () => {
+    ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValue({
+      id: 'ws-1',
+      userId: 'user_123',
+      outputs: [{ isActive: true, cards: [{ id: 'other-card' }] }],
+    } as any)
+
+    const req = makeRequest({ topic: 'test' })
+    const res = await POST(req, makeParams('ws-1', 'card-1'))
+    const json = await res.json()
+
+    expect(res.status).toBe(404)
+    expect(json.error).toBe('Card does not exist in active output')
   })
 
   it('returns 500 when AI API not configured', async () => {
@@ -100,7 +130,6 @@ describe('POST /api/workspaces/[id]/cards/[cardId]/generate', () => {
     delete process.env.AI_API_KEY
 
     ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
-    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce({ id: 'ws-1', userId: 'user_123' } as any)
 
     const req = makeRequest({ topic: 'test' })
     const res = await POST(req, makeParams('ws-1', 'card-1'))
@@ -121,7 +150,6 @@ describe('POST /api/workspaces/[id]/cards/[cardId]/generate', () => {
     process.env.AI_API_KEY = 'fake-key'
 
     ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
-    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce({ id: 'ws-1', userId: 'user_123' } as any)
 
     const req = makeRequest({})
     const res = await POST(req, makeParams('ws-1', 'card-1'))

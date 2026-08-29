@@ -24,9 +24,10 @@ class WorkspaceConflictError extends Error {
  * Helper: parse a DB Card row's JSON fields into plain objects.
  */
 function parseCard(c: any) {
+  const defaultTable = { hasHeader: true, caption: "", rows: [] }
   return {
     ...c,
-    table: typeof c.table === "string" ? safeJsonParse(c.table, undefined) : (c.table ?? undefined),
+    table: typeof c.table === "string" ? safeJsonParse(c.table, defaultTable) : (c.table ?? defaultTable),
     figures: typeof c.figures === "string" ? safeJsonParse(c.figures, []) : (c.figures ?? []),
     sourceIds: typeof c.sourceIds === "string" ? safeJsonParse(c.sourceIds, []) : (c.sourceIds ?? []),
   }
@@ -96,7 +97,7 @@ export async function GET(
       // Shared workspace data
       assets: workspace.assets.map((a) => ({
         ...a,
-        tableRows: a.tableRows ?? undefined,
+        tableRows: typeof a.tableRows === "string" ? safeJsonParse(a.tableRows, undefined) : (a.tableRows ?? undefined),
       })),
       ingestFiles: workspace.ingestFiles,
       agentEvents: typeof workspace.agentEvents === "string" ? safeJsonParse(workspace.agentEvents, []) : (workspace.agentEvents ?? []),
@@ -143,7 +144,8 @@ export async function PUT(
       )
     }
     const body = parsed.data
-    
+    const pendingSnapshotRef: { current: { snapId: string; diff: any[] } | null } = { current: null }
+
     // Use a transaction to safely replace outputs, cards, assets, and ingest files
     await prisma.$transaction(async (tx) => {
       // The client saves a complete object graph. Gate that destructive replace
@@ -169,8 +171,6 @@ export async function PUT(
       nextRevision = confirmedRevision
 
       // Pre-fetch the IDs of outputs and assets that already belong to this workspace.
-      // We use these sets to guard upserts: an existing record whose ID is NOT in these
-      // sets belongs to a different workspace and must not be touched.
       const ownedOutputIds = new Set(
         (await tx.output.findMany({ where: { workspaceId: id }, select: { id: true } }))
           .map(o => o.id)
@@ -183,18 +183,24 @@ export async function PUT(
       // Upsert outputs and their cards
       if (body.outputs && body.outputs.length > 0) {
         const existingOutputIds = new Set(ownedOutputIds)
+
+        // Batch check foreign outputs
+        const incomingOutputIds = body.outputs.map((o) => o.id)
+        const foreignOutputs = await tx.output.findMany({
+          where: { id: { in: incomingOutputIds }, workspaceId: { not: id } },
+          select: { id: true },
+        })
+        if (foreignOutputs.length > 0) throw new ForeignChildIdError()
+
+        // Batch check foreign cards
+        const allIncomingCardIds = body.outputs.flatMap((o) => o.cards?.map((c) => c.id) ?? [])
+        const foreignCards = await tx.card.findMany({
+          where: { id: { in: allIncomingCardIds }, output: { workspaceId: { not: id } } },
+          select: { id: true, outputId: true },
+        })
+        const foreignCardMap = new Map(foreignCards.map((c) => [c.id, c.outputId]))
         
         for (const output of body.outputs) {
-          // If this output ID already exists in the DB but does NOT belong to this
-          // workspace, skip it entirely to prevent cross-workspace mutation.
-          if (!ownedOutputIds.has(output.id)) {
-            // It may be a brand-new ID (not in DB yet) — that is fine, the create
-            // path will correctly set workspaceId: id.
-            // But if we somehow received a foreign owned ID, reject it.
-            const foreign = await tx.output.findUnique({ where: { id: output.id } })
-            if (foreign && foreign.workspaceId !== id) throw new ForeignChildIdError()
-          }
-
           const isActive = output.id === body.activeOutputId
           
           await tx.output.upsert({
@@ -236,11 +242,8 @@ export async function PUT(
                 .map(c => c.id)
             )
             for (const card of output.cards) {
-              // Reject cards whose ID exists in the DB under a different output
-              const foreignCard = existingCardIds.has(card.id)
-                ? null
-                : await tx.card.findUnique({ where: { id: card.id } })
-              if (foreignCard && foreignCard.outputId !== output.id) throw new ForeignChildIdError()
+              const foreignOutputId = foreignCardMap.get(card.id)
+              if (foreignOutputId && foreignOutputId !== output.id) throw new ForeignChildIdError()
 
               const cardData = {
                 title: card.title || "",
@@ -334,11 +337,14 @@ export async function PUT(
           (await tx.card.findMany({ where: { outputId: activeOutput.id }, select: { id: true } }))
             .map(c => c.id)
         )
+        const incomingCardIds = body.cards.map((c) => c.id)
+        const foreignLegacyCards = await tx.card.findMany({
+          where: { id: { in: incomingCardIds }, outputId: { not: activeOutput.id } },
+          select: { id: true },
+        })
+        if (foreignLegacyCards.length > 0) throw new ForeignChildIdError()
+
         for (const card of body.cards) {
-          if (!existingCardIds.has(card.id)) {
-            const foreignCard = await tx.card.findUnique({ where: { id: card.id } })
-            if (foreignCard && foreignCard.outputId !== activeOutput.id) throw new ForeignChildIdError()
-          }
           const cardData = {
             title: card.title || "",
             column: card.column ?? null,
@@ -377,21 +383,29 @@ export async function PUT(
 
       // Upsert assets (shared across all outputs)
       if (body.assets) {
-        for (const asset of body.assets) {
-          // Reject assets whose ID exists in the DB but belongs to a different workspace
-          if (!ownedAssetIds.has(asset.id)) {
-            const foreign = await tx.asset.findUnique({ where: { id: asset.id } })
-            if (foreign && foreign.workspaceId !== id) throw new ForeignChildIdError()
-          }
+        const incomingAssetIds = body.assets.map((a) => a.id)
+        const foreignAssets = await tx.asset.findMany({
+          where: { id: { in: incomingAssetIds }, workspaceId: { not: id } },
+          select: { id: true },
+        })
+        if (foreignAssets.length > 0) throw new ForeignChildIdError()
 
-          if (asset.assignedCardId) {
-            const assignedCard = await tx.card.findFirst({
-              where: { id: asset.assignedCardId, output: { workspaceId: id } },
+        const assignedCardIds = body.assets.map((a) => a.assignedCardId).filter(Boolean) as string[]
+        if (assignedCardIds.length > 0) {
+          const validCards = new Set(
+            (await tx.card.findMany({
+              where: { id: { in: assignedCardIds }, output: { workspaceId: id } },
               select: { id: true },
-            })
-            if (!assignedCard) throw new ForeignChildIdError()
+            })).map((c) => c.id)
+          )
+          for (const asset of body.assets) {
+            if (asset.assignedCardId && !validCards.has(asset.assignedCardId)) {
+              throw new ForeignChildIdError()
+            }
           }
+        }
 
+        for (const asset of body.assets) {
           const assetData = {
             fileId: asset.fileId,
             filename: asset.filename,
@@ -405,8 +419,7 @@ export async function PUT(
             snippet: asset.snippet,
             thumbnailUrl: asset.thumbnailUrl,
             caption: asset.caption,
-            tableRows: asset.tableRows ?? undefined,
-            assignedCardId: asset.assignedCardId,
+            tableRows: asset.tableRows ? (typeof asset.tableRows === "string" ? safeJsonParse(asset.tableRows, undefined) : (asset.tableRows as any)) : undefined,
             assignedSlot: asset.assignedSlot,
           }
           await tx.asset.upsert({
@@ -414,9 +427,11 @@ export async function PUT(
             create: {
               id: asset.id,
               workspaceId: id,
-              ...assetData
+              assignedCardId: asset.assignedCardId ?? undefined,
+              ...assetData,
             },
             update: {
+              assignedCardId: asset.assignedCardId ?? undefined,
               ...assetData,
             },
           })
@@ -433,11 +448,14 @@ export async function PUT(
           (await tx.ingestFile.findMany({ where: { workspaceId: id }, select: { id: true } }))
             .map(f => f.id)
         )
+        const incomingFileIds = body.ingestFiles.map((f) => f.id)
+        const foreignFiles = await tx.ingestFile.findMany({
+          where: { id: { in: incomingFileIds }, workspaceId: { not: id } },
+          select: { id: true },
+        })
+        if (foreignFiles.length > 0) throw new ForeignChildIdError()
+
         for (const file of body.ingestFiles) {
-          if (!existingFileIds.has(file.id)) {
-            const foreignFile = await tx.ingestFile.findUnique({ where: { id: file.id } })
-            if (foreignFile && foreignFile.workspaceId !== id) throw new ForeignChildIdError()
-          }
           const fileData = {
             name: file.name,
             size: file.size,
@@ -478,13 +496,12 @@ export async function PUT(
           },
         })
 
-        // Compute diff and dispatch background labeler
+        // Compute diff for background labeler
         try {
           const oldWs = prevSnapshot ? JSON.parse(prevSnapshot.snapshot) : null
           const diff = computeWorkspaceDiff(oldWs, updatedWorkspace)
           if (diff.length > 0) {
-            // fire and forget async task
-            generateSnapshotLabelAsync(newSnap.id, diff).catch(console.error)
+            pendingSnapshotRef.current = { snapId: newSnap.id, diff }
           }
         } catch (e) {
           console.error("Failed to generate AI label diff", e)
@@ -501,7 +518,12 @@ export async function PUT(
           await tx.workspaceSnapshot.deleteMany({ where: { id: { in: old.map((s) => s.id) } } })
         }
       }
-    })
+    }, { timeout: 20_000, maxWait: 10_000 })
+
+    // Fire and forget AI snapshot labeler outside transaction
+    if (pendingSnapshotRef.current) {
+      generateSnapshotLabelAsync(pendingSnapshotRef.current.snapId, pendingSnapshotRef.current.diff).catch(console.error)
+    }
     
     return NextResponse.json({ ok: true, revision: nextRevision })
   } catch (err) {

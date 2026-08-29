@@ -43,4 +43,25 @@ export const createBibSlice: EditorSlice<BibSlice> = (set, get) => ({
       })
     }
   },
+
+  insertCitation: (key, cardId) => {
+    set((s) => {
+      const output = s.project.outputs.find((o) => o.id === s.project.activeOutputId)
+      const card = output?.cards.find((c) => c.id === cardId)
+      if (!card) return
+      const cite = `\\cite{${key}}`
+      // Append citation to end of content (inline, or on a new bullets line)
+      if (card.content.trim()) {
+        card.content = card.content.trimEnd() + " " + cite
+      } else {
+        card.content = cite
+      }
+    })
+    get().pushEvent({
+      kind: "info",
+      status: "done",
+      title: "Citation inserted",
+      detail: `\\cite{${key}} added to card ${cardId}`,
+    })
+  },
 })

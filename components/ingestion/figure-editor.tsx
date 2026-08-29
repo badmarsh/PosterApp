@@ -36,6 +36,7 @@ export function FigureEditor({
   const workspaceId = useEditor((s) => s.project.id)
   const [prompt, setPrompt] = useState("")
   const [applying, setApplying] = useState(false)
+  const [opError, setOpError] = useState<string | null>(null)
   const [result, setResult] = useState<{ op: string; url: string; checker: boolean } | null>(
     null,
   )
@@ -46,6 +47,7 @@ export function FigureEditor({
     const label = overridePrompt || prompt.trim() || opId
     if (!label) return
     setApplying(true)
+    setOpError(null)
 
     let mappedOp = "custom"
     if (opId === "remove-bg") mappedOp = "remove-bg"
@@ -68,11 +70,8 @@ export function FigureEditor({
         let errMessage = "Failed to edit image"
         try {
           const errData = await res.json()
-          if (errData.error) errMessage += ": " + errData.error
+          if (errData.error) errMessage = errData.error
         } catch (_) {}
-        if (res.status === 501) {
-          throw new Error("Semantic operations require a configured AI vision provider. Please check your settings.");
-        }
         throw new Error(errMessage)
       }
 
@@ -84,6 +83,7 @@ export function FigureEditor({
       })
     } catch (err: unknown) {
       console.error(err)
+      setOpError(err instanceof Error ? err.message : "Unknown error")
     } finally {
       setApplying(false)
     }
@@ -250,6 +250,14 @@ export function FigureEditor({
           >
             Discard
           </Button>
+        </div>
+      )}
+
+      {/* operation error */}
+      {opError && !applying && (
+        <div className="mt-2 flex items-start gap-1.5 rounded border border-destructive/40 bg-destructive/10 px-2 py-1.5 text-[10px] text-destructive">
+          <X className="mt-0.5 size-3 shrink-0" />
+          <span>{opError}</span>
         </div>
       )}
     </div>

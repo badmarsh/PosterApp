@@ -266,4 +266,45 @@ describe('ingestion-slice', () => {
     expect(card?.content).toContain('Important finding from the paper.')
     expect(card?.content).toContain('- Existing point')
   })
+
+  it('promoteAsset assigns table asset safely even if card.table is undefined', () => {
+    const store = createEditorStore()
+
+    store.setState((s) => {
+      s.project.outputs[0].cards = [
+        {
+          id: 'card_1',
+          title: 'Methods',
+          column: 1,
+          order: 0,
+          pattern: 'bullets-table',
+          content: '',
+          table: undefined as any,
+          figures: [],
+          figureLayout: 'single',
+          sourceIds: [],
+          heightBudget: null,
+          validation: 'valid',
+        },
+      ]
+      s.project.assets.push({
+        id: 'a_tbl',
+        fileId: 'f1',
+        kind: 'table',
+        page: 2,
+        confidence: 'high',
+        caption: 'Extracted Table Caption',
+        tableRows: [['Col1', 'Col2'], ['Val1', 'Val2']],
+      } as any)
+    })
+
+    expect(() => {
+      store.getState().promoteAsset('a_tbl', 'card_1', 'table')
+    }).not.toThrow()
+
+    const card = store.getState().project.outputs[0].cards.find((c) => c.id === 'card_1')
+    expect(card?.table).toBeDefined()
+    expect(card?.table.caption).toBe('Extracted Table Caption')
+    expect(card?.table.rows).toEqual([['Col1', 'Col2'], ['Val1', 'Val2']])
+  })
 })

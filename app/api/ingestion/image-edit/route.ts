@@ -4,7 +4,7 @@ import path from "path"
 import sharp from "sharp"
 import { atomicCreateVersionedFile } from "@/lib/asset-versioning"
 import { requireWorkspaceEditor } from "@/lib/auth"
-import { rateLimit } from "@/lib/rate-limit"
+import { rateLimitAsync } from "@/lib/rate-limit"
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { allowed, retryAfterMs } = rateLimit(`${userId}:image-edit`, 10, 60_000)
+  const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:image-edit`, 10, 60_000)
   if (!allowed) {
     return NextResponse.json({ error: 'Rate limited', retryAfterMs }, { status: 429, headers: { 'Retry-After': Math.ceil(retryAfterMs / 1000).toString() } })
   }
@@ -112,11 +112,155 @@ export async function POST(req: Request) {
     })
   }
 
-  if (operation === "remove-bg" || operation === "custom") {
-    // Note: To support true semantic AI edits, integrate with a Vision provider (e.g. OpenAI DALL-E or OpenRouter) here.
+  if (operation === "remove-bg") {
+    // Local white-background removal using sharp — no AI provider required
+    try {
+      const { data, info } = await sharp(assetPath)
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true })
+
+      const threshold = 240
+      const buffer = Buffer.from(data)
+      for (let i = 0; i < buffer.length; i += 4) {
+        const r = buffer[i], g = buffer[i + 1], b = buffer[i + 2]
+        if (r >= threshold && g >= threshold && b >= threshold) {
+          buffer[i + 3] = 0 // make near-white pixels transparent
+        }
+      }
+
+      const resultBuffer = await sharp(buffer, {
+        raw: { width: info.width, height: info.height, channels: 4 },
+      })
+        .png()
+        .toBuffer()
+
+      const origName = path.parse(assetPath).name
+      const draftName = `draft-${Date.now()}-${Math.random().toString(36).slice(2)}-${origName}.png`
+      const draftPath = path.join(assetsDir, draftName)
+      await fs.promises.writeFile(draftPath, resultBuffer)
+      return NextResponse.json({
+        url: `/api/workspaces/${workspaceId}/assets/${draftName}`,
+        filename: draftName,
+      })
+    } catch (err) {
+      console.error("remove-bg failed:", err)
+      return NextResponse.json({ error: "Background removal failed", detail: String(err) }, { status: 500 })
+    }
+  }
+
+  if (operation === "custom") {
+    const prompt = (body.prompt ?? "").toLowerCase().trim()
+
+    // Handle simple local transforms first (no AI needed)
+    let localPipeline: ReturnType<typeof sharp> | null = null
+    if (prompt.includes("grayscale") || prompt.includes("greyscale") || prompt.includes("black and white")) {
+      localPipeline = sharp(assetPath).grayscale().png()
+    } else if (prompt.includes("invert") || prompt.includes("negative")) {
+      localPipeline = sharp(assetPath).negate().png()
+    } else if (prompt.includes("blur")) {
+      const sigma = parseFloat(prompt.match(/(\d+(\.\d+)?)/)?.[1] ?? "3")
+      localPipeline = sharp(assetPath).blur(Math.min(Math.max(sigma, 0.3), 20)).png()
+    } else if (prompt.includes("sharpen")) {
+      localPipeline = sharp(assetPath).sharpen().png()
+    } else if (prompt.includes("flip")) {
+      localPipeline = sharp(assetPath).flip().png()
+    } else if (prompt.includes("flop") || prompt.includes("mirror")) {
+      localPipeline = sharp(assetPath).flop().png()
+    } else if (prompt.includes("rotate 90") || prompt.includes("rotate90")) {
+      localPipeline = sharp(assetPath).rotate(90).png()
+    } else if (prompt.includes("rotate 180") || prompt.includes("rotate180")) {
+      localPipeline = sharp(assetPath).rotate(180).png()
+    } else if (prompt.includes("rotate 270") || prompt.includes("rotate -90")) {
+      localPipeline = sharp(assetPath).rotate(270).png()
+    }
+
+    if (localPipeline) {
+      try {
+        const resultBuffer = await localPipeline.toBuffer()
+        const origName = path.parse(assetPath).name
+        const draftName = `draft-${Date.now()}-${Math.random().toString(36).slice(2)}-${origName}.png`
+        const draftPath = path.join(assetsDir, draftName)
+        await fs.promises.writeFile(draftPath, resultBuffer)
+        return NextResponse.json({
+          url: `/api/workspaces/${workspaceId}/assets/${draftName}`,
+          filename: draftName,
+        })
+      } catch (err) {
+        console.error("Custom local transform failed:", err)
+        return NextResponse.json({ error: "Image transform failed", detail: String(err) }, { status: 500 })
+      }
+    }
+
+    // Fall back to OpenRouter generative edit if configured
+    const orKey = process.env.OPENROUTER_API_KEY
+    const orModel = process.env.OPENROUTER_IMAGE_MODEL ?? "openai/gpt-image-1"
+    const orBase = process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1"
+    if (orKey) {
+      try {
+        const imgBuffer = await fs.promises.readFile(assetPath)
+        const base64 = imgBuffer.toString("base64")
+        const ext = path.extname(assetPath).toLowerCase().replace(".", "")
+        const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg"
+
+        const orRes = await fetch(`${orBase}/images/edits`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${orKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: orModel,
+            prompt: body.prompt ?? "Enhance this scientific figure for a poster.",
+            image: `data:${mime};base64,${base64}`,
+            n: 1,
+            size: "1024x1024",
+          }),
+          signal: AbortSignal.timeout(90_000),
+        })
+
+        if (!orRes.ok) {
+          const errText = await orRes.text().catch(() => "")
+          throw new Error(`OpenRouter edit API returned ${orRes.status}: ${errText.slice(0, 200)}`)
+        }
+
+        const orData = (await orRes.json()) as { data?: { url?: string; b64_json?: string }[] }
+        const item = orData.data?.[0]
+        if (!item) throw new Error("No image returned from OpenRouter")
+
+        let resultBuffer: Buffer
+        if (item.b64_json) {
+          resultBuffer = Buffer.from(item.b64_json, "base64")
+        } else if (item.url) {
+          const dlRes = await fetch(item.url, { signal: AbortSignal.timeout(30_000) })
+          if (!dlRes.ok) throw new Error(`Could not download result image: ${dlRes.status}`)
+          resultBuffer = Buffer.from(await dlRes.arrayBuffer())
+        } else {
+          throw new Error("OpenRouter returned empty image data")
+        }
+
+        const origName = path.parse(assetPath).name
+        const draftName = `draft-${Date.now()}-${Math.random().toString(36).slice(2)}-${origName}.png`
+        const draftPath = path.join(assetsDir, draftName)
+        await fs.promises.writeFile(draftPath, resultBuffer)
+        return NextResponse.json({
+          url: `/api/workspaces/${workspaceId}/assets/${draftName}`,
+          filename: draftName,
+        })
+      } catch (err) {
+        console.error("OpenRouter image edit failed:", err)
+        return NextResponse.json({ error: "AI image edit failed", detail: String(err) }, { status: 502 })
+      }
+    }
+
+    // No AI provider — tell user which local transforms are available
     return NextResponse.json(
-      { error: "Semantic image edits are not supported without a configured AI vision/generation provider." },
-      { status: 501 }
+      {
+        error:
+          "Custom AI edits require OPENROUTER_API_KEY in your environment. " +
+          "Local transforms available: grayscale, invert, blur, sharpen, flip, flop, rotate 90/180/270.",
+      },
+      { status: 422 }
     )
   }
 

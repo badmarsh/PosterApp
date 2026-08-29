@@ -4,18 +4,18 @@ PosterApp is an intelligent, Next.js-based academic poster editor that assists r
 
 ## Features
 
-- **Automated Ingestion**: Upload research papers (PDFs). PosterApp extracts text, mathematical equations, figures, tables, and auto-generates BibTeX citations (using MinerU).
-- **Interactive UI**: Manage your poster structure using an interactive column-and-card layout. Adjust height budgets to fine-tune layout.
-- **AI Auto-fill**: Generate specialized content for individual sections or the entire poster based on ingested documents.
+- **Automated Ingestion**: Upload research papers (PDFs). PosterApp extracts text, mathematical equations, figures, tables, and auto-generates BibTeX citations (using MinerU). Features a robust concurrent job queue designed for processing large documents and resilient retries.
+- **Interactive UI**: Manage your document structure using an interactive column-and-card layout. Adjust height budgets to fine-tune layout.
+- **AI Auto-fill**: Generate specialized content for individual sections or the entire poster based on ingested documents, automatically assigning tables and figures.
 - **AI Chat Assistant**: A context-aware chat panel built with `assistant-ui` that helps you refine text, suggest titles, and summarize content based on your specific poster context.
 - **Poster Review**: Automated local AI agent that reviews your layout, citations, figures, and provides actionable tips.
-- **Multi-Format Generation**: High-fidelity document generation using `pdflatex` via a persistent dev server backend. Supports categorized templates for **Posters** (`tikzposter`, `gemini`), **Slides** (`metropolis`, `beamer-atlas`), and **Papers** (single/two-column).
+- **Multi-Format Generation**: High-fidelity document generation using `pdflatex` via a persistent dev server backend. Supports categorized templates for **Posters** (`tikzposter`, `gemini`), **Slides** (`metropolis`, `beamer-atlas`), and **Papers** (single/two-column). Switch between them seamlessly via the Format Settings sidebar.
 
 ## Architecture Overview
 
 - **Frontend & API**: Next.js App Router (running on port 3333 alongside Yjs WebSocket via custom `server.ts`).
-- **State Management**: Zustand store (split into `ProjectSlice`, `UiSlice`, `IngestionSlice`, `BibSlice`) synced with Yjs.
-- **Database**: PostgreSQL (via Prisma in Docker) holding workspaces, cards, and asset metadata.
+- **State Management**: Zustand store (split into `ProjectSlice`, `UiSlice`, `IngestionSlice`, `BibSlice`) synced with Yjs. Includes a robust `JobQueue` for concurrent ingestion processing.
+- **Database**: PostgreSQL (via Prisma in Docker) holding workspaces, cards, and asset metadata. Avoids duplications through asset upserts.
 - **AI Models**: Connects to configurable AI providers (e.g. OpenRouter/Gemini) through `AI_API_URL` and `AI_API_KEY`.
 - **Chat Interface**: Powered by `@assistant-ui/react`, maintaining an ephemeral conversation state linked to the current workspace.
 

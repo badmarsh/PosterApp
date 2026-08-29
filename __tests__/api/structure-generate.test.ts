@@ -14,6 +14,7 @@ vi.mock('@/lib/prisma', () => ({
 
 vi.mock('@/lib/rate-limit', () => ({
   rateLimit: vi.fn(() => ({ allowed: true, retryAfterMs: 0 })),
+  rateLimitAsync: vi.fn(async () => ({ allowed: true, retryAfterMs: 0 })),
 }))
 
 vi.mock('@/lib/ai/context', () => ({
@@ -22,13 +23,14 @@ vi.mock('@/lib/ai/context', () => ({
 
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimit, rateLimitAsync } from '@/lib/rate-limit'
 import { POST } from '@/app/api/workspaces/[id]/structure/generate/route'
 import { NextRequest } from 'next/server'
 
 const mockAuth = vi.mocked(auth)
 const mockPrisma = vi.mocked(prisma)
 const mockRateLimit = vi.mocked(rateLimit)
+const mockRateLimitAsync = vi.mocked(rateLimitAsync)
 
 function makeParams(id: string) {
   return { params: Promise.resolve({ id }) }
@@ -46,6 +48,7 @@ describe('POST /api/workspaces/[id]/structure/generate', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockRateLimit.mockReturnValue({ allowed: true, retryAfterMs: 0 })
+    mockRateLimitAsync.mockResolvedValue({ allowed: true, retryAfterMs: 0 })
   })
 
   it('returns 400 for invalid workspace ID', async () => {

@@ -116,7 +116,19 @@ Schema at `prisma/schema.prisma`. Key notes:
 ### Still Open
 (None currently)
 
-### Fixed in This Session (2026-08-22)
+### Fixed in This Session (2026-08-29)
+- ✅ **AI Feature Layer Audit (F1–F13)** — All 13 findings remediated:
+  - Distributed `rateLimitAsync` adopted across all AI and ingestion endpoints.
+  - Per-user rate limiting and auth ordering fixed in ingestion parser.
+  - Conversion actions throttled with retry/backoff and citation sanitization.
+  - AI prompt delimiters safely escaped with `wrapUntrustedContext`.
+  - LaTeX validation guards added to UI apply buttons (Autofix & Shrink) and autofix compile route.
+  - Unbounded history & input sizes bounded across chat and conversion routes.
+  - Environment variables documented in `.env.example` and `AI_CONFIG` centralized.
+  - Background AI snapshot labeler integrated into history snapshot creation.
+  - Full test suite passing (26 files, 157 tests) and verified with production build.
+
+### Fixed in Previous Session (2026-08-22)
 - ✅ **BibTeX deduplication** — Extracted titles are now normalized and deduplicated to prevent duplicates from different PDFs.
 - ✅ **PDF Previews in Figure Editor** — Figure editor natively renders `<object>` previews for `.pdf` assets and safely disables AI image operations for them.
 - ✅ Added `tests/features.spec.ts` for regression testing BibTeX dedup and PDF previews.
@@ -135,6 +147,7 @@ Schema at `prisma/schema.prisma`. Key notes:
 - ✅ FK relation Asset→Card verified as present in schema (`@relation(fields: [assignedCardId], references: [id], onDelete: SetNull)`)
 - ✅ `execSync` in compile route was replaced with async `spawn`
 - ✅ Dynamic Workspace selection UI replaced the hardcoded `prj_lattice` loading constraint
+
 
 ---
 

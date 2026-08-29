@@ -9,24 +9,24 @@ datasource db {
 }
 
 model Workspace {
-  id            String                @id
-  name          String
-  authors       String
-  venue         String
-  logoUrl       String?
+  id               String                @id
+  name             String
+  authors          String
+  venue            String
+  userId           String                @default("unauthenticated")
+  bibContent       String?
+  revision         Int                   @default(0)
+  bibKeys          Json?
+  agentEvents      Json?
+  chatMessages     Json?
+  logoUrl          String?
   secondaryLogoUrl String?
-  userId        String                @default("unauthenticated")
-  bibContent    String?
-  revision      Int                   @default(0)
-  bibKeys       Json?
-  agentEvents   Json?
-  chatMessages  Json?
-  assets        Asset[]
-  collabTickets CollaborationTicket[]
-  ingestFiles   IngestFile[]
-  outputs       Output[]
-  members       WorkspaceMember[]
-  snapshots     WorkspaceSnapshot[]
+  assets           Asset[]
+  collabTickets    CollaborationTicket[]
+  ingestFiles      IngestFile[]
+  outputs          Output[]
+  members          WorkspaceMember[]
+  snapshots        WorkspaceSnapshot[]
 }
 
 /// Access is deliberately modelled separately from Clerk.  The userId field above
@@ -58,20 +58,20 @@ model CollaborationTicket {
 }
 
 model Output {
-  id          String    @id
-  workspaceId String
-  outputType  String
-  templateId  String
-  title       String
-  authors     String?
-  venue       String?
-  logoUrl     String?
+  id               String    @id
+  workspaceId      String
+  outputType       String
+  templateId       String
+  title            String
+  isActive         Boolean   @default(false)
+  themeColor       String?
+  authors          String?
+  sourceIds        Json?
+  venue            String?
+  logoUrl          String?
   secondaryLogoUrl String?
-  isActive    Boolean   @default(false)
-  themeColor  String?
-  sourceIds   Json?
-  cards       Card[]
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  cards            Card[]
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 model Card {
@@ -114,6 +114,8 @@ model Asset {
   tableRows      Json?
   assignedCard   Card?     @relation(fields: [assignedCardId], references: [id])
   workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, filename])
 }
 
 model IngestFile {

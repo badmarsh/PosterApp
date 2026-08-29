@@ -40,6 +40,7 @@ import type { Job } from "@/lib/job-queue"
 import type { AgentEvent } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 import { makeChatAdapter } from "@/components/agent-chat-adapter"
+import { validateCard, hasUnsafeLatex } from "@/lib/latex/validation"
 import ReactMarkdown from "react-markdown"
 import remarkMath from "remark-math"
 import rehypeKatex from "rehype-katex"
@@ -94,12 +95,13 @@ const EventRow = memo(function EventRow({
   event: AgentEvent
   last: boolean
 }) {
-  const { updateCard, saveProject, compileProject, updateEvent } = useEditor(
+  const { updateCard, saveProject, compileProject, updateEvent, project } = useEditor(
     useShallow((s) => ({
       updateCard: s.updateCard,
       saveProject: s.saveProject,
       compileProject: s.compileProject,
       updateEvent: s.updateEvent,
+      project: s.project,
     }))
   )
   const Icon = KIND_ICON[event.kind]
@@ -198,6 +200,31 @@ const EventRow = memo(function EventRow({
                   size="sm"
                   className="h-6 px-2.5 text-[10px] font-semibold bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:text-black dark:hover:bg-amber-400 border-0"
                   onClick={async () => {
+                    const activeCards = project.outputs?.find((o) => o.id === project.activeOutputId)?.cards ?? []
+                    const validationErrors: string[] = []
+
+                    event.fixes?.forEach((fix) => {
+                      const targetCard = activeCards.find((c) => c.id === fix.id)
+                      const unsafeIssues = hasUnsafeLatex(fix.content)
+                      const cardValidation = targetCard
+                        ? validateCard({ ...targetCard, content: fix.content })
+                        : []
+                      const errorMsgs = [
+                        ...unsafeIssues,
+                        ...cardValidation.filter((m) => m.level === "error").map((m) => m.message),
+                      ]
+                      if (errorMsgs.length > 0) {
+                        validationErrors.push(`${targetCard?.title || fix.id}: ${errorMsgs.join("; ")}`)
+                      }
+                    })
+
+                    if (validationErrors.length > 0) {
+                      const proceed = confirm(
+                        `Warning: Some proposed fixes contain LaTeX or validation issues:\n\n${validationErrors.join("\n")}\n\nDo you want to apply them anyway?`
+                      )
+                      if (!proceed) return
+                    }
+
                     event.fixes?.forEach((fix) => {
                       updateCard(fix.id, { content: fix.content })
                     })
@@ -364,13 +391,17 @@ function AssistantMessageBubble() {
 
 function AssistantTextContent() {
   const { text } = useMessagePartText()
-  const { updateCard, selectedCardId, pushEvent } = useEditor(
+  const { updateCard, selectedCardId, pushEvent, project } = useEditor(
     useShallow((s) => ({
       updateCard: s.updateCard,
       selectedCardId: s.selectedCardId,
       pushEvent: s.pushEvent,
+      project: s.project,
     }))
   )
+
+  const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
+  const selectedCard = activeOutput?.cards.find((c) => c.id === selectedCardId)
 
   const fixRegex = /<fix>([\s\S]*?)<\/fix>/g
   let cleanText = text
@@ -396,37 +427,79 @@ function AssistantTextContent() {
       </div>
 
       {fixes.map((fixContent, i) => {
-        const hash = fixContent.length + "_" + fixContent.slice(0, 20).replace(/\s+/g, '')
-        const isApplied = localApplied.has(i) || (typeof window !== "undefined" && localStorage.getItem(`fix_${hash}`) === "1")
-        
+        const hash = fixContent.length + "_" + fixContent.slice(0, 20).replace(/\s+/g, "")
+        const isApplied =
+          localApplied.has(i) ||
+          (typeof window !== "undefined" && localStorage.getItem(`fix_${hash}`) === "1")
+
+        const unsafeLatexIssues = hasUnsafeLatex(fixContent)
+        const validationMsgs = selectedCard
+          ? validateCard({ ...selectedCard, content: fixContent })
+          : []
+        const hasValidationErrors =
+          unsafeLatexIssues.length > 0 || validationMsgs.some((m) => m.level === "error")
+
         return (
           <Button
             key={i}
             size="sm"
             variant={isApplied ? "ghost" : "outline"}
-            disabled={isApplied}
+            disabled={isApplied || !selectedCardId}
             className={cn(
               "mt-2 w-full h-auto py-2 whitespace-normal text-left justify-start gap-2",
-              isApplied 
-                ? "bg-muted/30 text-muted-foreground border-transparent cursor-default" 
+              isApplied
+                ? "bg-muted/30 text-muted-foreground border-transparent cursor-default"
+                : hasValidationErrors
+                ? "border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
                 : "border-primary/50 bg-primary/5 text-primary hover:bg-primary/15"
             )}
             onClick={() => {
               if (selectedCardId && !isApplied) {
+                if (hasValidationErrors) {
+                  const errorSummary = [
+                    ...unsafeLatexIssues,
+                    ...validationMsgs.filter((m) => m.level === "error").map((m) => m.message),
+                  ].join("; ")
+                  if (
+                    !confirm(
+                      `Upozornenie: Navrhovaná oprava môže obsahovať chyby v LaTeXe (${errorSummary}). Chcete ju napriek tomu aplikovať?`
+                    )
+                  ) {
+                    return
+                  }
+                }
+
                 updateCard(selectedCardId, { content: fixContent })
                 pushEvent({
-                  kind: "info",
-                  status: "done",
-                  title: "Fix applied",
-                  detail: "Card content was updated by AI.",
+                  kind: hasValidationErrors ? "validate" : "info",
+                  status: hasValidationErrors ? "warning" : "done",
+                  title: hasValidationErrors ? "Oprava aplikovaná s varovaním" : "Fix applied",
+                  detail: hasValidationErrors
+                    ? `Aplikované s upozorneniami: ${[
+                        ...unsafeLatexIssues,
+                        ...validationMsgs.map((m) => m.message),
+                      ].join("; ")}`
+                    : "Card content was updated by AI.",
                 })
                 setLocalApplied(new Set(localApplied).add(i))
                 localStorage.setItem(`fix_${hash}`, "1")
               }
             }}
           >
-            {isApplied ? <CheckCircle2 className="size-4 shrink-0" /> : <Wrench className="size-4 shrink-0" />}
-            <span>{isApplied ? "Oprava aplikovaná" : "Aplikovať opravu na vybranú kartu"}</span>
+            {isApplied ? (
+              <CheckCircle2 className="size-4 shrink-0" />
+            ) : hasValidationErrors ? (
+              <AlertTriangle className="size-4 shrink-0 text-amber-500" />
+            ) : (
+              <Wrench className="size-4 shrink-0" />
+            )}
+            <span>
+              {isApplied
+                ? "Oprava aplikovaná"
+                : hasValidationErrors
+                ? "Aplikovať opravu (zistené varovania)"
+                : "Aplikovať opravu na vybranú kartu"}
+            </span>
           </Button>
         )
       })}

@@ -7,6 +7,8 @@ import { apiFetch } from "@/lib/api-fetch"
 import type { OutputType } from "@/lib/output-types"
 import { getDefaultTemplateId, DEFAULT_STRUCTURES, getTemplateDef, buildDefaultStructure } from "@/lib/output-types"
 import { jobQueue } from "@/lib/job-queue"
+import { sanitizeCiteKeys } from "@/lib/ai/prompts"
+
 
 /** outputs[].cards is the persisted source of truth. `project.cards` only mirrors the active output for legacy consumers. */
 function activeOutput(project: Project) {
@@ -437,7 +439,12 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || `HTTP ${res.status}`)
+        const errorObj = new Error(err.error || `HTTP ${res.status}`)
+        if (res.status === 429) {
+          ;(errorObj as any).isRateLimited = true
+          ;(errorObj as any).retryAfterMs = err.retryAfterMs || 60_000
+        }
+        throw errorObj
       }
 
       const data = await res.json()
@@ -453,9 +460,12 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
             c.title = data.title
           }
           s.isDirty = true
+
           // Update content as markdown bullets (or paragraphs for paper)
+          // Filter hallucinated cite keys not in valid bibKeys
           if (data.bullets && Array.isArray(data.bullets)) {
-            c.content = data.bullets.map((b: string) => outputType === "paper" ? b : `* ${b}`).join("\n\n")
+            const sanitizedBullets = sanitizeCiteKeys(data.bullets, get().bibKeys || [])
+            c.content = sanitizedBullets.map((b: string) => outputType === "paper" ? b : `* ${b}`).join("\n\n")
           }
           
           // Update figures if recommended
@@ -528,11 +538,31 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
           abortErr.name = "AbortError"
           throw abortErr
         }
-        
-        try {
-          await get().autoFillCardAction(cards[i].id)
-          succeeded++
-        } catch (e) {
+
+        let cardSucceeded = false
+        const maxAttempts = 3
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          try {
+            await get().autoFillCardAction(cards[i].id)
+            cardSucceeded = true
+            succeeded++
+            break
+          } catch (e: any) {
+            if (e?.isRateLimited && attempt < maxAttempts - 1) {
+              const waitMs = Math.min(e.retryAfterMs || 60_000, 65_000) + 1000
+              get().updateEvent(evId, {
+                status: "running",
+                title: "Generate All — Rate limit hit, pausing...",
+                detail: `Waiting ${Math.ceil(waitMs / 1000)}s before resuming (card ${i + 1}/${cards.length})...`,
+              })
+              await new Promise((resolve) => setTimeout(resolve, waitMs))
+              continue
+            }
+            break
+          }
+        }
+
+        if (!cardSucceeded) {
           failed++
         }
         onProgress(Math.round(((i + 1) / cards.length) * 100))
@@ -638,15 +668,21 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     const newOutputId = get().project.activeOutputId
     if (!newOutputId) return
 
-    const results = await Promise.allSettled(
-      sourceCards.filter((c) => c.pattern !== "references" && c.content.trim() !== "").map(async (sourceCard, i) => {
-        // Attempt to find a corresponding card in the scaffolded output
-        const currentCards = (activeOutput(get().project)?.cards ?? [])
-        const targetCard = currentCards[i]
-        if (!targetCard) return
+    const eligibleCards = sourceCards.filter((c) => c.pattern !== "references" && c.content.trim() !== "")
+    let succeeded = 0
+    let failed = 0
 
-        set((s) => { s.generatingIds.push(targetCard.id) })
+    for (let i = 0; i < eligibleCards.length; i++) {
+      const sourceCard = eligibleCards[i]
+      const currentCards = activeOutput(get().project)?.cards ?? []
+      const targetCard = currentCards[i]
+      if (!targetCard) continue
 
+      set((s) => { s.generatingIds.push(targetCard.id) })
+
+      let cardSucceeded = false
+      const maxAttempts = 3
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
           const res = await apiFetch(`/api/workspaces/${workspaceId}/cards/convert`, {
             method: "POST",
@@ -660,28 +696,58 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
             })
           })
 
-          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            const errorObj = new Error(err.error || `HTTP ${res.status}`)
+            if (res.status === 429) {
+              ;(errorObj as any).isRateLimited = true
+              ;(errorObj as any).retryAfterMs = err.retryAfterMs || 60_000
+            }
+            throw errorObj
+          }
+
           const data = await res.json()
 
           set((s) => {
             if (s.project.id !== workspaceId || s.project.activeOutputId !== newOutputId) return
             const c = syncActiveCards(s.project).find((c) => c.id === targetCard.id)
             if (c && data.bullets) {
-              c.content = Array.isArray(data.bullets) ? data.bullets.join("\n\n") : data.bullets
+              const rawBullets = Array.isArray(data.bullets) ? data.bullets : [data.bullets]
+              const sanitized = sanitizeCiteKeys(rawBullets, get().bibKeys || [])
+              c.content = targetType === "paper"
+                ? sanitized.join("\n\n")
+                : sanitized.map((b: string) => b.startsWith("* ") || b.startsWith("- ") ? b : `* ${b}`).join("\n\n")
               c.title = data.title || targetCard.title
               s.isDirty = true
             }
           })
-        } finally {
-          set((s) => {
-              s.generatingIds = s.generatingIds.filter(gid => gid !== targetCard.id)
-          })
-        }
-      })
-    )
 
-    const failed = results.filter((r) => r.status === "rejected").length
-    const succeeded = results.length - failed
+          cardSucceeded = true
+          succeeded++
+          break
+        } catch (e: any) {
+          if (e?.isRateLimited && attempt < maxAttempts - 1) {
+            const waitMs = Math.min(e.retryAfterMs || 60_000, 65_000) + 1000
+            get().updateEvent(evId, {
+              status: "running",
+              title: `Converting to ${targetType} — Rate limit hit, pausing...`,
+              detail: `Waiting ${Math.ceil(waitMs / 1000)}s before resuming (card ${i + 1}/${eligibleCards.length})...`,
+            })
+            await new Promise((resolve) => setTimeout(resolve, waitMs))
+            continue
+          }
+          break
+        }
+      }
+
+      set((s) => {
+        s.generatingIds = s.generatingIds.filter(gid => gid !== targetCard.id)
+      })
+
+      if (!cardSucceeded) {
+        failed++
+      }
+    }
 
     get().updateEvent(evId, {
       status: failed > 0 ? "warning" : "done",

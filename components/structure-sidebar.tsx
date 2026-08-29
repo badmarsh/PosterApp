@@ -20,6 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { hasUnsafeLatex, validateCard } from "@/lib/latex/validation"
+
 import {
   Tooltip,
   TooltipContent,
@@ -145,11 +147,25 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
                     sourceIds: card.sourceIds
                   })
                 })
-                if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => "")}`)
                 const data = await res.json()
-                if (data.content && confirm("Review the proposed shorter content:\n\n" + data.content + "\n\nApply this change?")) {
-                  updateCard(card.id, { content: data.content })
-                  await saveProject()
+                if (data.content) {
+                  const unsafeIssues = hasUnsafeLatex(data.content)
+                  const validationMsgs = validateCard({ ...card, content: data.content })
+                  const validationErrors = [
+                    ...unsafeIssues,
+                    ...validationMsgs.filter((m) => m.level === "error").map((m) => m.message),
+                  ]
+
+                  let promptMessage = `Review the proposed shorter content:\n\n${data.content}\n\n`
+                  if (validationErrors.length > 0) {
+                    promptMessage += `⚠️ Warning: Proposed content has validation warnings:\n- ${validationErrors.join("\n- ")}\n\n`
+                  }
+                  promptMessage += "Apply this change?"
+
+                  if (confirm(promptMessage)) {
+                    updateCard(card.id, { content: data.content })
+                    await saveProject()
+                  }
                 }
               } catch (err: unknown) {
                 pushEvent({

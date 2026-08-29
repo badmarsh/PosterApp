@@ -34,7 +34,13 @@ function killPort(port) {
         const parts = line.trim().split(/\s+/)
         if (parts.length > 4) {
           const pid = parts[parts.length - 1]
-          if (pid !== '0') execSync(`taskkill /F /PID ${pid}`)
+          if (pid !== '0') {
+            try {
+              execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' })
+            } catch (e) {
+              // Ignore if already dead
+            }
+          }
         }
       }
     } else {
@@ -45,19 +51,50 @@ function killPort(port) {
   }
 }
 
-console.log('🧹 Cleaning up ports 3333 and 8001...')
+import net from 'net'
+
+console.log('🧹 Cleaning up port 3333...')
 killPort(3333)
-killPort(8001)
 
 // 3. Spawn MinerU (WSL on Windows, bash on Unix)
-console.log('🧠 Starting MinerU Sidecar...')
-const mineruCmd = isWin 
-  ? ['wsl', '-d', 'Ubuntu', '-e', 'bash', '-c', 'cd ~/mineru && source .venv/bin/activate && mineru-api --port 8001']
-  : ['bash', '-c', 'cd ~/mineru && source .venv/bin/activate && mineru-api --port 8001']
+let mineruProcess = null
+let mineruBridgeServer = null
+let isMinerURunning = false
+try {
+  await fetch('http://127.0.0.1:8001/docs')
+  isMinerURunning = true
+} catch (e) {
+  isMinerURunning = false
+}
 
-const mineruProcess = spawn(mineruCmd[0], mineruCmd.slice(1), { stdio: 'pipe' })
-mineruProcess.stdout.on('data', (d) => process.stdout.write(`\x1b[35m[MinerU]\x1b[0m ${d}`))
-mineruProcess.stderr.on('data', (d) => process.stderr.write(`\x1b[35m[MinerU]\x1b[0m ${d}`))
+if (isMinerURunning) {
+  console.log('✅ MinerU is already reachable on port 8001.')
+} else {
+  console.log('🧠 Starting MinerU Sidecar...')
+  const mineruCmd = isWin 
+    ? ['wsl', '-d', 'Ubuntu', '-e', 'bash', '-c', 'cd ~/mineru && source .venv/bin/activate && mineru-api --host 0.0.0.0 --port 8001']
+    : ['bash', '-c', 'cd ~/mineru && source .venv/bin/activate && mineru-api --port 8001']
+
+  mineruProcess = spawn(mineruCmd[0], mineruCmd.slice(1), { stdio: 'pipe' })
+  mineruProcess.stdout.on('data', (d) => process.stdout.write(`\x1b[35m[MinerU]\x1b[0m ${d}`))
+  mineruProcess.stderr.on('data', (d) => process.stderr.write(`\x1b[35m[MinerU]\x1b[0m ${d}`))
+
+  if (isWin) {
+    // Start user-space WSL bridge on Windows to route 127.0.0.1:8001 to WSL
+    mineruBridgeServer = net.createServer((clientSocket) => {
+      const wslProcess = spawn("wsl", ["-d", "Ubuntu", "nc", "127.0.0.1", "8001"], { windowsHide: true })
+      clientSocket.pipe(wslProcess.stdin)
+      wslProcess.stdout.pipe(clientSocket)
+      clientSocket.on("error", () => { try { wslProcess.kill() } catch {} })
+      wslProcess.on("error", () => { try { clientSocket.destroy() } catch {} })
+      wslProcess.on("close", () => { try { clientSocket.end() } catch {} })
+    })
+    mineruBridgeServer.on('error', () => {})
+    mineruBridgeServer.listen(8001, '127.0.0.1', () => {
+      console.log('🌉 WSL MinerU bridge listening on 127.0.0.1:8001')
+    })
+  }
+}
 
 // 4. Spawn Next.js
 console.log('🌐 Starting Next.js...')
@@ -77,7 +114,10 @@ function shutdown(code = 0) {
       if (err) console.error('Failed to kill Next.js:', err)
     })
   }
-  if (mineruProcess.pid) {
+  if (mineruBridgeServer) {
+    try { mineruBridgeServer.close() } catch {}
+  }
+  if (mineruProcess && mineruProcess.pid) {
     treeKill(mineruProcess.pid, 'SIGTERM', (err) => {
       if (err) console.error('Failed to kill MinerU:', err)
     })

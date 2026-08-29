@@ -3,7 +3,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { randomUUID } from "crypto"
 import { prisma } from "@/lib/prisma"
-import { rateLimit } from "@/lib/rate-limit"
+import { rateLimitAsync } from "@/lib/rate-limit"
 import { jsonStringify } from "@/lib/db-helpers"
 import { generateCaption } from "@/lib/services/vision-service"
 import { extractBibTeX } from "@/lib/services/bibtex-service"
@@ -43,12 +43,6 @@ interface MinerUResponse {
 // ---------------------------------------------------------------------------
 
 export async function POST(req: Request) {
-  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
-  const { allowed, retryAfterMs } = rateLimit(ip, 10, 60_000)
-  if (!allowed) {
-    return NextResponse.json({ error: 'Rate limited', retryAfterMs }, { status: 429, headers: { 'Retry-After': Math.ceil(retryAfterMs / 1000).toString() } })
-  }
-
   const url = new URL(req.url)
   const workspaceId = url.searchParams.get("workspaceId")
 
@@ -66,7 +60,19 @@ export async function POST(req: Request) {
     )
   }
 
-  try { await requireWorkspaceEditor(workspaceId) } catch (error) { if (error instanceof Response) return error; return NextResponse.json({ error: { code: "AUTH_FAILED", message: "Could not authorize ingestion" } }, { status: 500 }) }
+  let userId: string
+  try {
+    const access = await requireWorkspaceEditor(workspaceId)
+    userId = access.userId
+  } catch (error) {
+    if (error instanceof Response) return error
+    return NextResponse.json({ error: { code: "AUTH_FAILED", message: "Could not authorize ingestion" } }, { status: 500 })
+  }
+
+  const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:ingest`, 10, 60_000)
+  if (!allowed) {
+    return NextResponse.json({ error: 'Rate limited', retryAfterMs }, { status: 429, headers: { 'Retry-After': Math.ceil(retryAfterMs / 1000).toString() } })
+  }
 
   const contentLength = Number(req.headers.get("content-length"))
   if (!Number.isFinite(contentLength) || contentLength <= 0 || contentLength > MAX_UPLOAD_BYTES + 128 * 1024) return NextResponse.json({ error: "Upload is too large" }, { status: 413 })
@@ -110,6 +116,11 @@ export async function POST(req: Request) {
   }
 
   // -- Forward to MinerU ---------------------------------------------------
+  try {
+    const { ensureMinerUBridge } = await import("@/lib/services/mineru-bridge")
+    ensureMinerUBridge()
+  } catch {}
+
   const mineruForm = new FormData()
   mineruForm.append("files", uploadedFile, uploadedFile.name)
   mineruForm.append("return_images", "true")
@@ -127,8 +138,8 @@ export async function POST(req: Request) {
     const message = err instanceof Error ? err.message : String(err)
     return NextResponse.json(
       {
-        error: "MinerU is unavailable",
-        detail: message,
+        error: "MinerU document parsing service is unavailable",
+        detail: `Could not connect to MinerU at ${MINERU_API_URL} (${message}). Please ensure the service is running (e.g. via start-mineru.bat).`,
       },
       { status: 502 }
     )
@@ -158,14 +169,29 @@ export async function POST(req: Request) {
 
   // -- Parse new MinerU API format ------------------------------------------
   const rawBasename = path.basename(uploadedFile.name, path.extname(uploadedFile.name))
-  const results = mineruData.results?.[rawBasename]
   const basename = rawBasename.replace(/[^a-zA-Z0-9_-]/g, "_")
+  const resultsMap = mineruData.results ?? {}
+  const resultsKeys = Object.keys(resultsMap)
+  const results = resultsMap[rawBasename]
+    ?? resultsMap[basename]
+    ?? (resultsKeys.length === 1 ? resultsMap[resultsKeys[0]] : undefined)
+    ?? resultsMap[resultsKeys.find((k) => k.toLowerCase() === rawBasename.toLowerCase() || k.toLowerCase() === basename.toLowerCase()) || ""]
+
+  if (!results) {
+    return NextResponse.json(
+      {
+        error: "MinerU parsed the file but returned no matching result",
+        detail: `Expected "${rawBasename}", available keys: [${resultsKeys.join(", ")}]`,
+      },
+      { status: 502 }
+    )
+  }
 
   // Map to hold extracted table rows by their original image_path
   const tableMap = new Map<string, string[][]>()
   const pageMap = new Map<string, number>()
   
-  if (results?.middle_json) {
+  if (results.middle_json) {
     try {
       const middle = typeof results.middle_json === "string" ? JSON.parse(results.middle_json) : results.middle_json
       let pageNum = 1
@@ -204,8 +230,8 @@ export async function POST(req: Request) {
     }
   }
 
-  // Rename images to structured names to avoid long hashes
-  if (results?.images && results?.md_content) {
+  // Rename images to structured names to avoid long hashes while keeping stability
+  if (results.images && results.md_content) {
     let figureIndex = 1
     let tableIndex = 1
     const newImages: Record<string, string> = {}
@@ -230,12 +256,10 @@ export async function POST(req: Request) {
         mdTable += "\n"
         
         // Try to replace the exact image markdown, or just append it near the image link
-        // MinerU usually writes ![]({filename})
         const imgRegex = new RegExp(`\\!\\[.*\\]\\(` + filename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + `\\)`, "g")
         if (imgRegex.test(results.md_content)) {
           results.md_content = results.md_content.replace(imgRegex, `![](${newFilename})${mdTable}`)
         } else {
-          // Fallback if not found as an image tag
           results.md_content = results.md_content.split(filename).join(newFilename + '")\n' + mdTable + '\n[comment]: <> ("')
         }
       } else {
@@ -251,13 +275,17 @@ export async function POST(req: Request) {
   // Save parsed markdown to sources/ directory for RAG
   const fileId = formData.get("fileId")
   if (fileId && (typeof fileId !== "string" || !SAFE_FILE_ID.test(fileId))) return NextResponse.json({ error: "Invalid file ID" }, { status: 400 })
-  if (fileId && typeof fileId === "string" && results?.md_content) {
+  if (fileId && typeof fileId === "string" && results.md_content) {
     const sourcesDir = workspacePath(workspaceId, "sources")
     if (!fs.existsSync(sourcesDir)) fs.mkdirSync(sourcesDir, { recursive: true })
     await fs.promises.writeFile(workspacePath(workspaceId, "sources", `${fileId}.md`), results.md_content.slice(0, 5_000_000))
 
-    // Auto-extract references to BibTeX
-    await extractBibTeX(results.md_content, workspaceId)
+    // Auto-extract references to BibTeX (non-fatal)
+    try {
+      await extractBibTeX(results.md_content, workspaceId)
+    } catch (err) {
+      console.error("[Ingestion] BibTeX extraction failed (non-fatal):", err)
+    }
   }
 
   const assets: {
@@ -265,7 +293,7 @@ export async function POST(req: Request) {
     filename: string
     url: string
     thumbnailUrl: string
-    kind: "figure" | "table"
+    kind: "figure" | "table" | "equation"
     caption: string
     snippet?: string
     tableRows?: string[][]
@@ -293,9 +321,15 @@ export async function POST(req: Request) {
     )
 
     // Second pass: generate captions in batches for new assets
-    let aiFailed = false
-    const CHUNK_SIZE = 6
+    const MAX_CAPTIONS_PER_INGEST = 40
+    let consecutiveAiFailures = 0
+    let captionsAttempted = 0
+    const CHUNK_SIZE = 2
+
     for (let i = 0; i < imageEntries.length; i += CHUNK_SIZE) {
+      if (i > 0) {
+        await new Promise((r) => setTimeout(r, 400))
+      }
       const chunk = imageEntries.slice(i, i + CHUNK_SIZE)
       await Promise.all(
         chunk.map(async ([filename, base64Data]) => {
@@ -307,10 +341,15 @@ export async function POST(req: Request) {
             ? (base64Data as string).split(",")[1]
             : (base64Data as string)
 
-          let generated = { caption: "", snippet: "" }
-          if (existingAssets.includes(uniqueFilename) || aiFailed) {
-            // Caption already generated or AI unavailable
+          let generated = { caption: "", snippet: "", name: "" }
+          const isAlreadyExtracted = existingAssets.includes(uniqueFilename)
+          const circuitTripped = consecutiveAiFailures >= 3
+          const overMaxCaptions = captionsAttempted >= MAX_CAPTIONS_PER_INGEST
+
+          if (isAlreadyExtracted || circuitTripped || overMaxCaptions) {
+            // Caption already generated, AI circuit breaker tripped, or max cap reached
           } else {
+            captionsAttempted++
             let contextWindow = ""
             if (results?.md_content) {
               const idx = results.md_content.indexOf(filename)
@@ -324,23 +363,28 @@ export async function POST(req: Request) {
             try {
               generated = await generateCaption(base64Payload, contextWindow)
               if (!generated.caption && !generated.snippet) {
-                aiFailed = true
+                consecutiveAiFailures++
+              } else {
+                consecutiveAiFailures = 0
               }
             } catch (err) {
               console.error(`[Ingestion] Failed to generate AI caption for ${uniqueFilename}:`, err)
-              generated = { caption: "Extracted Figure", snippet: "" }
-              aiFailed = true
+              generated = { caption: "", snippet: "", name: "" }
+              consecutiveAiFailures++
             }
           }
 
           const isTable = tableMap.has(uniqueFilename)
+          const fallbackDefault = isTable ? "Table" : "Figure"
+          const assetCaption = generated.caption || generated.name || fallbackDefault
+
           assets.push({
             id: randomUUID(),
             filename: uniqueFilename,
             url: `/api/workspaces/${workspaceId}/assets/${uniqueFilename}`,
             thumbnailUrl: `/api/workspaces/${workspaceId}/assets/${uniqueFilename}`,
             kind: isTable ? "table" : "figure",
-            caption: isTable ? "Table" : (generated.caption || "Figure"),
+            caption: assetCaption,
             snippet: generated.snippet,
             tableRows: isTable ? tableMap.get(uniqueFilename) : undefined,
             page: pageMap.get(uniqueFilename) || 1,
@@ -350,21 +394,157 @@ export async function POST(req: Request) {
     }
   }
 
-  // Insert assets into Prisma
+  // Extract equations from middle_json and md_content
+  const extractedEquations: { formula: string; page: number; title: string }[] = []
+  const seenEquations = new Set<string>()
+
+  if (results.middle_json) {
+    try {
+      const middle = typeof results.middle_json === "string" ? JSON.parse(results.middle_json) : results.middle_json
+      let pageNum = 1
+      for (const p of middle.pdf_info || []) {
+        const searchEquations = (obj: any) => {
+          if (!obj) return
+          if (typeof obj === "object") {
+            if ((obj.type === "equation" || obj.type === "interline_equation") && (obj.text || obj.latex)) {
+              const rawFormula = (obj.latex || obj.text || "").trim()
+              const cleanFormula = rawFormula.replace(/^\$\$|\$\$$/g, "").trim()
+              if (cleanFormula.length >= 3 && !seenEquations.has(cleanFormula)) {
+                seenEquations.add(cleanFormula)
+                extractedEquations.push({
+                  formula: cleanFormula,
+                  page: pageNum,
+                  title: `Equation: ${cleanFormula.slice(0, 45)}`,
+                })
+              }
+            }
+            for (const key of Object.keys(obj)) {
+              searchEquations(obj[key])
+            }
+          }
+        }
+        searchEquations(p)
+        pageNum++
+      }
+    } catch (e) {
+      console.error("Failed to parse middle_json for equations", e)
+    }
+  }
+
+  if (results.md_content) {
+    const displayMathRegex = /\$\$([\s\S]+?)\$\$|\\begin\{(?:equation|align|gather|multline)\*?\}([\s\S]+?)\\end\{(?:equation|align|gather|multline)\*?\}/g
+    let match
+    let eqCount = extractedEquations.length + 1
+    while ((match = displayMathRegex.exec(results.md_content)) !== null) {
+      const rawFormula = (match[1] || match[2] || "").trim()
+      if (rawFormula.length >= 3 && !seenEquations.has(rawFormula)) {
+        seenEquations.add(rawFormula)
+        extractedEquations.push({
+          formula: rawFormula,
+          page: 1,
+          title: `Equation ${eqCount++}`,
+        })
+      }
+    }
+  }
+
+  let eqIndex = 1
+  for (const eq of extractedEquations) {
+    const uniqueFilename = `${basename}_equation_${eqIndex++}.tex`
+    assets.push({
+      id: randomUUID(),
+      filename: uniqueFilename,
+      url: `/api/workspaces/${workspaceId}/assets/${uniqueFilename}`,
+      thumbnailUrl: `/api/workspaces/${workspaceId}/assets/${uniqueFilename}`,
+      kind: "equation",
+      caption: eq.title || `Equation: ${eq.formula.slice(0, 40)}`,
+      snippet: eq.formula,
+      page: eq.page,
+    })
+  }
+
+  // Insert or update assets in Prisma with deduplication
   if (assets.length > 0) {
     const parsedFileId = typeof fileId === "string" ? fileId : "unknown-file"
-    await prisma.$transaction(
-      assets.map(a => prisma.asset.create({
-        data: {
-          ...a,
-          tableRows: a.tableRows ?? undefined,
+    try {
+      const existingDbAssets = await prisma.asset.findMany({
+        where: {
           workspaceId,
-          fileId: parsedFileId,
-          confidence: "high",
+          filename: { in: assets.map((a) => a.filename) }
         }
-      }))
-    )
+      })
+      const existingMap = new Map(existingDbAssets.map((a) => [a.filename, a]))
+
+      await prisma.$transaction(
+        assets.map((a) => {
+          const existing = a.filename ? existingMap.get(a.filename) : null
+          if (existing) {
+            return prisma.asset.update({
+              where: { id: existing.id },
+              data: {
+                url: a.url,
+                thumbnailUrl: a.thumbnailUrl,
+                kind: a.kind,
+                caption: a.caption,
+                snippet: a.snippet,
+                tableRows: a.tableRows ?? undefined,
+                page: a.page,
+                fileId: parsedFileId,
+                confidence: "high",
+              }
+            })
+          }
+          return prisma.asset.create({
+            data: {
+              ...a,
+              tableRows: a.tableRows ?? undefined,
+              workspaceId,
+              fileId: parsedFileId,
+              confidence: "high",
+            }
+          })
+        })
+      )
+    } catch (err) {
+      // Roll back unpersisted files on disk to prevent storage leaks and orphaned assets
+      await Promise.all(
+        assets.map((a) =>
+          fs.promises.unlink(workspacePath(workspaceId, "assets", a.filename)).catch(() => undefined)
+        )
+      )
+      console.error("[Ingestion] Failed to persist assets, rolled back files:", err)
+      return NextResponse.json(
+        { error: "Failed to save extracted assets to database", detail: String(err) },
+        { status: 502 }
+      )
+    }
+  }
+
+  // Persist the IngestFile record in Prisma so it survives page reloads
+  const parsedFileId = typeof fileId === "string" && SAFE_FILE_ID.test(fileId) ? fileId : `file_${Date.now()}`
+  try {
+    await prisma.ingestFile.upsert({
+      where: { id: parsedFileId },
+      create: {
+        id: parsedFileId,
+        workspaceId,
+        name: uploadedFile.name,
+        size: uploadedFile.size,
+        method: "MinerU (WSL)",
+        status: "done",
+        progress: 100,
+      },
+      update: {
+        status: "done",
+        progress: 100,
+        name: uploadedFile.name,
+        size: uploadedFile.size,
+      },
+    })
+  } catch (ingestErr) {
+    console.warn("[Ingestion] Failed to upsert IngestFile:", ingestErr)
   }
 
   return NextResponse.json({ assets })
 }
+

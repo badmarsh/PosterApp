@@ -1,12 +1,14 @@
 /**
  * Strip markdown code fences from AI response text.
- * Handles: ```json ... ```, ``` ... ```, or no fences at all.
+ * Handles: ```json ... ```, ``` ... ```, trailing backticks, or no fences at all.
  */
 export function stripMarkdownFences(text: string): string {
-  return text
+  let cleaned = text.trim()
+  cleaned = cleaned
     .replace(/^```(?:json)?\s*\n?/i, "")
     .replace(/\n?\s*```\s*$/i, "")
     .trim()
+  return cleaned.replace(/```+$/g, "").trim()
 }
 
 /**
@@ -18,6 +20,13 @@ export function parseAiJson<T>(raw: string): { data: T | null; error: string | n
   try {
     return { data: JSON.parse(cleaned) as T, error: null }
   } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/)
+    if (match) {
+      try {
+        return { data: JSON.parse(match[0]) as T, error: null }
+      } catch {}
+    }
     return { data: null, error: `AI returned invalid JSON: ${cleaned.slice(0, 200)}` }
   }
 }
+

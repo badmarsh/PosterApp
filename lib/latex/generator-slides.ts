@@ -19,7 +19,7 @@ export class BeamerSlidesGenerator implements LatexGenerator {
     for (const card of outputConfig.cards) {
       const textParts = [card.content]
       if (card.table?.caption) textParts.push(card.table.caption)
-      if (Array.isArray(card.figures)) card.figures.forEach(f => { if (f.caption) textParts.push(f.caption) })
+      if (Array.isArray(card.figures)) card.figures.forEach(f => { if (f?.caption) textParts.push(f.caption) })
       extractCiteKeys(textParts.join("\n")).forEach(k => usedKeys.add(k))
     }
 
@@ -44,14 +44,14 @@ export class BeamerSlidesGenerator implements LatexGenerator {
 
       // ── Two-column slide ──────────────────────────────────────────────────
       if (c.pattern === "two-column") {
-        const hasFigure = c.figures && c.figures.length > 0 && c.figures[0].url
+        const hasFigure = Boolean(c.figures && c.figures.length > 0 && c.figures[0]?.url?.trim())
         let leftContent: string
         let rightContent: string
 
         if (hasFigure) {
           // Text left, figure right
           leftContent = parseMarkdownToLatex(c.content)
-          const f = c.figures[0]
+          const f = c.figures[0]!
           const imgPath = workspaceId ? assetUrlToLatexPath(f.url, workspaceId) : f.url
           rightContent = `\\includegraphics[width=\\linewidth,keepaspectratio]{${imgPath}}`
           if (f.caption) rightContent += `\n\\\\\n{\\footnotesize ${parseMarkdownToLatex(f.caption)}}`
@@ -82,7 +82,7 @@ export class BeamerSlidesGenerator implements LatexGenerator {
       if (c.pattern === "bullets-image" || c.pattern === "figure-slide" || c.pattern === "image-focused") {
         if (c.figures && c.figures.length > 0) {
           const f = c.figures[0]
-          if (f.url) {
+          if (f?.url?.trim()) {
             const hasBullets = c.pattern === "bullets-image" && c.content.trim().length > 0
             const bulletLines = c.content.split("\n").filter(l => l.trim().length > 0).length
             // Scale down image height if there are many bullets or long captions

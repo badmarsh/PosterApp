@@ -55,11 +55,11 @@ export const ASSET_KIND_LABEL: Record<AssetKind, string> = {
 }
 
 export const SLOT_LABEL: Record<AssignSlot, string> = {
-  bullets: "Bullets",
+  bullets: "Bullets (as text)",
   figure1: "Figure slot 1",
   figure2: "Figure slot 2",
-  table: "Table",
-  equation: "Equation",
+  table: "Table slot",
+  equation: "Equation block",
 }
 
 /** Which target slots make sense for a given extracted asset kind. */
@@ -68,11 +68,11 @@ export function slotsForKind(kind: AssetKind): AssignSlot[] {
     case "text":
       return ["bullets"]
     case "figure":
-      return ["figure1", "figure2"]
+      return ["figure1", "figure2", "bullets"]
     case "table":
-      return ["table"]
+      return ["table", "bullets"]
     case "equation":
-      return ["equation"]
+      return ["equation", "bullets"]
     default:
       return []
   }

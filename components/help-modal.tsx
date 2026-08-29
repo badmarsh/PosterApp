@@ -48,7 +48,28 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
                 <div className="bg-muted/50 p-4 rounded-lg border border-border">
                   <h4 className="font-medium text-foreground mb-1">Local Processing & Auto-Extraction</h4>
                   <p className="text-sm">
-                    The system uses MinerU locally on your machine to extract text, figures, and tables. During ingestion, it automatically extracts the References section and converts it into BibTeX format, ensuring your citations are ready to use.
+                    The system uses MinerU locally on your machine to extract text, <strong>figures, tables, and mathematical formulas</strong> with high precision. During ingestion, it automatically extracts the References section and converts it into BibTeX format. The robust concurrent job queue handles multiple large PDFs efficiently without stalling.
+                  </p>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="formats" className="border border-border bg-card px-4 rounded-lg">
+              <AccordionTrigger className="hover:no-underline py-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-md">
+                    <LayoutTemplate className="size-4 text-primary" />
+                  </div>
+                  <span className="font-semibold text-base">Formats & Layouts</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground pb-4 leading-relaxed space-y-4">
+                <p>
+                  You can seamlessly switch your workspace between three output formats: <strong>Posters</strong>, <strong>Slides</strong>, and <strong>Papers</strong>.
+                </p>
+                <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
+                  <p className="text-sm">
+                    Open the <strong className="text-foreground font-medium">Format Settings + Ops</strong> tab in the right sidebar to change your layout at any time. When switching between formats (e.g., from Poster to Slides), the system preserves your cards but recalculates layout properties, like columns and heights, to fit the new format constraints.
                   </p>
                 </div>
               </AccordionContent>
@@ -58,14 +79,14 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
               <AccordionTrigger className="hover:no-underline py-4">
                 <div className="flex items-center gap-3">
                   <div className="bg-primary/10 p-2 rounded-md">
-                    <LayoutTemplate className="size-4 text-primary" />
+                    <BoxSelect className="size-4 text-primary" />
                   </div>
                   <span className="font-semibold text-base">Cards & AI Auto-fill</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground pb-4 leading-relaxed space-y-4">
                 <p>
-                  Each section of your poster is represented as a <strong className="text-foreground font-medium">Card</strong>. You can write the content manually or use the powerful AI Auto-fill feature.
+                  Each section of your document is represented as a <strong className="text-foreground font-medium">Card</strong>. You can write the content manually or use the powerful AI Auto-fill feature.
                 </p>
                 <ul className="space-y-3 mt-4">
                   <li className="flex gap-3">
@@ -105,7 +126,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground pb-4 leading-relaxed space-y-4">
                 <p>
-                  Unlike a scrolling webpage, your poster is constrained by physical space. Each card is allocated a <strong className="text-foreground font-medium">Height Budget</strong> (measured in generic units &quot;u&quot;).
+                  Unlike a scrolling webpage, your document is constrained by physical space. Each card is allocated a <strong className="text-foreground font-medium">Height Budget</strong> (measured in generic units &quot;u&quot;).
                 </p>
                 <div className="grid sm:grid-cols-2 gap-4 mt-2">
                   <div className="border border-border p-4 rounded-lg bg-muted/30">
@@ -126,7 +147,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
                   <div className="bg-primary/10 p-2 rounded-md">
                     <ImageIcon className="size-4 text-primary" />
                   </div>
-                  <span className="font-semibold text-base">Figures & Tables</span>
+                  <span className="font-semibold text-base">Figures, Tables & Equations</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground pb-4 leading-relaxed space-y-4">
@@ -134,7 +155,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
                   A great poster balances text with rich visuals. The left panel shows all extracted assets (figures and tables) from your PDFs.
                 </p>
                 <p>
-                  You can assign these figures to specific slots in your cards using the <strong className="text-foreground font-medium">Card Content</strong> panel on the right. When you use the AI Auto-fill feature, the AI will also automatically suggest and assign relevant figures if it finds them.
+                  You can assign these assets to specific slots in your cards using the <strong className="text-foreground font-medium">Card Content</strong> panel on the right. During AI Auto-fill, the AI will also automatically suggest and assign relevant figures. You can also preview PDF assets natively in the Figure Editor.
                 </p>
               </AccordionContent>
             </AccordionItem>
