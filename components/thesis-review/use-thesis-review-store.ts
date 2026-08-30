@@ -5,6 +5,7 @@
  *  - List of thesis reviews in the current workspace
  *  - Active review being edited
  *  - Generation state (loading, error)
+ *  - Single-criterion re-generation
  *  - Export state
  */
 
@@ -63,6 +64,7 @@ interface ThesisReviewState {
   activeReview: ThesisReviewRecord | null
   isGenerating: boolean
   isExporting: boolean
+  regeneratingCriterionId: string | null
   generateError: string | null
   exportError: string | null
   isPanelOpen: boolean
@@ -74,6 +76,12 @@ interface ThesisReviewState {
   loadReviews: (workspaceId: string) => Promise<void>
   loadReview: (workspaceId: string, reviewId: string) => Promise<void>
   generateReview: (opts: ThesisReviewGenerateOptions) => Promise<ThesisReviewRecord | null>
+  regenerateCriterion: (
+    workspaceId: string,
+    reviewId: string,
+    criterionId: string,
+    userInstruction?: string
+  ) => Promise<ThesisSection | null>
   updateReviewLocally: (updates: Partial<ThesisReviewRecord>) => void
   saveReview: (workspaceId: string, reviewId: string) => Promise<void>
   exportReviewPdf: (workspaceId: string, reviewId: string) => Promise<void>
@@ -91,6 +99,7 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     activeReview: null,
     isGenerating: false,
     isExporting: false,
+    regeneratingCriterionId: null,
     generateError: null,
     exportError: null,
     isPanelOpen: false,
@@ -172,6 +181,42 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Generation failed"
         set((s) => { s.isGenerating = false; s.generateError = msg })
+        return null
+      }
+    },
+
+    regenerateCriterion: async (workspaceId, reviewId, criterionId, userInstruction) => {
+      set((s) => {
+        s.regeneratingCriterionId = criterionId
+        s.generateError = null
+      })
+      try {
+        const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review/${reviewId}/regenerate-criterion`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ criterionId, userInstruction }),
+        })
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.error ?? `HTTP ${res.status}`)
+        }
+
+        const data = await res.json()
+        set((s) => {
+          if (s.activeReview) {
+            s.activeReview.sections = data.sections
+            s.activeReview.grade = data.grade
+          }
+          s.regeneratingCriterionId = null
+        })
+        return data.section
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Regeneration failed"
+        set((s) => {
+          s.regeneratingCriterionId = null
+          s.generateError = msg
+        })
         return null
       }
     },

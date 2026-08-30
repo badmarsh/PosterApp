@@ -4,12 +4,25 @@
  * CitationIssuesPanel — displays citation audit results & bibliographic issues.
  *
  * Shows issues flagged by Academic Connector (Semantic Scholar / arXiv)
- * and ISO 690 / completeness checks.
+ * and ISO 690 / completeness checks. Includes live literature lookup search.
  */
 
-import { AlertTriangle, BookOpen, CheckCircle2 } from "lucide-react"
+import { useState } from "react"
+import {
+  AlertTriangle,
+  BookOpen,
+  CheckCircle2,
+  Search,
+  ExternalLink,
+  Loader2,
+  Copy,
+  Check,
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import type { ReviewLanguage } from "@/lib/ai/thesis-rubric"
+import type { AcademicPaperResult } from "@/lib/services/academic-connector"
 
 interface Props {
   issues: string[]
@@ -22,52 +35,112 @@ const LABELS: Record<
     title: string
     subtitle: string
     clean: string
+    searchTitle: string
+    searchPlaceholder: string
+    searchBtn: string
+    noResults: string
   }
 > = {
   sk: {
     title: "Akademický konektor & Kontrola citácií",
-    subtitle: "Overenie citovaných zdrojov cez Semantic Scholar / arXiv a formálne požiadavky",
+    subtitle: "Overenie citovaných zdrojov cez Semantic Scholar / arXiv a normu ISO 690",
     clean: "Všetky overované citácie spĺňajú základné požiadavky.",
+    searchTitle: "Overiť / Vyhľadať akademický zdroj:",
+    searchPlaceholder: "Zadajte názov článku, DOI alebo arXiv ID...",
+    searchBtn: "Hľadať",
+    noResults: "Neboli nájdené žiadne záznamy v Semantic Scholar ani arXiv.",
   },
   cs: {
     title: "Akademický konektor & Kontrola citací",
-    subtitle: "Ověření citovaných zdrojů přes Semantic Scholar / arXiv a formální požadavky",
+    subtitle: "Ověření citovaných zdrojů přes Semantic Scholar / arXiv a normu ISO 690",
     clean: "Všechny ověřované citace splňují základní požadavky.",
+    searchTitle: "Ověřit / Vyhledat akademický zdroj:",
+    searchPlaceholder: "Zadejte název článku, DOI nebo arXiv ID...",
+    searchBtn: "Hledat",
+    noResults: "Nebyly nalezeny žádné záznamy v Semantic Scholar ani arXiv.",
   },
   en: {
     title: "Academic Connector & Citation Audit",
-    subtitle: "Verification of cited references via Semantic Scholar / arXiv and ISO standards",
-    clean: "All verified citations meet the criteria.",
+    subtitle: "Verification of cited references via Semantic Scholar / arXiv and ISO 690 standards",
+    clean: "All verified citations meet the required criteria.",
+    searchTitle: "Verify / Search Academic Literature:",
+    searchPlaceholder: "Enter paper title, DOI, or arXiv ID...",
+    searchBtn: "Search",
+    noResults: "No records found on Semantic Scholar or arXiv.",
   },
 }
 
 export function CitationIssuesPanel({ issues, lang }: Props) {
+  const [searchQuery, setSearchQuery] = useState("")
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchResults, setSearchResults] = useState<AcademicPaperResult[]>([])
+  const [hasSearched, setHasSearched] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
   const t = LABELS[lang]
 
+  const handleSearch = async () => {
+    if (!searchQuery.trim() || isSearching) return
+    setIsSearching(true)
+    setHasSearched(true)
+    try {
+      const res = await fetch("/api/academic/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: searchQuery.trim(), limit: 4 }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setSearchResults(data.results ?? [])
+      } else {
+        setSearchResults([])
+      }
+    } catch {
+      setSearchResults([])
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  const handleCopyCitation = (paper: AcademicPaperResult, idx: number) => {
+    const authors = paper.authors.join(", ")
+    const cit = `${authors} (${paper.year ?? "n.d."}). ${paper.title}.${paper.doi ? ` DOI: ${paper.doi}` : paper.url ? ` URL: ${paper.url}` : ""}`
+    navigator.clipboard.writeText(cit)
+    setCopiedId(String(idx))
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
   return (
-    <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-4 space-y-3">
+    <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-4 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold">{t.title}</h3>
         </div>
         {issues.length > 0 ? (
-          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-200 text-xs">
-            {issues.length} {lang === "sk" ? "pripomienok" : lang === "cs" ? "připomínek" : "notes"}
+          <Badge
+            variant="outline"
+            className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-200 text-xs font-semibold"
+          >
+            {issues.length} {lang === "sk" ? "pripomienok" : lang === "cs" ? "připomínek" : "issues"}
           </Badge>
         ) : (
-          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300 dark:bg-green-950 dark:text-green-200 text-xs">
-            OK
+          <Badge
+            variant="outline"
+            className="bg-green-100 text-green-800 border-green-300 dark:bg-green-950 dark:text-green-200 text-xs font-semibold"
+          >
+            ISO 690 OK
           </Badge>
         )}
       </div>
 
       <p className="text-xs text-muted-foreground">{t.subtitle}</p>
 
+      {/* Issues list */}
       {issues.length === 0 ? (
-        <div className="flex items-center gap-2 rounded-md bg-green-50 p-2.5 text-xs text-green-800 dark:bg-green-950/40 dark:text-green-200">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <span>{t.clean}</span>
+        <div className="flex items-center gap-2 rounded-md bg-green-50 p-3 text-xs text-green-800 dark:bg-green-950/40 dark:text-green-200 border border-green-200 dark:border-green-900/50">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+          <span className="font-medium">{t.clean}</span>
         </div>
       ) : (
         <div className="space-y-2">
@@ -77,11 +150,123 @@ export function CitationIssuesPanel({ issues, lang }: Props) {
               className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/50 p-2.5 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
             >
               <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
-              <div className="flex-1 whitespace-pre-wrap">{issue}</div>
+              <div className="flex-1 whitespace-pre-wrap leading-relaxed">{issue}</div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Live Academic Search & Verification box */}
+      <div className="pt-2 border-t space-y-2.5">
+        <span className="text-xs font-medium text-muted-foreground block">
+          {t.searchTitle}
+        </span>
+        <div className="flex gap-2">
+          <Input
+            placeholder={t.searchPlaceholder}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="text-xs h-8"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSearch()
+            }}
+          />
+          <Button
+            size="sm"
+            onClick={handleSearch}
+            disabled={!searchQuery.trim() || isSearching}
+            className="h-8 text-xs gap-1 shrink-0"
+          >
+            {isSearching ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Search className="h-3.5 w-3.5" />
+            )}
+            {t.searchBtn}
+          </Button>
+        </div>
+
+        {/* Search results */}
+        {hasSearched && (
+          <div className="space-y-2 pt-1">
+            {searchResults.length > 0 ? (
+              <div className="grid gap-2">
+                {searchResults.map((paper, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2.5 rounded-md border bg-muted/20 hover:bg-muted/40 transition-colors text-xs space-y-1"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-semibold text-foreground leading-snug">
+                        {paper.title}
+                      </span>
+                      <Badge variant="outline" className="text-[10px] uppercase font-mono h-4 shrink-0">
+                        {paper.source}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
+                      <span>{paper.authors.slice(0, 3).join(", ")}{paper.authors.length > 3 ? " et al." : ""}</span>
+                      {paper.year && <span>• {paper.year}</span>}
+                      {paper.citationCount != null && (
+                        <span>• {paper.citationCount} cit.</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      {paper.doi && (
+                        <a
+                          href={`https://doi.org/${paper.doi}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] text-blue-600 hover:underline inline-flex items-center gap-1 font-mono"
+                        >
+                          DOI:{paper.doi.slice(0, 24)}...
+                          <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      )}
+                      {paper.arxivId && (
+                        <a
+                          href={paper.url || `https://arxiv.org/abs/${paper.arxivId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] text-amber-600 hover:underline inline-flex items-center gap-1 font-mono"
+                        >
+                          arXiv:{paper.arxivId}
+                          <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      )}
+
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => handleCopyCitation(paper, idx)}
+                        className="ml-auto h-5 text-[10px] gap-1 px-1.5"
+                      >
+                        {copiedId === String(idx) ? (
+                          <>
+                            <Check className="h-2.5 w-2.5 text-green-600" />
+                            {lang === "sk" ? "Skopírované" : "Copied"}
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-2.5 w-2.5" />
+                            {lang === "sk" ? "Citácia" : "Copy Cite"}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground italic py-1">
+                {t.noResults}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

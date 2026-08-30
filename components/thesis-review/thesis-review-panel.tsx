@@ -5,7 +5,8 @@
  *
  * Integrates:
  *  - Review metadata header & grade summary
- *  - Per-criterion cards (ThesisCriteriaCard)
+ *  - Visual Score Analytics (Radar chart + ECTS breakdown)
+ *  - Per-criterion cards (ThesisCriteriaCard with single-criterion AI regeneration)
  *  - Defense questions (DefenseQuestionsPanel)
  *  - Academic connector citation audit (CitationIssuesPanel)
  *  - Save & PDF Export buttons
@@ -14,6 +15,7 @@
 import { useEffect } from "react"
 import { useThesisReviewStore, type ThesisReviewRecord } from "./use-thesis-review-store"
 import { ThesisMetadataPanel } from "./thesis-metadata-panel"
+import { ThesisScoreAnalytics } from "./thesis-score-analytics"
 import { ThesisCriteriaCard } from "./thesis-criteria-card"
 import { DefenseQuestionsPanel } from "./defense-questions-panel"
 import { CitationIssuesPanel } from "./citation-issues-panel"
@@ -38,11 +40,9 @@ import {
 import {
   FileDown,
   Save,
-  PlusCircle,
   Trash2,
   FileCheck2,
   GraduationCap,
-  Sparkles,
   Loader2,
 } from "lucide-react"
 
@@ -77,8 +77,8 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
     const updatedSections = activeReview.sections.map((s) =>
       s.sectionId === sectionId || s.criterionId === sectionId ? { ...s, ...updates } : s
     )
-    
-    // Check if auto-recalculate grade makes sense
+
+    // Auto-recalculate weighted score and grade
     const newScore = computeOverallScore(updatedSections)
     const newGrade = newScore != null ? scoreToEctsGrade(newScore) : activeReview.grade
 
@@ -284,6 +284,13 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
             </div>
           </div>
 
+          {/* Visual Analytics & Radar Profile */}
+          <ThesisScoreAnalytics
+            sections={activeReview.sections}
+            lang={lang}
+            currentGrade={activeReview.grade}
+          />
+
           {/* Criteria cards list */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold tracking-tight text-muted-foreground uppercase text-xs">
@@ -307,6 +314,8 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                   criterion={criterion}
                   section={sec}
                   lang={lang}
+                  workspaceId={workspaceId}
+                  reviewId={activeReview.id}
                   onUpdate={(updates) => handleSectionUpdate(criterion.id, updates)}
                 />
               )

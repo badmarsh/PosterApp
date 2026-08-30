@@ -42,11 +42,22 @@ describe("Thesis Rubric and Scoring", () => {
     expect(["A", "B"]).toContain(grade)
   })
 
+  it("maps numeric and failing scores correctly", () => {
+    const failingSections: ThesisSection[] = [
+      { id: "1", sectionId: "formal_structure", criterionId: "formal_structure", text: "Poor", rating: "FX" },
+      { id: "2", sectionId: "methodology", criterionId: "methodology", text: "Poor", rating: "FX" },
+    ]
+    const score = computeOverallScore(failingSections)
+    expect(score).toBe(20)
+    expect(scoreToEctsGrade(score!)).toBe("FX")
+  })
+
   it("maps ECTS grade to localized recommendations", () => {
     expect(gradeToRecommendation("A", "sk")).toContain("odporúčam")
     expect(gradeToRecommendation("FX", "sk")).toContain("neodporúčam")
     expect(gradeToRecommendation("A", "en")).toContain("recommend")
     expect(gradeToRecommendation("FX", "en")).toContain("do not recommend")
+    expect(gradeToRecommendation("B", "cs")).toContain("doporučuji")
   })
 })
 
@@ -85,6 +96,7 @@ describe("Thesis Review Contracts / Schemas", () => {
     const raw = {
       content: "Jazyková úroveň práce je výborná, bez závažných gramatických chýb.",
       grade: "A",
+      numericScore: 95,
       suggestions: ["Zjednotiť terminológiu v kapitole 3"],
     }
 
@@ -93,13 +105,14 @@ describe("Thesis Review Contracts / Schemas", () => {
     if (parsed.success) {
       expect(parsed.data.text).toContain("Jazyková úroveň")
       expect(parsed.data.rating).toBe("A")
+      expect(parsed.data.numericScore).toBe(95)
       expect(parsed.data.suggestions).toHaveLength(1)
     }
   })
 })
 
 describe("Thesis Review LaTeX Generator", () => {
-  it("generates compilable LaTeX with metadata and escaped content", () => {
+  it("generates compilable Slovak LaTeX with metadata and escaped content", () => {
     const tex = generateThesisReviewLatex({
       studentName: "Janko Hraško",
       thesisTitle: "Analýza & syntéza $N$-telových systémov",
@@ -133,5 +146,34 @@ describe("Thesis Review LaTeX Generator", () => {
     expect(tex).toContain("OTÁZKY K OBHAJOBE")
     expect(tex).toContain("Analýza \\& syntéza")
     expect(tex).toContain("\\end{document}")
+  })
+
+  it("generates English thesis assessment LaTeX template", () => {
+    const tex = generateThesisReviewLatex({
+      studentName: "Alice Smith",
+      thesisTitle: "Deep Generative Models in Robotics",
+      thesisType: "phd",
+      reviewerRole: "supervisor",
+      reviewerName: "Prof. John Doe",
+      grade: "A",
+      recommendation: "I recommend the thesis for defense.",
+      sections: [
+        {
+          id: "s1",
+          sectionId: "methodology",
+          criterionId: "methodology",
+          text: "State-of-the-art methodology.",
+          rating: "A",
+        },
+      ],
+      defenseQuestions: ["What are the failure modes?"],
+      citationIssues: [],
+      language: "en",
+      template: "posudok-en",
+    })
+
+    expect(tex).toContain("THESIS ASSESSMENT REPORT")
+    expect(tex).toContain("Alice Smith")
+    expect(tex).toContain("DEFENSE QUESTIONS")
   })
 })

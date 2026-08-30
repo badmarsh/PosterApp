@@ -4,13 +4,15 @@
  * ThesisCriteriaCard — displays and allows editing of a single criterion section.
  *
  * Shows the AI-generated assessment text for one criterion, its rating,
- * numeric score, and suggestions. Allows manual editing and rating override.
+ * numeric score, and suggestions. Allows manual editing, rating override,
+ * and single-criterion AI regeneration with custom instructions.
  */
 
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -18,14 +20,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ChevronDown, ChevronUp, Pencil, Check, X } from "lucide-react"
+import {
+  ChevronDown,
+  ChevronUp,
+  Pencil,
+  Check,
+  X,
+  Sparkles,
+  Loader2,
+  MessageSquarePlus,
+} from "lucide-react"
 import type { ThesisSection, ThesisCriterion, ReviewLanguage, CriterionRating } from "@/lib/ai/thesis-rubric"
+import { useThesisReviewStore } from "./use-thesis-review-store"
 import { cn } from "@/lib/utils"
 
 interface Props {
   criterion: ThesisCriterion
   section: ThesisSection
   lang: ReviewLanguage
+  workspaceId?: string
+  reviewId?: string
   onUpdate: (updates: Partial<ThesisSection>) => void
 }
 
@@ -47,10 +61,22 @@ const SUGGESTIONS_LABELS: Record<ReviewLanguage, string> = {
   en: "Improvement suggestions",
 }
 
-export function ThesisCriteriaCard({ criterion, section, lang, onUpdate }: Props) {
+export function ThesisCriteriaCard({
+  criterion,
+  section,
+  lang,
+  workspaceId,
+  reviewId,
+  onUpdate,
+}: Props) {
   const [isExpanded, setIsExpanded] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [editText, setEditText] = useState(section.text)
+  const [showRegenPrompt, setShowRegenPrompt] = useState(false)
+  const [userInstruction, setUserInstruction] = useState("")
+
+  const { regenerateCriterion, regeneratingCriterionId } = useThesisReviewStore()
+  const isRegenerating = regeneratingCriterionId === criterion.id
 
   const criterionLabel = criterion.labels[lang]
   const rating = section.rating && section.rating !== "pending" ? section.rating : null
@@ -63,6 +89,21 @@ export function ThesisCriteriaCard({ criterion, section, lang, onUpdate }: Props
   const handleCancelEdit = () => {
     setEditText(section.text)
     setIsEditing(false)
+  }
+
+  const handleRegenerate = async () => {
+    if (!workspaceId || !reviewId) return
+    const updated = await regenerateCriterion(
+      workspaceId,
+      reviewId,
+      criterion.id,
+      userInstruction.trim() || undefined
+    )
+    if (updated) {
+      setEditText(updated.text)
+      setShowRegenPrompt(false)
+      setUserInstruction("")
+    }
   }
 
   return (
@@ -104,33 +145,109 @@ export function ThesisCriteriaCard({ criterion, section, lang, onUpdate }: Props
       {/* Body */}
       {isExpanded && (
         <div className="border-t px-3 pb-3 pt-2 space-y-3">
-          {/* Rating selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground shrink-0">
-              {lang === "sk" ? "Hodnotenie:" : lang === "cs" ? "Hodnocení:" : "Rating:"}
-            </span>
-            <Select
-              value={section.rating ?? "pending"}
-              onValueChange={(v) => onUpdate({ rating: v as CriterionRating })}
-            >
-              <SelectTrigger className="h-6 w-28 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {RATING_OPTIONS.map((r) => (
-                  <SelectItem key={r} value={r} className="text-xs">
-                    {r === "pending" ? (lang === "sk" ? "Nezadané" : lang === "cs" ? "Nezadáno" : "Not set") : r}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {section.numericScore != null && (
-              <span className="text-xs text-muted-foreground ml-auto">
-                {section.numericScore}/100
+          {/* Action & Rating bar */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground shrink-0">
+                {lang === "sk" ? "Hodnotenie:" : lang === "cs" ? "Hodnocení:" : "Rating:"}
               </span>
+              <Select
+                value={section.rating ?? "pending"}
+                onValueChange={(v) => onUpdate({ rating: v as CriterionRating })}
+              >
+                <SelectTrigger className="h-6 w-28 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RATING_OPTIONS.map((r) => (
+                    <SelectItem key={r} value={r} className="text-xs">
+                      {r === "pending"
+                        ? lang === "sk"
+                          ? "Nezadané"
+                          : lang === "cs"
+                          ? "Nezadáno"
+                          : "Not set"
+                        : r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {section.numericScore != null && (
+                <span className="text-xs text-muted-foreground font-mono">
+                  {section.numericScore}/100
+                </span>
+              )}
+            </div>
+
+            {workspaceId && reviewId && (
+              <Button
+                size="xs"
+                variant="outline"
+                disabled={isRegenerating}
+                onClick={() => setShowRegenPrompt((v) => !v)}
+                className="h-6 text-[11px] gap-1 px-2"
+              >
+                {isRegenerating ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                    {lang === "sk" ? "Generujem…" : "Regenerating…"}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3 w-3 text-primary" />
+                    {lang === "sk" ? "AI regenerácia" : "Regenerate AI"}
+                  </>
+                )}
+              </Button>
             )}
           </div>
+
+          {/* AI prompt override box */}
+          {showRegenPrompt && (
+            <div className="space-y-2 rounded-md border border-primary/30 bg-primary/5 p-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                <MessageSquarePlus className="h-3.5 w-3.5" />
+                <span>
+                  {lang === "sk"
+                    ? "Inštrukcia pre AI prehodnotenie (voliteľné)"
+                    : "Custom instruction for AI (optional)"}
+                </span>
+              </div>
+              <Input
+                placeholder={
+                  lang === "sk"
+                    ? "Napr. Zameraj sa viac na praktický prínos v kapitole 4..."
+                    : "E.g. Focus more on methodology in chapter 3..."
+                }
+                value={userInstruction}
+                onChange={(e) => setUserInstruction(e.target.value)}
+                className="text-xs h-7 bg-background"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRegenerate()
+                }}
+              />
+              <div className="flex gap-2 justify-end">
+                <Button
+                  size="xs"
+                  onClick={handleRegenerate}
+                  disabled={isRegenerating}
+                  className="h-6 text-xs gap-1"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  {lang === "sk" ? "Spustiť prehodnotenie" : "Run Regeneration"}
+                </Button>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => setShowRegenPrompt(false)}
+                  className="h-6 text-xs"
+                >
+                  {lang === "sk" ? "Zavrieť" : "Cancel"}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Assessment text */}
           {isEditing ? (
@@ -146,7 +263,12 @@ export function ThesisCriteriaCard({ criterion, section, lang, onUpdate }: Props
                   <Check className="h-3 w-3" />
                   {lang === "sk" ? "Uložiť" : lang === "cs" ? "Uložit" : "Save"}
                 </Button>
-                <Button size="xs" variant="ghost" onClick={handleCancelEdit} className="gap-1 h-6 text-xs px-2">
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={handleCancelEdit}
+                  className="gap-1 h-6 text-xs px-2"
+                >
                   <X className="h-3 w-3" />
                   {lang === "sk" ? "Zrušiť" : lang === "cs" ? "Zrušit" : "Cancel"}
                 </Button>
@@ -165,7 +287,10 @@ export function ThesisCriteriaCard({ criterion, section, lang, onUpdate }: Props
                 size="icon"
                 variant="ghost"
                 className="absolute right-0 top-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => { setEditText(section.text); setIsEditing(true) }}
+                onClick={() => {
+                  setEditText(section.text)
+                  setIsEditing(true)
+                }}
               >
                 <Pencil className="h-3 w-3" />
               </Button>
