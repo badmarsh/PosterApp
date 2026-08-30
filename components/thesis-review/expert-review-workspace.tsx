@@ -483,7 +483,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel: Document Source & Evidence Viewer */}
         <div
-          className={`w-full lg:w-[48%] h-full flex flex-col ${
+          className={`w-full lg:w-[48%] h-full flex flex-col no-scrollbar ${
             mobileView === "document" ? "flex" : "hidden lg:flex"
           }`}
         >

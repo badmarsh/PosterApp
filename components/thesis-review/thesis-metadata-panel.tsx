@@ -270,7 +270,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
   const isComplete = Boolean(formMetadata.studentName?.trim()) && Boolean(formMetadata.thesisTitle?.trim())
 
   return (
-    <div className="flex flex-col gap-4 p-4 h-full overflow-y-auto bg-background">
+    <div className="flex flex-col gap-4 p-4 h-full overflow-y-auto no-scrollbar bg-background">
       {/* Header */}
       <div className="flex items-center justify-between pb-1 border-b">
         <div className="flex items-center gap-2">

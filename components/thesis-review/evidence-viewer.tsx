@@ -249,7 +249,7 @@ export function EvidenceViewer({
       <div
         ref={containerRef}
         onMouseUp={handleMouseUp}
-        className="flex-1 overflow-y-auto p-3 sm:p-6 bg-muted/40 dark:bg-zinc-950/60"
+        className="flex-1 overflow-y-auto no-scrollbar p-3 sm:p-6 bg-muted/40 dark:bg-zinc-950/60"
       >
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 space-y-3">
