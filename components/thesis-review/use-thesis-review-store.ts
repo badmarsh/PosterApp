@@ -19,6 +19,13 @@ import {
   type ThesisMetadata,
   type ReviewLanguage,
 } from "@/lib/ai/thesis-rubric"
+import type {
+  ReviewKind,
+  ReviewFinding,
+  EvidenceReference,
+  ReportingStandard,
+  ReportingGuidelineCheck,
+} from "@/lib/ai/review-types"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,7 +36,7 @@ export interface ThesisReviewRecord {
   studentName: string
   thesisTitle: string
   thesisType: "bachelor" | "master" | "phd"
-  reviewerRole: "supervisor" | "opponent"
+  reviewerRole: string
   reviewerName?: string | null
   institution?: string | null
   department?: string | null
@@ -37,7 +44,16 @@ export interface ThesisReviewRecord {
   recommendation?: string | null
   sections: ThesisSection[]
   defenseQuestions: string[]
+  questionsForAuthors?: string[]
   citationIssues: string[]
+  reviewKind?: ReviewKind
+  targetVenue?: string | null
+  summary?: string | null
+  strengths?: string[]
+  findings?: ReviewFinding[]
+  reportingStandard?: ReportingStandard | null
+  reportingGuidelineChecks?: ReportingGuidelineCheck[]
+  confidentialComments?: string | null
   status: "draft" | "final"
   language: ReviewLanguage
   createdAt: string
@@ -53,6 +69,7 @@ export interface ThesisReviewListItem {
   reviewerName?: string | null
   grade?: string | null
   recommendation?: string | null
+  reviewKind?: string | null
   status: string
   language: string
   createdAt: string
@@ -61,14 +78,20 @@ export interface ThesisReviewListItem {
 
 export interface ThesisReviewGenerateOptions {
   workspaceId: string
-  metadata: ThesisMetadata
+  metadata: ThesisMetadata & {
+    reviewKind?: ReviewKind
+    targetVenue?: string
+    reportingStandard?: ReportingStandard
+  }
   focusCriteria?: string[]
   skipCitationAudit?: boolean
+  professionalMode?: boolean
 }
 
 interface ThesisReviewState {
   reviews: ThesisReviewListItem[]
   activeReview: ThesisReviewRecord | null
+  selectedEvidence: EvidenceReference | null
   isGenerating: boolean
   isSaving: boolean
   isExporting: boolean
@@ -82,6 +105,7 @@ interface ThesisReviewState {
   openPanel: () => void
   closePanel: () => void
   setActiveReview: (review: ThesisReviewRecord | null) => void
+  setSelectedEvidence: (ev: EvidenceReference | null) => void
   loadReviews: (workspaceId: string) => Promise<void>
   loadReview: (workspaceId: string, reviewId: string) => Promise<void>
   generateReview: (opts: ThesisReviewGenerateOptions) => Promise<ThesisReviewRecord | null>
@@ -93,6 +117,14 @@ interface ThesisReviewState {
   ) => Promise<ThesisSection | null>
   updateReviewLocally: (updates: Partial<ThesisReviewRecord>) => void
   updateCriterionLocally: (criterionId: string, updates: Partial<ThesisSection>) => void
+  
+  // Finding Triage Actions
+  acceptFinding: (findingId: string) => void
+  rejectFinding: (findingId: string) => void
+  editFinding: (findingId: string, updates: Partial<ReviewFinding>) => void
+  addCustomFinding: (finding: Omit<ReviewFinding, "id" | "createdBy">) => void
+  toggleFindingExport: (findingId: string) => void
+
   saveReview: (workspaceId: string, reviewId: string) => Promise<boolean>
   exportReviewPdf: (workspaceId: string, reviewId: string) => Promise<void>
   deleteReview: (workspaceId: string, reviewId: string) => Promise<boolean>
@@ -109,6 +141,7 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
   immer((set, get) => ({
     reviews: [],
     activeReview: null,
+    selectedEvidence: null,
     isGenerating: false,
     isSaving: false,
     isExporting: false,
@@ -122,6 +155,7 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     closePanel: () => set((s) => { s.isPanelOpen = false }),
 
     setActiveReview: (review) => set((s) => { s.activeReview = review }),
+    setSelectedEvidence: (ev) => set((s) => { s.selectedEvidence = ev }),
 
     loadReviews: async (workspaceId) => {
       try {
@@ -262,6 +296,59 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
       })
     },
 
+    acceptFinding: (findingId) => {
+      set((s) => {
+        if (!s.activeReview?.findings) return
+        const f = s.activeReview.findings.find((item) => item.id === findingId)
+        if (f) f.status = "accepted"
+      })
+    },
+
+    rejectFinding: (findingId) => {
+      set((s) => {
+        if (!s.activeReview?.findings) return
+        const f = s.activeReview.findings.find((item) => item.id === findingId)
+        if (f) {
+          f.status = "rejected"
+          f.includeInExport = false
+        }
+      })
+    },
+
+    editFinding: (findingId, updates) => {
+      set((s) => {
+        if (!s.activeReview?.findings) return
+        const f = s.activeReview.findings.find((item) => item.id === findingId)
+        if (f) {
+          Object.assign(f, updates)
+          if (f.status === "unreviewed") f.status = "edited"
+        }
+      })
+    },
+
+    addCustomFinding: (finding) => {
+      set((s) => {
+        if (!s.activeReview) return
+        if (!s.activeReview.findings) s.activeReview.findings = []
+        const newFinding: ReviewFinding = {
+          ...finding,
+          id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          createdBy: "reviewer",
+          status: "accepted",
+          includeInExport: true,
+        }
+        s.activeReview.findings.unshift(newFinding)
+      })
+    },
+
+    toggleFindingExport: (findingId) => {
+      set((s) => {
+        if (!s.activeReview?.findings) return
+        const f = s.activeReview.findings.find((item) => item.id === findingId)
+        if (f) f.includeInExport = !f.includeInExport
+      })
+    },
+
     saveReview: async (workspaceId, reviewId) => {
       const { activeReview } = get()
       if (!activeReview || activeReview.id !== reviewId) return false
@@ -284,6 +371,14 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
             sections: JSON.stringify(activeReview.sections),
             defenseQuestions: JSON.stringify(activeReview.defenseQuestions),
             citationIssues: JSON.stringify(activeReview.citationIssues),
+            reviewKind: activeReview.reviewKind,
+            targetVenue: activeReview.targetVenue,
+            summary: activeReview.summary,
+            strengths: activeReview.strengths ? JSON.stringify(activeReview.strengths) : undefined,
+            findings: activeReview.findings ? JSON.stringify(activeReview.findings) : undefined,
+            reportingStandard: activeReview.reportingStandard,
+            reportingGuidelineChecks: activeReview.reportingGuidelineChecks ? JSON.stringify(activeReview.reportingGuidelineChecks) : undefined,
+            confidentialComments: activeReview.confidentialComments,
             status: activeReview.status,
             language: activeReview.language,
           }),

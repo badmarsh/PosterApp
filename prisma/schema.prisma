@@ -171,6 +171,22 @@ model ThesisReview {
   defenseQuestions String?
   /// Citation issues found (JSON string[])
   citationIssues  String?
+  /// "thesis" | "paper" | "grant"
+  reviewKind      String    @default("thesis")
+  /// Target venue, journal, conference, or university
+  targetVenue     String?
+  /// Executive overview / summary of the manuscript
+  summary         String?
+  /// Strengths of the paper (JSON string[])
+  strengths       String?
+  /// Structured review findings with evidence anchors (JSON ReviewFinding[])
+  findings        String?
+  /// "consort" | "prisma" | "strobe" | "ml_reproducibility" | "none"
+  reportingStandard String?
+  /// Reporting guideline compliance checks (JSON ReportingGuidelineCheck[])
+  reportingGuidelineChecks String?
+  /// Confidential remarks for the editor / committee
+  confidentialComments String?
   /// "draft" | "final"
   status          String    @default("draft")
   /// ISO language code: "sk" | "cs" | "en"

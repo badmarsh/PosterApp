@@ -41,12 +41,15 @@ const ThesisMetadataSchema = z.object({
   studentName: z.string().min(1).max(200),
   thesisTitle: z.string().min(1).max(500),
   thesisType: z.enum(["bachelor", "master", "phd"]).default("master"),
-  reviewerRole: z.enum(["supervisor", "opponent"]).default("opponent"),
+  reviewerRole: z.string().max(50).default("opponent"),
   reviewerName: z.string().max(200).optional(),
   institution: z.string().max(300).optional(),
   department: z.string().max(300).optional(),
   language: z.enum(["sk", "cs", "en"]).default("sk"),
   academicYear: z.string().max(20).optional(),
+  reviewKind: z.enum(["thesis", "paper", "grant"]).default("thesis"),
+  targetVenue: z.string().max(300).optional(),
+  reportingStandard: z.enum(["consort", "prisma", "strobe", "ml_reproducibility", "none"]).default("none"),
 })
 
 const RequestBodySchema = z.object({
@@ -55,6 +58,8 @@ const RequestBodySchema = z.object({
   focusCriteria: z.array(z.string()).optional(),
   /** Skip Academic Connector citation audit (faster but less thorough) */
   skipCitationAudit: z.boolean().default(false),
+  /** Enable full professional peer review mode with evidence anchors */
+  professionalMode: z.boolean().optional(),
 })
 
 // ---------------------------------------------------------------------------
@@ -201,11 +206,23 @@ export async function POST(
   const { thesisMetadata, focusCriteria, skipCitationAudit } = body
   const lang = thesisMetadata.language as ReviewLanguage
 
+  const normalizedMetadata: ThesisMetadata = {
+    studentName: thesisMetadata.studentName,
+    thesisTitle: thesisMetadata.thesisTitle,
+    thesisType: thesisMetadata.thesisType,
+    reviewerRole: thesisMetadata.reviewerRole === "supervisor" ? "supervisor" : "opponent",
+    reviewerName: thesisMetadata.reviewerName,
+    institution: thesisMetadata.institution,
+    department: thesisMetadata.department,
+    language: thesisMetadata.language,
+    academicYear: thesisMetadata.academicYear,
+  }
+
   try {
     // 1. Load RAG context from MinerU-parsed documents
     const ragContext = await loadThesisContext({
       workspaceId,
-      thesisMetadata,
+      thesisMetadata: normalizedMetadata,
       focusSections: focusCriteria,
       maxChars: 120_000,
     })
@@ -256,7 +273,7 @@ export async function POST(
     }
 
     // 4. Build AI prompts
-    const contextHeader = buildThesisContextHeader(thesisMetadata, lang)
+    const contextHeader = buildThesisContextHeader(normalizedMetadata, lang)
     const criteriaList = activeCriteria
       .map((c) => `[${c.id}] ${c.labels[lang]} (weight: ${c.weight}%)\nGuidance: ${c.guidance[lang]}`)
       .join("\n\n")
@@ -264,21 +281,72 @@ export async function POST(
     const sourceContextWithAudit = routedContext +
       (citationAuditSummary ? `\n\n[Citation Audit (Advisory)]\n${citationAuditSummary}` : "")
 
-    const systemPrompt = buildSystemPrompt(lang, thesisMetadata)
-    const userPrompt = buildUserPrompt(thesisMetadata, contextHeader, sourceContextWithAudit, criteriaList, lang)
+    const systemPrompt = buildSystemPrompt(lang, normalizedMetadata)
+    const userPrompt = buildUserPrompt(normalizedMetadata, contextHeader, sourceContextWithAudit, criteriaList, lang)
 
     // 5. AI generation
-    const result = await generateAIResponse("thesis-review", {
-      model: resolveAiModel("thesis"),
-      systemPrompt,
-      userPrompt,
-      schema: ThesisReviewGenerationSchema,
-      temperature: 0.15,
-      signal: AbortSignal.timeout(AI_TIMEOUTS.thesis),
-    })
+    let result: any
+    let professionalResult: any = null
 
-    // 6. Post-generation validation (ensure all requested criteria are present and unique)
-    validateGeneratedSections(result.sections, activeCriterionIds)
+    if (body.professionalMode || thesisMetadata.reviewKind === "paper" || (thesisMetadata.reportingStandard && thesisMetadata.reportingStandard !== "none")) {
+      const { generateProfessionalReview } = await import("@/lib/ai/review-engine")
+      professionalResult = await generateProfessionalReview({
+        workspaceId,
+        documentTitle: thesisMetadata.thesisTitle,
+        authorName: thesisMetadata.studentName,
+        reviewKind: thesisMetadata.reviewKind,
+        thesisType: thesisMetadata.thesisType,
+        reviewerRole: thesisMetadata.reviewerRole,
+        targetVenue: thesisMetadata.targetVenue,
+        language: lang,
+        reportingStandard: thesisMetadata.reportingStandard,
+      })
+
+      // Convert findings into criteria-like sections for backwards compatibility with LaTeX generator
+      const sections = activeCriteria.map((c) => {
+        const matchingFindings = professionalResult.anchoredFindings.filter((f: any) => {
+          if (c.id === "methodology") return f.category === "methodology" || f.category === "statistics"
+          if (c.id === "results") return f.category === "results" || f.category === "reproducibility"
+          if (c.id === "citations_bibliography") return f.category === "literature"
+          if (c.id === "formal_structure" || c.id === "language_quality") return f.category === "formal"
+          return true
+        })
+
+        const text = matchingFindings.length > 0
+          ? matchingFindings.map((f: any) => `• ${f.title}: ${f.explanation}`).join("\n\n")
+          : professionalResult.summary
+
+        return {
+          id: c.id,
+          sectionId: c.id,
+          criterionId: c.id,
+          text,
+          rating: professionalResult.grade || "B",
+          numericScore: 85,
+          suggestions: matchingFindings.map((f: any) => f.recommendation).filter(Boolean),
+        }
+      })
+
+      result = {
+        sections,
+        overallGrade: professionalResult.grade || "B",
+        recommendation: professionalResult.recommendation,
+        defenseQuestions: professionalResult.questionsForAuthors,
+        citationIssues: [],
+      }
+    } else {
+      result = await generateAIResponse("thesis-review", {
+        model: resolveAiModel("thesis"),
+        systemPrompt,
+        userPrompt,
+        schema: ThesisReviewGenerationSchema,
+        temperature: 0.15,
+        signal: AbortSignal.timeout(AI_TIMEOUTS.thesis),
+      })
+
+      // Post-generation validation
+      validateGeneratedSections(result.sections, activeCriterionIds)
+    }
 
     // 7. Compute recommendation if not provided
     if (!result.recommendation && result.overallGrade) {
@@ -304,6 +372,14 @@ export async function POST(
           ...result.citationIssues,
           ...(citationAuditSummary ? [citationAuditSummary] : []),
         ]),
+        reviewKind: thesisMetadata.reviewKind || "thesis",
+        targetVenue: thesisMetadata.targetVenue ?? null,
+        summary: professionalResult?.summary ?? null,
+        strengths: professionalResult?.strengths ? JSON.stringify(professionalResult.strengths) : null,
+        findings: professionalResult?.anchoredFindings ? JSON.stringify(professionalResult.anchoredFindings) : null,
+        reportingStandard: thesisMetadata.reportingStandard ?? "none",
+        reportingGuidelineChecks: professionalResult?.reportingGuidelineChecks ? JSON.stringify(professionalResult.reportingGuidelineChecks) : null,
+        confidentialComments: professionalResult?.confidentialComments ?? null,
         status: "draft",
         language: lang,
       },
@@ -312,6 +388,14 @@ export async function POST(
     return NextResponse.json({
       id: saved.id,
       ...result,
+      reviewKind: thesisMetadata.reviewKind,
+      targetVenue: thesisMetadata.targetVenue,
+      summary: professionalResult?.summary,
+      strengths: professionalResult?.strengths ?? [],
+      findings: professionalResult?.anchoredFindings ?? [],
+      reportingStandard: thesisMetadata.reportingStandard,
+      reportingGuidelineChecks: professionalResult?.reportingGuidelineChecks ?? [],
+      confidentialComments: professionalResult?.confidentialComments,
       ragStats: {
         totalChars: ragContext.totalChars,
         selectedChars,

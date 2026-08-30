@@ -13,16 +13,24 @@ const UpdateSchema = z.object({
   studentName: z.string().min(1).max(200).optional(),
   thesisTitle: z.string().min(1).max(500).optional(),
   thesisType: z.enum(["bachelor", "master", "phd"]).optional(),
-  reviewerRole: z.enum(["supervisor", "opponent"]).optional(),
+  reviewerRole: z.string().max(50).optional(),
   reviewerName: z.string().max(200).optional(),
   institution: z.string().max(300).optional(),
   department: z.string().max(300).optional(),
-  grade: z.string().max(5).optional(),
+  grade: z.string().max(20).optional(),
   recommendation: z.string().max(2000).optional(),
   sections: z.string().optional(),         // JSON string
   defenseQuestions: z.string().optional(), // JSON string
   citationIssues: z.string().optional(),   // JSON string
-  status: z.enum(["draft", "final"]).optional(),
+  reviewKind: z.string().optional(),
+  targetVenue: z.string().max(300).optional(),
+  summary: z.string().optional(),
+  strengths: z.string().optional(),        // JSON string
+  findings: z.string().optional(),         // JSON string
+  reportingStandard: z.string().optional(),
+  reportingGuidelineChecks: z.string().optional(), // JSON string
+  confidentialComments: z.string().optional(),
+  status: z.string().optional(),
   language: z.enum(["sk", "cs", "en"]).optional(),
 })
 
@@ -61,6 +69,9 @@ export async function GET(
     sections: review.sections ? JSON.parse(review.sections) : [],
     defenseQuestions: review.defenseQuestions ? JSON.parse(review.defenseQuestions) : [],
     citationIssues: review.citationIssues ? JSON.parse(review.citationIssues) : [],
+    strengths: review.strengths ? JSON.parse(review.strengths) : [],
+    findings: review.findings ? JSON.parse(review.findings) : [],
+    reportingGuidelineChecks: review.reportingGuidelineChecks ? JSON.parse(review.reportingGuidelineChecks) : [],
   })
 }
 

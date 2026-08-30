@@ -383,4 +383,135 @@ export function validateGeneratedSections(
   }
 }
 
+// 11. Evidence Reference Schema
+export const EvidenceReferenceSchema = z.preprocess((raw: any) => {
+  if (raw && typeof raw === "object") {
+    return {
+      page: typeof raw.page === "number" ? raw.page : undefined,
+      sectionHeading: String(raw.sectionHeading || raw.section || raw.heading || "").trim() || undefined,
+      quote: String(raw.quote || raw.text || raw.snippet || "").trim(),
+      startOffset: typeof raw.startOffset === "number" ? raw.startOffset : undefined,
+      endOffset: typeof raw.endOffset === "number" ? raw.endOffset : undefined,
+    }
+  }
+  return raw
+}, z.object({
+  page: z.number().optional(),
+  sectionHeading: z.string().optional(),
+  quote: z.string(),
+  startOffset: z.number().optional(),
+  endOffset: z.number().optional(),
+}))
+export type EvidenceReferenceContract = z.infer<typeof EvidenceReferenceSchema>
+
+// 12. Review Finding Schema
+export const ReviewFindingContractSchema = z.preprocess((raw: any) => {
+  if (raw && typeof raw === "object") {
+    const rawSev = String(raw.severity || "minor").toLowerCase().trim()
+    const severity = ["critical", "major", "minor", "suggestion"].includes(rawSev) ? rawSev : "minor"
+    const rawCat = String(raw.category || "methodology").toLowerCase().trim()
+    const category = ["methodology", "results", "statistics", "literature", "reproducibility", "ethics", "formal"].includes(rawCat) ? rawCat : "methodology"
+    const rawStatus = String(raw.status || "unreviewed").toLowerCase().trim()
+    const status = ["unreviewed", "accepted", "edited", "rejected", "resolved"].includes(rawStatus) ? rawStatus : "unreviewed"
+
+    const evidenceRaw = Array.isArray(raw.evidence) ? raw.evidence : (raw.evidence ? [raw.evidence] : [])
+    const evidence = evidenceRaw.map((ev: any) => {
+      if (typeof ev === "string") return { quote: ev }
+      return ev
+    })
+
+    return {
+      id: String(raw.id || `f-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
+      category,
+      title: String(raw.title || raw.heading || "Observation").trim(),
+      explanation: String(raw.explanation || raw.description || raw.text || "").trim(),
+      recommendation: String(raw.recommendation || raw.fix || raw.action || "").trim(),
+      severity,
+      confidence: typeof raw.confidence === "number" ? Math.min(1, Math.max(0, raw.confidence)) : 0.85,
+      evidence,
+      status,
+      reviewerNotes: raw.reviewerNotes ? String(raw.reviewerNotes).trim() : undefined,
+      includeInExport: raw.includeInExport !== false,
+      createdBy: raw.createdBy === "reviewer" ? "reviewer" : "ai",
+    }
+  }
+  return raw
+}, z.object({
+  id: z.string(),
+  category: z.enum(["methodology", "results", "statistics", "literature", "reproducibility", "ethics", "formal"]),
+  title: z.string(),
+  explanation: z.string(),
+  recommendation: z.string().default(""),
+  severity: z.enum(["critical", "major", "minor", "suggestion"]),
+  confidence: z.number().min(0).max(1).default(0.85),
+  evidence: z.array(EvidenceReferenceSchema).default([]),
+  status: z.enum(["unreviewed", "accepted", "edited", "rejected", "resolved"]).default("unreviewed"),
+  reviewerNotes: z.string().optional(),
+  includeInExport: z.boolean().default(true),
+  createdBy: z.enum(["ai", "reviewer"]).default("ai"),
+}))
+export type ReviewFindingContract = z.infer<typeof ReviewFindingContractSchema>
+
+// 13. Reporting Guideline Check Schema
+export const ReportingGuidelineCheckContractSchema = z.preprocess((raw: any) => {
+  if (raw && typeof raw === "object") {
+    const rawStat = String(raw.status || "compliant").toLowerCase().trim()
+    const status = ["compliant", "partial", "missing", "not_applicable"].includes(rawStat) ? rawStat : "compliant"
+    return {
+      item: String(raw.item || raw.name || "Item").trim(),
+      category: String(raw.category || "General").trim(),
+      status,
+      notes: String(raw.notes || raw.explanation || "").trim(),
+      evidenceQuote: raw.evidenceQuote ? String(raw.evidenceQuote).trim() : undefined,
+    }
+  }
+  return raw
+}, z.object({
+  item: z.string(),
+  category: z.string(),
+  status: z.enum(["compliant", "partial", "missing", "not_applicable"]),
+  notes: z.string(),
+  evidenceQuote: z.string().optional(),
+}))
+export type ReportingGuidelineCheckContract = z.infer<typeof ReportingGuidelineCheckContractSchema>
+
+// 14. Full Professional Review Generation Output Schema
+export const ProfessionalReviewGenerationSchema = z.preprocess((raw: any) => {
+  if (raw && typeof raw === "object") {
+    const strengths = Array.isArray(raw.strengths)
+      ? raw.strengths.map((s: any) => String(s).trim()).filter(Boolean)
+      : []
+    const findings = Array.isArray(raw.findings) ? raw.findings : []
+    const questionsForAuthors = Array.isArray(raw.questionsForAuthors)
+      ? raw.questionsForAuthors.map((q: any) => String(q).trim()).filter(Boolean)
+      : (Array.isArray(raw.defenseQuestions) ? raw.defenseQuestions.map((q: any) => String(q).trim()).filter(Boolean) : [])
+    const reportingGuidelineChecks = Array.isArray(raw.reportingGuidelineChecks) ? raw.reportingGuidelineChecks : []
+
+    return {
+      summary: String(raw.summary || raw.executiveSummary || raw.overview || "").trim(),
+      strengths,
+      findings,
+      reportingStandard: String(raw.reportingStandard || "none"),
+      reportingGuidelineChecks,
+      questionsForAuthors,
+      confidentialComments: raw.confidentialComments ? String(raw.confidentialComments).trim() : undefined,
+      recommendation: String(raw.recommendation || raw.verdict || "minor_revisions").trim(),
+      grade: raw.grade ? String(raw.grade).trim().toUpperCase() : undefined,
+    }
+  }
+  return raw
+}, z.object({
+  summary: z.string(),
+  strengths: z.array(z.string()).default([]),
+  findings: z.array(ReviewFindingContractSchema).default([]),
+  reportingStandard: z.enum(["consort", "prisma", "strobe", "ml_reproducibility", "none"]).default("none"),
+  reportingGuidelineChecks: z.array(ReportingGuidelineCheckContractSchema).default([]),
+  questionsForAuthors: z.array(z.string()).default([]),
+  confidentialComments: z.string().optional(),
+  recommendation: z.string().default("minor_revisions"),
+  grade: z.string().optional(),
+}))
+export type ProfessionalReviewGenerationResult = z.infer<typeof ProfessionalReviewGenerationSchema>
+
+
 
