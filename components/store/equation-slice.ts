@@ -4,7 +4,7 @@ import { formatEquationForInsertion, cleanFormula, type EquationItem } from "@/l
 import { SAMPLE_EQUATIONS } from "@/lib/sample-data"
 
 export const createEquationSlice: EditorSlice<EquationSlice> = (set, get) => ({
-  equations: SAMPLE_EQUATIONS,
+  equations: SAMPLE_EQUATIONS || [],
   isEquationLibraryOpen: false,
 
   setIsEquationLibraryOpen: (open) => {
@@ -19,16 +19,16 @@ export const createEquationSlice: EditorSlice<EquationSlice> = (set, get) => ({
       if (res.ok) {
         const data = await res.json()
         set((s) => {
-          s.equations = (data.equations && data.equations.length > 0) ? data.equations : SAMPLE_EQUATIONS
+          s.equations = (data.equations && data.equations.length > 0) ? data.equations : SAMPLE_EQUATIONS || []
         })
       } else {
         set((s) => {
-          s.equations = SAMPLE_EQUATIONS
+          s.equations = SAMPLE_EQUATIONS || []
         })
       }
     } catch {
       set((s) => {
-        s.equations = SAMPLE_EQUATIONS
+        s.equations = SAMPLE_EQUATIONS || []
       })
     }
   },

@@ -1,6 +1,7 @@
 const cspHeader = `
   default-src 'self';
   script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com;
+  worker-src 'self' blob:;
   style-src 'self' 'unsafe-inline';
   img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com https://images.unsplash.com;
   font-src 'self' data:;
@@ -41,6 +42,7 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  allowedDevOrigins: ["127.0.0.1", "localhost", "127.0.0.1:3333", "localhost:3333"],
   images: {
     unoptimized: true,
   },

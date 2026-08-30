@@ -9,6 +9,31 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: posterapp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/posterapp"
+      CLERK_SECRET_KEY: "sk_test_mock_mock_mock_mock_mock_mock_mock_mock_mock"
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_mock_mock_mock_mock_mock_mock_mock_mock_mock"
+      NEXT_PUBLIC_E2E_TEST: "1"
+      NEXT_PUBLIC_YJS_WS_URL: "ws://localhost:3333/api/yjs"
+      AI_API_URL: "https://openrouter.ai/api/v1"
+      AI_API_KEY: "mock-key"
+      AI_MODEL: "gemini-3-flash"
+
     steps:
       - uses: actions/checkout@v4
       - name: Setup pnpm
@@ -22,6 +47,8 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install
+      - name: Push Prisma Database Schema
+        run: pnpm exec prisma db push
       - name: Check typing
         run: pnpm typecheck
       - name: Lint

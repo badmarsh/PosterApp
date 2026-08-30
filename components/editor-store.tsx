@@ -37,9 +37,20 @@ export function createEditorStore() {
   )
 
   if (typeof window !== "undefined") {
-    jobQueue.subscribe((jobs) => {
-      store.setState({ jobs })
-    })
+    if (jobQueue?.subscribe) {
+      jobQueue.subscribe((jobs) => {
+        store.setState({ jobs })
+      })
+    } else {
+      // Fallback in case Turbopack hoists imports strangely and jobQueue is undefined
+      import("@/lib/job-queue").then((m) => {
+        if (m && m.jobQueue?.subscribe) {
+          m.jobQueue.subscribe((jobs) => {
+            store.setState({ jobs })
+          })
+        }
+      })
+    }
   }
 
   return store

@@ -18,7 +18,7 @@ node_modules
 /lib/generated/prisma
 
 # Data files
-workspaces/
+/workspaces/
 *.db
 *.db-journal
 middle.json
@@ -47,6 +47,11 @@ test-screenshot.png
 # Debug scratch files
 check_thread.ts
 check_types.ts
-
 verify_ui.js
 lint.json
+output.json
+*.sql
+tmp/
+*.log
+vitest-out.log
+test-results.log

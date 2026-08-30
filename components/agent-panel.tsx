@@ -846,19 +846,20 @@ export function AgentPanel() {
   const runtime = useLocalRuntime(adapter, { initialMessages: chatMessages })
 
   useEffect(() => {
+    if (!runtime?.thread?.subscribe) return
     return runtime.thread.subscribe(() => {
-      const msgs = (runtime.thread as any).messages ?? []
+      const msgs = (runtime.thread as any)?.messages ?? []
       setTimeout(() => setChatMessages([...msgs]), 0)
     })
   }, [runtime, setChatMessages])
 
   useEffect(() => {
-    if (pendingAiPrompt) {
+    if (pendingAiPrompt && runtime?.thread?.append) {
       setCollapsed(false)
       runtime.thread.append({ role: "user", content: [{ type: "text", text: pendingAiPrompt }] })
       setPendingAiPrompt(null)
     }
-  }, [pendingAiPrompt, runtime.thread, setPendingAiPrompt])
+  }, [pendingAiPrompt, runtime, setPendingAiPrompt])
 
   if (collapsed) {
     return (

@@ -191,9 +191,11 @@ export function useYjs(workspaceId: string) {
     window.addEventListener("mousemove", handleMouseMove)
     window.addEventListener("mouseleave", handleMouseLeave)
 
-    unsubscribeJobs = jobQueue.subscribe((jobs) => {
-      store.setState({ jobs })
-    })
+    if (jobQueue?.subscribe) {
+      unsubscribeJobs = jobQueue.subscribe((jobs) => {
+        store.setState({ jobs })
+      })
+    }
 
     connect()
 

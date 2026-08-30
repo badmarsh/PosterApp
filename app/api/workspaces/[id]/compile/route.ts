@@ -93,9 +93,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     let log = ""
     const image = process.env.LATEX_COMPILER_IMAGE
+    const hasCitations = tex.includes("\\cite") || tex.includes("\\bibliography") || tex.includes("\\addbibresource")
+    const hasBibContent = Boolean(bibContent.trim())
+    const needsBibtex = hasCitations && hasBibContent
     
     const runCompiler = async () => {
-      const buildCmd = "pdflatex -no-shell-escape -interaction=nonstopmode main.tex && (bibtex main || true) && pdflatex -no-shell-escape -interaction=nonstopmode main.tex && pdflatex -no-shell-escape -interaction=nonstopmode -halt-on-error main.tex"
+      const buildCmd = needsBibtex
+        ? "pdflatex -no-shell-escape -interaction=nonstopmode main.tex && (bibtex main || true) && pdflatex -no-shell-escape -interaction=nonstopmode main.tex && pdflatex -no-shell-escape -interaction=nonstopmode -halt-on-error main.tex"
+        : "pdflatex -no-shell-escape -interaction=nonstopmode -halt-on-error main.tex"
       if (image) {
         // Production worker: an isolated container with no network, dropped capabilities, and read-only root with staging mount.
         return await run(

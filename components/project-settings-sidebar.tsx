@@ -344,7 +344,7 @@ export function ProjectSettingsSidebar() {
                   Manage Equations
                 </span>
                 <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] font-mono text-muted-foreground">
-                  {equations.length}
+                  {equations?.length || 0}
                 </span>
               </Button>
             </div>

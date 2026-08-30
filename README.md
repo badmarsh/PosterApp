@@ -26,43 +26,68 @@ PosterApp is an intelligent, Next.js-based academic poster editor that assists r
    pnpm install
    ```
 
-2. Configure environment variables in `.env.local` (see `.agents/AGENTS.md` for reference):
-   ```env
-   AI_API_URL=...
-   AI_API_KEY=...
-   AI_MODEL=gemini-3-flash
-   # ...
+2. Configure environment variables in `.env.local` (copy from `.env.example`):
+   ```bash
+   cp .env.example .env.local
    ```
 
-3. Start the application (runs Next.js and Yjs WebSocket concurrently):
+3. Start PostgreSQL using Docker Compose:
+   ```bash
+   docker compose up -d
+   ```
+
+4. Push the database schema:
+   ```bash
+   pnpm exec prisma db push
+   ```
+
+5. Start the application (runs Next.js and Yjs WebSocket concurrently on port 3333):
    ```bash
    pnpm run dev
    ```
 
-4. If using local processing (MinerU), ensure the WSL service is started on port 8001. Ensure PostgreSQL is running via Docker.
+6. If using local PDF ingestion (MinerU), ensure the WSL service is running at `http://localhost:8001`.
 
 ## Testing
 
-Playwright tests are provided in the `tests/` directory:
-```bash
-pnpm exec playwright test
-```
+- **Unit & Integration Tests** (Vitest):
+  ```bash
+  pnpm test
+  ```
+- **End-to-End Tests** (Playwright with built-in Clerk bypass):
+  ```bash
+  pnpm test:e2e
+  ```
 
-Tests cover compilation UI, workspace selection, and document ingestion.
+## Production Deployment Checklist
+
+When deploying PosterApp to a production cluster or cloud environment:
+
+1. **LaTeX Compiler Container**: Set `LATEX_COMPILER_IMAGE` to an isolated Docker image containing `pdflatex` / `bibtex` / `tikzposter` (e.g. `texlive/texlive:latest`). In production, compile execution enforces `--cap-drop=ALL`, `--user 1000:1000`, `--read-only`, and `--tmpfs /tmp`.
+2. **Distributed Rate Limiting**: Configure Upstash Redis (`UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`) for distributed per-user rate limiting across all AI routes and compilation endpoints.
+3. **Database**: Provide a production PostgreSQL connection string in `DATABASE_URL` with connection pooling enabled.
+4. **Authentication**: Set production Clerk keys (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`).
+5. **Realtime Collaboration (Yjs)**: Configure `NEXT_PUBLIC_YJS_WS_URL` with your production WebSocket domain (e.g. `wss://yourdomain.com/api/yjs`).
+6. **Edge Security**: Edge security headers (CSP with `worker-src 'self' blob:;`, HSTS, X-Frame-Options, nosniff) are automatically applied via `next.config.mjs`.
 
 ## Environment Variables
 The application requires several environment variables to function correctly. Copy `.env.example` to `.env.local` and configure them:
 
 | Variable | Purpose |
 |----------|---------|
+| `DATABASE_URL` | PostgreSQL connection string |
 | `AI_API_URL` | Base URL for the AI API (OpenRouter compatible) |
 | `AI_API_KEY` | Bearer token for AI requests |
-| `AI_MODEL` | Default model used for chat and generation |
+| `AI_MODEL` | Default model used for chat and generation (`gemini-3-flash`) |
+| `LATEX_COMPILER_IMAGE` | Docker image for sandboxed LaTeX compilation in production |
+| `UPSTASH_REDIS_REST_URL` | (Optional) Upstash Redis URL for distributed rate limiting |
+| `UPSTASH_REDIS_REST_TOKEN` | (Optional) Upstash Redis REST Token |
 | `OPENROUTER_API_KEY` | API Key for OpenRouter (used for image editing) |
 | `OPENROUTER_BASE_URL` | OpenRouter Base URL |
 | `OPENROUTER_IMAGE_MODEL` | Model used for AI image generation |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk Authentication frontend key |
 | `CLERK_SECRET_KEY` | Clerk Authentication backend key |
+| `NEXT_PUBLIC_YJS_WS_URL` | Yjs WebSocket URL (`ws://localhost:3333/api/yjs`) |
 
 ## API Routes Reference
 - `POST /api/ingestion/parse` - Accepts PDF uploads, triggers MinerU, extracts markdown, figures, tables, and AI-generated BibTeX citations.

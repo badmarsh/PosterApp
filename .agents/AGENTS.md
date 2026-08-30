@@ -164,5 +164,5 @@ Schema at `prisma/schema.prisma`. Key notes:
 ---
 
 ## General Agent Guidelines
-- **E2E Testing:** Playwright is configured to run on port `3333`. Always run `npx playwright test` to verify there are no regressions after major features. If you are fixing a bug or adding a feature, document the behavior in a `.spec.ts` file under `tests/`. (Note: Tests are currently skipped due to Clerk Auth).
-- **API Authentication:** All internal `/api/*` routes are protected by Clerk (`clerkMiddleware`). E2E API requests will fail with 401 unless a valid Clerk session token is provided, so tests hitting the API directly might need to be mocked or bypassed in the middleware.
+- **E2E Testing:** Playwright is configured to run on port `3333`. Run `pnpm test:e2e` to verify full browser workflows. E2E tests leverage the `NEXT_PUBLIC_E2E_TEST=1` bypass in `middleware.ts` to execute authenticated flows without requiring live external Clerk network tokens.
+- **API Authentication:** All internal `/api/*` routes are protected by Clerk (`clerkMiddleware`). In production/dev mode, requests are verified via Clerk session tokens; for local automated E2E tests, the test environment flag bypasses the middleware gate.

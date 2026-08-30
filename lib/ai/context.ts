@@ -5,7 +5,16 @@ import { AI_CONFIG } from "@/lib/config/ai"
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 export const MAX_SOURCE_CHARS = AI_CONFIG.generation.maxSourceChars
 
+const MAX_CACHE_ENTRIES = 200
 const contextCache = new Map<string, { snippets: string; timestamp: number }>()
+
+function setCachedContext(key: string, value: { snippets: string; timestamp: number }) {
+  if (contextCache.size >= MAX_CACHE_ENTRIES) {
+    const firstKey = contextCache.keys().next().value
+    if (firstKey) contextCache.delete(firstKey)
+  }
+  contextCache.set(key, value)
+}
 
 export interface LoadContextOptions {
   workspaceId: string;
@@ -70,7 +79,7 @@ export async function loadSourceContext(options: LoadContextOptions): Promise<st
     sourceContext += chunk;
   }
   const finalContext = sourceContext.trim();
-  contextCache.set(cacheKey, { snippets: finalContext, timestamp: latestTimestamp });
+  setCachedContext(cacheKey, { snippets: finalContext, timestamp: latestTimestamp });
   
   return finalContext;
 }
