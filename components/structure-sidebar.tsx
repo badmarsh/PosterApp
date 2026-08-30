@@ -12,6 +12,7 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -159,15 +160,22 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
                     ...validationMsgs.filter((m) => m.level === "error").map((m) => m.message),
                   ]
 
-                  let promptMessage = `Review the proposed shorter content:\n\n${data.content}\n\n`
                   if (validationErrors.length > 0) {
-                    promptMessage += `⚠️ Warning: Proposed content has validation warnings:\n- ${validationErrors.join("\n- ")}\n\n`
-                  }
-                  promptMessage += "Apply this change?"
-
-                  if (confirm(promptMessage)) {
+                    toast.warning("Validation warnings in proposed content", {
+                      description: validationErrors.join(" • "),
+                      duration: 10000,
+                      action: {
+                        label: "Apply Anyway",
+                        onClick: async () => {
+                          updateCard(card.id, { content: data.content })
+                          await saveProject()
+                        }
+                      }
+                    })
+                  } else {
                     updateCard(card.id, { content: data.content })
                     await saveProject()
+                    toast.success("Content shrunk successfully.")
                   }
                 }
               } catch (err: unknown) {

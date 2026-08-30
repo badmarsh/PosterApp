@@ -1,12 +1,21 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { X, Clock, RotateCcw, Tag, Trash2 } from "lucide-react"
+import { X, Clock, RotateCcw, Tag, Trash2, AlertTriangle, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { apiFetch } from "@/lib/api-fetch"
 import { cn } from "@/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 type Snapshot = {
   id: string
@@ -27,9 +36,13 @@ export function HistoryPanel() {
 
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
   const [loading, setLoading] = useState(false)
+  
   const [restoringId, setRestoringId] = useState<string | null>(null)
   const [labelingId, setLabelingId] = useState<string | null>(null)
   const [labelInput, setLabelInput] = useState("")
+
+  const [confirmRestoreId, setConfirmRestoreId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const fetchHistory = useCallback(async () => {
     if (!project.id) return
@@ -50,13 +63,15 @@ export function HistoryPanel() {
     if (isHistoryOpen) fetchHistory()
   }, [isHistoryOpen, fetchHistory])
 
-  const handleRestore = async (snapId: string) => {
-    if (!confirm("Restore this snapshot? Your current unsaved changes will be overwritten.")) return
+  const handleRestore = async () => {
+    if (!confirmRestoreId) return
+    const snapId = confirmRestoreId
+    setConfirmRestoreId(null)
     setRestoringId(snapId)
     try {
       const res = await apiFetch(`/api/workspaces/${project.id}/history/${snapId}`, { method: "POST" })
       if (res.ok) {
-        pushEvent({ kind: "info", status: "done", title: "Snapshot Restored", detail: "Reloading workspace…" })
+        pushEvent({ kind: "info", status: "done", title: "Snapshot Restored", detail: "Reloading workspace..." })
         setTimeout(() => window.location.reload(), 800)
       } else {
         pushEvent({ kind: "info", status: "error", title: "Restore Failed", detail: "Failed to restore snapshot." })
@@ -66,8 +81,10 @@ export function HistoryPanel() {
     }
   }
 
-  const handleDelete = async (snapId: string) => {
-    if (!confirm("Delete this snapshot?")) return
+  const handleDelete = async () => {
+    if (!confirmDeleteId) return
+    const snapId = confirmDeleteId
+    setConfirmDeleteId(null)
     try {
       const res = await apiFetch(`/api/workspaces/${project.id}/history/${snapId}`, { method: "DELETE" })
       if (res.ok) {
@@ -131,7 +148,7 @@ export function HistoryPanel() {
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {loading ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
-              Loading history…
+              Loading history...
             </div>
           ) : snapshots.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
@@ -157,11 +174,11 @@ export function HistoryPanel() {
                         </span>
                       )}
                       <span className="text-xs text-muted-foreground">{formatDate(snap.savedAt)}</span>
-                      <span className="text-xs text-muted-foreground/50">· rev {snap.revision}</span>
+                      <span className="text-xs text-muted-foreground/50">&bull; rev {snap.revision}</span>
                     </div>
                     {labelingId === snap.id ? (
-                      <div className="flex gap-1 mt-1.5">
-                        <input
+                      <div className="flex gap-1.5 mt-1.5">
+                        <Input
                           autoFocus
                           value={labelInput}
                           onChange={e => setLabelInput(e.target.value)}
@@ -170,9 +187,9 @@ export function HistoryPanel() {
                             if (e.key === "Escape") setLabelingId(null)
                           }}
                           placeholder="e.g. Before AI rewrite"
-                          className="flex-1 text-xs border border-border rounded px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                          className="h-7 text-xs flex-1"
                         />
-                        <Button size="sm" className="h-6 text-xs px-2" onClick={() => handleSaveLabel(snap.id)}>
+                        <Button size="sm" className="h-7 text-xs px-2.5" onClick={() => handleSaveLabel(snap.id)}>
                           Save
                         </Button>
                       </div>
@@ -198,7 +215,7 @@ export function HistoryPanel() {
                         size="icon"
                         className="size-6 text-destructive hover:text-destructive"
                         title="Delete snapshot"
-                        onClick={() => handleDelete(snap.id)}
+                        onClick={() => setConfirmDeleteId(snap.id)}
                       >
                         <Trash2 className="size-3" />
                       </Button>
@@ -209,10 +226,10 @@ export function HistoryPanel() {
                         className="size-6"
                         title="Restore this snapshot"
                         disabled={restoringId === snap.id}
-                        onClick={() => handleRestore(snap.id)}
+                        onClick={() => setConfirmRestoreId(snap.id)}
                       >
                         {restoringId === snap.id ? (
-                          <span className="text-[10px]">…</span>
+                          <span className="text-[10px]">...</span>
                         ) : (
                           <RotateCcw className="size-3" />
                         )}
@@ -232,6 +249,44 @@ export function HistoryPanel() {
           </p>
         </div>
       </aside>
+
+      {/* Delete confirmation */}
+      <Dialog open={!!confirmDeleteId} onOpenChange={(open) => { if (!open) setConfirmDeleteId(null) }}>
+        <DialogContent className="sm:max-w-sm" showCloseButton={false}>
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-destructive mb-1">
+              <AlertTriangle className="size-4 shrink-0" />
+              <DialogTitle className="text-destructive">Delete Snapshot?</DialogTitle>
+            </div>
+            <DialogDescription>
+              Are you sure you want to delete this snapshot? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="-mx-4 -mb-4">
+            <Button variant="outline" size="sm" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
+            <Button variant="destructive" size="sm" onClick={handleDelete}>Delete Snapshot</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Restore confirmation */}
+      <Dialog open={!!confirmRestoreId} onOpenChange={(open) => { if (!open) setConfirmRestoreId(null) }}>
+        <DialogContent className="sm:max-w-sm" showCloseButton={false}>
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <AlertCircle className="size-4 shrink-0 text-amber-500" />
+              <DialogTitle>Restore Snapshot?</DialogTitle>
+            </div>
+            <DialogDescription>
+              Are you sure you want to restore this snapshot? Your current unsaved changes will be overwritten.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="-mx-4 -mb-4">
+            <Button variant="outline" size="sm" onClick={() => setConfirmRestoreId(null)}>Cancel</Button>
+            <Button size="sm" onClick={handleRestore}>Restore Snapshot</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

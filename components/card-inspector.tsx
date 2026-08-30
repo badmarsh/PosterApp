@@ -323,10 +323,10 @@ function ContentTab({ card }: { card: Card }) {
         <div className="rounded-lg border border-border bg-card p-3 space-y-2.5 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
-              <Sparkles className="size-3.5 text-amber-600 dark:text-amber-400" />
+              <Sparkles className="size-3.5 text-primary" />
               <span>Suggested Citations</span>
             </div>
-            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono font-medium">
+            <span className="text-[10px] text-primary font-mono font-medium">
               ({suggestedCitations.length} detected)
             </span>
           </div>
@@ -339,11 +339,11 @@ function ContentTab({ card }: { card: Card }) {
             {suggestedCitations.map((sug) => (
               <div
                 key={sug.bibKey}
-                className="flex items-start justify-between gap-2.5 p-2.5 rounded-md border border-border/80 bg-muted/20 shadow-2xs hover:border-amber-500/30 transition-colors"
+                className="flex items-start justify-between gap-2.5 p-2.5 rounded-md border border-border/80 bg-muted/20 shadow-2xs hover:border-primary/40 transition-colors"
               >
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-mono font-bold text-[10px] text-amber-700 dark:text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                    <span className="font-mono font-bold text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/25">
                       \cite&#123;{sug.bibKey}&#125;
                     </span>
                     <span className="font-semibold text-xs text-foreground truncate max-w-[200px]">
@@ -359,7 +359,7 @@ function ContentTab({ card }: { card: Card }) {
                   size="sm"
                   variant="outline"
                   onClick={() => insertCitation(sug.bibKey, card.id)}
-                  className="h-6 text-[10px] gap-1 shrink-0 font-medium border-border hover:bg-amber-500/10 hover:text-amber-700 dark:hover:text-amber-300"
+                  className="h-6 text-[10px] gap-1 shrink-0 font-medium border-border hover:bg-primary/10 hover:text-primary hover:border-primary/40"
                 >
                   <Plus className="size-3" />
                   Insert

@@ -181,7 +181,7 @@ const CitationRow = memo(function CitationRow({ entry }: { entry: BibEntry }) {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-mono text-[9px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20">
+            <span className="font-mono text-[9px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/25">
               @{entry.type || "article"}
             </span>
             <span className="font-mono text-[10px] font-medium text-foreground bg-muted px-1.5 py-0.5 rounded">
@@ -654,7 +654,7 @@ export function AssetList() {
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <Quote className="size-3.5 text-purple-500" />
+                  <Quote className="size-3.5 text-primary" />
                   <span className="text-[11px] font-semibold uppercase tracking-wide">
                     Extracted BibTeX References ({filteredBibEntries.length})
                   </span>
@@ -846,7 +846,7 @@ export function AssetList() {
             <div className="mt-2 rounded-md border border-border bg-card p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <Quote className="size-3.5 text-purple-500" />
+                  <Quote className="size-3.5 text-primary" />
                   <h5 className="text-[10px] font-semibold uppercase tracking-wide">
                     Extracted References ({filteredBibEntries.length})
                   </h5>

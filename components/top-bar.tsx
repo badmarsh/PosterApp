@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from "react"
 import { useTheme } from "next-themes"
 import {
   Download,
-  FileCode2,
   FileStack,
   Sparkles,
   Moon,
@@ -189,8 +188,8 @@ export function TopBar({
       </Tooltip>
 
       <div className="flex items-center gap-2">
-        <div className="flex size-7 items-center justify-center rounded bg-primary text-primary-foreground">
-          <FileCode2 className="size-4" />
+        <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-xs">
+          <LayoutTemplate className="size-4" />
         </div>
 
         <DropdownMenu>

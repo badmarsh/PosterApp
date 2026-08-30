@@ -17,6 +17,7 @@ import {
   Sigma,
   Search,
   Loader2,
+  Edit2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -85,7 +86,7 @@ function KaTeXSpan({ math, displayMode = false }: { math: string; displayMode?: 
     <span
       className={cn(
         "inline-block text-foreground select-all",
-        displayMode && "my-0.5 block text-center py-0.5 max-w-full overflow-hidden no-scrollbar"
+        displayMode && "my-1 block text-center overflow-x-auto py-1 px-2 rounded bg-muted/20 border border-border/40"
       )}
       dangerouslySetInnerHTML={{ __html: html }}
     />
@@ -93,18 +94,22 @@ function KaTeXSpan({ math, displayMode = false }: { math: string; displayMode?: 
 }
 
 // ---------------------------------------------------------------------------
-// Citation Chip Component
+// Citation Chip Component — simple pill, no inline icons, delete via popover
 // ---------------------------------------------------------------------------
 function CitationChip({
   citeKey,
   bibEntries,
   onRemove,
   onOpenBibManager,
+  onEnterPress,
+  onKeyboardDelete,
 }: {
   citeKey: string
   bibEntries: BibEntry[]
   onRemove?: () => void
   onOpenBibManager?: () => void
+  onEnterPress?: () => void
+  onKeyboardDelete?: () => void
 }) {
   const [open, setOpen] = useState(false)
   const entry = useMemo(
@@ -127,35 +132,42 @@ function CitationChip({
         render={
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded bg-purple-500/10 border border-purple-500/30 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:text-purple-300 mx-0.5 align-baseline select-none shadow-2xs hover:bg-purple-500/20 hover:border-purple-500/50 cursor-pointer transition-colors"
-            title={`Citation: @${citeKey}`}
+            className="inline-flex items-center rounded bg-primary/10 border border-primary/30 px-1.5 py-0.5 text-[10px] font-medium text-primary dark:text-primary-foreground mx-0.5 align-baseline select-none shadow-2xs hover:bg-primary/20 hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer transition-colors"
+            title={`Citation: @${citeKey} — Backspace to delete, Enter for new line`}
+            onKeyDown={(e) => {
+              if (e.key === "Backspace" || e.key === "Delete") {
+                e.preventDefault()
+                onKeyboardDelete?.() ?? onRemove?.()
+              } else if (e.key === "Enter") {
+                e.preventDefault()
+                onEnterPress?.()
+              } else if (e.key === " ") {
+                e.preventDefault()
+                // Jump to next contenteditable sibling so the user can keep typing
+                const next = (e.currentTarget as HTMLButtonElement).nextElementSibling
+                if (next?.hasAttribute("contenteditable")) {
+                  ;(next as HTMLElement).focus()
+                  const range = document.createRange()
+                  const sel = window.getSelection()
+                  range.selectNodeContents(next)
+                  range.collapse(false)
+                  sel?.removeAllRanges()
+                  sel?.addRange(range)
+                }
+              }
+            }}
           >
-            <Quote className="size-2.5 opacity-70" />
-            <span>{label}</span>
-            {onRemove && (
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onRemove()
-                }}
-                className="ml-0.5 rounded-full p-0.5 hover:bg-purple-500/30 text-purple-600 dark:text-purple-400"
-                title="Remove citation"
-              >
-                <X className="size-2.5" />
-              </span>
-            )}
+            {label}
           </button>
         }
       />
 
       <PopoverContent className="w-80 p-3 space-y-2 shadow-lg" align="start">
         <div className="flex items-center justify-between border-b border-border/60 pb-1.5">
-          <span className="text-xs font-semibold flex items-center gap-1 text-purple-600 dark:text-purple-400">
-            <Quote className="size-3.5" /> Citation Details
+          <span className="text-xs font-semibold flex items-center gap-1 text-primary">
+            <Quote className="size-3.5 text-primary" /> Citation Details
           </span>
-          <span className="font-mono text-[9px] font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded">
+          <span className="font-mono text-[9px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/25">
             @{citeKey}
           </span>
         </div>
@@ -189,7 +201,7 @@ function CitationChip({
                 setOpen(false)
                 onOpenBibManager()
               }}
-              className="text-[10px] h-6 px-2 ml-auto"
+              className="text-[10px] h-6 px-2 ml-auto hover:bg-primary/10 hover:text-primary"
             >
               Open Bibliography Manager →
             </Button>
@@ -201,18 +213,22 @@ function CitationChip({
 }
 
 // ---------------------------------------------------------------------------
-// Math Chip Component (Inline KaTeX with popover editor & delete)
+// Math Chip Component — simple amber pill, no inline icons, edit/delete via popover
 // ---------------------------------------------------------------------------
 function MathChip({
   math,
   onUpdate,
   onRemove,
   onOpenRegistry,
+  onEnterPress,
+  onKeyboardDelete,
 }: {
   math: string
   onUpdate: (newFormula: string) => void
   onRemove: () => void
   onOpenRegistry?: () => void
+  onEnterPress?: () => void
+  onKeyboardDelete?: () => void
 }) {
   const [open, setOpen] = useState(false)
   const clean = math.replace(/^\$\$|\$\$$/g, "").replace(/^\$|\$$/g, "").trim()
@@ -230,23 +246,43 @@ function MathChip({
         render={
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 text-xs font-mono text-amber-900 dark:text-amber-200 hover:border-amber-500/60 hover:bg-amber-500/20 cursor-pointer select-none transition-colors mx-0.5 align-baseline shadow-2xs"
-            title="Click to edit formula"
+            className="inline-flex items-center rounded bg-amber-500/10 border border-amber-500/35 px-1.5 py-0.5 text-amber-800 dark:text-amber-200 hover:border-amber-500/60 hover:bg-amber-500/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 cursor-pointer select-none transition-colors mx-0.5 align-baseline shadow-2xs"
+            title={`Formula: ${clean} — Backspace to delete, Enter for new line`}
+            onKeyDown={(e) => {
+              if (e.key === "Backspace" || e.key === "Delete") {
+                e.preventDefault()
+                onKeyboardDelete?.() ?? onRemove()
+              } else if (e.key === "Enter") {
+                e.preventDefault()
+                onEnterPress?.()
+              } else if (e.key === " ") {
+                e.preventDefault()
+                const next = (e.currentTarget as HTMLButtonElement).nextElementSibling
+                if (next?.hasAttribute("contenteditable")) {
+                  ;(next as HTMLElement).focus()
+                  const range = document.createRange()
+                  const sel = window.getSelection()
+                  range.selectNodeContents(next)
+                  range.collapse(false)
+                  sel?.removeAllRanges()
+                  sel?.addRange(range)
+                }
+              }
+            }}
           >
-            <Sigma className="size-2.5 text-amber-600 dark:text-amber-400 opacity-80" />
-            <KaTeXSpan math={math} displayMode={false} />
             <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation()
-                onRemove()
+              className="inline-block overflow-hidden leading-none"
+              style={{ fontSize: "10px", maxHeight: "16px", verticalAlign: "middle" }}
+              dangerouslySetInnerHTML={{
+                __html: (() => {
+                  try {
+                    return katex.renderToString(clean, { throwOnError: false, displayMode: false, output: "html" })
+                  } catch {
+                    return `<span style="font-family:monospace;font-size:10px">${clean.slice(0, 20)}${clean.length > 20 ? "…" : ""}</span>`
+                  }
+                })()
               }}
-              className="ml-0.5 rounded-full p-0.5 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300"
-              title="Remove equation"
-            >
-              <X className="size-2.5" />
-            </span>
+            />
           </button>
         }
       />
@@ -321,6 +357,93 @@ function MathChip({
 }
 
 // ---------------------------------------------------------------------------
+// Segment types for mixed text+token lines
+// ---------------------------------------------------------------------------
+type LineSegment =
+  | { type: "text"; value: string }
+  | { type: "math"; raw: string }
+  | { type: "cite"; raw: string }
+
+function parseToSegments(text: string): LineSegment[] {
+  const tokenRegex = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\cite\{[^}]+\})/g
+  const segments: LineSegment[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = tokenRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ type: "text", value: text.slice(lastIndex, match.index) })
+    }
+    const raw = match[0]
+    segments.push(raw.startsWith("\\cite{") ? { type: "cite", raw } : { type: "math", raw })
+    lastIndex = match.index + raw.length
+  }
+  if (lastIndex < text.length) {
+    segments.push({ type: "text", value: text.slice(lastIndex) })
+  }
+  return segments
+}
+
+function segmentsToText(segs: LineSegment[]): string {
+  return segs.map((s) => (s.type === "text" ? s.value : s.raw)).join("")
+}
+
+// ---------------------------------------------------------------------------
+// Inline editable text span (contenteditable, uncontrolled while focused)
+// ---------------------------------------------------------------------------
+function InlineTextSegment({
+  value,
+  placeholder,
+  onChange,
+  onEnterPress,
+  onBackspaceEmpty,
+}: {
+  value: string
+  placeholder?: string
+  onChange: (v: string) => void
+  onEnterPress?: () => void
+  onBackspaceEmpty?: () => void
+}) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const isFocused = useRef(false)
+
+  // Sync external value only when not focused (e.g. after chip delete)
+  useEffect(() => {
+    const el = ref.current
+    if (el && !isFocused.current && el.textContent !== value) {
+      el.textContent = value
+    }
+  }, [value])
+
+  return (
+    <span
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      data-placeholder={placeholder}
+      onFocus={() => { isFocused.current = true }}
+      onBlur={(e) => {
+        isFocused.current = false
+        onChange(e.currentTarget.textContent ?? "")
+      }}
+      onInput={(e) => onChange(e.currentTarget.textContent ?? "")}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault()
+          onEnterPress?.()
+        } else if (e.key === "Backspace" && !e.currentTarget.textContent) {
+          e.preventDefault()
+          onBackspaceEmpty?.()
+        }
+      }}
+      className={cn(
+        "outline-none whitespace-pre-wrap break-words min-w-[2px]",
+        !value && "before:content-[attr(data-placeholder)] before:text-muted-foreground/40 before:pointer-events-none"
+      )}
+    />
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Display Math Block (Block KaTeX with dialog editor & registry lookup)
 // ---------------------------------------------------------------------------
 function DisplayMathBlock({
@@ -339,32 +462,28 @@ function DisplayMathBlock({
   const [editFormula, setEditFormula] = useState(clean)
 
   return (
-    <div className="group relative rounded-md border border-amber-500/30 bg-amber-500/5 hover:border-amber-500/50 p-2.5 transition-all w-full shadow-2xs">
-      <div className="flex items-center justify-between pb-1 mb-1.5 border-b border-amber-500/20 text-[10px] text-amber-600 dark:text-amber-400 font-mono font-medium select-none">
-        <span className="flex items-center gap-1.5">
-          <Sigma className="size-3.5 text-amber-500" />
-          Equation Block
-        </span>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              setEditFormula(clean)
-              setOpen(true)
-            }}
-            className="hover:underline text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 font-medium"
-          >
-            Edit Formula
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="p-0.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            title="Delete equation"
-          >
-            <Trash2 className="size-3" />
-          </button>
-        </div>
+    <div className="group relative rounded-md border border-amber-500/30 bg-amber-500/5 hover:border-amber-500/50 p-2 transition-all w-full shadow-2xs">
+      {/* 2 icons only: Edit and Delete in top-right corner */}
+      <div className="absolute top-1.5 right-1.5 flex items-center gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          type="button"
+          onClick={() => {
+            setEditFormula(clean)
+            setOpen(true)
+          }}
+          className="p-1 rounded bg-background/90 hover:bg-amber-500/20 text-muted-foreground hover:text-amber-700 dark:hover:text-amber-300 border border-border/60 shadow-2xs transition-colors cursor-pointer"
+          title="Edit formula"
+        >
+          <Edit2 className="size-3" />
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="p-1 rounded bg-background/90 hover:bg-destructive/10 text-muted-foreground hover:text-destructive border border-border/60 shadow-2xs transition-colors cursor-pointer"
+          title="Delete equation"
+        >
+          <Trash2 className="size-3" />
+        </button>
       </div>
 
       <div
@@ -396,7 +515,7 @@ function DisplayMathBlock({
                 onChange={(e) => setEditFormula(e.target.value)}
                 placeholder="E = mc^2"
                 rows={3}
-                className="font-mono text-xs"
+                className="font-mono text-xs focus-visible:ring-1 border border-border/70"
               />
             </div>
           </div>
@@ -646,71 +765,110 @@ function VisualLineItem({
   return (
     <div
       className={cn(
-        "group relative flex items-start gap-2.5 rounded-md border p-2 transition-all w-full min-w-0 shadow-2xs",
-        isEditing
-          ? "border-primary/40 bg-background ring-1 ring-primary/20 shadow-xs"
-          : "border-border/40 bg-muted/15 hover:bg-muted/30 hover:border-border/70"
+        "group relative flex flex-col rounded-md border border-border/40 bg-muted/15 hover:bg-muted/30 hover:border-border/70 transition-all w-full min-w-0 shadow-2xs"
       )}
     >
-      {/* Icon / Marker */}
-      <div className="flex size-4 shrink-0 items-center justify-center text-primary/70 select-none pt-0.5">
-        {isHeader ? (
-          <span className="text-[10px] font-mono font-bold text-muted-foreground">#</span>
-        ) : isNumbered ? (
-          <span className="text-[10px] font-mono font-bold text-muted-foreground">{index + 1}</span>
-        ) : (
-          <span className="size-1.5 rounded-full bg-muted-foreground/60" />
-        )}
-      </div>
-
-      {/* Main Content Area */}
-      {isEditing || !hasSpecialFormatting ? (
-        <textarea
-          ref={(el) => {
-            textareaElRef.current = el
-            if (inputRef && el) {
-              inputRef(el as unknown as HTMLInputElement)
-            }
-          }}
-          value={rawText}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          onBlur={() => {
-            if (hasSpecialFormatting && rawText.trim()) {
-              setIsEditing(false)
-            }
-          }}
-          placeholder="Type bullet content..."
-          rows={1}
-          className="flex-1 w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent p-0 text-[12px] leading-relaxed shadow-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 placeholder:text-muted-foreground/40 whitespace-pre-wrap break-words"
-        />
-      ) : (
-        <div
-          onClick={startEditing}
-          className="flex-1 min-w-0 w-full cursor-text text-[12px] leading-relaxed select-text min-h-[1.5rem] flex items-center flex-wrap gap-x-1 gap-y-0.5 break-words whitespace-normal"
-          title="Click to edit text"
-        >
-          {renderVisualSegments(
-            rawText,
-            bibEntries,
-            handleRemoveCitation,
-            handleUpdateMath,
-            handleRemoveMath,
-            onOpenEquationRegistry,
-            onOpenBibManager
+      {/* Top row: marker + visual content (always visible) */}
+      <div className="flex items-start gap-2.5 p-2 w-full min-w-0">
+        {/* Icon / Marker */}
+        <div className="flex size-4 shrink-0 items-center justify-center text-primary/70 select-none pt-0.5">
+          {isHeader ? (
+            <span className="text-[10px] font-mono font-bold text-muted-foreground">#</span>
+          ) : isNumbered ? (
+            <span className="text-[10px] font-mono font-bold text-muted-foreground">{index + 1}</span>
+          ) : (
+            <span className="size-1.5 rounded-full bg-muted-foreground/60" />
           )}
         </div>
-      )}
 
-      {/* Delete Line Action */}
-      <button
-        type="button"
-        onClick={onDelete}
-        className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0 pt-0.5"
-        title="Delete bullet"
-      >
-        <Trash2 className="size-3" />
-      </button>
+        {/* Main Content Area */}
+        {!hasSpecialFormatting ? (
+          /* Plain text line: direct textarea editing */
+          <textarea
+            ref={(el) => {
+              textareaElRef.current = el
+              if (inputRef && el) {
+                inputRef(el as unknown as HTMLInputElement)
+              }
+            }}
+            value={rawText}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Type bullet content..."
+            rows={1}
+            className="flex-1 w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent p-0 text-[12px] leading-normal shadow-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 placeholder:text-muted-foreground/40 whitespace-pre-wrap break-words min-h-[20px]"
+          />
+        ) : (
+          /* Special formatting: inline segment editing — text parts editable, chips clickable */
+          <div className="flex-1 min-w-0 w-full text-[12px] leading-normal min-h-[20px] flex items-center flex-wrap gap-y-0.5 break-words whitespace-normal">
+            {parseToSegments(rawText).map((seg, segIdx) => {
+              if (seg.type === "text") {
+                return (
+                  <InlineTextSegment
+                    key={`tseg-${segIdx}`}
+                    value={seg.value}
+                    placeholder={segIdx === 0 ? "Type here…" : undefined}
+                    onChange={(newVal) => {
+                      const segs = parseToSegments(rawText)
+                      const next = segs.map((s, i) =>
+                        i === segIdx && s.type === "text" ? { ...s, value: newVal } : s
+                      )
+                      const rebuilt = segmentsToText(next)
+                      if (isNumbered) {
+                        const numPrefix = line.match(/^\s*\d+\.\s*/)?.[0] ?? `${index + 1}. `
+                        onChange(`${numPrefix}${rebuilt}`)
+                      } else if (isHeader) {
+                        const hPrefix = line.match(/^\s*#+\s*/)?.[0] ?? "# "
+                        onChange(`${hPrefix}${rebuilt}`)
+                      } else {
+                        onChange(`- ${rebuilt}`)
+                      }
+                    }}
+                    onEnterPress={onEnterPress}
+                    onBackspaceEmpty={onBackspaceEmpty}
+                  />
+                )
+              }
+              if (seg.type === "math") {
+                return (
+                  <MathChip
+                    key={`math-${segIdx}`}
+                    math={seg.raw}
+                    onUpdate={(newMath) => handleUpdateMath(seg.raw, newMath)}
+                    onRemove={() => handleRemoveMath(seg.raw)}
+                    onOpenRegistry={onOpenEquationRegistry}
+                    onEnterPress={onEnterPress}
+                    onKeyboardDelete={() => handleRemoveMath(seg.raw)}
+                  />
+                )
+              }
+              // cite
+              const citeKeys = seg.raw.slice(6, -1).split(",").map((k) => k.trim()).filter(Boolean)
+              return citeKeys.map((key) => (
+                <CitationChip
+                  key={`cite-${segIdx}-${key}`}
+                  citeKey={key}
+                  bibEntries={bibEntries}
+                  onRemove={() => handleRemoveCitation(key)}
+                  onOpenBibManager={onOpenBibManager}
+                  onEnterPress={onEnterPress}
+                  onKeyboardDelete={() => handleRemoveCitation(key)}
+                />
+              ))
+            })}
+          </div>
+        )}
+
+        {/* Delete action */}
+        <button
+          type="button"
+          onClick={onDelete}
+          className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0 pt-0.5"
+          title="Delete bullet"
+        >
+          <Trash2 className="size-3" />
+        </button>
+      </div>
     </div>
   )
 }
@@ -1000,10 +1158,10 @@ export function RichCardEditor({
                 <Button
                   size="xs"
                   variant="outline"
-                  className="h-6.5 gap-1.5 px-2 text-[11px] font-medium border-border/80 hover:border-purple-500/40 hover:bg-purple-500/10 hover:text-purple-600 dark:hover:text-purple-400"
+                  className="h-6.5 gap-1.5 px-2 text-[11px] font-medium border-border/80 hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
                   title="Insert BibTeX Citation"
                 >
-                  <Quote className="size-3.5 text-purple-500" />
+                  <Quote className="size-3.5 text-primary" />
                   <span>Citation</span>
                 </Button>
               }
@@ -1011,7 +1169,7 @@ export function RichCardEditor({
             <PopoverContent className="w-80 p-2.5 space-y-2 shadow-md" align="end">
               <div className="flex items-center justify-between border-b border-border/60 pb-1.5">
                 <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <Quote className="size-3.5 text-purple-500" />
+                  <Quote className="size-3.5 text-primary" />
                   Select Citation
                 </span>
                 <span className="text-[10px] text-muted-foreground font-mono">
@@ -1055,10 +1213,10 @@ export function RichCardEditor({
                       key={b.key}
                       type="button"
                       onClick={() => handleInsertCitation(b.key)}
-                      className="w-full text-left p-1.5 rounded border border-border/60 bg-card hover:bg-purple-500/5 hover:border-purple-500/40 transition-colors space-y-0.5"
+                      className="w-full text-left p-1.5 rounded border border-border/60 bg-card hover:bg-primary/5 hover:border-primary/40 transition-colors space-y-0.5 cursor-pointer"
                     >
                       <div className="flex items-center justify-between gap-1">
-                        <span className="font-mono text-[9px] font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1 py-0.5 rounded">
+                        <span className="font-mono text-[9px] font-bold text-primary bg-primary/10 px-1 py-0.5 rounded border border-primary/25">
                           @{b.key}
                         </span>
                         {b.year && <span className="font-mono text-[9px] text-muted-foreground">{b.year}</span>}

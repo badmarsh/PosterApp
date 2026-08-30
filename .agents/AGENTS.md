@@ -3,7 +3,7 @@
 This file contains important context about the project infrastructure and dependencies for future agent sessions.
 
 ## Key Services
-- **Next.js Frontend/API + Yjs WebSocket**: Single custom server (`server.ts`). Run via `tsx --env-file=.env.local server.ts`. Serves Next.js on port 3333 AND the Yjs WebSocket at `ws://localhost:3333/api/yjs` (authenticated via Clerk JWT query param `?token=`).
+- **Next.js Frontend/API + Yjs WebSocket**: Single custom server (`server.ts`). Run via `tsx --env-file=.env.local server.ts`. Serves Next.js on port 3333 AND the Yjs WebSocket at `ws://localhost:3333/api/yjs` (authenticated via short-lived, one-time ticket passed via `Sec-WebSocket-Protocol: posterapp-yjs-v1, <ticket>` to avoid token leakage in URLs).
 - **MinerU**: Document parsing service. Runs in a WSL (Ubuntu) environment at `http://localhost:8001`. Source at `~/mineru`.
 - **PostgreSQL**: Database via Docker. Run with `docker run -d --name posterapp-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=posterapp -p 5432:5432 postgres:16-alpine`. Connection: `postgresql://postgres:postgres@localhost:5432/posterapp`.
 
@@ -117,13 +117,15 @@ Schema at `prisma/schema.prisma`. Key notes:
 (None currently)
 
 ### Fixed in This Session (2026-08-30)
-- ✅ **Prompt Delimiter Escaping Completed** — Fully escaped untrusted content in all AI routes (`chat`, `review`, `shrink`, `autofix-compile`, `convert`, `generate`) with `wrapUntrustedContext`, with regression unit tests in `lib/__tests__/ai-prompts.test.ts`.
+- ✅ **Prompt Delimiter Escaping Completed** — Fully escaped untrusted content in all AI routes (`chat`, `review`, `shrink`, `autofix-compile`, `convert`, `generate`, `bib/lookup`) with `wrapUntrustedContext`, with regression unit tests in `lib/__tests__/ai-prompts.test.ts`.
+- ✅ **Security Headers Implemented** — Edge-level security headers configured in `next.config.mjs` including `Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, and `Strict-Transport-Security`.
 - ✅ **`.env.example` Synchronization** — Verified PostgreSQL `DATABASE_URL` and standardized `NEXT_PUBLIC_YJS_WS_URL=ws://localhost:3333/api/yjs`.
+- ✅ **Yjs Auth Documentation Updated** — Corrected AGENTS.md documentation to reflect the short-lived one-time ticket mechanism via `Sec-WebSocket-Protocol`.
 - ✅ **Real Ingestion Progress** — End-to-end SSE streaming pipeline from `/api/ingestion/parse` through `ingestion-slice.ts`, reflecting live stage progression and image batching without simulated intervals.
 - ✅ **Parallel Ingestion Queue** — `JobQueue` supports concurrent job execution with `maxConcurrency = 3` for independent document uploads, backed by unit tests.
 - ✅ **Job State Reconciliation on Reload** — `JobQueue.reconcileWithIngestFiles()` reconciles in-flight/interrupted job states against true database state loaded on workspace mount.
 - ✅ **DB-Level Asset Deduplication** — Unique composite index `@@unique([workspaceId, filename])` in Prisma schema with atomic `prisma.asset.upsert()` in both ingestion parsing and workspace PUT routes.
-- ✅ **Compiler Container Hardening** — Docker compile execution fortified with `--cap-drop=ALL`, `--read-only`, `--tmpfs /tmp:rw,noexec,nosuid,size=64m`, and `--security-opt no-new-privileges`.
+- ✅ **Compiler Container Hardening** — Docker compile execution fortified with `--cap-drop=ALL`, `--user 1000:1000`, `--read-only`, `--tmpfs /tmp:rw,noexec,nosuid,size=64m`, and `--security-opt no-new-privileges`.
 - ✅ **Full Test Suite & Build Verification** — 38 test files, 251 tests passing, and Next.js production build verified cleanly.
 
 ### Fixed in Previous Session (2026-08-29)

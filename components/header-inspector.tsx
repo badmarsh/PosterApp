@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { generateFullTemplate } from "@/lib/latex"
@@ -340,6 +341,7 @@ export function HeaderInspector() {
   const [qrLabel, setQrLabel] = useState("Scan for Paper & Code")
   const [isGeneratingQr, setIsGeneratingQr] = useState(false)
   const [qrAssetUrl, setQrAssetUrl] = useState<string | null>(null)
+  const [confirmGenerate, setConfirmGenerate] = useState(false)
 
   useEffect(() => {
     const existingQr = project.assets?.find((a) => a.filename === "qrcode.png")
@@ -387,13 +389,7 @@ export function HeaderInspector() {
   ).length
 
   const handleGenerateNew = async () => {
-    if (
-      confirm(
-        `Generate new ${activeOutputType} (${itemCount} ${unit.plural})?\n\nThis will replace existing ${unit.plural} with a fresh structure tailored to your RAG sources, and fill it with grounded content.`
-      )
-    ) {
-      await generateNewOutputStructure(activeOutputType, itemCount)
-    }
+    setConfirmGenerate(true)
   }
 
   function exportTex() {
@@ -1065,6 +1061,27 @@ export function HeaderInspector() {
           <Check className="size-3.5 mr-1.5" /> Done & Lock Header
         </Button>
       </div>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmGenerate} onOpenChange={setConfirmGenerate}>
+        <DialogContent className="sm:max-w-md" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Generate New {activeOutputType}?</DialogTitle>
+            <DialogDescription>
+              This will replace existing {unit.plural} with a fresh structure tailored to your RAG sources, and fill it with grounded content.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="-mx-4 -mb-4">
+            <Button variant="outline" size="sm" onClick={() => setConfirmGenerate(false)}>Cancel</Button>
+            <Button size="sm" onClick={async () => {
+              setConfirmGenerate(false)
+              await generateNewOutputStructure(activeOutputType, itemCount)
+            }}>
+              Generate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   )
 }

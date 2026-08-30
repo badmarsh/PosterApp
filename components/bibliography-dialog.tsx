@@ -6,9 +6,11 @@ import { useShallow } from "zustand/react/shallow"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
+  DialogPortal,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -93,6 +95,7 @@ export function BibliographyDialog() {
   const [formJournal, setFormJournal] = useState("")
   const [formDoi, setFormDoi] = useState("")
   const [formUrl, setFormUrl] = useState("")
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null)
 
   // Keep raw bib in sync
   useEffect(() => {
@@ -227,6 +230,7 @@ export function BibliographyDialog() {
   }
 
   return (
+    <>
     <Dialog open={isBibManagerOpen} onOpenChange={setIsBibManagerOpen}>
       <DialogContent showCloseButton className="w-[95vw] sm:max-w-4xl md:max-w-5xl h-[88vh] p-0 overflow-hidden flex flex-col shadow-2xl border border-border bg-background">
         {/* Header */}
@@ -680,5 +684,24 @@ export function BibliographyDialog() {
         </div>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={!!confirmDeleteKey} onOpenChange={(o) => { if (!o) setConfirmDeleteKey(null) }}>
+      <DialogContent className="sm:max-w-sm" showCloseButton={false}>
+        <DialogHeader>
+          <div className="flex items-center gap-2 text-destructive mb-1">
+            <Trash2 className="size-4 shrink-0" />
+            <DialogTitle className="text-destructive">Delete Citation?</DialogTitle>
+          </div>
+          <DialogDescription>
+            Remove citation <strong>"{confirmDeleteKey}"</strong>? This will also break any text segments currently referencing it.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="-mx-4 -mb-4">
+          <Button variant="outline" size="sm" onClick={() => setConfirmDeleteKey(null)}>Cancel</Button>
+          <Button variant="destructive" size="sm" onClick={() => { if (confirmDeleteKey) deleteBibEntry(confirmDeleteKey); setConfirmDeleteKey(null) }}>Delete</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

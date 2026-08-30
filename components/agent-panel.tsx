@@ -34,6 +34,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { toast } from "sonner"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import type { Job } from "@/lib/job-queue"
@@ -261,23 +270,31 @@ const EventRow = memo(function EventRow({
                       }
                     })
 
-                    if (validationErrors.length > 0) {
-                      const proceed = confirm(
-                        `Warning: Some proposed fixes contain LaTeX or validation issues:\n\n${validationErrors.join("\n")}\n\nDo you want to apply them anyway?`
-                      )
-                      if (!proceed) return
+                    const applyAllFixes = async () => {
+                      event.fixes?.forEach((fix) => {
+                        updateCard(fix.id, { content: fix.content })
+                      })
+                      updateEvent(event.id, {
+                        fixesApplied: true,
+                        status: "done",
+                        detail: "Fixes applied. Recompiling...",
+                      })
+                      await saveProject()
+                      compileProject()
                     }
 
-                    event.fixes?.forEach((fix) => {
-                      updateCard(fix.id, { content: fix.content })
-                    })
-                    updateEvent(event.id, {
-                      fixesApplied: true,
-                      status: "done",
-                      detail: "Fixes applied. Recompiling…",
-                    })
-                    await saveProject()
-                    compileProject()
+                    if (validationErrors.length > 0) {
+                      toast.warning("Some proposed fixes contain LaTeX or validation issues", {
+                        description: validationErrors.join("\n"),
+                        duration: 10000,
+                        action: {
+                          label: "Apply Anyway",
+                          onClick: applyAllFixes
+                        }
+                      })
+                    } else {
+                      await applyAllFixes()
+                    }
                   }}
                 >
                   <Sparkles className="size-3 mr-1" />
@@ -527,27 +544,36 @@ function AssistantTextContent() {
                     ...unsafeLatexIssues,
                     ...validationMsgs.filter((m) => m.level === "error").map((m) => m.message),
                   ].join("; ")
-                  if (
-                    !confirm(
-                      `Upozornenie: Navrhovaná oprava môže obsahovať chyby v LaTeXe (${errorSummary}). Chcete ju napriek tomu aplikovať?`
-                    )
-                  ) {
-                    return
-                  }
-                }
 
-                updateCard(selectedCardId, { content: fixContent })
-                pushEvent({
-                  kind: hasValidationErrors ? "validate" : "info",
-                  status: hasValidationErrors ? "warning" : "done",
-                  title: hasValidationErrors ? "Oprava aplikovaná s varovaním" : "Fix applied",
-                  detail: hasValidationErrors
-                    ? `Aplikované s upozorneniami: ${[
-                        ...unsafeLatexIssues,
-                        ...validationMsgs.map((m) => m.message),
-                      ].join("; ")}`
-                    : "Card content was updated by AI.",
-                })
+                  const applySingleFix = () => {
+                    updateCard(selectedCardId, { content: fixContent })
+                    pushEvent({
+                      kind: hasValidationErrors ? "validate" : "info",
+                      status: hasValidationErrors ? "warning" : "done",
+                      title: hasValidationErrors ? "Oprava aplikovaná s varovaním" : "Fix applied",
+                      detail: hasValidationErrors
+                        ? `Aplikované s upozorneniami: ${errorSummary}`
+                        : `Content updated for card ${selectedCard?.title}`,
+                    })
+                  }
+
+                  toast.warning("Validation warnings in proposed fix", {
+                    description: errorSummary,
+                    duration: 10000,
+                    action: {
+                      label: "Apply Anyway",
+                      onClick: applySingleFix
+                    }
+                  })
+                } else {
+                  updateCard(selectedCardId, { content: fixContent })
+                  pushEvent({
+                    kind: "info",
+                    status: "done",
+                    title: "Fix applied",
+                    detail: `Content updated for card ${selectedCard?.title}`,
+                  })
+                }
                 setLocalApplied(new Set(localApplied).add(i))
                 localStorage.setItem(`fix_${hash}`, "1")
               }
@@ -709,7 +735,10 @@ function AgentPanelInner({
     }))
   )
 
+  const [confirmClear, setConfirmClear] = useState(false)
+
   return (
+    <>
     <aside
       aria-label="Agent panel"
       className="flex w-full shrink-0 flex-col border-l border-border bg-sidebar lg:w-72"
@@ -732,12 +761,7 @@ function AgentPanelInner({
             variant="ghost"
             size="icon-xs"
             title="Vyčistiť históriu (Clear history)"
-            onClick={() => {
-              if (confirm("Naozaj chceš vymazať históriu tohto chatu a udalostí?")) {
-                hydrateUi([], [])
-                updateProject({})
-              }
-            }}
+            onClick={() => setConfirmClear(true)}
           >
             <XCircle className="size-3.5 text-muted-foreground/70" />
           </Button>
@@ -760,6 +784,27 @@ function AgentPanelInner({
         <ChatThread />
       </div>
     </aside>
+    <Dialog open={confirmClear} onOpenChange={setConfirmClear}>
+      <DialogContent className="sm:max-w-sm" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>Clear History?</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to clear this chat history and all AI events? This cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="-mx-4 -mb-4">
+          <Button variant="outline" size="sm" onClick={() => setConfirmClear(false)}>Cancel</Button>
+          <Button variant="destructive" size="sm" onClick={() => {
+            hydrateUi([], [])
+            updateProject({})
+            setConfirmClear(false)
+          }}>
+            Clear History
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }
 

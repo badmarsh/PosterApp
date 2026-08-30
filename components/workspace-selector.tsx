@@ -2,12 +2,38 @@
 
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api-fetch"
+import { FolderOpen, Plus } from "lucide-react"
 
-export function WorkspaceSelector({ onSelect, onClose }: { onSelect: (id: string) => void, onClose: () => void }) {
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+export function WorkspaceSelector({
+  onSelect,
+  onClose,
+}: {
+  onSelect: (id: string) => void
+  onClose: () => void
+}) {
   const [workspaces, setWorkspaces] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+
   const [isCreating, setIsCreating] = useState(false)
   const [newId, setNewId] = useState("")
   const [newName, setNewName] = useState("")
@@ -16,19 +42,19 @@ export function WorkspaceSelector({ onSelect, onClose }: { onSelect: (id: string
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
-    apiFetch('/api/workspaces')
-      .then(async r => {
+    apiFetch("/api/workspaces")
+      .then(async (r) => {
         if (!r.ok) {
           const errData = await r.json().catch(() => ({}))
           throw new Error(errData.error || `HTTP ${r.status}`)
         }
         return r.json()
       })
-      .then(data => {
+      .then((data) => {
         setWorkspaces(data)
         setLoading(false)
       })
-      .catch(err => {
+      .catch((err) => {
         setError(String(err))
         setLoading(false)
       })
@@ -37,7 +63,7 @@ export function WorkspaceSelector({ onSelect, onClose }: { onSelect: (id: string
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreateError(null)
-    
+
     if (!/^[a-zA-Z0-9_-]{3,32}$/.test(newId)) {
       setCreateError("ID must be 3-32 characters, alphanumeric and dashes only")
       return
@@ -49,124 +75,104 @@ export function WorkspaceSelector({ onSelect, onClose }: { onSelect: (id: string
 
     setIsSubmitting(true)
     try {
-      const res = await apiFetch('/api/workspaces', {
+      const res = await apiFetch("/api/workspaces", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: newId, name: newName, templateName: newTemplate })
+        body: JSON.stringify({ id: newId, name: newName, templateName: newTemplate }),
       })
       if (!res.ok) {
-         const err = await res.json().catch(() => ({}))
-         throw new Error(err.error || `HTTP ${res.status}`)
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `HTTP ${res.status}`)
       }
       onSelect(newId)
-    } catch(err) {
+    } catch (err) {
       setCreateError(String(err))
       setIsSubmitting(false)
     }
   }
 
+  const isDbDown = error?.includes("Database offline")
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-      <div className="flex flex-col gap-4 rounded-lg border bg-card p-6 shadow-lg max-w-md w-full relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground">
-          ✕
-        </button>
-        <h2 className="text-xl font-semibold pr-8">Select a Workspace</h2>
-        
-        {error && error.includes("Database offline") ? (
-          <div className="p-4 bg-destructive/10 text-destructive border border-destructive/20 rounded-md">
-            <h3 className="font-semibold mb-1">Database Connection Failed</h3>
-            <p className="text-sm">Cannot reach the database. Please make sure the PostgreSQL container is running.</p>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="sm:max-w-md" showCloseButton>
+        <DialogHeader>
+          <DialogTitle>Select a Workspace</DialogTitle>
+          <DialogDescription>Open an existing project or create a new one.</DialogDescription>
+        </DialogHeader>
+
+        {isDbDown && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm">
+            <p className="font-medium text-destructive mb-0.5">Database Connection Failed</p>
+            <p className="text-destructive/80 text-xs">Cannot reach the database. Make sure the PostgreSQL container is running.</p>
           </div>
-        ) : error ? (
+        )}
+        {error && !isDbDown && (
           <p className="text-sm text-destructive">Failed to load workspaces: {error}</p>
-        ) : null}
+        )}
 
         {loading ? (
-          <div className="text-sm text-muted-foreground">Loading...</div>
-        ) : !error || !error.includes("Database offline") ? (
-          <div className="flex flex-col gap-2 max-h-[60vh] overflow-auto">
-            {workspaces.map(ws => (
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        ) : !isDbDown ? (
+          <div className="flex flex-col gap-1.5 max-h-[40vh] overflow-y-auto -mx-1 px-1">
+            {workspaces.map((ws) => (
               <button
                 key={ws.id}
+                type="button"
                 onClick={() => onSelect(ws.id)}
-                className="flex flex-col items-start rounded-md border p-3 hover:bg-accent hover:text-accent-foreground text-left"
+                className="flex items-center gap-3 rounded-lg border border-border/60 bg-card px-3 py-2.5 text-left transition-colors hover:bg-accent hover:text-accent-foreground hover:border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <span className="font-medium">{ws.name}</span>
-                <span className="text-xs opacity-80">{ws.templateName}</span>
+                <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sm leading-tight">{ws.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{ws.id} · {ws.templateName}</p>
+                </div>
               </button>
             ))}
             {workspaces.length === 0 && !error && (
-              <div className="text-sm text-muted-foreground">No workspaces found.</div>
+              <p className="text-sm text-muted-foreground text-center py-4">No workspaces yet.</p>
             )}
           </div>
         ) : null}
-        
-        {(!error || !error.includes("Database offline")) && (
-          !isCreating ? (
-            <button
-              onClick={() => setIsCreating(true)}
-              className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
-            >
-              Create New Project
-            </button>
-          ) : (
-            <form onSubmit={handleCreate} className="mt-4 flex flex-col gap-3 rounded-md border p-4 bg-muted/30">
-              <h3 className="font-medium text-sm">New Workspace</h3>
+
+        {!isDbDown && (
+          isCreating ? (
+            <form onSubmit={handleCreate} className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4">
+              <p className="text-sm font-medium">New Workspace</p>
               {createError && <p className="text-xs text-destructive">{createError}</p>}
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium">Workspace ID (slug)</label>
-                <input 
-                  value={newId} 
-                  onChange={e => setNewId(e.target.value)}
-                  className="rounded border bg-background px-2 py-1 text-sm"
-                  placeholder="my-cool-project"
-                  disabled={isSubmitting}
-                />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="ws-id">Workspace ID (slug)</Label>
+                <Input id="ws-id" value={newId} onChange={(e) => setNewId(e.target.value)} placeholder="my-cool-project" disabled={isSubmitting} />
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium">Project Name</label>
-                <input 
-                  value={newName} 
-                  onChange={e => setNewName(e.target.value)}
-                  className="rounded border bg-background px-2 py-1 text-sm"
-                  placeholder="My Cool Project"
-                  disabled={isSubmitting}
-                />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="ws-name">Project Name</Label>
+                <Input id="ws-name" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="My Cool Project" disabled={isSubmitting} />
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium">Template</label>
-                <select 
-                  value={newTemplate} 
-                  onChange={e => setNewTemplate(e.target.value)}
-                  className="rounded border bg-background px-2 py-1 text-sm"
-                  disabled={isSubmitting}
-                >
-                  <option value="atlas">Atlas</option>
-                  <option value="minimal">Minimal</option>
-                </select>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="ws-template">Template</Label>
+                <Select value={newTemplate} onValueChange={(val) => val && setNewTemplate(val)} disabled={isSubmitting}>
+                  <SelectTrigger id="ws-template" className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="atlas">Atlas</SelectItem>
+                    <SelectItem value="minimal">Minimal</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="flex justify-end gap-2 mt-2">
-                <button 
-                  type="button" 
-                  onClick={() => setIsCreating(false)}
-                  className="px-3 py-1 text-sm rounded hover:bg-accent"
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "Creating..." : "Create"}
-                </button>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsCreating(false)} disabled={isSubmitting}>Cancel</Button>
+                <Button type="submit" size="sm" disabled={isSubmitting}>{isSubmitting ? "Creating..." : "Create"}</Button>
               </div>
             </form>
+          ) : (
+            <DialogFooter className="-mx-4 -mb-4">
+              <Button variant="outline" size="sm" onClick={() => setIsCreating(true)} className="gap-1.5">
+                <Plus className="size-3.5" />
+                Create New Project
+              </Button>
+            </DialogFooter>
           )
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

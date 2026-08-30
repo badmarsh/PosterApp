@@ -104,6 +104,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             "run",
             "--rm",
             "--network", "none",
+            "--user", "1000:1000",
             "--cpus", "1",
             "--memory", "512m",
             "--pids-limit", "64",
