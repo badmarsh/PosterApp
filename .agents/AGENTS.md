@@ -117,6 +117,12 @@ Schema at `prisma/schema.prisma`. Key notes:
 (None currently)
 
 ### Fixed in This Session (2026-08-30)
+- ✅ **Expert Peer Review & Thesis Assessment Workspace (Packages 1–6)**:
+  - **Data Model & Contracts**: Created `ReviewKind`, `ReviewSeverity`, `FindingStatus`, `EvidenceReference`, `ReportingStandard`, `ReportingGuidelineCheck` in `lib/ai/review-types.ts` and Zod contracts in `lib/ai/contracts.ts`. Extended PostgreSQL `ThesisReview` table via Prisma schema.
+  - **Server-Side Review Engine & RAG Grounding**: Implemented `generateProfessionalReview` with EQUATOR guideline prompts (CONSORT 2025, PRISMA 2020, STROBE, ML Reproducibility), prompt injection escaping, and verbatim evidence offset locator `anchorEvidenceQuotes` in `lib/ai/review-engine.ts`.
+  - **Interactive Split-View & Triage Stream**: Built `ExpertReviewWorkspace`, `EvidenceViewer` (auto-scroll-to-quote, animated highlight pulse, selection-to-finding toolbar), and `FindingCard` (severity selector, triage status badges, inline edit, reviewer notes) in `components/thesis-review/`.
+  - **Multi-Format Export Engine**: Implemented `generateThesisReviewDocx` in `lib/docx/generator-review.ts`, and 1-click plain text / markdown formatters in `lib/export/review-formatters.ts` for editorial submission platforms (ScholarOne / Editorial Manager).
+  - **Full Test Suite & Production Build**: 45 test files, 298 tests passing (100% pass rate), 0 ESLint/TypeScript errors, and verified with Next.js production build.
 - ✅ **Phase 5: Unified Collaboration, BibTeX Pipeline & E2E Automation**:
   - **Real-Time Yjs Thesis Reviews**: Synchronized `useThesisReviewStore` with `ydoc.getMap("thesisReviews")` in `use-yjs.tsx` for live multiplayer review editing, score recomputation, and rating overrides.
   - **1-Click BibTeX Import from Citation Audit**: Added `academicPaperToBibEntry` converter in `lib/bib-types.ts` and "+ Do .bib" direct import buttons in `CitationIssuesPanel` with visual checkmark indicators and workspace bibliography injection.
