@@ -10,18 +10,20 @@
 // Output types
 // ---------------------------------------------------------------------------
 
-export type OutputType = "poster" | "slides" | "paper"
+export type OutputType = "poster" | "slides" | "paper" | "thesis-review"
 
 export const OUTPUT_TYPE_LABELS: Record<OutputType, string> = {
   poster: "Poster",
   slides: "Slides",
   paper: "Paper",
+  "thesis-review": "Thesis Review (Posudok)",
 }
 
 export const OUTPUT_TYPE_DESCRIPTIONS: Record<OutputType, string> = {
   poster: "Large-format academic poster (A0/A1), typically 3-column portrait layout",
   slides: "Presentation slides (Beamer), sequential frames with speaker notes",
   paper: "Academic paper (article class), full prose sections with floats",
+  "thesis-review": "Academic thesis review / assessment (posudok diplomovej práce) with RAG & citation audit",
 }
 
 // ---------------------------------------------------------------------------
@@ -113,6 +115,16 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
   { id: "pos-proceedings",   outputType: "paper", label: "PoS Proceedings",     description: "SISSA Proceedings of Science format using pos package.", category: "institutional",
     colors: [{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
     detailFeatures: ["Complies with SISSA Proceedings of Science format", "Uses pos package and linenumbers", "Single-column proceedings layout"], latexClass: "article + pos", colorSystem: "None" },
+  // Thesis Reviews (Posudky)
+  { id: "posudok-sk", outputType: "thesis-review", label: "Slovenský posudok (STU/UK)", description: "Štandardný posudok záverečnej práce podľa slovenských vysokoškolských noriem.", category: "institutional",
+    colors: [{id:"blue",name:"Navy",hex:"#003366"},{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
+    detailFeatures: ["Formátovanie podľa STU / UK / TUKE noriem", "Tabuľka kritérií s ECTS známkami", "Otázky k obhajobe a podpisový blok"], latexClass: "article [slovak]", colorSystem: "None" },
+  { id: "posudok-en", outputType: "thesis-review", label: "English Thesis Assessment", description: "Standard academic thesis assessment report in English.", category: "core",
+    colors: [{id:"blue",name:"Navy",hex:"#003366"},{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
+    detailFeatures: ["European university assessment format", "Criteria rubric with letter grading", "Defense questions and signature section"], latexClass: "article [english]", colorSystem: "None" },
+  { id: "posudok-cs", outputType: "thesis-review", label: "Český posudek (ČVUT/MUNI)", description: "Standardní posudek závěrečné práce dle českých vysokoškolských norem.", category: "institutional",
+    colors: [{id:"blue",name:"Navy",hex:"#003366"},{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
+    detailFeatures: ["Formátování dle ČVUT / MUNI / VUT", "Kritéria s ECTS hodnocením", "Otázky k obhajobě a podpisový blok"], latexClass: "article [czech]", colorSystem: "None" },
 ]
 
 /** Get all templates available for a given output type. */
@@ -188,6 +200,11 @@ export const PATTERNS_FOR_TYPE: Record<OutputType, { id: string; label: string; 
     { id: "section-two-figures", label: "Section + two figures", description: "Text section with two figure floats." },
     { id: "references", label: "References", description: "Bibliography section." },
   ],
+  "thesis-review": [
+    { id: "section", label: "Kritérium posudku", description: "Textové hodnotenie jedného hodnotiaceho kritéria." },
+    { id: "bullets", label: "Pripomienky & Otázky", description: "Bodový zoznam pripomienok alebo otázok k obhajobe." },
+    { id: "references", label: "Zoznam literatúry & Citácie", description: "Audit citovanej literatúry." },
+  ],
 }
 
 /** Check if a pattern is valid for a given output type. */
@@ -228,6 +245,13 @@ export const LAYOUT_CONSTRAINTS: Record<OutputType, LayoutConstraints> = {
     columnBudget: Infinity,
     maxCharsPerCard: Infinity,
     defaultCardCount: 6,
+  },
+  "thesis-review": {
+    outputType: "thesis-review",
+    columnCount: 1,
+    columnBudget: Infinity,
+    maxCharsPerCard: Infinity,
+    defaultCardCount: 7,
   },
 }
 
@@ -273,6 +297,15 @@ export const DEFAULT_STRUCTURES: Record<OutputType, DefaultCardTemplate[]> = {
     { title: "5 Conclusion", pattern: "section" },
     { title: "References", pattern: "references" },
   ],
+  "thesis-review": [
+    { title: "Formálna štruktúra a úprava", pattern: "section" },
+    { title: "Definícia cieľov a problematiky", pattern: "section" },
+    { title: "Metodológia a postup riešenia", pattern: "section" },
+    { title: "Výsledky a ich vyhodnotenie", pattern: "section" },
+    { title: "Originalita a prínos práce", pattern: "section" },
+    { title: "Jazyková a štylistická úroveň", pattern: "section" },
+    { title: "Citácie a zoznam literatúry", pattern: "references" },
+  ],
 }
 
 /**
@@ -280,6 +313,10 @@ export const DEFAULT_STRUCTURES: Record<OutputType, DefaultCardTemplate[]> = {
  * Supports custom count for posters, slides, and papers.
  */
 export function buildDefaultStructure(outputType: OutputType, count?: number): DefaultCardTemplate[] {
+  if (outputType === "thesis-review") {
+    return DEFAULT_STRUCTURES["thesis-review"]
+  }
+
   if (outputType === "poster") {
     const n = count && count >= 3 ? Math.min(count, 15) : 6
     const cards: DefaultCardTemplate[] = []

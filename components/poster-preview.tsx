@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, memo, useMemo, useEffect } from "react"
-import { ChevronDown, ChevronUp, ImageIcon, List, Table2, FileDown, Loader2, ChevronDown as ChevronDownIcon, Plus, GripVertical, Settings2, LayoutTemplate, FileText, Sparkles, RefreshCw, Play, MonitorPlay, BookOpen, PanelTopOpen, X } from "lucide-react"
+import { ChevronDown, ChevronUp, ImageIcon, List, Table2, FileDown, Loader2, ChevronDown as ChevronDownIcon, Plus, GripVertical, Settings2, LayoutTemplate, FileText, Sparkles, RefreshCw, Play, MonitorPlay, BookOpen, PanelTopOpen, GraduationCap, X } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import {
   DndContext,
@@ -60,6 +60,7 @@ import { apiFetch } from "@/lib/api-fetch"
 import type { OutputType } from "@/lib/output-types"
 import { TemplateHeader } from "@/components/template-header"
 import { OUTPUT_TYPE_LABELS, TEMPLATE_REGISTRY, getTemplatesForType } from "@/lib/output-types"
+import { ThesisReviewPanel } from "@/components/thesis-review/thesis-review-panel"
 
 // ---------------------------------------------------------------------------
 // OutputTypeIcon — maps output type to a small icon
@@ -67,6 +68,7 @@ import { OUTPUT_TYPE_LABELS, TEMPLATE_REGISTRY, getTemplatesForType } from "@/li
 function OutputTypeIcon({ type, className }: { type: OutputType; className?: string }) {
   if (type === "slides") return <MonitorPlay className={className} />
   if (type === "paper") return <BookOpen className={className} />
+  if (type === "thesis-review") return <GraduationCap className={className} />
   return <PanelTopOpen className={className} />
 }
 
@@ -399,7 +401,7 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
           </div>
           {/* Output type pills */}
           <div className="flex gap-2">
-            {(["poster", "slides", "paper"] as OutputType[]).map((t) => (
+            {(["poster", "slides", "paper", "thesis-review"] as OutputType[]).map((t) => (
               <button
                 key={t}
                 onClick={() => handleTypeChange(t)}
@@ -1302,7 +1304,9 @@ function StructureView() {
     const o = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
     return (o?.outputType ?? "poster") as OutputType
   })
+  const workspaceId = useEditor((s) => s.project.id)
 
+  if (activeOutputType === "thesis-review") return <ThesisReviewPanel workspaceId={workspaceId} />
   if (activeOutputType === "slides") return <SlidesView />
   if (activeOutputType === "paper") return <PaperView />
   return <PosterStructureView />

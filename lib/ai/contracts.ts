@@ -259,4 +259,74 @@ export const VisionOcrSchema = z.preprocess((raw: any) => {
 export type VisionOcrResult = z.infer<typeof VisionOcrSchema>
 
 
+// 9. Thesis Review Section
+export const ThesisSectionRatingSchema = z.enum(["A", "B", "C", "D", "E", "FX", "pending"]).catch("pending")
+
+export const ThesisReviewSectionSchema = z.preprocess((raw: any) => {
+  if (raw && typeof raw === "object") {
+    return {
+      sectionId: String(raw.sectionId || raw.id || raw.criterionId || ""),
+      criterionId: String(raw.criterionId || raw.sectionId || raw.id || ""),
+      text: String(raw.text || raw.content || raw.assessment || raw.comment || ""),
+      rating: raw.rating || raw.grade || raw.score || "pending",
+      numericScore: typeof raw.numericScore === "number" ? raw.numericScore : undefined,
+      suggestions: Array.isArray(raw.suggestions) ? raw.suggestions.map(String) : [],
+    }
+  }
+  return raw
+}, z.object({
+  sectionId: z.string(),
+  criterionId: z.string(),
+  text: z.string(),
+  rating: ThesisSectionRatingSchema,
+  numericScore: z.number().min(0).max(100).optional(),
+  suggestions: z.array(z.string()).default([]),
+}))
+export type ThesisReviewSection = z.infer<typeof ThesisReviewSectionSchema>
+
+export const ThesisReviewGenerationSchema = z.preprocess((raw: any) => {
+  if (raw && typeof raw === "object") {
+    const sections = raw.sections || raw.criteria || raw.evaluations || []
+    return {
+      sections: Array.isArray(sections) ? sections : [],
+      overallGrade: raw.overallGrade || raw.grade || raw.overall || undefined,
+      recommendation: String(raw.recommendation || raw.verdict || ""),
+      defenseQuestions: Array.isArray(raw.defenseQuestions)
+        ? raw.defenseQuestions.map(String)
+        : Array.isArray(raw.questions) ? raw.questions.map(String) : [],
+      citationIssues: Array.isArray(raw.citationIssues)
+        ? raw.citationIssues.map(String)
+        : Array.isArray(raw.issues) ? raw.issues.map(String) : [],
+    }
+  }
+  return raw
+}, z.object({
+  sections: z.array(ThesisReviewSectionSchema),
+  overallGrade: z.string().optional(),
+  recommendation: z.string(),
+  defenseQuestions: z.array(z.string()).default([]),
+  citationIssues: z.array(z.string()).default([]),
+}))
+export type ThesisReviewGenerationResult = z.infer<typeof ThesisReviewGenerationSchema>
+
+// 10. Thesis Section (single criterion) Generation
+export const ThesisSingleSectionSchema = z.preprocess((raw: any) => {
+  if (raw && typeof raw === "object") {
+    return {
+      text: String(raw.text || raw.content || raw.assessment || raw.comment || ""),
+      rating: raw.rating || raw.grade || "pending",
+      numericScore: typeof raw.numericScore === "number" ? raw.numericScore : undefined,
+      suggestions: Array.isArray(raw.suggestions) ? raw.suggestions.map(String) : [],
+      defenseQuestions: Array.isArray(raw.defenseQuestions) ? raw.defenseQuestions.map(String) : [],
+    }
+  }
+  return raw
+}, z.object({
+  text: z.string(),
+  rating: ThesisSectionRatingSchema,
+  numericScore: z.number().min(0).max(100).optional(),
+  suggestions: z.array(z.string()).default([]),
+  defenseQuestions: z.array(z.string()).default([]),
+}))
+export type ThesisSingleSectionResult = z.infer<typeof ThesisSingleSectionSchema>
 

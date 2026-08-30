@@ -27,6 +27,7 @@ model Workspace {
   outputs          Output[]
   members          WorkspaceMember[]
   snapshots        WorkspaceSnapshot[]
+  thesisReviews    ThesisReview[]
 }
 
 /// Access is deliberately modelled separately from Clerk.  The userId field above
@@ -141,4 +142,42 @@ model WorkspaceSnapshot {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, savedAt(sort: Desc)])
+}
+
+/// Stores metadata for a thesis assessment (posudok diplomovej práce).
+/// Each workspace can have multiple reviews (supervisor + opponent).
+model ThesisReview {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  /// Full name of the student author
+  studentName     String
+  /// Title of the thesis as submitted
+  thesisTitle     String
+  /// "bachelor" | "master" | "phd"
+  thesisType      String    @default("master")
+  /// "supervisor" | "opponent"
+  reviewerRole    String    @default("opponent")
+  /// Name of the reviewing person
+  reviewerName    String?
+  institution     String?
+  department      String?
+  /// Overall ECTS grade: A | B | C | D | E | FX | pending
+  grade           String?
+  /// Formal recommendation text (obhajoba doporučená / nedoporučená)
+  recommendation  String?
+  /// Serialized JSON: array of ThesisReviewSection objects
+  sections        String?
+  /// Generated defense questions (JSON string[])
+  defenseQuestions String?
+  /// Citation issues found (JSON string[])
+  citationIssues  String?
+  /// "draft" | "final"
+  status          String    @default("draft")
+  /// ISO language code: "sk" | "cs" | "en"
+  language        String    @default("sk")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt(sort: Desc)])
 }

@@ -1,0 +1,181 @@
+/**
+ * POST /api/workspaces/[id]/thesis-review/[reviewId]/export
+ *
+ * Generates a PDF from a thesis review record using the LaTeX compiler.
+ * Uses the same Docker/WSL compiler pipeline as the main compile route.
+ *
+ * Returns: { ok: true } with main.pdf saved to workspaces/[id]/thesis-[reviewId].pdf
+ * Or streams PDF directly as application/pdf.
+ */
+
+import { NextRequest, NextResponse } from "next/server"
+import fs from "fs/promises"
+import path from "path"
+import os from "os"
+import { spawn } from "child_process"
+import { requireWorkspaceEditor } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { generateThesisReviewLatex } from "@/lib/latex/generator-thesis-review"
+import type { ThesisReviewTemplate } from "@/lib/latex/templates-thesis"
+import type { ThesisSection, ReviewLanguage } from "@/lib/ai/thesis-rubric"
+
+const ROOT = path.join(process.cwd(), "workspaces")
+const MAX_LOG = 6_000
+
+function safeLog(value: string) {
+  return value.replace(/[A-Za-z]:\\[^\s]+/g, "[path]").replace(/\/[^\s]+/g, "[path]").slice(-MAX_LOG)
+}
+
+async function run(command: string, args: string[], cwd: string) {
+  return new Promise<string>((resolve, reject) => {
+    const child = spawn(command, args, { cwd, windowsHide: true, signal: AbortSignal.timeout(90_000) })
+    let log = ""
+    child.stdout.on("data", (data) => { log = (log + data.toString()).slice(-MAX_LOG * 2) })
+    child.stderr.on("data", (data) => { log = (log + data.toString()).slice(-MAX_LOG * 2) })
+    child.on("error", reject)
+    child.on("close", (code) => code === 0 ? resolve(log) : reject(new Error(safeLog(log || `Compiler exited with ${code}`))))
+  })
+}
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string; reviewId: string }> }
+) {
+  const { id: workspaceId, reviewId } = await params
+
+  if (!/^[a-zA-Z0-9_-]+$/.test(workspaceId) || !/^[a-zA-Z0-9_-]+$/.test(reviewId)) {
+    return NextResponse.json({ error: "Invalid ID" }, { status: 400 })
+  }
+
+  try {
+    await requireWorkspaceEditor(workspaceId)
+  } catch (err) {
+    if (err instanceof Response) return err
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const review = await prisma.thesisReview.findFirst({
+    where: { id: reviewId, workspaceId },
+  })
+
+  if (!review) {
+    return NextResponse.json({ error: "Review not found" }, { status: 404 })
+  }
+
+  // Parse body for optional template override
+  let template: ThesisReviewTemplate = "posudok-sk"
+  try {
+    const body = await req.json().catch(() => ({}))
+    if (body.template) template = body.template as ThesisReviewTemplate
+    else if (review.language === "en") template = "posudok-en"
+    else if (review.language === "cs") template = "posudok-cs"
+  } catch { /* use default */ }
+
+  let stage = ""
+  try {
+    // Build LaTeX document
+    const sections: ThesisSection[] = review.sections ? JSON.parse(review.sections) : []
+    const defenseQuestions: string[] = review.defenseQuestions ? JSON.parse(review.defenseQuestions) : []
+    const citationIssues: string[] = review.citationIssues ? JSON.parse(review.citationIssues) : []
+
+    const tex = generateThesisReviewLatex({
+      studentName: review.studentName,
+      thesisTitle: review.thesisTitle,
+      thesisType: review.thesisType as "bachelor" | "master" | "phd",
+      reviewerRole: review.reviewerRole as "supervisor" | "opponent",
+      reviewerName: review.reviewerName,
+      institution: review.institution,
+      department: review.department,
+      grade: review.grade,
+      recommendation: review.recommendation,
+      sections,
+      defenseQuestions,
+      citationIssues,
+      language: review.language as ReviewLanguage,
+      template,
+    })
+
+    // Create temp directory
+    stage = await fs.mkdtemp(path.join(os.tmpdir(), `posudok-${reviewId}-`))
+    await fs.writeFile(path.join(stage, "main.tex"), tex, "utf8")
+
+    // Copy LaTeX styles if available
+    const stylesDir = path.join(process.cwd(), "public", "latex-styles")
+    await fs.cp(stylesDir, stage, { recursive: true, force: true, errorOnExist: false }).catch(() => undefined)
+
+    // Run compiler
+    const buildCmd = "pdflatex -no-shell-escape -interaction=nonstopmode -halt-on-error main.tex && pdflatex -no-shell-escape -interaction=nonstopmode -halt-on-error main.tex"
+    const image = process.env.LATEX_COMPILER_IMAGE
+
+    if (image) {
+      await run("docker", [
+        "run", "--rm",
+        "--network", "none",
+        "--user", "1000:1000",
+        "--cpus", "1",
+        "--memory", "512m",
+        "--pids-limit", "64",
+        "--security-opt", "no-new-privileges",
+        "--cap-drop=ALL",
+        "--read-only",
+        "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
+        "-v", `${stage}:/work`,
+        "-w", "/work",
+        image,
+        "sh", "-c", buildCmd,
+      ], stage)
+    } else if (process.env.NODE_ENV !== "production") {
+      await run("wsl", ["--cd", stage, "bash", "-lc", `ulimit -t 55 -v 524288 -f 20480; ${buildCmd}`], stage)
+    } else {
+      throw new Error("COMPILER_UNAVAILABLE")
+    }
+
+    // Read and return PDF
+    const pdfPath = path.join(stage, "main.pdf")
+    const pdfBuffer = await fs.readFile(pdfPath)
+
+    // Also save a copy to workspace directory
+    const targetDir = path.join(ROOT, workspaceId)
+    await fs.mkdir(targetDir, { recursive: true })
+    await fs.writeFile(path.join(targetDir, `thesis-review-${reviewId}.pdf`), pdfBuffer)
+
+    return new Response(pdfBuffer, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="posudok-${review.studentName.replace(/\s+/g, "-").slice(0, 40)}.pdf"`,
+        "Content-Length": String(pdfBuffer.length),
+      },
+    })
+  } catch (error) {
+    if (error instanceof Response) return error
+    const msg = error instanceof Error ? error.message : "Unknown error"
+    if (msg.includes("COMPILER_UNAVAILABLE")) {
+      return NextResponse.json({ error: "LaTeX compiler not configured" }, { status: 503 })
+    }
+    console.error("[thesis-review export] Error:", msg.slice(0, 500))
+    return NextResponse.json({ error: "PDF compilation failed", log: safeLog(msg) }, { status: 422 })
+  } finally {
+    if (stage) await fs.rm(stage, { recursive: true, force: true }).catch(() => undefined)
+  }
+}
+
+// GET — check if a compiled PDF exists for this review
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string; reviewId: string }> }
+) {
+  const { id: workspaceId, reviewId } = await params
+
+  try {
+    await requireWorkspaceEditor(workspaceId)
+  } catch (err) {
+    if (err instanceof Response) return err
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const pdfPath = path.join(ROOT, workspaceId, `thesis-review-${reviewId}.pdf`)
+  const exists = await fs.access(pdfPath).then(() => true).catch(() => false)
+
+  return NextResponse.json({ exists, url: exists ? `/api/workspaces/${workspaceId}/thesis-review/${reviewId}/pdf` : null })
+}

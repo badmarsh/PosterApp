@@ -1,0 +1,137 @@
+import { describe, it, expect } from "vitest"
+import {
+  THESIS_CRITERIA,
+  computeOverallScore,
+  scoreToEctsGrade,
+  gradeToRecommendation,
+  type ThesisSection,
+} from "@/lib/ai/thesis-rubric"
+import {
+  ThesisReviewSectionSchema,
+  ThesisReviewGenerationSchema,
+  ThesisSingleSectionSchema,
+} from "@/lib/ai/contracts"
+import { generateThesisReviewLatex } from "@/lib/latex/generator-thesis-review"
+
+describe("Thesis Rubric and Scoring", () => {
+  it("defines standard thesis evaluation criteria", () => {
+    expect(THESIS_CRITERIA.length).toBeGreaterThanOrEqual(7)
+    const formal = THESIS_CRITERIA.find((c) => c.id === "formal_structure")
+    expect(formal).toBeDefined()
+    expect(formal?.labels.sk).toContain("Formálna štruktúra")
+    expect(formal?.labels.en).toContain("Formal structure")
+  })
+
+  it("computes overall weighted score from ECTS ratings correctly", () => {
+    const sections: ThesisSection[] = [
+      { id: "1", sectionId: "formal_structure", criterionId: "formal_structure", text: "OK", rating: "A" },
+      { id: "2", sectionId: "goal_definition", criterionId: "goal_definition", text: "OK", rating: "A" },
+      { id: "3", sectionId: "methodology", criterionId: "methodology", text: "OK", rating: "B" },
+      { id: "4", sectionId: "results", criterionId: "results", text: "OK", rating: "B" },
+      { id: "5", sectionId: "originality", criterionId: "originality", text: "OK", rating: "A" },
+      { id: "6", sectionId: "language_quality", criterionId: "language_quality", text: "OK", rating: "A" },
+      { id: "7", sectionId: "citations_bibliography", criterionId: "citations_bibliography", text: "OK", rating: "A" },
+    ]
+
+    const score = computeOverallScore(sections)
+    expect(score).not.toBeNull()
+    expect(score).toBeGreaterThanOrEqual(85)
+    expect(score).toBeLessThanOrEqual(95)
+
+    const grade = scoreToEctsGrade(score!)
+    expect(["A", "B"]).toContain(grade)
+  })
+
+  it("maps ECTS grade to localized recommendations", () => {
+    expect(gradeToRecommendation("A", "sk")).toContain("odporúčam")
+    expect(gradeToRecommendation("FX", "sk")).toContain("neodporúčam")
+    expect(gradeToRecommendation("A", "en")).toContain("recommend")
+    expect(gradeToRecommendation("FX", "en")).toContain("do not recommend")
+  })
+})
+
+describe("Thesis Review Contracts / Schemas", () => {
+  it("parses valid ThesisReviewGenerationSchema output", () => {
+    const raw = {
+      overallGrade: "A",
+      recommendation: "Prácu odporúčam na obhajobu.",
+      sections: [
+        {
+          sectionId: "methodology",
+          criterionId: "methodology",
+          text: "Metodológia práce je zvolená vhodne a logicky nadväzuje na ciele.",
+          rating: "A",
+          numericScore: 92,
+          suggestions: ["Doplniť detailnejší popis architektúry"],
+        },
+      ],
+      defenseQuestions: [
+        "Aké boli hlavné obmedzenia pri trénovaní modelu?",
+        "Ako by sa navrhnutý prístup škáloval na väčšie datasety?",
+      ],
+      citationIssues: [],
+    }
+
+    const parsed = ThesisReviewGenerationSchema.safeParse(raw)
+    expect(parsed.success).toBe(true)
+    if (parsed.success) {
+      expect(parsed.data.overallGrade).toBe("A")
+      expect(parsed.data.sections).toHaveLength(1)
+      expect(parsed.data.defenseQuestions).toHaveLength(2)
+    }
+  })
+
+  it("resiliently preprocesses single section response", () => {
+    const raw = {
+      content: "Jazyková úroveň práce je výborná, bez závažných gramatických chýb.",
+      grade: "A",
+      suggestions: ["Zjednotiť terminológiu v kapitole 3"],
+    }
+
+    const parsed = ThesisSingleSectionSchema.safeParse(raw)
+    expect(parsed.success).toBe(true)
+    if (parsed.success) {
+      expect(parsed.data.text).toContain("Jazyková úroveň")
+      expect(parsed.data.rating).toBe("A")
+      expect(parsed.data.suggestions).toHaveLength(1)
+    }
+  })
+})
+
+describe("Thesis Review LaTeX Generator", () => {
+  it("generates compilable LaTeX with metadata and escaped content", () => {
+    const tex = generateThesisReviewLatex({
+      studentName: "Janko Hraško",
+      thesisTitle: "Analýza & syntéza $N$-telových systémov",
+      thesisType: "master",
+      reviewerRole: "opponent",
+      reviewerName: "Doc. RNDr. Peter Kováč, CSc.",
+      institution: "Univerzita Komenského v Bratislave",
+      department: "Katedra teoretickej fyziky",
+      grade: "A",
+      recommendation: "Prácu odporúčam na obhajobu.",
+      sections: [
+        {
+          id: "s1",
+          sectionId: "methodology",
+          criterionId: "methodology",
+          text: "Práca využíva Monte Carlo simulácie & pokročilé algoritmy.",
+          rating: "A",
+          suggestions: ["Doplniť konvergenčné grafy"],
+        },
+      ],
+      defenseQuestions: ["Ako ovplyvňuje parameter $\\alpha$ stabilitu systému?"],
+      citationIssues: ["Chýba DOI pri citácii [3]"],
+      language: "sk",
+      template: "posudok-sk",
+    })
+
+    expect(tex).toContain("\\documentclass[12pt,a4paper]{article}")
+    expect(tex).toContain("POSUDOK ZÁVEREČNEJ PRÁCE")
+    expect(tex).toContain("Janko Hraško")
+    expect(tex).toContain("\\ratingsymbol{A}")
+    expect(tex).toContain("OTÁZKY K OBHAJOBE")
+    expect(tex).toContain("Analýza \\& syntéza")
+    expect(tex).toContain("\\end{document}")
+  })
+})

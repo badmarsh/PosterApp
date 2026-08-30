@@ -4,6 +4,7 @@ import type { LatexGenerator } from "./types"
 import { TikzPosterGenerator, generateLatexForCard } from "./generator-poster"
 import { StandardPaperGenerator } from "./generator-paper"
 import { BeamerSlidesGenerator } from "./generator-slides"
+import { ThesisReviewLatexGenerator } from "./generator-thesis-review"
 import { assetUrlToLatexPath } from "./helpers"
 
 export { assetUrlToLatexPath, generateLatexForCard }
@@ -17,6 +18,7 @@ export function getGenerator(outputType: OutputType, templateId: string): LatexG
   if (outputType === "paper") return new StandardPaperGenerator(templateId)
   if (outputType === "slides") return new BeamerSlidesGenerator(templateId)
   if (outputType === "poster") return new TikzPosterGenerator(templateId)
+  if (outputType === "thesis-review") return new ThesisReviewLatexGenerator(templateId)
 
   throw new Error(`No generator found for ${key}`)
 }

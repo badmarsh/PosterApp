@@ -16,6 +16,7 @@ export const DEFAULT_AI_MODELS = {
   bibtex: "gemini-3-flash",
   labeler: "gemini-3-flash",
   autofix: "gemini-3-flash",
+  thesis: "gemini-3-flash",
 } as const
 
 export type AiModelRole = keyof typeof DEFAULT_AI_MODELS
@@ -30,6 +31,7 @@ export const AI_TIMEOUTS = {
   generation: 180_000,
   review: 180_000,
   chat: 180_000,
+  thesis: 120_000,
 } as const
 
 export const DEFAULT_FALLBACK_VISION_MODELS: readonly string[] = [
@@ -82,6 +84,8 @@ export function resolveAiModel(role: AiModelRole = "default"): string {
       return process.env.AI_LABELER_MODEL || process.env.AI_MODEL || DEFAULT_AI_MODELS.labeler
     case "autofix":
       return process.env.AI_AUTOFIX_MODEL || process.env.AI_REVIEW_MODEL || process.env.AI_MODEL || DEFAULT_AI_MODELS.autofix
+    case "thesis":
+      return process.env.AI_THESIS_MODEL || process.env.AI_MODEL || DEFAULT_AI_MODELS.thesis
     default:
       return process.env.AI_MODEL || DEFAULT_AI_MODELS.default
   }
