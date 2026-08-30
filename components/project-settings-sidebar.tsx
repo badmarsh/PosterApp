@@ -26,12 +26,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 
-import { FileStack, Copy, FilePlus2, BookOpen, Upload, Palette, Trash2, Loader2 } from "lucide-react"
+import { FileStack, Copy, FilePlus2, BookOpen, Upload, Palette, Trash2, Loader2, Calculator } from "lucide-react"
 import { OUTPUT_TYPE_LABELS, getTemplateDef } from "@/lib/output-types"
 import type { OutputType } from "@/lib/output-types"
 
 export function ProjectSettingsSidebar() {
-  const { project, updateProject, isSwitchingProject, switchProject, newProject, duplicateProject, bibContent, updateBib, switchOutput, updateActiveThemeColor } = useEditor(
+  const { project, updateProject, isSwitchingProject, switchProject, newProject, duplicateProject, bibKeys, setIsBibManagerOpen, switchOutput, updateActiveThemeColor, equations, setIsEquationLibraryOpen } = useEditor(
     useShallow((s) => ({
       project: s.project,
       updateProject: s.updateProject,
@@ -39,10 +39,12 @@ export function ProjectSettingsSidebar() {
       switchProject: s.switchProject,
       newProject: s.newProject,
       duplicateProject: s.duplicateProject,
-      bibContent: s.bibContent,
-      updateBib: s.updateBib,
+      bibKeys: s.bibKeys,
+      setIsBibManagerOpen: s.setIsBibManagerOpen,
       switchOutput: s.switchOutput,
       updateActiveThemeColor: s.updateActiveThemeColor,
+      equations: s.equations,
+      setIsEquationLibraryOpen: s.setIsEquationLibraryOpen,
     }))
   )
 
@@ -83,8 +85,6 @@ export function ProjectSettingsSidebar() {
   const activeTitle = activeOutput?.title ?? project.posterTitle
   const activeThemeColor = activeOutput?.themeColor ?? null
   const templateDef = getTemplateDef(activeOutput?.templateId ?? "atlas")
-  const outputTypeLabel = OUTPUT_TYPE_LABELS[activeOutputType]
-  const [localBib, setLocalBib] = useState(bibContent)
   const [workspaces, setWorkspaces] = useState<{id: string, name: string}[]>([])
 
   useEffect(() => {
@@ -93,11 +93,6 @@ export function ProjectSettingsSidebar() {
       .then((data) => setWorkspaces(Array.isArray(data) ? data : []))
       .catch(console.error)
   }, [project.id])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLocalBib(bibContent)
-  }, [bibContent])
 
   if (isSwitchingProject) {
     return (
@@ -308,74 +303,50 @@ export function ProjectSettingsSidebar() {
             </div>
           </div>
 
+          <div className="space-y-2 pt-4 border-t border-border">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-[11px] font-medium text-muted-foreground">Bibliography &amp; Citations</Label>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Manage references for your poster.</p>
+              </div>
+              <span className="font-mono text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                {bibKeys.length} ref{bibKeys.length === 1 ? "" : "s"}
+              </span>
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={() => setIsBibManagerOpen(true)}
+              className="w-full justify-between text-[11px] h-8 gap-2"
+            >
+              <span className="flex items-center gap-2">
+                <BookOpen className="size-3.5 text-primary" />
+                Citation Library
+              </span>
+              <span className="text-[10px] text-muted-foreground">Open</span>
+            </Button>
+          </div>
+
           <div className="space-y-1.5 pt-4 border-t border-border">
             <div className="flex flex-col gap-2">
               <div>
-                <Label className="text-[11px] font-medium text-muted-foreground">Bibliography (BibTeX)</Label>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Manage references for your poster.</p>
+                <Label className="text-[11px] font-medium text-muted-foreground">Equation Library</Label>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Manage formulas and variable glossary.</p>
               </div>
               
-              <Dialog onOpenChange={(open) => {
-                if (!open && localBib !== bibContent) {
-                  updateBib(project.id, localBib)
-                }
-              }}>
-                <DialogTrigger
-                  render={<Button variant="outline" className="w-full justify-start text-[11px] h-8 gap-2" />}
-                >
-                  <BookOpen className="size-3.5" />
-                  Edit references.bib
-                </DialogTrigger>
-                <DialogContent className="max-w-[90vw] sm:max-w-3xl h-[80vh] flex flex-col">
-                  <DialogHeader>
-                    <DialogTitle>Bibliography Manager</DialogTitle>
-                    <div className="flex items-start justify-between gap-4 mt-1">
-                      <DialogDescription>
-                        Edit the raw BibTeX contents for this workspace. Changes are saved automatically when you close this window.
-                      </DialogDescription>
-                      <div className="shrink-0 flex items-center">
-                        <input
-                          type="file"
-                          accept=".bib"
-                          id="bib-upload"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (e) => {
-                                const content = e.target?.result as string;
-                                setLocalBib(content);
-                              };
-                              reader.readAsText(file);
-                            }
-                            // Reset input so the same file can be uploaded again if needed
-                            e.target.value = '';
-                          }}
-                        />
-                        <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1.5" onClick={() => document.getElementById('bib-upload')?.click()}>
-                          <Upload className="size-3" />
-                          Upload .bib
-                        </Button>
-                      </div>
-                    </div>
-                  </DialogHeader>
-                  <div className="flex-1 min-h-0 pt-2 relative">
-                    {localBib !== bibContent && (
-                      <span className="absolute top-2 right-4 text-[10px] text-muted-foreground bg-background px-2 py-0.5 rounded-md border border-border z-10">
-                        Unsaved changes...
-                      </span>
-                    )}
-                    <Textarea
-                      value={localBib}
-                      onChange={(e) => setLocalBib(e.target.value)}
-                      onBlur={() => updateBib(project.id, localBib)}
-                      placeholder="@article{...}"
-                      className="h-full resize-none font-mono text-[12px] leading-relaxed shadow-none focus-visible:ring-1 bg-muted/30"
-                    />
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Button
+                variant="outline"
+                className="w-full justify-between text-[11px] h-8 gap-2"
+                onClick={() => setIsEquationLibraryOpen(true)}
+              >
+                <span className="flex items-center gap-2">
+                  <Calculator className="size-3.5 text-primary" />
+                  Manage Equations
+                </span>
+                <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] font-mono text-muted-foreground">
+                  {equations.length}
+                </span>
+              </Button>
             </div>
           </div>
 

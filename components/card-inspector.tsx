@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useMemo } from "react"
 import {
   AlertTriangle,
   CheckCircle2,
@@ -26,7 +26,14 @@ import {
   MoreHorizontal,
   SaveAll,
   RotateCcw,
+  Calculator,
+  Camera,
+  BookOpen,
+  Sparkles,
+  Table2,
 } from "lucide-react"
+import { toast } from "sonner"
+import { RichCardEditor } from "@/components/rich-card-editor"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
@@ -36,7 +43,9 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
@@ -58,6 +67,8 @@ import {
   type ValidationMessage,
 } from "@/lib/poster-types"
 import { PATTERNS_FOR_TYPE, OUTPUT_TYPE_LABELS, type OutputType } from "@/lib/output-types"
+import { suggestCitationsForText } from "@/lib/services/citation-suggester"
+import { SAMPLE_TABLE_PRESETS, type SampleTablePreset } from "@/lib/sample-data"
 import { cn } from "@/lib/utils"
 
 function RagSourcesIllustration() {
@@ -109,7 +120,6 @@ function BasicsTab({ card }: { card: Card }) {
       project: s.project,
     }))
   )
-  const idValid = /^(blk|card)_[a-z0-9_]+$/.test(card.id)
   const titleInvalid = card.title.trim().length === 0
   const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
   const cards = activeOutput?.cards || []
@@ -149,24 +159,9 @@ function BasicsTab({ card }: { card: Card }) {
             className="flex items-center gap-1 text-[10px] text-destructive"
           >
             <AlertTriangle className="size-3" />
-            Title is required — it becomes the {"\\block{}"} heading.
+            Title is required for this card.
           </p>
         )}
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <FieldLabel hint="blk_ or card_">Stable block ID</FieldLabel>
-        <Input
-          value={card.id}
-          readOnly
-          className={cn(
-            "h-8 font-mono text-xs",
-            !idValid && "border-destructive text-destructive",
-          )}
-        />
-        <p className="text-[10px] text-muted-foreground">
-          Used to patch / replace this block inside the fixed template. Stable across edits.
-        </p>
       </div>
 
       {isPosters ? (
@@ -235,13 +230,33 @@ function BasicsTab({ card }: { card: Card }) {
 }
 
 function ContentTab({ card }: { card: Card }) {
-  const { updateCard, project, bibKeys, autoFillCardAction, generatingIds } = useEditor(
+  const {
+    updateCard,
+    project,
+    bibKeys,
+    bibEntries,
+    equations,
+    setIsEquationLibraryOpen,
+    setIsBibManagerOpen,
+    setIsScannerOpen,
+    insertCitation,
+    autoFillCardAction,
+    generatingIds,
+    setInspectorTab,
+  } = useEditor(
     useShallow((s) => ({
       updateCard: s.updateCard,
       project: s.project,
       bibKeys: s.bibKeys,
+      bibEntries: s.bibEntries,
+      equations: s.equations,
+      setIsEquationLibraryOpen: s.setIsEquationLibraryOpen,
+      setIsBibManagerOpen: s.setIsBibManagerOpen,
+      setIsScannerOpen: s.setIsScannerOpen,
+      insertCitation: s.insertCitation,
       autoFillCardAction: s.autoFillCardAction,
       generatingIds: s.generatingIds,
+      setInspectorTab: s.setInspectorTab,
     }))
   )
   const ingestFiles = project.ingestFiles || []
@@ -250,59 +265,31 @@ function ContentTab({ card }: { card: Card }) {
   const isGenerating = generatingIds.includes(card.id)
   const contentRef = useRef<HTMLTextAreaElement>(null)
 
-  function insertMarkdown(prefix: string, suffix: string) {
-    const el = contentRef.current
-    if (!el) return
-    const start = el.selectionStart
-    const end = el.selectionEnd
-    const text = card.content
-    const selected = text.slice(start, end)
-    const before = text.slice(0, start)
-    const after = text.slice(end)
-    const replacement = selected || "text"
-    const next = `${before}${prefix}${replacement}${suffix}${after}`
-    updateCard(card.id, { content: next })
-    
-    window.setTimeout(() => {
-      el.focus()
-      el.setSelectionRange(
-        start + prefix.length,
-        start + prefix.length + replacement.length,
-      )
-    }, 0)
-  }
+  const suggestedCitations = useMemo(() => {
+    if (!card.content || !bibEntries || bibEntries.length === 0) return []
+    return suggestCitationsForText(card.content, bibEntries)
+  }, [card.content, bibEntries])
 
   function insertCiteKey(key: string) {
-    const el = contentRef.current
-    if (!el || !key) return
-    const cite = `\\cite{${key}}`
-    const start = el.selectionStart
-    const end = el.selectionEnd
-    const text = card.content
-    const next = text.slice(0, start) + cite + text.slice(end)
+    if (!key) return
+    const current = card.content || ""
+    const tag = `\\cite{${key}}`
+    const next = current ? `${current} ${tag}` : tag
     updateCard(card.id, { content: next })
-    window.setTimeout(() => {
-      el.focus()
-      el.setSelectionRange(start + cite.length, start + cite.length)
-    }, 0)
+  }
+
+  function insertEquationFormula(formula: string) {
+    if (!formula) return
+    const clean = formula.replace(/^\$\$|\$\$$/g, "").trim()
+    const formatted = `$$\n${clean}\n$$`
+    const current = card.content || ""
+    const next = current ? `${current}\n\n${formatted}` : formatted
+    updateCard(card.id, { content: next })
   }
 
   return (
     <div className="flex flex-col gap-3 p-3">
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <FieldLabel hint="markdown supported">Card Content</FieldLabel>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-6 gap-1 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 text-[10px] text-indigo-500 hover:text-indigo-600 border-indigo-500/20"
-            onClick={() => autoFillCardAction(card.id)}
-            disabled={isGenerating || disabled}
-          >
-            {isGenerating ? <Loader2 className="size-3 animate-spin" /> : "✨"}
-            Auto-Fill
-          </Button>
-        </div>
         {disabled ? (
           <p className="rounded-md border border-dashed border-border bg-muted/40 px-2.5 py-3 text-center text-[11px] text-muted-foreground">
             {isReferences
@@ -310,71 +297,76 @@ function ContentTab({ card }: { card: Card }) {
               : "The image-focused pattern has no text content. Switch pattern in Basics to enable."}
           </p>
         ) : (
-          <div className="flex flex-col rounded-md border border-input focus-within:ring-1 focus-within:ring-ring">
-            <div className="flex items-center gap-1 border-b border-border bg-muted/40 p-1">
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => insertMarkdown("**", "**")}
-                title="Bold"
-              >
-                <Bold className="size-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => insertMarkdown("*", "*")}
-                title="Italic"
-              >
-                <Italic className="size-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => insertMarkdown("`", "`")}
-                title="Inline Code"
-              >
-                <CodeIcon className="size-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => insertMarkdown("[", "](url)")}
-                title="Link"
-              >
-                <LinkIcon className="size-3.5" />
-              </Button>
-            </div>
-            <Textarea
-              ref={contentRef}
-              value={card.content}
-              onChange={(e) => updateCard(card.id, { content: e.target.value })}
-              placeholder="Use - or * for bulleted lists..."
-              className="min-h-[16rem] resize-y border-0 text-[13px] shadow-none focus-visible:ring-0"
-            />
-          </div>
+          <RichCardEditor
+            card={card}
+            onUpdateContent={(nextContent) => updateCard(card.id, { content: nextContent })}
+            bibEntries={bibEntries || []}
+            equations={equations || []}
+            onAutoFill={async () => {
+              try {
+                await autoFillCardAction(card.id)
+              } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : "Auto-fill failed"
+                toast.error(msg)
+              }
+            }}
+            isGenerating={isGenerating}
+            onOpenEquationRegistry={() => setIsEquationLibraryOpen(true)}
+            onOpenBibManager={() => setIsBibManagerOpen(true)}
+            disabled={disabled}
+          />
         )}
       </div>
-      {!disabled && bibKeys.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <FieldLabel>Insert cite key</FieldLabel>
-          <select
-            className="h-8 w-full rounded-md border border-input bg-background px-2 text-[12px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            defaultValue=""
-            onChange={(e) => {
-              insertCiteKey(e.target.value)
-              e.target.value = ""
-            }}
-          >
-            <option value="" disabled>
-              — pick a key to insert \cite{'{'}…{'}'} —
-            </option>
-            {bibKeys.map((k) => (
-              <option key={k} value={k}>
-                {k}
-              </option>
+
+      {/* Smart Citation Suggestions */}
+      {!disabled && suggestedCitations.length > 0 && (
+        <div className="rounded-lg border border-border bg-card p-3 space-y-2.5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+              <Sparkles className="size-3.5 text-amber-600 dark:text-amber-400" />
+              <span>Suggested Citations</span>
+            </div>
+            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono font-medium">
+              ({suggestedCitations.length} detected)
+            </span>
+          </div>
+
+          <p className="text-[10px] text-muted-foreground leading-snug">
+            References in your bibliography that match topics or empirical claims mentioned in this card.
+          </p>
+
+          <div className="flex flex-col gap-1.5 pt-0.5">
+            {suggestedCitations.map((sug) => (
+              <div
+                key={sug.bibKey}
+                className="flex items-start justify-between gap-2.5 p-2.5 rounded-md border border-border/80 bg-muted/20 shadow-2xs hover:border-amber-500/30 transition-colors"
+              >
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-mono font-bold text-[10px] text-amber-700 dark:text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                      \cite&#123;{sug.bibKey}&#125;
+                    </span>
+                    <span className="font-semibold text-xs text-foreground truncate max-w-[200px]">
+                      {sug.entry.title}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic leading-snug line-clamp-1">
+                    {sug.reason}
+                  </p>
+                </div>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => insertCitation(sug.bibKey, card.id)}
+                  className="h-6 text-[10px] gap-1 shrink-0 font-medium border-border hover:bg-amber-500/10 hover:text-amber-700 dark:hover:text-amber-300"
+                >
+                  <Plus className="size-3" />
+                  Insert
+                </Button>
+              </div>
             ))}
-          </select>
+          </div>
         </div>
       )}
 
@@ -480,11 +472,27 @@ function TableTab({ card }: { card: Card }) {
       project: s.project,
     }))
   )
+  const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
+  const outputType = activeOutput?.outputType ?? "poster"
+  const tablePattern = outputType === "paper" ? "section-table" : "bullets-table"
+
   const parsedTables = (project.assets || []).filter(a => a.kind === "table" && a.tableRows && a.tableRows.length > 0)
   const table = card.table || { hasHeader: false, caption: "", rows: [] }
   const rows = table.rows || []
   const cols = rows[0]?.length ?? 0
   const enabled = card.pattern === "bullets-table" || card.pattern === "section-table"
+
+  function applyPreset(preset: SampleTablePreset) {
+    updateCard(card.id, {
+      table: {
+        hasHeader: true,
+        caption: preset.caption,
+        rows: preset.rows,
+      },
+      ...(!enabled ? { pattern: tablePattern } : {}),
+    })
+    toast.success(`Populated ${preset.name}`)
+  }
 
   function setCell(r: number, c: number, val: string) {
     const newRows = rows.map((row) => [...row])
@@ -517,55 +525,86 @@ function TableTab({ card }: { card: Card }) {
   return (
     <div className="flex flex-col gap-3 p-3">
       {!enabled && (
-        <p className="rounded-md border border-dashed border-border bg-muted/40 px-2.5 py-2 text-[11px] text-muted-foreground">
-          This pattern does not render a table. Select <span className="font-mono">bullets-table</span> (poster/slides) or <span className="font-mono">section-table</span> (paper) in Basics to include it.
-        </p>
-      )}
-
-      {enabled && parsedTables.length > 0 && (
-        <div className="flex flex-col gap-1.5 rounded-md border border-border bg-muted/20 p-2.5 mb-2">
-          <FieldLabel>Populate from parsed tables</FieldLabel>
-          <Select
-            value=""
-            onValueChange={(val) => {
-              if (!val) return
-              const asset = parsedTables.find(a => a.id === val)
-              if (asset && asset.tableRows) {
-                const parsedRows: string[][] = Array.isArray(asset.tableRows)
-                  ? asset.tableRows
-                  : typeof asset.tableRows === "string"
-                  ? (() => {
-                      try {
-                        const p = JSON.parse(asset.tableRows)
-                        return Array.isArray(p) ? p : []
-                      } catch {
-                        return []
-                      }
-                    })()
-                  : []
-                updateCard(card.id, {
-                  table: {
-                    hasHeader: true,
-                    caption: asset.caption ?? table.caption,
-                    rows: parsedRows,
-                  }
-                })
-              }
-            }}
+        <div className="flex flex-col gap-2 rounded-md border border-dashed border-amber-500/40 bg-amber-500/5 p-2.5">
+          <p className="text-[11px] text-amber-700 dark:text-amber-300">
+            This card pattern (<span className="font-mono">{card.pattern}</span>) does not render a table.
+          </p>
+          <Button
+            size="xs"
+            variant="outline"
+            onClick={() => updateCard(card.id, { pattern: tablePattern })}
+            className="w-fit h-6 text-[10px] gap-1 border-amber-500/30 hover:bg-amber-500/10 text-amber-800 dark:text-amber-200"
           >
-            <SelectTrigger size="sm" className="w-full bg-card text-[11px] h-7">
-              <SelectValue placeholder="Select a parsed table..." />
-            </SelectTrigger>
-            <SelectContent>
-              {parsedTables.map(t => (
-                <SelectItem key={t.id} value={t.id} className="text-[11px]">
-                  {t.filename ? `${t.filename} - ` : ""} {t.caption || `Table from p.${t.page}`}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Table2 className="size-3" /> Enable Table Pattern ({tablePattern})
+          </Button>
         </div>
       )}
+
+      {/* Select Dropdown for Parsed Tables + Sample Presets */}
+      <div className="flex flex-col gap-1.5 rounded-md border border-border bg-muted/20 p-2.5">
+        <FieldLabel>Populate from parsed or sample tables</FieldLabel>
+        <Select
+          value=""
+          onValueChange={(val) => {
+            if (!val) return
+            // Check sample presets first
+            const sample = SAMPLE_TABLE_PRESETS.find(p => p.id === val)
+            if (sample) {
+              applyPreset(sample)
+              return
+            }
+            // Check parsed tables from assets
+            const asset = parsedTables.find(a => a.id === val)
+            if (asset && asset.tableRows) {
+              const parsedRows: string[][] = Array.isArray(asset.tableRows)
+                ? asset.tableRows
+                : typeof asset.tableRows === "string"
+                ? (() => {
+                    try {
+                      const p = JSON.parse(asset.tableRows)
+                      return Array.isArray(p) ? p : []
+                    } catch {
+                      return []
+                    }
+                  })()
+                : []
+              updateCard(card.id, {
+                table: {
+                  hasHeader: true,
+                  caption: asset.caption ?? table.caption,
+                  rows: parsedRows,
+                },
+                ...(!enabled ? { pattern: tablePattern } : {}),
+              })
+              toast.success("Populated table from asset")
+            }
+          }}
+        >
+          <SelectTrigger size="sm" className="w-full bg-card text-[11px] h-7">
+            <SelectValue placeholder="Choose a table preset or ingested table..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectLabel className="text-[10px] text-muted-foreground uppercase">Sample Table Presets (5)</SelectLabel>
+              {SAMPLE_TABLE_PRESETS.map((p) => (
+                <SelectItem key={p.id} value={p.id} className="text-[11px]">
+                  📊 {p.name} — {p.caption}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+            {parsedTables.length > 0 && (
+              <SelectGroup>
+                <SelectLabel className="text-[10px] text-muted-foreground uppercase">Parsed Tables ({parsedTables.length})</SelectLabel>
+                {parsedTables.map((t) => (
+                  <SelectItem key={t.id} value={t.id} className="text-[11px]">
+                    {t.filename ? `${t.filename} - ` : ""} {t.caption || `Table from p.${t.page}`}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            )}
+          </SelectContent>
+        </Select>
+      </div>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

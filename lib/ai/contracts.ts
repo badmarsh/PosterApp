@@ -198,4 +198,65 @@ export const VisionCaptionSchema = z.preprocess((raw: any) => {
 }))
 export type VisionCaptionResult = z.infer<typeof VisionCaptionSchema>
 
+// 8. Vision OCR & Multimodal Document Extraction
+export const VisionOcrEquationSchema = z.preprocess((item: any) => {
+  if (typeof item === "string") {
+    return { formula: item, name: "Equation" }
+  }
+  if (item && typeof item === "object") {
+    return {
+      key: item.key || undefined,
+      name: item.name || item.title || "Equation",
+      formula: String(item.formula || item.latex || item.math || ""),
+      description: item.description || item.meaning || undefined,
+    }
+  }
+  return item
+}, z.object({
+  key: z.string().optional(),
+  name: z.string().optional().default("Equation"),
+  formula: z.string(),
+  description: z.string().optional(),
+}))
+
+export const VisionOcrTableSchema = z.preprocess((item: any) => {
+  if (item && typeof item === "object") {
+    return {
+      caption: item.caption || item.title || "",
+      markdown: item.markdown || item.text || "",
+      rows: Array.isArray(item.rows) ? item.rows : undefined,
+    }
+  }
+  return item
+}, z.object({
+  caption: z.string().optional().default(""),
+  markdown: z.string().optional().default(""),
+  rows: z.array(z.array(z.string())).optional(),
+}))
+
+export const VisionOcrSchema = z.preprocess((raw: any) => {
+  if (raw && typeof raw === "object") {
+    const equations = raw.equations || raw.formulas || raw.math || []
+    const tables = raw.tables || (raw.table ? [raw.table] : [])
+    return {
+      text: String(raw.text || raw.transcription || raw.content || raw.markdown || ""),
+      mode: raw.mode || "auto",
+      title: raw.title || raw.name || "Scanned Content",
+      summary: raw.summary || raw.description || "",
+      equations: Array.isArray(equations) ? equations : [],
+      tables: Array.isArray(tables) ? tables : [],
+    }
+  }
+  return raw
+}, z.object({
+  text: z.string().default(""),
+  mode: z.enum(["auto", "equation", "table", "text", "figure"]).catch("auto"),
+  title: z.string().optional().default("Scanned Content"),
+  summary: z.string().optional().default(""),
+  equations: z.array(VisionOcrEquationSchema).default([]),
+  tables: z.array(VisionOcrTableSchema).default([]),
+}))
+export type VisionOcrResult = z.infer<typeof VisionOcrSchema>
+
+
 

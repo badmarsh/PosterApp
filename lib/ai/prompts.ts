@@ -41,7 +41,7 @@ export function sanitizeCiteKeys(
  */
 export function wrapUntrustedContext(tag: string, content: string): string {
   if (!content) return `<${tag}>\n</${tag}>`
-  const escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const escapedTag = tag.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")
   const closeTagRegex = new RegExp(`</\\s*${escapedTag}\\s*>`, "gi")
   const sanitized = content.replace(closeTagRegex, `< /${tag}>`)
   return `<${tag}>\n${sanitized}\n</${tag}>`

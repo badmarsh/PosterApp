@@ -11,6 +11,7 @@ export const DEFAULT_AI_MODELS = {
   review: "gemini-3-flash",
   reviewLayout: "qwen3-vl-flash",
   vision: "qwen3-vl-flash",
+  ocr: "qwen3-vl-flash",
   chat: "gemini-3-flash",
   bibtex: "gemini-3-flash",
   labeler: "gemini-3-flash",
@@ -21,6 +22,7 @@ export type AiModelRole = keyof typeof DEFAULT_AI_MODELS
 
 export const AI_TIMEOUTS = {
   vision: 60_000,
+  ocr: 90_000,
   bibtex: 45_000,
   labeler: 45_000,
   structure: 60_000,
@@ -58,6 +60,8 @@ export function resolveAiModel(role: AiModelRole = "default"): string {
   switch (role) {
     case "vision":
       return process.env.AI_VISION_MODEL || DEFAULT_AI_MODELS.vision
+    case "ocr":
+      return process.env.AI_OCR_MODEL || process.env.AI_VISION_MODEL || DEFAULT_AI_MODELS.ocr
     case "generation":
       return process.env.AI_GENERATION_MODEL || process.env.AI_MODEL || DEFAULT_AI_MODELS.generation
     case "structure":

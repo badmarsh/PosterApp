@@ -19,6 +19,9 @@ import {
   CodeIcon,
   Clock,
   Loader2,
+  Camera,
+  FileArchive,
+  Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -93,7 +96,7 @@ export function TopBar({
   onToggleAgent,
   onOpenWorkspaceSelector,
 }: TopBarProps) {
-  const { project, pushEvent, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen, collabEnabled, setCollabEnabled, duplicateProject, newProject, saveProject, isDirty, isSaving } = useEditor(
+  const { project, pushEvent, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen, setIsScannerOpen, collabEnabled, setCollabEnabled, duplicateProject, newProject, saveProject, isDirty, isSaving, pdfData } = useEditor(
     useShallow((s) => ({
       project: s.project,
       pushEvent: s.pushEvent,
@@ -109,6 +112,7 @@ export function TopBar({
       toggleLatexSource: s.toggleLatexSource,
       isHistoryOpen: s.isHistoryOpen,
       setIsHistoryOpen: s.setIsHistoryOpen,
+      setIsScannerOpen: s.setIsScannerOpen,
       collabEnabled: s.collabEnabled,
       setCollabEnabled: s.setCollabEnabled,
       duplicateProject: s.duplicateProject,
@@ -116,6 +120,7 @@ export function TopBar({
       saveProject: s.saveProject,
       isDirty: s.isDirty,
       isSaving: s.isSaving,
+      pdfData: s.pdfData,
     }))
   )
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
@@ -239,12 +244,16 @@ export function TopBar({
             <Button
               variant="outline"
               size="sm"
-              className={cn("mr-1", isDirty && "border-primary text-primary")}
+              className={cn("h-8 gap-1.5 mr-1", isDirty && "border-primary text-primary")}
               disabled={!isDirty || isSaving}
               onClick={() => saveProject()}
             >
-              {isSaving ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Save className="size-4 mr-1.5" />}
-              {isDirty ? "Save changes" : "Saved"}
+              {isSaving ? (
+                <Loader2 className="size-3.5 animate-spin text-primary" />
+              ) : (
+                <Save className="size-3.5 text-primary" />
+              )}
+              <span>{isDirty ? "Save changes" : "Saved"}</span>
             </Button>
           }
         />
@@ -259,17 +268,77 @@ export function TopBar({
           onClick={openIngestion}
           aria-label="Ingest source PDFs"
         >
-          <FileStack className="size-3.5" />
+          <FileStack className="size-3.5 text-primary" />
           <span className="hidden md:inline">Ingest</span>
         </Button>
 
         <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5"
+          onClick={() => setIsScannerOpen(true)}
+          aria-label="Scan Image / OCR"
+        >
+          <Camera className="size-3.5 text-primary" />
+          <span className="hidden md:inline">Scan / OCR</span>
+        </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5"
+                aria-label="Export options"
+              >
+                <Download className="size-3.5 text-primary" />
+                <span className="hidden md:inline">Export</span>
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem
+              onClick={() => window.open(`/api/workspaces/${project.id}/export`, "_blank")}
+              className="cursor-pointer gap-2 py-2"
+            >
+              <FileArchive className="size-4 text-primary" />
+              <div className="flex flex-col">
+                <span className="font-semibold text-xs text-foreground">Overleaf &amp; LaTeX ZIP</span>
+                <span className="text-[10px] text-muted-foreground">main.tex + .bib + assets folder</span>
+              </div>
+            </DropdownMenuItem>
+            {pdfData && (
+              <DropdownMenuItem
+                onClick={() => {
+                  const blob = new Blob([pdfData], { type: "application/pdf" })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement("a")
+                  a.href = url
+                  a.download = `${project.name.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}.pdf`
+                  a.click()
+                  URL.revokeObjectURL(url)
+                }}
+                className="cursor-pointer gap-2 py-2"
+              >
+                <FileText className="size-4 text-primary" />
+                <div className="flex flex-col">
+                  <span className="font-semibold text-xs text-foreground">Download PDF</span>
+                  <span className="text-[10px] text-muted-foreground">Latest compiled preview</span>
+                </div>
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Button
           variant={collabEnabled ? "default" : "outline"}
           size="sm"
-          className={cn("h-8 gap-1.5 mx-2", collabEnabled ? "bg-green-600 hover:bg-green-700 text-white" : "text-muted-foreground")}
+          className={cn("h-8 gap-1.5 mx-1", collabEnabled ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "")}
           onClick={() => setCollabEnabled(!collabEnabled)}
         >
-          Live Collab {collabEnabled ? "ON" : "OFF"}
+          <Users className={cn("size-3.5", collabEnabled ? "text-white" : "text-primary")} />
+          <span className="hidden md:inline">Live Collab</span>
         </Button>
         
         <div className="flex -space-x-2 mr-2">

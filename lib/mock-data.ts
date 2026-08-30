@@ -311,21 +311,137 @@ export const sampleProject: Project = {
       fileId: "file_1",
       kind: "equation",
       page: 2,
-      confidence: "medium",
-      snippet: "\\mathcal{L}(\\theta, \\phi) = \\mathbb{E}_{q_\\phi(z|x)} [\\log p_\\theta(x|z)] - D_{\\text{KL}}(q_\\phi(z|x) || p(z))"
+      confidence: "high",
+      heading: "eq:elbo_variational",
+      caption: "Evidence Lower Bound (ELBO)",
+      snippet: "\\mathcal{L}(\\theta, \\phi) = \\mathbb{E}_{q_\\phi(z|x)} \\left[ \\log p_\\theta(x|z) \\right] - D_{\\text{KL}}\\left( q_\\phi(z|x) \\parallel p(z) \\right)",
+      section: "Variational inference objective balancing reconstruction log-likelihood against KL prior divergence."
     },
     {
-      id: "asset_table_1",
+      id: "asset_eq_2",
+      fileId: "file_1",
+      kind: "equation",
+      page: 3,
+      confidence: "high",
+      heading: "eq:attention_transformer",
+      caption: "Scaled Dot-Product Attention",
+      snippet: "\\text{Attention}(Q, K, V) = \\text{softmax}\\left( \\frac{Q K^\\top}{\\sqrt{d_k}} \\right) V",
+      section: "Transformer self-attention mechanism with query-key scaling factor sqrt(d_k)."
+    },
+    {
+      id: "asset_eq_3",
+      fileId: "file_1",
+      kind: "equation",
+      page: 4,
+      confidence: "high",
+      heading: "eq:euler_lagrange",
+      caption: "Euler-Lagrange Equation of Motion",
+      snippet: "\\frac{d}{dt} \\left( \\frac{\\partial \\mathcal{L}}{\\partial \\dot{q}} \\right) - \\frac{\\partial \\mathcal{L}}{\\partial q} = Q_{\\text{nc}}",
+      section: "Physics-informed Lagrangian dynamics governing generalized coordinates and non-conservative forces."
+    },
+    {
+      id: "asset_eq_4",
+      fileId: "file_1",
+      kind: "equation",
+      page: 5,
+      confidence: "high",
+      heading: "eq:cross_entropy",
+      caption: "Categorical Cross-Entropy Loss",
+      snippet: "\\mathcal{L}_{\\text{CE}} = - \\frac{1}{N} \\sum_{i=1}^N \\sum_{c=1}^C y_{i,c} \\log \\hat{y}_{i,c}",
+      section: "Logarithmic classification loss penalizing divergence from ground-truth class labels."
+    },
+    {
+      id: "asset_eq_5",
+      fileId: "file_1",
+      kind: "equation",
+      page: 6,
+      confidence: "high",
+      heading: "eq:bellman_optimality",
+      caption: "Bellman Optimality Equation",
+      snippet: "Q^*(s, a) = R(s, a) + \\gamma \\max_{a'} \\mathbb{E}_{s' \\sim P(\\cdot|s, a)} \\left[ Q^*(s', a') \\right]",
+      section: "Dynamic programming recurrence for the optimal state-action value function in reinforcement learning."
+    },
+    {
+      id: "table_sample_benchmark",
       fileId: "file_1",
       kind: "table",
       page: 5,
       confidence: "high",
-      caption: "Success rates across tasks.",
+      heading: "Benchmark Success Rates",
+      caption: "Table 1: Policy Success Rate Across Manipulation Benchmarks",
       tableRows: [
-        ["Task", "Baseline", "Ours"],
-        ["Push", "89%", "95%"],
-        ["Stack", "55%", "82%"],
-        ["CableRoute", "30%", "78%"]
+        ["Task", "DDPG Baseline", "SAC Baseline", "DreamerV3", "Ours (Latent Dyn.)"],
+        ["Push", "82.4%", "89.1%", "91.5%", "96.8% ± 0.4%"],
+        ["Stack Cube", "48.2%", "55.0%", "73.4%", "84.2% ± 0.8%"],
+        ["Peg Insert", "31.5%", "42.8%", "61.0%", "79.5% ± 1.1%"],
+        ["Door Open", "67.0%", "74.3%", "88.2%", "94.6% ± 0.5%"],
+        ["Cable Route", "18.3%", "30.1%", "54.8%", "78.2% ± 1.4%"]
+      ]
+    },
+    {
+      id: "table_sample_complexity",
+      fileId: "file_1",
+      kind: "table",
+      page: 6,
+      confidence: "high",
+      heading: "Model Architecture & Latency Profile",
+      caption: "Table 2: Model Architecture and Inference Latency Profile",
+      tableRows: [
+        ["Model Variant", "Params (M)", "FLOPs (G)", "Latency (ms)", "Throughput (fps)"],
+        ["Latent-Tiny", "14.2", "3.8", "4.2 ms", "238"],
+        ["Latent-Base", "48.6", "12.4", "9.8 ms", "102"],
+        ["Latent-Large", "124.0", "34.6", "21.5 ms", "46"],
+        ["Latent-XL (Ensemble)", "310.5", "88.2", "48.0 ms", "21"]
+      ]
+    },
+    {
+      id: "table_sample_ablation",
+      fileId: "file_1",
+      kind: "table",
+      page: 7,
+      confidence: "high",
+      heading: "Component Ablation Study",
+      caption: "Table 3: Component Ablation Study on Latent State Estimation",
+      tableRows: [
+        ["Ablation Configuration", "ELBO Loss", "Recon RMSE", "Success Rate (%)", "Sample Eff. (+%)"],
+        ["Full Architecture (Ours)", "-14.2", "0.042", "86.7%", "+28.4%"],
+        ["w/o Lagrangian Prior", "-22.8", "0.078", "73.1%", "+12.1%"],
+        ["w/o Hindsight Relabeling", "-18.5", "0.061", "68.4%", "+8.5%"],
+        ["w/o Recurrent Latent Unit", "-35.1", "0.114", "52.0%", "-4.2%"],
+        ["Standard VAE Baseline", "-48.6", "0.165", "41.8%", "0.0%"]
+      ]
+    },
+    {
+      id: "table_sample_hyperparams",
+      fileId: "file_1",
+      kind: "table",
+      page: 8,
+      confidence: "high",
+      heading: "Hyperparameters & Training Settings",
+      caption: "Table 4: Key Hyperparameter & Training Settings",
+      tableRows: [
+        ["Hyperparameter", "Symbol", "Search Range", "Selected Value"],
+        ["Learning Rate", "α", "[1e-5, 1e-3]", "3e-4 (AdamW)"],
+        ["Discount Factor", "γ", "[0.95, 0.999]", "0.99"],
+        ["KL Divergence Weight", "β", "[0.01, 1.0]", "0.1 (annealed)"],
+        ["Batch Size", "B", "[64, 512]", "256"],
+        ["Latent State Dimension", "d_z", "[32, 256]", "128"]
+      ]
+    },
+    {
+      id: "table_sample_dataset",
+      fileId: "file_1",
+      kind: "table",
+      page: 9,
+      confidence: "high",
+      heading: "Demonstration Dataset Statistics",
+      caption: "Table 5: Demonstration Dataset Statistics & Partitions",
+      tableRows: [
+        ["Task Domain", "Episodes", "Total Steps", "Train / Val / Test", "Expert Success"],
+        ["RoboSuite Tabletop", "1,200", "480,000", "80% / 10% / 10%", "98.5%"],
+        ["Meta-World v2", "2,500", "1,250,000", "70% / 15% / 15%", "95.2%"],
+        ["D4RL Manipulation", "800", "320,000", "80% / 10% / 10%", "92.0%"],
+        ["Real Robot Demonstrations", "350", "140,000", "80% / 10% / 10%", "91.4%"]
       ]
     }
   ],

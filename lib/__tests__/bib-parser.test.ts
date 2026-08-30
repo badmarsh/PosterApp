@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { parseBibKeys, formatCiteKey, extractCiteKeys } from "../bib-parser"
+import { parseBibEntries, formatBibEntry, slugifyCiteKey } from "../bib-types"
 
 describe("BibParser", () => {
   describe("parseBibKeys", () => {
@@ -46,6 +47,50 @@ describe("BibParser", () => {
 
     it("deduplicates repeated keys", () => {
       expect(extractCiteKeys("This is \\cite{A,B} and \\cite{B,C}")).toEqual(["A", "B", "C"])
+    })
+  })
+
+  describe("parseBibEntries & formatBibEntry", () => {
+    it("parses structured BibEntry objects from raw BibTeX", () => {
+      const bib = `
+@article{ATLAS2008,
+  author = {ATLAS Collaboration},
+  title = {The ATLAS Experiment at the CERN Large Hadron Collider},
+  journal = {JINST},
+  volume = {3},
+  pages = {S08003},
+  year = {2008},
+  doi = {10.1088/1748-0221/3/08/S08003}
+}
+      `
+      const entries = parseBibEntries(bib)
+      expect(entries).toHaveLength(1)
+      expect(entries[0].key).toBe("ATLAS2008")
+      expect(entries[0].type).toBe("article")
+      expect(entries[0].title).toBe("The ATLAS Experiment at the CERN Large Hadron Collider")
+      expect(entries[0].authorString).toBe("ATLAS Collaboration")
+      expect(entries[0].year).toBe("2008")
+      expect(entries[0].doi).toBe("10.1088/1748-0221/3/08/S08003")
+    })
+
+    it("formats a BibEntry object into valid BibTeX string", () => {
+      const formatted = formatBibEntry({
+        key: "smith2024_neural",
+        type: "article",
+        title: "Neural Networks for Physics",
+        authorString: "Smith, John and Doe, Jane",
+        journal: "Nature",
+        year: "2024",
+      })
+      expect(formatted).toContain("@article{smith2024_neural,")
+      expect(formatted).toContain("title = {Neural Networks for Physics}")
+      expect(formatted).toContain("author = {Smith, John and Doe, Jane}")
+      expect(formatted).toContain("year = {2024}")
+    })
+
+    it("generates clean cite keys from author and title", () => {
+      const key = slugifyCiteKey("Aad, Georges", "2012", "Observation of a new particle")
+      expect(key).toBe("aad2012_observation_of")
     })
   })
 })

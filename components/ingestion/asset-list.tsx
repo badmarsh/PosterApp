@@ -1,10 +1,21 @@
 "use client"
 
 import { useState, useMemo, memo } from "react"
-import { Trash2, Wand2, ListFilter, File, Sparkles, Loader2, Search, XCircle } from "lucide-react"
+import {
+  Trash2,
+  ListFilter,
+  Sparkles,
+  Loader2,
+  Search,
+  XCircle,
+  Quote,
+  Copy,
+  Check,
+  BookOpen,
+  PlusCircle,
+} from "lucide-react"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
-import { Skeleton } from "@/components/ui/skeleton"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,6 +27,8 @@ import {
   type AssetKind,
   type ExtractedAsset,
 } from "@/lib/ingestion"
+import type { BibEntry } from "@/lib/bib-types"
+import { formatBibEntry } from "@/lib/bib-types"
 import {
   AssetKindIcon,
   ConfidenceMeter,
@@ -23,7 +36,9 @@ import {
 import { FigureEditor } from "@/components/ingestion/figure-editor"
 import { PromotePopover } from "@/components/ingestion/promote-popover"
 
-const KIND_ORDER: AssetKind[] = ["text", "figure", "table", "equation"]
+export type IngestionTabFilter = "all" | "figure" | "table" | "equation" | "citation"
+
+const KIND_ORDER: AssetKind[] = ["figure", "table", "equation", "text"]
 
 function OriginLabel({ asset }: { asset: ExtractedAsset }) {
   const parts = [`p.${asset.page}`]
@@ -120,6 +135,127 @@ function TablePreview({ rows }: { rows: string[][] | string | undefined | null }
   )
 }
 
+const CitationRow = memo(function CitationRow({ entry }: { entry: BibEntry }) {
+  const [copiedKey, setCopiedKey] = useState(false)
+  const [copiedBib, setCopiedBib] = useState(false)
+  const { selectedCardId, insertCitation, pushEvent } = useEditor(
+    useShallow((s) => ({
+      selectedCardId: s.selectedCardId,
+      insertCitation: s.insertCitation,
+      pushEvent: s.pushEvent,
+    }))
+  )
+
+  const handleCopyCite = () => {
+    navigator.clipboard.writeText(`\\cite{${entry.key}}`)
+    setCopiedKey(true)
+    setTimeout(() => setCopiedKey(false), 1500)
+    pushEvent({
+      kind: "info",
+      status: "done",
+      title: "Citation Copied",
+      detail: `\\cite{${entry.key}} copied to clipboard`,
+    })
+  }
+
+  const handleCopyBibTeX = () => {
+    const raw = formatBibEntry(entry)
+    navigator.clipboard.writeText(raw)
+    setCopiedBib(true)
+    setTimeout(() => setCopiedBib(false), 1500)
+    pushEvent({
+      kind: "info",
+      status: "done",
+      title: "BibTeX Copied",
+      detail: `@${entry.type || "article"}{${entry.key}} copied to clipboard`,
+    })
+  }
+
+  const handleInsert = () => {
+    if (!selectedCardId) return
+    insertCitation(selectedCardId, entry.key)
+  }
+
+  return (
+    <div className="rounded-md border border-border bg-card p-2.5 transition-colors hover:border-muted-foreground/30 shadow-2xs space-y-1.5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-mono text-[9px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20">
+              @{entry.type || "article"}
+            </span>
+            <span className="font-mono text-[10px] font-medium text-foreground bg-muted px-1.5 py-0.5 rounded">
+              {entry.key}
+            </span>
+            {entry.year && (
+              <span className="font-mono text-[10px] text-muted-foreground">
+                ({entry.year})
+              </span>
+            )}
+          </div>
+
+          <h5 className="mt-1 text-[11px] font-medium text-foreground leading-tight line-clamp-2">
+            {entry.title || "Untitled Paper"}
+          </h5>
+
+          {(entry.authorString || (entry.authors && entry.authors.length > 0)) && (
+            <p className="mt-0.5 text-[10px] text-muted-foreground line-clamp-1">
+              {entry.authorString || entry.authors.join(", ")}
+            </p>
+          )}
+
+          {(entry.journal || entry.booktitle) && (
+            <p className="mt-0.5 text-[9px] italic text-muted-foreground/80 line-clamp-1">
+              {entry.journal || entry.booktitle}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-1 pt-1 border-t border-border/60">
+        <div className="flex items-center gap-1">
+          <Button
+            size="xs"
+            variant="outline"
+            className="h-6 px-1.5 text-[9px] gap-1"
+            onClick={handleCopyCite}
+            title="Copy LaTeX cite command"
+          >
+            {copiedKey ? <Check className="size-2.5 text-emerald-500" /> : <Copy className="size-2.5" />}
+            <span>\cite</span>
+          </Button>
+          <Button
+            size="xs"
+            variant="ghost"
+            className="h-6 px-1.5 text-[9px] gap-1 text-muted-foreground hover:text-foreground"
+            onClick={handleCopyBibTeX}
+            title="Copy raw BibTeX entry"
+          >
+            {copiedBib ? <Check className="size-2.5 text-emerald-500" /> : <Copy className="size-2.5" />}
+            <span>BibTeX</span>
+          </Button>
+        </div>
+
+        {selectedCardId ? (
+          <Button
+            size="xs"
+            variant="secondary"
+            className="h-6 px-2 text-[10px] gap-1 font-medium bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20"
+            onClick={handleInsert}
+          >
+            <PlusCircle className="size-3" />
+            <span>Cite in Card</span>
+          </Button>
+        ) : (
+          <span className="text-[9px] text-muted-foreground italic">
+            Select a card to insert
+          </span>
+        )}
+      </div>
+    </div>
+  )
+})
+
 const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
   const discardAsset = useEditor((s) => s.discardAsset)
   const [editing, setEditing] = useState(false)
@@ -150,7 +286,6 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
         )}
 
         <div className="min-w-0 flex-1">
-
           {/* body */}
           {asset.kind === "text" && (
             <>
@@ -201,33 +336,37 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
           )}
           {asset.kind === "equation" && (
             <div className="mt-1">
-              {asset.caption ? (
-                <p className="mb-1 line-clamp-2 text-[11px] font-medium leading-tight">
-                  <OriginLabel asset={asset} /> <span className="ml-1">{asset.caption}</span>
-                </p>
-              ) : (
-                <div className="mb-1"><OriginLabel asset={asset} /></div>
-              )}
+              <div className="mb-1 flex items-center gap-1.5 flex-wrap">
+                <OriginLabel asset={asset} />
+                {asset.heading && (
+                  <span className="font-mono text-[9px] font-semibold text-primary bg-primary/10 px-1.5 py-px rounded border border-primary/20">
+                    {asset.heading}
+                  </span>
+                )}
+                {asset.caption && (
+                  <span className="text-[11px] font-medium text-foreground">
+                    {asset.caption}
+                  </span>
+                )}
+              </div>
               <EquationPreview formula={asset.snippet || asset.caption || ""} />
             </div>
           )}
         </div>
-      </div>
 
-      {/* actions */}
-      <div className="mt-2 flex items-center gap-1.5">
-        {asset.kind === "figure" && (
-          <Button
-            size="xs"
-            variant="outline"
-            className="h-6 gap-1 px-1.5 text-[10px]"
-            onClick={() => setEditing(true)}
-          >
-            <Wand2 className="size-3 text-primary" /> Edit
-          </Button>
-        )}
-        <div className="flex-1" />
-        <div className="flex items-center gap-1.5">
+        {/* actions */}
+        <div className="flex shrink-0 items-center gap-1">
+          {asset.kind === "figure" && (
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              aria-label="Edit figure"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setEditing(true)}
+            >
+              <Sparkles className="size-3" />
+            </Button>
+          )}
           <PromotePopover asset={asset} />
           <Button
             size="icon-xs"
@@ -249,18 +388,33 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
 })
 
 export function AssetList() {
-  const project = useEditor((s) => s.project)
-  const removeFile = useEditor((s) => s.removeFile)
-  const removeAllLegacyAssets = useEditor((s) => s.removeAllLegacyAssets)
-  const backfillCaptions = useEditor((s) => s.backfillCaptions)
+  const {
+    project,
+    bibEntries,
+    removeFile,
+    removeAllLegacyAssets,
+    backfillCaptions,
+    setIsBibManagerOpen,
+  } = useEditor(
+    useShallow((s) => ({
+      project: s.project,
+      bibEntries: s.bibEntries || [],
+      removeFile: s.removeFile,
+      removeAllLegacyAssets: s.removeAllLegacyAssets,
+      backfillCaptions: s.backfillCaptions,
+      setIsBibManagerOpen: s.setIsBibManagerOpen,
+    }))
+  )
+
   const [isBackfilling, setIsBackfilling] = useState(false)
   const assets = project.assets || []
   const ingestFiles = project.ingestFiles || []
 
-  const [fileFilters, setFileFilters] = useState<Record<string, AssetKind | "all">>({})
+  const [activeTab, setActiveTab] = useState<IngestionTabFilter>("all")
+  const [fileFilters, setFileFilters] = useState<Record<string, IngestionTabFilter>>({})
   const [searchQuery, setSearchQuery] = useState("")
 
-  const getFilter = (id: string) => fileFilters[id] || "all"
+  const getFilter = (id: string) => fileFilters[id] || activeTab || "all"
 
   const normalizedQuery = searchQuery.trim().toLowerCase()
   const matchesSearch = (a: Asset) => {
@@ -274,6 +428,16 @@ export function AssetList() {
     return Boolean(captionMatch || snippetMatch || headingMatch || filenameMatch || pageMatch || tableMatch)
   }
 
+  const matchesBibSearch = (b: BibEntry) => {
+    if (!normalizedQuery) return true
+    const keyMatch = b.key.toLowerCase().includes(normalizedQuery)
+    const titleMatch = b.title?.toLowerCase().includes(normalizedQuery)
+    const authorMatch = (b.authorString || b.authors?.join(", "))?.toLowerCase().includes(normalizedQuery)
+    const journalMatch = (b.journal || b.booktitle)?.toLowerCase().includes(normalizedQuery)
+    const yearMatch = b.year?.toLowerCase().includes(normalizedQuery)
+    return Boolean(keyMatch || titleMatch || authorMatch || journalMatch || yearMatch)
+  }
+
   const handleBackfill = async () => {
     setIsBackfilling(true)
     try {
@@ -283,16 +447,37 @@ export function AssetList() {
     }
   }
 
+  // Filtered citations
+  const filteredBibEntries = useMemo(() => {
+    return bibEntries.filter(matchesBibSearch)
+  }, [bibEntries, normalizedQuery])
+
+  // Count stats
+  const figuresCount = assets.filter((a) => a.kind === "figure").length
+  const tablesCount = assets.filter((a) => a.kind === "table").length
+  const equationsCount = assets.filter((a) => a.kind === "equation").length
+  const textCount = assets.filter((a) => a.kind === "text").length
+  const citationsCount = bibEntries.length
+
   // Group assets by fileId
   const groups = ingestFiles
     .map((file) => {
       const allItems = assets.filter((a: Asset) => a.fileId === file.id)
       let items = allItems.filter(matchesSearch)
       const fKind = getFilter(file.id)
-      if (fKind !== "all") {
+      if (fKind !== "all" && fKind !== "citation") {
         items = items.filter((a) => a.kind === fKind)
       }
-      return { file, items, totalCount: allItems.length, filteredCount: items.length }
+      return {
+        file,
+        items,
+        totalCount: allItems.length,
+        filteredCount: items.length,
+        figuresCount: allItems.filter((a) => a.kind === "figure").length,
+        tablesCount: allItems.filter((a) => a.kind === "table").length,
+        equationsCount: allItems.filter((a) => a.kind === "equation").length,
+        textCount: allItems.filter((a) => a.kind === "text").length,
+      }
     })
     .filter((g) => g.totalCount > 0)
 
@@ -301,22 +486,32 @@ export function AssetList() {
   )
   let legacyAssets = allLegacyAssets.filter(matchesSearch)
   const legacyFilter = getFilter("legacy")
-  if (legacyFilter !== "all") {
+  if (legacyFilter !== "all" && legacyFilter !== "citation") {
     legacyAssets = legacyAssets.filter((a) => a.kind === legacyFilter)
   }
 
-  const matchingAssetsCount = groups.reduce((acc, g) => acc + g.filteredCount, 0) + legacyAssets.length
+  const matchingAssetsCount =
+    groups.reduce((acc, g) => acc + g.filteredCount, 0) +
+    legacyAssets.length +
+    (activeTab === "citation" || activeTab === "all" ? filteredBibEntries.length : 0)
 
   const defaultOpen = groups.length > 0 ? groups[0].file.id : "legacy"
   const [openSection, setOpenSection] = useState<string | null>(defaultOpen)
 
-  if (!assets.length) {
+  const tabOptions: { id: IngestionTabFilter; label: string; count: number; icon: React.ReactNode }[] = [
+    { id: "all", label: "All", count: assets.length + citationsCount, icon: <ListFilter className="size-3" /> },
+    { id: "figure", label: "Figures", count: figuresCount, icon: <AssetKindIcon kind="figure" className="size-3" /> },
+    { id: "table", label: "Tables", count: tablesCount, icon: <AssetKindIcon kind="table" className="size-3" /> },
+    { id: "equation", label: "Equations", count: equationsCount, icon: <AssetKindIcon kind="equation" className="size-3" /> },
+    { id: "citation", label: "Citations", count: citationsCount, icon: <AssetKindIcon kind="citation" className="size-3" /> },
+  ]
+
+  if (!assets.length && !citationsCount) {
     return (
       <div className="flex flex-col items-center gap-1.5 rounded-md border border-dashed border-border px-4 py-10 text-center">
-        <p className="text-[12px] font-medium">No extracted assets yet</p>
+        <p className="text-[12px] font-medium">No extracted assets or citations yet</p>
         <p className="text-[11px] text-muted-foreground">
-          Upload a PDF above — parsed text, figures, and tables will appear here
-          ready to promote into cards.
+          Upload a paper or preprint above — figures, tables, equations, citations, and text will appear here.
         </p>
       </div>
     )
@@ -334,7 +529,7 @@ export function AssetList() {
             <h5 className="text-[10px] font-semibold uppercase tracking-wide">
               {ASSET_KIND_LABEL[kind]}
             </h5>
-            <span className="font-mono text-[9px]">{items.length}</span>
+            <span className="font-mono text-[9px]">({items.length})</span>
           </div>
           <div className="flex flex-col gap-1.5">
             {items.map((a) => (
@@ -348,14 +543,14 @@ export function AssetList() {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Search and stats bar */}
+      {/* 1. Global Search and Backfill Bar */}
       <div className="flex flex-col gap-2">
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search figures, tables, text, formulas..."
+            placeholder="Search figures, tables, equations, citations..."
             className="h-8 pl-8 pr-8 text-xs bg-card"
           />
           {searchQuery && (
@@ -369,192 +564,320 @@ export function AssetList() {
           )}
         </div>
 
+        {/* 2. Interactive Modality Filter Tabs (Figures, Tables, Equations, Citations, Text, All) */}
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-thin">
+          {tabOptions.map((tab) => {
+            const isActive = activeTab === tab.id
+            return (
+              <Button
+                key={tab.id}
+                variant={isActive ? "secondary" : "ghost"}
+                size="sm"
+                className={cn(
+                  "h-7 px-2 text-[11px] shrink-0 gap-1.5 border transition-all",
+                  isActive
+                    ? "bg-card border-border font-medium text-foreground shadow-2xs"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                )}
+                onClick={() => {
+                  setActiveTab(tab.id)
+                  // Synchronize per-group filters
+                  setFileFilters({})
+                }}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+                <span className={cn(
+                  "font-mono text-[9px] px-1 py-0.2 rounded-full",
+                  isActive ? "bg-primary/15 text-primary font-semibold" : "bg-muted text-muted-foreground"
+                )}>
+                  {tab.count}
+                </span>
+              </Button>
+            )
+          })}
+        </div>
+
         <div className="flex items-center justify-between px-1">
           <span className="text-[11px] font-medium text-muted-foreground">
             {searchQuery
-              ? `${matchingAssetsCount} of ${assets.length} assets`
-              : `${assets.length} extracted assets`}
+              ? `${matchingAssetsCount} matching items`
+              : `${assets.length} assets · ${citationsCount} citations`}
           </span>
-          <Button
-            size="xs"
-            variant="outline"
-            className="h-6 gap-1 px-2 text-[10px]"
-            disabled={isBackfilling || assets.length === 0}
-            onClick={handleBackfill}
-          >
-            {isBackfilling ? (
-              <Loader2 className="size-3 animate-spin text-primary" />
-            ) : (
-              <Sparkles className="size-3 text-primary" />
+          <div className="flex items-center gap-1.5">
+            {citationsCount > 0 && (
+              <Button
+                size="xs"
+                variant="ghost"
+                className="h-6 gap-1 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                onClick={() => setIsBibManagerOpen(true)}
+              >
+                <BookOpen className="size-3" />
+                <span>Bib Manager</span>
+              </Button>
             )}
-            {isBackfilling ? "Backfilling..." : "Backfill captions"}
-          </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              className="h-6 gap-1 px-2 text-[10px]"
+              disabled={isBackfilling || assets.length === 0}
+              onClick={handleBackfill}
+            >
+              {isBackfilling ? (
+                <Loader2 className="size-3 animate-spin text-primary" />
+              ) : (
+                <Sparkles className="size-3 text-primary" />
+              )}
+              {isBackfilling ? "Backfilling..." : "Backfill captions"}
+            </Button>
+          </div>
         </div>
       </div>
 
       {searchQuery && matchingAssetsCount === 0 && (
         <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border px-4 py-8 text-center">
-          <p className="text-xs font-medium text-foreground">No assets match &ldquo;{searchQuery}&rdquo;</p>
+          <p className="text-xs font-medium text-foreground">No items match &ldquo;{searchQuery}&rdquo;</p>
           <Button size="xs" variant="outline" onClick={() => setSearchQuery("")}>
             Clear Search
           </Button>
         </div>
       )}
-      {groups.map((g) => {
-        const isOpen = openSection === g.file.id
-        return (
-          <div key={g.file.id} className="rounded-md border border-border bg-muted/10">
-            <div className="flex w-full items-center justify-between px-3 py-2 transition-colors hover:bg-muted/30">
-              <button
-                className="flex flex-1 items-center gap-2 overflow-hidden text-left"
-                onClick={() => setOpenSection(isOpen ? null : g.file.id)}
-              >
-                <span className="truncate text-[12px] font-medium">{g.file.name}</span>
-                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
-                  {g.items.length} items
-                </span>
-              </button>
-              <div className="flex shrink-0 items-center gap-1">
-                <Button
-                  size="icon-xs"
-                  variant="ghost"
-                  className="size-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    if (confirm("Remove this file and all its extracted assets?")) {
-                      removeFile(g.file.id)
-                    }
-                  }}
-                  aria-label="Remove ingested file"
-                >
-                  <Trash2 className="size-3" />
-                </Button>
-                <button
-                  className="p-1"
-                  onClick={() => setOpenSection(isOpen ? null : g.file.id)}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className={cn(
-                      "size-3.5 text-muted-foreground transition-transform",
-                      isOpen && "rotate-180",
-                    )}
-                  >
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            {isOpen && (
-              <div className="border-t border-border p-2">
-                <div className="flex items-center gap-1.5 pb-2">
-                  {(["all", "figure", "table", "equation"] as const).map((k) => {
-                    const isActive = getFilter(g.file.id) === k
-                    return (
-                      <Button
-                        key={k}
-                        variant={isActive ? "secondary" : "ghost"}
-                        size="sm"
-                        className={cn(
-                          "h-6 px-2 text-[10px]",
-                          isActive ? "font-medium text-foreground" : "text-muted-foreground"
-                        )}
-                        onClick={() => setFileFilters(prev => ({ ...prev, [g.file.id]: k }))}
-                      >
-                        {k === "all" ? <ListFilter className="mr-1 size-3" /> : <AssetKindIcon kind={k as AssetKind} className="mr-1 size-3" />}
-                        {k === "all" ? "All" : ASSET_KIND_LABEL[k as AssetKind]}
-                      </Button>
-                    )
-                  })}
-                </div>
-                {renderGroupAssets(g.items)}
-              </div>
-            )}
-          </div>
-        )
-      })}
 
-      {allLegacyAssets.length > 0 && (
-        <div className="rounded-md border border-border bg-muted/10">
-          <div className="flex w-full items-center justify-between px-3 py-2 transition-colors hover:bg-muted/30">
-            <button
-              className="flex flex-1 items-center gap-2 overflow-hidden text-left"
-              onClick={() => setOpenSection(openSection === "legacy" ? null : "legacy")}
-            >
-              <span className="text-[12px] font-medium">Other Assets</span>
-              <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
-                {legacyAssets.length} items
-              </span>
-            </button>
-            <div className="flex shrink-0 items-center gap-1">
-              <Button
-                size="icon-xs"
-                variant="ghost"
-                className="size-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (confirm("Remove all other assets?")) {
-                    removeAllLegacyAssets()
-                  }
-                }}
-                aria-label="Remove other assets"
-              >
-                <Trash2 className="size-3" />
-              </Button>
-              <button
-                className="p-1"
-                onClick={() => setOpenSection(openSection === "legacy" ? null : "legacy")}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className={cn(
-                    "size-3.5 shrink-0 text-muted-foreground transition-transform",
-                    openSection === "legacy" && "rotate-180"
-                  )}
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
+      {/* 3. If Citations Tab is Active -> Render Dedicated Citations Stream */}
+      {activeTab === "citation" && (
+        <div className="flex flex-col gap-2">
+          {filteredBibEntries.length === 0 ? (
+            <div className="rounded-md border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+              No citations found matching the query.
             </div>
-          </div>
-          {openSection === "legacy" && (
-            <div className="border-t border-border p-2">
-              <div className="flex items-center gap-1.5 pb-2">
-                {(["all", "figure", "table", "equation"] as const).map((k) => {
-                  const isActive = getFilter("legacy") === k
-                  return (
-                    <Button
-                      key={k}
-                      variant={isActive ? "secondary" : "ghost"}
-                      size="sm"
-                      className={cn(
-                        "h-6 px-2 text-[10px]",
-                        isActive ? "font-medium text-foreground" : "text-muted-foreground"
-                      )}
-                      onClick={() => setFileFilters(prev => ({ ...prev, legacy: k }))}
-                    >
-                      {k === "all" ? <ListFilter className="mr-1 size-3" /> : <AssetKindIcon kind={k as AssetKind} className="mr-1 size-3" />}
-                      {k === "all" ? "All" : ASSET_KIND_LABEL[k as AssetKind]}
-                    </Button>
-                  )
-                })}
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Quote className="size-3.5 text-purple-500" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wide">
+                    Extracted BibTeX References ({filteredBibEntries.length})
+                  </span>
+                </div>
               </div>
-              {renderGroupAssets(legacyAssets)}
+              {filteredBibEntries.map((entry) => (
+                <CitationRow key={entry.key} entry={entry} />
+              ))}
             </div>
           )}
         </div>
+      )}
+
+      {/* 4. Document-Grouped Assets (when activeTab is all, figure, table, equation, or text) */}
+      {activeTab !== "citation" && (
+        <>
+          {groups.map((g) => {
+            const isOpen = openSection === g.file.id
+            const currentFilter = getFilter(g.file.id)
+            return (
+              <div key={g.file.id} className="rounded-md border border-border bg-muted/10">
+                <div className="flex w-full items-center justify-between px-3 py-2 transition-colors hover:bg-muted/30">
+                  <button
+                    className="flex flex-1 items-center gap-2 overflow-hidden text-left"
+                    onClick={() => setOpenSection(isOpen ? null : g.file.id)}
+                  >
+                    <span className="truncate text-[12px] font-medium">{g.file.name}</span>
+                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                      {g.items.length} items
+                    </span>
+                  </button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      size="icon-xs"
+                      variant="ghost"
+                      className="size-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (confirm("Remove this file and all its extracted assets?")) {
+                          removeFile(g.file.id)
+                        }
+                      }}
+                      aria-label="Remove ingested file"
+                    >
+                      <Trash2 className="size-3" />
+                    </Button>
+                    <button
+                      className="p-1"
+                      onClick={() => setOpenSection(isOpen ? null : g.file.id)}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={cn(
+                          "size-3.5 text-muted-foreground transition-transform",
+                          isOpen && "rotate-180",
+                        )}
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {isOpen && (
+                  <div className="border-t border-border p-2">
+                    {/* Per-document filter tabs */}
+                    <div className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-none">
+                      {(["all", "figure", "table", "equation"] as const).map((k) => {
+                        const isActive = currentFilter === k
+                        const count =
+                          k === "all"
+                            ? g.totalCount
+                            : k === "figure"
+                            ? g.figuresCount
+                            : k === "table"
+                            ? g.tablesCount
+                            : g.equationsCount
+                        if (count === 0 && k !== "all") return null
+                        return (
+                          <Button
+                            key={k}
+                            variant={isActive ? "secondary" : "ghost"}
+                            size="sm"
+                            className={cn(
+                              "h-6 px-1.5 text-[10px] gap-1 shrink-0",
+                              isActive ? "font-medium text-foreground" : "text-muted-foreground"
+                            )}
+                            onClick={() => setFileFilters((prev) => ({ ...prev, [g.file.id]: k }))}
+                          >
+                            {k === "all" ? <ListFilter className="size-2.5" /> : <AssetKindIcon kind={k as AssetKind} className="size-2.5" />}
+                            <span>{k === "all" ? "All" : ASSET_KIND_LABEL[k as AssetKind]}</span>
+                            <span className="font-mono text-[9px] opacity-70">({count})</span>
+                          </Button>
+                        )
+                      })}
+                    </div>
+                    {renderGroupAssets(g.items)}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          {allLegacyAssets.length > 0 && (
+            <div className="rounded-md border border-border bg-muted/10">
+              <div className="flex w-full items-center justify-between px-3 py-2 transition-colors hover:bg-muted/30">
+                <button
+                  className="flex flex-1 items-center gap-2 overflow-hidden text-left"
+                  onClick={() => setOpenSection(openSection === "legacy" ? null : "legacy")}
+                >
+                  <span className="text-[12px] font-medium">Other Assets</span>
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                    {legacyAssets.length} items
+                  </span>
+                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    className="size-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (confirm("Remove all other assets?")) {
+                        removeAllLegacyAssets()
+                      }
+                    }}
+                    aria-label="Remove other assets"
+                  >
+                    <Trash2 className="size-3" />
+                  </Button>
+                  <button
+                    className="p-1"
+                    onClick={() => setOpenSection(openSection === "legacy" ? null : "legacy")}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={cn(
+                        "size-3.5 shrink-0 text-muted-foreground transition-transform",
+                        openSection === "legacy" && "rotate-180"
+                      )}
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              {openSection === "legacy" && (
+                <div className="border-t border-border p-2">
+                  <div className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-none">
+                    {(["all", "figure", "table", "equation"] as const).map((k) => {
+                      const isActive = legacyFilter === k
+                      return (
+                        <Button
+                          key={k}
+                          variant={isActive ? "secondary" : "ghost"}
+                          size="sm"
+                          className={cn(
+                            "h-6 px-1.5 text-[10px] gap-1 shrink-0",
+                            isActive ? "font-medium text-foreground" : "text-muted-foreground"
+                          )}
+                          onClick={() => setFileFilters((prev) => ({ ...prev, legacy: k }))}
+                        >
+                          {k === "all" ? <ListFilter className="size-2.5" /> : <AssetKindIcon kind={k as AssetKind} className="size-2.5" />}
+                          <span>{k === "all" ? "All" : ASSET_KIND_LABEL[k as AssetKind]}</span>
+                        </Button>
+                      )
+                    })}
+                  </div>
+                  {renderGroupAssets(legacyAssets)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* If on "all" tab, also display citations summary below if present */}
+          {activeTab === "all" && filteredBibEntries.length > 0 && (
+            <div className="mt-2 rounded-md border border-border bg-card p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Quote className="size-3.5 text-purple-500" />
+                  <h5 className="text-[10px] font-semibold uppercase tracking-wide">
+                    Extracted References ({filteredBibEntries.length})
+                  </h5>
+                </div>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className="h-6 px-1.5 text-[9px] text-muted-foreground hover:text-foreground"
+                  onClick={() => setActiveTab("citation")}
+                >
+                  View All
+                </Button>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {filteredBibEntries.slice(0, 3).map((entry) => (
+                  <CitationRow key={entry.key} entry={entry} />
+                ))}
+              </div>
+              {filteredBibEntries.length > 3 && (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  className="w-full h-6 text-[10px] text-muted-foreground"
+                  onClick={() => setActiveTab("citation")}
+                >
+                  +{filteredBibEntries.length - 3} more citations
+                </Button>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

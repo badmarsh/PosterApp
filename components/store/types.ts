@@ -83,10 +83,30 @@ export interface IngestionSlice {
 export interface BibSlice {
   bibContent: string
   bibKeys: string[]
+  bibEntries: import("@/lib/bib-types").BibEntry[]
+  isBibManagerOpen: boolean
+  setIsBibManagerOpen: (open: boolean) => void
 
   fetchBib: (projectId: string) => Promise<void>
   updateBib: (projectId: string, bib: string) => Promise<void>
+  addBibEntry: (entry: Partial<import("@/lib/bib-types").BibEntry>) => Promise<void>
+  updateBibEntry: (oldKey: string, entry: Partial<import("@/lib/bib-types").BibEntry>) => Promise<void>
+  deleteBibEntry: (key: string) => Promise<void>
   insertCitation: (key: string, cardId: string) => void
+  lookupCitation: (query: string) => Promise<import("@/lib/bib-types").BibEntry | null>
+  suggestCitationsForCard: (cardContent: string, cardTitle?: string) => Promise<import("@/lib/services/citation-suggester").SuggestedCitation[]>
+}
+
+export interface EquationSlice {
+  equations: import("@/lib/equation-types").EquationItem[]
+  isEquationLibraryOpen: boolean
+  setIsEquationLibraryOpen: (open: boolean) => void
+
+  fetchEquations: (projectId: string) => Promise<void>
+  addEquation: (eq: Omit<import("@/lib/equation-types").EquationItem, "id" | "workspaceId">) => Promise<void>
+  updateEquation: (id: string, updates: Partial<import("@/lib/equation-types").EquationItem>) => Promise<void>
+  deleteEquation: (id: string) => Promise<void>
+  insertEquation: (eqIdOrFormula: string, cardId: string, format?: "display" | "inline") => void
 }
 
 export interface UiSlice {
@@ -120,6 +140,11 @@ export interface UiSlice {
   setIsHistoryOpen: (v: boolean) => void
   isActionsOpen: boolean
   setIsActionsOpen: (v: boolean) => void
+  isScannerOpen: boolean
+  setIsScannerOpen: (v: boolean) => void
+  scannerImage: string | null
+  setScannerImage: (img: string | null) => void
+  openScannerWithImage: (img: string) => void
 
   pendingAiPrompt: string | null
   setPendingAiPrompt: (prompt: string | null) => void
@@ -148,7 +173,7 @@ export interface UiSlice {
   compileProject: (format?: OutputType) => Promise<void>
 }
 
-export type EditorState = ProjectSlice & IngestionSlice & BibSlice & UiSlice
+export type EditorState = ProjectSlice & IngestionSlice & BibSlice & EquationSlice & UiSlice
 
 export type EditorSlice<T> = StateCreator<
   EditorState,

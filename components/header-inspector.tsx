@@ -14,6 +14,7 @@ import {
   Info,
   Upload,
   Loader2,
+  QrCode,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api-fetch"
 import { Switch } from "@/components/ui/switch"
@@ -333,6 +334,43 @@ export function HeaderInspector() {
   const [itemCount, setItemCount] = useState<number>(ITEM_COUNT_DEFAULTS[activeOutputType])
   const headerLogoInputRef = useRef<HTMLInputElement>(null)
   const [isUploadingHeaderLogo, setIsUploadingHeaderLogo] = useState(false)
+
+  // QR Code state
+  const [qrUrl, setQrUrl] = useState("")
+  const [qrLabel, setQrLabel] = useState("Scan for Paper & Code")
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false)
+  const [qrAssetUrl, setQrAssetUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    const existingQr = project.assets?.find((a) => a.filename === "qrcode.png")
+    if (existingQr) {
+      setQrAssetUrl(existingQr.url ?? null)
+    }
+  }, [project.assets])
+
+  async function handleGenerateQr() {
+    if (!qrUrl.trim() || isGeneratingQr) return
+    setIsGeneratingQr(true)
+    try {
+      const res = await apiFetch(`/api/workspaces/${project.id}/qr`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: qrUrl.trim(), label: qrLabel.trim() }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setQrAssetUrl(data.url)
+        pushEvent({
+          kind: "info",
+          status: "done",
+          title: "QR Code Generated",
+          detail: `Generated interactive QR code asset linking to ${qrUrl}`,
+        })
+      }
+    } finally {
+      setIsGeneratingQr(false)
+    }
+  }
 
   useEffect(() => {
     setItemCount(ITEM_COUNT_DEFAULTS[activeOutputType])
@@ -944,6 +982,75 @@ export function HeaderInspector() {
                 )}
               </div>
             )}
+
+            {/* Interactive QR Code Generator */}
+            <div className="space-y-2 pt-3 border-t border-border">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <QrCode className="size-3.5 text-primary" />
+                  <Label className="text-[11px] font-medium text-foreground">
+                    Interactive QR Code (Paper / GitHub)
+                  </Label>
+                </div>
+                {qrAssetUrl && (
+                  <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                    Active
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                Generate a high-res vector QR code for conference attendees to scan and view your paper, GitHub repo, or supplementary materials.
+              </p>
+
+              <div className="space-y-1.5">
+                <Input
+                  value={qrUrl}
+                  onChange={(e) => setQrUrl(e.target.value)}
+                  placeholder="https://arxiv.org/abs/... or https://github.com/..."
+                  className="h-7 text-xs bg-background"
+                />
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    value={qrLabel}
+                    onChange={(e) => setQrLabel(e.target.value)}
+                    placeholder="Label (e.g. Scan for Paper & Code)"
+                    className="h-7 text-xs bg-background flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleGenerateQr}
+                    disabled={!qrUrl.trim() || isGeneratingQr}
+                    className="h-7 text-xs px-2.5 gap-1 shrink-0 shadow-xs"
+                  >
+                    {isGeneratingQr ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="size-3 text-amber-500" />
+                    )}
+                    Generate QR
+                  </Button>
+                </div>
+              </div>
+
+              {qrAssetUrl && (
+                <div className="flex items-center justify-between gap-3 p-2 rounded-md border border-border bg-muted/20 mt-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="size-10 rounded border border-border bg-white flex items-center justify-center p-0.5 shrink-0">
+                      <img src={qrAssetUrl} alt="QR Code" className="max-h-full max-w-full object-contain" />
+                    </div>
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="text-[10px] font-semibold text-foreground truncate">
+                        qrcode.png
+                      </p>
+                      <p className="text-[9px] text-muted-foreground truncate">
+                        Saved in assets · Available for cards &amp; headers
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </ScrollArea>

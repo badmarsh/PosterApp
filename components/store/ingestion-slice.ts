@@ -18,7 +18,6 @@ function makeLog(level: ParseLogEntry["level"], message: string): ParseLogEntry 
   }
 }
 
-const activeIntervals = new Map<string, ReturnType<typeof setInterval>>()
 const activeJobs = new Map<string, string>()
 
 export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
@@ -92,46 +91,10 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
       if (!f) return
       
       const jobId = jobQueue.enqueue(`Parse ${f.name}`, async (onProgress, signal) => {
-        const existingInterval = activeIntervals.get(id)
-        if (existingInterval) clearInterval(existingInterval)
-        activeIntervals.delete(id)
-        
         const capturedWorkspaceId = get().project.id
         
         get().pushLog("info", `Parsing ${f.name} via MinerU backend.`)
-        
-        const statuses = [
-          "Layout Analysis",
-          "Table Extraction",
-          "External Layout Extraction",
-          "MFR Predict",
-          "OCR-det",
-          "Processing pages",
-          "OCR-rec Predict",
-          "Generating captions"
-        ]
-        let statusIdx = 0
-        let currentProgress = 15
-        const simInterval = setInterval(() => {
-          if (get().project.id === capturedWorkspaceId) {
-            if (statusIdx < statuses.length) {
-              get().pushLog("info", `[MinerU] ${statuses[statusIdx]}...`)
-              currentProgress = Math.min(85, 15 + ((statusIdx + 1) / statuses.length) * 70)
-              statusIdx++
-            } else {
-              // Asymptotic progress for large files: slowly creep from 85% towards 95%
-              currentProgress = Math.min(95, currentProgress + 1.2)
-            }
-            set((s) => {
-              const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
-              if (ingestFile && ingestFile.status === "parsing") {
-                ingestFile.progress = Math.round(currentProgress)
-                onProgress(Math.round(currentProgress))
-              }
-            })
-          }
-        }, 2500)
-        activeIntervals.set(id, simInterval)
+        onProgress(10)
 
         try {
           const formData = new FormData()
@@ -145,21 +108,73 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
           const res = await apiFetch(`/api/ingestion/parse?workspaceId=${workspaceId}`, {
             method: "POST",
             body: formData,
-            signal
+            signal,
           })
-          
-          clearInterval(simInterval)
-          activeIntervals.delete(id)
 
           if (!res.ok) {
-             const errData = await res.json().catch(() => ({}))
-             const msg = errData.detail && errData.error && errData.detail !== errData.error
-               ? `${errData.error}: ${errData.detail}`
-               : (errData.detail || errData.error || `HTTP ${res.status}`)
-             throw new Error(msg)
+            const errData = await res.json().catch(() => ({}))
+            const msg = errData.detail && errData.error && errData.detail !== errData.error
+              ? `${errData.error}: ${errData.detail}`
+              : (errData.detail || errData.error || `HTTP ${res.status}`)
+            throw new Error(msg)
           }
-          const data = await res.json()
-          const produced = data.assets || []
+
+          let produced: any[] = []
+          const contentType = res.headers.get("content-type") || ""
+
+          if (contentType.includes("text/event-stream") && res.body) {
+            const reader = res.body.getReader()
+            const decoder = new TextDecoder()
+            let buffer = ""
+
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              buffer += decoder.decode(value, { stream: true })
+              const lines = buffer.split("\n")
+              buffer = lines.pop() || ""
+
+              for (const line of lines) {
+                const trimmed = line.trim()
+                if (!trimmed.startsWith("data:")) continue
+                const jsonStr = trimmed.slice(5).trim()
+                if (!jsonStr) continue
+
+                try {
+                  const event = JSON.parse(jsonStr)
+                  if (event.type === "progress") {
+                    if (event.stage && get().project.id === capturedWorkspaceId) {
+                      get().pushLog("info", `[MinerU] ${event.stage}`)
+                    }
+                    if (typeof event.progress === "number" && get().project.id === capturedWorkspaceId) {
+                      set((s) => {
+                        const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
+                        if (ingestFile && ingestFile.status === "parsing") {
+                          ingestFile.progress = event.progress
+                        }
+                      })
+                      onProgress(event.progress)
+                    }
+                  } else if (event.type === "complete") {
+                    produced = event.assets || []
+                  } else if (event.type === "error") {
+                    const msg = event.detail && event.error && event.detail !== event.error
+                      ? `${event.error}: ${event.detail}`
+                      : (event.detail || event.error || "Document parsing failed")
+                    throw new Error(msg)
+                  }
+                } catch (parseErr: any) {
+                  if (parseErr.message && (parseErr.message.includes("failed") || parseErr.message.includes("error") || parseErr.message.includes("MinerU"))) {
+                    throw parseErr
+                  }
+                  // Ignore JSON chunk syntax errors in transit
+                }
+              }
+            }
+          } else {
+            const data = await res.json().catch(() => ({}))
+            produced = data.assets || []
+          }
           
           if (get().project.id === capturedWorkspaceId) {
             set((s) => {
@@ -197,9 +212,6 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
             }
           }
         } catch (err) {
-          clearInterval(simInterval)
-          activeIntervals.delete(id)
-          
           if (err instanceof Error && err.name === "AbortError") {
             if (get().project.id === capturedWorkspaceId) {
               set((s) => {

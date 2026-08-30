@@ -50,6 +50,8 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       
       const { agentEvents = [], chatMessages = [], ...projectData } = projData
 
+      jobQueue.reconcileWithIngestFiles(projectData.ingestFiles || [])
+
       set((state) => {
         state.project = { ...projectData, assets: projectData.assets || [], ingestFiles: projectData.ingestFiles || [] }
         syncActiveCards(state.project)
@@ -76,6 +78,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         detail: `${projectData.cards?.length || 0} cards · ${projectData.templateName || "atlas"}`,
       })
       get().fetchBib(id)
+      get().fetchEquations(id)
     } catch (err) {
       set((s) => { s.isSwitchingProject = false })
       get().setLastWorkspaceId(null)

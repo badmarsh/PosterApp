@@ -107,4 +107,35 @@ describe('bib-slice', () => {
       body: JSON.stringify({ bib: '@misc{Test, title={T}}' }),
     })
   })
+
+  it('adds and deletes structured BibEntry', async () => {
+    const store = createEditorStore()
+    mockApiFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ keys: ['einstein1905'] }),
+    } as Response)
+
+    await store.getState().addBibEntry({
+      key: 'einstein1905',
+      type: 'article',
+      title: 'Zur Elektrodynamik bewegter Körper',
+      authorString: 'Einstein, Albert',
+      year: '1905',
+    })
+
+    expect(store.getState().bibContent).toContain('@article{einstein1905,')
+    expect(store.getState().bibEntries).toHaveLength(1)
+    expect(store.getState().bibEntries[0].key).toBe('einstein1905')
+
+    await store.getState().deleteBibEntry('einstein1905')
+    expect(store.getState().bibContent).toBe('')
+    expect(store.getState().bibEntries).toHaveLength(0)
+  })
+
+  it('manages isBibManagerOpen modal state', () => {
+    const store = createEditorStore()
+    expect(store.getState().isBibManagerOpen).toBe(false)
+    store.getState().setIsBibManagerOpen(true)
+    expect(store.getState().isBibManagerOpen).toBe(true)
+  })
 })

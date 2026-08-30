@@ -100,10 +100,11 @@ function LayoutDiagram({
             const x = 2 + i * (colW + 2)
             return (
               <g key={i}>
-                <rect x={x} y={9} width={colW} height={4} rx={0.5} fill={accent} opacity={0.35} />
-                <rect x={x} y={14} width={colW} height={3} rx={0.5} fill="currentColor" className="text-muted-foreground/30" />
-                <rect x={x} y={18} width={colW * 0.8} height={3} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
-                <rect x={x} y={22} width={colW} height={5} rx={0.5} fill="currentColor" className="text-muted-foreground/15" />
+                <rect x={x} y={8} width={colW} height={4} rx={0.5} fill={accent} opacity={0.35} />
+                <rect x={x} y={13} width={colW} height={3} rx={0.5} fill="currentColor" className="text-muted-foreground/30" />
+                <rect x={x} y={17} width={colW * 0.8} height={3} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
+                <rect x={x} y={21} width={colW} height={4} rx={0.5} fill={accent} opacity={0.2} />
+                <rect x={x} y={26} width={colW} height={5} rx={0.5} fill="currentColor" className="text-muted-foreground/15" />
               </g>
             )
           })}
@@ -113,46 +114,65 @@ function LayoutDiagram({
       return (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
           <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
-          {headerElem}
-          <rect x={2} y={9} width={20} height={10} rx={1} fill={accent} opacity={0.35} />
-          <rect x={24} y={9} width={18} height={10} rx={1} fill="currentColor" className="text-muted-foreground/20" />
-          <rect x={2} y={21} width={18} height={10} rx={1} fill="currentColor" className="text-muted-foreground/20" />
-          <rect x={22} y={21} width={20} height={10} rx={1} fill={accent} opacity={0.25} />
+          {/* Top title slide frame */}
+          <rect x={2} y={2} width={W - 4} height={12} rx={1} fill={accent} opacity={0.85} />
+          <rect x={5} y={5} width={18} height={2} rx={0.5} fill="white" opacity={0.95} />
+          <rect x={5} y={8} width={12} height={1.5} rx={0.5} fill="white" opacity={0.65} />
+          {/* Bottom content slide frame with progress bar */}
+          <rect x={2} y={16} width={W - 4} height={15} rx={1} fill="currentColor" className="text-muted-foreground/15" />
+          <rect x={4} y={18} width={14} height={2} rx={0.5} fill={accent} opacity={0.7} />
+          <rect x={4} y={22} width={16} height={1.5} rx={0.5} fill="currentColor" className="text-muted-foreground/35" />
+          <rect x={4} y={25} width={12} height={1.5} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
+          <rect x={23} y={20} width={15} height={7} rx={0.5} fill={accent} opacity={0.25} />
+          {/* Slide footer progress bar */}
+          <rect x={2} y={30} width={W - 4} height={1} fill={accent} opacity={0.4} />
+          <rect x={30} y={30} width={8} height={1} fill={accent} opacity={0.9} />
         </svg>
       )
     case "paper-twocol":
       return (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
           <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
-          {/* slide 1 */}
-          <rect x={2} y={2} width={W - 4} height={12} rx={1} fill={accent} opacity={0.8} />
-          <rect x={6} y={5} width={20} height={2.5} rx={0.5} fill="white" opacity={0.9} />
-          <rect x={6} y={9} width={14} height={1.5} rx={0.5} fill="white" opacity={0.6} />
-          {/* slide 2 */}
-          <rect x={2} y={16} width={W - 4} height={8} rx={1} fill="currentColor" className="text-muted-foreground/15" />
-          <rect x={4} y={18} width={12} height={1.5} rx={0.5} fill={accent} opacity={0.5} />
-          <rect x={4} y={21} width={20} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/30" />
-          {/* slide 3 */}
-          <rect x={2} y={26} width={W - 4} height={6} rx={1} fill="currentColor" className="text-muted-foreground/10" />
-          <rect x={4} y={28} width={10} height={1.5} rx={0.5} fill={accent} opacity={0.4} />
+          {/* Full-width Title & Author header */}
+          <rect x={2} y={2} width={W - 4} height={4} rx={0.5} fill={accent} opacity={0.8} />
+          <rect x={4} y={3} width={16} height={2} rx={0.5} fill="white" opacity={0.9} />
+          {/* Left col */}
+          <rect x={2} y={8} width={18} height={23} rx={0.5} fill="currentColor" className="text-muted-foreground/10" />
+          <rect x={4} y={10} width={12} height={1.5} rx={0.5} fill={accent} opacity={0.6} />
+          <rect x={4} y={13} width={14} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/30" />
+          <rect x={4} y={15} width={12} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
+          <rect x={4} y={17.5} width={14} height={6} rx={0.5} fill={accent} opacity={0.25} />
+          <rect x={4} y={25} width={14} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
+          <rect x={4} y={27} width={10} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
+          {/* Right col */}
+          <rect x={23} y={8} width={19} height={23} rx={0.5} fill="currentColor" className="text-muted-foreground/10" />
+          <rect x={25} y={10} width={14} height={1.5} rx={0.5} fill={accent} opacity={0.6} />
+          <rect x={25} y={13} width={15} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/30" />
+          <rect x={25} y={15} width={13} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
+          <rect x={25} y={17.5} width={15} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
+          <rect x={25} y={20} width={12} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
+          <rect x={25} y={23} width={15} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
+          <rect x={25} y={26} width={14} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
         </svg>
       )
     case "paper-single":
       return (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0" aria-hidden>
           <rect x={0} y={0} width={W} height={H} rx={2} fill="currentColor" className="text-muted/50" />
-          <rect x={2} y={2} width={W - 4} height={4} rx={0.5} fill={accent} opacity={0.7} />
-          <rect x={4} y={3} width={16} height={2} rx={0.5} fill="white" opacity={0.8} />
-          {/* left col */}
-          <rect x={2} y={8} width={18} height={24} rx={1} fill={accent} opacity={0.2} />
-          <rect x={4} y={10} width={12} height={1.5} rx={0.5} fill={accent} opacity={0.6} />
-          <rect x={4} y={13} width={14} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
-          <rect x={4} y={15} width={12} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
-          {/* right col */}
-          <rect x={22} y={8} width={20} height={24} rx={1} fill="currentColor" className="text-muted-foreground/15" />
-          <rect x={24} y={10} width={14} height={8} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
-          <rect x={24} y={20} width={16} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/20" />
-          <rect x={24} y={22} width={12} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/15" />
+          {/* Centered Title */}
+          <rect x={6} y={2} width={W - 12} height={4} rx={0.5} fill={accent} opacity={0.8} />
+          <rect x={10} y={3} width={16} height={2} rx={0.5} fill="white" opacity={0.9} />
+          {/* Abstract block */}
+          <rect x={5} y={8} width={W - 10} height={4} rx={0.5} fill={accent} opacity={0.15} />
+          <rect x={7} y={9.5} width={W - 14} height={1} rx={0.5} fill={accent} opacity={0.6} />
+          {/* Single flowing column prose */}
+          <rect x={5} y={14} width={16} height={1.5} rx={0.5} fill={accent} opacity={0.6} />
+          <rect x={5} y={17} width={W - 10} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/30" />
+          <rect x={5} y={19} width={W - 12} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
+          {/* Centered figure float */}
+          <rect x={10} y={21.5} width={W - 20} height={6.5} rx={0.5} fill={accent} opacity={0.25} />
+          {/* Caption */}
+          <rect x={8} y={29.5} width={W - 16} height={1} rx={0.5} fill="currentColor" className="text-muted-foreground/25" />
         </svg>
       )
     default:
@@ -196,11 +216,17 @@ function LargeLayoutDiagram({
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="w-full max-w-[340px] h-auto drop-shadow-sm rounded">
           {/* Background */}
           <rect x={0} y={0} width={W} height={H} rx={6} fill={bg} className="text-muted/40" />
-          {/* Header bar with title */}
+          {/* Header bar with title and logo badges */}
           <rect x={0} y={0} width={W} height={34} rx={6} fill={accent} opacity={0.92} />
           <rect x={0} y={26} width={W} height={8} fill={accent} opacity={0.92} />
-          <rect x={14} y={9} width={120} height={8} rx={1.5} fill="white" opacity={0.95} />
-          <rect x={14} y={20} width={80} height={4} rx={1} fill="white" opacity={0.6} />
+          {/* Left institutional badge */}
+          <rect x={10} y={9} width={16} height={16} rx={3} fill="white" opacity={0.85} />
+          {/* Title & subtitle */}
+          <rect x={32} y={9} width={120} height={8} rx={1.5} fill="white" opacity={0.95} />
+          <rect x={32} y={20} width={80} height={4} rx={1} fill="white" opacity={0.6} />
+          {/* Right institutional badge */}
+          <rect x={W - 26} y={9} width={16} height={16} rx={3} fill="white" opacity={0.85} />
+
           {/* 3 columns */}
           {[0, 1, 2].map(i => {
             const colW = (W - 24) / 3
@@ -240,9 +266,9 @@ function LargeLayoutDiagram({
       return (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="w-full max-w-[340px] h-auto drop-shadow-sm rounded">
           <rect x={0} y={0} width={W} height={H} rx={6} fill={bg} className="text-muted/40" />
-          {/* Slide 1 - title slide */}
+          {/* Slide 1 - title slide (16:9 Beamer frame) */}
           <rect x={6} y={6} width={W - 12} height={52} rx={4} fill={accent} opacity={0.9} />
-          <rect x={20} y={16} width={120} height={9} rx={1.5} fill="white" opacity={0.95} />
+          <rect x={20} y={16} width={130} height={9} rx={1.5} fill="white" opacity={0.95} />
           <rect x={20} y={30} width={85} height={5} rx={1} fill="white" opacity={0.65} />
           <rect x={20} y={40} width={50} height={4} rx={1} fill="white" opacity={0.45} />
           {/* Slide 2 - bullet content */}
@@ -260,9 +286,9 @@ function LargeLayoutDiagram({
           <rect x={16} y={156} width={(W-44)/2 - 5} height={3} rx={0.5} fill={bg} className="text-muted-foreground/25" />
           <rect x={W/2 + 4} y={132} width={(W-44)/2} height={42} rx={3} fill={accent2} opacity={0.22} />
           <rect x={W/2 + (W-44)/4 - 6} y={148} width={20} height={12} rx={1.5} fill={accent2} opacity={0.4} />
-          {/* Slide progress footer */}
-          <rect x={6} y={116} width={W - 12} height={4} rx={1} fill={accent} opacity={0.35} />
-          <rect x={W - 40} y={117} width={28} height={2} rx={0.5} fill={accent} opacity={0.7} />
+          {/* Slide progress footer bar (Metropolis/Madrid style) */}
+          <rect x={6} y={116} width={W - 12} height={4} rx={1} fill={accent} opacity={0.2} />
+          <rect x={W - 50} y={117} width={38} height={2} rx={0.5} fill={accent} opacity={0.8} />
         </svg>
       )
     case "paper-twocol": {
@@ -270,7 +296,7 @@ function LargeLayoutDiagram({
       return (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="w-full max-w-[340px] h-auto drop-shadow-sm rounded">
           <rect x={0} y={0} width={W} height={H} rx={6} fill={bg} className="text-muted/40" />
-          {/* Title block */}
+          {/* Title block across full width */}
           <rect x={6} y={6} width={W - 12} height={30} rx={3} fill={accent} opacity={0.8} />
           <rect x={14} y={12} width={140} height={7} rx={1} fill="white" opacity={0.95} />
           <rect x={14} y={23} width={95} height={4} rx={1} fill="white" opacity={0.65} />
@@ -279,7 +305,7 @@ function LargeLayoutDiagram({
           {[51, 58, 65, 72, 79, 86, 93, 100].map(y => (
             <rect key={y} x={6} y={y} width={midX - 10 - (y % 14 === 0 ? 15 : 0)} height={3} rx={0.5} fill={bg} className="text-muted-foreground/35" />
           ))}
-          {/* Figure in left column */}
+          {/* Figure float in left column */}
           <rect x={6} y={108} width={midX - 10} height={32} rx={3} fill={accent2} opacity={0.22} />
           <rect x={6 + (midX-10)/2 - 12} y={118} width={24} height={12} rx={1.5} fill={accent2} opacity={0.4} />
           <rect x={6} y={144} width={midX - 10} height={3} rx={0.5} fill={bg} className="text-muted-foreground/30" />
@@ -314,7 +340,7 @@ function LargeLayoutDiagram({
           {[89, 96, 103, 110, 117].map(y => (
             <rect key={y} x={24} y={y} width={W - 48 - (y % 10 === 0 ? 25 : 0)} height={3} rx={0.5} fill={bg} className="text-muted-foreground/35" />
           ))}
-          {/* Centered Figure */}
+          {/* Centered Figure with LaTeX \\caption */}
           <rect x={50} y={128} width={W - 100} height={34} rx={3} fill={accent2} opacity={0.22} />
           <rect x={W/2 - 16} y={138} width={32} height={14} rx={1.5} fill={accent2} opacity={0.4} />
           <rect x={60} y={166} width={W - 120} height={3} rx={0.5} fill={bg} className="text-muted-foreground/30" />

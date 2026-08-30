@@ -17,6 +17,9 @@ import { useIsDesktop } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { WorkspaceSelector } from "@/components/workspace-selector"
+import { EquationRegistryDialog } from "@/components/equation-registry-dialog"
+import { ImageOcrDialog } from "@/components/scanner/image-ocr-dialog"
+import { BibliographyDialog } from "@/components/bibliography-dialog"
 
 type MobilePane = "structure" | "preview" | "editor" | "agent"
 
@@ -272,6 +275,15 @@ export function Shell() {
       {isDesktop ? <DesktopShell onOpenWorkspaceSelector={() => setShowSelector(true)} /> : <MobileShell onOpenWorkspaceSelector={() => setShowSelector(true)} />}
       <ErrorBoundary name="Ingestion Drawer">
         <IngestionDrawer />
+      </ErrorBoundary>
+      <ErrorBoundary name="Equation Registry">
+        <EquationRegistryDialog />
+      </ErrorBoundary>
+      <ErrorBoundary name="Vision OCR Scanner">
+        <ImageOcrDialog />
+      </ErrorBoundary>
+      <ErrorBoundary name="Bibliography Library">
+        <BibliographyDialog />
       </ErrorBoundary>
     </>
   )

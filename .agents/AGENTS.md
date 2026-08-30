@@ -116,7 +116,17 @@ Schema at `prisma/schema.prisma`. Key notes:
 ### Still Open
 (None currently)
 
-### Fixed in This Session (2026-08-29)
+### Fixed in This Session (2026-08-30)
+- ✅ **Prompt Delimiter Escaping Completed** — Fully escaped untrusted content in all AI routes (`chat`, `review`, `shrink`, `autofix-compile`, `convert`, `generate`) with `wrapUntrustedContext`, with regression unit tests in `lib/__tests__/ai-prompts.test.ts`.
+- ✅ **`.env.example` Synchronization** — Verified PostgreSQL `DATABASE_URL` and standardized `NEXT_PUBLIC_YJS_WS_URL=ws://localhost:3333/api/yjs`.
+- ✅ **Real Ingestion Progress** — End-to-end SSE streaming pipeline from `/api/ingestion/parse` through `ingestion-slice.ts`, reflecting live stage progression and image batching without simulated intervals.
+- ✅ **Parallel Ingestion Queue** — `JobQueue` supports concurrent job execution with `maxConcurrency = 3` for independent document uploads, backed by unit tests.
+- ✅ **Job State Reconciliation on Reload** — `JobQueue.reconcileWithIngestFiles()` reconciles in-flight/interrupted job states against true database state loaded on workspace mount.
+- ✅ **DB-Level Asset Deduplication** — Unique composite index `@@unique([workspaceId, filename])` in Prisma schema with atomic `prisma.asset.upsert()` in both ingestion parsing and workspace PUT routes.
+- ✅ **Compiler Container Hardening** — Docker compile execution fortified with `--cap-drop=ALL`, `--read-only`, `--tmpfs /tmp:rw,noexec,nosuid,size=64m`, and `--security-opt no-new-privileges`.
+- ✅ **Full Test Suite & Build Verification** — 38 test files, 251 tests passing, and Next.js production build verified cleanly.
+
+### Fixed in Previous Session (2026-08-29)
 - ✅ **AI Feature Layer Audit (F1–F13)** — All 13 findings remediated:
   - Distributed `rateLimitAsync` adopted across all AI and ingestion endpoints.
   - Per-user rate limiting and auth ordering fixed in ingestion parser.

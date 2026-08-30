@@ -7,6 +7,7 @@ import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 function createMockProject(card: Card, outputType: "poster" | "paper" | "slides", templateId: string): { project: Project; output: OutputConfig } {
   const output: OutputConfig = {
     id: "out_1",
+    title: "Test Output",
     outputType,
     templateId,
     cards: [card],
@@ -37,8 +38,10 @@ describe("Figure Generation in Posters", () => {
       column: 1,
       order: 1,
       content: "Overview of the network",
-      figures: [{ url: "/api/workspaces/ws_test_figs/assets/fig1.png", caption: "Figure 1: Pipeline diagram" }],
-      table: { hasHeader: false, rows: [] },
+      figures: [{ id: "fig_1", url: "/api/workspaces/ws_test_figs/assets/fig1.png", caption: "Figure 1: Pipeline diagram" }],
+      figureLayout: "single",
+      table: { hasHeader: false, caption: "", rows: [] },
+      validation: "valid",
     }
     const { project, output } = createMockProject(card, "poster", "atlas")
     const tex = gen.generateDocument(project, output, "ws_test_figs")
@@ -57,10 +60,12 @@ describe("Figure Generation in Posters", () => {
       order: 1,
       content: "Loss and accuracy curves",
       figures: [
-        { url: "/api/workspaces/ws_test_figs/assets/loss.png", caption: "Fig. 1 Loss" },
-        { url: "/api/workspaces/ws_test_figs/assets/acc.png", caption: "Accuracy" },
+        { id: "fig_loss", url: "/api/workspaces/ws_test_figs/assets/loss.png", caption: "Fig. 1 Loss" },
+        { id: "fig_acc", url: "/api/workspaces/ws_test_figs/assets/acc.png", caption: "Accuracy" },
       ],
-      table: { hasHeader: false, rows: [] },
+      figureLayout: "two-up",
+      table: { hasHeader: false, caption: "", rows: [] },
+      validation: "valid",
     }
     const { project, output } = createMockProject(card, "poster", "atlas")
     const tex = gen.generateDocument(project, output, "ws_test_figs")
@@ -82,8 +87,10 @@ describe("Figure Generation in Papers", () => {
       column: 1,
       order: 1,
       content: "Detailed algorithm.",
-      figures: [{ url: "/api/workspaces/ws_test_figs/assets/arch.png", caption: "Figure 2: Architecture overview." }],
-      table: { hasHeader: false, rows: [] },
+      figures: [{ id: "fig_arch", url: "/api/workspaces/ws_test_figs/assets/arch.png", caption: "Figure 2: Architecture overview." }],
+      figureLayout: "single",
+      table: { hasHeader: false, caption: "", rows: [] },
+      validation: "valid",
     }
     const { project, output } = createMockProject(card, "paper", "article-twocol")
     const tex = gen.generateDocument(project, output, "ws_test_figs")
@@ -102,10 +109,12 @@ describe("Figure Generation in Papers", () => {
       order: 1,
       content: "Component trade-offs.",
       figures: [
-        { url: "/api/workspaces/ws_test_figs/assets/abl_a.png", caption: "Trade-off A" },
-        { url: "/api/workspaces/ws_test_figs/assets/abl_b.png", caption: "Trade-off B" },
+        { id: "fig_abl_a", url: "/api/workspaces/ws_test_figs/assets/abl_a.png", caption: "Trade-off A" },
+        { id: "fig_abl_b", url: "/api/workspaces/ws_test_figs/assets/abl_b.png", caption: "Trade-off B" },
       ],
-      table: { hasHeader: false, rows: [] },
+      figureLayout: "two-up",
+      table: { hasHeader: false, caption: "", rows: [] },
+      validation: "valid",
     }
     const { project, output } = createMockProject(card, "paper", "article-twocol")
     const tex = gen.generateDocument(project, output, "ws_test_figs")
@@ -127,8 +136,10 @@ describe("Figure Generation in Slides", () => {
       column: 1,
       order: 1,
       content: "Key components of the model.",
-      figures: [{ url: "/api/workspaces/ws_test_figs/assets/slide_fig.png", caption: "Overall System" }],
-      table: { hasHeader: false, rows: [] },
+      figures: [{ id: "fig_slide", url: "/api/workspaces/ws_test_figs/assets/slide_fig.png", caption: "Overall System" }],
+      figureLayout: "single",
+      table: { hasHeader: false, caption: "", rows: [] },
+      validation: "valid",
     }
     const { project, output } = createMockProject(card, "slides", "beamer-metropolis")
     const tex = gen.generateDocument(project, output, "ws_test_figs")

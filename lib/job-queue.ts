@@ -114,6 +114,37 @@ class JobQueue {
     return this.queue.map((q) => ({ ...q.job }))
   }
 
+  reconcileWithIngestFiles(
+    ingestFiles: Array<{ name: string; status: string; progress?: number; error?: string }>
+  ) {
+    if (!ingestFiles || ingestFiles.length === 0) return
+    const fileMap = new Map<string, { status: string; progress?: number; error?: string }>()
+    for (const f of ingestFiles) {
+      fileMap.set(f.name.toLowerCase(), f)
+    }
+
+    let changed = false
+    for (const item of this.queue) {
+      if (item.job.error === "Interrupted by reload" || item.job.status === "error") {
+        const match = item.job.label.match(/^Parse\s+(.+)$/i)
+        if (match) {
+          const filename = match[1].trim().toLowerCase()
+          const dbFile = fileMap.get(filename)
+          if (dbFile && dbFile.status === "done") {
+            item.job.status = "done"
+            item.job.progress = 100
+            item.job.error = undefined
+            changed = true
+          }
+        }
+      }
+    }
+
+    if (changed) {
+      this.notify()
+    }
+  }
+
   subscribe(cb: (jobs: Job[]) => void): () => void {
     this.listeners.add(cb)
     cb(this.getJobs()) // emit immediately

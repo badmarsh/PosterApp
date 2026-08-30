@@ -7,6 +7,7 @@ import {
   Table2,
   XCircle,
   Sigma,
+  Quote,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type {
@@ -111,12 +112,13 @@ export function AssetKindIcon({
   kind,
   className,
 }: {
-  kind: AssetKind
+  kind: AssetKind | "citation"
   className?: string
 }) {
   const base = cn("size-3.5", className)
   if (kind === "text") return <FileText className={base} />
   if (kind === "figure") return <ImageIcon className={base} />
   if (kind === "equation") return <Sigma className={base} />
+  if (kind === "citation") return <Quote className={base} />
   return <Table2 className={base} />
 }

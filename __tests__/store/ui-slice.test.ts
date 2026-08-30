@@ -88,4 +88,20 @@ describe('ui-slice', () => {
     expect(events.length).toBeGreaterThanOrEqual(1)
     expect(events[0].title).toBe('Editor ready')
   })
+
+  it('manages scanner open state and scanner image', () => {
+    const store = createEditorStore()
+    expect(store.getState().isScannerOpen).toBe(false)
+    expect(store.getState().scannerImage).toBeNull()
+
+    store.getState().setIsScannerOpen(true)
+    expect(store.getState().isScannerOpen).toBe(true)
+
+    store.getState().openScannerWithImage('data:image/png;base64,testdata')
+    expect(store.getState().isScannerOpen).toBe(true)
+    expect(store.getState().scannerImage).toBe('data:image/png;base64,testdata')
+
+    store.getState().setScannerImage(null)
+    expect(store.getState().scannerImage).toBeNull()
+  })
 })

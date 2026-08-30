@@ -10,15 +10,19 @@ import type { EditorState } from "./store/types"
 import { createProjectSlice } from "./store/project-slice"
 import { createIngestionSlice } from "./store/ingestion-slice"
 import { createBibSlice } from "./store/bib-slice"
+import { createEquationSlice } from "./store/equation-slice"
 import { createUiSlice } from "./store/ui-slice"
 
+import { jobQueue } from "@/lib/job-queue"
+
 export function createEditorStore() {
-  return createStore<EditorState>()(
+  const store = createStore<EditorState>()(
     persist(
       immer((set, get, store) => ({
         ...createProjectSlice(set, get, store),
         ...createIngestionSlice(set, get, store),
         ...createBibSlice(set, get, store),
+        ...createEquationSlice(set, get, store),
         ...createUiSlice(set, get, store),
       })),
       {
@@ -31,6 +35,14 @@ export function createEditorStore() {
       }
     )
   )
+
+  if (typeof window !== "undefined") {
+    jobQueue.subscribe((jobs) => {
+      store.setState({ jobs })
+    })
+  }
+
+  return store
 }
 
 type EditorStore = ReturnType<typeof createEditorStore>

@@ -99,12 +99,7 @@ export function IngestionDrawer() {
 
         <ScrollArea className="min-h-0 flex-1">
           <div className="flex flex-col gap-3 p-3">
-            <section>
-              <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground">
-                Upload
-              </h3>
-              <UploadZone />
-            </section>
+            <UploadZone />
 
             <section>
               <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground">

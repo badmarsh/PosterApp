@@ -424,19 +424,42 @@ export async function PUT(
             tableRows: asset.tableRows ? (typeof asset.tableRows === "string" ? safeJsonParse(asset.tableRows, undefined) : (asset.tableRows as any)) : undefined,
             assignedSlot: asset.assignedSlot,
           }
-          await tx.asset.upsert({
-            where: { id: asset.id },
-            create: {
-              id: asset.id,
-              workspaceId: id,
-              assignedCardId: asset.assignedCardId ?? null,
-              ...assetData,
-            },
-            update: {
-              assignedCardId: asset.assignedCardId ?? null,
-              ...assetData,
-            },
-          })
+          let upserted: { id: string }
+          if (asset.filename) {
+            upserted = await tx.asset.upsert({
+              where: {
+                workspaceId_filename: {
+                  workspaceId: id,
+                  filename: asset.filename,
+                },
+              },
+              create: {
+                id: asset.id,
+                workspaceId: id,
+                assignedCardId: asset.assignedCardId ?? null,
+                ...assetData,
+              },
+              update: {
+                assignedCardId: asset.assignedCardId ?? null,
+                ...assetData,
+              },
+            })
+          } else {
+            upserted = await tx.asset.upsert({
+              where: { id: asset.id },
+              create: {
+                id: asset.id,
+                workspaceId: id,
+                assignedCardId: asset.assignedCardId ?? null,
+                ...assetData,
+              },
+              update: {
+                assignedCardId: asset.assignedCardId ?? null,
+                ...assetData,
+              },
+            })
+          }
+          ownedAssetIds.delete(upserted.id)
           ownedAssetIds.delete(asset.id)
         }
         if (ownedAssetIds.size > 0) {

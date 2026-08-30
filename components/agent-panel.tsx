@@ -18,6 +18,7 @@ import {
   Terminal,
   Wrench,
   XCircle,
+  Camera,
 } from "lucide-react"
 import {
   AssistantRuntimeProvider,
@@ -579,6 +580,7 @@ function AssistantTextContent() {
 
 function ChatComposer() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const { setIsScannerOpen } = useEditor(useShallow((s) => ({ setIsScannerOpen: s.setIsScannerOpen })))
 
   return (
     <ComposerPrimitive.Root className="flex shrink-0 flex-col border-t border-border bg-card/60">
@@ -602,9 +604,22 @@ function ChatComposer() {
         }}
       />
       <div className="flex items-center justify-between px-2.5 pb-2">
-        <span className="text-[10px] text-muted-foreground/50">
-          Shift+Enter for newline
-        </span>
+        <div className="flex items-center gap-1.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsScannerOpen(true)}
+            className="h-6 px-1.5 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
+            title="Scan Image & OCR (Handwritten math, whiteboard, or screenshot)"
+          >
+            <Camera className="size-3 text-primary" />
+            <span>Scan / OCR</span>
+          </Button>
+          <span className="text-[10px] text-muted-foreground/50 hidden sm:inline">
+            Shift+Enter for newline
+          </span>
+        </div>
         <ComposerPrimitive.Send asChild>
           <button
             type="button"

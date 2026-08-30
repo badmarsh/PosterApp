@@ -7,6 +7,7 @@ import { loadSourceContext } from "@/lib/ai/context"
 import { generateAIResponse } from "@/lib/ai/client"
 import { ReviewTipsSchema } from "@/lib/ai/contracts"
 import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
+import { wrapUntrustedContext } from "@/lib/ai/prompts"
 
 const MAX_CARD_CHARS = 3_000
 const MAX_ALL_CARDS_CHARS = 40_000
@@ -157,34 +158,25 @@ source snippet or bib entry included in this prompt. If you cannot verify a clai
 provided sources, do not flag it as a grounding error — instead focus on style, clarity, and
 citation correctness.`
 
-    const userPrompt = `=== POSTER METADATA ===
-Title: ${title || "N/A"}
+    const userPrompt = `${wrapUntrustedContext("Poster Metadata", `Title: ${title || "N/A"}
 Authors: ${authors || "N/A"}
-Venue: ${venue || "N/A"}
+Venue: ${venue || "N/A"}`)}
 
-=== SOURCE DOCUMENTS (ground truth corpus) ===
-The following is the full text extracted from the user's uploaded PDF files.
-You may ONLY use these as factual references.
+${wrapUntrustedContext("Source Documents", sourceSnippets || "No source documents found. Focus only on lint report and card structure.")}
 
-${sourceSnippets || "No source documents found. Focus only on lint report and card structure."}
-
-=== BIBLIOGRAPHY ===
-Available cite keys: [${bibKeys.join(", ")}]
+${wrapUntrustedContext("Bibliography", `Available cite keys: [${bibKeys.join(", ")}]
 Full .bib:
-${boundedBibContent || "No bibliography provided."}
+${boundedBibContent || "No bibliography provided."}`)}
 
-=== PRE-COMPUTED LINT REPORT (deterministic, always accurate) ===
-- \\cite{} keys used in poster but MISSING from bib: ${lintReport.missingCites.length > 0 ? lintReport.missingCites.join(", ") : "none"}
+${wrapUntrustedContext("Pre-computed Lint Report", `- \\cite{} keys used in poster but MISSING from bib: ${lintReport.missingCites.length > 0 ? lintReport.missingCites.join(", ") : "none"}
 - Bib keys defined but NEVER cited anywhere: ${lintReport.unusedBibKeys.length > 0 ? lintReport.unusedBibKeys.join(", ") : "none"}
 - Figure captions that are empty: ${lintReport.emptyCaptions.length > 0 ? lintReport.emptyCaptions.map((e) => `${e.cardId} -> ${e.figId}`).join(", ") : "none"}
 - Cards with no content at all: ${lintReport.emptyCards.length > 0 ? lintReport.emptyCards.join(", ") : "none"}
-- Estimated layout overflows (chars vs budget): ${lintReport.layoutOverflows.length > 0 ? "\n  " + lintReport.layoutOverflows.join("\n  ") : "none"}
+- Estimated layout overflows (chars vs budget): ${lintReport.layoutOverflows.length > 0 ? "\n  " + lintReport.layoutOverflows.join("\n  ") : "none"}`)}
 
-=== FULL CARD CONTENTS ===
-${fullCardContents || "No cards provided."}
+${wrapUntrustedContext("Full Card Contents", fullCardContents || "No cards provided.")}
 
-=== REVIEW TASK ===
-Review the poster cards against the source documents above.
+${wrapUntrustedContext("Review Task", `Review the poster cards against the source documents above.
 For each issue found, output a JSON tip with:
 - severity: "error" | "warning" | "info"
 - category: "citation" | "typo" | "figure" | "layout" | "content" | "grounding"
@@ -194,7 +186,7 @@ Use category "grounding" when a specific factual claim in a card cannot be
 verified against any provided source snippet.
 
 Return EXACTLY (no markdown wrappers):
-{"tips": [{"severity":"...", "category":"...", "message":"..."}]}`
+{"tips": [{"severity":"...", "category":"...", "message":"..."}]}`)}`
 
     try {
       const parsedData = await generateAIResponse("review", {

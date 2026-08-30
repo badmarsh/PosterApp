@@ -52,15 +52,12 @@ export async function POST(
       )
     }
 
-    // 1. Load source markdown files
-    const sourceContext = await loadSourceContext({ workspaceId, sourceIds })
-
-    if (!sourceContext) {
-      return NextResponse.json(
-        { error: "No parsed documents found in workspace. Please ingest PDFs first." },
-        { status: 400 }
-      )
-    }
+    // 1. Load source markdown files (if any)
+    const rawSourceContext = await loadSourceContext({ workspaceId, sourceIds })
+    const hasSource = Boolean(rawSourceContext && rawSourceContext.trim().length > 0)
+    const sourceContext = hasSource
+      ? rawSourceContext
+      : `No source documents uploaded yet in workspace "${workspaceId}". Generate a rigorous, peer-level academic draft for the topic: "${topic}".`
 
     // 2. Format available assets
     const availableAssets = (assets || []).map(
@@ -81,6 +78,7 @@ export async function POST(
       topic,
       isAutonomous,
       sourceContext,
+      hasSource,
       availableAssets,
       bibKeys,
       characterLimit,
@@ -118,20 +116,23 @@ interface CardPromptOptions {
   topic: string
   isAutonomous: boolean
   sourceContext: string
+  hasSource?: boolean
   availableAssets: object[]
   bibKeys: string[]
   characterLimit: number
 }
 
 function buildCardPrompt(opts: CardPromptOptions): string {
-  const { outputType, topic, isAutonomous, sourceContext, availableAssets, bibKeys, characterLimit } = opts
+  const { outputType, topic, isAutonomous, sourceContext, hasSource = true, availableAssets, bibKeys, characterLimit } = opts
 
   const topicInstruction = isAutonomous
-    ? `The card title is unspecified or generic. Autonomously choose the most compelling scientific topic from the source material that has not yet been covered elsewhere, and write about it.`
+    ? `The card title is unspecified or generic. Autonomously choose the most compelling scientific topic suitable for this section, and write about it.`
     : `Write the content for the card titled: "${topic}". Stay strictly on this topic.`
 
   const citeNote = buildCitationInstruction(bibKeys)
-  const groundingRule = buildGroundingInstruction()
+  const groundingRule = hasSource
+    ? buildGroundingInstruction()
+    : "DOMAIN ACCURACY: Use standard peer-reviewed scientific knowledge and terminology appropriate for academic publication."
   const wrappedSource = wrapUntrustedContext("Source Material", sourceContext)
 
   // ─── POSTER card ────────────────────────────────────────────────────────

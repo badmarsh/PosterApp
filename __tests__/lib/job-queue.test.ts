@@ -76,4 +76,52 @@ describe('JobQueue', () => {
     expect(jobs[0].status).toBe('error')
     expect(jobs[0].error).toBe('Something went wrong')
   })
+
+  it('runs multiple jobs concurrently up to maxConcurrency (3)', async () => {
+    let active = 0
+    let peakConcurrency = 0
+    const runningJobs: Promise<void>[] = []
+
+    for (let i = 0; i < 3; i++) {
+      const p = new Promise<void>((resolve) => {
+        jobQueue.enqueue(`Job ${i}`, async () => {
+          active++
+          peakConcurrency = Math.max(peakConcurrency, active)
+          await new Promise((r) => setTimeout(r, 50))
+          active--
+          resolve()
+        })
+      })
+      runningJobs.push(p)
+    }
+
+    await Promise.all(runningJobs)
+    expect(peakConcurrency).toBe(3)
+  })
+
+  it('reconciles interrupted jobs with database ingest files', () => {
+    // Manually enqueue and simulate an interrupted job
+    jobQueue.enqueue('Parse paper1.pdf', async () => {})
+    const jobs = jobQueue.getJobs()
+    const job = jobs.find((j) => j.label === 'Parse paper1.pdf')
+    expect(job).toBeDefined()
+
+    // Simulate reload error state on the job
+    const queue = (jobQueue as any).queue
+    const item = queue.find((q: any) => q.job.label === 'Parse paper1.pdf')
+    if (item) {
+      item.job.status = 'error'
+      item.job.error = 'Interrupted by reload'
+    }
+
+    jobQueue.reconcileWithIngestFiles([
+      { name: 'paper1.pdf', status: 'done', progress: 100 },
+      { name: 'other.pdf', status: 'done', progress: 100 },
+    ])
+
+    const updated = jobQueue.getJobs().find((j) => j.label === 'Parse paper1.pdf')
+    expect(updated?.status).toBe('done')
+    expect(updated?.progress).toBe(100)
+    expect(updated?.error).toBeUndefined()
+  })
 })

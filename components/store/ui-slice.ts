@@ -81,6 +81,11 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
   setIsHistoryOpen: (v) => set({ isHistoryOpen: v }),
   isActionsOpen: false,
   setIsActionsOpen: (v) => set({ isActionsOpen: v }),
+  isScannerOpen: false,
+  setIsScannerOpen: (v) => set({ isScannerOpen: v }),
+  scannerImage: null,
+  setScannerImage: (img) => set({ scannerImage: img }),
+  openScannerWithImage: (img) => set({ scannerImage: img, isScannerOpen: true }),
 
   pushEvent: (e) => {
     const ev = makeEvent(e)
