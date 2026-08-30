@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { cleanFormula, slugifyEquationKey, formatEquationForInsertion } from "@/lib/equation-types"
+import { cleanFormula, slugifyEquationKey, formatEquationForInsertion, isLikelyMathematicalFormula } from "@/lib/equation-types"
 import { validateEquationKaTeX } from "@/lib/services/equation-service"
 
 describe("Equation Registry Utilities", () => {
@@ -69,6 +69,26 @@ describe("Equation Registry Utilities", () => {
       const empty = validateEquationKaTeX("   ")
       expect(empty.valid).toBe(false)
       expect(empty.error).toBe("Formula is empty")
+    })
+  })
+
+  describe("isLikelyMathematicalFormula", () => {
+    it("accepts genuine mathematical formulas", () => {
+      expect(isLikelyMathematicalFormula("E = mc^2")).toBe(true)
+      expect(isLikelyMathematicalFormula("\\nabla \\times \\mathbf{B} = \\mu_0 \\mathbf{J}")).toBe(true)
+      expect(isLikelyMathematicalFormula("\\beta = \\frac{v}{c}")).toBe(true)
+      expect(isLikelyMathematicalFormula("y = \\sum_{i=1}^n w_i x_i + b")).toBe(true)
+    })
+
+    it("rejects HTML / XSS / Code listings hallucinated as equations", () => {
+      const xssSnippet = `<div id="guestbook_comments"> Jméno: <script>alert('test');</script></div>`
+      expect(isLikelyMathematicalFormula(xssSnippet)).toBe(false)
+
+      const latexWrappedXss = `\\begin{array}{l} < \\text {div} \\quad \\text {id = "guestbook\\_comments" > Jméno:} \\\\ < \\text script>alert('test');< /script>< br/> \\end{array}`
+      expect(isLikelyMathematicalFormula(latexWrappedXss)).toBe(false)
+
+      const sqlSnippet = "SELECT * FROM users WHERE id = 1"
+      expect(isLikelyMathematicalFormula(sqlSnippet)).toBe(false)
     })
   })
 })

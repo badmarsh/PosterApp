@@ -8,7 +8,7 @@ import { jsonStringify } from "@/lib/db-helpers"
 import { generateCaption } from "@/lib/services/vision-service"
 import { extractBibTeX } from "@/lib/services/bibtex-service"
 import { generateEquationCaption } from "@/lib/services/equation-service"
-import { cleanFormula, slugifyEquationKey } from "@/lib/equation-types"
+import { cleanFormula, slugifyEquationKey, isLikelyMathematicalFormula } from "@/lib/equation-types"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { detectedPdf, MAX_UPLOAD_BYTES, SAFE_FILE_ID, SAFE_FILENAME, workspacePath } from "@/lib/workspace-files"
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
@@ -515,7 +515,7 @@ export async function POST(req: Request) {
             if (obj && (obj.type === "equation" || obj.type === "interline_equation") && (obj.text || obj.latex)) {
               const rawFormula = (obj.latex || obj.text || "").trim()
               const clean = cleanFormula(rawFormula)
-              if (clean.length >= 3 && !seenEquations.has(clean)) {
+              if (clean.length >= 3 && isLikelyMathematicalFormula(clean) && !seenEquations.has(clean)) {
                 seenEquations.add(clean)
                 const prevText = blocks[i - 1]?.text || ""
                 const nextText = blocks[i + 1]?.text || ""
@@ -544,7 +544,7 @@ export async function POST(req: Request) {
       while ((match = displayMathRegex.exec(results.md_content)) !== null) {
         const rawFormula = (match[1] || match[2] || "").trim()
         const clean = cleanFormula(rawFormula)
-        if (clean.length >= 3 && !seenEquations.has(clean)) {
+        if (clean.length >= 3 && isLikelyMathematicalFormula(clean) && !seenEquations.has(clean)) {
           seenEquations.add(clean)
           const matchIdx = match.index
           const contextSnippet = results.md_content.substring(
@@ -597,8 +597,8 @@ export async function POST(req: Request) {
         heading: eqKey,
         caption: eq.title || `Equation: ${eq.formula.slice(0, 40)}`,
         snippet: eq.formula,
-        section: eq.description || undefined,
-        bbox: eq.contextSnippet || undefined,
+        section: undefined,
+        bbox: undefined,
         page: eq.page,
       })
     }

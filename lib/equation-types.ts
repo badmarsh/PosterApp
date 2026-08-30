@@ -61,3 +61,40 @@ export function formatEquationForInsertion(
   }
   return `$$\n${cleaned}\n$$`
 }
+
+/**
+ * Detects whether a string is a genuine mathematical formula or a false positive
+ * (e.g. HTML snippet, JavaScript payload, XML, SQL query, or raw prose wrapped in array).
+ */
+export function isLikelyMathematicalFormula(raw: string): boolean {
+  if (!raw || raw.trim().length < 3) return false
+  const clean = cleanFormula(raw)
+
+  // 1. Hard-reject HTML / code snippets / XSS payloads / scripts
+  if (/<\s*(?:script|div|span|html|body|table|tr|td|br|input|form|a|style|iframe|img|svg|meta|link)\b/i.test(clean)) {
+    return false
+  }
+  if (/\b(?:alert\(|document\.cookie|window\.location|console\.log|SELECT\s+.+\s+FROM\s+|INSERT\s+INTO\s+|DROP\s+TABLE\b)/i.test(clean)) {
+    return false
+  }
+  if (/(?:function\s*\(|class\s+\w+\s*\{|var\s+\w+\s*=|const\s+\w+\s*=|let\s+\w+\s*=)/.test(clean)) {
+    return false
+  }
+
+  // 2. Must contain mathematical operators, greek letters, calculus, fractions, or algebraic structures
+  const hasMathTokens = /(?:[=+\-*/^_{}\\]|\\frac|\\sum|\\int|\\prod|\\partial|\\sqrt|\\alpha|\\beta|\\gamma|\\theta|\\sigma|\\lambda|\\mu|\\omega|\\Delta|\\nabla|\\times|\\cdot|\\le|\\ge|\\ne|\\approx|\\in|\\to|\\pm|\\mathbf|\\mathcal|\\mathbb|\b[a-zA-Z]\s*=\s*|\b\d+\s*[\+\-\*\/=]\s*)/i.test(clean)
+  if (!hasMathTokens) {
+    return false
+  }
+
+  // 3. Reject if text is > 75% natural language words wrapped in \text{}
+  const textMatches = clean.match(/\\text\s*\{([^}]+)\}/g)
+  if (textMatches) {
+    const textChars = textMatches.reduce((acc, m) => acc + m.length, 0)
+    if (textChars > clean.length * 0.75 && clean.length > 50) {
+      return false
+    }
+  }
+
+  return true
+}

@@ -42,8 +42,12 @@ const KIND_ORDER: AssetKind[] = ["figure", "table", "equation", "text"]
 
 function OriginLabel({ asset }: { asset: ExtractedAsset }) {
   const parts = [`p.${asset.page}`]
-  if (asset.section) parts.push(asset.section)
-  if (asset.bbox) parts.push(asset.bbox)
+  if (asset.section && asset.section.length <= 40 && !asset.section.includes("\n") && !asset.section.startsWith("#")) {
+    parts.push(asset.section)
+  }
+  if (asset.bbox && (asset.bbox.startsWith("[") || asset.bbox.length <= 30) && !asset.bbox.includes("\n")) {
+    parts.push(asset.bbox)
+  }
   return (
     <span className="font-mono text-[10px] font-normal text-muted-foreground">
       {parts.join(" · ")}
