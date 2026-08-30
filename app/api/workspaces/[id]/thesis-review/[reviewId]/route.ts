@@ -14,34 +14,34 @@ import {
 } from "@/lib/ai/review-serializer"
 
 const UpdateSchema = z.object({
-  studentName: z.string().min(1).max(200).optional(),
-  thesisTitle: z.string().min(1).max(500).optional(),
+  studentName: z.string().min(1).max(300).optional(),
+  thesisTitle: z.string().min(1).max(1000).optional(),
   thesisType: z.enum(["bachelor", "master", "phd"]).optional(),
-  reviewerRole: z.string().max(50).optional(),
-  reviewerName: z.string().max(200).optional(),
-  institution: z.string().max(300).optional(),
-  department: z.string().max(300).optional(),
-  grade: z.string().max(20).optional(),
-  suggestedGrade: z.string().max(20).optional().nullable(),
-  finalGrade: z.string().max(20).optional().nullable(),
-  recommendation: z.string().max(2000).optional(),
-  suggestedRecommendation: z.string().max(2000).optional().nullable(),
-  finalRecommendation: z.string().max(2000).optional().nullable(),
+  reviewerRole: z.string().max(100).optional(),
+  reviewerName: z.string().max(300).optional().nullable(),
+  institution: z.string().max(500).optional().nullable(),
+  department: z.string().max(500).optional().nullable(),
+  grade: z.string().max(50).optional().nullable(),
+  suggestedGrade: z.string().max(50).optional().nullable(),
+  finalGrade: z.string().max(50).optional().nullable(),
+  recommendation: z.string().max(50000).optional().nullable(),
+  suggestedRecommendation: z.string().max(50000).optional().nullable(),
+  finalRecommendation: z.string().max(50000).optional().nullable(),
   confirmedAt: z.union([z.string(), z.date()]).optional().nullable(),
-  sections: z.union([z.string(), z.array(z.any())]).optional(),
-  defenseQuestions: z.union([z.string(), z.array(z.any())]).optional(),
-  citationIssues: z.union([z.string(), z.array(z.any())]).optional(),
-  reviewKind: z.string().optional(),
-  targetVenue: z.string().max(300).optional(),
-  summary: z.string().optional(),
-  strengths: z.union([z.string(), z.array(z.any())]).optional(),
-  findings: z.union([z.string(), z.array(z.any())]).optional(),
-  reportingStandard: z.string().optional(),
-  reportingGuidelineChecks: z.union([z.string(), z.array(z.any())]).optional(),
+  sections: z.union([z.string(), z.array(z.any())]).optional().nullable(),
+  defenseQuestions: z.union([z.string(), z.array(z.any())]).optional().nullable(),
+  citationIssues: z.union([z.string(), z.array(z.any())]).optional().nullable(),
+  reviewKind: z.string().optional().nullable(),
+  targetVenue: z.string().max(500).optional().nullable(),
+  summary: z.string().optional().nullable(),
+  strengths: z.union([z.string(), z.array(z.any())]).optional().nullable(),
+  findings: z.union([z.string(), z.array(z.any())]).optional().nullable(),
+  reportingStandard: z.string().optional().nullable(),
+  reportingGuidelineChecks: z.union([z.string(), z.array(z.any())]).optional().nullable(),
   confidentialComments: z.string().optional().nullable(),
-  status: z.string().optional(),
+  status: z.string().optional().nullable(),
   language: z.enum(["sk", "cs", "en"]).optional(),
-})
+}).passthrough()
 
 // ---------------------------------------------------------------------------
 // GET — fetch a single thesis review
@@ -103,7 +103,11 @@ export async function PUT(
     const validated = UpdateSchema.parse(raw)
     updates = serializeThesisReviewUpdate(validated)
   } catch (err) {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+    console.error("[thesis-review PUT] Validation error:", err)
+    return NextResponse.json({
+      error: "Invalid request body",
+      details: err instanceof z.ZodError ? err.flatten() : String(err)
+    }, { status: 400 })
   }
 
   try {
