@@ -5,7 +5,7 @@
  * 1. Academic Thesis Reviews (BSc, MSc, PhD — supervisor/opponent with ECTS scoring)
  * 2. Scientific Peer Reviews (Journals, Conferences, Grants — Major/Minor triage, reporting compliance, verdict)
  *
- * Implements COPE, EQUATOR Network (CONSORT 2025, PRISMA 2020, STROBE), Nature, and PLOS standards.
+ * Implements COPE, EQUATOR Network (CONSORT 2025, PRISMA 2020, STROBE, ML Reproducibility), Nature, and PLOS standards.
  */
 
 import type { ReviewLanguage, CriterionRating } from "./thesis-rubric"
@@ -14,28 +14,40 @@ export type ReviewKind = "thesis" | "paper" | "grant"
 export type ReviewSeverity = "critical" | "major" | "minor" | "suggestion"
 export type FindingStatus = "unreviewed" | "accepted" | "edited" | "rejected" | "resolved"
 export type ReportingStandard = "consort" | "prisma" | "strobe" | "ml_reproducibility" | "none"
+export type EvidenceState = "verified" | "approximate" | "unverified" | "stale"
+export type FindingAudience = "author" | "editor" | "committee" | "private"
 
 export interface EvidenceReference {
   id?: string
+  documentId?: string
   page?: number
   sectionHeading?: string
   quote: string
   startOffset?: number
   endOffset?: number
   verified?: boolean
+  state?: EvidenceState
+  verificationMethod?: "exact" | "whitespace_normalized" | "approximate" | "manual"
 }
 
 export interface ReviewFinding {
   id: string
+  criterionId?: string
   category: "methodology" | "results" | "statistics" | "literature" | "reproducibility" | "ethics" | "formal"
   title: string
+  aiDraft?: string
   explanation: string
   recommendation: string
   severity: ReviewSeverity
   confidence: number // 0.0 - 1.0
   evidence: EvidenceReference[]
+  evidenceState?: EvidenceState
   status: FindingStatus
+  source?: "ai" | "reviewer" | "checklist"
+  audience?: FindingAudience
   reviewerNotes?: string
+  resolutionNotes?: string
+  duplicateGroup?: string
   includeInExport: boolean
   createdBy: "ai" | "reviewer"
   createdAt?: string
@@ -48,6 +60,13 @@ export interface ReportingGuidelineCheck {
   status: "compliant" | "partial" | "missing" | "not_applicable"
   notes: string
   evidenceQuote?: string
+}
+
+export interface ReviewDiagnostics {
+  corruptedFields: string[]
+  parseWarnings: string[]
+  unverifiedEvidenceCount: number
+  staleEvidenceCount: number
 }
 
 export interface ProfessionalReviewRecord {
@@ -79,9 +98,18 @@ export interface ProfessionalReviewRecord {
   questionsForAuthors: string[]
   confidentialComments?: string
 
-  // Outcomes
-  recommendation: string // e.g. "accept" | "minor_revisions" | "major_revisions" | "reject" | "obhajoba_odporucana"
-  grade?: CriterionRating | string // ECTS grade (A-FX) for thesis reviews
+  // Outcomes & Decision Support
+  suggestedGrade?: CriterionRating | string | null
+  finalGrade?: CriterionRating | string | null
+  suggestedRecommendation?: string | null
+  finalRecommendation?: string | null
+  recommendation: string // legacy / confirmed recommendation
+  grade?: CriterionRating | string // legacy / confirmed ECTS grade
+
+  diagnostics?: ReviewDiagnostics
+
+  confirmedAt?: string | null
+  confirmedBy?: string | null
 
   createdAt: string
   updatedAt: string

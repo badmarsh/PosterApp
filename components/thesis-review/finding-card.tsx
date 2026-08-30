@@ -2,7 +2,7 @@
 
 /**
  * FindingCard — Interactive review finding with evidence linking,
- * severity triage (Major vs. Minor), and reviewer annotation.
+ * severity triage (Major vs. Minor), audience routing, and reviewer annotation.
  */
 
 import { useState } from "react"
@@ -29,13 +29,23 @@ import {
   Sparkles,
   User,
   Quote,
+  Lock,
+  HelpCircle,
+  AlertCircle,
 } from "lucide-react"
-import type { ReviewFinding, ReviewSeverity, FindingStatus, EvidenceReference } from "@/lib/ai/review-types"
+import type {
+  ReviewFinding,
+  ReviewSeverity,
+  FindingStatus,
+  EvidenceReference,
+  FindingAudience,
+} from "@/lib/ai/review-types"
 import type { ReviewLanguage } from "@/lib/ai/thesis-rubric"
 
 interface Props {
   finding: ReviewFinding
   lang: ReviewLanguage
+  isSelected?: boolean
   onSelectEvidence: (ev: EvidenceReference) => void
   onAccept: (id: string) => void
   onReject: (id: string) => void
@@ -43,7 +53,7 @@ interface Props {
   onToggleExport: (id: string) => void
 }
 
-const SEVERITY_COLORS: Record<ReviewSeverity, string> = {
+const SEVERITY_CLASSES: Record<ReviewSeverity, string> = {
   critical: "bg-destructive/15 text-destructive border-destructive/30",
   major: "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30",
   minor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
@@ -61,6 +71,7 @@ const STATUS_ICONS: Record<FindingStatus, any> = {
 export function FindingCard({
   finding,
   lang,
+  isSelected = false,
   onSelectEvidence,
   onAccept,
   onReject,
@@ -88,10 +99,57 @@ export function FindingCard({
   const primaryEvidence = finding.evidence?.[0]
   const StatusIcon = STATUS_ICONS[finding.status] || AlertTriangle
 
+  const renderEvidenceState = (ev?: EvidenceReference) => {
+    if (!ev?.quote) return null
+    if (ev.state === "verified" || ev.verified) {
+      return (
+        <Badge
+          variant="outline"
+          className="text-[9px] py-0 px-1 text-green-700 dark:text-green-400 bg-green-500/10 border-green-500/30 gap-0.5"
+        >
+          <CheckCircle2 className="h-2.5 w-2.5" /> Overený ✓
+        </Badge>
+      )
+    }
+    if (ev.state === "approximate") {
+      return (
+        <Badge
+          variant="outline"
+          className="text-[9px] py-0 px-1 text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/30 gap-0.5"
+        >
+          <HelpCircle className="h-2.5 w-2.5" /> Približná zhoda ~
+        </Badge>
+      )
+    }
+    if (ev.state === "stale") {
+      return (
+        <Badge
+          variant="outline"
+          className="text-[9px] py-0 px-1 text-destructive bg-destructive/10 border-destructive/30 gap-0.5"
+        >
+          <AlertCircle className="h-2.5 w-2.5" /> Zastaraný dôkaz ⚠
+        </Badge>
+      )
+    }
+    return (
+      <Badge
+        variant="outline"
+        className="text-[9px] py-0 px-1 text-muted-foreground bg-muted border-border gap-0.5"
+      >
+        <AlertCircle className="h-2.5 w-2.5" /> Neoverený
+      </Badge>
+    )
+  }
+
   return (
     <div
+      data-finding-id={finding.id}
       className={`rounded-lg border bg-card p-4 transition-all duration-200 space-y-3 ${
-        finding.status === "rejected" ? "opacity-60 bg-muted/20" : "shadow-sm hover:border-primary/40"
+        isSelected ? "ring-2 ring-primary shadow-md" : ""
+      } ${
+        finding.status === "rejected"
+          ? "opacity-60 bg-muted/20"
+          : "shadow-sm hover:border-primary/40"
       }`}
     >
       {/* Card Header: Category, Severity, Status & Creator */}
@@ -103,7 +161,7 @@ export function FindingCard({
             onValueChange={(val) => onEdit(finding.id, { severity: val as ReviewSeverity })}
           >
             <SelectTrigger
-              className={`h-6 text-[11px] font-bold px-2 py-0 border rounded ${SEVERITY_COLORS[finding.severity]}`}
+              className={`h-6 text-[11px] font-bold px-2 py-0 border rounded ${SEVERITY_CLASSES[finding.severity]}`}
             >
               <SelectValue />
             </SelectTrigger>
@@ -128,6 +186,21 @@ export function FindingCard({
             {finding.category}
           </Badge>
 
+          {/* Audience selector */}
+          <Select
+            value={finding.audience || "author"}
+            onValueChange={(val) => onEdit(finding.id, { audience: val as FindingAudience })}
+          >
+            <SelectTrigger className="h-6 text-[10px] px-1.5 py-0 border rounded w-28">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="author" className="text-xs">Pre autora</SelectItem>
+              <SelectItem value="editor" className="text-xs font-bold text-amber-600">Dôverné (Editor)</SelectItem>
+              <SelectItem value="committee" className="text-xs font-bold text-blue-600">Pre komisiu</SelectItem>
+            </SelectContent>
+          </Select>
+
           {/* AI vs Reviewer origin badge */}
           {finding.createdBy === "ai" ? (
             <span className="flex items-center gap-1 text-[10px] text-muted-foreground font-mono">
@@ -145,7 +218,11 @@ export function FindingCard({
           <Badge
             variant="secondary"
             className={`text-[10px] font-semibold gap-1 ${
-              finding.status === "accepted" ? "text-green-600 bg-green-50 dark:bg-green-950/40" : ""
+              finding.status === "accepted"
+                ? "text-green-600 bg-green-50 dark:bg-green-950/40"
+                : finding.status === "rejected"
+                ? "text-destructive bg-destructive/10"
+                : ""
             }`}
           >
             <StatusIcon className="h-3 w-3" />
@@ -163,7 +240,11 @@ export function FindingCard({
             title={finding.includeInExport ? "Zahrnuté v exporte" : "Vylúčené z exportu"}
             onClick={() => onToggleExport(finding.id)}
           >
-            {finding.includeInExport ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5 opacity-50" />}
+            {finding.includeInExport ? (
+              <Eye className="h-3.5 w-3.5" />
+            ) : (
+              <EyeOff className="h-3.5 w-3.5 opacity-50" />
+            )}
           </Button>
         </div>
       </div>
@@ -193,16 +274,24 @@ export function FindingCard({
             <Button size="sm" variant="outline" onClick={() => setIsEditing(false)} className="h-7 text-xs">
               Zrušiť
             </Button>
-            <Button size="sm" onClick={handleSaveEdit} className="h-7 text-xs">
+            <Button size="sm" onClick={handleSaveEdit} className="h-7 text-xs font-semibold">
               Uložiť zmeny
             </Button>
           </div>
         </div>
       ) : (
         <div className="space-y-2">
-          <h4 className="text-sm font-semibold text-foreground tracking-tight leading-snug">
-            {finding.title}
-          </h4>
+          <div className="flex items-start justify-between gap-2">
+            <h4 className="text-sm font-semibold text-foreground tracking-tight leading-snug">
+              {finding.title}
+            </h4>
+            {finding.audience === "editor" && (
+              <Badge variant="outline" className="text-[9px] text-amber-600 border-amber-300 gap-1 shrink-0">
+                <Lock className="h-2.5 w-2.5" /> Dôverné
+              </Badge>
+            )}
+          </div>
+
           <p className="text-xs text-muted-foreground leading-relaxed">
             {finding.explanation}
           </p>
@@ -222,15 +311,7 @@ export function FindingCard({
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
               <Quote className="h-3 w-3 text-primary" /> Dôkaz v texte:
-              {primaryEvidence.verified !== false ? (
-                <Badge variant="outline" className="text-[9px] py-0 px-1 text-green-700 dark:text-green-400 bg-green-500/10 border-green-500/30">
-                  Overený ✓
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-[9px] py-0 px-1 text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/30">
-                  Neoverený ⚠️
-                </Badge>
-              )}
+              {renderEvidenceState(primaryEvidence)}
             </span>
             <Button
               size="sm"

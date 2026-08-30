@@ -5,18 +5,17 @@
  * and evidence-anchored thesis assessment.
  *
  * Left: Source Document & Evidence Viewer (synced quote highlighting & search)
- * Right: Interactive Review Workspace & Triage (Executive summary, Major/Minor findings,
- *        Reporting guidelines audit, Questions for authors, Multi-format export).
+ * Right: Interactive Review Workspace & Triage (Executive summary, Prioritized queue,
+ *        Reporting guidelines audit, Human-in-the-loop decision, Multi-format export).
  */
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import { useThesisReviewStore } from "./use-thesis-review-store"
 import { EvidenceViewer } from "./evidence-viewer"
 import { FindingCard } from "./finding-card"
 import { ReportingChecklistPanel } from "./reporting-checklist-panel"
 import { DefenseQuestionsPanel } from "./defense-questions-panel"
 import { CitationIssuesPanel } from "./citation-issues-panel"
-import { ThesisScoreAnalytics } from "./thesis-score-analytics"
 import { ThesisCriteriaCard } from "./thesis-criteria-card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -51,6 +50,12 @@ import {
   SlidersHorizontal,
   Lock,
   Columns,
+  Search,
+  Keyboard,
+  ShieldCheck,
+  Award,
+  AlertCircle,
+  HelpCircle,
 } from "lucide-react"
 import {
   formatReviewToMarkdown,
@@ -58,18 +63,20 @@ import {
 } from "@/lib/export/review-formatters"
 import { generateThesisReviewDocx } from "@/lib/docx/generator-review"
 import { THESIS_CRITERIA, type ThesisSection, type ReviewLanguage } from "@/lib/ai/thesis-rubric"
-import type { ReviewFinding, ReviewSeverity } from "@/lib/ai/review-types"
+import type { ReviewFinding, ReviewSeverity, FindingStatus, FindingAudience } from "@/lib/ai/review-types"
 
 interface Props {
   workspaceId: string
   sourceMarkdown?: string
 }
 
-type FilterTab = "all" | "major" | "minor" | "unreviewed" | "accepted"
+type FilterTab = "priority" | "all" | "major" | "unverified" | "minor" | "accepted"
 
 export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Props) {
   const {
     activeReview,
+    sourceMarkdown: storeSourceMarkdown,
+    isLoadingSource,
     selectedEvidence,
     setSelectedEvidence,
     updateReviewLocally,
@@ -78,6 +85,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
     editFinding,
     addCustomFinding,
     toggleFindingExport,
+    confirmFinalDecision,
     saveReview,
     exportReviewPdf,
     isSaving,
@@ -85,39 +93,161 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
     setActiveReview,
   } = useThesisReviewStore()
 
-  const [activeTab, setActiveTab] = useState<FilterTab>("all")
+  const [activeTab, setActiveTab] = useState<FilterTab>("priority")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState<string>("all")
+  const [selectedAudience, setSelectedAudience] = useState<string>("all")
   const [mobileView, setMobileView] = useState<"document" | "review">("review")
+  const [selectedFindingIndex, setSelectedFindingIndex] = useState<number>(0)
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false)
+  const [showFinalDecisionModal, setShowFinalDecisionModal] = useState(false)
+
   const [isAddingFinding, setIsAddingFinding] = useState(false)
   const [newTitle, setNewTitle] = useState("")
   const [newExplanation, setNewExplanation] = useState("")
   const [newCategory, setNewCategory] = useState<any>("methodology")
   const [newSeverity, setNewSeverity] = useState<ReviewSeverity>("major")
   const [newRecommendation, setNewRecommendation] = useState("")
+  const [newAudience, setNewAudience] = useState<FindingAudience>("author")
+
+  const [confirmedGrade, setConfirmedGrade] = useState(activeReview?.finalGrade || activeReview?.grade || "B")
+  const [confirmedRecommendation, setConfirmedRecommendation] = useState(
+    activeReview?.finalRecommendation || activeReview?.recommendation || "Prácu odporúčam na obhajobu."
+  )
+
   const [copiedNotification, setCopiedNotification] = useState(false)
   const [isExportingDocx, setIsExportingDocx] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
+  const effectiveSourceMarkdown = storeSourceMarkdown || sourceMarkdown
   const lang: ReviewLanguage = activeReview?.language || "sk"
   const rawFindings = activeReview?.findings
 
-  // Memoize findings array to keep hook dependencies stable
+  // Memoize findings
   const findings = useMemo(() => rawFindings ?? [], [rawFindings])
 
-  // Count stats
+  // Count stats for queue
   const majorCount = findings.filter((f) => f.severity === "critical" || f.severity === "major").length
-  const minorCount = findings.filter((f) => f.severity === "minor" || f.severity === "suggestion").length
   const unreviewedCount = findings.filter((f) => f.status === "unreviewed").length
+  const unverifiedEvidenceCount = findings.filter((f) => f.evidenceState === "unverified" || !f.evidence?.every((e) => e.verified)).length
+  const minorCount = findings.filter((f) => f.severity === "minor" || f.severity === "suggestion").length
   const acceptedCount = findings.filter((f) => f.status === "accepted" || f.status === "edited").length
+  const openMajorBlockers = findings.filter(
+    (f) => (f.severity === "critical" || f.severity === "major") && f.status === "unreviewed"
+  ).length
 
-  // Filtered findings stream
+  // Filter and prioritize findings stream
   const filteredFindings = useMemo(() => {
-    return findings.filter((f) => {
-      if (activeTab === "major") return f.severity === "critical" || f.severity === "major"
-      if (activeTab === "minor") return f.severity === "minor" || f.severity === "suggestion"
-      if (activeTab === "unreviewed") return f.status === "unreviewed"
-      if (activeTab === "accepted") return f.status === "accepted" || f.status === "edited"
-      return true
-    })
-  }, [findings, activeTab])
+    let list = [...findings]
+
+    // 1. Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim()
+      list = list.filter(
+        (f) =>
+          f.title.toLowerCase().includes(q) ||
+          f.explanation.toLowerCase().includes(q) ||
+          f.recommendation?.toLowerCase().includes(q) ||
+          f.reviewerNotes?.toLowerCase().includes(q) ||
+          f.evidence?.some((e) => e.quote.toLowerCase().includes(q))
+      )
+    }
+
+    // 2. Category filter
+    if (selectedCategory !== "all") {
+      list = list.filter((f) => f.category === selectedCategory)
+    }
+
+    // 3. Audience filter
+    if (selectedAudience !== "all") {
+      list = list.filter((f) => (f.audience || "author") === selectedAudience)
+    }
+
+    // 4. Tab filter & priority sorting
+    if (activeTab === "major") {
+      return list.filter((f) => f.severity === "critical" || f.severity === "major")
+    }
+    if (activeTab === "unverified") {
+      return list.filter((f) => f.evidenceState === "unverified" || !f.evidence?.every((e) => e.verified))
+    }
+    if (activeTab === "minor") {
+      return list.filter((f) => f.severity === "minor" || f.severity === "suggestion")
+    }
+    if (activeTab === "accepted") {
+      return list.filter((f) => f.status === "accepted" || f.status === "edited")
+    }
+    if (activeTab === "priority") {
+      // Prioritized ordering: Critical unreviewed -> Major unreviewed -> Unverified evidence -> Others
+      return list.sort((a, b) => {
+        const severityRank = { critical: 4, major: 3, minor: 2, suggestion: 1 }
+        const statusRank = { unreviewed: 3, edited: 2, accepted: 1, rejected: 0, resolved: 0 }
+
+        const scoreA = (statusRank[a.status] || 0) * 10 + (severityRank[a.severity] || 0)
+        const scoreB = (statusRank[b.status] || 0) * 10 + (severityRank[b.severity] || 0)
+        return scoreB - scoreA
+      })
+    }
+
+    return list
+  }, [findings, activeTab, searchQuery, selectedCategory, selectedAudience])
+
+  // Keyboard navigation shortcuts
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      // Don't trigger if user is actively typing in an input or textarea
+      const target = e.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        if (e.key === "Escape") {
+          target.blur()
+        }
+        return
+      }
+
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        return
+      }
+
+      if (e.key === "?") {
+        e.preventDefault()
+        setShowShortcutsModal((prev) => !prev)
+        return
+      }
+
+      if (filteredFindings.length === 0) return
+
+      const current = filteredFindings[selectedFindingIndex] || filteredFindings[0]
+
+      if (e.key === "j" || e.key === "ArrowDown") {
+        e.preventDefault()
+        setSelectedFindingIndex((prev) => Math.min(prev + 1, filteredFindings.length - 1))
+      } else if (e.key === "k" || e.key === "ArrowUp") {
+        e.preventDefault()
+        setSelectedFindingIndex((prev) => Math.max(prev - 1, 0))
+      } else if (e.key === "a" && current) {
+        e.preventDefault()
+        acceptFinding(current.id)
+      } else if (e.key === "r" && current) {
+        e.preventDefault()
+        rejectFinding(current.id)
+      } else if (e.key === "v" && current?.evidence?.[0]) {
+        e.preventDefault()
+        setSelectedEvidence(current.evidence[0])
+      }
+    },
+    [filteredFindings, selectedFindingIndex, acceptFinding, rejectFinding, setSelectedEvidence]
+  )
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [handleKeyDown])
 
   if (!activeReview) return null
 
@@ -132,6 +262,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
       confidence: 1.0,
       evidence: selectedEvidence ? [selectedEvidence] : [],
       status: "accepted",
+      audience: newAudience,
       includeInExport: true,
     })
     setNewTitle("")
@@ -175,6 +306,29 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
     }
   }
 
+  const handleDownloadTex = async () => {
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review/${activeReview.id}/export?format=tex`)
+      if (!res.ok) throw new Error("Failed to export TeX")
+      const tex = await res.text()
+      const blob = new Blob([tex], { type: "text/x-tex;charset=utf-8" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `posudok-${activeReview.studentName.replace(/\s+/g, "-")}.tex`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error("TeX export failed:", err)
+    }
+  }
+
+  const handleConfirmDecision = () => {
+    confirmFinalDecision(confirmedGrade, confirmedRecommendation)
+    setShowFinalDecisionModal(false)
+    void saveReview(workspaceId, activeReview.id)
+  }
+
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-background">
       {/* Top Navbar & Actions Bar */}
@@ -197,8 +351,12 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 {activeReview.reviewKind || activeReview.thesisType}
               </Badge>
               {activeReview.grade && (
-                <Badge variant="default" className="text-xs font-bold shrink-0">
-                  {activeReview.grade}
+                <Badge
+                  variant={activeReview.confirmedAt ? "default" : "outline"}
+                  className="text-xs font-bold shrink-0 gap-1"
+                >
+                  {activeReview.confirmedAt && <CheckCircle2 className="h-3 w-3 text-green-400" />}
+                  ECTS: {activeReview.grade}
                 </Badge>
               )}
             </div>
@@ -228,8 +386,28 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
           </button>
         </div>
 
-        {/* Right: Save & Multi-Format Export */}
+        {/* Right: Decision confirmation, Save & Multi-Format Export */}
         <div className="flex items-center gap-2 shrink-0">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowShortcutsModal(true)}
+            className="text-xs h-8 px-2 text-muted-foreground hidden sm:inline-flex gap-1"
+            title="Klávesové skratky (?)"
+          >
+            <Keyboard className="h-3.5 w-3.5" />
+          </Button>
+
+          <Button
+            size="sm"
+            variant={activeReview.confirmedAt ? "secondary" : "default"}
+            onClick={() => setShowFinalDecisionModal(true)}
+            className="text-xs h-8 gap-1.5 font-semibold"
+          >
+            <Award className="h-3.5 w-3.5 text-amber-500" />
+            {activeReview.confirmedAt ? "Rozhodnutie potvrdené ✓" : "Potvrdiť známku"}
+          </Button>
+
           <Button
             size="sm"
             variant="outline"
@@ -255,6 +433,10 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 <FileCheck className="h-4 w-4 mr-2 text-primary" />
                 {isExporting ? "Kompilujem PDF..." : "Exportovať PDF (LaTeX)"}
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadTex}>
+                <FileText className="h-4 w-4 mr-2 text-primary" />
+                Stiahnuť zdrojový LaTeX (.TEX)
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleDownloadDocx} disabled={isExportingDocx}>
                 <FileText className="h-4 w-4 mr-2 text-blue-600" />
                 {isExportingDocx ? "Generujem Word..." : "Stiahnuť Word (.DOCX)"}
@@ -273,6 +455,19 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
         </div>
       </div>
 
+      {/* Diagnostics Alert Banner if recovery fallbacks were applied */}
+      {activeReview.diagnostics && activeReview.diagnostics.corruptedFields.length > 0 && (
+        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-xs flex items-center justify-between text-amber-900 dark:text-amber-300">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+            <span>
+              Niektoré polia posudku boli obnovené so záchranným formátom (
+              {activeReview.diagnostics.corruptedFields.join(", ")}). Vaša manuálna práca bola zachovaná.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Split Workspace Body */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel: Document Source & Evidence Viewer */}
@@ -283,10 +478,11 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
         >
           <EvidenceViewer
             workspaceId={workspaceId}
-            sourceMarkdown={sourceMarkdown}
+            sourceMarkdown={effectiveSourceMarkdown}
             selectedEvidence={selectedEvidence}
+            isLoading={isLoadingSource}
             onAddFindingFromSelection={(quote, heading) => {
-              setSelectedEvidence({ quote, sectionHeading: heading })
+              setSelectedEvidence({ quote, sectionHeading: heading, verified: true, state: "verified" })
               setIsAddingFinding(true)
               setNewTitle(`Pripomienka k sekcii ${heading || "v texte"}`)
             }}
@@ -342,15 +538,20 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
             />
           )}
 
-          {/* Structured Findings Stream */}
+          {/* Structured Findings Stream & Triage Header */}
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h3 className="text-sm font-bold tracking-tight">
-                  Štruktúrované pripomienky ({findings.length})
+                <h3 className="text-sm font-bold tracking-tight flex items-center gap-2">
+                  <span>Štruktúrované pripomienky ({findings.length})</span>
+                  {openMajorBlockers > 0 && (
+                    <Badge variant="destructive" className="text-[10px] py-0 px-1.5">
+                      {openMajorBlockers} otvorených zásadných
+                    </Badge>
+                  )}
                 </h3>
                 <p className="text-[11px] text-muted-foreground">
-                  Zásadné metodologické body a drobné formulačné pripomienky viazané na dôkazy v texte.
+                  Zásadné metodologické body a drobné pripomienky viazané na overené dôkazy.
                 </p>
               </div>
 
@@ -365,44 +566,94 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               </Button>
             </div>
 
+            {/* Search and Filters Bar */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  ref={searchInputRef}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filtrovať v pripomienkach a dôkazoch (/)"
+                  className="h-7 text-xs pl-7"
+                />
+              </div>
+
+              <Select value={selectedCategory} onValueChange={(val) => setSelectedCategory(val || "all")}>
+                <SelectTrigger className="h-7 text-xs w-32">
+                  <SelectValue placeholder="Kategória" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">Všetky kategórie</SelectItem>
+                  <SelectItem value="methodology" className="text-xs">Metodológia</SelectItem>
+                  <SelectItem value="results" className="text-xs">Výsledky</SelectItem>
+                  <SelectItem value="statistics" className="text-xs">Štatistika</SelectItem>
+                  <SelectItem value="literature" className="text-xs">Literatúra</SelectItem>
+                  <SelectItem value="reproducibility" className="text-xs">Reprodukovateľnosť</SelectItem>
+                  <SelectItem value="formal" className="text-xs">Formálna úprava</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedAudience} onValueChange={(val) => setSelectedAudience(val || "all")}>
+                <SelectTrigger className="h-7 text-xs w-28">
+                  <SelectValue placeholder="Príjemca" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">Všetci</SelectItem>
+                  <SelectItem value="author" className="text-xs">Pre autora</SelectItem>
+                  <SelectItem value="editor" className="text-xs">Dôverné</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Filter Tabs Bar */}
             <div className="flex flex-wrap items-center gap-1.5 border-b pb-2 text-xs">
               <button
-                onClick={() => setActiveTab("all")}
+                onClick={() => setActiveTab("priority")}
                 className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                  activeTab === "all" ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:bg-muted"
+                  activeTab === "priority"
+                    ? "bg-primary text-primary-foreground font-semibold"
+                    : "text-muted-foreground hover:bg-muted"
                 }`}
               >
-                Všetky ({findings.length})
+                Prioritná fronta
               </button>
               <button
                 onClick={() => setActiveTab("major")}
                 className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                  activeTab === "major" ? "bg-orange-600 text-white font-semibold" : "text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                  activeTab === "major"
+                    ? "bg-orange-600 text-white font-semibold"
+                    : "text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30"
                 }`}
               >
-                Zásadné / Major ({majorCount})
+                Zásadné ({majorCount})
+              </button>
+              <button
+                onClick={() => setActiveTab("unverified")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                  activeTab === "unverified"
+                    ? "bg-amber-600 text-white font-semibold"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                Neoverený dôkaz ({unverifiedEvidenceCount})
               </button>
               <button
                 onClick={() => setActiveTab("minor")}
                 className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                  activeTab === "minor" ? "bg-blue-600 text-white font-semibold" : "text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                  activeTab === "minor"
+                    ? "bg-blue-600 text-white font-semibold"
+                    : "text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30"
                 }`}
               >
-                Drobné / Minor ({minorCount})
-              </button>
-              <button
-                onClick={() => setActiveTab("unreviewed")}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                  activeTab === "unreviewed" ? "bg-amber-600 text-white font-semibold" : "text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                Nepreskúmané ({unreviewedCount})
+                Drobné ({minorCount})
               </button>
               <button
                 onClick={() => setActiveTab("accepted")}
                 className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                  activeTab === "accepted" ? "bg-green-600 text-white font-semibold" : "text-muted-foreground hover:bg-muted"
+                  activeTab === "accepted"
+                    ? "bg-green-600 text-white font-semibold"
+                    : "text-muted-foreground hover:bg-muted"
                 }`}
               >
                 Prijaté ({acceptedCount})
@@ -454,7 +705,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
 
                 {selectedEvidence?.quote && (
                   <div className="rounded bg-muted/40 p-2 text-[11px] italic font-serif border-l-2 border-primary">
-                    Dôkaz: &ldquo;{selectedEvidence.quote.slice(0, 100)}...&rdquo;
+                    Dôkaz: &ldquo;{selectedEvidence.quote.slice(0, 120)}...&rdquo;
                   </div>
                 )}
 
@@ -472,11 +723,12 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
             {/* Findings List */}
             {filteredFindings.length > 0 ? (
               <div className="space-y-3">
-                {filteredFindings.map((finding) => (
+                {filteredFindings.map((finding, idx) => (
                   <FindingCard
                     key={finding.id}
                     finding={finding}
                     lang={lang}
+                    isSelected={idx === selectedFindingIndex}
                     onSelectEvidence={(ev) => setSelectedEvidence(ev)}
                     onAccept={acceptFinding}
                     onReject={rejectFinding}
@@ -571,6 +823,128 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
           />
         </div>
       </div>
+
+      {/* Decision Confirmation Modal (Human in the loop) */}
+      {showFinalDecisionModal && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border rounded-xl max-w-md w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                <h3 className="font-bold text-sm">Finálne rozhodnutie recenzenta</h3>
+              </div>
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setShowFinalDecisionModal(false)}>
+                ✕
+              </Button>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Systém nikdy neuzatvára posudok automaticky. Skontrolujte a výslovne potvrďte navrhované hodnotenie.
+            </p>
+
+            <div className="space-y-3 bg-muted/30 p-3 rounded-lg border text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">AI návrh známky:</span>
+                <Badge variant="outline" className="font-mono font-bold">
+                  {activeReview.suggestedGrade || activeReview.grade || "N/A"}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Otvorené zásadné pripomienky:</span>
+                <span className={`font-bold ${openMajorBlockers > 0 ? "text-destructive" : "text-green-600"}`}>
+                  {openMajorBlockers}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold">Finálna ECTS známka:</label>
+              <Select value={confirmedGrade} onValueChange={(val) => setConfirmedGrade(val || "B")}>
+                <SelectTrigger className="h-8 text-xs font-bold">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="A" className="text-xs font-bold">A — Výborne (91-100 b)</SelectItem>
+                  <SelectItem value="B" className="text-xs font-bold">B — Veľmi dobre (81-90 b)</SelectItem>
+                  <SelectItem value="C" className="text-xs font-bold">C — Dobre (71-80 b)</SelectItem>
+                  <SelectItem value="D" className="text-xs font-bold">D — Uspokojivo (61-70 b)</SelectItem>
+                  <SelectItem value="E" className="text-xs font-bold">E — Dostatočne (51-60 b)</SelectItem>
+                  <SelectItem value="FX" className="text-xs font-bold text-destructive">FX — Nedostatočne (0-50 b)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold">Formálne odporúčanie k obhajobe:</label>
+              <Input
+                value={confirmedRecommendation}
+                onChange={(e) => setConfirmedRecommendation(e.target.value)}
+                className="text-xs"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button size="sm" variant="outline" onClick={() => setShowFinalDecisionModal(false)} className="text-xs">
+                Zrušiť
+              </Button>
+              <Button size="sm" onClick={handleConfirmDecision} className="text-xs font-bold gap-1.5">
+                <CheckCircle2 className="h-4 w-4" />
+                Potvrdiť a uložiť
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Keyboard Shortcuts Help Modal */}
+      {showShortcutsModal && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border rounded-xl max-w-sm w-full p-5 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b pb-2">
+              <div className="flex items-center gap-2">
+                <Keyboard className="h-4 w-4 text-primary" />
+                <h3 className="font-bold text-xs">Klávesové skratky</h3>
+              </div>
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setShowShortcutsModal(false)}>
+                ✕
+              </Button>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center py-1 border-b">
+                <span className="text-muted-foreground">Ďalšia pripomienka</span>
+                <kbd className="px-1.5 py-0.5 bg-muted rounded font-mono text-[10px]">J</kbd>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b">
+                <span className="text-muted-foreground">Predchádzajúca pripomienka</span>
+                <kbd className="px-1.5 py-0.5 bg-muted rounded font-mono text-[10px]">K</kbd>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b">
+                <span className="text-muted-foreground">Prijať pripomienku</span>
+                <kbd className="px-1.5 py-0.5 bg-muted rounded font-mono text-[10px]">A</kbd>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b">
+                <span className="text-muted-foreground">Odmietnuť pripomienku</span>
+                <kbd className="px-1.5 py-0.5 bg-muted rounded font-mono text-[10px]">R</kbd>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b">
+                <span className="text-muted-foreground">Zobraziť dôkaz v texte</span>
+                <kbd className="px-1.5 py-0.5 bg-muted rounded font-mono text-[10px]">V</kbd>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-muted-foreground">Hľadať v pripomienkach</span>
+                <kbd className="px-1.5 py-0.5 bg-muted rounded font-mono text-[10px]">/</kbd>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button size="sm" variant="secondary" onClick={() => setShowShortcutsModal(false)} className="text-xs">
+                Zavrieť
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

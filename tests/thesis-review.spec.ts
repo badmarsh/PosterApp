@@ -248,7 +248,7 @@ test.describe('Thesis Review Workflow & E2E Features', () => {
     await expect(page.getByText('Aké metriky boli použité na vyhodnotenie kvality syntetizovaných dát?')).toBeVisible();
 
     // Verify dynamic score analytics and overall grade badge
-    await expect(page.getByText('ECTS: B')).toBeVisible();
+    await expect(page.getByText('ECTS: B').first()).toBeVisible();
 
     // Verify the Export button is available
     await expect(page.getByRole('button', { name: /Exportovať posudok|Exportovať PDF/i })).toBeVisible();

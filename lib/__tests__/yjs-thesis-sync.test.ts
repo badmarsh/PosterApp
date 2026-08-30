@@ -3,7 +3,7 @@ import * as Y from "yjs"
 import type { ThesisReviewRecord } from "@/components/thesis-review/use-thesis-review-store"
 
 describe("Yjs Multi-Client Thesis Review Synchronization", () => {
-  it("determinstically synchronizes updates between Client A and Client B and resolves offline edits", () => {
+  it("deterministically synchronizes updates between Client A and Client B and resolves offline edits", () => {
     // 1. Client A and Client B create separate YDocs
     const docA = new Y.Doc()
     const docB = new Y.Doc()
@@ -115,6 +115,75 @@ describe("Yjs Multi-Client Thesis Review Synchronization", () => {
     expect(reviewInAAfterReconnect.findings![0].status).toBe("accepted")
 
     // Cleanup
+    docA.destroy()
+    docB.destroy()
+  })
+
+  it("verifies concurrent additions of findings and decision confirmations across clients", () => {
+    const docA = new Y.Doc()
+    const docB = new Y.Doc()
+
+    const mapA = docA.getMap<string>("thesisReviews")
+    const mapB = docB.getMap<string>("thesisReviews")
+
+    const baseReview: ThesisReviewRecord = {
+      id: "rev-concurrent-1",
+      studentName: "Elena",
+      thesisTitle: "Paralelné algoritmy",
+      thesisType: "master",
+      reviewerRole: "opponent",
+      sections: [],
+      defenseQuestions: [],
+      citationIssues: [],
+      findings: [],
+      status: "draft",
+      language: "sk",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+
+    mapA.set("rev-concurrent-1", JSON.stringify(baseReview))
+    Y.applyUpdate(docB, Y.encodeStateAsUpdate(docA))
+
+    // Client A adds finding 1
+    const reviewA: ThesisReviewRecord = {
+      ...baseReview,
+      findings: [
+        {
+          id: "f_a",
+          category: "methodology",
+          title: "Pripomienka A",
+          explanation: "Od recenzenta A",
+          recommendation: "Opraviť A",
+          severity: "major",
+          confidence: 0.9,
+          evidence: [],
+          status: "accepted",
+          createdBy: "reviewer",
+          includeInExport: true,
+        },
+      ],
+    }
+    mapA.set("rev-concurrent-1", JSON.stringify(reviewA))
+
+    // Client B confirms final grade
+    const reviewB: ThesisReviewRecord = {
+      ...baseReview,
+      finalGrade: "A",
+      grade: "A",
+      confirmedAt: new Date().toISOString(),
+    }
+    mapB.set("rev-concurrent-1", JSON.stringify(reviewB))
+
+    // Sync bidirectional
+    const updateA = Y.encodeStateAsUpdate(docA)
+    const updateB = Y.encodeStateAsUpdate(docB)
+    Y.applyUpdate(docB, updateA)
+    Y.applyUpdate(docA, updateB)
+
+    expect(mapA.has("rev-concurrent-1")).toBe(true)
+    expect(mapB.has("rev-concurrent-1")).toBe(true)
+
     docA.destroy()
     docB.destroy()
   })

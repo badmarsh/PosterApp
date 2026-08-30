@@ -4,8 +4,10 @@
  * Manages:
  *  - List of thesis reviews in the current workspace
  *  - Active review being edited
+ *  - Full parsed manuscript source text for live Evidence Split-View
  *  - Generation state (loading, error)
  *  - Single-criterion re-generation
+ *  - Finding triage and human-in-the-loop decision confirmation
  *  - Export state
  */
 
@@ -25,6 +27,7 @@ import type {
   EvidenceReference,
   ReportingStandard,
   ReportingGuidelineCheck,
+  ReviewDiagnostics,
 } from "@/lib/ai/review-types"
 
 // ---------------------------------------------------------------------------
@@ -41,7 +44,11 @@ export interface ThesisReviewRecord {
   institution?: string | null
   department?: string | null
   grade?: string | null
+  suggestedGrade?: string | null
+  finalGrade?: string | null
   recommendation?: string | null
+  suggestedRecommendation?: string | null
+  finalRecommendation?: string | null
   sections: ThesisSection[]
   defenseQuestions: string[]
   questionsForAuthors?: string[]
@@ -56,6 +63,9 @@ export interface ThesisReviewRecord {
   confidentialComments?: string | null
   status: "draft" | "final"
   language: ReviewLanguage
+  diagnostics?: ReviewDiagnostics
+  confirmedAt?: string | null
+  confirmedBy?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -91,6 +101,8 @@ export interface ThesisReviewGenerateOptions {
 interface ThesisReviewState {
   reviews: ThesisReviewListItem[]
   activeReview: ThesisReviewRecord | null
+  sourceMarkdown: string
+  isLoadingSource: boolean
   selectedEvidence: EvidenceReference | null
   isGenerating: boolean
   isSaving: boolean
@@ -106,6 +118,7 @@ interface ThesisReviewState {
   closePanel: () => void
   setActiveReview: (review: ThesisReviewRecord | null) => void
   setSelectedEvidence: (ev: EvidenceReference | null) => void
+  loadSourceDocument: (workspaceId: string) => Promise<void>
   loadReviews: (workspaceId: string) => Promise<void>
   loadReview: (workspaceId: string, reviewId: string) => Promise<void>
   generateReview: (opts: ThesisReviewGenerateOptions) => Promise<ThesisReviewRecord | null>
@@ -125,6 +138,9 @@ interface ThesisReviewState {
   addCustomFinding: (finding: Omit<ReviewFinding, "id" | "createdBy">) => void
   toggleFindingExport: (findingId: string) => void
 
+  // Decision confirmation (Human-in-the-loop)
+  confirmFinalDecision: (grade: string, recommendation: string) => void
+
   saveReview: (workspaceId: string, reviewId: string) => Promise<boolean>
   exportReviewPdf: (workspaceId: string, reviewId: string) => Promise<void>
   deleteReview: (workspaceId: string, reviewId: string) => Promise<boolean>
@@ -141,6 +157,8 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
   immer((set, get) => ({
     reviews: [],
     activeReview: null,
+    sourceMarkdown: "",
+    isLoadingSource: false,
     selectedEvidence: null,
     isGenerating: false,
     isSaving: false,
@@ -157,6 +175,25 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     setActiveReview: (review) => set((s) => { s.activeReview = review }),
     setSelectedEvidence: (ev) => set((s) => { s.selectedEvidence = ev }),
 
+    loadSourceDocument: async (workspaceId: string) => {
+      set((s) => { s.isLoadingSource = true })
+      try {
+        const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review/source-document`)
+        if (res.ok) {
+          const data = await res.json()
+          set((s) => {
+            s.sourceMarkdown = data.fullText ?? ""
+            s.isLoadingSource = false
+          })
+        } else {
+          set((s) => { s.isLoadingSource = false })
+        }
+      } catch (err) {
+        console.warn("[ThesisReviewStore] loadSourceDocument failed:", err)
+        set((s) => { s.isLoadingSource = false })
+      }
+    },
+
     loadReviews: async (workspaceId) => {
       try {
         const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review`)
@@ -170,9 +207,13 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
 
     loadReview: async (workspaceId, reviewId) => {
       try {
-        const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review/${reviewId}`)
-        if (!res.ok) throw new Error("Review not found")
-        const review = await res.json()
+        // Parallel fetch of review record and real source document
+        const [reviewRes] = await Promise.all([
+          fetch(`/api/workspaces/${workspaceId}/thesis-review/${reviewId}`),
+          get().loadSourceDocument(workspaceId),
+        ])
+        if (!reviewRes.ok) throw new Error("Review not found")
+        const review = await reviewRes.json()
         set((s) => { s.activeReview = review })
       } catch (err) {
         console.error("[ThesisReviewStore] loadReview failed:", err)
@@ -182,6 +223,9 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     generateReview: async (opts) => {
       set((s) => { s.isGenerating = true; s.generateError = null })
       try {
+        // Ensure source document is fetched
+        void get().loadSourceDocument(opts.workspaceId)
+
         const res = await fetch(`/api/workspaces/${opts.workspaceId}/thesis-review`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -198,6 +242,9 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
         }
 
         const data = await res.json()
+        const initialGrade = data.overallGrade ?? data.grade ?? null
+        const initialRec = data.recommendation ?? null
+
         const newReview: ThesisReviewRecord = {
           id: data.id,
           studentName: opts.metadata.studentName,
@@ -207,8 +254,12 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
           reviewerName: opts.metadata.reviewerName,
           institution: opts.metadata.institution,
           department: opts.metadata.department,
-          grade: data.overallGrade ?? data.grade ?? null,
-          recommendation: data.recommendation ?? null,
+          grade: initialGrade,
+          suggestedGrade: initialGrade,
+          finalGrade: initialGrade,
+          recommendation: initialRec,
+          suggestedRecommendation: initialRec,
+          finalRecommendation: initialRec,
           sections: data.sections ?? [],
           defenseQuestions: data.defenseQuestions ?? [],
           citationIssues: data.citationIssues ?? [],
@@ -223,6 +274,12 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
           confidentialComments: data.confidentialComments,
           status: "draft",
           language: opts.metadata.language,
+          diagnostics: {
+            corruptedFields: [],
+            parseWarnings: [],
+            unverifiedEvidenceCount: (data.findings ?? []).filter((f: any) => !f.evidence?.every((e: any) => e.verified)).length,
+            staleEvidenceCount: 0,
+          },
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }
@@ -264,8 +321,10 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
           if (s.activeReview) {
             s.activeReview.sections = data.sections
             s.activeReview.grade = data.grade
+            s.activeReview.suggestedGrade = data.grade
             if (data.recommendation) {
               s.activeReview.recommendation = data.recommendation
+              s.activeReview.suggestedRecommendation = data.recommendation
             }
           }
           s.regeneratingCriterionId = null
@@ -299,7 +358,9 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
           if (newScore != null) {
             const newGrade = scoreToEctsGrade(newScore)
             s.activeReview.grade = newGrade
+            s.activeReview.suggestedGrade = newGrade
             s.activeReview.recommendation = gradeToRecommendation(newGrade, s.activeReview.language)
+            s.activeReview.suggestedRecommendation = s.activeReview.recommendation
           }
         }
       })
@@ -343,6 +404,7 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
           ...finding,
           id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           createdBy: "reviewer",
+          source: "reviewer",
           status: "accepted",
           includeInExport: true,
         }
@@ -355,6 +417,18 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
         if (!s.activeReview?.findings) return
         const f = s.activeReview.findings.find((item) => item.id === findingId)
         if (f) f.includeInExport = !f.includeInExport
+      })
+    },
+
+    confirmFinalDecision: (grade, recommendation) => {
+      set((s) => {
+        if (s.activeReview) {
+          s.activeReview.finalGrade = grade
+          s.activeReview.grade = grade
+          s.activeReview.finalRecommendation = recommendation
+          s.activeReview.recommendation = recommendation
+          s.activeReview.confirmedAt = new Date().toISOString()
+        }
       })
     },
 
@@ -375,8 +449,8 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
             reviewerName: activeReview.reviewerName,
             institution: activeReview.institution,
             department: activeReview.department,
-            grade: activeReview.grade,
-            recommendation: activeReview.recommendation,
+            grade: activeReview.finalGrade ?? activeReview.grade,
+            recommendation: activeReview.finalRecommendation ?? activeReview.recommendation,
             sections: JSON.stringify(activeReview.sections),
             defenseQuestions: JSON.stringify(activeReview.defenseQuestions),
             citationIssues: JSON.stringify(activeReview.citationIssues),
@@ -517,5 +591,3 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
 if (typeof window !== "undefined") {
   ;(window as any).__thesisReviewStore = useThesisReviewStore
 }
-
-

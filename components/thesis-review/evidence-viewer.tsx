@@ -3,13 +3,12 @@
 /**
  * EvidenceViewer — Left-hand side of the Review Split Workspace.
  *
- * Renders the parsed manuscript text, highlights source sections,
- * and automatically scrolls and highlights the active evidence quote
+ * Renders the full parsed manuscript text from workspaces/[id]/sources/*.md,
+ * highlights sections, and automatically scrolls and highlights the active evidence quote
  * when the reviewer clicks "Zobraziť dôkaz" on any finding card.
  */
 
-import React, { useEffect, useRef, useState } from "react"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import React, { useEffect, useRef, useState, useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +17,10 @@ import {
   Search,
   Highlighter,
   PlusCircle,
+  CheckCircle2,
+  AlertCircle,
+  HelpCircle,
+  RefreshCw,
   ChevronDown,
   ChevronUp,
 } from "lucide-react"
@@ -27,13 +30,19 @@ interface Props {
   workspaceId: string
   sourceMarkdown?: string
   selectedEvidence: EvidenceReference | null
+  isLoading?: boolean
   onAddFindingFromSelection?: (quote: string, sectionHeading?: string) => void
+}
+
+function normalizeStr(s: string): string {
+  return s.replace(/\s+/g, " ").trim().toLowerCase()
 }
 
 export function EvidenceViewer({
   workspaceId,
   sourceMarkdown = "",
   selectedEvidence,
+  isLoading = false,
   onAddFindingFromSelection,
 }: Props) {
   const [searchQuery, setSearchQuery] = useState("")
@@ -41,7 +50,7 @@ export function EvidenceViewer({
   const containerRef = useRef<HTMLDivElement>(null)
   const activeHighlightRef = useRef<HTMLSpanElement>(null)
 
-  // Auto-scroll to selected evidence
+  // Auto-scroll to selected evidence with fallback matching
   useEffect(() => {
     if (selectedEvidence?.quote && activeHighlightRef.current) {
       activeHighlightRef.current.scrollIntoView({
@@ -60,10 +69,10 @@ export function EvidenceViewer({
     }
   }
 
+  // Highlight helper handling exact and normalized quotes
   const highlightQuote = (text: string, targetQuote?: string, query?: string) => {
     if (!text) return text
 
-    // If there is an active evidence quote, highlight it with active styling
     const cleanTarget = targetQuote?.trim()
     if (cleanTarget && text.includes(cleanTarget)) {
       const parts = text.split(cleanTarget)
@@ -75,7 +84,7 @@ export function EvidenceViewer({
               {i < parts.length - 1 && (
                 <mark
                   ref={activeHighlightRef}
-                  className="bg-primary/20 text-foreground border-b-2 border-primary font-medium px-1 rounded transition-all duration-500 ring-2 ring-primary/40 animate-pulse"
+                  className="bg-primary/20 text-foreground border-b-2 border-primary font-medium px-1 rounded transition-all duration-300 ring-2 ring-primary/40 motion-reduce:animate-none animate-pulse"
                 >
                   {cleanTarget}
                 </mark>
@@ -86,7 +95,23 @@ export function EvidenceViewer({
       )
     }
 
-    // Otherwise if there is a search query
+    // Whitespace-normalized match fallback
+    if (cleanTarget && cleanTarget.length > 20) {
+      const normText = normalizeStr(text)
+      const normTarget = normalizeStr(cleanTarget)
+      if (normText.includes(normTarget)) {
+        return (
+          <mark
+            ref={activeHighlightRef}
+            className="bg-primary/20 text-foreground border-b-2 border-primary font-medium px-1 rounded ring-2 ring-primary/40"
+          >
+            {text}
+          </mark>
+        )
+      }
+    }
+
+    // Search query highlighting
     if (query && query.trim().length > 1) {
       const q = query.trim()
       const regex = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi")
@@ -109,6 +134,29 @@ export function EvidenceViewer({
     return text
   }
 
+  const evidenceStatusBadge = useMemo(() => {
+    if (!selectedEvidence) return null
+    if (selectedEvidence.state === "verified" || selectedEvidence.verified) {
+      return (
+        <Badge variant="outline" className="text-[10px] text-green-600 dark:text-green-400 border-green-300 gap-1">
+          <CheckCircle2 className="h-3 w-3" /> Overený dôkaz v texte
+        </Badge>
+      )
+    }
+    if (selectedEvidence.state === "approximate") {
+      return (
+        <Badge variant="outline" className="text-[10px] text-amber-600 dark:text-amber-400 border-amber-300 gap-1">
+          <HelpCircle className="h-3 w-3" /> Približná zhoda dôkazu
+        </Badge>
+      )
+    }
+    return (
+      <Badge variant="outline" className="text-[10px] text-muted-foreground gap-1">
+        <AlertCircle className="h-3 w-3" /> Neoverený dôkaz
+      </Badge>
+    )
+  }, [selectedEvidence])
+
   return (
     <div className="flex flex-col h-full w-full border-r bg-background/50 overflow-hidden select-text">
       {/* Top toolbar */}
@@ -123,6 +171,7 @@ export function EvidenceViewer({
               {selectedEvidence.sectionHeading}
             </Badge>
           )}
+          {evidenceStatusBadge}
         </div>
 
         <div className="flex items-center gap-2">
@@ -143,7 +192,7 @@ export function EvidenceViewer({
         <div className="bg-primary text-primary-foreground px-3 py-1.5 flex items-center justify-between shadow-md text-xs z-10 animate-in fade-in slide-in-from-top-1">
           <div className="flex items-center gap-2 truncate pr-2">
             <Highlighter className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate max-w-xs italic font-serif">&ldquo;{selectedText.slice(0, 50)}...&rdquo;</span>
+            <span className="truncate max-w-xs italic font-serif">&ldquo;{selectedText.slice(0, 60)}...&rdquo;</span>
           </div>
           <Button
             size="sm"
@@ -166,7 +215,12 @@ export function EvidenceViewer({
         onMouseUp={handleMouseUp}
         className="flex-1 overflow-y-auto p-4 sm:p-6 font-serif text-sm leading-relaxed text-foreground/90 space-y-4"
       >
-        {sourceMarkdown ? (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 space-y-2">
+            <RefreshCw className="h-6 w-6 animate-spin text-primary opacity-70" />
+            <p className="text-xs">Načítavam text rukopisu z workspace...</p>
+          </div>
+        ) : sourceMarkdown ? (
           <div className="max-w-2xl mx-auto whitespace-pre-wrap font-sans text-xs sm:text-sm leading-relaxed space-y-3">
             {sourceMarkdown.split("\n\n").map((para, idx) => {
               if (para.startsWith("#")) {

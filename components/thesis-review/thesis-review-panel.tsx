@@ -33,15 +33,17 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
   const {
     reviews,
     activeReview,
+    sourceMarkdown: storeSourceMarkdown,
     loadReviews,
     loadReview,
+    loadSourceDocument,
     deleteReview,
   } = useThesisReviewStore()
 
   const project = useEditor((s) => s.project)
 
-  // Construct source markdown text from text assets and ingest files
-  const sourceMarkdown = useMemo(() => {
+  // Construct source markdown text fallback from text assets and ingest files
+  const assetSourceMarkdown = useMemo(() => {
     const assets = project?.assets ?? []
     const ingestFiles = project?.ingestFiles ?? []
 
@@ -57,15 +59,18 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
     return ""
   }, [project])
 
+  const effectiveMarkdown = storeSourceMarkdown || assetSourceMarkdown
+
   useEffect(() => {
     loadReviews(workspaceId)
-  }, [workspaceId, loadReviews])
+    loadSourceDocument(workspaceId)
+  }, [workspaceId, loadReviews, loadSourceDocument])
 
   if (activeReview) {
     return (
       <ExpertReviewWorkspace
         workspaceId={workspaceId}
-        sourceMarkdown={sourceMarkdown}
+        sourceMarkdown={effectiveMarkdown}
       />
     )
   }
