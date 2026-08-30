@@ -295,7 +295,7 @@ function ContentTab({ card }: { card: Card }) {
           <Button
             size="sm"
             variant="outline"
-            className="h-6 gap-1 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 text-[10px] text-indigo-500 hover:text-indigo-600 border-indigo-500/20"
+            className="h-6 gap-1 bg-primary/10 text-[10px] text-primary hover:bg-primary/15 border-primary/30"
             onClick={() => autoFillCardAction(card.id)}
             disabled={isGenerating || disabled}
           >

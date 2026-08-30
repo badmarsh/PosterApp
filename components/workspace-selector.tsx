@@ -2,6 +2,16 @@
 
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api-fetch"
+import { X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export function WorkspaceSelector({ onSelect, onClose }: { onSelect: (id: string) => void, onClose: () => void }) {
   const [workspaces, setWorkspaces] = useState<any[]>([])
@@ -68,9 +78,15 @@ export function WorkspaceSelector({ onSelect, onClose }: { onSelect: (id: string
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
       <div className="flex flex-col gap-4 rounded-lg border bg-card p-6 shadow-lg max-w-md w-full relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground">
-          ✕
-        </button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+          className="absolute top-3 right-3 text-muted-foreground"
+        >
+          <X className="size-4" />
+          <span className="sr-only">Close</span>
+        </Button>
         <h2 className="text-xl font-semibold pr-8">Select a Workspace</h2>
         
         {error && error.includes("Database offline") ? (
@@ -104,64 +120,56 @@ export function WorkspaceSelector({ onSelect, onClose }: { onSelect: (id: string
         
         {(!error || !error.includes("Database offline")) && (
           !isCreating ? (
-            <button
-              onClick={() => setIsCreating(true)}
-              className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
-            >
+            <Button onClick={() => setIsCreating(true)} className="mt-4 h-9 w-full text-sm">
               Create New Project
-            </button>
+            </Button>
           ) : (
             <form onSubmit={handleCreate} className="mt-4 flex flex-col gap-3 rounded-md border p-4 bg-muted/30">
               <h3 className="font-medium text-sm">New Workspace</h3>
               {createError && <p className="text-xs text-destructive">{createError}</p>}
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium">Workspace ID (slug)</label>
-                <input 
-                  value={newId} 
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Workspace ID (slug)</label>
+                <Input
+                  value={newId}
                   onChange={e => setNewId(e.target.value)}
-                  className="rounded border bg-background px-2 py-1 text-sm"
                   placeholder="my-cool-project"
                   disabled={isSubmitting}
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium">Project Name</label>
-                <input 
-                  value={newName} 
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Project Name</label>
+                <Input
+                  value={newName}
                   onChange={e => setNewName(e.target.value)}
-                  className="rounded border bg-background px-2 py-1 text-sm"
                   placeholder="My Cool Project"
                   disabled={isSubmitting}
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium">Template</label>
-                <select 
-                  value={newTemplate} 
-                  onChange={e => setNewTemplate(e.target.value)}
-                  className="rounded border bg-background px-2 py-1 text-sm"
-                  disabled={isSubmitting}
-                >
-                  <option value="atlas">Atlas</option>
-                  <option value="minimal">Minimal</option>
-                </select>
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Template</label>
+                <Select value={newTemplate} onValueChange={setNewTemplate} disabled={isSubmitting}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="atlas">Atlas</SelectItem>
+                    <SelectItem value="minimal">Minimal</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="flex justify-end gap-2 mt-2">
-                <button 
-                  type="button" 
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setIsCreating(false)}
-                  className="px-3 py-1 text-sm rounded hover:bg-accent"
                   disabled={isSubmitting}
                 >
                   Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
-                  disabled={isSubmitting}
-                >
+                </Button>
+                <Button type="submit" size="sm" disabled={isSubmitting}>
                   {isSubmitting ? "Creating..." : "Create"}
-                </button>
+                </Button>
               </div>
             </form>
           )
