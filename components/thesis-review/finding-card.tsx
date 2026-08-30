@@ -220,8 +220,17 @@ export function FindingCard({
       {primaryEvidence?.quote && (
         <div className="rounded bg-muted/30 border p-2.5 space-y-1 text-xs">
           <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
               <Quote className="h-3 w-3 text-primary" /> Dôkaz v texte:
+              {primaryEvidence.verified !== false ? (
+                <Badge variant="outline" className="text-[9px] py-0 px-1 text-green-700 dark:text-green-400 bg-green-500/10 border-green-500/30">
+                  Overený ✓
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[9px] py-0 px-1 text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/30">
+                  Neoverený ⚠️
+                </Badge>
+              )}
             </span>
             <Button
               size="sm"

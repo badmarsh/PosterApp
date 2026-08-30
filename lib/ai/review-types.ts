@@ -16,11 +16,13 @@ export type FindingStatus = "unreviewed" | "accepted" | "edited" | "rejected" | 
 export type ReportingStandard = "consort" | "prisma" | "strobe" | "ml_reproducibility" | "none"
 
 export interface EvidenceReference {
+  id?: string
   page?: number
   sectionHeading?: string
   quote: string
   startOffset?: number
   endOffset?: number
+  verified?: boolean
 }
 
 export interface ReviewFinding {
@@ -36,6 +38,8 @@ export interface ReviewFinding {
   reviewerNotes?: string
   includeInExport: boolean
   createdBy: "ai" | "reviewer"
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface ReportingGuidelineCheck {

@@ -85,9 +85,13 @@ Focus on general scientific rigor:
 `,
 }
 
+function normalizeText(text: string): string {
+  return text.replace(/\s+/g, " ").trim().toLowerCase()
+}
+
 /**
  * Searches for finding evidence quotes in the parsed sections and attaches
- * precise section headings and line/character offsets.
+ * precise section headings, line/character offsets, and verified status.
  */
 export function anchorEvidenceQuotes(
   findings: ReviewFindingContract[],
@@ -95,26 +99,52 @@ export function anchorEvidenceQuotes(
 ): ReviewFinding[] {
   return findings.map((f, idx) => {
     const rawEvidence = f.evidence || []
-    const enrichedEvidence: EvidenceReference[] = rawEvidence.map((ev) => {
-      if (!ev.quote) return ev
-
-      const cleanQuote = ev.quote.trim().toLowerCase()
-      // Find matching section in RAG
-      const matchedSection = rag.sections.find((s) =>
-        s.content.toLowerCase().includes(cleanQuote)
-      )
-
-      if (matchedSection) {
-        const quoteIndex = matchedSection.content.toLowerCase().indexOf(cleanQuote)
+    const enrichedEvidence: EvidenceReference[] = rawEvidence.map((ev, evIdx) => {
+      if (!ev.quote || !ev.quote.trim()) {
         return {
-          ...ev,
-          sectionHeading: ev.sectionHeading || matchedSection.heading,
-          startOffset: quoteIndex >= 0 ? quoteIndex : undefined,
-          endOffset: quoteIndex >= 0 ? quoteIndex + ev.quote.length : undefined,
+          id: `ev-${idx + 1}-${evIdx + 1}`,
+          quote: ev.quote || "",
+          verified: false,
         }
       }
 
-      return ev
+      const cleanQuote = normalizeText(ev.quote)
+
+      // 1. Direct or normalized search across parsed sections
+      let matchedSection = rag.sections.find((s) =>
+        normalizeText(s.content).includes(cleanQuote)
+      )
+
+      // 2. Fallback: fuzzy/partial match if quote is long (> 40 chars)
+      if (!matchedSection && cleanQuote.length > 40) {
+        const subQuote = cleanQuote.slice(0, 35)
+        matchedSection = rag.sections.find((s) =>
+          normalizeText(s.content).includes(subQuote)
+        )
+      }
+
+      if (matchedSection) {
+        const normSec = normalizeText(matchedSection.content)
+        const quoteIndex = normSec.indexOf(cleanQuote)
+        return {
+          id: `ev-${idx + 1}-${evIdx + 1}`,
+          page: ev.page,
+          sectionHeading: ev.sectionHeading || matchedSection.heading,
+          quote: ev.quote,
+          startOffset: quoteIndex >= 0 ? quoteIndex : undefined,
+          endOffset: quoteIndex >= 0 ? quoteIndex + ev.quote.length : undefined,
+          verified: true,
+        }
+      }
+
+      // Quote could not be confirmed in extracted text
+      return {
+        id: `ev-${idx + 1}-${evIdx + 1}`,
+        page: ev.page,
+        sectionHeading: ev.sectionHeading,
+        quote: ev.quote,
+        verified: false,
+      }
     })
 
     return {

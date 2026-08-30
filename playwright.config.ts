@@ -15,7 +15,7 @@ export default defineConfig({
   webServer: {
     command: process.env.CI ? 'pnpm exec next dev --port 3333' : 'pnpm run dev',
     url: 'http://localhost:3333',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
     env: {
       NEXT_PUBLIC_E2E_TEST: '1'

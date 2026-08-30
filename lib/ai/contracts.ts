@@ -387,20 +387,24 @@ export function validateGeneratedSections(
 export const EvidenceReferenceSchema = z.preprocess((raw: any) => {
   if (raw && typeof raw === "object") {
     return {
+      id: raw.id ? String(raw.id) : undefined,
       page: typeof raw.page === "number" ? raw.page : undefined,
       sectionHeading: String(raw.sectionHeading || raw.section || raw.heading || "").trim() || undefined,
       quote: String(raw.quote || raw.text || raw.snippet || "").trim(),
       startOffset: typeof raw.startOffset === "number" ? raw.startOffset : undefined,
       endOffset: typeof raw.endOffset === "number" ? raw.endOffset : undefined,
+      verified: typeof raw.verified === "boolean" ? raw.verified : undefined,
     }
   }
   return raw
 }, z.object({
+  id: z.string().optional(),
   page: z.number().optional(),
   sectionHeading: z.string().optional(),
   quote: z.string(),
   startOffset: z.number().optional(),
   endOffset: z.number().optional(),
+  verified: z.boolean().optional(),
 }))
 export type EvidenceReferenceContract = z.infer<typeof EvidenceReferenceSchema>
 

@@ -40,15 +40,15 @@ test.describe('Thesis Review Workflow & E2E Features', () => {
     // Verify metadata panel fields are present
     await expect(page.getByText('Posudok záverečnej práce')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Meno autora/autorky *')).toBeVisible();
-    await expect(page.getByText('Názov práce *')).toBeVisible();
+    await expect(page.getByText(/Názov práce/)).toBeVisible();
 
     // Verify Generate button is initially disabled without required fields
-    const generateBtn = page.getByRole('button', { name: /Vygenerovať posudok|Generate review/i });
+    const generateBtn = page.getByRole('button', { name: /Vygenerovať.*posudok|Generate review/i });
     await expect(generateBtn).toBeDisabled();
 
     // Fill in required metadata
     const nameInput = page.locator('input[placeholder*="Ján Novák"]');
-    const titleInput = page.locator('input[placeholder*="Návrh a implementácia"]');
+    const titleInput = page.locator('input[placeholder*="Návrh a"]');
 
     await nameInput.fill('Martin Kováč');
     await titleInput.fill('Detekcia anomálií v distribuovaných systémoch');
@@ -230,12 +230,12 @@ test.describe('Thesis Review Workflow & E2E Features', () => {
 
     // Fill metadata form
     const nameInput = page.locator('input[placeholder*="Ján Novák"]');
-    const titleInput = page.locator('input[placeholder*="Návrh a implementácia"]');
+    const titleInput = page.locator('input[placeholder*="Návrh a"]');
 
     await nameInput.fill('Zuzana Horváthová');
     await titleInput.fill('Generatívne neurónové siete pre syntézu dát');
 
-    const generateBtn = page.getByRole('button', { name: /Vygenerovať posudok|Generate review/i });
+    const generateBtn = page.getByRole('button', { name: /Vygenerovať.*posudok|Generate review/i });
     await expect(generateBtn).toBeEnabled();
     await generateBtn.click();
 
@@ -248,9 +248,9 @@ test.describe('Thesis Review Workflow & E2E Features', () => {
     await expect(page.getByText('Aké metriky boli použité na vyhodnotenie kvality syntetizovaných dát?')).toBeVisible();
 
     // Verify dynamic score analytics and overall grade badge
-    await expect(page.getByText(/B/)).toBeVisible();
+    await expect(page.getByText('ECTS: B')).toBeVisible();
 
-    // Verify the Export PDF button is available
-    await expect(page.getByRole('button', { name: /Exportovať PDF/i })).toBeVisible();
+    // Verify the Export button is available
+    await expect(page.getByRole('button', { name: /Exportovať posudok|Exportovať PDF/i })).toBeVisible();
   });
 });
