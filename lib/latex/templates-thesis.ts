@@ -11,6 +11,7 @@ export type ThesisReviewTemplate = "posudok-sk" | "posudok-en" | "posudok-cs"
 
 export function getThesisReviewPreamble(template: ThesisReviewTemplate): string {
   const lang = template === "posudok-en" ? "en" : template === "posudok-cs" ? "cs" : "sk"
+  const labels = THESIS_REVIEW_LABELS[lang]
 
   const babel: Record<string, string> = {
     sk: "\\usepackage[slovak]{babel}",
@@ -32,6 +33,8 @@ ${babel[lang]}
 \\usepackage{titlesec}
 \\usepackage{fancyhdr}
 \\usepackage{lastpage}
+\\usepackage{needspace}
+\\usepackage{enumitem}
 \\usepackage{hyperref}
 
 \\hypersetup{
@@ -47,7 +50,7 @@ ${babel[lang]}
 \\pagestyle{fancy}
 \\fancyhf{}
 \\rhead{\\small\\thepage\\ / \\pageref{LastPage}}
-\\lhead{\\small Posudok záverečnej práce}
+\\lhead{\\small ${labels.title}}
 \\renewcommand{\\headrulewidth}{0.4pt}
 
 %% Custom commands

@@ -224,7 +224,10 @@ export function DefenseQuestionsPanel({ questions, lang, onUpdateQuestions }: Pr
             onChange={(e) => setNewQuestionText(e.target.value)}
             className="text-xs h-8"
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleAddQuestion()
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                e.preventDefault()
+                handleAddQuestion()
+              }
               if (e.key === "Escape") setIsAdding(false)
             }}
             autoFocus

@@ -59,10 +59,27 @@ describe("Thesis Rubric and Scoring", () => {
     expect(gradeToRecommendation("FX", "en")).toContain("do not recommend")
     expect(gradeToRecommendation("B", "cs")).toContain("doporučuji")
   })
+  it("clamps numeric scores to [0, 100] and avoids double-counting duplicate criteria", () => {
+    const duplicateSections: ThesisSection[] = [
+      { id: "1", sectionId: "methodology", criterionId: "methodology", text: "Good", numericScore: 150 }, // clamped to 100 (weight 20)
+      { id: "1_dup", sectionId: "methodology", criterionId: "methodology", text: "Dup", numericScore: 20 }, // ignored
+      { id: "2", sectionId: "results", criterionId: "results", text: "OK", numericScore: -50 }, // clamped to 0 (weight 20)
+    ]
+    const score = computeOverallScore(duplicateSections)
+    expect(score).toBe(50) // (100*20 + 0*20) / 40 = 50
+    expect(scoreToEctsGrade(score!)).toBe("E")
+  })
+
+  it("provides distinct rubric level profiles for Bachelor, Master, and PhD degrees", async () => {
+    const { THESIS_LEVEL_PROFILES } = await import("@/lib/ai/thesis-rubric")
+    expect(THESIS_LEVEL_PROFILES.bachelor.evidenceExpectations.length).toBeGreaterThanOrEqual(3)
+    expect(THESIS_LEVEL_PROFILES.master.originalityExpectation).toContain("originality")
+    expect(THESIS_LEVEL_PROFILES.phd.evidenceExpectations[0]).toContain("publishable")
+  })
 })
 
 describe("Thesis Review Contracts / Schemas", () => {
-  it("parses valid ThesisReviewGenerationSchema output", () => {
+  it("parses valid ThesisReviewGenerationSchema output with strict ECTS grade", () => {
     const raw = {
       overallGrade: "A",
       recommendation: "Prácu odporúčam na obhajobu.",
@@ -90,6 +107,33 @@ describe("Thesis Review Contracts / Schemas", () => {
       expect(parsed.data.sections).toHaveLength(1)
       expect(parsed.data.defenseQuestions).toHaveLength(2)
     }
+  })
+
+  it("validates generated sections against expected criterion IDs", async () => {
+    const { validateGeneratedSections } = await import("@/lib/ai/contracts")
+
+    const validSections = [
+      { sectionId: "formal_structure", criterionId: "formal_structure", text: "OK", rating: "A" as const, suggestions: [] },
+      { sectionId: "methodology", criterionId: "methodology", text: "Good", rating: "B" as const, suggestions: [] },
+    ]
+
+    expect(() => validateGeneratedSections(validSections, ["formal_structure", "methodology"])).not.toThrow()
+
+    // Missing criterion
+    expect(() => validateGeneratedSections(validSections, ["formal_structure", "methodology", "results"])).toThrow(/Missing expected criterion/)
+
+    // Duplicate criterion
+    const duplicateSections = [
+      ...validSections,
+      { sectionId: "methodology", criterionId: "methodology", text: "Dup", rating: "B" as const, suggestions: [] },
+    ]
+    expect(() => validateGeneratedSections(duplicateSections, ["formal_structure", "methodology"])).toThrow(/Duplicate criterion ID/)
+
+    // Empty text
+    const emptyTextSections = [
+      { sectionId: "formal_structure", criterionId: "formal_structure", text: "   ", rating: "A" as const, suggestions: [] },
+    ]
+    expect(() => validateGeneratedSections(emptyTextSections, ["formal_structure"])).toThrow(/is empty/)
   })
 
   it("resiliently preprocesses single section response", () => {

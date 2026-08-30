@@ -1,17 +1,10 @@
 /**
- * Thesis-specific RAG context loader.
+ * Thesis-specific RAG context loader and section routing engine.
  *
- * Extends the generic `loadSourceContext` with section-aware keyword routing:
- * instead of dumping all sources into the prompt, it selects the most relevant
- * excerpt for each thesis criterion being generated.
- *
- * Section routing map (keyword → section IDs):
- *   methodology   → "methodology", "methods", "postup", "metodológia"
- *   results       → "results", "výsledky", "experiments", "evaluation"
- *   citations     → "references", "literatúra", "bibliography"
- *   formal        → full doc (structure audit)
- *   originality   → "conclusion", "záver", "discussion", "diskusia"
- *   language      → full doc (sampled)
+ * Extends the generic source context with section-aware, scored keyword routing:
+ * instead of dumping a raw document prefix into the prompt, it parses ordered
+ * hierarchical sections from Markdown sources, classifies section semantics,
+ * and routes evidence-rich excerpts tailored to each thesis evaluation criterion.
  */
 
 import * as fs from "fs"
@@ -21,124 +14,704 @@ import type { ThesisMetadata, ReviewLanguage } from "./thesis-rubric"
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 
 // ---------------------------------------------------------------------------
+// Context Budgets
+// ---------------------------------------------------------------------------
+
+export const THESIS_CONTEXT_BUDGETS = {
+  fullGeneration: 60_000,
+  metadata: 2_000,
+  citationAudit: 8_000,
+  perCriterion: 6_000,
+  regeneration: 14_000,
+} as const
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+export type SectionKind =
+  | "preamble"
+  | "introduction"
+  | "literature"
+  | "methodology"
+  | "results"
+  | "discussion"
+  | "conclusion"
+  | "references"
+  | "appendix"
+  | "unknown"
+
+export interface ThesisDocumentSection {
+  id: string
+  sourceFile: string
+  heading: string
+  normalizedHeading: string
+  level: number
+  startOffset: number
+  content: string
+  kind: SectionKind
+}
+
+export interface ExtractedReference {
+  raw: string
+  title?: string
+  authors: string[]
+  year?: number
+  doi?: string
+  arxivId?: string
+  url?: string
+  sourceType: "article" | "book" | "chapter" | "web" | "thesis" | "preprint" | "unknown"
+  parseWarnings: string[]
+}
+
 export interface ThesisRAGContext {
   fullText: string
-  sections: Record<string, string>
+  sections: ThesisDocumentSection[]
+  references: ExtractedReference[]
   referencesTitles: string[]
   totalChars: number
+  truncated: boolean
+  sourceFiles: string[]
+}
+
+export interface RoutedExcerpt {
+  criterionId: string
+  text: string
+  sectionIds: string[]
+  sourceFiles: string[]
+  truncated: boolean
+  evidenceAvailable: boolean
 }
 
 // ---------------------------------------------------------------------------
-// Section keyword maps
-// ---------------------------------------------------------------------------
-
-const SECTION_KEYWORDS: Record<string, string[]> = {
-  methodology: ["method", "metod", "approach", "prístup", "postup", "design", "implement", "algorithm"],
-  results: ["result", "výsledok", "výsledky", "experiment", "evaluation", "hodnotenie", "measure", "performance"],
-  discussion: ["discussion", "diskusia", "comparison", "porovnanie", "limitation", "obmedzenie", "future"],
-  conclusion: ["conclusion", "záver", "summary", "zhrnutie", "contribution", "prínos"],
-  introduction: ["introduction", "úvod", "background", "motivation", "related work"],
-  references: ["reference", "literatúra", "bibliography", "zoznam literatúry", "sources"],
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
+// Heading Normalization and Classification
 // ---------------------------------------------------------------------------
 
 /**
- * Split markdown into rough sections by heading lines.
- * Returns a map of section-name → content.
+ * Normalize headings using Unicode decomposition (NFD) and diacritic removal.
  */
-function splitIntoSections(markdown: string): Record<string, string> {
-  const lines = markdown.split("\n")
-  const sections: Record<string, string> = {}
-  let currentKey = "_preamble"
-  let buffer: string[] = []
+export function normalizeHeading(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLocaleLowerCase("sk")
+    .replace(/^\s*(?:chapter|kapitola|sekcia|section)?\s*\d+(?:\.\d+)*[.):\s-]*/i, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
 
-  for (const line of lines) {
-    const headingMatch = line.match(/^#{1,3}\s+(.+)/)
-    if (headingMatch) {
-      if (buffer.length > 0) {
-        sections[currentKey] = (sections[currentKey] ?? "") + buffer.join("\n")
-        buffer = []
-      }
-      currentKey = headingMatch[1].trim().toLowerCase()
-    }
-    buffer.push(line)
+/**
+ * Classify a section based on its heading and content.
+ */
+export function classifySectionKind(heading: string, content: string): SectionKind {
+  const norm = normalizeHeading(heading)
+
+  // Appendix check first
+  if (/^(?:priloh[ay]|prilohy|appendix|appendices|dodatok|dodatky)\b/i.test(norm)) {
+    return "appendix"
   }
-  if (buffer.length > 0) {
-    sections[currentKey] = (sections[currentKey] ?? "") + buffer.join("\n")
+
+  // References / Bibliography
+  if (/^(?:zoznam literatury|zoznam pouzitej literatury|literatura|pouzita literatura|bibliografia|bibliography|references|literarni prehled)\b/i.test(norm)) {
+    return "references"
+  }
+
+  // Preamble (Title, Abstrakt, Obsah, Podakovanie, etc.)
+  if (/^(?:diplomov[ay]|bakalarsk[ay]|dizertacn[ay]|zaverecn[ay]|titul|titulny|abstrakt|abstract|anotacia|anotace|podakovanie|podekovani|acknowledg|cestne vyhlasenie|prohlaseni|declaration|obsah|table of contents|contents|zoznam skratiek|zoznam obrazkov|zoznam tabuliek|list of figures|list of tables)\b/i.test(norm)) {
+    return "preamble"
+  }
+
+  // Introduction / Motivation / Goals
+  if (/^(?:uvod|introduction|motivacia|motivation|ciele|ciel prace|problem statement|vymedzenie problematiky)\b/i.test(norm)) {
+    return "introduction"
+  }
+
+  // Literature / State of the art
+  if (/^(?:sucasny stav|soucasny stav|stav riesenia|stav problematiky|prehlad literatury|related work|state of the art|background|teoreticke vychodiska|teoreticka cast)\b/i.test(norm)) {
+    return "literature"
+  }
+
+  // Methodology / Implementation / Architecture / Approach
+  if (/^(?:metodika|metody|metodologia|methodology|methods|postup riesenia|prakticka cast|navrh|navrh riesenia|architecture|architektura|implementacia|implementace|implementation|system design|analyza a navrh|experimentalny setup|dataset)\b/i.test(norm)) {
+    return "methodology"
+  }
+
+  // Results / Evaluation / Experiments
+  if (/^(?:vysledky|vysledky a diskusia|vyhodnotenie|zhodnotenie|evaluation|experiments|experimentalne vysledky|results|merania|mereni|testovanie|testovani|performance|dosiahnute vysledky)\b/i.test(norm)) {
+    return "results"
+  }
+
+  // Discussion
+  if (/^(?:diskusia|diskuse|discussion|porovnanie|comparison|obmedzenia|limitations|kritika)\b/i.test(norm)) {
+    return "discussion"
+  }
+
+  // Conclusion / Summary
+  if (/^(?:zaver|zaver a buduci vyvoj|conclusion|conclusions|summary|zhrnutie|prinosy prace|buduci vyvoj|future work)\b/i.test(norm)) {
+    return "conclusion"
+  }
+
+  // Check content snippet if heading is non-descriptive
+  if (content.length > 50) {
+    const startContent = normalizeHeading(content.slice(0, 200))
+    if (startContent.includes("v tejto praci navrhujeme") || startContent.includes("tato praca sa zaobera") || startContent.includes("cielom tejto prace")) {
+      return "introduction"
+    }
+  }
+
+  return "unknown"
+}
+
+// ---------------------------------------------------------------------------
+// Document Section Parsing
+// ---------------------------------------------------------------------------
+
+/**
+ * Split markdown source into hierarchical, ordered sections.
+ */
+export function parseDocumentSections(markdown: string, sourceFile: string): ThesisDocumentSection[] {
+  const lines = markdown.split(/\r?\n/)
+  const sections: ThesisDocumentSection[] = []
+
+  let currentHeading = "Preamble"
+  let currentLevel = 1
+  let currentKind: SectionKind = "preamble"
+  let buffer: string[] = []
+  let sectionIndex = 0
+  let startOffset = 0
+  let currentOffset = 0
+
+  function flushSection() {
+    const text = buffer.join("\n").trim()
+    if (text.length > 0 || currentHeading !== "Preamble") {
+      const normHeading = normalizeHeading(currentHeading)
+      sections.push({
+        id: `${sourceFile}#sec-${sectionIndex++}`,
+        sourceFile,
+        heading: currentHeading,
+        normalizedHeading: normHeading,
+        level: currentLevel,
+        startOffset,
+        content: text,
+        kind: currentKind,
+      })
+    }
+    buffer = []
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const nextLine = i + 1 < lines.length ? lines[i + 1] : ""
+
+    // 1. ATX Heading (# Heading)
+    const atxMatch = line.match(/^(#{1,6})\s+(.+)$/)
+    if (atxMatch) {
+      flushSection()
+      currentLevel = atxMatch[1].length
+      currentHeading = atxMatch[2].trim()
+      currentKind = classifySectionKind(currentHeading, "")
+      startOffset = currentOffset
+      currentOffset += line.length + 1
+      continue
+    }
+
+    // 2. Setext Heading (Heading\n=== or Heading\n---)
+    if (nextLine && /^(?:={3,}|-{3,})$/.test(nextLine.trim()) && line.trim().length > 0 && !line.startsWith("#")) {
+      flushSection()
+      currentLevel = nextLine.trim().startsWith("=") ? 1 : 2
+      currentHeading = line.trim()
+      currentKind = classifySectionKind(currentHeading, "")
+      startOffset = currentOffset
+      currentOffset += line.length + nextLine.length + 2
+      i++ // Skip underline line
+      continue
+    }
+
+    // 3. Explicit numbered chapter line without markdown hash
+    // e.g. "1. Úvod" or "Kapitola 3: Metodika"
+    const numberedMatch = line.match(/^(?:Kapitola\s+\d+|Chapter\s+\d+|\d+(?:\.\d+)*)\s*[:.-]\s+([A-Z\p{Lu}].{2,60})$/u)
+    if (numberedMatch && (buffer.length === 0 || buffer[buffer.length - 1] === "")) {
+      flushSection()
+      currentLevel = line.includes(".") && !line.startsWith("Kapitola") ? 2 : 1
+      currentHeading = line.trim()
+      currentKind = classifySectionKind(currentHeading, "")
+      startOffset = currentOffset
+      currentOffset += line.length + 1
+      continue
+    }
+
+    buffer.push(line)
+    currentOffset += line.length + 1
+  }
+
+  flushSection()
+
+  // If no sections were parsed (no headings), treat entire text as single unknown section
+  if (sections.length === 0 && markdown.trim().length > 0) {
+    sections.push({
+      id: `${sourceFile}#sec-0`,
+      sourceFile,
+      heading: "Main Document",
+      normalizedHeading: "main document",
+      level: 1,
+      startOffset: 0,
+      content: markdown.trim(),
+      kind: "unknown",
+    })
   }
 
   return sections
 }
 
-/**
- * Return the portion of the document most relevant to a given criterion.
- */
-function routeSectionForCriterion(
-  criterionId: string,
-  docSections: Record<string, string>,
-  maxChars = 8_000
-): string {
-  // Map criterion → relevant section keyword group
-  const criterionToGroup: Record<string, string> = {
-    methodology: "methodology",
-    results: "results",
-    originality: "conclusion",
-    citations_bibliography: "references",
-    goal_definition: "introduction",
-    formal_structure: "_preamble",
-    language_quality: "_preamble",
-    defense_questions: "methodology",
-  }
+// ---------------------------------------------------------------------------
+// Reference Extraction
+// ---------------------------------------------------------------------------
 
-  const group = criterionToGroup[criterionId] ?? "_preamble"
-  const keywords = SECTION_KEYWORDS[group] ?? []
+const DOI_REGEX = /\b10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+/i
+const ARXIV_REGEX = /(?:arxiv\.org\/(?:abs|pdf)\/|arxiv:\s*)(\d{4}\.\d{4,5}(?:v\d+)?)/i
+const URL_REGEX = /https?:\/\/[^\s)>]+/i
+const YEAR_REGEX = /\b((?:19|20)\d{2})\b/
 
-  // Find doc sections whose heading matches keywords
-  let matched = ""
-  for (const [heading, content] of Object.entries(docSections)) {
-    const headingLow = heading.toLowerCase()
-    if (keywords.some((kw) => headingLow.includes(kw))) {
-      matched += content + "\n\n"
-      if (matched.length >= maxChars) break
+export function extractStructuredReferences(markdown: string): ExtractedReference[] {
+  const references: ExtractedReference[] = []
+  const lines = markdown.split(/\r?\n/)
+
+  const entries: string[] = []
+  let currentEntry = ""
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) {
+      if (currentEntry) {
+        entries.push(currentEntry)
+        currentEntry = ""
+      }
+      continue
+    }
+
+    // Numbered [1], 1., 1), or bulleted starting pattern
+    const isNewItem = /^(\[\d+\]|\d+[\.\)]|[-*•])\s+/.test(trimmed)
+    if (isNewItem) {
+      if (currentEntry) entries.push(currentEntry)
+      currentEntry = trimmed.replace(/^(\[\d+\]|\d+[\.\)]|[-*•])\s+/, "")
+    } else if (currentEntry) {
+      currentEntry += " " + trimmed
+    } else if (trimmed.length > 20 && (trimmed.includes(",") || trimmed.includes("."))) {
+      currentEntry = trimmed
     }
   }
+  if (currentEntry) entries.push(currentEntry)
 
-  // Fallback: return the beginning of the full document
-  if (!matched) {
-    const allText = Object.values(docSections).join("\n\n")
-    return allText.slice(0, maxChars)
+  for (const raw of entries) {
+    if (raw.length < 12) continue
+
+    const warnings: string[] = []
+    const doiMatch = raw.match(DOI_REGEX)
+    const arxivMatch = raw.match(ARXIV_REGEX)
+    const urlMatch = raw.match(URL_REGEX)
+    const yearMatch = raw.match(YEAR_REGEX)
+
+    const doi = doiMatch ? doiMatch[0] : undefined
+    const arxivId = arxivMatch ? arxivMatch[1] : undefined
+    const url = urlMatch ? urlMatch[0] : undefined
+    const year = yearMatch ? parseInt(yearMatch[1], 10) : undefined
+
+    if (!year) warnings.push("Missing publication year")
+
+    // Source type classification
+    let sourceType: ExtractedReference["sourceType"] = "unknown"
+    const rawLow = raw.toLowerCase()
+    if (/\b(?:diplomov[ay]|bakalarsk[ay]|dizertacn[ay]|dissertation|thesis|zaverecn[ay]|praca|prace)\b/i.test(rawLow)) {
+      sourceType = "thesis"
+    } else if (arxivId || /\b(?:arxiv|biorxiv|medrxiv|preprint)\b/i.test(rawLow)) {
+      sourceType = "preprint"
+    } else if (/\[cit\.|online|dostupn|available\b/i.test(rawLow) || (url && !doi)) {
+      sourceType = "web"
+    } else if (/\b(?:isbn|vydavatel|nakladatel|publisher|springer|wiley|elsevier|o'reilly|press)\b/i.test(rawLow) && !/vol\.|pp\.|journal/i.test(rawLow)) {
+      sourceType = "book"
+    } else if (/\bin:\s*|\bkapitola\b/i.test(rawLow)) {
+      sourceType = "chapter"
+    } else if (/\b(?:vol\.|issue|no\.|pp\.|str\.|journal|transactions|proceedings|ieee|acm)\b/i.test(rawLow)) {
+      sourceType = "article"
+    }
+
+    // Title & author extraction heuristics
+    let title: string | undefined
+    const authors: string[] = []
+
+    // ISO 690 style: AUTHOR, First. Year. Title.
+    // or Author, A. (Year) Title.
+    const titleMatch = raw.match(/(?:(?:19|20)\d{2}[a-z]?[\).:]\s*|\.\s+)(["'„]?([A-Z\p{Lu}][^.?!]{10,180}?)[.?!]["'“]?\s*(?:In:|Available|Dostupné|DOI|http|ISBN|pp\.|Vol\.))/u)
+    if (titleMatch && titleMatch[1]) {
+      title = titleMatch[1].replace(/^[„"']|[“"']$/g, "").trim()
+    } else {
+      // Fallback: take segment between first period/comma and publication year/container
+      const segMatch = raw.match(/^[^\.,]+[\.,]\s*([^.,]{10,150})/i)
+      if (segMatch) {
+        title = segMatch[1].trim()
+      } else {
+        title = raw.slice(0, 100).trim()
+      }
+    }
+
+    // Authors heuristic: string before first year or period
+    const authorSeg = raw.split(/(?:19|20)\d{2}|\.\s+[A-Z]/)[0]
+    if (authorSeg && authorSeg.length < 80) {
+      const parsedAuthors = authorSeg
+        .split(/;|\band\b|\ba\b/i)
+        .map((a) => a.trim().replace(/^[\[\(0-9\]\)\.\-\s]+/, ""))
+        .filter((a) => a.length > 2 && /[A-Za-z\p{L}]/u.test(a))
+      if (parsedAuthors.length > 0) {
+        authors.push(...parsedAuthors)
+      }
+    }
+
+    if (authors.length === 0) warnings.push("Missing authors")
+    if (!title) warnings.push("Missing title")
+
+    references.push({
+      raw,
+      title,
+      authors,
+      year,
+      doi,
+      arxivId,
+      url,
+      sourceType,
+      parseWarnings: warnings,
+    })
   }
 
-  return matched.slice(0, maxChars)
+  return references
+}
+
+// ---------------------------------------------------------------------------
+// Scored Criterion Routing
+// ---------------------------------------------------------------------------
+
+interface CriterionScoringRule {
+  primaryKinds: SectionKind[]
+  secondaryKinds: SectionKind[]
+  keywords: string[]
+}
+
+const CRITERION_RULES: Record<string, CriterionScoringRule> = {
+  formal_structure: {
+    primaryKinds: ["preamble", "conclusion", "references"],
+    secondaryKinds: ["introduction", "unknown"],
+    keywords: ["struktura", "cleneni", "obsah", "uprava", "format", "rozsah", "appendix", "prilohy"],
+  },
+  goal_definition: {
+    primaryKinds: ["introduction"],
+    secondaryKinds: ["literature"],
+    keywords: ["ciel", "ciele", "goal", "objective", "problem", "scope", "motivacia", "motivation", "vymedzenie"],
+  },
+  methodology: {
+    primaryKinds: ["methodology"],
+    secondaryKinds: ["results", "introduction"],
+    keywords: ["metod", "method", "postup", "navrh", "design", "architekt", "implement", "algoritm", "approach", "dataset"],
+  },
+  results: {
+    primaryKinds: ["results"],
+    secondaryKinds: ["discussion", "methodology"],
+    keywords: ["vysled", "result", "experiment", "evaluat", "meran", "testov", "vyhodnot", "zhodnot", "graf", "tabulka", "performance"],
+  },
+  originality: {
+    primaryKinds: ["conclusion", "discussion"],
+    secondaryKinds: ["results", "methodology"],
+    keywords: ["origin", "prinos", "contribution", "novel", "inovat", "porovnan", "autorsky", "vlastny", "comparison"],
+  },
+  language_quality: {
+    primaryKinds: ["introduction", "methodology", "results", "conclusion"],
+    secondaryKinds: ["literature", "discussion"],
+    keywords: ["terminol", "styl", "jazyk", "gramatik", "prejav"],
+  },
+  citations_bibliography: {
+    primaryKinds: ["references"],
+    secondaryKinds: ["literature", "introduction"],
+    keywords: ["literatura", "reference", "citac", "zdroj", "iso", "bibliograf", "doi"],
+  },
+  defense_questions: {
+    primaryKinds: ["methodology", "results"],
+    secondaryKinds: ["discussion", "conclusion"],
+    keywords: ["limitations", "obmedzenia", "otazky", "postup", "vysledok", "vyhodnotenie", "hypoteza"],
+  },
 }
 
 /**
- * Extract likely reference titles from a references section.
- * Looks for numbered/bulleted lines typical of bibliography entries.
+ * Score how relevant a section is for a given criterion.
  */
-function extractReferenceTitles(referencesText: string): string[] {
-  const lines = referencesText.split("\n")
-  const titles: string[] = []
+function scoreSectionForCriterion(
+  section: ThesisDocumentSection,
+  rule: CriterionScoringRule,
+  criterionId: string
+): number {
+  let score = 0
 
-  for (const line of lines) {
-    const trimmed = line.replace(/^\s*[\[\(]?\d+[\]\).]?\s*/, "").trim()
-    // Keep lines that look like a citation (at least 20 chars, contains comma or period)
-    if (trimmed.length > 20 && (trimmed.includes(",") || trimmed.includes("."))) {
-      // Extract the title portion (typically before the first period or comma-year pattern)
-      const titleMatch = trimmed.match(/^(.+?)[,.]?\s*(?:In:|(?:19|20)\d{2}|pp?\.|Vol\.|doi:)/i)
-      const extracted = titleMatch ? titleMatch[1].trim() : trimmed.slice(0, 100)
-      if (extracted.length > 10) titles.push(extracted)
-      if (titles.length >= 30) break
+  // 1. Primary section kind
+  if (rule.primaryKinds.includes(section.kind)) {
+    score += 100
+  } else if (rule.secondaryKinds.includes(section.kind)) {
+    score += 25
+  }
+
+  // 2. Heading keyword matching
+  const normHeading = section.normalizedHeading
+  for (const kw of rule.keywords) {
+    if (normHeading.includes(kw)) {
+      score += 40
+      break
     }
   }
 
-  return titles
+  // 3. Keyword density in content
+  const contentLower = section.content.slice(0, 2000).toLowerCase()
+  let matchedKw = 0
+  for (const kw of rule.keywords) {
+    if (contentLower.includes(kw)) matchedKw++
+  }
+  score += Math.min(20, matchedKw * 5)
+
+  // 4. Appendix penalty
+  if (section.kind === "appendix") {
+    score -= 50
+  }
+
+  // 5. References penalty for non-citation criteria
+  if (section.kind === "references" && criterionId !== "citations_bibliography") {
+    score -= 100
+  }
+
+  // 6. Prefer non-empty sections
+  if (section.content.length < 100) {
+    score -= 30
+  }
+
+  return score
+}
+
+/**
+ * Deterministically sample sections across beginning, middle, and end.
+ */
+function sampleDocumentAcrossSections(
+  sections: ThesisDocumentSection[],
+  budgetChars: number
+): { text: string; sectionIds: string[]; sourceFiles: string[] } {
+  const contentSections = sections.filter((s) => s.kind !== "preamble" && s.kind !== "references" && s.kind !== "appendix")
+  const pool = contentSections.length > 0 ? contentSections : sections
+
+  if (pool.length === 0) {
+    return { text: "No document content available.", sectionIds: [], sourceFiles: [] }
+  }
+
+  if (pool.length === 1) {
+    const sec = pool[0]
+    return {
+      text: `[Section: ${sec.heading}]\n${sec.content.slice(0, budgetChars)}`,
+      sectionIds: [sec.id],
+      sourceFiles: [sec.sourceFile],
+    }
+  }
+
+  const head = pool[0]
+  const middle = pool[Math.floor(pool.length / 2)]
+  const tail = pool[pool.length - 1]
+
+  const selected = [head, middle, tail].filter((s, idx, arr) => arr.indexOf(s) === idx)
+  const perSectionBudget = Math.floor(budgetChars / selected.length)
+
+  const parts: string[] = []
+  const sectionIds: string[] = []
+  const sourceFiles: Set<string> = new Set()
+
+  for (const sec of selected) {
+    parts.push(`[Section (${sec.heading}) in ${sec.sourceFile}]\n${sec.content.slice(0, perSectionBudget)}`)
+    sectionIds.push(sec.id)
+    sourceFiles.add(sec.sourceFile)
+  }
+
+  return {
+    text: parts.join("\n\n---\n\n"),
+    sectionIds,
+    sourceFiles: Array.from(sourceFiles),
+  }
+}
+
+/**
+ * Route sections for a specific criterion with explicit character budgeting.
+ */
+export function routeSectionsForCriterion(
+  criterionId: string,
+  sections: ThesisDocumentSection[],
+  budgetChars: number = THESIS_CONTEXT_BUDGETS.perCriterion
+): RoutedExcerpt {
+  if (!sections.length) {
+    return {
+      criterionId,
+      text: "No thesis document sections available.",
+      sectionIds: [],
+      sourceFiles: [],
+      truncated: false,
+      evidenceAvailable: false,
+    }
+  }
+
+  // Language quality or formal structure: use deterministic whole-doc sampling
+  if (criterionId === "language_quality") {
+    const sample = sampleDocumentAcrossSections(sections, budgetChars)
+    return {
+      criterionId,
+      text: sample.text,
+      sectionIds: sample.sectionIds,
+      sourceFiles: sample.sourceFiles,
+      truncated: sample.text.length >= budgetChars,
+      evidenceAvailable: sample.sectionIds.length > 0,
+    }
+  }
+
+  if (criterionId === "formal_structure") {
+    // Document outline + head/middle/tail samples
+    const outline = sections
+      .map((s) => `  - ${s.heading} (${s.kind}, ~${s.content.length} chars)`)
+      .join("\n")
+    const sample = sampleDocumentAcrossSections(sections, Math.floor(budgetChars * 0.7))
+    const text = `Document Outline:\n${outline}\n\nRepresentative Document Samples:\n${sample.text}`
+    return {
+      criterionId,
+      text: text.slice(0, budgetChars),
+      sectionIds: sample.sectionIds,
+      sourceFiles: sample.sourceFiles,
+      truncated: text.length > budgetChars,
+      evidenceAvailable: true,
+    }
+  }
+
+  const rule = CRITERION_RULES[criterionId] ?? {
+    primaryKinds: ["unknown"],
+    secondaryKinds: [],
+    keywords: [criterionId],
+  }
+
+  // Score all sections
+  const scored = sections.map((sec) => ({
+    sec,
+    score: scoreSectionForCriterion(sec, rule, criterionId),
+  }))
+
+  // Sort descending by score
+  scored.sort((a, b) => b.score - a.score)
+
+  // Take top matching sections until budget is filled
+  const chosenSections: ThesisDocumentSection[] = []
+  let accumulatedChars = 0
+  const chosenIds: string[] = []
+  const chosenFiles: Set<string> = new Set()
+  let truncated = false
+
+  for (const item of scored) {
+    if (item.score <= -50 && chosenSections.length > 0) break // Skip penalized sections if we have matches
+
+    const needed = budgetChars - accumulatedChars
+    if (needed <= 0) {
+      truncated = true
+      break
+    }
+
+    chosenSections.push(item.sec)
+    chosenIds.push(item.sec.id)
+    chosenFiles.add(item.sec.sourceFile)
+    accumulatedChars += Math.min(item.sec.content.length + 100, needed)
+  }
+
+  // If no good sections matched, fall back to whole document sampling
+  if (chosenSections.length === 0) {
+    const fallback = sampleDocumentAcrossSections(sections, budgetChars)
+    return {
+      criterionId,
+      text: fallback.text,
+      sectionIds: fallback.sectionIds,
+      sourceFiles: fallback.sourceFiles,
+      truncated: fallback.text.length >= budgetChars,
+      evidenceAvailable: false,
+    }
+  }
+
+  // Format excerpt text
+  const parts: string[] = []
+  let currentLen = 0
+
+  for (const sec of chosenSections) {
+    const remaining = budgetChars - currentLen
+    if (remaining <= 50) {
+      truncated = true
+      break
+    }
+    const chunk = sec.content.slice(0, remaining)
+    parts.push(`### [Section: ${sec.heading} (${sec.sourceFile})]\n${chunk}`)
+    currentLen += chunk.length + sec.heading.length + 40
+  }
+
+  return {
+    criterionId,
+    text: parts.join("\n\n"),
+    sectionIds: chosenIds,
+    sourceFiles: Array.from(chosenFiles),
+    truncated,
+    evidenceAvailable: chosenSections.length > 0,
+  }
+}
+
+/**
+ * Build consolidated full-generation context from routed excerpts across all active criteria.
+ * Deduplicates overlapping sections and keeps source labels.
+ */
+export function buildFullGenerationContext(
+  ragContext: ThesisRAGContext,
+  activeCriterionIds: string[],
+  maxChars: number = THESIS_CONTEXT_BUDGETS.fullGeneration
+): {
+  contextText: string
+  selectedChars: number
+  truncated: boolean
+} {
+  if (!ragContext.sections.length) {
+    return { contextText: "", selectedChars: 0, truncated: false }
+  }
+
+  const perCriterionBudget = Math.min(
+    THESIS_CONTEXT_BUDGETS.perCriterion,
+    Math.floor(maxChars / Math.max(1, activeCriterionIds.length))
+  )
+
+  const usedSectionIds = new Set<string>()
+  const formattedBlocks: string[] = []
+  let totalLength = 0
+  let isTruncated = false
+
+  for (const critId of activeCriterionIds) {
+    const excerpt = routeSectionsForCriterion(critId, ragContext.sections, perCriterionBudget)
+    formattedBlocks.push(`=== Evidence for Criterion [${critId}] ===\n${excerpt.text}`)
+    totalLength += excerpt.text.length
+
+    for (const sid of excerpt.sectionIds) {
+      usedSectionIds.add(sid)
+    }
+
+    if (totalLength >= maxChars) {
+      isTruncated = true
+      break
+    }
+  }
+
+  const combined = formattedBlocks.join("\n\n\n")
+  const finalContext = combined.slice(0, maxChars)
+
+  return {
+    contextText: finalContext,
+    selectedChars: finalContext.length,
+    truncated: isTruncated || combined.length > maxChars,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -147,12 +720,6 @@ function extractReferenceTitles(referencesText: string): string[] {
 
 /**
  * Load and parse the thesis document for RAG-augmented review generation.
- *
- * Returns:
- *  - `fullText`: complete concatenated source (capped at `maxChars`)
- *  - `sections`: heading-keyed map of document sections
- *  - `referencesTitles`: extracted reference titles (for citation audit)
- *  - `totalChars`: total characters loaded
  */
 export async function loadThesisContext(options: {
   workspaceId: string
@@ -160,62 +727,89 @@ export async function loadThesisContext(options: {
   focusSections?: string[]
   maxChars?: number
 }): Promise<ThesisRAGContext> {
-  const { workspaceId, maxChars = 80_000 } = options
+  const { workspaceId, maxChars = 120_000 } = options
   const sourcesDir = path.join(WORKSPACES_DIR, workspaceId, "sources")
 
   if (!fs.existsSync(sourcesDir)) {
-    return { fullText: "", sections: {}, referencesTitles: [], totalChars: 0 }
+    return {
+      fullText: "",
+      sections: [],
+      references: [],
+      referencesTitles: [],
+      totalChars: 0,
+      truncated: false,
+      sourceFiles: [],
+    }
   }
 
   const files = await fs.promises.readdir(sourcesDir)
   const mdFiles = files.filter((f) => f.endsWith(".md")).sort()
 
-  let fullText = ""
-  const mergedSections: Record<string, string> = {}
-
-  for (const file of mdFiles) {
-    const content = await fs.promises.readFile(path.join(sourcesDir, file), "utf-8")
-    const chunk = `\n\n--- Source: ${file} ---\n\n${content}`
-    if (fullText.length + chunk.length > maxChars) {
-      const remaining = maxChars - fullText.length
-      if (remaining > 500) fullText += chunk.slice(0, remaining)
-      break
-    }
-    fullText += chunk
-
-    // Merge section maps
-    const fileSections = splitIntoSections(content)
-    for (const [k, v] of Object.entries(fileSections)) {
-      mergedSections[k] = (mergedSections[k] ?? "") + "\n\n" + v
+  if (mdFiles.length === 0) {
+    return {
+      fullText: "",
+      sections: [],
+      references: [],
+      referencesTitles: [],
+      totalChars: 0,
+      truncated: false,
+      sourceFiles: [],
     }
   }
 
-  // Extract reference titles from references sections
-  const refText = Object.entries(mergedSections)
-    .filter(([k]) => SECTION_KEYWORDS.references.some((kw) => k.includes(kw)))
-    .map(([, v]) => v)
-    .join("\n")
-  const referencesTitles = extractReferenceTitles(refText)
+  let fullText = ""
+  let totalUncappedChars = 0
+  const allSections: ThesisDocumentSection[] = []
+
+  for (const file of mdFiles) {
+    const content = await fs.promises.readFile(path.join(sourcesDir, file), "utf-8")
+    totalUncappedChars += content.length
+
+    const chunk = `\n\n--- Source: ${file} ---\n\n${content}`
+    if (fullText.length + chunk.length <= maxChars) {
+      fullText += chunk
+    } else {
+      const remaining = maxChars - fullText.length
+      if (remaining > 500) fullText += chunk.slice(0, remaining)
+    }
+
+    const fileSections = parseDocumentSections(content, file)
+    allSections.push(...fileSections)
+  }
+
+  // Extract structured references from references sections or whole document
+  const refSections = allSections.filter((s) => s.kind === "references")
+  const refText = refSections.length > 0
+    ? refSections.map((s) => s.content).join("\n\n")
+    : fullText
+
+  const references = extractStructuredReferences(refText)
+  const referencesTitles = references
+    .map((r) => r.title ?? r.raw.slice(0, 100))
+    .filter((t) => t.length > 5)
 
   return {
     fullText: fullText.trim(),
-    sections: mergedSections,
+    sections: allSections,
+    references,
     referencesTitles,
-    totalChars: fullText.length,
+    totalChars: totalUncappedChars,
+    truncated: totalUncappedChars > maxChars,
+    sourceFiles: mdFiles,
   }
 }
 
 /**
  * Build a focused context snippet for one thesis criterion.
- * Used in the per-section AI generation call.
  */
 export function buildCriterionContext(
   criterionId: string,
   ragContext: ThesisRAGContext,
-  maxChars = 8_000
+  maxChars: number = THESIS_CONTEXT_BUDGETS.perCriterion
 ): string {
-  if (!ragContext.fullText) return "No thesis document available."
-  return routeSectionForCriterion(criterionId, ragContext.sections, maxChars)
+  if (!ragContext.sections.length) return "No thesis document available."
+  const excerpt = routeSectionsForCriterion(criterionId, ragContext.sections, maxChars)
+  return excerpt.text
 }
 
 /**
@@ -233,6 +827,8 @@ export function buildThesisContextHeader(
       reviewer: "Hodnotiteľ/ka",
       role: "Rola hodnotiteľa",
       inst: "Inštitúcia",
+      dept: "Pracovisko/Katedra",
+      year: "Akademický rok",
     },
     cs: {
       student: "Autor/autorka",
@@ -241,6 +837,8 @@ export function buildThesisContextHeader(
       reviewer: "Hodnotitel/ka",
       role: "Role hodnotitele",
       inst: "Instituce",
+      dept: "Pracoviště/Katedra",
+      year: "Akademický rok",
     },
     en: {
       student: "Student",
@@ -249,6 +847,8 @@ export function buildThesisContextHeader(
       reviewer: "Reviewer",
       role: "Reviewer role",
       inst: "Institution",
+      dept: "Department",
+      year: "Academic year",
     },
   }
 
@@ -270,7 +870,10 @@ export function buildThesisContextHeader(
     metadata.reviewerName ? `${l.reviewer}: ${metadata.reviewerName}` : null,
     `${l.role}: ${roleLabels[metadata.reviewerRole]?.[lang] ?? metadata.reviewerRole}`,
     metadata.institution ? `${l.inst}: ${metadata.institution}` : null,
+    metadata.department ? `${l.dept}: ${metadata.department}` : null,
+    metadata.academicYear ? `${l.year}: ${metadata.academicYear}` : null,
   ]
     .filter(Boolean)
     .join("\n")
 }
+

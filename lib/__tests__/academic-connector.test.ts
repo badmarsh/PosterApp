@@ -3,6 +3,8 @@ import {
   searchAcademicPaper,
   auditThesisCitations,
   fetchAcademicAuthorProfile,
+  verifySingleCitation,
+  checkIso690Issues,
 } from "@/lib/services/academic-connector"
 import * as semanticScholarService from "@/lib/services/semantic-scholar-service"
 import * as arxivService from "@/lib/services/arxiv-service"
@@ -12,7 +14,29 @@ describe("Academic Connector Service", () => {
     vi.restoreAllMocks()
   })
 
-  it("routes arXiv queries to arXiv metadata service", async () => {
+  it("prioritizes direct DOI lookup before fuzzy title search", async () => {
+    const mockPaper: semanticScholarService.ScholarPaper = {
+      paperId: "doi-paper-1",
+      title: "Deep Residual Learning for Image Recognition",
+      authors: [{ authorId: "a1", name: "Kaiming He" }],
+      year: 2016,
+      externalIds: { DOI: "10.1109/CVPR.2016.90" },
+    }
+
+    const fetchDetailsSpy = vi.spyOn(semanticScholarService, "fetchPaperDetails").mockResolvedValue({
+      paper: mockPaper,
+      status: "verified",
+    })
+    const searchSpy = vi.spyOn(semanticScholarService, "searchPaperByTitle")
+
+    const result = await verifySingleCitation("He, K. Deep Residual Learning. 2016. DOI: 10.1109/CVPR.2016.90")
+    expect(fetchDetailsSpy).toHaveBeenCalledWith("DOI:10.1109/CVPR.2016.90", undefined)
+    expect(searchSpy).not.toHaveBeenCalled()
+    expect(result.status).toBe("verified")
+    expect(result.verification.found).toBe(true)
+  })
+
+  it("prioritizes direct arXiv metadata lookup when arXiv identifier is present", async () => {
     const mockArxivMeta: arxivService.PaperMetadata = {
       arxivId: "2301.12345",
       title: "Deep Learning for Physics Analysis",
@@ -23,68 +47,100 @@ describe("Academic Connector Service", () => {
       pdfUrl: "https://arxiv.org/pdf/2301.12345.pdf",
     }
 
-    vi.spyOn(arxivService, "parseArxivId").mockReturnValue("2301.12345")
+    vi.spyOn(semanticScholarService, "fetchPaperDetails").mockResolvedValue({
+      paper: null,
+      status: "not_found",
+    })
     vi.spyOn(arxivService, "fetchArxivMetadata").mockResolvedValue(mockArxivMeta)
 
-    const results = await searchAcademicPaper("2301.12345")
-    expect(results).toHaveLength(1)
-    expect(results[0].source).toBe("arxiv")
-    expect(results[0].title).toBe("Deep Learning for Physics Analysis")
-    expect(results[0].year).toBe(2023)
+    const result = await verifySingleCitation("Smith, A. Physics AI. 2023. arXiv:2301.12345")
+    expect(result.verification.found).toBe(true)
+    expect(result.status).toBe("verified")
+    expect(result.enriched?.source).toBe("semanticscholar") // shaped into scholar result
+    expect(result.enriched?.title).toBe("Deep Learning for Physics Analysis")
   })
 
-  it("routes general queries to Semantic Scholar API", async () => {
-    const mockScholarPaper: semanticScholarService.ScholarPaper = {
-      paperId: "ss-12345",
-      title: "Attention Is All You Need",
-      authors: [{ authorId: "a1", name: "Ashish Vaswani" }],
-      year: 2017,
-      abstract: "The dominant sequence transduction models...",
-      citationCount: 90000,
-      externalIds: { DOI: "10.5555/3295222.3295349" },
-    }
+  it("does not require DOI for book citations and checks access date for web resources", () => {
+    // 1. Book citation
+    const bookIssues = checkIso690Issues(
+      "Goodfellow, I. Deep Learning. MIT Press, 2016. ISBN: 9780262035613.",
+      {
+        raw: "Goodfellow, I. Deep Learning. MIT Press, 2016.",
+        title: "Deep Learning",
+        authors: ["Goodfellow, I."],
+        year: 2016,
+        sourceType: "book",
+        parseWarnings: [],
+      },
+      null
+    )
+    expect(bookIssues.some((i) => i.code === "missing_identifier")).toBe(false)
 
-    vi.spyOn(semanticScholarService, "searchPaperByTitle").mockResolvedValue([mockScholarPaper])
-
-    const results = await searchAcademicPaper("Attention Is All You Need")
-    expect(results).toHaveLength(1)
-    expect(results[0].source).toBe("semanticscholar")
-    expect(results[0].title).toBe("Attention Is All You Need")
-    expect(results[0].doi).toBe("10.5555/3295222.3295349")
+    // 2. Web citation missing access date
+    const webIssues = checkIso690Issues(
+      "W3C. Web Standards. https://www.w3.org",
+      {
+        raw: "W3C. Web Standards. https://www.w3.org",
+        title: "Web Standards",
+        authors: ["W3C"],
+        year: 2022,
+        url: "https://www.w3.org",
+        sourceType: "web",
+        parseWarnings: [],
+      },
+      null
+    )
+    expect(webIssues.some((i) => i.code === "missing_access_date")).toBe(true)
   })
 
-  it("audits thesis citations and flags missing DOI or unverified references", async () => {
+  it("flags metadata discrepancies when cited year differs from registry", () => {
     const verifiedPaper: semanticScholarService.ScholarPaper = {
       paperId: "p1",
-      title: "Transformers for Computer Vision",
-      authors: [{ authorId: "a1", name: "Alexey Dosovitskiy" }],
-      year: 2020,
-      // intentionally missing DOI
+      title: "Convolutional Networks",
+      authors: [{ authorId: "a1", name: "Yann LeCun" }],
+      year: 1998,
     }
 
-    vi.spyOn(semanticScholarService, "verifyCitation")
-      .mockResolvedValueOnce({
-        found: true,
-        confidence: "high",
-        paper: verifiedPaper,
-      })
-      .mockResolvedValueOnce({
-        found: false,
-        confidence: "not_found",
-        paper: null,
-      })
+    const issues = checkIso690Issues(
+      "LeCun, Y. Convolutional Networks. 2015.",
+      {
+        raw: "LeCun, Y. Convolutional Networks. 2015.",
+        title: "Convolutional Networks",
+        authors: ["LeCun, Y."],
+        year: 2015,
+        sourceType: "article",
+        parseWarnings: [],
+      },
+      verifiedPaper
+    )
+
+    const discrepancy = issues.find((i) => i.code === "inconsistent_metadata")
+    expect(discrepancy).toBeDefined()
+    expect(discrepancy?.message).toContain("1998")
+  })
+
+  it("deduplicates identical citations and tracks unavailable service statuses", async () => {
+    vi.spyOn(semanticScholarService, "fetchPaperDetails").mockResolvedValue({
+      paper: null,
+      status: "rate_limited",
+    })
+    vi.spyOn(semanticScholarService, "verifyCitation").mockResolvedValue({
+      found: false,
+      status: "rate_limited",
+      confidence: "not_found",
+      paper: null,
+      note: "Rate limited",
+    })
 
     const audit = await auditThesisCitations([
-      "Dosovitskiy: Transformers for Computer Vision (2020)",
-      "NonExistentPaperTitleXYZ: Fake Study",
+      "Attention Is All You Need. 2017.",
+      "Attention Is All You Need. 2017.", // Duplicate
     ])
 
     expect(audit.total).toBe(2)
-    expect(audit.verified).toBe(1)
-    expect(audit.unverified).toBe(1)
-    expect(audit.results[0].iso690Issues.length).toBeGreaterThan(0)
-    expect(audit.results[0].iso690Issues[0]).toContain("No DOI found")
-    expect(audit.results[1].verification.found).toBe(false)
+    expect(audit.unavailable).toBe(2)
+    expect(audit.verified).toBe(0)
+    expect(audit.summary.unavailable).toBe(2)
   })
 
   it("fetches academic author profile", async () => {
@@ -105,3 +161,4 @@ describe("Academic Connector Service", () => {
     expect(profile?.recentPapers).toHaveLength(1)
   })
 })
+

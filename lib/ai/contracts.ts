@@ -260,17 +260,22 @@ export type VisionOcrResult = z.infer<typeof VisionOcrSchema>
 
 
 // 9. Thesis Review Section
+export const EctsGradeSchema = z.enum(["A", "B", "C", "D", "E", "FX"])
+export type EctsGrade = z.infer<typeof EctsGradeSchema>
+
 export const ThesisSectionRatingSchema = z.enum(["A", "B", "C", "D", "E", "FX", "pending"]).catch("pending")
 
 export const ThesisReviewSectionSchema = z.preprocess((raw: any) => {
   if (raw && typeof raw === "object") {
     return {
-      sectionId: String(raw.sectionId || raw.id || raw.criterionId || ""),
-      criterionId: String(raw.criterionId || raw.sectionId || raw.id || ""),
-      text: String(raw.text || raw.content || raw.assessment || raw.comment || ""),
+      sectionId: String(raw.sectionId || raw.id || raw.criterionId || "").trim(),
+      criterionId: String(raw.criterionId || raw.sectionId || raw.id || "").trim(),
+      text: String(raw.text || raw.content || raw.assessment || raw.comment || "").trim(),
       rating: raw.rating || raw.grade || raw.score || "pending",
       numericScore: typeof raw.numericScore === "number" ? raw.numericScore : undefined,
-      suggestions: Array.isArray(raw.suggestions) ? raw.suggestions.map(String) : [],
+      suggestions: Array.isArray(raw.suggestions)
+        ? raw.suggestions.map((s: any) => String(s).trim()).filter(Boolean)
+        : [],
     }
   }
   return raw
@@ -287,22 +292,24 @@ export type ThesisReviewSection = z.infer<typeof ThesisReviewSectionSchema>
 export const ThesisReviewGenerationSchema = z.preprocess((raw: any) => {
   if (raw && typeof raw === "object") {
     const sections = raw.sections || raw.criteria || raw.evaluations || []
+    const gradeRaw = raw.overallGrade || raw.grade || raw.overall
+    const normalizedGrade = typeof gradeRaw === "string" ? gradeRaw.trim().toUpperCase() : undefined
     return {
       sections: Array.isArray(sections) ? sections : [],
-      overallGrade: raw.overallGrade || raw.grade || raw.overall || undefined,
-      recommendation: String(raw.recommendation || raw.verdict || ""),
+      overallGrade: normalizedGrade && ["A", "B", "C", "D", "E", "FX"].includes(normalizedGrade) ? normalizedGrade : undefined,
+      recommendation: String(raw.recommendation || raw.verdict || "").trim(),
       defenseQuestions: Array.isArray(raw.defenseQuestions)
-        ? raw.defenseQuestions.map(String)
-        : Array.isArray(raw.questions) ? raw.questions.map(String) : [],
+        ? raw.defenseQuestions.map((q: any) => String(q).trim()).filter(Boolean)
+        : Array.isArray(raw.questions) ? raw.questions.map((q: any) => String(q).trim()).filter(Boolean) : [],
       citationIssues: Array.isArray(raw.citationIssues)
-        ? raw.citationIssues.map(String)
-        : Array.isArray(raw.issues) ? raw.issues.map(String) : [],
+        ? raw.citationIssues.map((i: any) => String(i).trim()).filter(Boolean)
+        : Array.isArray(raw.issues) ? raw.issues.map((i: any) => String(i).trim()).filter(Boolean) : [],
     }
   }
   return raw
 }, z.object({
   sections: z.array(ThesisReviewSectionSchema),
-  overallGrade: z.string().optional(),
+  overallGrade: EctsGradeSchema.optional(),
   recommendation: z.string(),
   defenseQuestions: z.array(z.string()).default([]),
   citationIssues: z.array(z.string()).default([]),
@@ -312,12 +319,18 @@ export type ThesisReviewGenerationResult = z.infer<typeof ThesisReviewGeneration
 // 10. Thesis Section (single criterion) Generation
 export const ThesisSingleSectionSchema = z.preprocess((raw: any) => {
   if (raw && typeof raw === "object") {
+    const gradeRaw = raw.rating || raw.grade
+    const normalizedRating = typeof gradeRaw === "string" ? gradeRaw.trim().toUpperCase() : "pending"
     return {
-      text: String(raw.text || raw.content || raw.assessment || raw.comment || ""),
-      rating: raw.rating || raw.grade || "pending",
+      text: String(raw.text || raw.content || raw.assessment || raw.comment || "").trim(),
+      rating: ["A", "B", "C", "D", "E", "FX", "pending"].includes(normalizedRating) ? normalizedRating : "pending",
       numericScore: typeof raw.numericScore === "number" ? raw.numericScore : undefined,
-      suggestions: Array.isArray(raw.suggestions) ? raw.suggestions.map(String) : [],
-      defenseQuestions: Array.isArray(raw.defenseQuestions) ? raw.defenseQuestions.map(String) : [],
+      suggestions: Array.isArray(raw.suggestions)
+        ? raw.suggestions.map((s: any) => String(s).trim()).filter(Boolean)
+        : [],
+      defenseQuestions: Array.isArray(raw.defenseQuestions)
+        ? raw.defenseQuestions.map((q: any) => String(q).trim()).filter(Boolean)
+        : [],
     }
   }
   return raw
@@ -329,4 +342,45 @@ export const ThesisSingleSectionSchema = z.preprocess((raw: any) => {
   defenseQuestions: z.array(z.string()).default([]),
 }))
 export type ThesisSingleSectionResult = z.infer<typeof ThesisSingleSectionSchema>
+
+/**
+ * Validates generated thesis review sections against expected criteria IDs.
+ * Ensures every requested criterion is present exactly once and text is non-empty.
+ */
+export function validateGeneratedSections(
+  sections: ThesisReviewSection[],
+  expectedCriterionIds: string[]
+): void {
+  if (!sections || sections.length === 0) {
+    throw new Error("No sections generated in thesis review.")
+  }
+
+  const seenIds = new Set<string>()
+  const expectedSet = new Set(expectedCriterionIds)
+
+  for (const section of sections) {
+    const cid = section.criterionId || section.sectionId
+    if (!cid) {
+      throw new Error("Section is missing criterionId.")
+    }
+    if (!expectedSet.has(cid)) {
+      throw new Error(`Unexpected criterion ID in generated review: "${cid}".`)
+    }
+    if (seenIds.has(cid)) {
+      throw new Error(`Duplicate criterion ID in generated review: "${cid}".`)
+    }
+    seenIds.add(cid)
+
+    if (!section.text || !section.text.trim()) {
+      throw new Error(`Assessment text for criterion "${cid}" is empty.`)
+    }
+  }
+
+  for (const expected of expectedCriterionIds) {
+    if (!seenIds.has(expected)) {
+      throw new Error(`Missing expected criterion in generated review: "${expected}".`)
+    }
+  }
+}
+
 

@@ -94,14 +94,14 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
 
   if (!activeReview) {
     return (
-      <div className="flex h-full w-full">
+      <div className="flex flex-col lg:flex-row h-full w-full overflow-y-auto lg:overflow-hidden">
         {/* Left: Metadata form */}
-        <div className="w-[360px] border-r shrink-0 bg-background/50">
+        <div className="w-full lg:w-[360px] border-b lg:border-b-0 lg:border-r shrink-0 bg-background/50">
           <ThesisMetadataPanel workspaceId={workspaceId} />
         </div>
 
         {/* Right: Existing reviews list / empty state */}
-        <div className="flex-1 p-6 overflow-y-auto">
+        <div className="flex-1 p-4 lg:p-6 overflow-y-auto">
           <div className="max-w-2xl mx-auto space-y-6">
             <div>
               <h2 className="text-xl font-bold tracking-tight">Posudky záverečných prác</h2>
@@ -170,40 +170,40 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
   const calculatedScore = computeOverallScore(activeReview.sections)
 
   return (
-    <div className="flex h-full w-full overflow-hidden">
+    <div className="flex flex-col h-full w-full overflow-hidden">
       {/* Main editor content */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Top bar with actions */}
-        <div className="flex items-center justify-between border-b px-6 py-3 bg-background/95 shrink-0">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between border-b px-4 lg:px-6 py-3 bg-background/95 shrink-0 gap-2">
+          <div className="flex items-center gap-3 min-w-0">
             <Button
               size="sm"
               variant="outline"
               onClick={() => setActiveReview(null)}
-              className="text-xs h-8"
+              className="text-xs h-8 shrink-0"
             >
-              ← Zoznam posudkov
+              ← Zoznam
             </Button>
-            <div className="h-4 w-px bg-border" />
-            <div>
+            <div className="h-4 w-px bg-border shrink-0" />
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-sm">{activeReview.studentName}</span>
-                <Badge variant="secondary" className="text-[11px]">
+                <span className="font-bold text-sm truncate">{activeReview.studentName}</span>
+                <Badge variant="secondary" className="text-[11px] shrink-0">
                   {activeReview.thesisType}
                 </Badge>
                 {activeReview.grade && (
-                  <Badge variant="default" className="text-xs font-bold">
+                  <Badge variant="default" className="text-xs font-bold shrink-0">
                     {activeReview.grade}
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground truncate max-w-md">
+              <p className="text-xs text-muted-foreground truncate max-w-xs sm:max-w-md">
                 {activeReview.thesisTitle}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               size="sm"
               variant="outline"
@@ -236,7 +236,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
         </div>
 
         {/* Scrollable document body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 max-w-4xl mx-auto w-full">
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 max-w-4xl mx-auto w-full">
           {/* Summary card */}
           <div className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b pb-3">
@@ -333,6 +333,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
           <CitationIssuesPanel
             issues={activeReview.citationIssues}
             lang={lang}
+            workspaceId={workspaceId}
           />
         </div>
       </div>

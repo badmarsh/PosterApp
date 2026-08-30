@@ -180,3 +180,41 @@ export function slugifyCiteKey(author?: string, year?: string, title?: string): 
   const base = `${authorSlug}${yearSlug}${titleSlug ? `_${titleSlug}` : ""}`
   return base || `ref_${Date.now().toString(36)}`
 }
+
+/**
+ * Convert an AcademicPaperResult (from Semantic Scholar / arXiv) to a structured BibEntry.
+ */
+export function academicPaperToBibEntry(paper: {
+  title: string
+  authors: string[]
+  year?: number | null
+  venue?: string | null
+  doi?: string | null
+  arxivId?: string | null
+  url?: string | null
+  abstract?: string | null
+}): BibEntry {
+  const authorFirst = paper.authors?.[0]?.split(/[\s,]+/)[0] || "Author"
+  const yearStr = paper.year ? paper.year.toString() : new Date().getFullYear().toString()
+  const key = slugifyCiteKey(authorFirst, yearStr, paper.title)
+  const authorString = paper.authors?.join(" and ") || "Unknown"
+
+  const entry: BibEntry = {
+    id: key,
+    key,
+    type: paper.venue ? "article" : paper.arxivId ? "misc" : "article",
+    title: paper.title,
+    authors: paper.authors || [],
+    authorString,
+    year: yearStr,
+    journal: paper.venue || undefined,
+    doi: paper.doi || undefined,
+    url: paper.url || (paper.doi ? `https://doi.org/${paper.doi}` : undefined),
+    eprint: paper.arxivId || undefined,
+    archivePrefix: paper.arxivId ? "arXiv" : undefined,
+    abstract: paper.abstract || undefined,
+    rawBibtex: "",
+  }
+  entry.rawBibtex = formatBibEntry(entry)
+  return entry
+}

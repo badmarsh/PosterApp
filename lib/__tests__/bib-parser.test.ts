@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { parseBibKeys, formatCiteKey, extractCiteKeys } from "../bib-parser"
-import { parseBibEntries, formatBibEntry, slugifyCiteKey } from "../bib-types"
+import { parseBibEntries, formatBibEntry, slugifyCiteKey, academicPaperToBibEntry } from "../bib-types"
 
 describe("BibParser", () => {
   describe("parseBibKeys", () => {
@@ -91,6 +91,25 @@ describe("BibParser", () => {
     it("generates clean cite keys from author and title", () => {
       const key = slugifyCiteKey("Aad, Georges", "2012", "Observation of a new particle")
       expect(key).toBe("aad2012_observation_of")
+    })
+
+    it("converts AcademicPaperResult to structured BibEntry with rawBibtex", () => {
+      const entry = academicPaperToBibEntry({
+        title: "Deep Residual Learning for Image Recognition",
+        authors: ["He, Kaiming", "Zhang, Xiangyu", "Ren, Shaoqing", "Sun, Jian"],
+        year: 2016,
+        venue: "IEEE Conference on Computer Vision and Pattern Recognition",
+        doi: "10.1109/CVPR.2016.90",
+        arxivId: "1512.03385",
+      })
+
+      expect(entry.key).toContain("he2016")
+      expect(entry.title).toBe("Deep Residual Learning for Image Recognition")
+      expect(entry.authors).toHaveLength(4)
+      expect(entry.authorString).toBe("He, Kaiming and Zhang, Xiangyu and Ren, Shaoqing and Sun, Jian")
+      expect(entry.doi).toBe("10.1109/CVPR.2016.90")
+      expect(entry.rawBibtex).toContain("@article{")
+      expect(entry.rawBibtex).toContain("doi = {10.1109/CVPR.2016.90}")
     })
   })
 })

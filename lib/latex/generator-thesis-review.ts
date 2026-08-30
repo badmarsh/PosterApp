@@ -5,28 +5,50 @@
  * Templates: posudok-sk (Slovak), posudok-cs (Czech), posudok-en (English)
  */
 
-import { getThesisReviewPreamble, THESIS_REVIEW_LABELS, type ThesisReviewTemplate, type ThesisReviewLabels } from "./templates-thesis"
+import {
+  getThesisReviewPreamble,
+  THESIS_REVIEW_LABELS,
+  type ThesisReviewTemplate,
+  type ThesisReviewLabels,
+} from "./templates-thesis"
 import { THESIS_CRITERIA, type ThesisSection, type ReviewLanguage } from "@/lib/ai/thesis-rubric"
 
 // ---------------------------------------------------------------------------
-// LaTeX escaping
+// LaTeX escaping (Single-pass replacement)
 // ---------------------------------------------------------------------------
 
-function escapeLatex(s: string): string {
-  if (!s) return ""
-  return s
-    .replace(/\\/g, "\\textbackslash{}")
-    .replace(/&/g, "\\&")
-    .replace(/%/g, "\\%")
-    .replace(/\$/g, "\\$")
-    .replace(/#/g, "\\#")
-    .replace(/_/g, "\\_")
-    .replace(/\{/g, "\\{")
-    .replace(/\}/g, "\\}")
-    .replace(/~/g, "\\textasciitilde{}")
-    .replace(/\^/g, "\\textasciicircum{}")
-    .replace(/</g, "\\textless{}")
-    .replace(/>/g, "\\textgreater{}")
+export function escapeLatex(text: string): string {
+  if (!text) return ""
+  return text.replace(/[\\&%$#_{}~^<>]/g, (match) => {
+    switch (match) {
+      case "\\":
+        return "\\textbackslash{}"
+      case "&":
+        return "\\&"
+      case "%":
+        return "\\%"
+      case "$":
+        return "\\$"
+      case "#":
+        return "\\#"
+      case "_":
+        return "\\_"
+      case "{":
+        return "\\{"
+      case "}":
+        return "\\}"
+      case "~":
+        return "\\textasciitilde{}"
+      case "^":
+        return "\\textasciicircum{}"
+      case "<":
+        return "\\textless{}"
+      case ">":
+        return "\\textgreater{}"
+      default:
+        return match
+    }
+  })
 }
 
 function nl2par(text: string): string {
@@ -51,27 +73,34 @@ function buildMetadataBlock(
     reviewerName?: string | null
     institution?: string | null
     department?: string | null
+    academicYear?: string | null
   }
 ): string {
-  const lines: string[] = [
-    `\\thesisfield{${escapeLatex(labels.studentLabel)}}{${escapeLatex(meta.studentName)}}`,
-    `\\thesisfield{${escapeLatex(labels.thesisTitleLabel)}}{${escapeLatex(meta.thesisTitle)}}`,
-    `\\thesisfield{${escapeLatex(labels.thesisTypeLabel)}}{${escapeLatex(labels.thesisTypes[meta.thesisType] ?? meta.thesisType)}}`,
+  const rows: string[] = [
+    `  \\textbf{${escapeLatex(labels.studentLabel)}:} & ${escapeLatex(meta.studentName)} \\\\`,
+    `  \\textbf{${escapeLatex(labels.thesisTitleLabel)}:} & ${escapeLatex(meta.thesisTitle)} \\\\`,
+    `  \\textbf{${escapeLatex(labels.thesisTypeLabel)}:} & ${escapeLatex(labels.thesisTypes[meta.thesisType] ?? meta.thesisType)} \\\\`,
   ]
 
   if (meta.reviewerName) {
-    lines.push(`\\thesisfield{${escapeLatex(labels.reviewerLabel)}}{${escapeLatex(meta.reviewerName)}}`)
+    rows.push(`  \\textbf{${escapeLatex(labels.reviewerLabel)}:} & ${escapeLatex(meta.reviewerName)} \\\\`)
   }
-  lines.push(`\\thesisfield{${escapeLatex(labels.roleLabel)}}{${escapeLatex(labels.roles[meta.reviewerRole] ?? meta.reviewerRole)}}`)
+  rows.push(`  \\textbf{${escapeLatex(labels.roleLabel)}:} & ${escapeLatex(labels.roles[meta.reviewerRole] ?? meta.reviewerRole)} \\\\`)
 
   if (meta.institution) {
-    lines.push(`\\thesisfield{${escapeLatex(labels.institutionLabel)}}{${escapeLatex(meta.institution)}}`)
+    rows.push(`  \\textbf{${escapeLatex(labels.institutionLabel)}:} & ${escapeLatex(meta.institution)} \\\\`)
   }
   if (meta.department) {
-    lines.push(`\\thesisfield{${escapeLatex(labels.departmentLabel)}}{${escapeLatex(meta.department)}}`)
+    rows.push(`  \\textbf{${escapeLatex(labels.departmentLabel)}:} & ${escapeLatex(meta.department)} \\\\`)
+  }
+  if (meta.academicYear) {
+    rows.push(`  \\textbf{${escapeLatex(labels.dateLabel)} / Rok:} & ${escapeLatex(meta.academicYear)} \\\\`)
   }
 
-  return lines.join("\n")
+  return `\\noindent
+\\begin{tabularx}{\\textwidth}{@{}l X@{}}
+${rows.join("\n")}
+\\end{tabularx}`
 }
 
 function buildCriteriaTable(
@@ -89,12 +118,12 @@ function buildCriteriaTable(
     const rating = section.rating && section.rating !== "pending" ? section.rating : "---"
     const text = nl2par(section.text || "")
 
-    rows.push(`
+    rows.push(`\\Needspace{6\\baselineskip}
 \\subsection*{${escapeLatex(criterionName)} \\hfill \\ratingsymbol{${escapeLatex(rating)}}}
 ${escapeLatex(text)}`)
 
     if (section.suggestions && section.suggestions.length > 0) {
-      rows.push(`\\begin{itemize}\\small
+      rows.push(`\\begin{itemize}[leftmargin=*,noitemsep,topsep=2pt]\\small
 ${section.suggestions.map((s) => `  \\item ${escapeLatex(s)}`).join("\n")}
 \\end{itemize}`)
     }
@@ -105,16 +134,18 @@ ${section.suggestions.map((s) => `  \\item ${escapeLatex(s)}`).join("\n")}
 
 function buildDefenseQuestions(labels: ThesisReviewLabels, questions: string[]): string {
   if (!questions.length) return ""
-  return `\\section{${escapeLatex(labels.defenseLabel)}}
-\\begin{enumerate}
+  return `\\Needspace{8\\baselineskip}
+\\section{${escapeLatex(labels.defenseLabel)}}
+\\begin{enumerate}[leftmargin=*]
 ${questions.map((q) => `  \\item ${escapeLatex(q)}`).join("\n")}
 \\end{enumerate}`
 }
 
 function buildCitationNotes(labels: ThesisReviewLabels, issues: string[]): string {
   if (!issues.length) return ""
-  return `\\section{${escapeLatex(labels.citationLabel)}}
-\\begin{itemize}
+  return `\\Needspace{6\\baselineskip}
+\\section{${escapeLatex(labels.citationLabel)}}
+\\begin{itemize}[leftmargin=*]
 ${issues.map((i) => `  \\item ${escapeLatex(i)}`).join("\n")}
 \\end{itemize}`
 }
@@ -127,17 +158,18 @@ function buildSummaryBlock(
   const gradeBox = grade ? `\\ratingsymbol{${escapeLatex(grade)}}` : "\\underline{\\hspace{3cm}}"
   const recText = recommendation ? escapeLatex(recommendation) : ""
 
-  return `\\section{${escapeLatex(labels.summaryLabel)}}
+  return `\\Needspace{10\\baselineskip}
+\\section{${escapeLatex(labels.summaryLabel)}}
 
 \\thesisfield{${escapeLatex(labels.gradeLabel)}}{${gradeBox}}
 
 \\thesisfield{${escapeLatex(labels.recommendationLabel)}}{${recText}}
 
-\\vspace{3cm}
+\\vspace{2.5cm}
 
 \\noindent
 \\begin{tabular}{p{8cm}p{5cm}}
-  ${escapeLatex(labels.signatureLabel)}: & ${escapeLatex(labels.dateLabel)}: \\\\[2cm]
+  ${escapeLatex(labels.signatureLabel)}: & ${escapeLatex(labels.dateLabel)}: \\\\[1.8cm]
   \\hrulefill & \\hrulefill \\\\
 \\end{tabular}`
 }
@@ -154,6 +186,7 @@ export interface ThesisReviewGeneratorInput {
   reviewerName?: string | null
   institution?: string | null
   department?: string | null
+  academicYear?: string | null
   grade?: string | null
   recommendation?: string | null
   sections: ThesisSection[]

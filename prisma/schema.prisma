@@ -113,7 +113,7 @@ model Asset {
   assignedCardId String?
   assignedSlot   String?
   tableRows      Json?
-  assignedCard   Card?     @relation(fields: [assignedCardId], references: [id])
+  assignedCard   Card?     @relation(fields: [assignedCardId], references: [id], onDelete: SetNull)
   workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, filename])

@@ -5,6 +5,7 @@ import { useUser } from "@clerk/nextjs"
 import * as Y from "yjs"
 import { WebsocketProvider } from "y-websocket"
 import { useEditorStoreInstance, useEditor } from "@/components/editor-store"
+import { useThesisReviewStore, type ThesisReviewRecord } from "@/components/thesis-review/use-thesis-review-store"
 import type { Card } from "@/lib/poster-types"
 import type { Collaborator } from "./types"
 import { jobQueue } from "@/lib/job-queue"
@@ -32,6 +33,7 @@ export function useYjs(workspaceId: string) {
     let provider: WebsocketProvider | null = null
     let ydoc: Y.Doc | null = null
     let unsubscribeZustand: (() => void) | null = null
+    let unsubscribeThesisStore: (() => void) | null = null
     let unsubscribeJobs: (() => void) | null = null
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null
     let isCancelled = false
@@ -42,6 +44,27 @@ export function useYjs(workspaceId: string) {
 
     ydoc = new Y.Doc()
     const wsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL!
+
+    const thesisReviewsMap = ydoc.getMap<string>("thesisReviews")
+    const thesisObserver = (event: Y.YMapEvent<string>) => {
+      if (event.transaction.local) return
+      event.changes.keys.forEach((change, key) => {
+        if (change.action === "delete") {
+          useThesisReviewStore.getState()._removeReviewFromYjs(key)
+        } else {
+          const val = thesisReviewsMap.get(key)
+          if (val) {
+            try {
+              const review = JSON.parse(val) as ThesisReviewRecord
+              useThesisReviewStore.getState()._syncReviewFromYjs(review)
+            } catch (err) {
+              console.error("[Yjs] Failed to parse synced thesis review:", err)
+            }
+          }
+        }
+      })
+    }
+    thesisReviewsMap.observe(thesisObserver)
 
     const bindOutput = (outputId: string) => {
       if (currentYCards && currentObserver) {
@@ -171,6 +194,24 @@ export function useYjs(workspaceId: string) {
       }
     })
 
+    // Listen for local Thesis Review changes and update Yjs
+    let lastActiveReview: ThesisReviewRecord | null = useThesisReviewStore.getState().activeReview
+    unsubscribeThesisStore = useThesisReviewStore.subscribe((state) => {
+      const active = state.activeReview
+      if (active !== lastActiveReview) {
+        lastActiveReview = active
+        if (active && ydoc) {
+          ydoc.transact(() => {
+            const currentStr = thesisReviewsMap.get(active.id)
+            const newStr = JSON.stringify(active)
+            if (currentStr !== newStr) {
+              thesisReviewsMap.set(active.id, newStr)
+            }
+          }, "local")
+        }
+      }
+    })
+
     // Track mouse for cursor — throttled
     const handleMouseMove = (e: MouseEvent) => {
       const now = Date.now()
@@ -205,7 +246,9 @@ export function useYjs(workspaceId: string) {
       if (currentYCards && currentObserver) {
         currentYCards.unobserve(currentObserver)
       }
+      thesisReviewsMap.unobserve(thesisObserver)
       unsubscribeZustand?.()
+      unsubscribeThesisStore?.()
       unsubscribeJobs?.()
       window.removeEventListener("mousemove", handleMouseMove)
       window.removeEventListener("mouseleave", handleMouseLeave)

@@ -11,7 +11,14 @@
 
 import { create } from "zustand"
 import { immer } from "zustand/middleware/immer"
-import type { ThesisSection, ThesisMetadata, ReviewLanguage } from "@/lib/ai/thesis-rubric"
+import {
+  computeOverallScore,
+  scoreToEctsGrade,
+  gradeToRecommendation,
+  type ThesisSection,
+  type ThesisMetadata,
+  type ReviewLanguage,
+} from "@/lib/ai/thesis-rubric"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -63,9 +70,11 @@ interface ThesisReviewState {
   reviews: ThesisReviewListItem[]
   activeReview: ThesisReviewRecord | null
   isGenerating: boolean
+  isSaving: boolean
   isExporting: boolean
   regeneratingCriterionId: string | null
   generateError: string | null
+  saveError: string | null
   exportError: string | null
   isPanelOpen: boolean
 
@@ -83,10 +92,13 @@ interface ThesisReviewState {
     userInstruction?: string
   ) => Promise<ThesisSection | null>
   updateReviewLocally: (updates: Partial<ThesisReviewRecord>) => void
-  saveReview: (workspaceId: string, reviewId: string) => Promise<void>
+  updateCriterionLocally: (criterionId: string, updates: Partial<ThesisSection>) => void
+  saveReview: (workspaceId: string, reviewId: string) => Promise<boolean>
   exportReviewPdf: (workspaceId: string, reviewId: string) => Promise<void>
-  deleteReview: (workspaceId: string, reviewId: string) => Promise<void>
+  deleteReview: (workspaceId: string, reviewId: string) => Promise<boolean>
   clearErrors: () => void
+  _syncReviewFromYjs: (review: ThesisReviewRecord) => void
+  _removeReviewFromYjs: (reviewId: string) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -98,9 +110,11 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     reviews: [],
     activeReview: null,
     isGenerating: false,
+    isSaving: false,
     isExporting: false,
     regeneratingCriterionId: null,
     generateError: null,
+    saveError: null,
     exportError: null,
     isPanelOpen: false,
 
@@ -112,7 +126,7 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     loadReviews: async (workspaceId) => {
       try {
         const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review`)
-        if (!res.ok) throw new Error("Failed to load reviews")
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
         set((s) => { s.reviews = data.reviews ?? [] })
       } catch (err) {
@@ -146,7 +160,7 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.error ?? `HTTP ${res.status}`)
+          throw new Error(errData.message ?? errData.error ?? `HTTP ${res.status}`)
         }
 
         const data = await res.json()
@@ -199,7 +213,7 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.error ?? `HTTP ${res.status}`)
+          throw new Error(errData.message ?? errData.error ?? `HTTP ${res.status}`)
         }
 
         const data = await res.json()
@@ -207,6 +221,9 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
           if (s.activeReview) {
             s.activeReview.sections = data.sections
             s.activeReview.grade = data.grade
+            if (data.recommendation) {
+              s.activeReview.recommendation = data.recommendation
+            }
           }
           s.regeneratingCriterionId = null
         })
@@ -227,25 +244,63 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
       })
     },
 
+    updateCriterionLocally: (criterionId, updates) => {
+      set((s) => {
+        if (!s.activeReview) return
+        const idx = s.activeReview.sections.findIndex(
+          (sec) => sec.criterionId === criterionId || sec.sectionId === criterionId
+        )
+        if (idx >= 0) {
+          Object.assign(s.activeReview.sections[idx], updates)
+          const newScore = computeOverallScore(s.activeReview.sections)
+          if (newScore != null) {
+            const newGrade = scoreToEctsGrade(newScore)
+            s.activeReview.grade = newGrade
+            s.activeReview.recommendation = gradeToRecommendation(newGrade, s.activeReview.language)
+          }
+        }
+      })
+    },
+
     saveReview: async (workspaceId, reviewId) => {
       const { activeReview } = get()
-      if (!activeReview || activeReview.id !== reviewId) return
+      if (!activeReview || activeReview.id !== reviewId) return false
 
+      set((s) => { s.isSaving = true; s.saveError = null })
       try {
-        await fetch(`/api/workspaces/${workspaceId}/thesis-review/${reviewId}`, {
+        const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review/${reviewId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            studentName: activeReview.studentName,
+            thesisTitle: activeReview.thesisTitle,
+            thesisType: activeReview.thesisType,
+            reviewerRole: activeReview.reviewerRole,
+            reviewerName: activeReview.reviewerName,
+            institution: activeReview.institution,
+            department: activeReview.department,
             grade: activeReview.grade,
             recommendation: activeReview.recommendation,
             sections: JSON.stringify(activeReview.sections),
             defenseQuestions: JSON.stringify(activeReview.defenseQuestions),
             citationIssues: JSON.stringify(activeReview.citationIssues),
             status: activeReview.status,
+            language: activeReview.language,
           }),
         })
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.error ?? `Save failed (HTTP ${res.status})`)
+        }
+
+        set((s) => { s.isSaving = false })
+        return true
       } catch (err) {
+        const msg = err instanceof Error ? err.message : "Save failed"
         console.error("[ThesisReviewStore] saveReview failed:", err)
+        set((s) => { s.isSaving = false; s.saveError = msg })
+        return false
       }
     },
 
@@ -283,17 +338,80 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     },
 
     deleteReview: async (workspaceId, reviewId) => {
+      const prevReviews = get().reviews
+      const prevActive = get().activeReview
+
+      // Optimistic delete
+      set((s) => {
+        s.reviews = s.reviews.filter((r) => r.id !== reviewId)
+        if (s.activeReview?.id === reviewId) s.activeReview = null
+      })
+
       try {
-        await fetch(`/api/workspaces/${workspaceId}/thesis-review/${reviewId}`, { method: "DELETE" })
-        set((s) => {
-          s.reviews = s.reviews.filter((r) => r.id !== reviewId)
-          if (s.activeReview?.id === reviewId) s.activeReview = null
-        })
+        const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review/${reviewId}`, { method: "DELETE" })
+        if (!res.ok) {
+          throw new Error(`Delete failed (HTTP ${res.status})`)
+        }
+        return true
       } catch (err) {
         console.error("[ThesisReviewStore] deleteReview failed:", err)
+        // Rollback state on failure
+        set((s) => {
+          s.reviews = prevReviews
+          s.activeReview = prevActive
+          s.saveError = err instanceof Error ? err.message : "Delete failed"
+        })
+        return false
       }
     },
 
-    clearErrors: () => set((s) => { s.generateError = null; s.exportError = null }),
+    clearErrors: () => set((s) => {
+      s.generateError = null
+      s.saveError = null
+      s.exportError = null
+    }),
+
+    _syncReviewFromYjs: (incoming) => {
+      set((s) => {
+        if (s.activeReview && s.activeReview.id === incoming.id) {
+          s.activeReview = incoming
+        }
+        const existingIdx = s.reviews.findIndex((r) => r.id === incoming.id)
+        const summaryItem: ThesisReviewListItem = {
+          id: incoming.id,
+          studentName: incoming.studentName,
+          thesisTitle: incoming.thesisTitle,
+          thesisType: incoming.thesisType,
+          reviewerRole: incoming.reviewerRole,
+          reviewerName: incoming.reviewerName,
+          grade: incoming.grade,
+          recommendation: incoming.recommendation,
+          status: incoming.status,
+          language: incoming.language,
+          createdAt: incoming.createdAt,
+          updatedAt: incoming.updatedAt,
+        }
+        if (existingIdx >= 0) {
+          s.reviews[existingIdx] = summaryItem
+        } else {
+          s.reviews.unshift(summaryItem)
+        }
+      })
+    },
+
+    _removeReviewFromYjs: (reviewId) => {
+      set((s) => {
+        s.reviews = s.reviews.filter((r) => r.id !== reviewId)
+        if (s.activeReview?.id === reviewId) {
+          s.activeReview = null
+        }
+      })
+    },
   }))
 )
+
+if (typeof window !== "undefined") {
+  ;(window as any).__thesisReviewStore = useThesisReviewStore
+}
+
+

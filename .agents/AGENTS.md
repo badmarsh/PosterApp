@@ -117,6 +117,18 @@ Schema at `prisma/schema.prisma`. Key notes:
 (None currently)
 
 ### Fixed in This Session (2026-08-30)
+- ✅ **Phase 5: Unified Collaboration, BibTeX Pipeline & E2E Automation**:
+  - **Real-Time Yjs Thesis Reviews**: Synchronized `useThesisReviewStore` with `ydoc.getMap("thesisReviews")` in `use-yjs.tsx` for live multiplayer review editing, score recomputation, and rating overrides.
+  - **1-Click BibTeX Import from Citation Audit**: Added `academicPaperToBibEntry` converter in `lib/bib-types.ts` and "+ Do .bib" direct import buttons in `CitationIssuesPanel` with visual checkmark indicators and workspace bibliography injection.
+  - **Playwright E2E Test Suite**: Authored `tests/thesis-review.spec.ts` covering workspace initialization, metadata form validation, academic literature lookup, and 1-click BibTeX import.
+  - **Prisma Schema Foreign Key Cascade Fix**: Added `onDelete: SetNull` to `Asset.assignedCard` in `prisma/schema.prisma` to prevent hard constraint errors when deleting cards/outputs with attached assets.
+  - **Full Test Suite & Production Build**: 44 test files, 291 tests passing (100% pass rate) and Next.js production build cleanly verified.
+- ✅ **Thesis Review Generation Module Hardened (Phases 1–4, Critical Findings 1–10)**:
+  - **Phase 1 (RAG Grounding & Prompt Hardening)**: Replaced flat text slicing with scored section routing (`routeSectionsForCriterion`), Unicode heading normalization, multi-zone document sampling, character budgets (`THESIS_CONTEXT_BUDGETS`), strict source requirement guard (422 `THESIS_SOURCE_REQUIRED`), degree level profiles (`THESIS_LEVEL_PROFILES`), and post-generation contract validation (`validateGeneratedSections`).
+  - **Phase 2 (Citation Verification & Academic Connector)**: Discriminated `AcademicLookupStatus`, bounded retries with jitter and `Retry-After` adherence in Semantic Scholar service, source-aware ISO 690 rules (books/theses without mandatory DOIs, web access dates), `inconsistent_metadata` detection, identifier prioritization (DOI -> arXiv -> Title search), and worker pool concurrency limiting (`concurrency = 3`).
+  - **Phase 3 (LaTeX Preamble & Export Polish)**: Single-pass `escapeLatex` token replacement preventing curly-brace corruption, `\usepackage{needspace}`, `\usepackage{tabularx}`, `\usepackage{enumitem}`, localized running headers, and raw `.tex` source export (`?format=tex`).
+  - **Phase 4 (UI/State Polish & Regeneration)**: IME composition guards (`!e.nativeEvent.isComposing`), error handling and state rollback on delete failure in Zustand store, dynamic score and recommendation recomputation on criterion edit, and responsive narrow-screen layout.
+  - **Full Test Suite & Production Build**: 44 test files, 288 tests passing (100% pass rate) and Next.js production build cleanly verified.
 - ✅ **Prompt Delimiter Escaping Completed** — Fully escaped untrusted content in all AI routes (`chat`, `review`, `shrink`, `autofix-compile`, `convert`, `generate`, `bib/lookup`) with `wrapUntrustedContext`, with regression unit tests in `lib/__tests__/ai-prompts.test.ts`.
 - ✅ **Security Headers Implemented** — Edge-level security headers configured in `next.config.mjs` including `Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, and `Strict-Transport-Security`.
 - ✅ **`.env.example` Synchronization** — Verified PostgreSQL `DATABASE_URL` and standardized `NEXT_PUBLIC_YJS_WS_URL=ws://localhost:3333/api/yjs`.
@@ -126,7 +138,6 @@ Schema at `prisma/schema.prisma`. Key notes:
 - ✅ **Job State Reconciliation on Reload** — `JobQueue.reconcileWithIngestFiles()` reconciles in-flight/interrupted job states against true database state loaded on workspace mount.
 - ✅ **DB-Level Asset Deduplication** — Unique composite index `@@unique([workspaceId, filename])` in Prisma schema with atomic `prisma.asset.upsert()` in both ingestion parsing and workspace PUT routes.
 - ✅ **Compiler Container Hardening** — Docker compile execution fortified with `--cap-drop=ALL`, `--user 1000:1000`, `--read-only`, `--tmpfs /tmp:rw,noexec,nosuid,size=64m`, and `--security-opt no-new-privileges`.
-- ✅ **Full Test Suite & Build Verification** — 38 test files, 251 tests passing, and Next.js production build verified cleanly.
 
 ### Fixed in Previous Session (2026-08-29)
 - ✅ **AI Feature Layer Audit (F1–F13)** — All 13 findings remediated:

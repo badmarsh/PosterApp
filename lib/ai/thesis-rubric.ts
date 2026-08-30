@@ -51,6 +51,70 @@ export interface ThesisMetadata {
   academicYear?: string
 }
 
+export interface ThesisLevelProfile {
+  evidenceExpectations: string[]
+  originalityExpectation: string
+  methodologyExpectation: string
+  gradeAnchors: Record<Exclude<CriterionRating, "pending">, string>
+}
+
+export const THESIS_LEVEL_PROFILES: Record<ThesisType, ThesisLevelProfile> = {
+  bachelor: {
+    evidenceExpectations: [
+      "Demonstrates clear comprehension of fundamentals and relevant literature",
+      "Correct application of standard tools, frameworks, and methodologies",
+      "Complete implementation fulfilling all specified project goals",
+      "Readable, well-structured documentation following academic conventions",
+    ],
+    originalityExpectation: "Competent independent implementation or synthesis of established methods.",
+    methodologyExpectation: "Sound application of existing methodologies with clear justification of tool choices.",
+    gradeAnchors: {
+      A: "Flawless execution, excellent understanding, rigorous testing, high quality documentation.",
+      B: "Above-average execution with minor gaps in evaluation or slight documentation flaws.",
+      C: "Good execution fulfilling all core requirements with average depth and minor flaws.",
+      D: "Acceptable work meeting essential objectives with notable omissions in analysis or presentation.",
+      E: "Barely sufficient work meeting minimal requirements with significant deficiencies.",
+      FX: "Unacceptable work failing to meet core assignment objectives or demonstrating fundamental errors.",
+    },
+  },
+  master: {
+    evidenceExpectations: [
+      "Independent synthesis of contemporary research and state of the art",
+      "Methodological justification, critical analysis, and meaningful comparison against baselines",
+      "Robust experimental evaluation with quantified metrics and statistical rigor",
+      "Practical or scientific contribution with clear applicability",
+    ],
+    originalityExpectation: "Defensible originality, innovative problem formulation, or non-trivial extension of state of the art.",
+    methodologyExpectation: "Rigorous methodology with formal design, thorough validation, and ablation/comparative study.",
+    gradeAnchors: {
+      A: "Outstanding research depth, rigorous comparative evaluation, publishable-quality results.",
+      B: "Very good work with sound methodology and solid evaluation; minor depth or stylistic gaps.",
+      C: "Good work meeting all objectives; evaluation is standard with limited critical depth.",
+      D: "Satisfactory work fulfilling basic goals but lacking thorough experimental or analytical depth.",
+      E: "Marginal work with major methodological or analytical weaknesses, barely passing standards.",
+      FX: "Failing work with invalid methodology, missing goals, or inadequate evaluation.",
+    },
+  },
+  phd: {
+    evidenceExpectations: [
+      "Significant, peer-review publishable original scientific contribution",
+      "Exhaustive coverage of international state of the art with deep critical insight",
+      "Reproducible, rigorous experimental methodology with formal validation",
+      "Clear advancement of theoretical or applied frontiers of the field",
+    ],
+    originalityExpectation: "Substantial original scientific contribution with demonstrated novelty and impact.",
+    methodologyExpectation: "Exemplary scientific rigor, theoretical soundness, and defensible experimental design.",
+    gradeAnchors: {
+      A: "Exceptional scientific contribution, international publication standard, groundbreaking insights.",
+      B: "High-quality doctoral research with clear novelty and strong experimental validation.",
+      C: "Adequate doctoral work with valid contribution but limited scope or incremental novelty.",
+      D: "Marginally acceptable doctoral dissertation with weak theoretical backing or limited evaluation.",
+      E: "Deficient doctoral work barely meeting formal dissertation requirements.",
+      FX: "Unacceptable doctoral dissertation lacking scientific contribution or containing invalid methodology.",
+    },
+  },
+}
+
 // ---------------------------------------------------------------------------
 // Rubric definitions
 // ---------------------------------------------------------------------------
@@ -201,22 +265,28 @@ export function getWeightedCriteria(): ThesisCriterion[] {
  * Compute a numeric aggregate score from section ratings.
  * Uses a simple weighted average of numeric scores where provided,
  * falling back to ECTS → numeric mapping.
+ * Clamps numeric scores to [0, 100] and rejects duplicate criteria.
  */
 export function computeOverallScore(sections: ThesisSection[]): number | null {
   const ectsMap: Record<string, number> = { A: 95, B: 85, C: 75, D: 65, E: 55, FX: 20 }
   let totalWeight = 0
   let weightedSum = 0
+  const seenCriteria = new Set<string>()
 
   for (const section of sections) {
-    const criterion = getCriterionById(section.criterionId)
+    const criterionId = section.criterionId || section.sectionId || section.id
+    if (!criterionId || seenCriteria.has(criterionId)) continue
+    seenCriteria.add(criterionId)
+
+    const criterion = getCriterionById(criterionId)
     if (!criterion || criterion.weight === 0) continue
 
-    const score =
-      section.numericScore != null
-        ? section.numericScore
-        : section.rating && section.rating !== "pending"
-        ? ectsMap[section.rating] ?? null
-        : null
+    let score: number | null = null
+    if (typeof section.numericScore === "number" && !isNaN(section.numericScore)) {
+      score = Math.min(100, Math.max(0, section.numericScore))
+    } else if (section.rating && section.rating !== "pending") {
+      score = ectsMap[section.rating] ?? null
+    }
 
     if (score == null) continue
     weightedSum += score * criterion.weight

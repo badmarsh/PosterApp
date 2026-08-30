@@ -17,16 +17,20 @@ import {
   Loader2,
   Copy,
   Check,
+  Plus,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import type { ReviewLanguage } from "@/lib/ai/thesis-rubric"
 import type { AcademicPaperResult } from "@/lib/services/academic-connector"
+import { academicPaperToBibEntry, slugifyCiteKey } from "@/lib/bib-types"
+import { useEditorStoreInstance } from "@/components/editor-store"
 
 interface Props {
   issues: string[]
   lang: ReviewLanguage
+  workspaceId?: string
 }
 
 const LABELS: Record<
@@ -70,12 +74,14 @@ const LABELS: Record<
   },
 }
 
-export function CitationIssuesPanel({ issues, lang }: Props) {
+export function CitationIssuesPanel({ issues, lang, workspaceId }: Props) {
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
   const [searchResults, setSearchResults] = useState<AcademicPaperResult[]>([])
   const [hasSearched, setHasSearched] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [importedKeys, setImportedKeys] = useState<Set<string>>(new Set())
+  const [isImporting, setIsImporting] = useState<string | null>(null)
 
   const t = LABELS[lang]
 
@@ -108,6 +114,20 @@ export function CitationIssuesPanel({ issues, lang }: Props) {
     navigator.clipboard.writeText(cit)
     setCopiedId(String(idx))
     setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const handleImportBib = async (paper: AcademicPaperResult, idx: number) => {
+    const entry = academicPaperToBibEntry(paper)
+    setIsImporting(String(idx))
+    try {
+      const store = useEditorStoreInstance()
+      await store.getState().addBibEntry(entry)
+      setImportedKeys((prev) => new Set([...prev, entry.key]))
+    } catch (err) {
+      console.error("[CitationIssuesPanel] Failed to import BibTeX entry:", err)
+    } finally {
+      setIsImporting(null)
+    }
   }
 
   return (
@@ -168,7 +188,10 @@ export function CitationIssuesPanel({ issues, lang }: Props) {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="text-xs h-8"
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleSearch()
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                e.preventDefault()
+                handleSearch()
+              }
             }}
           />
           <Button
@@ -237,24 +260,48 @@ export function CitationIssuesPanel({ issues, lang }: Props) {
                         </a>
                       )}
 
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        onClick={() => handleCopyCitation(paper, idx)}
-                        className="ml-auto h-5 text-[10px] gap-1 px-1.5"
-                      >
-                        {copiedId === String(idx) ? (
-                          <>
-                            <Check className="h-2.5 w-2.5 text-green-600" />
-                            {lang === "sk" ? "Skopírované" : "Copied"}
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-2.5 w-2.5" />
-                            {lang === "sk" ? "Citácia" : "Copy Cite"}
-                          </>
-                        )}
-                      </Button>
+                      <div className="ml-auto flex items-center gap-1.5 shrink-0">
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => handleCopyCitation(paper, idx)}
+                          className="h-5 text-[10px] gap-1 px-1.5"
+                        >
+                          {copiedId === String(idx) ? (
+                            <>
+                              <Check className="h-2.5 w-2.5 text-green-600" />
+                              {lang === "sk" ? "Skopírované" : "Copied"}
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-2.5 w-2.5" />
+                              {lang === "sk" ? "Citácia" : "Copy Cite"}
+                            </>
+                          )}
+                        </Button>
+
+                        <Button
+                          size="xs"
+                          variant={importedKeys.has(academicPaperToBibEntry(paper).key) ? "outline" : "secondary"}
+                          onClick={() => handleImportBib(paper, idx)}
+                          disabled={importedKeys.has(academicPaperToBibEntry(paper).key) || isImporting === String(idx)}
+                          className="h-5 text-[10px] gap-1 px-1.5"
+                        >
+                          {isImporting === String(idx) ? (
+                            <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                          ) : importedKeys.has(academicPaperToBibEntry(paper).key) ? (
+                            <>
+                              <Check className="h-2.5 w-2.5 text-green-600" />
+                              {lang === "sk" ? "V .bib" : lang === "cs" ? "V .bib" : "In .bib"}
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-2.5 w-2.5" />
+                              {lang === "sk" ? "+ Do .bib" : lang === "cs" ? "+ Do .bib" : "+ To .bib"}
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}

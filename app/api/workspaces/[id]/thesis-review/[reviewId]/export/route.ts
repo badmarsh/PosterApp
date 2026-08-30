@@ -160,7 +160,7 @@ export async function POST(
   }
 }
 
-// GET — check if a compiled PDF exists for this review
+// GET — check if compiled PDF exists or export raw .tex source
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; reviewId: string }> }
@@ -172,6 +172,50 @@ export async function GET(
   } catch (err) {
     if (err instanceof Response) return err
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const review = await prisma.thesisReview.findFirst({
+    where: { id: reviewId, workspaceId },
+  })
+
+  if (!review) {
+    return NextResponse.json({ error: "Review not found" }, { status: 404 })
+  }
+
+  const format = req.nextUrl.searchParams.get("format")
+  if (format === "tex") {
+    let template: ThesisReviewTemplate = "posudok-sk"
+    if (review.language === "en") template = "posudok-en"
+    else if (review.language === "cs") template = "posudok-cs"
+
+    const sections: ThesisSection[] = review.sections ? JSON.parse(review.sections) : []
+    const defenseQuestions: string[] = review.defenseQuestions ? JSON.parse(review.defenseQuestions) : []
+    const citationIssues: string[] = review.citationIssues ? JSON.parse(review.citationIssues) : []
+
+    const tex = generateThesisReviewLatex({
+      studentName: review.studentName,
+      thesisTitle: review.thesisTitle,
+      thesisType: review.thesisType as "bachelor" | "master" | "phd",
+      reviewerRole: review.reviewerRole as "supervisor" | "opponent",
+      reviewerName: review.reviewerName,
+      institution: review.institution,
+      department: review.department,
+      grade: review.grade,
+      recommendation: review.recommendation,
+      sections,
+      defenseQuestions,
+      citationIssues,
+      language: review.language as ReviewLanguage,
+      template,
+    })
+
+    return new Response(tex, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/x-tex; charset=utf-8",
+        "Content-Disposition": `attachment; filename="posudok-${review.studentName.replace(/\s+/g, "-").slice(0, 40)}.tex"`,
+      },
+    })
   }
 
   const pdfPath = path.join(ROOT, workspaceId, `thesis-review-${reviewId}.pdf`)

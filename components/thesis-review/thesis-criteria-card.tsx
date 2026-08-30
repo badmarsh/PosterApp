@@ -224,7 +224,10 @@ export function ThesisCriteriaCard({
                 onChange={(e) => setUserInstruction(e.target.value)}
                 className="text-xs h-7 bg-background"
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleRegenerate()
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                    e.preventDefault()
+                    handleRegenerate()
+                  }
                 }}
               />
               <div className="flex gap-2 justify-end">
