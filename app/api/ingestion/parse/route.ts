@@ -339,7 +339,29 @@ export async function POST(req: Request) {
         } catch (err) {
           console.error("[Ingestion] BibTeX extraction failed (non-fatal):", err)
         }
-      }
+
+        // Async vector chunking for RAG — fire-and-forget, non-blocking
+        // This runs in background after SSE completes to avoid timeout
+        const parsedIdForChunking = typeof fileId === "string" ? fileId : `file_${Date.now()}`
+        setImmediate(async () => {
+          try {
+            const { ingestDocumentChunks } = await import("@/lib/ai/document-chunker")
+            const { chunksCreated, skipped } = await ingestDocumentChunks(
+              workspaceId,
+              parsedIdForChunking,
+              results.md_content!,
+              // Use larger chunks for long documents (PhD/MSc) — approximated by content length
+              {
+                maxChunkChars: results.md_content!.length > 200_000 ? 3000 : 1800,
+                concurrency: 2,
+              }
+            )
+            console.log(`[VectorRAG] Indexed ${chunksCreated} chunks for ${workspaceId}/${parsedIdForChunking} (${skipped} skipped)`)
+          } catch (err) {
+            console.error("[VectorRAG] Background chunking failed (non-fatal):", err)
+          }
+        })
+      }  // end: if (fileId && results.md_content)
 
   const assets: {
     id: string

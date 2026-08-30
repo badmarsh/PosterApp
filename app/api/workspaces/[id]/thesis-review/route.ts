@@ -30,6 +30,7 @@ import {
   type ReviewLanguage,
 } from "@/lib/ai/thesis-rubric"
 import { auditThesisCitations } from "@/lib/services/academic-connector"
+import { searchHybrid, rerankChunks } from "@/lib/ai/vector-rag"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
@@ -272,14 +273,48 @@ export async function POST(
       }
     }
 
+    // 2b. pgvector hybrid search augmentation — per-criterion evidence retrieval.
+    // Runs after disk-based context to avoid blocking disk load; failures degrade
+    // gracefully (pgvector may not be indexed yet for new workspaces).
+    let vectorAugmentation = ""
+    try {
+      const criterionVectorContextParts: string[] = []
+      await Promise.all(
+        activeCriteria.map(async (c) => {
+          // Combine criterion label + guidance as a natural-language query
+          const query = `${c.labels.sk} ${c.guidance.sk}`.slice(0, 300)
+          const raw = await searchHybrid(workspaceId, query, 8, "STEM, Fyzika")
+          if (raw.length === 0) return
+          const reranked = await rerankChunks(query, raw)
+          const topChunks = reranked.slice(0, 4)
+          if (topChunks.length === 0) return
+          const chunkText = topChunks
+            .map((ch) => (ch.heading ? `### ${ch.heading}\n${ch.content}` : ch.content))
+            .join("\n\n")
+          criterionVectorContextParts.push(`[VectorRAG:${c.id}]\n${chunkText}`)
+        })
+      )
+      if (criterionVectorContextParts.length > 0) {
+        // Budget: leave room for routed context + citation audit within the 60k limit
+        const usedChars = routedContext.length + citationAuditSummary.length + 1000
+        const vectorBudget = Math.max(0, THESIS_CONTEXT_BUDGETS.fullGeneration - usedChars)
+        const rawVectorText = criterionVectorContextParts.join("\n\n---\n\n")
+        vectorAugmentation = rawVectorText.slice(0, vectorBudget)
+      }
+    } catch (vectorErr) {
+      // pgvector not yet indexed or unavailable — continue with disk-only context
+      console.warn("[thesis-review] pgvector augmentation skipped:", vectorErr)
+    }
+
     // 4. Build AI prompts
     const contextHeader = buildThesisContextHeader(normalizedMetadata, lang)
     const criteriaList = activeCriteria
       .map((c) => `[${c.id}] ${c.labels[lang]} (weight: ${c.weight}%)\nGuidance: ${c.guidance[lang]}`)
       .join("\n\n")
 
-    const sourceContextWithAudit = routedContext +
-      (citationAuditSummary ? `\n\n[Citation Audit (Advisory)]\n${citationAuditSummary}` : "")
+    const sourceContextWithAudit = routedContext
+      + (vectorAugmentation ? `\n\n[Vector-Retrieved Evidence]\n${vectorAugmentation}` : "")
+      + (citationAuditSummary ? `\n\n[Citation Audit (Advisory)]\n${citationAuditSummary}` : "")
 
     const systemPrompt = buildSystemPrompt(lang, normalizedMetadata)
     const userPrompt = buildUserPrompt(normalizedMetadata, contextHeader, sourceContextWithAudit, criteriaList, lang)

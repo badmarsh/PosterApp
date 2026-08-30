@@ -1344,7 +1344,7 @@ export function PosterPreview() {
   }, [compileProject, setLastCompileFormat])
 
   return (
-    <section className="flex min-w-0 flex-1 flex-col bg-muted/30">
+    <section className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden bg-muted/30">
       {/* Output type tab bar */}
       <OutputTabBar />
       {/* Header bar */}

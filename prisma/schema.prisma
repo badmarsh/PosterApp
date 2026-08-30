@@ -1,11 +1,28 @@
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "windows"]
+  provider        = "prisma-client-js"
+  binaryTargets   = ["native", "windows"]
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+model DocumentChunk {
+  id          String   @id @default(cuid())
+  workspaceId String
+  documentId  String
+  heading     String?
+  content     String
+  tokens      Int
+  embedding   Unsupported("vector(384)")?
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 model Workspace {
@@ -28,6 +45,7 @@ model Workspace {
   members          WorkspaceMember[]
   snapshots        WorkspaceSnapshot[]
   thesisReviews    ThesisReview[]
+  documentChunks   DocumentChunk[]
 }
 
 /// Access is deliberately modelled separately from Clerk.  The userId field above

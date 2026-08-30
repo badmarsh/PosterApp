@@ -24,6 +24,7 @@ import {
   GraduationCap,
   Trash2,
   FileCheck2,
+  Loader2,
 } from "lucide-react"
 
 interface Props {
@@ -112,14 +113,14 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row h-full w-full overflow-y-auto lg:overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-full w-full min-h-0 overflow-hidden">
       {/* Left: Metadata form */}
-      <div className="w-full lg:w-[360px] border-b lg:border-b-0 lg:border-r shrink-0 bg-background/50">
+      <div className="w-full lg:w-[360px] lg:h-full border-b lg:border-b-0 lg:border-r shrink-0 bg-background/50 overflow-y-auto">
         <ThesisMetadataPanel workspaceId={workspaceId} />
       </div>
 
       {/* Right: Existing reviews list / empty state */}
-      <div className="flex-1 p-4 lg:p-6 overflow-y-auto">
+      <div className="flex-1 min-h-0 p-4 lg:p-6 overflow-y-auto">
         <div className="max-w-2xl mx-auto space-y-6">
           <div>
             <h2 className="text-xl font-bold tracking-tight">Odborné posudky a hodnotenia</h2>
@@ -128,7 +129,25 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
             </p>
           </div>
 
-          {reviews.length > 0 ? (
+          {isGenerating ? (
+            <div className="flex flex-col items-center justify-center space-y-6 py-12">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full blur-xl bg-primary/20 animate-pulse" />
+                <Loader2 className="h-16 w-16 text-primary animate-spin relative z-10" />
+              </div>
+              <div className="space-y-2 text-center">
+                <h3 className="text-lg font-bold">Umelá inteligencia analyzuje rukopis</h3>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  Toto môže trvať 60 až 90 sekúnd. Systém prechádza dôkazy v texte, overuje citácie v akademických databázach a formuluje odborné zistenia.
+                </p>
+              </div>
+              <div className="w-full max-w-md space-y-3 pt-4">
+                <div className="h-3 w-full bg-muted animate-pulse rounded-md" />
+                <div className="h-3 w-5/6 bg-muted animate-pulse rounded-md" />
+                <div className="h-3 w-4/6 bg-muted animate-pulse rounded-md" />
+              </div>
+            </div>
+          ) : reviews.length > 0 ? (
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-muted-foreground">Uložené posudky v tomto projekte:</h3>
               <div className="grid gap-3">

@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, FileText, Sparkles, AlertCircle, ShieldCheck, Lock } from "lucide-react"
 import { useThesisReviewStore } from "./use-thesis-review-store"
+import { RagIndexStatusPanel } from "./rag-index-status-panel"
 import type { ThesisMetadata } from "@/lib/ai/thesis-rubric"
 import type { ReviewKind, ReportingStandard } from "@/lib/ai/review-types"
 
@@ -75,16 +76,16 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
   const [lang, setLang] = useState<"sk" | "cs" | "en">("sk")
   const [reviewKind, setReviewKind] = useState<ReviewKind>("thesis")
   const [reportingStandard, setReportingStandard] = useState<ReportingStandard>("none")
-  const [targetVenue, setTargetVenue] = useState("")
+  const [targetVenue, setTargetVenue] = useState("STEM / Fyzika")
   const [confidentialityAgreed, setConfidentialityAgreed] = useState(true)
   const [metadata, setMetadata] = useState<ThesisMetadata>({
     studentName: "",
     thesisTitle: "",
-    thesisType: "master",
+    thesisType: "phd", // Default to PhD based on previous request
     reviewerRole: "opponent",
     reviewerName: "",
-    institution: "",
-    department: "",
+    institution: "Prírodovedecká fakulta",
+    department: "Katedra Fyziky (STEM)",
     language: "sk",
     academicYear: "",
   })
@@ -368,6 +369,9 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
           * Vyplňte meno autora, názov práce a potvrďte zásady dôvernosti
         </p>
       )}
+
+      {/* RAG vector index diagnostics */}
+      <RagIndexStatusPanel workspaceId={workspaceId} />
     </div>
   )
 }

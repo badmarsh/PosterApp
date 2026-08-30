@@ -4,29 +4,43 @@ This file contains important context about the project infrastructure and depend
 
 ## Key Services
 - **Next.js Frontend/API + Yjs WebSocket**: Single custom server (`server.ts`). Run via `tsx --env-file=.env.local server.ts`. Serves Next.js on port 3333 AND the Yjs WebSocket at `ws://localhost:3333/api/yjs` (authenticated via short-lived, one-time ticket passed via `Sec-WebSocket-Protocol: posterapp-yjs-v1, <ticket>` to avoid token leakage in URLs).
-- **MinerU**: Document parsing service. Runs in a WSL (Ubuntu) environment at `http://localhost:8001`. Source at `~/mineru`.
-- **PostgreSQL**: Database via Docker. Run with `docker run -d --name posterapp-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=posterapp -p 5432:5432 postgres:16-alpine`. Connection: `postgresql://postgres:postgres@localhost:5432/posterapp`.
+- **MinerU**: Document parsing service. Runs in a WSL (Ubuntu) environment at `http://localhost:8001`. Source at `~/mineru`. Returns `md_content` (CommonMark Markdown with ATX headings), `images{}` (base64), `middle_json` (tables, equations, page structure).
+- **PostgreSQL + pgvector**: Database via Docker using `pgvector/pgvector:pg16` image (NOT the standard `postgres:16-alpine`). Run with: `docker run -d --name posterapp-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=posterapp -p 5432:5432 pgvector/pgvector:pg16`. Connection: `postgresql://postgres:postgres@localhost:5432/posterapp`. The `vector` extension is enabled via Prisma schema (`extensions = [vector]`).
+- **Local Embedding Model**: `Xenova/paraphrase-multilingual-MiniLM-L12-v2` via `@xenova/transformers` (Transformers.js/WASM), runs inside Node.js. No external API. Multilingual SK/CS/EN, 384-dimensional vectors. Singleton, lazy-loaded on first use. Model auto-downloads from HuggingFace on first call.
 
 ## Startup & Execution
 - **Dev Server**: Run `pnpm run dev` to start everything concurrently.
 - `start-mineru.bat`: Launches MinerU in WSL via `wsl -d Ubuntu -e bash -c "cd ~/mineru && source .venv/bin/activate && mineru-api --port 8001"`. MinerU API binds to **port 8001**.
 - **IMPORTANT**: `pnpm dev` now uses `tsx --env-file=.env.local server.ts` (NOT `next dev`) so both Next.js and the Yjs WebSocket run on the same port 3333.
-- **PostgreSQL via Docker**: Must be running before starting the app. Start with: `docker start posterapp-postgres` (or the full run command above if first time).
+- **PostgreSQL via Docker**: Must be running `pgvector/pgvector:pg16` (not standard postgres). Start with: `docker start posterapp-postgres`. After schema changes: stop server first (releases DLL lock), then `npx prisma db push && npx prisma generate`.
 
 ## Key Directories & Files
 - `workspaces/<id>/assets/` — extracted image files (figures, tables) served by `/api/workspaces/[id]/assets/[file]`
-- `workspaces/<id>/sources/<fileId>.md` — parsed markdown from MinerU, used as RAG context for card generation and AI review
-- `app/api/ingestion/parse/route.ts` — PDF ingestion: forwards to MinerU, runs parallel AI captions, extracts BibTeX, saves markdown
+- `workspaces/<id>/sources/<fileId>.md` — parsed markdown from MinerU (max 5MB), used as RAG context for card generation and AI review. Also source for vector chunking.
+- `app/api/ingestion/parse/route.ts` — PDF ingestion: forwards to MinerU, runs parallel AI captions, extracts BibTeX, saves markdown, **then triggers async vector chunking** (`setImmediate → ingestDocumentChunks()`) for pgvector storage.
 - `app/api/ingestion/image-edit/route.ts` — AI image editing via OpenRouter (`openai/gpt-image-1`)
 - `app/api/workspaces/[id]/cards/[cardId]/generate/route.ts` — AI card auto-fill
 - `app/api/workspaces/[id]/review/route.ts` — AI poster review
 - `app/api/workspaces/[id]/history/route.ts` — GET list of snapshots, POST create snapshot with optional label
 - `app/api/workspaces/[id]/history/[snapId]/route.ts` — GET snapshot, POST restore, PATCH label, DELETE
-- `prisma/schema.prisma` — PostgreSQL DB schema via Prisma (switched from SQLite 2026-08-23)
+- `app/api/workspaces/[id]/thesis-review/route.ts` — GET list / POST generate thesis review (AI posudok)
+- `app/api/workspaces/[id]/thesis-review/[reviewId]/route.ts` — GET/PATCH/DELETE single review
+- `app/api/workspaces/[id]/thesis-review/[reviewId]/export/route.ts` — Export to DOCX/PDF
+- `prisma/schema.prisma` — PostgreSQL DB schema via Prisma. Uses `previewFeatures = ["postgresqlExtensions"]` and `extensions = [vector]`. Contains `DocumentChunk` model with `vector(384)` embedding column.
 - `server.ts` — Custom Next.js server that hosts both Next.js and the Yjs WebSocket
 - `components/store/use-yjs.tsx` — Yjs hook (now online via `NEXT_PUBLIC_YJS_WS_URL`)
 - `components/history-panel.tsx` — Save history drawer UI
+- `components/thesis-review/` — Thesis review UI (ThesisReviewPanel, ThesisMetadataPanel, ExpertReviewWorkspace, EvidenceViewer, FindingCard)
+- `lib/ai/local-embeddings.ts` — Self-hosted embedding via Transformers.js (`paraphrase-multilingual-MiniLM-L12-v2`). Singleton pipeline, `generateLocalEmbedding(text) → number[384]`.
+- `lib/ai/document-chunker.ts` — ATX-heading-based Markdown chunker + `ingestDocumentChunks()` that writes to `DocumentChunk` table with embeddings. Chunk size: 1800 chars for Bc/MSc/articles, 3000 chars for PhD dissertations (detected by md_content length > 200k chars). Creates HNSW index (m=16, ef_construction=64) after first ingest.
+- `lib/ai/vector-rag.ts` — Hybrid Search: 70% pgvector cosine + 30% PostgreSQL FTS `ts_rank` in single SQL. `rerankChunks()` applies keyword overlap + heading boost + length penalty heuristics. Default domain context: `"STEM, Fyzika"`.
+- `lib/ai/thesis-context.ts` — Section-aware RAG loader: reads `.md` from disk, classifies sections (Slovak/Czech/English heading patterns), routes evidence to criteria via keyword scoring (`routeSectionsForCriterion`). THESIS_CONTEXT_BUDGETS: fullGeneration=60k chars, perCriterion=6k chars.
+- `lib/ai/thesis-rubric.ts` — Evaluation criteria (8 criteria), ECTS grade anchors, level profiles (bachelor/master/phd), STEM/Physics defaults.
+- `lib/ai/review-engine.ts` — Professional review mode with EQUATOR guideline support (CONSORT 2025, PRISMA 2020, STROBE, ML Reproducibility).
 - `tests/ingestion.spec.ts` — Playwright E2E test for ingestion
+- `tests/collaboration.spec.ts` — Dual-context Yjs sync E2E test
+- `tests/persistence.spec.ts` — DB save + reload recovery E2E test
+- `tests/ai-fallback.spec.ts` — AI error handling / timeout E2E test
 
 ## Environment Variables
 All AI/model configuration is via `.env.local`. Key vars:
@@ -46,6 +60,7 @@ All AI/model configuration is via `.env.local`. Key vars:
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/posterapp` |
 | `NEXT_PUBLIC_YJS_WS_URL` | Yjs WebSocket URL (enables collaboration) | `ws://localhost:3333/api/yjs` |
 | `CLERK_SECRET_KEY` | Used by server.ts to verify WebSocket JWT tokens | required |
+| `SEMANTIC_SCHOLAR_API_KEY` | Academic Connector citation audit (optional but recommended) | 100 req/s with key vs. 100/5min without |
 
 ## Architecture Overview
 
@@ -117,6 +132,19 @@ Schema at `prisma/schema.prisma`. Key notes:
 (None currently)
 
 ### Fixed in This Session (2026-08-30)
+- ✅ **Self-Hosted Vector RAG Pipeline (Hybrid Search + pgvector HNSW)**:
+  - **Docker**: Upgraded from `postgres:16-alpine` to `pgvector/pgvector:pg16` (existing volume preserved). `vector` extension enabled via Prisma `previewFeatures = ["postgresqlExtensions"]`.
+  - **Local Embeddings**: `@xenova/transformers` installed; `lib/ai/local-embeddings.ts` uses `Xenova/paraphrase-multilingual-MiniLM-L12-v2` (384-dim, multilingual SK/CS/EN, runs fully in Node.js WASM). Zero API cost.
+  - **Document Chunker**: `lib/ai/document-chunker.ts` — ATX heading-based semantic chunker with adaptive chunk sizes: 1800 chars for Bc/MSc/articles, **3000 chars for PhD dissertations** (auto-detected when md_content > 200k chars). 200-char overlap between chunks. Creates `pgvector` HNSW index (m=16, ef_construction=64) after first ingest.
+  - **Async Ingestion Hook**: `parse/route.ts` calls `ingestDocumentChunks()` via `setImmediate` after MinerU save — fire-and-forget, does NOT block the SSE stream to the browser.
+  - **Hybrid Search**: `lib/ai/vector-rag.ts` uses 70% cosine similarity (`<=>`) + 30% PostgreSQL FTS `ts_rank` in a single SQL query. `rerankChunks()` applies keyword overlap + heading boost + length penalty heuristics (local, no API).
+  - **STEM/Fyzika Defaults**: Domain prefix `"STEM, Fyzika: "` prepended to all embedding queries. Thesis review form defaults: PhD · Prírodovedecká fakulta · Katedra Fyziky (STEM).
+  - **Prisma Schema**: `DocumentChunk` model with `embedding Unsupported("vector(384)")`, `heading`, `content`, `tokens`, `documentId` fields. Workspace `documentChunks` relation added.
+- ✅ **Loading Animations for Thesis Review Generation**: Full-page skeleton loader with glowing `Loader2` spinner + animated pulse backdrop + text "Umelá inteligencia analyzuje rukopis..." shown in `thesis-review-panel.tsx` during `isGenerating`. Replaces the previous button-only spinner.
+- ✅ **Thesis Review UI Defaults (STEM/Physics)**: `thesis-metadata-panel.tsx` pre-fills: `thesisType = "phd"`, `institution = "Prírodovedecká fakulta"`, `department = "Katedra Fyziky (STEM)"`, `targetVenue = "STEM / Fyzika"`.
+- ✅ **Technical Documentation in Help Modal**: New accordion section "Školiteľské posudky — Technická dokumentácia" in `help-modal.tsx` (accessible via `?` icon). Covers: E2E pipeline (8 steps), Vector RAG architecture (4 component cards), chunking strategy table by thesis type, `DocumentChunk` Prisma schema, and STEM/Physics domain defaults.
+- ✅ **AGENTS.md Updated**: Documented new infrastructure (pgvector image, local embeddings, document chunker, vector RAG, thesis review routes, all new lib/ai files, SEMANTIC_SCHOLAR_API_KEY).
+- ✅ **Production Build Verified**: `pnpm run build` exits with code 0, 0 TypeScript/ESLint errors, all 40 routes compile correctly.
 - ✅ **Expert Peer Review & Thesis Assessment Workspace (Packages 1–6)**:
   - **Data Model & Contracts**: Created `ReviewKind`, `ReviewSeverity`, `FindingStatus`, `EvidenceReference`, `ReportingStandard`, `ReportingGuidelineCheck` in `lib/ai/review-types.ts` and Zod contracts in `lib/ai/contracts.ts`. Extended PostgreSQL `ThesisReview` table via Prisma schema.
   - **Server-Side Review Engine & RAG Grounding**: Implemented `generateProfessionalReview` with EQUATOR guideline prompts (CONSORT 2025, PRISMA 2020, STROBE, ML Reproducibility), prompt injection escaping, and verbatim evidence offset locator `anchorEvidenceQuotes` in `lib/ai/review-engine.ts`.
