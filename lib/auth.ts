@@ -7,7 +7,9 @@ export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number]
 const WORKSPACE_ID = /^[A-Za-z0-9_-]{3,64}$/
 
 export async function auth() {
-  if (process.env.NEXT_PUBLIC_E2E_TEST === "1" && process.env.NODE_ENV !== "production") return { userId: "test-user-id" }
+  if (process.env.NEXT_PUBLIC_E2E_TEST === "1" && process.env.NODE_ENV !== "production" && !process.env.VITEST) {
+    return { userId: "test-user-id" }
+  }
   return clerkAuth()
 }
 
