@@ -327,6 +327,34 @@ export async function generateThesisReviewDocx(
     )
   }
 
+  // Confidential Comments — strictly separated, only when includeConfidential=true
+  if (options.includeConfidential && review.confidentialComments?.trim()) {
+    children.push(
+      new Paragraph({
+        text: "",
+        spacing: { before: 600 },
+      })
+    )
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "⚠ DÔVERNÉ / CONFIDENTIAL — Nesprístupňovať autorovi práce",
+            bold: true,
+            color: "CC0000",
+          }),
+        ],
+        spacing: { before: 200, after: 150 },
+      })
+    )
+    children.push(
+      new Paragraph({
+        text: review.confidentialComments,
+        spacing: { after: 200 },
+      })
+    )
+  }
+
   const doc = new Document({
     sections: [
       {

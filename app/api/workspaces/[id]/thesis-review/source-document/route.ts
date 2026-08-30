@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma"
 import type { ReviewSourceDocument, ReviewSourceBlock } from "@/lib/ai/review-types"
 import fs from "fs/promises"
 import path from "path"
+import { createHash } from "crypto"
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 const MAX_SOURCE_DOC_BYTES = 10 * 1024 * 1024 // 10 MB limit
@@ -131,9 +132,16 @@ export async function GET(
 
     const blocks = parseMarkdownIntoBlocks(fullText)
 
+    // Use content SHA-256 hash as stable revision for stale detection.
+    // Same content always produces the same revision, enabling clients
+    // to detect when documents change and mark old evidence as stale.
+    const contentRevision = fullText
+      ? createHash("sha256").update(fullText, "utf8").digest("hex").slice(0, 16)
+      : "empty-doc"
+
     const responseData: ReviewSourceDocument = {
       documentId: `doc-${workspaceId}`,
-      revision: `rev-${Date.now().toString(36)}`,
+      revision: contentRevision,
       title: files[0]?.filename?.replace(/\.md$/, "") || "Manuscript Source",
       language: "sk",
       fullText,
