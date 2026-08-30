@@ -39,11 +39,12 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
   } = useThesisReviewStore()
 
   const project = useEditor((s) => s.project)
-  const assets = project?.assets ?? []
-  const ingestFiles = project?.ingestFiles ?? []
 
   // Construct source markdown text from text assets and ingest files
   const sourceMarkdown = useMemo(() => {
+    const assets = project?.assets ?? []
+    const ingestFiles = project?.ingestFiles ?? []
+
     const textSnippets = (assets as any[])
       .filter((a) => a.kind === "text" || a.snippet)
       .map((a) => `## ${a.heading || a.filename}\n\n${a.snippet || ""}`)
@@ -54,7 +55,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
       return `# Dokument: ${ingestFiles[0].name}\n\n(Text dokumentu bol spracovaný cez MinerU pipeline)`
     }
     return ""
-  }, [assets, ingestFiles])
+  }, [project])
 
   useEffect(() => {
     loadReviews(workspaceId)
