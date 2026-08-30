@@ -21,7 +21,7 @@ import {
   routeSectionsForCriterion,
   type ThesisRAGContext,
 } from "./thesis-context"
-import type { ReviewKind, ReportingStandard, ReviewFinding, EvidenceReference } from "./review-types"
+import type { ReviewKind, ReportingStandard, ReviewFinding, EvidenceReference, EvidenceState } from "./review-types"
 import type { ReviewLanguage, ThesisType } from "./thesis-rubric"
 
 export interface GenerateProfessionalReviewOptions {
@@ -109,31 +109,65 @@ export function anchorEvidenceQuotes(
       }
 
       const cleanQuote = normalizeText(ev.quote)
+      let state: EvidenceState = "unverified"
+      let verificationMethod: "exact" | "whitespace_normalized" | "approximate" | "manual" | undefined
+      let isVerified = false
 
-      // 1. Direct or normalized search across parsed sections
-      let matchedSection = rag.sections.find((s) =>
-        normalizeText(s.content).includes(cleanQuote)
-      )
-
-      // 2. Fallback: fuzzy/partial match if quote is long (> 40 chars)
-      if (!matchedSection && cleanQuote.length > 40) {
-        const subQuote = cleanQuote.slice(0, 35)
-        matchedSection = rag.sections.find((s) =>
-          normalizeText(s.content).includes(subQuote)
-        )
+      // 1. Exact match search
+      const exactMatches = rag.sections.filter((s) => s.content.includes(ev.quote))
+      if (exactMatches.length === 1) {
+        state = "verified-exact"
+        verificationMethod = "exact"
+        isVerified = true
+      } else if (exactMatches.length > 1) {
+        state = "ambiguous"
+        verificationMethod = "exact"
+        isVerified = true
+      } else {
+        // 2. Normalized match search
+        const normMatches = rag.sections.filter((s) => normalizeText(s.content).includes(cleanQuote))
+        if (normMatches.length === 1) {
+          state = "verified-normalized"
+          verificationMethod = "whitespace_normalized"
+          isVerified = true
+        } else if (normMatches.length > 1) {
+          state = "ambiguous"
+          verificationMethod = "whitespace_normalized"
+          isVerified = true
+        } else if (cleanQuote.length > 40) {
+          // 3. Approximate match
+          const subQuote = cleanQuote.slice(0, 35)
+          const approxMatches = rag.sections.filter((s) => normalizeText(s.content).includes(subQuote))
+          let approxMatchedSection: (typeof rag.sections)[0] | undefined
+          if (approxMatches.length > 0) {
+            state = "approximate"
+            verificationMethod = "approximate"
+            isVerified = false
+            approxMatchedSection = approxMatches[0]
+          }
+        }
       }
+
+      const matchedSection =
+        rag.sections.find((s) => s.content.includes(ev.quote) || normalizeText(s.content).includes(cleanQuote)) ||
+        (state === "approximate"
+          ? rag.sections.find((s) => normalizeText(s.content).includes(cleanQuote.slice(0, 35)))
+          : undefined)
 
       if (matchedSection) {
         const normSec = normalizeText(matchedSection.content)
         const quoteIndex = normSec.indexOf(cleanQuote)
+        const subIndex = quoteIndex >= 0 ? quoteIndex : normSec.indexOf(cleanQuote.slice(0, 35))
         return {
           id: `ev-${idx + 1}-${evIdx + 1}`,
           page: ev.page,
           sectionHeading: ev.sectionHeading || matchedSection.heading,
           quote: ev.quote,
-          startOffset: quoteIndex >= 0 ? quoteIndex : undefined,
-          endOffset: quoteIndex >= 0 ? quoteIndex + ev.quote.length : undefined,
-          verified: true,
+          startOffset: subIndex >= 0 ? subIndex : undefined,
+          endOffset: subIndex >= 0 ? subIndex + ev.quote.length : undefined,
+          verified: isVerified,
+          state,
+          verificationMethod,
         }
       }
 
@@ -144,8 +178,21 @@ export function anchorEvidenceQuotes(
         sectionHeading: ev.sectionHeading,
         quote: ev.quote,
         verified: false,
+        state: "unverified",
       }
     })
+
+    const overallFindingState: EvidenceState = enrichedEvidence.some((e) => e.state === "stale")
+      ? "stale"
+      : enrichedEvidence.length > 0 && enrichedEvidence.every((e) => e.state === "verified-exact")
+      ? "verified-exact"
+      : enrichedEvidence.length > 0 && enrichedEvidence.every((e) => e.state === "verified-exact" || e.state === "verified-normalized")
+      ? "verified-normalized"
+      : enrichedEvidence.some((e) => e.state === "ambiguous")
+      ? "ambiguous"
+      : enrichedEvidence.some((e) => e.state === "approximate")
+      ? "approximate"
+      : "unverified"
 
     return {
       id: f.id || `finding-${idx + 1}`,
@@ -156,6 +203,7 @@ export function anchorEvidenceQuotes(
       category: f.category,
       confidence: f.confidence ?? 0.85,
       evidence: enrichedEvidence,
+      evidenceState: overallFindingState,
       status: "unreviewed",
       includeInExport: true,
       createdBy: "ai",

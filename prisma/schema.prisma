@@ -163,8 +163,18 @@ model ThesisReview {
   department      String?
   /// Overall ECTS grade: A | B | C | D | E | FX | pending
   grade           String?
+  /// Suggested ECTS grade by AI or initial analysis
+  suggestedGrade  String?
+  /// Final confirmed ECTS grade by human reviewer
+  finalGrade      String?
   /// Formal recommendation text (obhajoba doporučená / nedoporučená)
   recommendation  String?
+  /// Suggested recommendation text by AI
+  suggestedRecommendation String?
+  /// Final confirmed recommendation text by human reviewer
+  finalRecommendation String?
+  /// Timestamp of human reviewer decision confirmation
+  confirmedAt     DateTime?
   /// Serialized JSON: array of ThesisReviewSection objects
   sections        String?
   /// Generated defense questions (JSON string[])

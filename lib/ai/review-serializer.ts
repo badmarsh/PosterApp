@@ -316,6 +316,22 @@ export function deserializeThesisReview(dbRecord: any): DeserializedThesisReview
   }
 }
 
+export interface ParsedReview {
+  review: DeserializedThesisReview
+  diagnostics: ReviewDiagnostics
+}
+
+/**
+ * Parses and validates database record into domain structure, returning both the review and explicit diagnostics.
+ */
+export function parseThesisReviewWithDiagnostics(dbRecord: any): ParsedReview {
+  const review = deserializeThesisReview(dbRecord)
+  return {
+    review,
+    diagnostics: review.diagnostics,
+  }
+}
+
 /**
  * Validates and serializes update payload for database persistence.
  */
@@ -332,7 +348,12 @@ export function serializeThesisReviewUpdate(data: Record<string, any>): Record<s
     "institution",
     "department",
     "grade",
+    "suggestedGrade",
+    "finalGrade",
     "recommendation",
+    "suggestedRecommendation",
+    "finalRecommendation",
+    "confirmedAt",
     "reviewKind",
     "targetVenue",
     "summary",

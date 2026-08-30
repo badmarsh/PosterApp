@@ -14,12 +14,21 @@ export type ReviewKind = "thesis" | "paper" | "grant"
 export type ReviewSeverity = "critical" | "major" | "minor" | "suggestion"
 export type FindingStatus = "unreviewed" | "accepted" | "edited" | "rejected" | "resolved"
 export type ReportingStandard = "consort" | "prisma" | "strobe" | "ml_reproducibility" | "none"
-export type EvidenceState = "verified" | "approximate" | "unverified" | "stale"
+export type EvidenceState =
+  | "verified-exact"
+  | "verified-normalized"
+  | "approximate"
+  | "unverified"
+  | "stale"
+  | "ambiguous"
+  | "verified" // backward compat alias for verified-exact
+
 export type FindingAudience = "author" | "editor" | "committee" | "private"
 
 export interface EvidenceReference {
   id?: string
   documentId?: string
+  revision?: string
   page?: number
   sectionHeading?: string
   quote: string
@@ -55,18 +64,49 @@ export interface ReviewFinding {
 }
 
 export interface ReportingGuidelineCheck {
+  id?: string
   item: string
   category: string
   status: "compliant" | "partial" | "missing" | "not_applicable"
   notes: string
   evidenceQuote?: string
+  provenance?: "ai" | "reviewer"
+  guideline?: string
+  version?: string
 }
 
-export interface ReviewDiagnostics {
+export interface ReviewParseWarning {
+  field: string
+  code: string
+  message: string
+}
+
+export interface ReviewParseDiagnostics {
   corruptedFields: string[]
   parseWarnings: string[]
   unverifiedEvidenceCount: number
   staleEvidenceCount: number
+  migratedFromVersion?: number
+}
+
+export type ReviewDiagnostics = ReviewParseDiagnostics
+
+export interface ReviewSourceBlock {
+  id: string
+  page?: number
+  section?: string
+  text: string
+}
+
+export interface ReviewSourceDocument {
+  documentId: string
+  revision: string
+  title: string
+  language?: string
+  fullText: string
+  blocks: ReviewSourceBlock[]
+  totalChars: number
+  files?: Array<{ filename: string; content: string; length: number }>
 }
 
 export interface ProfessionalReviewRecord {
@@ -158,7 +198,7 @@ export const REPORTING_STANDARDS_INFO: Record<ReportingStandard, { name: string;
     itemsCount: 10,
   },
   none: {
-    name: "Standard General Review",
+    name: "AI-assisted general review pre-check",
     description: "General academic and methodology assessment without specific clinical/reporting framework",
     itemsCount: 0,
   },

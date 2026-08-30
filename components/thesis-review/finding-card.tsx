@@ -101,17 +101,29 @@ export function FindingCard({
 
   const renderEvidenceState = (ev?: EvidenceReference) => {
     if (!ev?.quote) return null
-    if (ev.state === "verified" || ev.verified) {
+    const st = ev.state || (ev.verified ? "verified-exact" : "unverified")
+
+    if (st === "verified-exact" || st === "verified") {
       return (
         <Badge
           variant="outline"
           className="text-[9px] py-0 px-1 text-green-700 dark:text-green-400 bg-green-500/10 border-green-500/30 gap-0.5"
         >
-          <CheckCircle2 className="h-2.5 w-2.5" /> Overený ✓
+          <CheckCircle2 className="h-2.5 w-2.5" /> Presný citát ✓
         </Badge>
       )
     }
-    if (ev.state === "approximate") {
+    if (st === "verified-normalized") {
+      return (
+        <Badge
+          variant="outline"
+          className="text-[9px] py-0 px-1 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30 gap-0.5"
+        >
+          <CheckCircle2 className="h-2.5 w-2.5" /> Normalizovaný ✓
+        </Badge>
+      )
+    }
+    if (st === "approximate") {
       return (
         <Badge
           variant="outline"
@@ -121,13 +133,23 @@ export function FindingCard({
         </Badge>
       )
     }
-    if (ev.state === "stale") {
+    if (st === "ambiguous") {
+      return (
+        <Badge
+          variant="outline"
+          className="text-[9px] py-0 px-1 text-purple-700 dark:text-purple-400 bg-purple-500/10 border-purple-500/30 gap-0.5"
+        >
+          <HelpCircle className="h-2.5 w-2.5" /> Viacero výskytov ⧉
+        </Badge>
+      )
+    }
+    if (st === "stale") {
       return (
         <Badge
           variant="outline"
           className="text-[9px] py-0 px-1 text-destructive bg-destructive/10 border-destructive/30 gap-0.5"
         >
-          <AlertCircle className="h-2.5 w-2.5" /> Zastaraný dôkaz ⚠
+          <AlertCircle className="h-2.5 w-2.5" /> Zmenená verzia ⚠
         </Badge>
       )
     }

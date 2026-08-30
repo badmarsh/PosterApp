@@ -10,6 +10,8 @@ import {
   formatReviewToPlainText,
 } from "@/lib/export/review-formatters"
 import { generateThesisReviewDocx } from "@/lib/docx/generator-review"
+import { anchorEvidenceQuotes } from "@/lib/ai/review-engine"
+import type { ThesisRAGContext } from "@/lib/ai/thesis-context"
 import type { ThesisReviewRecord } from "@/components/thesis-review/use-thesis-review-store"
 
 describe("Expert Review Contracts & Validation", () => {
@@ -81,6 +83,184 @@ describe("Expert Review Contracts & Validation", () => {
     expect(parsed.strengths).toHaveLength(2)
     expect(parsed.findings).toHaveLength(1)
     expect(parsed.reportingStandard).toBe("ml_reproducibility")
+  })
+})
+
+describe("Evidence Quote Grounding & State Classification", () => {
+  const sampleRAG: ThesisRAGContext = {
+    fullText: "Full document text for RAG",
+    sections: [
+      {
+        id: "s-1",
+        sourceFile: "paper.md",
+        heading: "1. Úvod",
+        normalizedHeading: "1. uvod",
+        level: 1,
+        startOffset: 0,
+        content: "V tejto práci navrhujeme neurónovú sieť s presnosťou 94.5% na CIFAR-10.",
+        kind: "introduction",
+      },
+      {
+        id: "s-2",
+        sourceFile: "paper.md",
+        heading: "3. Metodológia",
+        normalizedHeading: "3. metodologia",
+        level: 1,
+        startOffset: 100,
+        content: "Trénovanie prebiehalo s learning rate 1e-4 a batch size 64. Trénovanie prebiehalo opakovane.",
+        kind: "methodology",
+      },
+      {
+        id: "s-3",
+        sourceFile: "paper.md",
+        heading: "4. Výsledky",
+        normalizedHeading: "4. vysledky",
+        level: 1,
+        startOffset: 200,
+        content: "Model dosiahol výrazné zlepšenie oproti predchádzajúcim baseline modelom.",
+        kind: "results",
+      },
+      {
+        id: "s-4",
+        sourceFile: "paper.md",
+        heading: "5. Diskusia",
+        normalizedHeading: "5. diskusia",
+        level: 1,
+        startOffset: 300,
+        content: "Trénovanie prebiehalo s learning rate 1e-4 a batch size 64 v druhej fáze.",
+        kind: "discussion",
+      },
+    ],
+    references: [],
+    referencesTitles: [],
+    totalChars: 2000,
+    truncated: false,
+    sourceFiles: ["paper.md"],
+  }
+
+  it("classifies single exact quote match as verified-exact", () => {
+    const findings = anchorEvidenceQuotes(
+      [
+        {
+          id: "f-1",
+          title: "Presnosť na CIFAR-10",
+          explanation: "Presnosť bola 94.5%",
+          recommendation: "Doplniť konfidenčný interval",
+          confidence: 0.95,
+          status: "unreviewed",
+          includeInExport: true,
+          createdBy: "ai",
+          severity: "minor",
+          category: "results",
+          evidence: [{ quote: "presnosťou 94.5% na CIFAR-10" }],
+        },
+      ],
+      sampleRAG
+    )
+
+    expect(findings).toHaveLength(1)
+    expect(findings[0].evidence[0].state).toBe("verified-exact")
+    expect(findings[0].evidence[0].verified).toBe(true)
+    expect(findings[0].evidenceState).toBe("verified-exact")
+  })
+
+  it("classifies quote with whitespace differences as verified-normalized", () => {
+    const findings = anchorEvidenceQuotes(
+      [
+        {
+          id: "f-2",
+          title: "Zlepšenie baseline",
+          explanation: "Model prekonal baseline",
+          recommendation: "Doplniť tabuľku",
+          confidence: 0.9,
+          status: "unreviewed",
+          includeInExport: true,
+          createdBy: "ai",
+          severity: "minor",
+          category: "results",
+          evidence: [{ quote: "Model  dosiahol   výrazné   zlepšenie" }],
+        },
+      ],
+      sampleRAG
+    )
+
+    expect(findings[0].evidence[0].state).toBe("verified-normalized")
+    expect(findings[0].evidence[0].verified).toBe(true)
+    expect(findings[0].evidenceState).toBe("verified-normalized")
+  })
+
+  it("classifies quote matching in multiple sections as ambiguous", () => {
+    const findings = anchorEvidenceQuotes(
+      [
+        {
+          id: "f-3",
+          title: "Opakovaný popis hyperparametrov",
+          explanation: "Hyperparametre sa opakujú",
+          recommendation: "Zjednotiť popis",
+          confidence: 0.85,
+          status: "unreviewed",
+          includeInExport: true,
+          createdBy: "ai",
+          severity: "minor",
+          category: "methodology",
+          evidence: [{ quote: "Trénovanie prebiehalo s learning rate 1e-4" }],
+        },
+      ],
+      sampleRAG
+    )
+
+    expect(findings[0].evidence[0].state).toBe("ambiguous")
+    expect(findings[0].evidenceState).toBe("ambiguous")
+  })
+
+  it("classifies partial match of long quote as approximate", () => {
+    const findings = anchorEvidenceQuotes(
+      [
+        {
+          id: "f-4",
+          title: "Približná citácia",
+          explanation: "Dlhá citácia s malou zmenou na konci",
+          recommendation: "Skontrolovať citáciu",
+          confidence: 0.85,
+          status: "unreviewed",
+          includeInExport: true,
+          createdBy: "ai",
+          severity: "minor",
+          category: "results",
+          evidence: [{ quote: "Model dosiahol výrazné zlepšenie oproti starým baseline modelom na novom testovacom datasete" }],
+        },
+      ],
+      sampleRAG
+    )
+
+    expect(findings[0].evidence[0].state).toBe("approximate")
+    expect(findings[0].evidence[0].verified).toBe(false)
+    expect(findings[0].evidenceState).toBe("approximate")
+  })
+
+  it("classifies quote missing from document as unverified", () => {
+    const findings = anchorEvidenceQuotes(
+      [
+        {
+          id: "f-5",
+          title: "Vymyslený citát",
+          explanation: "V texte sa nenachádza",
+          recommendation: "Odstrániť citát",
+          confidence: 0.7,
+          status: "unreviewed",
+          includeInExport: true,
+          createdBy: "ai",
+          severity: "major",
+          category: "results",
+          evidence: [{ quote: "Použili sme kvantový počítač D-Wave s 5000 qubitmi." }],
+        },
+      ],
+      sampleRAG
+    )
+
+    expect(findings[0].evidence[0].state).toBe("unverified")
+    expect(findings[0].evidence[0].verified).toBe(false)
+    expect(findings[0].evidenceState).toBe("unverified")
   })
 })
 

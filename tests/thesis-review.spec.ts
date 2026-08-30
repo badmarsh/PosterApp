@@ -337,7 +337,7 @@ test.describe('Thesis Review Workflow & E2E Features', () => {
 
     // Verify finding card is rendered
     await expect(page.getByText('Nedostatočné vysvetlenie normalizácie súradníc')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Overený ✓')).toBeVisible();
+    await expect(page.getByText(/Presný citát|Overený/i).first()).toBeVisible();
 
     // Save screenshot
     const fs = await import('fs');

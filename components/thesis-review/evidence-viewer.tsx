@@ -136,17 +136,40 @@ export function EvidenceViewer({
 
   const evidenceStatusBadge = useMemo(() => {
     if (!selectedEvidence) return null
-    if (selectedEvidence.state === "verified" || selectedEvidence.verified) {
+    const st = selectedEvidence.state || (selectedEvidence.verified ? "verified-exact" : "unverified")
+
+    if (st === "verified-exact" || st === "verified") {
       return (
-        <Badge variant="outline" className="text-[10px] text-green-600 dark:text-green-400 border-green-300 gap-1">
-          <CheckCircle2 className="h-3 w-3" /> Overený dôkaz v texte
+        <Badge variant="outline" className="text-[10px] text-green-600 dark:text-green-400 border-green-300 dark:border-green-800 gap-1 bg-green-500/10">
+          <CheckCircle2 className="h-3 w-3" /> Overený (presný citát)
         </Badge>
       )
     }
-    if (selectedEvidence.state === "approximate") {
+    if (st === "verified-normalized") {
       return (
-        <Badge variant="outline" className="text-[10px] text-amber-600 dark:text-amber-400 border-amber-300 gap-1">
+        <Badge variant="outline" className="text-[10px] text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 gap-1 bg-emerald-500/10">
+          <CheckCircle2 className="h-3 w-3" /> Overený (normalizovaný)
+        </Badge>
+      )
+    }
+    if (st === "approximate") {
+      return (
+        <Badge variant="outline" className="text-[10px] text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-800 gap-1 bg-amber-500/10">
           <HelpCircle className="h-3 w-3" /> Približná zhoda dôkazu
+        </Badge>
+      )
+    }
+    if (st === "ambiguous") {
+      return (
+        <Badge variant="outline" className="text-[10px] text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-800 gap-1 bg-purple-500/10">
+          <HelpCircle className="h-3 w-3" /> Viacnásobný výskyt
+        </Badge>
+      )
+    }
+    if (st === "stale") {
+      return (
+        <Badge variant="outline" className="text-[10px] text-red-600 dark:text-red-400 border-red-300 dark:border-red-800 gap-1 bg-red-500/10">
+          <AlertCircle className="h-3 w-3" /> Zmenená verzia textu
         </Badge>
       )
     }
