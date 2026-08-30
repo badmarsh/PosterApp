@@ -29,6 +29,8 @@ test('workspace selector loads and shows workspaces', async ({ page }) => {
 
 test('ingestion of PDF via UI', async ({ page }) => {
   test.skip(!fs.existsSync(filePath), 'Test PDF not found');
+  const mineruAvailable = await fetch('http://localhost:8001/openapi.json').then(() => true).catch(() => false);
+  test.skip(!mineruAvailable, 'MinerU parsing service is not running on port 8001');
   test.setTimeout(240000); // 4 minutes timeout for full GPU VLM pipeline
 
   // Auto-accept any confirm() dialogues (like removing a file)
@@ -47,20 +49,6 @@ test('ingestion of PDF via UI', async ({ page }) => {
   // Wait for it to switch to this project
   await expect(page.getByRole('heading', { name: 'Test Ingest Workspace', exact: true })).toBeVisible({ timeout: 10000 });
 
-  // Handle the new Workspace Selection modal properly
-  try {
-    await page.waitForSelector('text="Select a Workspace"', { timeout: 5000 });
-    const firstWorkspace = page.locator('button.hover\\:bg-accent').first();
-    if (await firstWorkspace.count() > 0) {
-      await firstWorkspace.click();
-    } else {
-      await page.click('button:has-text("✕")');
-    }
-    await page.waitForSelector('text="Select a Workspace"', { state: 'hidden', timeout: 5000 });
-  } catch (e) {
-    // If the modal never appeared or timed out, just continue
-  }
-
   // Open the ingestion drawer
   await page.click('button[aria-label="Ingest source PDFs"]');
   
@@ -72,7 +60,7 @@ test('ingestion of PDF via UI', async ({ page }) => {
   }
 
   // Upload the PDF
-  await page.setInputFiles('input[type="file"]', filePath);
+  await page.setInputFiles('aside[role="dialog"] input[type="file"]', filePath);
   
   // Verify the file was added
   await expect(page.locator('text=PO_152.pdf')).toBeVisible({ timeout: 10000 });

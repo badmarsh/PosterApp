@@ -25,6 +25,7 @@ import {
   gradeToRecommendation,
 } from "@/lib/ai/thesis-rubric"
 import { prisma } from "@/lib/prisma"
+import { safeJsonParse } from "@/lib/ai/review-serializer"
 import { z } from "zod"
 
 const RegenerateRequestSchema = z.object({
@@ -149,7 +150,7 @@ Return JSON format:
       signal: AbortSignal.timeout(AI_TIMEOUTS.thesis),
     })
 
-    const currentSections: ThesisSection[] = review.sections ? JSON.parse(review.sections) : []
+    const currentSections: ThesisSection[] = safeJsonParse<ThesisSection[]>(review.sections, [])
     const existingIndex = currentSections.findIndex((s) => s.criterionId === criterionId || s.sectionId === criterionId)
 
     const updatedSection: ThesisSection = {
@@ -172,8 +173,8 @@ Return JSON format:
     const newGrade = newScore != null ? scoreToEctsGrade(newScore) : review.grade
     const newRecommendation = newGrade ? gradeToRecommendation(newGrade, lang) : review.recommendation
 
-    await prisma.thesisReview.update({
-      where: { id: reviewId },
+    await prisma.thesisReview.updateMany({
+      where: { id: reviewId, workspaceId },
       data: {
         sections: JSON.stringify(currentSections),
         grade: newGrade,

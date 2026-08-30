@@ -61,7 +61,7 @@ export const IngestFileSchema = z.object({
 
 export const OutputSchema = z.object({
   id: z.string(),
-  outputType: z.enum(["poster", "slides", "paper"]),
+  outputType: z.enum(["poster", "slides", "paper", "thesis-review"]),
   templateId: z.string(),
   title: z.string(),
   authors: z.string().nullable().optional(),
@@ -103,6 +103,6 @@ export const WorkspaceSchema = z.object({
 export const WorkspaceCreateSchema = z.object({
   id: z.string().regex(/^[A-Za-z0-9_-]+$/).min(3).max(64),
   name: z.string().min(1, "Name is required"),
-  outputType: z.enum(["poster", "slides", "paper"]).optional().default("poster"),
+  outputType: z.enum(["poster", "slides", "paper", "thesis-review"]).optional().default("poster"),
   templateId: z.string().optional(),
 })

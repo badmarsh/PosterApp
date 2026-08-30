@@ -227,6 +227,111 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
               </AccordionContent>
             </AccordionItem>
 
+            <AccordionItem value="thesis-review-tech" className="border border-primary/30 bg-primary/5 px-4 rounded-lg">
+              <AccordionTrigger className="hover:no-underline py-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-md">
+                    <BookOpen className="size-4 text-primary" />
+                  </div>
+                  <div className="text-left">
+                    <span className="font-semibold text-base block">Školiteľské posudky — Technická dokumentácia</span>
+                    <span className="text-xs text-muted-foreground font-normal">Pipeline · Vector RAG · HNSW · MinerU → pgvector</span>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground pb-4 leading-relaxed space-y-5">
+
+                {/* ── 1. E2E Pipeline ─────────────────────── */}
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-foreground text-sm border-b pb-1">1 · End-to-End Pipeline (od bakalárky po dizertáciu)</h4>
+                  <ol className="list-decimal pl-5 text-sm space-y-2 text-foreground/80">
+                    <li><strong>Nahranie PDF</strong> — používateľ dropne súbor; frontend (IndexedDB + IngestFile) zaradí do fronty (max 3 súbežné joby).</li>
+                    <li><strong>MinerU parse</strong> — <code className="bg-muted px-1 rounded text-xs">POST {"{MINERU_API_URL}"}/file_parse</code> s 5-minútovým timeoutom. Vracia <code className="bg-muted px-1 rounded text-xs">md_content</code> (CommonMark Markdown s ATX nadpismi), <code className="bg-muted px-1 rounded text-xs">images{"{}"}</code> (base64), <code className="bg-muted px-1 rounded text-xs">middle_json</code> (tabuľky, rovnice, stránkovanie).</li>
+                    <li><strong>Post-processing</strong> — premenúvanie obrázkov na <code className="bg-muted px-1 rounded text-xs">*_figure_N</code> / <code className="bg-muted px-1 rounded text-xs">*_table_N</code>; vkladanie markdown pipe-tabuliek priamo do <code className="bg-muted px-1 rounded text-xs">md_content</code> pre čitateľnosť AI.</li>
+                    <li><strong>Uloženie na disk</strong> — <code className="bg-muted px-1 rounded text-xs">workspaces/{"{id}"}/sources/{"{fileId}"}.md</code> (max 5 MB), assets do <code className="bg-muted px-1 rounded text-xs">workspaces/{"{id}"}/assets/</code>.</li>
+                    <li><strong>BibTeX extrakcia</strong> — AI spracuje sekciu References a vytvorí <code className="bg-muted px-1 rounded text-xs">.bib</code> záznam.</li>
+                    <li><strong>Vector Chunking (async, fire-and-forget)</strong> — po uložení .md súboru sa spustí <code className="bg-muted px-1 rounded text-xs">ingestDocumentChunks()</code> na pozadí (neblokuje SSE). Sekcia .md sa rozsekne na chunky podľa ATX nadpisov; pre dlhé dizertácie ({">"} 200k znakov) sú chunky väčšie (3000 znakov), pre kratšie práce 1800 znakov.</li>
+                    <li><strong>Embedding generovanie</strong> — každý chunk sa vektorizuje lokálnym modelom (bez API volania) a uloží do PostgreSQL s HNSW indexom.</li>
+                    <li><strong>AI generovanie posudku</strong> — thesis-review route načíta kontext cez <em>criterion-routed section scoring</em> (thesis-context.ts) a spustí LLM s 90s timeoutom.</li>
+                  </ol>
+                </div>
+
+                {/* ── 2. Vector RAG Architecture ──────────── */}
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-foreground text-sm border-b pb-1">2 · Vector RAG Architektúra (Hybrid Search + HNSW)</h4>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div className="bg-muted/40 rounded-lg p-3 text-xs space-y-1">
+                      <strong className="text-foreground block">Embedding model</strong>
+                      <code className="block text-[10px]">Xenova/paraphrase-multilingual-MiniLM-L12-v2</code>
+                      <span className="text-muted-foreground">384-dim · SK/CS/EN · beží lokálne v Node.js (Transformers.js / WASM) · bez externého API · 0 Kč za token</span>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg p-3 text-xs space-y-1">
+                      <strong className="text-foreground block">pgvector HNSW index</strong>
+                      <code className="block text-[10px]">m=16, ef_construction=64</code>
+                      <span className="text-muted-foreground">Hierarchical Navigable Small World — O(log n) ANN search. Vytvorí sa automaticky po prvom ingeste.</span>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg p-3 text-xs space-y-1">
+                      <strong className="text-foreground block">Hybrid Search (70/30)</strong>
+                      <code className="block text-[10px]">0.7 · cosine + 0.3 · FTS ts_rank</code>
+                      <span className="text-muted-foreground">Vektorová sémantika + presné kľúčové slová v jednom SQL dopyte. Top 20 výsledkov.</span>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg p-3 text-xs space-y-1">
+                      <strong className="text-foreground block">Reranking (cross-encoder)</strong>
+                      <code className="block text-[10px]">keyword overlap · heading boost · length penalty</code>
+                      <span className="text-muted-foreground">Lokálny heuristický reranker (bez API). Vyberie Top 10 najrelevantnejších chunkov pre LLM prompt.</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── 3. Chunking Strategy ────────────────── */}
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-foreground text-sm border-b pb-1">3 · Stratégia chunkovania podľa typu práce</h4>
+                  <div className="overflow-x-auto">
+                    <table className="text-xs w-full border-collapse">
+                      <thead>
+                        <tr className="text-foreground border-b">
+                          <th className="text-left py-1 pr-4 font-semibold">Typ práce</th>
+                          <th className="text-left py-1 pr-4 font-semibold">Rozsah .md</th>
+                          <th className="text-left py-1 pr-4 font-semibold">Max chunk</th>
+                          <th className="text-left py-1 font-semibold">Overlap</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-foreground/70">
+                        <tr className="border-b border-border/50"><td className="py-1 pr-4">Bc. práca</td><td className="py-1 pr-4">~50–80 strán</td><td className="py-1 pr-4">1800 znakov</td><td className="py-1">200 znakov</td></tr>
+                        <tr className="border-b border-border/50"><td className="py-1 pr-4">Diplomová práca</td><td className="py-1 pr-4">~80–130 strán</td><td className="py-1 pr-4">1800 znakov</td><td className="py-1">200 znakov</td></tr>
+                        <tr className="border-b border-border/50"><td className="py-1 pr-4">Vedecký článok</td><td className="py-1 pr-4">~10–20 strán</td><td className="py-1 pr-4">1800 znakov</td><td className="py-1">200 znakov</td></tr>
+                        <tr><td className="py-1 pr-4 text-primary font-medium">Dizertácia (PhD)</td><td className="py-1 pr-4">{">"} 200k znakov</td><td className="py-1 pr-4 text-primary font-medium">3000 znakov</td><td className="py-1">200 znakov</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Chunkovanie prebieha podľa ATX nadpisov (<code className="bg-muted px-1 rounded text-[10px]"># Heading</code>) — každá sekcia je samostatný chunk. Ak sekcia prekračuje limit, rozseká sa na prekrývajúce sa podchunky. Krátke chunky ({"<"} 100 znakov) sú preskočené.</p>
+                </div>
+
+                {/* ── 4. DB schema note ───────────────────── */}
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-foreground text-sm border-b pb-1">4 · Databázový model (PostgreSQL + pgvector)</h4>
+                  <pre className="bg-muted rounded-lg p-3 text-[10px] overflow-x-auto font-mono">{`model DocumentChunk {
+  id          String    @id @default(cuid())
+  workspaceId String
+  documentId  String           -- = IngestFile.id
+  heading     String?          -- nadpis sekcie
+  content     String           -- text chunku
+  tokens      Int              -- ~content.length / 4
+  embedding   vector(384)?     -- MiniLM L12 v2
+  createdAt   DateTime @default(now())
+  -- Index: HNSW (m=16, ef_construction=64)
+}`}</pre>
+                </div>
+
+                {/* ── 5. Doménové prednastavenia ──────────── */}
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-foreground text-sm border-b pb-1">5 · Doménové prednastavenia (STEM / Fyzika)</h4>
+                  <p className="text-xs">Všetky embedding volania predraďujú doménový prefix <code className="bg-muted px-1 rounded text-xs">"STEM, Fyzika: "</code> pred dotazom, čo posúva vektory bližšie k fyzikálnej terminológii (energia, experiment, meranie, výsledok, chyba merania). Formulár posudku je prednastavený na: <strong className="text-foreground">Dizertačná práca · Prírodovedecká fakulta · Katedra Fyziky (STEM)</strong>.</p>
+                </div>
+
+              </AccordionContent>
+            </AccordionItem>
+
           </Accordion>
         </div>
       </DialogContent>

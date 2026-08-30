@@ -12,37 +12,18 @@
  *  - Save & PDF Export buttons
  */
 
-import { useEffect } from "react"
-import { useThesisReviewStore, type ThesisReviewRecord } from "./use-thesis-review-store"
+import { useEffect, useMemo } from "react"
+import { useThesisReviewStore } from "./use-thesis-review-store"
 import { ThesisMetadataPanel } from "./thesis-metadata-panel"
-import { ThesisScoreAnalytics } from "./thesis-score-analytics"
-import { ThesisCriteriaCard } from "./thesis-criteria-card"
-import { DefenseQuestionsPanel } from "./defense-questions-panel"
-import { CitationIssuesPanel } from "./citation-issues-panel"
+import { ExpertReviewWorkspace } from "./expert-review-workspace"
+import { AnalysisPlanPanel } from "./analysis-plan-panel"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Textarea } from "@/components/ui/textarea"
+import { useEditor } from "@/components/editor-store"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  THESIS_CRITERIA,
-  type ReviewLanguage,
-  type CriterionRating,
-  type ThesisSection,
-  computeOverallScore,
-  scoreToEctsGrade,
-} from "@/lib/ai/thesis-rubric"
-import {
-  FileDown,
-  Save,
+  GraduationCap,
   Trash2,
   FileCheck2,
-  GraduationCap,
   Loader2,
 } from "lucide-react"
 
@@ -50,291 +31,175 @@ interface Props {
   workspaceId: string
 }
 
-const GRADES = ["A", "B", "C", "D", "E", "FX"]
-
 export function ThesisReviewPanel({ workspaceId }: Props) {
   const {
     reviews,
     activeReview,
+    analysisPlan,
+    setAnalysisPlan,
+    generateReview,
+    isGenerating,
+    sourceMarkdown: storeSourceMarkdown,
     loadReviews,
     loadReview,
-    updateReviewLocally,
-    saveReview,
-    exportReviewPdf,
+    loadSourceDocument,
     deleteReview,
-    isExporting,
-    setActiveReview,
   } = useThesisReviewStore()
+
+  const project = useEditor((s) => s.project)
+
+  // Construct source markdown text fallback from text assets and ingest files
+  const assetSourceMarkdown = useMemo(() => {
+    const assets = project?.assets ?? []
+    const ingestFiles = project?.ingestFiles ?? []
+
+    const textSnippets = (assets as any[])
+      .filter((a) => a.kind === "text" || a.snippet)
+      .map((a) => `## ${a.heading || a.filename}\n\n${a.snippet || ""}`)
+      .join("\n\n")
+
+    if (textSnippets.trim()) return textSnippets
+    if (ingestFiles.length > 0) {
+      return `# Dokument: ${ingestFiles[0].name}\n\n(Text dokumentu bol spracovaný cez MinerU pipeline)`
+    }
+    return ""
+  }, [project])
+
+  const effectiveMarkdown = storeSourceMarkdown || assetSourceMarkdown
 
   useEffect(() => {
     loadReviews(workspaceId)
-  }, [workspaceId, loadReviews])
+    loadSourceDocument(workspaceId)
+  }, [workspaceId, loadReviews, loadSourceDocument])
 
-  const lang: ReviewLanguage = activeReview?.language ?? "sk"
-
-  const handleSectionUpdate = (sectionId: string, updates: Partial<ThesisSection>) => {
-    if (!activeReview) return
-    const updatedSections = activeReview.sections.map((s) =>
-      s.sectionId === sectionId || s.criterionId === sectionId ? { ...s, ...updates } : s
-    )
-
-    // Auto-recalculate weighted score and grade
-    const newScore = computeOverallScore(updatedSections)
-    const newGrade = newScore != null ? scoreToEctsGrade(newScore) : activeReview.grade
-
-    updateReviewLocally({
-      sections: updatedSections,
-      grade: newGrade,
-    })
-  }
-
-  const handleQuestionsUpdate = (newQuestions: string[]) => {
-    updateReviewLocally({ defenseQuestions: newQuestions })
-  }
-
-  if (!activeReview) {
+  if (activeReview) {
     return (
-      <div className="flex flex-col lg:flex-row h-full w-full overflow-y-auto lg:overflow-hidden">
-        {/* Left: Metadata form */}
-        <div className="w-full lg:w-[360px] border-b lg:border-b-0 lg:border-r shrink-0 bg-background/50">
-          <ThesisMetadataPanel workspaceId={workspaceId} />
-        </div>
+      <ExpertReviewWorkspace
+        workspaceId={workspaceId}
+        sourceMarkdown={effectiveMarkdown}
+      />
+    )
+  }
 
-        {/* Right: Existing reviews list / empty state */}
-        <div className="flex-1 p-4 lg:p-6 overflow-y-auto">
-          <div className="max-w-2xl mx-auto space-y-6">
-            <div>
-              <h2 className="text-xl font-bold tracking-tight">Posudky záverečných prác</h2>
-              <p className="text-sm text-muted-foreground">
-                Vygenerujte nový posudok pomocou RAG a akademického konektora alebo vyberte existujúci.
-              </p>
-            </div>
-
-            {reviews.length > 0 ? (
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-muted-foreground">Uložené posudky v tomto projekte:</h3>
-                <div className="grid gap-3">
-                  {reviews.map((rev) => (
-                    <div
-                      key={rev.id}
-                      onClick={() => loadReview(workspaceId, rev.id)}
-                      className="cursor-pointer group flex items-center justify-between rounded-lg border bg-card p-4 transition-colors hover:border-primary/50"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <GraduationCap className="h-4 w-4 text-primary" />
-                          <span className="font-semibold text-sm">{rev.studentName}</span>
-                          {rev.grade && (
-                            <Badge variant="outline" className="text-xs font-bold">
-                              Známka: {rev.grade}
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-1">{rev.thesisTitle}</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {rev.reviewerRole === "supervisor" ? "Vedúci práce" : "Oponent"} • {new Date(rev.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="opacity-0 group-hover:opacity-100 text-destructive h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          deleteReview(workspaceId, rev.id)
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-xl border border-dashed p-8 text-center space-y-3">
-                <GraduationCap className="h-10 w-10 text-muted-foreground mx-auto" />
-                <h3 className="text-base font-semibold">Žiadny vypracovaný posudok</h3>
-                <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                  Vyplňte formulár vľavo s menom študenta a názvom diplomovej práce. Systém načíta text z nahraného PDF a vytvorí podrobný posudok s overením citácií.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+  if (analysisPlan) {
+    return (
+      <div className="p-4 lg:p-6 overflow-y-auto h-full w-full bg-background">
+        <AnalysisPlanPanel
+          plan={analysisPlan}
+          selectedStandard={analysisPlan.recommendedReportingGuideline}
+          onSelectStandard={(std) => {
+            setAnalysisPlan({ ...analysisPlan, recommendedReportingGuideline: std })
+          }}
+          onConfirmPlan={async () => {
+            await generateReview({
+              workspaceId,
+              metadata: {
+                studentName: analysisPlan.documentTitle,
+                thesisTitle: analysisPlan.documentTitle,
+                thesisType: (analysisPlan.detectedType === "paper" ? "phd" : "master") as any,
+                reviewerRole: "opponent",
+                language: analysisPlan.language,
+                reviewKind: analysisPlan.detectedType,
+                reportingStandard: analysisPlan.recommendedReportingGuideline,
+              },
+            })
+            setAnalysisPlan(null)
+          }}
+          onCancel={() => setAnalysisPlan(null)}
+          isGenerating={isGenerating}
+        />
       </div>
     )
   }
 
-  // Active review editing mode
-  const calculatedScore = computeOverallScore(activeReview.sections)
-
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden">
-      {/* Main editor content */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Top bar with actions */}
-        <div className="flex flex-wrap items-center justify-between border-b px-4 lg:px-6 py-3 bg-background/95 shrink-0 gap-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setActiveReview(null)}
-              className="text-xs h-8 shrink-0"
-            >
-              ← Zoznam
-            </Button>
-            <div className="h-4 w-px bg-border shrink-0" />
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm truncate">{activeReview.studentName}</span>
-                <Badge variant="secondary" className="text-[11px] shrink-0">
-                  {activeReview.thesisType}
-                </Badge>
-                {activeReview.grade && (
-                  <Badge variant="default" className="text-xs font-bold shrink-0">
-                    {activeReview.grade}
-                  </Badge>
-                )}
+    <div className="flex flex-col lg:flex-row h-full w-full min-h-0 overflow-hidden">
+      {/* Left: Metadata form */}
+      <div className="w-full lg:w-[360px] lg:h-full border-b lg:border-b-0 lg:border-r shrink-0 bg-background/50 overflow-y-auto">
+        <ThesisMetadataPanel workspaceId={workspaceId} />
+      </div>
+
+      {/* Right: Existing reviews list / empty state */}
+      <div className="flex-1 min-h-0 p-4 lg:p-6 overflow-y-auto">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight">Odborné posudky a hodnotenia</h2>
+            <p className="text-sm text-muted-foreground">
+              Vygenerujte nový odborný posudok pomocou RAG a akademického konektora alebo otvorte existujúci.
+            </p>
+          </div>
+
+          {isGenerating ? (
+            <div className="flex flex-col items-center justify-center space-y-6 py-12">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full blur-xl bg-primary/20 animate-pulse" />
+                <Loader2 className="h-16 w-16 text-primary animate-spin relative z-10" />
               </div>
-              <p className="text-xs text-muted-foreground truncate max-w-xs sm:max-w-md">
-                {activeReview.thesisTitle}
+              <div className="space-y-2 text-center">
+                <h3 className="text-lg font-bold">Umelá inteligencia analyzuje rukopis</h3>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  Toto môže trvať 60 až 90 sekúnd. Systém prechádza dôkazy v texte, overuje citácie v akademických databázach a formuluje odborné zistenia.
+                </p>
+              </div>
+              <div className="w-full max-w-md space-y-3 pt-4">
+                <div className="h-3 w-full bg-muted animate-pulse rounded-md" />
+                <div className="h-3 w-5/6 bg-muted animate-pulse rounded-md" />
+                <div className="h-3 w-4/6 bg-muted animate-pulse rounded-md" />
+              </div>
+            </div>
+          ) : reviews.length > 0 ? (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground">Uložené posudky v tomto projekte:</h3>
+              <div className="grid gap-3">
+                {reviews.map((rev) => (
+                  <div
+                    key={rev.id}
+                    onClick={() => loadReview(workspaceId, rev.id)}
+                    className="cursor-pointer group flex items-center justify-between rounded-lg border bg-card p-4 transition-colors hover:border-primary/50"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <GraduationCap className="h-4 w-4 text-primary" />
+                        <span className="font-semibold text-sm">{rev.studentName}</span>
+                        {rev.grade && (
+                          <Badge variant="outline" className="text-xs font-bold">
+                            {rev.grade}
+                          </Badge>
+                        )}
+                        <Badge variant="secondary" className="text-[10px] uppercase font-mono">
+                          {rev.reviewKind || rev.thesisType}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-1">{rev.thesisTitle}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {rev.reviewerRole === "supervisor" ? "Vedúci práce" : "Oponent / Recenzent"} • {new Date(rev.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="opacity-0 group-hover:opacity-100 text-destructive h-8 w-8"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteReview(workspaceId, rev.id)
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed p-8 text-center space-y-3">
+              <GraduationCap className="h-10 w-10 text-muted-foreground mx-auto" />
+              <h3 className="text-base font-semibold">Žiadny vypracovaný posudok</h3>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                Vyplňte formulár vľavo s údajmi o rukopise. Systém načíta text z nahraného PDF a vytvorí podrobný odborný posudok s overením dôkazov v texte.
               </p>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => saveReview(workspaceId, activeReview.id)}
-              className="text-xs h-8 gap-1.5"
-            >
-              <Save className="h-3.5 w-3.5" />
-              Uložiť
-            </Button>
-
-            <Button
-              size="sm"
-              onClick={() => exportReviewPdf(workspaceId, activeReview.id)}
-              disabled={isExporting}
-              className="text-xs h-8 gap-1.5"
-            >
-              {isExporting ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Kompilujem PDF…
-                </>
-              ) : (
-                <>
-                  <FileDown className="h-3.5 w-3.5" />
-                  Exportovať PDF
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-
-        {/* Scrollable document body */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 max-w-4xl mx-auto w-full">
-          {/* Summary card */}
-          <div className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <div className="flex items-center gap-2">
-                <FileCheck2 className="h-5 w-5 text-primary" />
-                <h3 className="text-base font-bold">Celkové hodnotenie a záver</h3>
-              </div>
-              <div className="flex items-center gap-3">
-                {calculatedScore != null && (
-                  <span className="text-xs text-muted-foreground">
-                    Vážené skóre: <strong>{calculatedScore}/100</strong>
-                  </span>
-                )}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium">Klasifikácia:</span>
-                  <Select
-                    value={activeReview.grade ?? ""}
-                    onValueChange={(v) => updateReviewLocally({ grade: v })}
-                  >
-                    <SelectTrigger className="h-7 w-20 text-xs font-bold">
-                      <SelectValue placeholder="---" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {GRADES.map((g) => (
-                        <SelectItem key={g} value={g} className="text-xs font-bold">
-                          {g}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                Záverečné odporúčanie k obhajobe:
-              </label>
-              <Textarea
-                value={activeReview.recommendation ?? ""}
-                onChange={(e) => updateReviewLocally({ recommendation: e.target.value })}
-                className="text-xs min-h-[60px]"
-                placeholder="Prácu odporúčam na obhajobu..."
-              />
-            </div>
-          </div>
-
-          {/* Visual Analytics & Radar Profile */}
-          <ThesisScoreAnalytics
-            sections={activeReview.sections}
-            lang={lang}
-            currentGrade={activeReview.grade}
-          />
-
-          {/* Criteria cards list */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold tracking-tight text-muted-foreground uppercase text-xs">
-              Hodnotenie jednotlivých kritérií
-            </h3>
-            {THESIS_CRITERIA.filter((c) => c.category !== "defense").map((criterion) => {
-              const sec = activeReview.sections.find(
-                (s) => s.criterionId === criterion.id || s.sectionId === criterion.id
-              ) ?? {
-                id: criterion.id,
-                sectionId: criterion.id,
-                criterionId: criterion.id,
-                text: "",
-                rating: "pending" as CriterionRating,
-                suggestions: [],
-              }
-
-              return (
-                <ThesisCriteriaCard
-                  key={criterion.id}
-                  criterion={criterion}
-                  section={sec}
-                  lang={lang}
-                  workspaceId={workspaceId}
-                  reviewId={activeReview.id}
-                  onUpdate={(updates) => handleSectionUpdate(criterion.id, updates)}
-                />
-              )
-            })}
-          </div>
-
-          {/* Defense Questions Panel */}
-          <DefenseQuestionsPanel
-            questions={activeReview.defenseQuestions}
-            lang={lang}
-            onUpdateQuestions={handleQuestionsUpdate}
-          />
-
-          {/* Citation issues & Academic Connector panel */}
-          <CitationIssuesPanel
-            issues={activeReview.citationIssues}
-            lang={lang}
-            workspaceId={workspaceId}
-          />
+          )}
         </div>
       </div>
     </div>

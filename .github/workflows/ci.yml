@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "feat/peer-review-expert-module"]
   pull_request:
     branches: ["main"]
 
@@ -33,6 +33,7 @@ jobs:
       AI_API_URL: "https://openrouter.ai/api/v1"
       AI_API_KEY: "mock-key"
       AI_MODEL: "gemini-3-flash"
+      BASE_URL: "http://localhost:3333"
 
     steps:
       - uses: actions/checkout@v4
@@ -47,8 +48,9 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install
-      - name: Push Prisma Database Schema
-        run: pnpm exec prisma db push
+      # Use migrate deploy (not db push) to verify migration history integrity
+      - name: Run Prisma Migrations
+        run: pnpm exec prisma migrate deploy
       - name: Check typing
         run: pnpm typecheck
       - name: Lint
@@ -57,3 +59,10 @@ jobs:
         run: pnpm test -- --run
       - name: Build
         run: pnpm build
+      # Install Playwright browsers for E2E tests
+      - name: Install Playwright Browsers
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Test (E2E — Playwright)
+        run: pnpm exec playwright test --reporter=github
+        env:
+          CI: "true"

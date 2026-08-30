@@ -1,11 +1,28 @@
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "windows"]
+  provider        = "prisma-client-js"
+  binaryTargets   = ["native", "windows"]
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+model DocumentChunk {
+  id          String   @id @default(cuid())
+  workspaceId String
+  documentId  String
+  heading     String?
+  content     String
+  tokens      Int
+  embedding   Unsupported("vector(384)")?
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 model Workspace {
@@ -28,6 +45,7 @@ model Workspace {
   members          WorkspaceMember[]
   snapshots        WorkspaceSnapshot[]
   thesisReviews    ThesisReview[]
+  documentChunks   DocumentChunk[]
 }
 
 /// Access is deliberately modelled separately from Clerk.  The userId field above
@@ -148,6 +166,7 @@ model WorkspaceSnapshot {
 /// Each workspace can have multiple reviews (supervisor + opponent).
 model ThesisReview {
   id              String    @id @default(cuid())
+  schemaVersion   String    @default("1.0")
   workspaceId     String
   /// Full name of the student author
   studentName     String
@@ -163,14 +182,40 @@ model ThesisReview {
   department      String?
   /// Overall ECTS grade: A | B | C | D | E | FX | pending
   grade           String?
+  /// Suggested ECTS grade by AI or initial analysis
+  suggestedGrade  String?
+  /// Final confirmed ECTS grade by human reviewer
+  finalGrade      String?
   /// Formal recommendation text (obhajoba doporučená / nedoporučená)
   recommendation  String?
+  /// Suggested recommendation text by AI
+  suggestedRecommendation String?
+  /// Final confirmed recommendation text by human reviewer
+  finalRecommendation String?
+  /// Timestamp of human reviewer decision confirmation
+  confirmedAt     DateTime?
   /// Serialized JSON: array of ThesisReviewSection objects
   sections        String?
   /// Generated defense questions (JSON string[])
   defenseQuestions String?
   /// Citation issues found (JSON string[])
   citationIssues  String?
+  /// "thesis" | "paper" | "grant"
+  reviewKind      String    @default("thesis")
+  /// Target venue, journal, conference, or university
+  targetVenue     String?
+  /// Executive overview / summary of the manuscript
+  summary         String?
+  /// Strengths of the paper (JSON string[])
+  strengths       String?
+  /// Structured review findings with evidence anchors (JSON ReviewFinding[])
+  findings        String?
+  /// "consort" | "prisma" | "strobe" | "ml_reproducibility" | "none"
+  reportingStandard String?
+  /// Reporting guideline compliance checks (JSON ReportingGuidelineCheck[])
+  reportingGuidelineChecks String?
+  /// Confidential remarks for the editor / committee
+  confidentialComments String?
   /// "draft" | "final"
   status          String    @default("draft")
   /// ISO language code: "sk" | "cs" | "en"

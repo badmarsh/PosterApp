@@ -28,6 +28,6 @@ test.describe('Poster Compilation', () => {
     await expect(page.getByText('Compiling with pdflatex…')).toBeHidden({ timeout: 60000 });
     
     // 6. Verify either compile succeeded or compile failed log is shown
-    await expect(page.getByText(/Compile (succeeded|failed)/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Compile (succeeded|failed)/i).first()).toBeVisible({ timeout: 15000 });
   });
 });

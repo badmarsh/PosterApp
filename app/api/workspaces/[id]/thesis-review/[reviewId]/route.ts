@@ -8,23 +8,40 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import {
+  deserializeThesisReview,
+  serializeThesisReviewUpdate,
+} from "@/lib/ai/review-serializer"
 
 const UpdateSchema = z.object({
-  studentName: z.string().min(1).max(200).optional(),
-  thesisTitle: z.string().min(1).max(500).optional(),
+  studentName: z.string().min(1).max(300).optional(),
+  thesisTitle: z.string().min(1).max(1000).optional(),
   thesisType: z.enum(["bachelor", "master", "phd"]).optional(),
-  reviewerRole: z.enum(["supervisor", "opponent"]).optional(),
-  reviewerName: z.string().max(200).optional(),
-  institution: z.string().max(300).optional(),
-  department: z.string().max(300).optional(),
-  grade: z.string().max(5).optional(),
-  recommendation: z.string().max(2000).optional(),
-  sections: z.string().optional(),         // JSON string
-  defenseQuestions: z.string().optional(), // JSON string
-  citationIssues: z.string().optional(),   // JSON string
-  status: z.enum(["draft", "final"]).optional(),
+  reviewerRole: z.string().max(100).optional(),
+  reviewerName: z.string().max(300).optional().nullable(),
+  institution: z.string().max(500).optional().nullable(),
+  department: z.string().max(500).optional().nullable(),
+  grade: z.string().max(50).optional().nullable(),
+  suggestedGrade: z.string().max(50).optional().nullable(),
+  finalGrade: z.string().max(50).optional().nullable(),
+  recommendation: z.string().max(50000).optional().nullable(),
+  suggestedRecommendation: z.string().max(50000).optional().nullable(),
+  finalRecommendation: z.string().max(50000).optional().nullable(),
+  confirmedAt: z.union([z.string(), z.date()]).optional().nullable(),
+  sections: z.union([z.string(), z.array(z.any())]).optional().nullable(),
+  defenseQuestions: z.union([z.string(), z.array(z.any())]).optional().nullable(),
+  citationIssues: z.union([z.string(), z.array(z.any())]).optional().nullable(),
+  reviewKind: z.string().optional().nullable(),
+  targetVenue: z.string().max(500).optional().nullable(),
+  summary: z.string().optional().nullable(),
+  strengths: z.union([z.string(), z.array(z.any())]).optional().nullable(),
+  findings: z.union([z.string(), z.array(z.any())]).optional().nullable(),
+  reportingStandard: z.string().optional().nullable(),
+  reportingGuidelineChecks: z.union([z.string(), z.array(z.any())]).optional().nullable(),
+  confidentialComments: z.string().optional().nullable(),
+  status: z.string().optional().nullable(),
   language: z.enum(["sk", "cs", "en"]).optional(),
-})
+}).passthrough()
 
 // ---------------------------------------------------------------------------
 // GET — fetch a single thesis review
@@ -55,13 +72,8 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
-  // Deserialise JSON fields for the client
-  return NextResponse.json({
-    ...review,
-    sections: review.sections ? JSON.parse(review.sections) : [],
-    defenseQuestions: review.defenseQuestions ? JSON.parse(review.defenseQuestions) : [],
-    citationIssues: review.citationIssues ? JSON.parse(review.citationIssues) : [],
-  })
+  // Safe centralized deserialisation with fallback and versioning
+  return NextResponse.json(deserializeThesisReview(review))
 }
 
 // ---------------------------------------------------------------------------
@@ -85,12 +97,17 @@ export async function PUT(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  let updates: z.infer<typeof UpdateSchema>
+  let updates: Record<string, any>
   try {
     const raw = await req.json()
-    updates = UpdateSchema.parse(raw)
+    const validated = UpdateSchema.parse(raw)
+    updates = serializeThesisReviewUpdate(validated)
   } catch (err) {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+    console.error("[thesis-review PUT] Validation error:", err)
+    return NextResponse.json({
+      error: "Invalid request body",
+      details: err instanceof z.ZodError ? err.flatten() : String(err)
+    }, { status: 400 })
   }
 
   try {

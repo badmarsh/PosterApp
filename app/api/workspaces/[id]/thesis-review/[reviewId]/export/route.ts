@@ -18,6 +18,7 @@ import { prisma } from "@/lib/prisma"
 import { generateThesisReviewLatex } from "@/lib/latex/generator-thesis-review"
 import type { ThesisReviewTemplate } from "@/lib/latex/templates-thesis"
 import type { ThesisSection, ReviewLanguage } from "@/lib/ai/thesis-rubric"
+import { deserializeThesisReview } from "@/lib/ai/review-serializer"
 
 const ROOT = path.join(process.cwd(), "workspaces")
 const MAX_LOG = 6_000
@@ -73,10 +74,11 @@ export async function POST(
 
   let stage = ""
   try {
-    // Build LaTeX document
-    const sections: ThesisSection[] = review.sections ? JSON.parse(review.sections) : []
-    const defenseQuestions: string[] = review.defenseQuestions ? JSON.parse(review.defenseQuestions) : []
-    const citationIssues: string[] = review.citationIssues ? JSON.parse(review.citationIssues) : []
+    // Build LaTeX document safely using deserializer
+    const deserialized = deserializeThesisReview(review)
+    const sections: ThesisSection[] = deserialized.sections
+    const defenseQuestions: string[] = deserialized.defenseQuestions
+    const citationIssues: string[] = deserialized.citationIssues
 
     const tex = generateThesisReviewLatex({
       studentName: review.studentName,
@@ -188,9 +190,10 @@ export async function GET(
     if (review.language === "en") template = "posudok-en"
     else if (review.language === "cs") template = "posudok-cs"
 
-    const sections: ThesisSection[] = review.sections ? JSON.parse(review.sections) : []
-    const defenseQuestions: string[] = review.defenseQuestions ? JSON.parse(review.defenseQuestions) : []
-    const citationIssues: string[] = review.citationIssues ? JSON.parse(review.citationIssues) : []
+    const deserialized = deserializeThesisReview(review)
+    const sections: ThesisSection[] = deserialized.sections
+    const defenseQuestions: string[] = deserialized.defenseQuestions
+    const citationIssues: string[] = deserialized.citationIssues
 
     const tex = generateThesisReviewLatex({
       studentName: review.studentName,
