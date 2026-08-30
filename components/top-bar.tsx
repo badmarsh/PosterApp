@@ -18,9 +18,13 @@ import {
   CodeIcon,
   Clock,
   Loader2,
+
   Camera,
   FileArchive,
   Users,
+
+  Search,
+
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -86,6 +90,7 @@ type TopBarProps = {
   onToggleStructure: () => void
   onToggleAgent: () => void
   onOpenWorkspaceSelector: () => void
+  onOpenCommandPalette: () => void
 }
 
 export function TopBar({
@@ -94,6 +99,7 @@ export function TopBar({
   onToggleStructure,
   onToggleAgent,
   onOpenWorkspaceSelector,
+  onOpenCommandPalette,
 }: TopBarProps) {
   const { project, pushEvent, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen, setIsScannerOpen, collabEnabled, setCollabEnabled, duplicateProject, newProject, saveProject, isDirty, isSaving, pdfData } = useEditor(
     useShallow((s) => ({
@@ -233,6 +239,27 @@ export function TopBar({
 
 
       </div>
+
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-muted-foreground"
+              onClick={onOpenCommandPalette}
+              aria-label="Open command palette"
+            >
+              <Search className="size-3.5" />
+              <span className="hidden md:inline">Search actions</span>
+              <kbd className="hidden rounded border border-border bg-muted px-1 font-mono text-[10px] text-muted-foreground lg:inline">
+                ⌘K
+              </kbd>
+            </Button>
+          }
+        />
+        <TooltipContent>Command palette</TooltipContent>
+      </Tooltip>
 
       <div className="flex-1" />
 
