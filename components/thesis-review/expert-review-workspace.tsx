@@ -63,6 +63,7 @@ import {
 } from "@/lib/export/review-formatters"
 import { generateThesisReviewDocx } from "@/lib/docx/generator-review"
 import { composeFullReviewNarrative } from "@/lib/ai/review-composer"
+import { cn } from "@/lib/utils"
 import { sortFindingsByPriority, calculateFindingPriority } from "@/lib/ai/review-priorities"
 import { THESIS_CRITERIA, type ThesisSection, type ReviewLanguage } from "@/lib/ai/thesis-rubric"
 import type { ReviewFinding, ReviewSeverity, FindingStatus, FindingAudience } from "@/lib/ai/review-types"
@@ -398,19 +399,24 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
             size="sm"
             variant="outline"
             onClick={() => setShowShortcutsModal(true)}
-            className="text-xs h-8 px-2 text-muted-foreground hidden sm:inline-flex gap-1"
+            className="text-xs h-8 w-8 p-0 text-muted-foreground hover:text-foreground hidden sm:inline-flex items-center justify-center rounded-lg border-border/80"
             title="Klávesové skratky (?)"
           >
-            <Keyboard className="h-3.5 w-3.5" />
+            <Keyboard className="h-4 w-4" />
           </Button>
 
           <Button
             size="sm"
-            variant={activeReview.confirmedAt ? "secondary" : "default"}
+            variant="outline"
             onClick={() => setShowFinalDecisionModal(true)}
-            className="text-xs h-8 gap-1.5 font-semibold"
+            className={cn(
+              "text-xs h-8 px-3 gap-1.5 font-medium rounded-lg shadow-2xs transition-all",
+              activeReview.confirmedAt
+                ? "border-emerald-500/40 text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20"
+                : "border-amber-500/40 text-amber-800 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20"
+            )}
           >
-            <Award className="h-3.5 w-3.5 text-amber-500" />
+            <Award className={cn("h-3.5 w-3.5", activeReview.confirmedAt ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")} />
             {activeReview.confirmedAt ? "Rozhodnutie potvrdené ✓" : "Potvrdiť známku"}
           </Button>
 
@@ -419,16 +425,16 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
             variant="outline"
             onClick={() => saveReview(workspaceId, activeReview.id)}
             disabled={isSaving}
-            className="text-xs h-8 gap-1.5"
+            className="text-xs h-8 px-3 gap-1.5 font-medium rounded-lg border-border/80 hover:bg-muted/80 shadow-2xs"
           >
-            <Save className="h-3.5 w-3.5" />
+            <Save className="h-3.5 w-3.5 text-muted-foreground" />
             {isSaving ? "Ukladám..." : "Uložiť"}
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <Button size="sm" className="text-xs h-8 gap-1.5 font-semibold">
+                <Button size="sm" className="text-xs h-8 px-3.5 gap-1.5 font-semibold bg-[#8B2635] hover:bg-[#741E2B] text-white rounded-lg shadow-xs transition-all cursor-pointer">
                   <FileDown className="h-3.5 w-3.5" />
                   Exportovať posudok
                 </Button>
@@ -617,77 +623,121 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               </Select>
             </div>
 
-            {/* Filter Tabs Bar */}
-            <div className="flex flex-wrap items-center gap-1.5 border-b pb-2 text-xs">
+            {/* Filter Tabs Bar (Segmented Pill Style) */}
+            <div className="flex items-center gap-1 p-1 bg-muted/50 dark:bg-muted/30 rounded-xl border border-border/50 overflow-x-auto no-scrollbar text-xs">
               <button
+                type="button"
                 onClick={() => setActiveTab("priority")}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer",
                   activeTab === "priority"
-                    ? "bg-primary text-primary-foreground font-semibold"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
+                    ? "bg-background text-foreground font-semibold shadow-2xs border border-border/40"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                )}
               >
                 Prioritná fronta
               </button>
               <button
+                type="button"
                 onClick={() => setActiveTab("unreviewed")}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5",
                   activeTab === "unreviewed"
-                    ? "bg-amber-600 text-white font-semibold"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
+                    ? "bg-background text-amber-800 dark:text-amber-300 font-semibold shadow-2xs border border-amber-500/30"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                )}
               >
-                Na posúdenie ({unreviewedCount})
+                <span>Na posúdenie</span>
+                <span className={cn(
+                  "px-1.5 py-0.2 rounded-full text-[10px] font-mono",
+                  activeTab === "unreviewed" ? "bg-amber-500/15 text-amber-800 dark:text-amber-300 font-semibold" : "bg-muted text-muted-foreground"
+                )}>
+                  {unreviewedCount}
+                </span>
               </button>
               <button
+                type="button"
                 onClick={() => setActiveTab("major")}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5",
                   activeTab === "major"
-                    ? "bg-orange-600 text-white font-semibold"
-                    : "text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30"
-                }`}
+                    ? "bg-background text-red-700 dark:text-red-300 font-semibold shadow-2xs border border-red-500/30"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                )}
               >
-                Zásadné ({majorCount})
+                <span>Zásadné</span>
+                <span className={cn(
+                  "px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold",
+                  activeTab === "major" ? "bg-red-500/15 text-red-700 dark:text-red-300" : "bg-muted text-muted-foreground"
+                )}>
+                  {majorCount}
+                </span>
               </button>
               <button
+                type="button"
                 onClick={() => setActiveTab("missing_evidence")}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5",
                   activeTab === "missing_evidence"
-                    ? "bg-red-600 text-white font-semibold"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
+                    ? "bg-background text-purple-700 dark:text-purple-300 font-semibold shadow-2xs border border-purple-500/30"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                )}
               >
-                Chýbajúci dôkaz ({missingEvidenceCount})
+                <span>Chýbajúci dôkaz</span>
+                <span className={cn(
+                  "px-1.5 py-0.2 rounded-full text-[10px] font-mono",
+                  activeTab === "missing_evidence" ? "bg-purple-500/15 text-purple-700 dark:text-purple-300" : "bg-muted text-muted-foreground"
+                )}>
+                  {missingEvidenceCount}
+                </span>
               </button>
               <button
+                type="button"
                 onClick={() => setActiveTab("reporting")}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5",
                   activeTab === "reporting"
-                    ? "bg-purple-600 text-white font-semibold"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
+                    ? "bg-background text-foreground font-semibold shadow-2xs border border-border/40"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                )}
               >
-                Reporting ({reportingCount})
+                <span>Reporting</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-muted text-muted-foreground">
+                  {reportingCount}
+                </span>
               </button>
               <button
+                type="button"
                 onClick={() => setActiveTab("export")}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5",
                   activeTab === "export"
-                    ? "bg-green-600 text-white font-semibold"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
+                    ? "bg-background text-foreground font-semibold shadow-2xs border border-border/40"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                )}
               >
-                V exporte ({exportCount})
+                <span>V exporte</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-muted text-muted-foreground">
+                  {exportCount}
+                </span>
               </button>
               <button
+                type="button"
                 onClick={() => setActiveTab("resolved")}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5",
                   activeTab === "resolved"
-                    ? "bg-slate-700 text-white font-semibold"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
+                    ? "bg-background text-emerald-700 dark:text-emerald-300 font-semibold shadow-2xs border border-emerald-500/30"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                )}
               >
-                Vyriešené ({resolvedCount})
+                <span>Vyriešené</span>
+                <span className={cn(
+                  "px-1.5 py-0.2 rounded-full text-[10px] font-mono",
+                  activeTab === "resolved" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-muted text-muted-foreground"
+                )}>
+                  {resolvedCount}
+                </span>
               </button>
             </div>
 

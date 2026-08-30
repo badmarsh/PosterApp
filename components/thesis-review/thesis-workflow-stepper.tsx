@@ -1,24 +1,30 @@
 "use client"
 
 /**
- * ThesisWorkflowStepper — Compact, dynamic interactive 6-stage pipeline rail for academic reviews.
- * Displays real-time stage progression across:
- *  1. Podklad a integrita (Source document integrity & parse quality)
- *  2. Porozumenie textu (Document understanding, structure & classifier)
- *  3. Plán a rubrika (Pre-flight evaluation plan & rubric applicability)
- *  4. Dôkazová analýza (Evidence-grounded retrieval & epistemic findings)
- *  5. Návrh posudku (14-section draft review composer)
- *  6. Verifikácia a export (Human verification, defense questions & DOCX/PDF export)
+ * ThesisWorkflowStepper — Config-Driven, Dynamic Academic Pipeline Rail.
+ *
+ * Supports dynamic workflow step configurations (4-step, 6-step, 10-step full academic).
+ * Displays real-time stage progression, animated progress tracks, accessibility focus,
+ * and responsive mobile layout.
  */
 
-import { CheckCircle2, Loader2, FileUp, Cpu, Compass, SearchCode, FileEdit, Award, Sparkles } from "lucide-react"
+import { CheckCircle2, Loader2, Sparkles, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatDocumentDisplayName } from "@/lib/ingestion"
+import {
+  buildWorkflowSteps,
+  STEP_ICON_MAP,
+  type WorkflowPresetId,
+  type WorkflowStepId,
+  type WorkflowContext,
+} from "@/lib/workflow/step-registry"
 
-export type PipelineStep = 1 | 2 | 3 | 4 | 5 | 6
+export type PipelineStep = number
 
 interface Props {
-  currentStep: PipelineStep
+  currentStep: number
+  activeStepId?: WorkflowStepId
+  presetId?: WorkflowPresetId
   hasDocument: boolean
   isParsing: boolean
   isIndexed: boolean
@@ -27,23 +33,37 @@ interface Props {
   hasPlan?: boolean
   hasReview?: boolean
   isConfirmed?: boolean
+  hasPlagiarismReport?: boolean
+  hasSupervisorNotes?: boolean
+  hasDefensePrep?: boolean
+  hasCalibrationDiff?: boolean
+  hasFollowupTasks?: boolean
+  savedReviewsCount?: number
   activeFileName?: string
   detectedTitle?: string
   onUploadClick?: () => void
   onAutoFillClick?: () => void
-  onStepClick?: (step: PipelineStep) => void
+  onStepClick?: (step: number, stepId?: WorkflowStepId) => void
 }
 
 export function ThesisWorkflowStepper({
   currentStep,
+  activeStepId,
+  presetId = "standard_6_step",
   hasDocument,
   isParsing,
   isIndexed,
   chunkCount,
   isFormValid,
-  hasPlan,
-  hasReview,
-  isConfirmed,
+  hasPlan = false,
+  hasReview = false,
+  isConfirmed = false,
+  hasPlagiarismReport = false,
+  hasSupervisorNotes = false,
+  hasDefensePrep = false,
+  hasCalibrationDiff = false,
+  hasFollowupTasks = false,
+  savedReviewsCount = 0,
   activeFileName,
   detectedTitle,
   onUploadClick,
@@ -52,150 +72,142 @@ export function ThesisWorkflowStepper({
 }: Props) {
   const cleanDocName = formatDocumentDisplayName(activeFileName, detectedTitle)
 
-  const steps = [
-    {
-      num: 1 as PipelineStep,
-      title: "1. Podklad & Integrita",
-      shortTitle: "Integrita",
-      detail: hasDocument ? cleanDocName : "Nahrajte PDF",
-      done: hasDocument && !isParsing,
-      active: currentStep === 1,
-      icon: FileUp,
-    },
-    {
-      num: 2 as PipelineStep,
-      title: "2. Porozumenie textu",
-      shortTitle: "Porozumenie",
-      detail: isParsing ? "Parsovanie…" : isFormValid ? "Štruktúra overená" : "Metadáta",
-      done: hasDocument && !isParsing && isFormValid,
-      active: currentStep === 2 || isParsing,
-      icon: Cpu,
-    },
-    {
-      num: 3 as PipelineStep,
-      title: "3. Plán & Rubrika",
-      shortTitle: "Plán",
-      detail: hasPlan ? "Plán schválený" : isIndexed ? `${chunkCount} chunkov (HNSW ✓)` : "Pre-flight plán",
-      done: Boolean(hasPlan || (isIndexed && isFormValid)),
-      active: currentStep === 3,
-      icon: Compass,
-    },
-    {
-      num: 4 as PipelineStep,
-      title: "4. Dôkazová analýza",
-      shortTitle: "Dôkazy",
-      detail: hasReview ? "Dôkazy ukotvené" : isIndexed ? "Pripravené" : "Vektorový RAG",
-      done: Boolean(hasReview),
-      active: currentStep === 4,
-      icon: SearchCode,
-    },
-    {
-      num: 5 as PipelineStep,
-      title: "5. Návrh posudku",
-      shortTitle: "Návrh",
-      detail: hasReview ? "14 sekcií pripravených" : "Generovanie posudku",
-      done: Boolean(hasReview),
-      active: currentStep === 5,
-      icon: FileEdit,
-    },
-    {
-      num: 6 as PipelineStep,
-      title: "6. Verifikácia & Export",
-      shortTitle: "Export",
-      detail: isConfirmed ? "Potvrdené (Finál)" : "Rozhodnutie & DOCX",
-      done: Boolean(isConfirmed),
-      active: currentStep === 6,
-      icon: Award,
-    },
-  ]
+  const ctx: WorkflowContext = {
+    hasDocument,
+    isParsing,
+    isIndexed,
+    chunkCount,
+    isFormValid,
+    hasPlan,
+    hasReview,
+    isConfirmed,
+    hasPlagiarismReport,
+    hasSupervisorNotes,
+    hasDefensePrep,
+    hasCalibrationDiff,
+    hasFollowupTasks,
+    savedReviewsCount,
+  }
+
+  const stepConfigs = buildWorkflowSteps(presetId)
+
+  const steps = stepConfigs.map((cfg) => {
+    const isDone = cfg.checkDone(ctx)
+    const isCurrent = activeStepId ? cfg.id === activeStepId : currentStep === cfg.number
+    const IconComp = (STEP_ICON_MAP[cfg.iconName] || STEP_ICON_MAP.FileUp) as LucideIcon
+
+    let detail = cfg.description
+    if (cfg.id === "document_integrity") {
+      detail = hasDocument ? cleanDocName : "Nahrajte PDF"
+    } else if (cfg.id === "text_understanding") {
+      detail = isParsing ? "Parsovanie…" : isFormValid ? "Štruktúra overená" : "Metadáta"
+    } else if (cfg.id === "plan_and_rubric") {
+      detail = hasPlan ? "Plán schválený" : isIndexed ? `${chunkCount} chunkov (HNSW ✓)` : "Pre-flight plán"
+    } else if (cfg.id === "evidence_analysis") {
+      detail = hasReview ? "Dôkazy ukotvené" : isIndexed ? "Pripravené" : "Vektorový RAG"
+    } else if (cfg.id === "draft_review") {
+      detail = hasReview ? "14 sekcií pripravených" : "Generovanie posudku"
+    } else if (cfg.id === "verification_and_export") {
+      detail = isConfirmed ? "Potvrdené (Finál)" : "Rozhodnutie & DOCX"
+    }
+
+    return {
+      ...cfg,
+      done: isDone,
+      active: isCurrent,
+      icon: IconComp,
+      detail,
+    }
+  })
 
   const completedCount = steps.filter((s) => s.done).length
-  const progressPercent = Math.round((completedCount / 6) * 100)
+  const totalSteps = steps.length
+  const progressPercent = Math.round((completedCount / Math.max(1, totalSteps)) * 100)
 
   return (
     <div
       aria-label="Kroky hodnotenia záverečnej práce"
-      className="rounded-xl border bg-card text-card-foreground shadow-2xs overflow-hidden p-4 sm:p-6 lg:p-8"
+      className="rounded-xl border bg-card text-card-foreground shadow-2xs overflow-hidden p-4 sm:p-6"
     >
       <div className="relative w-full max-w-5xl mx-auto">
-        {/* Background Track (Hidden on smallest screens where we might stack, but here we can just do overflow-x-auto or scale down) */}
-        <div className="absolute top-7 left-[8%] right-[8%] h-1.5 bg-muted rounded-full hidden sm:block" />
+        {/* Background Track */}
+        <div className="absolute top-7 left-[5%] right-[5%] h-1.5 bg-muted rounded-full hidden sm:block" />
 
         {/* Animated Progress Track */}
         <div
-          className="absolute top-7 left-[8%] h-1.5 bg-gradient-to-r from-emerald-400 via-emerald-500 to-[#8B2635] rounded-full transition-all duration-1000 ease-in-out hidden sm:block"
-          style={{ width: `${Math.min(100, (Math.max(0, currentStep - 1) / 5) * 84)}%` }}
+          className="absolute top-7 left-[5%] h-1.5 bg-gradient-to-r from-emerald-400 via-emerald-500 to-[#8B2635] rounded-full transition-all duration-1000 ease-in-out hidden sm:block"
+          style={{ width: `${Math.min(90, (Math.max(0, currentStep - 1) / Math.max(1, totalSteps - 1)) * 90)}%` }}
         />
 
         {/* Steps Container */}
-        <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 sm:gap-0">
+        <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 sm:gap-2">
           {steps.map((s, idx) => {
             const isCurrent = s.active && !s.done
-            const isReady = s.num === 5 && isFormValid && isIndexed
+            const isReady = s.id === "draft_review" && isFormValid && isIndexed
             const isActiveState = isCurrent || isReady
 
             return (
               <div
-                key={s.num}
-                className="flex flex-row sm:flex-col items-center gap-4 sm:gap-0 group relative z-10 w-full sm:w-[16%] cursor-pointer"
-                onClick={() => onStepClick?.(s.num)}
+                key={s.id}
+                className="flex flex-row sm:flex-col items-center gap-4 sm:gap-0 group relative z-10 w-full sm:flex-1 cursor-pointer"
+                onClick={() => onStepClick?.(s.number, s.id)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault()
-                    onStepClick?.(s.num)
+                    onStepClick?.(s.number, s.id)
                   }
                 }}
               >
                 {/* Node Circle */}
                 <div
                   className={cn(
-                    "relative flex items-center justify-center shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-full border-4 transition-all duration-500 ease-out shadow-sm",
+                    "relative flex items-center justify-center shrink-0 w-11 h-11 sm:w-13 sm:h-13 rounded-full border-4 transition-all duration-500 ease-out shadow-xs",
                     s.done
                       ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:border-emerald-800/60 dark:text-emerald-400"
                       : isActiveState
-                      ? "bg-[#8B2635] text-white border-white dark:border-zinc-900 shadow-md shadow-[#8B2635]/30 scale-110 sm:scale-125"
+                      ? "bg-[#8B2635] text-white border-white dark:border-zinc-900 shadow-md shadow-[#8B2635]/30 scale-105 sm:scale-115"
                       : "bg-card text-muted-foreground border-muted hover:border-muted-foreground/30 hover:bg-muted/30"
                   )}
                   title={`${s.title} — ${s.detail}`}
                 >
                   {s.done ? (
-                    <CheckCircle2 className="size-6 sm:size-7 transition-transform group-hover:scale-110 duration-300" />
-                  ) : isParsing && s.num === 2 ? (
-                    <Loader2 className="size-6 sm:size-7 animate-spin" />
+                    <CheckCircle2 className="size-5 sm:size-6 transition-transform group-hover:scale-110 duration-300" />
+                  ) : isParsing && s.id === "text_understanding" ? (
+                    <Loader2 className="size-5 sm:size-6 animate-spin" />
                   ) : (
-                    <s.icon className={cn("size-5 sm:size-6 transition-transform duration-300", isActiveState ? "animate-in zoom-in duration-500" : "group-hover:scale-110")} />
+                    <s.icon className={cn("size-4.5 sm:size-5.5 transition-transform duration-300", isActiveState ? "animate-in zoom-in duration-500" : "group-hover:scale-110")} />
                   )}
 
                   {/* Pulsing ring for active state */}
                   {isActiveState && (
                     <div
                       className="absolute inset-0 rounded-full border border-[#8B2635] animate-ping opacity-30"
-                      style={{ animationDuration: '2.5s' }}
+                      style={{ animationDuration: "2.5s" }}
                     />
                   )}
                 </div>
 
-                {/* Vertical Line for Mobile (connects nodes when stacked) */}
+                {/* Vertical Line for Mobile */}
                 {idx < steps.length - 1 && (
-                  <div className="absolute top-12 bottom-[-1.5rem] left-6 w-0.5 bg-muted sm:hidden" />
+                  <div className="absolute top-11 bottom-[-1.5rem] left-5.5 w-0.5 bg-muted sm:hidden" />
                 )}
                 {/* Mobile Active Track */}
                 {idx < steps.length - 1 && (s.done || isActiveState) && (
                   <div
                     className={cn(
-                      "absolute top-12 bottom-[-1.5rem] left-6 w-0.5 sm:hidden transition-all duration-700",
+                      "absolute top-11 bottom-[-1.5rem] left-5.5 w-0.5 sm:hidden transition-all duration-700",
                       s.done ? "bg-emerald-500" : "bg-gradient-to-b from-[#8B2635] to-transparent"
                     )}
                   />
                 )}
 
                 {/* Label Area */}
-                <div className="flex flex-col sm:items-center sm:text-center sm:mt-4 flex-1 w-full min-w-0">
+                <div className="flex flex-col sm:items-center sm:text-center sm:mt-3 flex-1 w-full min-w-0">
                   <div
                     className={cn(
-                      "text-[10px] uppercase font-bold tracking-wider mb-1 transition-colors duration-300",
+                      "text-[9px] uppercase font-bold tracking-wider mb-0.5 transition-colors duration-300",
                       isActiveState
                         ? "text-[#8B2635] dark:text-[#E06D7B]"
                         : s.done
@@ -203,18 +215,18 @@ export function ThesisWorkflowStepper({
                         : "text-muted-foreground"
                     )}
                   >
-                    Krok {s.num}
+                    Krok {s.number}
                   </div>
                   <div
                     className={cn(
-                      "text-sm sm:text-[13px] md:text-sm font-semibold leading-tight transition-colors duration-300 truncate w-full",
-                      isActiveState ? "text-foreground" : "text-foreground/70 group-hover:text-foreground"
+                      "text-xs sm:text-[11px] md:text-xs font-semibold leading-tight transition-colors duration-300 truncate w-full",
+                      isActiveState ? "text-foreground font-bold" : "text-foreground/70 group-hover:text-foreground"
                     )}
                   >
-                    <span className="hidden lg:inline">{s.title.replace(/^\d+\.\s*/, '')}</span>
-                    <span className="lg:hidden">{s.shortTitle}</span>
+                    <span className="hidden xl:inline">{s.title}</span>
+                    <span className="xl:hidden">{s.shortTitle}</span>
                   </div>
-                  <div className="text-[11px] sm:text-[10px] md:text-[11px] text-muted-foreground mt-1 sm:mt-1.5 opacity-90 transition-opacity truncate w-full max-w-[120px] sm:max-w-full">
+                  <div className="text-[10px] text-muted-foreground mt-0.5 opacity-90 transition-opacity truncate w-full max-w-[110px] sm:max-w-full">
                     {s.detail}
                   </div>
                 </div>
@@ -222,17 +234,17 @@ export function ThesisWorkflowStepper({
             )
           })}
         </div>
-        
-        {/* Auto-fill affordance (Mobile only inside the flow, or absolute on desktop) */}
+
+        {/* Auto-fill affordance */}
         {hasDocument && !isParsing && onAutoFillClick && (
-          <div className="absolute -top-3 right-0 sm:top-auto sm:-bottom-4 sm:right-4 hidden md:block">
+          <div className="absolute -top-2 right-0 sm:top-auto sm:-bottom-3 sm:right-2 hidden md:block">
             <button
               onClick={onAutoFillClick}
               type="button"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-[#8B2635] dark:text-[#E06D7B] bg-[#8B2635]/5 hover:bg-[#8B2635]/15 border border-[#8B2635]/20 transition-all shadow-sm cursor-pointer group"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium text-[#8B2635] dark:text-[#E06D7B] bg-[#8B2635]/5 hover:bg-[#8B2635]/15 border border-[#8B2635]/20 transition-all shadow-xs cursor-pointer group"
               title="Predvyplniť metadáta z nahraného PDF"
             >
-              <Sparkles className="size-4 group-hover:rotate-12 transition-transform" />
+              <Sparkles className="size-3.5 group-hover:rotate-12 transition-transform" />
               <span>Predvyplniť metadáta</span>
             </button>
           </div>
