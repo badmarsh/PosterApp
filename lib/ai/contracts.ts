@@ -437,6 +437,10 @@ export const ReviewFindingContractSchema = z.preprocess((raw: any) => {
       reviewerNotes: raw.reviewerNotes ? String(raw.reviewerNotes).trim() : undefined,
       includeInExport: raw.includeInExport !== false,
       createdBy: raw.createdBy === "reviewer" ? "reviewer" : "ai",
+      source: raw.source ? String(raw.source).trim() : undefined,
+      audience: raw.audience && ["author", "editor", "public"].includes(String(raw.audience)) ? String(raw.audience) : "author",
+      createdAt: raw.createdAt ? String(raw.createdAt) : undefined,
+      updatedAt: raw.updatedAt ? String(raw.updatedAt) : undefined,
     }
   }
   return raw
@@ -453,6 +457,10 @@ export const ReviewFindingContractSchema = z.preprocess((raw: any) => {
   reviewerNotes: z.string().optional(),
   includeInExport: z.boolean().default(true),
   createdBy: z.enum(["ai", "reviewer"]).default("ai"),
+  source: z.string().optional(),
+  audience: z.enum(["author", "editor", "public"]).default("author"),
+  createdAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional(),
 }))
 export type ReviewFindingContract = z.infer<typeof ReviewFindingContractSchema>
 

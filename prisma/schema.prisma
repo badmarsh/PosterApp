@@ -148,6 +148,7 @@ model WorkspaceSnapshot {
 /// Each workspace can have multiple reviews (supervisor + opponent).
 model ThesisReview {
   id              String    @id @default(cuid())
+  schemaVersion   String    @default("1.0")
   workspaceId     String
   /// Full name of the student author
   studentName     String

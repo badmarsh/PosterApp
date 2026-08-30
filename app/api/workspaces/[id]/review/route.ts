@@ -8,6 +8,7 @@ import { generateAIResponse } from "@/lib/ai/client"
 import { ReviewTipsSchema } from "@/lib/ai/contracts"
 import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
+import { AI_CONFIG } from "@/lib/config/ai"
 
 const MAX_CARD_CHARS = 3_000
 const MAX_ALL_CARDS_CHARS = 40_000
@@ -112,7 +113,7 @@ export async function POST(
     const lintReport = buildLintReport(cards, bibKeys)
 
     // Load source markdown from disk deterministically (capped at 60k chars)
-    const sourceSnippets = await loadSourceContext({ workspaceId, maxChars: 60_000 })
+    const sourceSnippets = await loadSourceContext({ workspaceId, maxChars: AI_CONFIG.review.maxSourceChars })
 
     // Bound bibContent
     const rawBib = typeof bibContent === "string" ? bibContent : ""
