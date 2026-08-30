@@ -332,4 +332,3 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
     </div>
   )
 }
-

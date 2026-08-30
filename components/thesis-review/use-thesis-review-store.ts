@@ -117,7 +117,7 @@ interface ThesisReviewState {
   ) => Promise<ThesisSection | null>
   updateReviewLocally: (updates: Partial<ThesisReviewRecord>) => void
   updateCriterionLocally: (criterionId: string, updates: Partial<ThesisSection>) => void
-  
+
   // Finding Triage Actions
   acceptFinding: (findingId: string) => void
   rejectFinding: (findingId: string) => void

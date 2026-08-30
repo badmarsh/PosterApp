@@ -63,26 +63,26 @@ export interface ProfessionalReviewRecord {
   department?: string
   language: ReviewLanguage
   status: "draft" | "in_review" | "final"
-  
+
   // Executive summaries
   summary: string
   strengths: string[]
-  
+
   // Structured findings
   findings: ReviewFinding[]
-  
+
   // Reporting checklist items
   reportingStandard: ReportingStandard
   reportingGuidelineChecks: ReportingGuidelineCheck[]
-  
+
   // Questions & specific remarks
   questionsForAuthors: string[]
   confidentialComments?: string
-  
+
   // Outcomes
   recommendation: string // e.g. "accept" | "minor_revisions" | "major_revisions" | "reject" | "obhajoba_odporucana"
   grade?: CriterionRating | string // ECTS grade (A-FX) for thesis reviews
-  
+
   createdAt: string
   updatedAt: string
 }

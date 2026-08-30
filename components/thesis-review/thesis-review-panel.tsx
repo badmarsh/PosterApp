@@ -145,4 +145,3 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
     </div>
   )
 }
-
