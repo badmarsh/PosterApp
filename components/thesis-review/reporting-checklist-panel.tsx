@@ -51,12 +51,14 @@ export function ReportingChecklistPanel({ standard, checks, onUpdateCheck }: Pro
           <ShieldCheck className="h-5 w-5 text-primary" />
           <div>
             <h3 className="text-sm font-bold flex items-center gap-2">
-              {info?.name ?? standard} Compliance Audit
+              {info?.name ?? standard} — AI Pre-Check
               <Badge variant="outline" className="text-[10px] font-mono">
                 {compliantCount}/{totalCount} splnené ({percent}%)
               </Badge>
             </h3>
-            <p className="text-[11px] text-muted-foreground">{info?.description}</p>
+            <p className="text-[11px] text-muted-foreground">
+              Informatívny AI predbežný audit odporúčaných smerníc — vyžaduje odborné posúdenie recenzenta.
+            </p>
           </div>
         </div>
 

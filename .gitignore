@@ -51,6 +51,7 @@ verify_ui.js
 lint.json
 output.json
 *.sql
+!prisma/migrations/**/*.sql
 tmp/
 *.log
 vitest-out.log

@@ -342,7 +342,7 @@ test.describe('Thesis Review Workflow & E2E Features', () => {
     // Save screenshot
     const fs = await import('fs');
     const path = await import('path');
-    const screenshotDir = path.join(process.cwd(), 'tmp', 'agent-browser');
+    const screenshotDir = '/tmp/agent-browser';
     fs.mkdirSync(screenshotDir, { recursive: true });
     await page.screenshot({ path: path.join(screenshotDir, 'viewport-771x746-dark.png') });
   });
@@ -436,7 +436,7 @@ test.describe('Thesis Review Workflow & E2E Features', () => {
     // Save screenshot
     const fs = await import('fs');
     const path = await import('path');
-    const screenshotDir = path.join(process.cwd(), 'tmp', 'agent-browser');
+    const screenshotDir = '/tmp/agent-browser';
     fs.mkdirSync(screenshotDir, { recursive: true });
     await page.screenshot({ path: path.join(screenshotDir, 'viewport-1440x900-desktop.png') });
   });
@@ -523,7 +523,7 @@ test.describe('Thesis Review Workflow & E2E Features', () => {
     // Save screenshot
     const fs = await import('fs');
     const path = await import('path');
-    const screenshotDir = path.join(process.cwd(), 'tmp', 'agent-browser');
+    const screenshotDir = '/tmp/agent-browser';
     fs.mkdirSync(screenshotDir, { recursive: true });
     await page.screenshot({ path: path.join(screenshotDir, 'viewport-390x844-mobile.png') });
   });

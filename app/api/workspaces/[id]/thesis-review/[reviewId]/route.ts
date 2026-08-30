@@ -8,6 +8,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import {
+  deserializeThesisReview,
+  serializeThesisReviewUpdate,
+} from "@/lib/ai/review-serializer"
 
 const UpdateSchema = z.object({
   studentName: z.string().min(1).max(200).optional(),
@@ -19,16 +23,16 @@ const UpdateSchema = z.object({
   department: z.string().max(300).optional(),
   grade: z.string().max(20).optional(),
   recommendation: z.string().max(2000).optional(),
-  sections: z.string().optional(),         // JSON string
-  defenseQuestions: z.string().optional(), // JSON string
-  citationIssues: z.string().optional(),   // JSON string
+  sections: z.union([z.string(), z.array(z.any())]).optional(),
+  defenseQuestions: z.union([z.string(), z.array(z.any())]).optional(),
+  citationIssues: z.union([z.string(), z.array(z.any())]).optional(),
   reviewKind: z.string().optional(),
   targetVenue: z.string().max(300).optional(),
   summary: z.string().optional(),
-  strengths: z.string().optional(),        // JSON string
-  findings: z.string().optional(),         // JSON string
+  strengths: z.union([z.string(), z.array(z.any())]).optional(),
+  findings: z.union([z.string(), z.array(z.any())]).optional(),
   reportingStandard: z.string().optional(),
-  reportingGuidelineChecks: z.string().optional(), // JSON string
+  reportingGuidelineChecks: z.union([z.string(), z.array(z.any())]).optional(),
   confidentialComments: z.string().optional(),
   status: z.string().optional(),
   language: z.enum(["sk", "cs", "en"]).optional(),
@@ -63,16 +67,8 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
-  // Deserialise JSON fields for the client
-  return NextResponse.json({
-    ...review,
-    sections: review.sections ? JSON.parse(review.sections) : [],
-    defenseQuestions: review.defenseQuestions ? JSON.parse(review.defenseQuestions) : [],
-    citationIssues: review.citationIssues ? JSON.parse(review.citationIssues) : [],
-    strengths: review.strengths ? JSON.parse(review.strengths) : [],
-    findings: review.findings ? JSON.parse(review.findings) : [],
-    reportingGuidelineChecks: review.reportingGuidelineChecks ? JSON.parse(review.reportingGuidelineChecks) : [],
-  })
+  // Safe centralized deserialisation with fallback and versioning
+  return NextResponse.json(deserializeThesisReview(review))
 }
 
 // ---------------------------------------------------------------------------
@@ -96,10 +92,11 @@ export async function PUT(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  let updates: z.infer<typeof UpdateSchema>
+  let updates: Record<string, any>
   try {
     const raw = await req.json()
-    updates = UpdateSchema.parse(raw)
+    const validated = UpdateSchema.parse(raw)
+    updates = serializeThesisReviewUpdate(validated)
   } catch (err) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   }
