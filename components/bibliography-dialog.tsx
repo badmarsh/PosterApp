@@ -693,7 +693,7 @@ export function BibliographyDialog() {
             <DialogTitle className="text-destructive">Delete Citation?</DialogTitle>
           </div>
           <DialogDescription>
-            Remove citation <strong>"{confirmDeleteKey}"</strong>? This will also break any text segments currently referencing it.
+            Remove citation <strong>&quot;{confirmDeleteKey}&quot;</strong>? This will also break any text segments currently referencing it.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="-mx-4 -mb-4">

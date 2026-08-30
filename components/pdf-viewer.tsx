@@ -50,10 +50,10 @@ export function PdfViewer({
       if (data && data.byteLength > 0 && !(data.buffer as any)?.detached) {
         fingerprint = `${data.byteLength}:${Array.from(data.subarray(0, 16)).join(",")}:${Array.from(data.subarray(-16)).join(",")}`
       } else {
-        fingerprint = `pdf-${Date.now()}`
+        fingerprint = "pdf-empty"
       }
     } catch {
-      fingerprint = `pdf-${Date.now()}`
+      fingerprint = "pdf-unreadable"
     }
     return { data: data.slice(), fingerprint }
   }, [data])
