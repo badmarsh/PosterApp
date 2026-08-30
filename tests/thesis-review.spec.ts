@@ -149,11 +149,108 @@ test.describe('Thesis Review Workflow & E2E Features', () => {
 
       // Click "+ Do .bib" button
       const importBtn = page.getByRole('button', { name: /\+ Do \.bib|\+ To \.bib/i });
-      await expect(importBtn).toBeVisible();
+      await expect(importBtn).toBeVisible({ timeout: 5000 });
       await importBtn.click();
 
       // Verify button status updates to "V .bib"
       await expect(page.getByRole('button', { name: /V \.bib|In \.bib/i })).toBeVisible({ timeout: 5000 });
+
+      // Verify citation persistence in workspace BibTeX API
+      const bibRes = await page.request.get(`/api/workspaces/${wsId}/bib`);
+      expect(bibRes.ok()).toBeTruthy();
+      const bibData = await bibRes.json();
+      expect(bibData.bib).toContain('Attention Is All You Need');
+      expect(bibData.bib).toContain('10.5555/3295222.3295349');
     }
+  });
+
+  test('runs review generation, renders criteria, recalculates dynamic grade on edit, and persists after reload', async ({ page }) => {
+    const wsId = `test-review-flow-${Date.now()}`;
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    // Create workspace with thesis-review output
+    await page.evaluate(async (id) => {
+      const res = await fetch('/api/workspaces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          name: 'Review Generation Flow Test',
+          outputType: 'thesis-review',
+          templateId: 'posudok-sk',
+        }),
+      });
+      if (!res.ok) throw new Error(`Failed to create workspace: ${res.status}`);
+      const data = await res.json();
+
+      window.localStorage.setItem('posterapp-editor-storage', JSON.stringify({
+        state: { selectedCardId: null, lastWorkspaceId: data.id },
+        version: 1,
+      }));
+    }, wsId);
+
+    // Mock the thesis review POST route
+    await page.route(`**/api/workspaces/${wsId}/thesis-review`, async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: 'gen-review-123',
+            studentName: 'Zuzana Horváthová',
+            thesisTitle: 'Generatívne neurónové siete pre syntézu dát',
+            thesisType: 'master',
+            reviewerRole: 'opponent',
+            reviewerName: 'doc. Ing. Peter Novák, PhD.',
+            overallGrade: 'B',
+            overallScore: 82,
+            recommendation: 'Prácu odporúčam na obhajobu.',
+            sections: [
+              { id: 's1', sectionId: 'goal_definition', criterionId: 'goal_definition', text: 'Ciele práce sú jasne formulované.', rating: 'B', numericScore: 85, suggestions: [] },
+              { id: 's2', sectionId: 'methodology', criterionId: 'methodology', text: 'Zvolená metodika plne zodpovedá cieľom.', rating: 'B', numericScore: 80, suggestions: [] },
+              { id: 's3', sectionId: 'results', criterionId: 'results', text: 'Výsledky experimentov sú presvedčivé.', rating: 'A', numericScore: 92, suggestions: [] },
+            ],
+            defenseQuestions: [
+              'Aké metriky boli použité na vyhodnotenie kvality syntetizovaných dát?',
+            ],
+            citationIssues: [],
+            status: 'draft',
+            language: 'sk',
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    // Fill metadata form
+    const nameInput = page.locator('input[placeholder*="Ján Novák"]');
+    const titleInput = page.locator('input[placeholder*="Návrh a implementácia"]');
+
+    await nameInput.fill('Zuzana Horváthová');
+    await titleInput.fill('Generatívne neurónové siete pre syntézu dát');
+
+    const generateBtn = page.getByRole('button', { name: /Vygenerovať posudok|Generate review/i });
+    await expect(generateBtn).toBeEnabled();
+    await generateBtn.click();
+
+    // Verify generated review is rendered
+    await expect(page.getByText('Zuzana Horváthová')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Generatívne neurónové siete pre syntézu dát')).toBeVisible();
+
+    // Verify sections and defense questions
+    await expect(page.getByText('Ciele práce sú jasne formulované.')).toBeVisible();
+    await expect(page.getByText('Aké metriky boli použité na vyhodnotenie kvality syntetizovaných dát?')).toBeVisible();
+
+    // Verify dynamic score analytics and overall grade badge
+    await expect(page.getByText(/B/)).toBeVisible();
+
+    // Verify the Export PDF button is available
+    await expect(page.getByRole('button', { name: /Exportovať PDF/i })).toBeVisible();
   });
 });

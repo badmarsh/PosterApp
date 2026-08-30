@@ -368,7 +368,6 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
 
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedType("slides")
       const ts = getTemplatesForType("slides")
       setSelectedTemplate(ts[0]?.id ?? "")

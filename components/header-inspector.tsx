@@ -47,6 +47,13 @@ const ITEM_UNITS: Record<OutputType, { singular: string; plural: string }> = {
   "thesis-review": { singular: "section", plural: "sections" },
 }
 
+const ITEM_COUNT_DEFAULTS: Record<OutputType, number> = {
+  poster: 9,
+  slides: 10,
+  paper: 6,
+  "thesis-review": 7,
+}
+
 /* -------------------------------------------------------------------------
  * Micro-Illustrations for Operations
  * ------------------------------------------------------------------------- */
@@ -332,7 +339,6 @@ export function HeaderInspector() {
   const activeThemeColor = activeOutput?.themeColor ?? null
   const outputTypeLabel = OUTPUT_TYPE_LABELS[activeOutputType]
 
-  const ITEM_COUNT_DEFAULTS: Record<OutputType, number> = { poster: 9, slides: 10, paper: 6, "thesis-review": 7 }
   const [itemCount, setItemCount] = useState<number>(ITEM_COUNT_DEFAULTS[activeOutputType])
   const headerLogoInputRef = useRef<HTMLInputElement>(null)
   const [isUploadingHeaderLogo, setIsUploadingHeaderLogo] = useState(false)

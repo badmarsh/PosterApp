@@ -450,6 +450,7 @@ export function AssetList() {
   // Filtered citations
   const filteredBibEntries = useMemo(() => {
     return bibEntries.filter(matchesBibSearch)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bibEntries, normalizedQuery])
 
   // Count stats

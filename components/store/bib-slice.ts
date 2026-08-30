@@ -74,6 +74,26 @@ export const createBibSlice: EditorSlice<BibSlice> = (set, get) => ({
 
   addBibEntry: async (entry) => {
     const current = get().bibContent
+    const existingEntries = get().bibEntries || parseBibEntries(current)
+
+    // Prevent duplicate entry by key or normalized title
+    const normalizedNewTitle = (entry.title || "").toLowerCase().replace(/[^a-z0-9]/g, "")
+    const duplicate = existingEntries.find((e) => {
+      if (entry.key && e.key.toLowerCase() === entry.key.toLowerCase()) return true
+      if (normalizedNewTitle && (e.title || "").toLowerCase().replace(/[^a-z0-9]/g, "") === normalizedNewTitle) return true
+      return false
+    })
+
+    if (duplicate) {
+      get().pushEvent({
+        kind: "info",
+        status: "done",
+        title: "Citation Already Present",
+        detail: `@${duplicate.type || "article"}{${duplicate.key}} is already in your bibliography`,
+      })
+      return
+    }
+
     const formatted = formatBibEntry(entry)
     const updated = current.trim() ? `${current.trim()}\n\n${formatted}` : formatted
     await get().updateBib(get().project.id, updated)
@@ -82,7 +102,7 @@ export const createBibSlice: EditorSlice<BibSlice> = (set, get) => ({
       kind: "info",
       status: "done",
       title: "Citation Added",
-      detail: `@${entry.type || "article"}{${entry.key}} added to bibliography`,
+      detail: `@${entry.type || "article"}{${entry.key || "ref"}} added to bibliography`,
     })
   },
 

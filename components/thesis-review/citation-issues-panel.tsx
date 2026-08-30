@@ -83,6 +83,7 @@ export function CitationIssuesPanel({ issues, lang, workspaceId }: Props) {
   const [importedKeys, setImportedKeys] = useState<Set<string>>(new Set())
   const [isImporting, setIsImporting] = useState<string | null>(null)
 
+  const editorStore = useEditorStoreInstance()
   const t = LABELS[lang]
 
   const handleSearch = async () => {
@@ -120,8 +121,7 @@ export function CitationIssuesPanel({ issues, lang, workspaceId }: Props) {
     const entry = academicPaperToBibEntry(paper)
     setIsImporting(String(idx))
     try {
-      const store = useEditorStoreInstance()
-      await store.getState().addBibEntry(entry)
+      await editorStore.getState().addBibEntry(entry)
       setImportedKeys((prev) => new Set([...prev, entry.key]))
     } catch (err) {
       console.error("[CitationIssuesPanel] Failed to import BibTeX entry:", err)
