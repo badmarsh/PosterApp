@@ -233,6 +233,10 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     loadReviews: async (workspaceId) => {
       try {
         const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review`)
+        if (res.status === 404) {
+          set((s) => { s.reviews = [] })
+          return
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
         set((s) => { s.reviews = data.reviews ?? [] })

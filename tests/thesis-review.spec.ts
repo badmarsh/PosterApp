@@ -254,9 +254,9 @@ test.describe('Thesis Review Workflow & E2E Features', () => {
     await expect(page.getByRole('button', { name: /Exportovať posudok|Exportovať PDF/i })).toBeVisible();
   });
 
-  test('verifies Viewport 1 (771x746, Dark Mode) with expert review split-view and captures screenshot', async ({ page }) => {
+  test('verifies Viewport 1 (771x757, Dark Mode) with expert review split-view and captures screenshot', async ({ page }) => {
     const wsId = `test-vp1-${Date.now()}`;
-    await page.setViewportSize({ width: 771, height: 746 });
+    await page.setViewportSize({ width: 771, height: 757 });
     await page.emulateMedia({ colorScheme: 'dark' });
 
     await page.goto('/');
@@ -339,11 +339,12 @@ test.describe('Thesis Review Workflow & E2E Features', () => {
     await expect(page.getByText('Nedostatočné vysvetlenie normalizácie súradníc')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText(/Presný citát|Overený/i).first()).toBeVisible();
 
-    // Save screenshot
+    // Save screenshots
     const fs = await import('fs');
     const path = await import('path');
     const screenshotDir = '/tmp/agent-browser';
     fs.mkdirSync(screenshotDir, { recursive: true });
+    await page.screenshot({ path: path.join(screenshotDir, 'viewport-771x757-dark.png') });
     await page.screenshot({ path: path.join(screenshotDir, 'viewport-771x746-dark.png') });
   });
 
@@ -585,7 +586,7 @@ test.describe('Thesis Review Workflow & E2E Features', () => {
     });
 
     // Mock review generation endpoint
-    await page.route(`**/api/workspaces/${wsId}/thesis-review`, async (route) => {
+    await page.route(new RegExp(`/api/workspaces/${wsId}/thesis-review$`), async (route) => {
       if (route.request().method() === 'POST') {
         await route.fulfill({
           status: 200,
@@ -622,6 +623,8 @@ test.describe('Thesis Review Workflow & E2E Features', () => {
             language: 'sk',
           }),
         });
+      } else {
+        await route.continue();
       }
     });
 

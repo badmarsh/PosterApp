@@ -4,16 +4,19 @@ import { NextResponse } from 'next/server'
 // Protect every API route. Asset bytes are workspace-private too.
 const isApiRoute = createRouteMatcher(['/api(.*)'])
 
-export default clerkMiddleware(async (auth, req) => {
-  if (process.env.NEXT_PUBLIC_E2E_TEST === '1' && process.env.NODE_ENV !== 'production') {
-    return NextResponse.next()
-  }
-  
+const handler = clerkMiddleware(async (auth, req) => {
   if (isApiRoute(req)) {
     await auth.protect()
   }
   return NextResponse.next()
 })
+
+export default function middleware(req: any, ev: any) {
+  if (process.env.NEXT_PUBLIC_E2E_TEST === '1' && process.env.NODE_ENV !== 'production') {
+    return NextResponse.next()
+  }
+  return handler(req, ev)
+}
 
 export const config = {
   matcher: [

@@ -9,6 +9,11 @@ import { useThesisReviewStore, type ThesisReviewRecord } from "@/components/thes
 import type { Card } from "@/lib/poster-types"
 import type { Collaborator } from "./types"
 import { jobQueue } from "@/lib/job-queue"
+import {
+  hydrateReviewIntoYDoc,
+  extractReviewFromYDoc,
+  getGranularReviewStructure,
+} from "@/lib/ai/yjs-granular-sync"
 
 const COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#8b5cf6", "#d946ef"]
 
@@ -194,13 +199,54 @@ export function useYjs(workspaceId: string) {
       }
     })
 
+    // Granular Yjs synchronization for thesis reviews
+    const bindGranularReview = (reviewId: string) => {
+      if (!ydoc || !reviewId) return () => {}
+      const { metadataMap, findingsMap, findingOrderArray, reportingMap, decisionsMap } =
+        getGranularReviewStructure(ydoc, reviewId)
+
+      const handleGranularChange = (event: Y.YMapEvent<string> | Y.YArrayEvent<string>) => {
+        if (event.transaction.local || event.transaction.origin === "local") return
+        const fallback = useThesisReviewStore.getState().activeReview ?? undefined
+        const updated = extractReviewFromYDoc(ydoc!, reviewId, fallback)
+        useThesisReviewStore.getState()._syncReviewFromYjs(updated)
+      }
+
+      metadataMap.observe(handleGranularChange)
+      findingsMap.observe(handleGranularChange)
+      findingOrderArray.observe(handleGranularChange as any)
+      reportingMap.observe(handleGranularChange)
+      decisionsMap.observe(handleGranularChange)
+
+      return () => {
+        metadataMap.unobserve(handleGranularChange)
+        findingsMap.unobserve(handleGranularChange)
+        findingOrderArray.unobserve(handleGranularChange as any)
+        reportingMap.unobserve(handleGranularChange)
+        decisionsMap.unobserve(handleGranularChange)
+      }
+    }
+
     // Listen for local Thesis Review changes and update Yjs
     let lastActiveReview: ThesisReviewRecord | null = useThesisReviewStore.getState().activeReview
+    let unbindGranular: (() => void) | null = null
+
+    if (lastActiveReview) {
+      unbindGranular = bindGranularReview(lastActiveReview.id)
+    }
+
     unsubscribeThesisStore = useThesisReviewStore.subscribe((state) => {
       const active = state.activeReview
       if (active !== lastActiveReview) {
+        if (active?.id !== lastActiveReview?.id) {
+          unbindGranular?.()
+          if (active) {
+            unbindGranular = bindGranularReview(active.id)
+          }
+        }
         lastActiveReview = active
         if (active && ydoc) {
+          hydrateReviewIntoYDoc(ydoc, active, "local")
           ydoc.transact(() => {
             const currentStr = thesisReviewsMap.get(active.id)
             const newStr = JSON.stringify(active)
@@ -247,6 +293,7 @@ export function useYjs(workspaceId: string) {
         currentYCards.unobserve(currentObserver)
       }
       thesisReviewsMap.unobserve(thesisObserver)
+      unbindGranular?.()
       unsubscribeZustand?.()
       unsubscribeThesisStore?.()
       unsubscribeJobs?.()
