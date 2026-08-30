@@ -36,11 +36,15 @@ export interface ScholarPaper {
   paperId: string
   title: string
   year?: number | null
+  venue?: string | null
   authors: { authorId: string; name: string }[]
   abstract?: string | null
   citationCount?: number
+  influentialCitationCount?: number
   externalIds?: { DOI?: string; ArXiv?: string }
   url?: string
+  openAccessPdf?: { url?: string } | null
+  tldr?: { text?: string } | null
 }
 
 export interface ScholarAuthor {
@@ -191,7 +195,7 @@ export async function searchPaperByTitle(
     {
       query: cleanQuery,
       limit: String(limit),
-      fields: "paperId,title,year,authors,abstract,citationCount,externalIds,url",
+      fields: "paperId,title,year,venue,authors,abstract,tldr,citationCount,influentialCitationCount,openAccessPdf,externalIds,url",
     },
     signal
   )
@@ -212,7 +216,7 @@ export async function fetchPaperDetails(
   const res = await ssFetch<ScholarPaper>(
     `/paper/${encodeURIComponent(paperId)}`,
     {
-      fields: "paperId,title,year,authors,abstract,citationCount,externalIds,url",
+      fields: "paperId,title,year,venue,authors,abstract,tldr,citationCount,influentialCitationCount,openAccessPdf,externalIds,url",
     },
     signal
   )

@@ -49,6 +49,8 @@ export interface ThesisMetadata {
   grade?: string
   recommendation?: string
   academicYear?: string
+  targetVenue?: string
+  reviewKind?: "thesis" | "paper" | "grant"
 }
 
 export interface ThesisLevelProfile {

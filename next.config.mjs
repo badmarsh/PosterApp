@@ -49,9 +49,9 @@ const nextConfig = {
   serverExternalPackages: ["yjs"],
   experimental: {
     serverActions: {
-      bodySizeLimit: "50mb",
+      bodySizeLimit: "210mb",
     },
-    proxyClientMaxBodySize: "50mb",
+    proxyClientMaxBodySize: "210mb",
   },
   async headers() {
     return [

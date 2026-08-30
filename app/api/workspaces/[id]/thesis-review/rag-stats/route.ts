@@ -13,9 +13,12 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
+import * as fs from "fs"
+import * as path from "path"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { searchHybrid, rerankChunks } from "@/lib/ai/vector-rag"
+import { retrieveForCriterion } from "@/lib/ai/vector-rag"
+import { getEmbeddingCacheStats } from "@/lib/ai/local-embeddings"
 
 // ---------------------------------------------------------------------------
 // GET — index diagnostics
@@ -58,9 +61,14 @@ export async function GET(
 
   const totalChunks = rows.reduce((s, r) => s + Number(r.chunkCount), 0)
   const totalEmbedded = rows.reduce((s, r) => s + Number(r.embeddedCount), 0)
+  // Weighted by each document's chunk count. Averaging the per-document
+  // averages directly (as before) skews the result toward documents with
+  // fewer chunks whenever chunk counts differ significantly across documents
+  // — e.g. one 5-chunk doc averaging 1000 tok/chunk and one 500-chunk doc
+  // averaging 100 tok/chunk would previously report ~550 instead of ~109.
   const avgTokens =
-    rows.length > 0
-      ? Math.round(rows.reduce((s, r) => s + r.avgTokens, 0) / rows.length)
+    totalChunks > 0
+      ? Math.round(rows.reduce((s, r) => s + r.avgTokens * Number(r.chunkCount), 0) / totalChunks)
       : 0
 
   // Check if HNSW index exists
@@ -71,7 +79,7 @@ export async function GET(
   `
   const hnswReady = indexCheck.length > 0
 
-  // Resolve IngestFile names for display
+  // Resolve IngestFile names and detected topics for display
   const docIds = rows.map((r) => r.documentId)
   const ingestFiles =
     docIds.length > 0
@@ -83,9 +91,49 @@ export async function GET(
   const nameById: Record<string, string> = {}
   for (const f of ingestFiles) nameById[f.id] = f.name
 
+  // Detect document topic / title from DocumentChunk headings or source markdown
+  const topicById: Record<string, string> = {}
+  if (docIds.length > 0) {
+    try {
+      const docTopics = await prisma.$queryRaw<Array<{ documentId: string; heading: string }>>`
+        SELECT DISTINCT ON ("documentId") "documentId", "heading"
+        FROM "DocumentChunk"
+        WHERE "workspaceId" = ${workspaceId}
+          AND "heading" IS NOT NULL
+          AND LENGTH(TRIM("heading")) > 4
+        ORDER BY "documentId", "createdAt" ASC
+      `
+      for (const dt of docTopics) {
+        if (dt.heading && dt.heading.trim().length > 3) {
+          topicById[dt.documentId] = dt.heading.trim()
+        }
+      }
+    } catch {}
+
+    // Fallback: check sources/<docId>.md
+    for (const docId of docIds) {
+      if (!topicById[docId]) {
+        try {
+          const srcPath = path.join(process.cwd(), "workspaces", workspaceId, "sources", `${docId}.md`)
+          if (fs.existsSync(srcPath)) {
+            const raw = fs.readFileSync(srcPath, "utf-8").slice(0, 4000)
+            const match = raw.match(/^#\s+(.+)$/m) || raw.match(/^[A-ZÁ-Ž0-9\s]{6,80}$/m)
+            if (match) {
+              const cand = (match[1] || match[0]).trim()
+              if (cand.length > 4 && !/^zaverecna\s+prace?$/i.test(cand)) {
+                topicById[docId] = cand
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+  }
+
   const documents = rows.map((r) => ({
     documentId: r.documentId,
     name: nameById[r.documentId] ?? r.documentId,
+    detectedTopic: topicById[r.documentId] ?? null,
     chunkCount: Number(r.chunkCount),
     embeddedCount: Number(r.embeddedCount),
     avgTokens: r.avgTokens,
@@ -101,6 +149,7 @@ export async function GET(
     hnswIndexReady: hnswReady,
     embeddingModel: "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
     embeddingDimensions: 384,
+    embeddingCacheStats: getEmbeddingCacheStats(),
     documents,
   })
 }
@@ -115,8 +164,12 @@ export async function POST(
 ) {
   const { id: workspaceId } = await params
 
-  const authError = await requireWorkspaceEditor(req, workspaceId)
-  if (authError) return authError
+  try {
+    await requireWorkspaceEditor(workspaceId)
+  } catch (err) {
+    if (err instanceof Response) return err
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
   const body = await req.json().catch(() => ({}))
   const query = typeof body.query === "string" ? body.query.trim() : ""
@@ -128,15 +181,19 @@ export async function POST(
     return NextResponse.json({ error: "query too long" }, { status: 400 })
   }
 
-  const raw = await searchHybrid(workspaceId, query, 10)
-  const reranked = await rerankChunks(query, raw)
+  const chunks = await retrieveForCriterion(workspaceId, query, {
+    topK: 5,
+    lambda: 0.7,
+    useHyDE: true,
+    compress: false, // don't compress in preview so user sees full chunk
+  })
 
-  const results = reranked.slice(0, 5).map((c) => ({
+  const results = chunks.map((c) => ({
     id: c.id,
     heading: c.heading,
     snippet: c.content.slice(0, 300),
     similarity: Math.round((c.relevanceScore ?? 0) * 1000) / 1000,
-    tokens: (c as any).tokens ?? null,
+    tokens: c.tokens ?? null,
   }))
 
   return NextResponse.json({ query, results })

@@ -104,7 +104,7 @@ export function normalizeHeading(value: string): string {
 /**
  * Classify a section based on its heading and content.
  */
-export function classifySectionKind(heading: string, content: string): SectionKind {
+export function classifySectionKind(heading: string, content: string = ""): SectionKind {
   const norm = normalizeHeading(heading)
 
   // Appendix check first
@@ -724,10 +724,11 @@ export function buildFullGenerationContext(
 export async function loadThesisContext(options: {
   workspaceId: string
   thesisMetadata: ThesisMetadata
+  sourceFileId?: string
   focusSections?: string[]
   maxChars?: number
 }): Promise<ThesisRAGContext> {
-  const { workspaceId, maxChars = 120_000 } = options
+  const { workspaceId, sourceFileId, maxChars = 120_000 } = options
   const sourcesDir = path.join(WORKSPACES_DIR, workspaceId, "sources")
 
   if (!fs.existsSync(sourcesDir)) {
@@ -743,7 +744,15 @@ export async function loadThesisContext(options: {
   }
 
   const files = await fs.promises.readdir(sourcesDir)
-  const mdFiles = files.filter((f) => f.endsWith(".md")).sort()
+  let mdFiles = files.filter((f) => f.endsWith(".md")).sort()
+
+  if (sourceFileId) {
+    const cleanId = sourceFileId.replace(/\.(md|pdf)$/i, "")
+    const matched = mdFiles.filter((f) => f.replace(/\.md$/i, "") === cleanId || f.includes(cleanId))
+    if (matched.length > 0) {
+      mdFiles = matched
+    }
+  }
 
   if (mdFiles.length === 0) {
     return {

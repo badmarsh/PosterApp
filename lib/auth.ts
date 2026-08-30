@@ -38,7 +38,11 @@ export async function requireWorkspaceEditor(workspaceId: string) {
   return access
 }
 
-/** @deprecated Prefer requireWorkspaceAccess or requireWorkspaceEditor. */
 export async function requireWorkspaceOwner(workspaceId: string) {
-  return requireWorkspaceEditor(workspaceId)
+  const access = await requireWorkspaceAccess(workspaceId)
+  if (access.role !== "owner") {
+    throw apiError("WORKSPACE_FORBIDDEN", "Only workspace owners can perform this action", 403)
+  }
+  return access
 }
+

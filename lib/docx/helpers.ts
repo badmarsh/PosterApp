@@ -1,4 +1,5 @@
 import { TextRun, Paragraph } from "docx"
+import { sanitizeXmlString } from "@/lib/security"
 
 export async function fetchImageBufferAndDimensions(url: string): Promise<{ buffer: ArrayBuffer; width: number; height: number }> {
   // If the url starts with /api/workspaces, we need to make sure we include the origin since it's client side
@@ -47,19 +48,19 @@ export function parseMarkdownToDocxParagraphs(text: string): Paragraph[] {
     
     boldParts.forEach((part, index) => {
       if (index % 2 === 1) { 
-        runs.push(new TextRun({ text: part, bold: true }))
+        runs.push(new TextRun({ text: sanitizeXmlString(part), bold: true }))
       } else {
         const italicParts = part.split(/(?<!\*)\*([^*]+)\*(?!\*)/)
         italicParts.forEach((iPart, iIndex) => {
-          if (iIndex % 2 === 1) {
-            runs.push(new TextRun({ text: iPart, italics: true }))
+          if (iIndex % 2 === 1) { 
+            runs.push(new TextRun({ text: sanitizeXmlString(iPart), italics: true }))
           } else if (iPart) {
              const codeParts = iPart.split(/`([^`]+)`/)
              codeParts.forEach((cPart, cIndex) => {
                if (cIndex % 2 === 1) {
-                 runs.push(new TextRun({ text: cPart, font: "Courier New" }))
+                 runs.push(new TextRun({ text: sanitizeXmlString(cPart), font: "Courier New" }))
                } else if (cPart) {
-                 runs.push(new TextRun({ text: cPart }))
+                 runs.push(new TextRun({ text: sanitizeXmlString(cPart) }))
                }
              })
           }

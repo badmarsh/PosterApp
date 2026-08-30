@@ -1330,6 +1330,8 @@ export function PosterPreview() {
     }))
   )
 
+  const activeOutputType = (project.outputs?.find((o) => o.id === project.activeOutputId)?.outputType ?? "poster") as OutputType
+
   useEffect(() => {
     if (!autoCompile) return
     const t = setTimeout(() => {
@@ -1347,68 +1349,71 @@ export function PosterPreview() {
     <section className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden bg-muted/30">
       {/* Output type tab bar */}
       <OutputTabBar />
-      {/* Header bar */}
-      <div className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-card px-3">
-        <div className="flex items-center gap-2">
-          <span className="text-[12px] font-semibold text-foreground">Structure</span>
-        </div>
+      
+      {/* Header bar (only for poster, slides, paper) */}
+      {activeOutputType !== "thesis-review" && (
+        <div className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-card px-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-semibold text-foreground">Structure</span>
+          </div>
 
-        {/* Right side: compile button */}
-        <div className="flex items-center h-7 rounded border border-border bg-card shadow-sm overflow-hidden">
-          <button
-            onClick={() => {
-              if (autoCompile) {
-                setAutoCompile(false)
-              } else {
-                compileProject(lastCompileFormat)
-              }
-            }}
-            disabled={compiling && !autoCompile}
-            className={cn(
-              "flex items-center gap-1.5 px-3 h-full text-[11px] font-semibold transition-colors disabled:opacity-50",
-              autoCompile 
-                ? "bg-primary/10 text-primary hover:bg-primary/20" 
-                : "bg-card text-foreground hover:bg-muted",
-              (!autoCompile && compileOk === true) && "text-emerald-600 dark:text-emerald-400",
-              (!autoCompile && compileOk === false) && "text-destructive"
-            )}
-          >
-            {autoCompile ? (
-              <>
-                <RefreshCw className={cn("size-3", compiling && "animate-spin")} />
-                Live Preview
-              </>
-            ) : (
-              <>
-                {compiling ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />}
-                Compile
-              </>
-            )}
-          </button>
-          <div className="w-[1px] h-full bg-border" />
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              disabled={compiling || isSwitchingProject}
+          {/* Right side: compile button */}
+          <div className="flex items-center h-7 rounded border border-border bg-card shadow-sm overflow-hidden">
+            <button
+              onClick={() => {
+                if (autoCompile) {
+                  setAutoCompile(false)
+                } else {
+                  compileProject(lastCompileFormat)
+                }
+              }}
+              disabled={compiling && !autoCompile}
               className={cn(
-                "flex items-center justify-center px-1.5 h-full transition-colors",
-                autoCompile ? "bg-primary/10 text-primary hover:bg-primary/20" : "bg-card hover:bg-muted text-muted-foreground"
+                "flex items-center gap-1.5 px-3 h-full text-[11px] font-semibold transition-colors disabled:opacity-50",
+                autoCompile 
+                  ? "bg-primary/10 text-primary hover:bg-primary/20" 
+                  : "bg-card text-foreground hover:bg-muted",
+                (!autoCompile && compileOk === true) && "text-emerald-600 dark:text-emerald-400",
+                (!autoCompile && compileOk === false) && "text-destructive"
               )}
             >
-              <ChevronDownIcon className="size-3" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => setAutoCompile(true)} className="gap-2">
-                <RefreshCw className="size-3 text-muted-foreground" />
-                Live Preview Mode
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setAutoCompile(false)} className="gap-2">
-                <Play className="size-3 text-muted-foreground" />
-                Manual Compile Mode
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              {autoCompile ? (
+                <>
+                  <RefreshCw className={cn("size-3", compiling && "animate-spin")} />
+                  Live Preview
+                </>
+              ) : (
+                <>
+                  {compiling ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />}
+                  Compile
+                </>
+              )}
+            </button>
+            <div className="w-[1px] h-full bg-border" />
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                disabled={compiling || isSwitchingProject}
+                className={cn(
+                  "flex items-center justify-center px-1.5 h-full transition-colors",
+                  autoCompile ? "bg-primary/10 text-primary hover:bg-primary/20" : "bg-card hover:bg-muted text-muted-foreground"
+                )}
+              >
+                <ChevronDownIcon className="size-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setAutoCompile(true)} className="gap-2">
+                  <RefreshCw className="size-3 text-muted-foreground" />
+                  Live Preview Mode
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setAutoCompile(false)} className="gap-2">
+                  <Play className="size-3 text-muted-foreground" />
+                  Manual Compile Mode
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Tab content */}
       {showLatexSource ? (

@@ -1,0 +1,158 @@
+import { describe, it, expect } from "vitest"
+import {
+  sanitizeXmlString,
+  sanitizeFilename,
+  safeContentDisposition,
+  isPrivateOrReservedHost,
+  assertSafeExternalUrl,
+  safeApiError,
+} from "@/lib/security"
+
+describe("lib/security", () => {
+  describe("sanitizeXmlString", () => {
+    it("handles null, undefined, and empty string safely", () => {
+      expect(sanitizeXmlString("")).toBe("")
+      expect(sanitizeXmlString(null as any)).toBe("")
+      expect(sanitizeXmlString(undefined as any)).toBe("")
+    })
+
+    it("strips XML 1.0 illegal control characters while preserving valid characters", () => {
+      const input = "Hello\x00World\x08!\x0BHow\x0Care\x1Fyou?\nLine 2\tTabbed\r\nLine 3"
+      const cleaned = sanitizeXmlString(input)
+
+      expect(cleaned).toBe("HelloWorld!Howareyou?\nLine 2\tTabbed\r\nLine 3")
+      expect(cleaned).not.toContain("\x00")
+      expect(cleaned).not.toContain("\x08")
+      expect(cleaned).not.toContain("\x0B")
+      expect(cleaned).not.toContain("\x0C")
+      expect(cleaned).not.toContain("\x1F")
+    })
+
+    it("preserves unicode Slovak/Czech characters and accents", () => {
+      const input = "Prírodovedecká fakulta · Katedra Fyziky (Úspešné hodnotenie: A)"
+      expect(sanitizeXmlString(input)).toBe(input)
+    })
+  })
+
+  describe("sanitizeFilename", () => {
+    it("returns default fallback for empty or whitespace-only input", () => {
+      expect(sanitizeFilename("")).toBe("file")
+      expect(sanitizeFilename("   ")).toBe("file")
+      expect(sanitizeFilename("", "custom_default.pdf")).toBe("custom_default.pdf")
+    })
+
+    it("removes directory traversal path sequences", () => {
+      expect(sanitizeFilename("../../../etc/passwd")).toBe("passwd")
+      expect(sanitizeFilename("..\\..\\Windows\\System32\\cmd.exe")).toBe("cmd.exe")
+      expect(sanitizeFilename("folder/nested/name.png")).toBe("name.png")
+    })
+
+    it("strips illegal characters and control characters", () => {
+      expect(sanitizeFilename("my:file<name>*?.pdf")).toBe("my_file_name_.pdf")
+      expect(sanitizeFilename("paper\x00title.pdf")).toBe("papertitle.pdf")
+    })
+
+    it("safely prefixes reserved Windows filenames", () => {
+      expect(sanitizeFilename("CON.txt")).toBe("_CON.txt")
+      expect(sanitizeFilename("aux.pdf")).toBe("_aux.pdf")
+      expect(sanitizeFilename("NUL")).toBe("_NUL")
+      expect(sanitizeFilename("COM1.png")).toBe("_COM1.png")
+      expect(sanitizeFilename("LPT2.tex")).toBe("_LPT2.tex")
+    })
+
+    it("truncates excessively long filenames while preserving extension", () => {
+      const veryLong = "a".repeat(300) + ".pdf"
+      const result = sanitizeFilename(veryLong)
+      expect(result.length).toBeLessThanOrEqual(128)
+      expect(result.endsWith(".pdf")).toBe(true)
+    })
+  })
+
+  describe("safeContentDisposition", () => {
+    it("generates valid standard ASCII and UTF-8 encoded Content-Disposition header", () => {
+      const header = safeContentDisposition("posudok-Ján_Novák.pdf", "attachment")
+      expect(header).toContain('attachment; filename="posudok-Jan_Novak.pdf"')
+      expect(header).toContain("filename*=UTF-8''posudok-J%C3%A1n_Nov%C3%A1k.pdf")
+    })
+
+    it("strips CR/LF characters to prevent HTTP response header injection", () => {
+      const header = safeContentDisposition("evil\r\nSet-Cookie: sessionId=123\r\n.pdf", "attachment")
+      expect(header).not.toContain("\r")
+      expect(header).not.toContain("\n")
+    })
+  })
+
+  describe("isPrivateOrReservedHost", () => {
+    it("flags localhost and local loopback as private", () => {
+      expect(isPrivateOrReservedHost("localhost")).toBe(true)
+      expect(isPrivateOrReservedHost("127.0.0.1")).toBe(true)
+      expect(isPrivateOrReservedHost("127.1.2.3")).toBe(true)
+      expect(isPrivateOrReservedHost("::1")).toBe(true)
+      expect(isPrivateOrReservedHost("0.0.0.0")).toBe(true)
+    })
+
+    it("flags private RFC 1918 subnets as private", () => {
+      expect(isPrivateOrReservedHost("10.0.0.1")).toBe(true)
+      expect(isPrivateOrReservedHost("10.255.255.254")).toBe(true)
+      expect(isPrivateOrReservedHost("172.16.0.1")).toBe(true)
+      expect(isPrivateOrReservedHost("172.31.255.254")).toBe(true)
+      expect(isPrivateOrReservedHost("192.168.1.1")).toBe(true)
+      expect(isPrivateOrReservedHost("192.168.0.254")).toBe(true)
+    })
+
+    it("flags cloud metadata (169.254.169.254) as private (SSRF protection)", () => {
+      expect(isPrivateOrReservedHost("169.254.169.254")).toBe(true)
+      expect(isPrivateOrReservedHost("instance-data")).toBe(true)
+      expect(isPrivateOrReservedHost("metadata.google.internal")).toBe(true)
+    })
+
+    it("flags local / internal domain names as private", () => {
+      expect(isPrivateOrReservedHost("my-server.local")).toBe(true)
+      expect(isPrivateOrReservedHost("internal.corp.internal")).toBe(true)
+      expect(isPrivateOrReservedHost("router.home.arpa")).toBe(true)
+    })
+
+    it("allows public internet hostnames and public IPs", () => {
+      expect(isPrivateOrReservedHost("arxiv.org")).toBe(false)
+      expect(isPrivateOrReservedHost("api.crossref.org")).toBe(false)
+      expect(isPrivateOrReservedHost("8.8.8.8")).toBe(false)
+      expect(isPrivateOrReservedHost("1.1.1.1")).toBe(false)
+    })
+  })
+
+  describe("assertSafeExternalUrl", () => {
+    it("allows valid public HTTPS and HTTP URLs", () => {
+      const url1 = assertSafeExternalUrl("https://arxiv.org/pdf/2301.12345.pdf")
+      expect(url1.hostname).toBe("arxiv.org")
+
+      const url2 = assertSafeExternalUrl("http://example.com/paper.pdf")
+      expect(url2.hostname).toBe("example.com")
+    })
+
+    it("rejects non-HTTP protocols", () => {
+      expect(() => assertSafeExternalUrl("ftp://example.com/file.pdf")).toThrow("Unsupported protocol")
+      expect(() => assertSafeExternalUrl("file:///etc/passwd")).toThrow("Unsupported protocol")
+      expect(() => assertSafeExternalUrl("javascript:alert(1)")).toThrow("Unsupported protocol")
+    })
+
+    it("rejects SSRF attempts targeting private or reserved hosts", () => {
+      expect(() => assertSafeExternalUrl("http://localhost:3000/api")).toThrow("SSRF protection")
+      expect(() => assertSafeExternalUrl("http://127.0.0.1:8080/admin")).toThrow("SSRF protection")
+      expect(() => assertSafeExternalUrl("http://169.254.169.254/latest/meta-data/")).toThrow("SSRF protection")
+      expect(() => assertSafeExternalUrl("http://192.168.1.1/setup")).toThrow("SSRF protection")
+      expect(() => assertSafeExternalUrl("http://10.0.0.5/secrets")).toThrow("SSRF protection")
+    })
+  })
+
+  describe("safeApiError", () => {
+    it("produces standardized JSON error responses with default status 500", async () => {
+      const res = safeApiError("Something went wrong", 500, "INTERNAL_ERROR")
+      expect(res.status).toBe(500)
+      const json = await res.json()
+      expect(json).toEqual({
+        error: "Something went wrong",
+        code: "INTERNAL_ERROR",
+      })
+    })
+  })
+})

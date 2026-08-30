@@ -243,7 +243,7 @@ export async function POST(
     if (err instanceof Response) return err
     console.error("Structure generation failed:", err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to generate structure" },
+      { error: "Failed to generate structure" },
       { status: 500 }
     )
   }

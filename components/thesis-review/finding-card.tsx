@@ -58,6 +58,7 @@ const SEVERITY_CLASSES: Record<ReviewSeverity, string> = {
   major: "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30",
   minor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
   suggestion: "bg-muted text-muted-foreground border-muted-foreground/30",
+  info: "bg-muted/60 text-muted-foreground border-muted-foreground/20",
 }
 
 const STATUS_ICONS: Record<FindingStatus, any> = {
@@ -207,6 +208,49 @@ export function FindingCard({
           <Badge variant="outline" className="text-[10px] uppercase font-mono tracking-wider">
             {finding.category}
           </Badge>
+
+          {/* Epistemic Status badge */}
+          {finding.epistemicStatus && (
+            <Badge
+              variant="outline"
+              className={`text-[9px] font-medium py-0 px-1.5 ${
+                finding.epistemicStatus === "SUPPORTED_FACT"
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                  : finding.epistemicStatus === "SUPPORTED_INTERPRETATION"
+                  ? "bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/30"
+                  : finding.epistemicStatus === "MISSING_EVIDENCE"
+                  ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                  : finding.epistemicStatus === "REQUIRES_HUMAN_VERIFICATION"
+                  ? "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30"
+                  : finding.epistemicStatus === "POSSIBLE_RISK"
+                  ? "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30"
+                  : "bg-muted text-muted-foreground border-border"
+              }`}
+              title={
+                finding.epistemicStatus === "SUPPORTED_FACT"
+                  ? "Doložený fakt: overený priamy citát z rukopisu"
+                  : finding.epistemicStatus === "SUPPORTED_INTERPRETATION"
+                  ? "Interpretácia doložená textom práce"
+                  : finding.epistemicStatus === "MISSING_EVIDENCE"
+                  ? "Chýbajúci podklad: v dostupnom texte nebolo možné overiť"
+                  : finding.epistemicStatus === "REQUIRES_HUMAN_VERIFICATION"
+                  ? "Vyžaduje overenie recenzentom v origináli"
+                  : "Hodnotenie recenzenta"
+              }
+            >
+              {finding.epistemicStatus === "SUPPORTED_FACT"
+                ? "Doložený fakt ✓"
+                : finding.epistemicStatus === "SUPPORTED_INTERPRETATION"
+                ? "Interpretácia"
+                : finding.epistemicStatus === "MISSING_EVIDENCE"
+                ? "Chýbajúci podklad"
+                : finding.epistemicStatus === "REQUIRES_HUMAN_VERIFICATION"
+                ? "Nutné overiť ⚠"
+                : finding.epistemicStatus === "POSSIBLE_RISK"
+                ? "Možné riziko"
+                : "Úsudok"}
+            </Badge>
+          )}
 
           {/* Audience selector */}
           <Select

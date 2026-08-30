@@ -18,6 +18,8 @@ export function parseArxivId(input: string): string | null {
   return null
 }
 
+import { assertSafeExternalUrl, sanitizeFilename } from "@/lib/security"
+
 export function resolvePdfUrl(input: string): { pdfUrl: string; arxivId?: string; filename: string } {
   const trimmed = input.trim()
   const arxivId = parseArxivId(trimmed)
@@ -27,18 +29,18 @@ export function resolvePdfUrl(input: string): { pdfUrl: string; arxivId?: string
     return {
       arxivId: cleanId,
       pdfUrl: `https://arxiv.org/pdf/${cleanId}.pdf`,
-      filename: `arxiv_${cleanId.replace(/\./g, "_")}.pdf`,
+      filename: sanitizeFilename(`arxiv_${cleanId.replace(/\./g, "_")}.pdf`, "arxiv_paper.pdf"),
     }
   }
 
-  // Direct PDF URL
+  // Direct PDF URL with SSRF protection
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    const urlObj = new URL(trimmed)
+    const urlObj = assertSafeExternalUrl(trimmed)
     const baseName = urlObj.pathname.split("/").pop() || "downloaded_paper.pdf"
     const safeFilename = baseName.endsWith(".pdf") ? baseName : `${baseName}.pdf`
     return {
-      pdfUrl: trimmed,
-      filename: safeFilename.replace(/[^a-zA-Z0-9._-]/g, "_"),
+      pdfUrl: urlObj.href,
+      filename: sanitizeFilename(safeFilename, "downloaded_paper.pdf"),
     }
   }
 

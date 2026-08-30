@@ -24,6 +24,7 @@ import {
   BorderStyle,
 } from "docx"
 import type { ThesisReviewRecord } from "@/components/thesis-review/use-thesis-review-store"
+import { sanitizeXmlString } from "@/lib/security"
 
 export async function generateThesisReviewDocx(
   review: ThesisReviewRecord,
@@ -35,7 +36,7 @@ export async function generateThesisReviewDocx(
   // Document Main Header
   children.push(
     new Paragraph({
-      text: review.reviewKind === "paper" ? "ODBORNÝ POSUDOK VEDECKÉHO ČLÁNKU" : "POSUDOK ZÁVEREČNEJ PRÁCE",
+      text: sanitizeXmlString(review.reviewKind === "paper" ? "ODBORNÝ POSUDOK VEDECKÉHO ČLÁNKU" : "POSUDOK ZÁVEREČNEJ PRÁCE"),
       heading: HeadingLevel.HEADING_1,
       alignment: AlignmentType.CENTER,
       spacing: { after: 200 },
@@ -52,7 +53,7 @@ export async function generateThesisReviewDocx(
         }),
         new TableCell({
           width: { size: 70, type: WidthType.PERCENTAGE },
-          children: [new Paragraph({ text: review.thesisTitle })],
+          children: [new Paragraph({ text: sanitizeXmlString(review.thesisTitle) })],
         }),
       ],
     }),
@@ -62,7 +63,7 @@ export async function generateThesisReviewDocx(
           children: [new Paragraph({ children: [new TextRun({ text: "Autor / Author:", bold: true })] })],
         }),
         new TableCell({
-          children: [new Paragraph({ text: review.studentName })],
+          children: [new Paragraph({ text: sanitizeXmlString(review.studentName) })],
         }),
       ],
     }),
@@ -154,7 +155,7 @@ export async function generateThesisReviewDocx(
     )
     children.push(
       new Paragraph({
-        text: review.summary,
+        text: sanitizeXmlString(review.summary),
         spacing: { after: 200 },
       })
     )
@@ -172,7 +173,7 @@ export async function generateThesisReviewDocx(
     for (const str of review.strengths) {
       children.push(
         new Paragraph({
-          text: `• ${str}`,
+          text: sanitizeXmlString(`• ${str}`),
           spacing: { after: 100 },
         })
       )
@@ -196,14 +197,14 @@ export async function generateThesisReviewDocx(
       children.push(
         new Paragraph({
           children: [
-            new TextRun({ text: `[${(f.category || "general").toUpperCase()}] ${f.title}`, bold: true }),
+            new TextRun({ text: sanitizeXmlString(`[${(f.category || "general").toUpperCase()}] ${f.title}`), bold: true }),
           ],
           spacing: { before: 150, after: 50 },
         })
       )
       children.push(
         new Paragraph({
-          text: f.explanation,
+          text: sanitizeXmlString(f.explanation),
           spacing: { after: 50 },
         })
       )
@@ -212,7 +213,7 @@ export async function generateThesisReviewDocx(
           new Paragraph({
             children: [
               new TextRun({ text: "Odporúčaná náprava: ", bold: true, italics: true }),
-              new TextRun({ text: f.recommendation, italics: true }),
+              new TextRun({ text: sanitizeXmlString(f.recommendation), italics: true }),
             ],
             spacing: { after: 50 },
           })
@@ -223,7 +224,7 @@ export async function generateThesisReviewDocx(
           new Paragraph({
             children: [
               new TextRun({ text: "Poznámka recenzenta: ", bold: true }),
-              new TextRun({ text: f.reviewerNotes }),
+              new TextRun({ text: sanitizeXmlString(f.reviewerNotes) }),
             ],
             spacing: { after: 50 },
           })
@@ -233,7 +234,7 @@ export async function generateThesisReviewDocx(
         children.push(
           new Paragraph({
             children: [
-              new TextRun({ text: `Dôkaz v texte: "${f.evidence[0].quote}"`, italics: true, color: "555555" }),
+              new TextRun({ text: sanitizeXmlString(`Dôkaz v texte: "${f.evidence[0].quote}"`), italics: true, color: "555555" }),
             ],
             spacing: { after: 100 },
           })
@@ -253,7 +254,7 @@ export async function generateThesisReviewDocx(
     for (const f of minorFindings) {
       children.push(
         new Paragraph({
-          text: `• [${f.category || "general"}] ${f.title}: ${f.explanation}`,
+          text: sanitizeXmlString(`• [${f.category || "general"}] ${f.title}: ${f.explanation}`),
           spacing: { after: 80 },
         })
       )
@@ -273,15 +274,15 @@ export async function generateThesisReviewDocx(
       children.push(
         new Paragraph({
           children: [
-            new TextRun({ text: `${sec.criterionId || sec.sectionId}: `, bold: true }),
-            new TextRun({ text: `(Známka: ${sec.rating || "---"})`, italics: true }),
+            new TextRun({ text: sanitizeXmlString(`${sec.criterionId || sec.sectionId}: `), bold: true }),
+            new TextRun({ text: sanitizeXmlString(`(Známka: ${sec.rating || "---"})`), italics: true }),
           ],
           spacing: { before: 150, after: 50 },
         })
       )
       children.push(
         new Paragraph({
-          text: sec.text,
+          text: sanitizeXmlString(sec.text),
           spacing: { after: 100 },
         })
       )
@@ -301,7 +302,7 @@ export async function generateThesisReviewDocx(
     questions.forEach((q: string, idx: number) => {
       children.push(
         new Paragraph({
-          text: `${idx + 1}. ${q}`,
+          text: sanitizeXmlString(`${idx + 1}. ${q}`),
           spacing: { after: 80 },
         })
       )
@@ -349,7 +350,7 @@ export async function generateThesisReviewDocx(
     )
     children.push(
       new Paragraph({
-        text: review.confidentialComments,
+        text: sanitizeXmlString(review.confidentialComments),
         spacing: { after: 200 },
       })
     )

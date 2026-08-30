@@ -5,9 +5,9 @@ import JSZip from "jszip"
 import fs from "node:fs/promises"
 import path from "node:path"
 import { safeJsonParse } from "@/lib/db-helpers"
-import type { Project, OutputConfig } from "@/lib/poster-types"
-import { resolveOutputMetadata } from "@/lib/poster-types"
+import { type Project, type OutputConfig, resolveOutputMetadata } from "@/lib/poster-types"
 import { generateFullTemplate } from "@/lib/latex"
+import { safeContentDisposition, sanitizeFilename } from "@/lib/security"
 
 function parseDbCard(c: any) {
   const defaultTable = { hasHeader: true, caption: "", rows: [] }
@@ -163,22 +163,21 @@ pdflatex -interaction=nonstopmode main.tex
       compressionOptions: { level: 6 },
     })
 
-    const safeName = (workspace.name || "posterapp_project")
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]/g, "_")
-      .slice(0, 40)
+    const safeName = sanitizeFilename(workspace.name || "posterapp_project", "posterapp_project")
+    const exportFilename = `${safeName}_latex_package.zip`
 
     return new NextResponse(zipBuffer, {
       status: 200,
       headers: {
         "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename="${safeName}_latex_package.zip"`,
+        "Content-Disposition": safeContentDisposition(exportFilename, "attachment"),
       },
     })
   } catch (err: unknown) {
+    if (err instanceof Response) return err
     console.error("Export zip error:", err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to generate export package" },
+      { error: "Failed to generate export package" },
       { status: 500 }
     )
   }

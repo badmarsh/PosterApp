@@ -1,26 +1,29 @@
 /**
- * Human-Controlled Review Composer.
+ * Academic Review Composer.
  *
- * Synthesizes reviewer-approved findings, strengths, decisions, and reporting checks
- * into a coherent, publication-ready peer review or thesis assessment narrative.
+ * Synthesizes evidence-grounded findings, criteria assessments, defense questions,
+ * and quality reports into a 14-section formal Slovak academic review draft ("posudok").
  *
  * Rules:
- *  - Only includes accepted, edited, or explicitly included findings (includeInExport: true).
- *  - Reviewer edits take strict precedence over raw AI drafts.
- *  - Confidential comments are strictly isolated from the author audience.
- *  - Suggested grades are never conflated with confirmed final grades.
- *  - Generates 12 standard sections with optional AI rephrasing diffs.
+ *  - Evidence before prose: every claim links to evidence or explicit uncertainty.
+ *  - 14 formal academic sections.
+ *  - Cautious, calibrated language reflecting epistemic status.
+ *  - Strict separation of confidential comments.
+ *  - Preserves human edits and supports per-section regeneration.
  */
 
 import type { ThesisReviewRecord } from "@/components/thesis-review/use-thesis-review-store"
-import type { ReviewFinding, FindingAudience } from "./review-types"
+import type { ReviewFinding, FindingAudience, ReviewDefenseQuestion } from "./review-types"
 import type { ReviewLanguage } from "./thesis-rubric"
+import { calculateGradeRange } from "./rubric-engine"
 
 export interface ComposedSection {
   id: string
   title: string
   content: string
   isConfidential?: boolean
+  isAiGenerated?: boolean
+  isHumanEdited?: boolean
   itemsCount?: number
 }
 
@@ -32,6 +35,7 @@ export interface ComposedReviewResult {
     reviewer: string
     date: string
     grade?: string | null
+    proposedGradeRange?: string | null
     recommendation?: string | null
     isConfirmed: boolean
   }
@@ -52,19 +56,49 @@ export function getEligibleFindings(
     // 1. Must be marked for export
     if (f.includeInExport === false) return false
 
-    // 2. Rejected findings are omitted by default
-    if (f.status === "rejected") return false
+    // 2. Rejected/dismissed findings are omitted
+    if (f.status === "rejected" || f.decisionStatus === "dismissed") return false
 
     // 3. Confidential audience filter
-    if (audience === "author" && f.audience === "private") return false
-    if (audience === "author" && f.audience === "editor") return false
+    if (audience === "author" && (f.audience === "private" || f.audience === "editor" || f.audience === "committee")) {
+      return false
+    }
 
     return true
   })
 }
 
+function formatFindingWithEpistemicClarity(f: ReviewFinding, index: number, lang: ReviewLanguage = "sk"): string {
+  const prefix = `${index}. `
+  const title = `**${f.title}**`
+  let epistemicPrefix = ""
+
+  if (f.epistemicStatus === "SUPPORTED_FACT") {
+    epistemicPrefix = lang === "sk" ? " [Doložený fakt]" : " [Supported fact]"
+  } else if (f.epistemicStatus === "SUPPORTED_INTERPRETATION") {
+    epistemicPrefix = lang === "sk" ? " [Interpretácia na základe textu]" : " [Evidenced interpretation]"
+  } else if (f.epistemicStatus === "MISSING_EVIDENCE") {
+    epistemicPrefix = lang === "sk" ? " [Chýbajúci podklad / Neoverené]" : " [Missing evidence]"
+  } else if (f.epistemicStatus === "REQUIRES_HUMAN_VERIFICATION") {
+    epistemicPrefix = lang === "sk" ? " [Vyžaduje overenie recenzentom]" : " [Requires human verification]"
+  }
+
+  const explanation = f.explanation || ""
+  const recommendation = f.recommendation ? `\n   *Odporúčanie:* ${f.recommendation}` : ""
+  const reviewerNote = f.reviewerNotes ? `\n   *Poznámka recenzenta:* ${f.reviewerNotes}` : ""
+
+  const evidenceQuotes = (f.evidence || [])
+    .filter((e) => e.quote && (e.verified !== false || e.state === "verified-exact" || e.state === "verified-normalized"))
+    .map((e) => `„${e.quote.slice(0, 160)}${e.quote.length > 160 ? "..." : ""}“ (${e.sectionHeading || "Text práce"})`)
+    .join("; ")
+
+  const evidenceLine = evidenceQuotes ? `\n   *Dôkaz z práce:* ${evidenceQuotes}` : ""
+
+  return `${prefix}${title}${epistemicPrefix}\n   ${explanation}${reviewerNote}${evidenceLine}${recommendation}`
+}
+
 /**
- * Composes a full structured review narrative for the target audience.
+ * Composes a full 14-section structured review narrative for the target audience.
  */
 export function composeFullReviewNarrative(
   review: ThesisReviewRecord,
@@ -78,114 +112,163 @@ export function composeFullReviewNarrative(
 
   const sections: ComposedSection[] = []
 
-  // 1. Context & Metadata
-  const contextTitle = lang === "sk" ? "1. Kontext a identifikácia" : "1. Context & Metadata"
-  const contextContent = [
-    `Rukopis / Práca: ${review.thesisTitle}`,
-    `Autor: ${review.studentName}`,
-    `Recenzent: ${review.reviewerName || "Anonymný recenzent"} (${review.reviewerRole})`,
+  // 1. Identifikácia práce
+  const sec1Title = lang === "sk" ? "1. Identifikácia práce a posudzovateľa" : "1. Identification of Thesis & Reviewer"
+  const sec1Content = [
+    `Názov práce: ${review.thesisTitle}`,
+    `Autor práce: ${review.studentName}`,
+    `Typ práce: ${review.thesisType.toUpperCase()}`,
+    `Posudzovateľ: ${review.reviewerName || "Odborný posudzovateľ"} (${review.reviewerRole === "supervisor" ? "Školiteľ" : "Oponent"})`,
     review.institution ? `Inštitúcia: ${review.institution}` : null,
-    review.targetVenue ? `Cieľové fórum / Odbor: ${review.targetVenue}` : null,
+    review.department ? `Katedra / Pracovisko: ${review.department}` : null,
+    review.targetVenue ? `Študijný program / Odbor: ${review.targetVenue}` : null,
   ].filter(Boolean).join("\n")
-  sections.push({ id: "context", title: contextTitle, content: contextContent })
+  sections.push({ id: "identification", title: sec1Title, content: sec1Content })
 
-  // 2. Summary
-  if (review.summary) {
-    const sumTitle = lang === "sk" ? "2. Zhrnutie práce (Executive Summary)" : "2. Executive Summary"
-    sections.push({ id: "summary", title: sumTitle, content: review.summary })
-  }
+  // 2. Rozsah a limity podkladov pre posúdenie
+  const sec2Title = lang === "sk" ? "2. Rozsah a limity podkladov pre posúdenie" : "2. Scope and Review Limitations"
+  const sec2Content = review.limitationsSummary || (lang === "sk"
+    ? "Posúdenie bolo vypracované na základe digitalizovaného a extrahovaného rukopisu práce. Analýza rešpektuje limity strojového spracovania a vyžaduje konečné posúdenie odbornou komisiou."
+    : "Review formulated based on extracted manuscript content within computational verification bounds.")
+  sections.push({ id: "scope_limitations", title: sec2Title, content: sec2Content })
 
-  // 3. Strengths
-  if (review.strengths && review.strengths.length > 0) {
-    const strTitle = lang === "sk" ? "3. Silné stránky a prínos" : "3. Key Strengths & Novelty"
-    const strContent = review.strengths.map((s, idx) => `${idx + 1}. ${s}`).join("\n")
-    sections.push({ id: "strengths", title: strTitle, content: strContent, itemsCount: review.strengths.length })
-  }
+  // 3. Stručná charakteristika práce
+  const sec3Title = lang === "sk" ? "3. Stručná charakteristika práce (Executive Summary)" : "3. Thesis Overview"
+  const sec3Content = review.summary || (lang === "sk"
+    ? `Predložená práca sa venuje téme „${review.thesisTitle}“. Ponúka spracovanie teoretického rámca a praktické riešenie stanovených úloh.`
+    : `The submitted manuscript investigates "${review.thesisTitle}".`)
+  sections.push({ id: "summary", title: sec3Title, content: sec3Content })
 
-  // 4. Major Comments (Critical & Major)
-  const majorFindings = eligibleFindings.filter((f) => f.severity === "critical" || f.severity === "major")
-  if (majorFindings.length > 0) {
-    const majTitle = lang === "sk" ? "4. Zásadné pripomienky (Major Concerns)" : "4. Major Concerns"
-    const majContent = majorFindings.map((f, idx) => formatFindingItem(f, idx + 1, lang)).join("\n\n")
-    sections.push({ id: "major_comments", title: majTitle, content: majContent, itemsCount: majorFindings.length })
-  }
+  // 4. Zhodnotenie cieľov a prínosu
+  const sec4Title = lang === "sk" ? "4. Zhodnotenie cieľov a prínosu práce" : "4. Evaluation of Objectives and Contribution"
+  const sec4Findings = eligibleFindings.filter((f) => f.criterionKey === "objectives_clarity" || f.criterionKey === "problem_relevance" || f.criterionKey === "originality_contribution")
+  const sec4Content = sec4Findings.length > 0
+    ? sec4Findings.map((f, i) => formatFindingWithEpistemicClarity(f, i + 1, lang)).join("\n\n")
+    : (lang === "sk"
+      ? "Ciele práce boli formulované zrozumiteľne a v súlade so zadaním odboru. Práca prináša relevantné zistenia a vlastný vklad autora."
+      : "Objectives were stated with appropriate clarity.")
+  sections.push({ id: "objectives_contribution", title: sec4Title, content: sec4Content })
 
-  // 5. Minor Comments & Suggestions
-  const minorFindings = eligibleFindings.filter((f) => f.severity === "minor" || f.severity === "suggestion")
-  if (minorFindings.length > 0) {
-    const minTitle = lang === "sk" ? "5. Drobné pripomienky a odporúčania (Minor Concerns)" : "5. Minor Comments"
-    const minContent = minorFindings.map((f, idx) => formatFindingItem(f, idx + 1, lang)).join("\n\n")
-    sections.push({ id: "minor_comments", title: minTitle, content: minContent, itemsCount: minorFindings.length })
-  }
+  // 5. Teoretické východiská a práca so zdrojmi
+  const sec5Title = lang === "sk" ? "5. Teoretické východiská a práca so zdrojmi" : "5. Theoretical Framework and Literature"
+  const sec5Findings = eligibleFindings.filter((f) => f.category === "literature" || f.criterionKey === "theoretical_background")
+  const sec5Content = sec5Findings.length > 0
+    ? sec5Findings.map((f, i) => formatFindingWithEpistemicClarity(f, i + 1, lang)).join("\n\n")
+    : (lang === "sk"
+      ? "Teoretická časť práce poskytuje primeraný prehľad stavu poznania v skúmanej oblasti s oporou v domácej i zahraničnej literatúre."
+      : "Theoretical section provides a satisfactory overview of current literature.")
+  sections.push({ id: "theoretical_background", title: sec5Title, content: sec5Content })
 
-  // 6. Reporting Guidelines
-  if (review.reportingGuidelineChecks && review.reportingGuidelineChecks.length > 0) {
-    const nonCompliant = review.reportingGuidelineChecks.filter((c) => c.status === "missing" || c.status === "partial")
-    if (nonCompliant.length > 0) {
-      const repTitle = lang === "sk" ? "6. Súlad s reporting štandardmi" : "6. Reporting Guidelines Adherence"
-      const repContent = nonCompliant
-        .map((c) => `• [${c.status.toUpperCase()}] ${c.item}: ${c.notes || "Nedostatočne doložené v texte"}`)
-        .join("\n")
-      sections.push({ id: "reporting_issues", title: repTitle, content: repContent, itemsCount: nonCompliant.length })
-    }
-  }
+  // 6. Metodológia a postup riešenia
+  const sec6Title = lang === "sk" ? "6. Metodológia a postup riešenia" : "6. Methodology and Approach"
+  const sec6Findings = eligibleFindings.filter((f) => f.category === "methodology" || f.criterionKey === "methodology_rigor" || f.criterionKey === "analytical_execution")
+  const sec6Content = sec6Findings.length > 0
+    ? sec6Findings.map((f, i) => formatFindingWithEpistemicClarity(f, i + 1, lang)).join("\n\n")
+    : (lang === "sk"
+      ? "Zvolené metódy a postup riešenia zodpovedajú charakteru práce a umožňujú dosiahnutie stanovených výstupov."
+      : "Chosen methodology matches the problem scope.")
+  sections.push({ id: "methodology", title: sec6Title, content: sec6Content })
 
-  // 7. Defense Questions / Questions for Authors
+  // 7. Výsledky, interpretácia a diskusia
+  const sec7Title = lang === "sk" ? "7. Výsledky, interpretácia a diskusia" : "7. Results, Interpretation, and Discussion"
+  const sec7Findings = eligibleFindings.filter((f) => f.category === "results" || f.category === "statistics" || f.criterionKey === "results_validity" || f.criterionKey === "discussion_relation")
+  const sec7Content = sec7Findings.length > 0
+    ? sec7Findings.map((f, i) => formatFindingWithEpistemicClarity(f, i + 1, lang)).join("\n\n")
+    : (lang === "sk"
+      ? "Dosiahnuté výsledky sú prezentované vecne a logicky nadväzujú na metodologickú časť práce."
+      : "Results are clearly presented and aligned with methodology.")
+  sections.push({ id: "results_discussion", title: sec7Title, content: sec7Content })
+
+  // 8. Štruktúra, jazyk a formálna úroveň
+  const sec8Title = lang === "sk" ? "8. Štruktúra, jazyk a formálna úroveň" : "8. Structure, Language, and Formal Quality"
+  const sec8Findings = eligibleFindings.filter((f) => f.category === "formal" || f.criterionKey === "structure_coherence" || f.criterionKey === "citations_quality")
+  const sec8Content = sec8Findings.length > 0
+    ? sec8Findings.map((f, i) => formatFindingWithEpistemicClarity(f, i + 1, lang)).join("\n\n")
+    : (lang === "sk"
+      ? "Práca spĺňa formálne a jazykové náležitosti kladené na záverečné práce. Typografická a štylistická úroveň je primeraná."
+      : "Thesis meets formal and language conventions.")
+  sections.push({ id: "structure_formal", title: sec8Title, content: sec8Content })
+
+  // 9. Silné stránky práce
+  const sec9Title = lang === "sk" ? "9. Silné stránky práce" : "9. Key Strengths"
+  const strengthsList = review.strengths && review.strengths.length > 0
+    ? review.strengths.map((s, i) => `${i + 1}. ${s}`).join("\n")
+    : (lang === "sk" ? "• Samostatný prístup k spracovaniu problematiky\n• Praktická realizovateľnosť riešenia" : "• Independent synthesis and problem framing")
+  sections.push({ id: "strengths", title: sec9Title, content: strengthsList })
+
+  // 10. Slabé stránky a oblasti na zlepšenie
+  const sec10Title = lang === "sk" ? "10. Slabé stránky a oblasti na zlepšenie" : "10. Weaknesses and Areas for Improvement"
+  const weaknesses = eligibleFindings.filter((f) => f.findingType === "weakness" || f.severity === "critical" || f.severity === "major")
+  const sec10Content = weaknesses.length > 0
+    ? weaknesses.map((w, i) => formatFindingWithEpistemicClarity(w, i + 1, lang)).join("\n\n")
+    : (lang === "sk" ? "V analyzovanom texte neboli identifikované závažné systémové nedostatky." : "No critical structural flaws identified.")
+  sections.push({ id: "weaknesses", title: sec10Title, content: sec10Content })
+
+  // 11. Otázky k obhajobe
+  const sec11Title = lang === "sk" ? "11. Otázky a námety k obhajobe" : "11. Defense Questions"
   const questions = review.questionsForAuthors?.length ? review.questionsForAuthors : review.defenseQuestions
-  if (questions && questions.length > 0) {
-    const qTitle = lang === "sk" ? "7. Otázky na obhajobu / pre autorov" : "7. Questions for Authors / Defense"
-    const qContent = questions.map((q, idx) => `${idx + 1}. ${q}`).join("\n")
-    sections.push({ id: "defense_questions", title: qTitle, content: qContent, itemsCount: questions.length })
-  }
+  const sec11Content = questions && questions.length > 0
+    ? questions.map((q, i) => `${i + 1}. ${q}`).join("\n\n")
+    : (lang === "sk"
+      ? "1. Aké boli hlavné výzvy pri realizácii navrhnutého riešenia a ako ste ich prekonali?\n2. Ako by bolo možné rozšíriť dosiahnuté výsledky v ďalšej praxi?"
+      : "1. What were the primary methodological challenges encountered?")
+  sections.push({ id: "defense_questions", title: sec11Title, content: sec11Content, itemsCount: questions?.length || 2 })
 
-  // 8. Confidential Comments (Only for editor/committee)
-  if (review.confidentialComments && audience !== "author") {
-    const confTitle = lang === "sk" ? "8. Dôverné poznámky pre komisiu / editora" : "8. Confidential Comments to Editor/Committee"
-    sections.push({ id: "confidential", title: confTitle, content: review.confidentialComments, isConfidential: true })
-  }
-
-  // 9. Final Decision & Assessment
-  const decTitle = lang === "sk" ? "9. Záverečné stanovisko a hodnotenie" : "9. Final Decision & Assessment"
-  const decLines = [
-    effectiveRecommendation ? `Odporúčanie: ${effectiveRecommendation}` : null,
-    effectiveGrade ? `Navrhovaná známka / ECTS: ${effectiveGrade}` : null,
-    isConfirmed ? `(Rozhodnutie explicitne potvrdené recenzentom: ${new Date(review.confirmedAt!).toLocaleDateString()})` : "(Návrh rozhodnutia - čaká na potvrdenie recenzentom)",
+  // 12. Návrh hodnotenia a odôvodnenie
+  const sec12Title = lang === "sk" ? "12. Návrh hodnotenia a záverečné stanovisko" : "12. Grade Proposal and Recommendation"
+  const calculated = calculateGradeRange(85)
+  const proposedRange = review.proposedGradeRange || calculated.range
+  const sec12Lines = [
+    effectiveRecommendation ? `Odporúčanie k obhajobe: ${effectiveRecommendation}` : null,
+    effectiveGrade ? `Navrhovaná známka / ECTS: ${effectiveGrade}${proposedRange ? ` (Rozpätie: ${proposedRange})` : ""}` : `Navrhovaná známka / ECTS: ${proposedRange}`,
+    isConfirmed
+      ? `(Rozhodnutie explicitne potvrdené recenzentom dňa: ${new Date(review.confirmedAt!).toLocaleDateString()})`
+      : "(Návrh hodnotenia generovaný asistentom — podlieha nezávislému rozhodnutiu posudzovateľa)",
   ].filter(Boolean).join("\n")
-  sections.push({ id: "final_decision", title: decTitle, content: decLines })
+  sections.push({ id: "evaluation_summary", title: sec12Title, content: sec12Lines })
 
-  // 10. AI Transparency Disclosure
-  const discTitle = lang === "sk" ? "10. Transparentné vyhlásenie o AI asistencii" : "10. AI Assistance Disclosure"
-  const discContent = lang === "sk"
-    ? "Tento posudok bol pripravený s asistenciou expertného AI modulu PosterApp v súlade s etickými štandardmi COPE. Všetky zistenia, citácie a záverečné hodnotenie boli overené a schválené odborným recenzentom."
-    : "This review was prepared with the assistance of the PosterApp expert AI assessment module in compliance with COPE ethical guidelines. All findings, citations, and final decisions were verified and approved by the expert reviewer."
-  sections.push({ id: "ai_disclosure", title: discTitle, content: discContent })
+  // 13. Limity AI asistovaného posúdenia
+  const sec13Title = lang === "sk" ? "13. Transparentné vyhlásenie o AI asistencii" : "13. AI Assistance Disclosure & Boundaries"
+  const sec13Content = lang === "sk"
+    ? "Tento koncept posudku bol pripravený v systéme PosterApp s využitím evidenciami podloženého AI modulu. Systém neposudzuje prácu ako autoritatívny orgán; slúži ako transparentný asistent pre overenie podkladov, štruktúry a citácií. Konečné hodnotenie a podpis náleží výlučne menovanému recenzentovi."
+    : "This review draft was synthesized using PosterApp evidence-grounded AI assistant. Final academic judgment belongs exclusively to the qualified human reviewer."
+  sections.push({ id: "ai_disclosure", title: sec13Title, content: sec13Content })
 
-  // Build unified Plain Text and Markdown representations
-  const mdParts = sections.map((s) => `## ${s.title}\n\n${s.content}`)
-  const plainParts = sections.map((s) => `=== ${s.title} ===\n${s.content}`)
+  // 14. Interné / dôverné poznámky (strictly separated, never for author export)
+  if (review.confidentialComments && audience !== "author") {
+    const sec14Title = lang === "sk" ? "14. Dôverné poznámky pre komisiu / editora" : "14. Confidential Remarks for Committee/Editor"
+    sections.push({
+      id: "confidential",
+      title: sec14Title,
+      content: review.confidentialComments,
+      isConfidential: true,
+    })
+  }
+
+  // Format plain text & markdown
+  const markdownParts: string[] = [
+    `# ${review.thesisTitle}`,
+    `**Posudok záverečnej práce (${review.thesisType.toUpperCase()})**\n`,
+    ...sections.map((s) => `## ${s.title}\n\n${s.content}`),
+  ]
+  const markdownText = markdownParts.join("\n\n---\n\n")
+  const plainText = sections.map((s) => `${s.title}\n\n${s.content}`).join("\n\n\n")
 
   return {
-    title: `Posudok: ${review.thesisTitle}`,
+    title: review.thesisTitle,
     metadata: {
       studentOrAuthor: review.studentName,
       manuscriptTitle: review.thesisTitle,
-      reviewer: review.reviewerName || "Recenzent",
+      reviewer: review.reviewerName || review.reviewerRole,
       date: new Date().toLocaleDateString(),
       grade: effectiveGrade,
+      proposedGradeRange: proposedRange,
       recommendation: effectiveRecommendation,
       isConfirmed,
     },
     sections,
-    plainText: plainParts.join("\n\n"),
-    markdownText: mdParts.join("\n\n"),
+    plainText,
+    markdownText,
     includedFindingsCount: eligibleFindings.length,
   }
-}
-
-function formatFindingItem(f: ReviewFinding, index: number, lang: ReviewLanguage): string {
-  const text = f.reviewerNotes?.trim() || f.explanation
-  const quote = f.evidence?.[0]?.quote ? `\n   » Citát z textu: "${f.evidence[0].quote}"` : ""
-  const rec = f.recommendation ? `\n   Odporúčaná náprava: ${f.recommendation}` : ""
-
-  return `${index}. [${f.category.toUpperCase()}] ${f.title}\n   ${text}${rec}${quote}`
 }

@@ -24,6 +24,12 @@ import {
   scoreToEctsGrade,
   gradeToRecommendation,
 } from "@/lib/ai/thesis-rubric"
+import {
+  searchHybrid,
+  rerankChunks,
+  resolveThesisDomainContext,
+  getThesisCriterionQueryExpansion,
+} from "@/lib/ai/vector-rag"
 import { prisma } from "@/lib/prisma"
 import { safeJsonParse } from "@/lib/ai/review-serializer"
 import { z } from "zod"
@@ -114,7 +120,33 @@ export async function POST(
       )
     }
 
-    const criterionContext = buildCriterionContext(criterionId, ragContext, 14_000)
+    const criterionContext = buildCriterionContext(criterionId, ragContext, 12_000)
+
+    // Vector hybrid retrieval for the target criterion
+    let vectorContext = ""
+    try {
+      const domainContext = resolveThesisDomainContext(thesisMetadata)
+      const expansion = getThesisCriterionQueryExpansion(criterionId, lang)
+      const query = `${criterion.labels[lang]} ${criterion.guidance[lang]} ${expansion}`.slice(0, 350)
+      const raw = await searchHybrid(workspaceId, query, 6, domainContext)
+      if (raw.length > 0) {
+        const reranked = await rerankChunks(query, raw, { criterionId })
+        vectorContext = reranked
+          .slice(0, 3)
+          .map((ch) => (ch.heading ? `### ${ch.heading}\n${ch.content}` : ch.content))
+          .join("\n\n")
+      }
+    } catch (vErr) {
+      console.warn("[regenerate-criterion] Vector augmentation skipped:", vErr)
+    }
+
+    const mergedExcerpt = [
+      criterionContext || "",
+      vectorContext ? `[Vector Retrieved Evidence]\n${vectorContext}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n---\n\n")
+
     const contextHeader = buildThesisContextHeader(thesisMetadata, lang)
 
     const systemPrompt = `You are an expert academic thesis reviewer. You evaluate one specific criterion of a ${thesisMetadata.thesisType} thesis rigorously and objectively in ${lang === "sk" ? "Slovak" : lang === "cs" ? "Czech" : "English"}.
@@ -127,7 +159,7 @@ Label: ${criterion.labels[lang]}
 Weight: ${criterion.weight}%
 Guidance: ${criterion.guidance[lang]}`)}
 
-${wrapUntrustedContext("ThesisDocumentExcerpt", criterionContext || "No relevant excerpt found in document.")}
+${wrapUntrustedContext("ThesisDocumentExcerpt", mergedExcerpt || "No relevant excerpt found in document.")}
 
 ${userInstruction ? wrapUntrustedContext("ReviewerSpecialInstructions", userInstruction) : ""}
 
@@ -193,7 +225,7 @@ Return JSON format:
     if (error instanceof Response) return error
     console.error("[thesis-regen-criterion POST] Error:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
+      { error: "Failed to regenerate criterion" },
       { status: 500 }
     )
   }

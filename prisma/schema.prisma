@@ -210,6 +210,20 @@ model ThesisReview {
   strengths       String?
   /// Structured review findings with evidence anchors (JSON ReviewFinding[])
   findings        String?
+  /// Source document revision hash at time of analysis
+  sourceRevision  String?
+  /// Rubric version used for evaluation
+  rubricVersion   String?   @default("sk-academic-v1")
+  /// Classified or user-specified academic discipline
+  discipline      String?
+  /// Proposed ECTS grade range (e.g. "A - B")
+  proposedGradeRange String?
+  /// Confidence level of the review (0.0 - 1.0)
+  confidence      Float?
+  /// Overview of source quality and review limitations
+  limitationsSummary String?
+  /// Serialized ReviewAnalysisPlan JSON
+  analysisPlan    String?
   /// "consort" | "prisma" | "strobe" | "ml_reproducibility" | "none"
   reportingStandard String?
   /// Reporting guideline compliance checks (JSON ReportingGuidelineCheck[])

@@ -1,14 +1,18 @@
 /**
- * Academic Connector — unified façade over multiple academic databases.
+ * Academic Connector — Perplexity-style multi-source academic discovery & verification engine.
  *
  * Sources:
- *  1. Semantic Scholar Graph API  (general papers, citations)
- *  2. arXiv API                   (physics, CS, math preprints)
+ *  1. OpenAlex API                (250M+ works, Open Access PDFs, topic tags, citation counts)
+ *  2. Crossref API                (150M+ works, authoritative DOIs, journal volume/issue/pages)
+ *  3. Semantic Scholar Graph API  (citation graph, AI summaries, influential citations)
+ *  4. arXiv API                   (physics, CS, math preprints)
  *
- * Used in thesis-review pipeline to:
- *  - Verify that cited works actually exist with identifier prioritization (DOI -> arXiv -> Title)
- *  - Check source-aware ISO 690 completeness (books, articles, preprints, web resources)
- *  - Distinguish rate limits, timeouts, and service errors from genuine missing citations
+ * Capabilities:
+ *  - Multi-provider parallel consensus search with automatic deduplication
+ *  - Direct DOI & arXiv identifier lookup
+ *  - Open Access PDF direct link retrieval
+ *  - Source-aware ISO 690 completeness & metadata discrepancy auditing
+ *  - 1-Click BibTeX generation for posters and papers
  */
 
 import {
@@ -24,6 +28,8 @@ import {
   type AcademicLookupStatus,
 } from "./semantic-scholar-service"
 import { fetchArxivMetadata, parseArxivId } from "./arxiv-service"
+import { searchOpenAlexWorks, fetchOpenAlexByDoi, type OpenAlexWork } from "./openalex-service"
+import { searchCrossrefWorks, fetchCrossrefByDoi, type CrossrefWork } from "./crossref-service"
 import { extractStructuredReferences, type ExtractedReference } from "@/lib/ai/thesis-context"
 
 // ---------------------------------------------------------------------------
@@ -33,16 +39,22 @@ import { extractStructuredReferences, type ExtractedReference } from "@/lib/ai/t
 export type { AcademicLookupStatus }
 
 export interface AcademicPaperResult {
-  source: "semanticscholar" | "arxiv"
+  source: "semanticscholar" | "arxiv" | "openalex" | "crossref"
   paperId?: string
   title: string
   authors: string[]
   year?: number | null
+  venue?: string | null
+  publisher?: string | null
   abstract?: string | null
+  tldr?: string | null
   doi?: string
   arxivId?: string
   url?: string
+  openAccessPdfUrl?: string
   citationCount?: number
+  influentialCitationCount?: number
+  topics?: string[]
 }
 
 export interface AuthorProfile {
@@ -91,8 +103,16 @@ export interface ThesisCitationAudit {
   }
 }
 
+export interface AcademicSearchOptions {
+  limit?: number
+  yearFrom?: number
+  yearTo?: number
+  domain?: string
+  signal?: AbortSignal
+}
+
 // ---------------------------------------------------------------------------
-// Helpers
+// Conversion Helpers
 // ---------------------------------------------------------------------------
 
 function scholarPaperToResult(p: ScholarPaper): AcademicPaperResult {
@@ -102,11 +122,77 @@ function scholarPaperToResult(p: ScholarPaper): AcademicPaperResult {
     title: p.title,
     authors: p.authors.map((a) => a.name),
     year: p.year,
+    venue: p.venue || undefined,
     abstract: p.abstract,
+    tldr: p.tldr?.text,
     doi: p.externalIds?.DOI,
     arxivId: p.externalIds?.ArXiv,
     url: p.url,
+    openAccessPdfUrl: p.openAccessPdf?.url,
     citationCount: p.citationCount,
+    influentialCitationCount: p.influentialCitationCount,
+  }
+}
+
+function openAlexWorkToResult(w: OpenAlexWork): AcademicPaperResult {
+  return {
+    source: "openalex",
+    paperId: w.id,
+    title: w.title,
+    authors: w.authors,
+    year: w.publicationYear,
+    venue: w.venue,
+    publisher: w.publisher,
+    abstract: w.abstract,
+    doi: w.doi,
+    url: w.landingPageUrl,
+    openAccessPdfUrl: w.openAccessPdfUrl,
+    citationCount: w.citedByCount,
+    topics: w.topics,
+  }
+}
+
+function crossrefWorkToResult(c: CrossrefWork): AcademicPaperResult {
+  return {
+    source: "crossref",
+    title: c.title,
+    authors: c.authors,
+    year: c.publishedYear,
+    venue: c.containerTitle,
+    publisher: c.publisher,
+    doi: c.doi,
+    url: c.url,
+  }
+}
+
+/**
+ * Normalize title string for robust deduplication across databases.
+ */
+function normalizeTitleKey(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .trim()
+}
+
+/**
+ * Merge duplicate paper records from different providers into a single enriched record.
+ */
+function mergePaperRecords(primary: AcademicPaperResult, secondary: AcademicPaperResult): AcademicPaperResult {
+  return {
+    ...primary,
+    venue: primary.venue || secondary.venue,
+    publisher: primary.publisher || secondary.publisher,
+    abstract: primary.abstract || secondary.abstract,
+    tldr: primary.tldr || secondary.tldr,
+    doi: primary.doi || secondary.doi,
+    arxivId: primary.arxivId || secondary.arxivId,
+    openAccessPdfUrl: primary.openAccessPdfUrl || secondary.openAccessPdfUrl,
+    url: primary.openAccessPdfUrl ? primary.url : secondary.url || primary.url,
+    citationCount: Math.max(primary.citationCount || 0, secondary.citationCount || 0) || undefined,
+    topics: primary.topics || secondary.topics,
+    authors: primary.authors.length > 0 ? primary.authors : secondary.authors,
+    year: primary.year || secondary.year,
   }
 }
 
@@ -217,50 +303,136 @@ async function mapConcurrent<T, R>(
 }
 
 // ---------------------------------------------------------------------------
-// Public API
+// Public Multi-Source Search API
 // ---------------------------------------------------------------------------
 
 /**
- * Search for a paper across Semantic Scholar and arXiv with identifier prioritization.
+ * Search for papers across OpenAlex, Semantic Scholar, Crossref, and arXiv in parallel
+ * with consensus deduplication and citation ranking (Perplexity-style).
  */
-export async function searchAcademicPaper(query: string, limit = 5): Promise<AcademicPaperResult[]> {
+export async function searchAcademicPaper(
+  query: string,
+  limit = 5,
+  options?: AcademicSearchOptions
+): Promise<AcademicPaperResult[]> {
   const trimmed = query.trim()
+  if (!trimmed) return []
 
-  // 1. Check if DOI
+  // 1. Direct DOI identifier check
   const doiMatch = trimmed.match(/10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+/i)
   if (doiMatch) {
-    const { paper } = await fetchPaperDetails(`DOI:${doiMatch[0]}`)
-    if (paper) return [scholarPaperToResult(paper)]
+    const doi = doiMatch[0]
+    // Parallel fetch across OpenAlex, Semantic Scholar, and Crossref
+    const [openAlexRes, scholarRes, crossrefRes] = await Promise.allSettled([
+      fetchOpenAlexByDoi(doi, options?.signal),
+      fetchPaperDetails(`DOI:${doi}`, options?.signal),
+      fetchCrossrefByDoi(doi, options?.signal),
+    ])
+
+    const candidateResults: AcademicPaperResult[] = []
+    if (openAlexRes.status === "fulfilled" && openAlexRes.value) {
+      candidateResults.push(openAlexWorkToResult(openAlexRes.value))
+    }
+    if (scholarRes.status === "fulfilled" && scholarRes.value.paper) {
+      candidateResults.push(scholarPaperToResult(scholarRes.value.paper))
+    }
+    if (crossrefRes.status === "fulfilled" && crossrefRes.value) {
+      candidateResults.push(crossrefWorkToResult(crossrefRes.value))
+    }
+
+    if (candidateResults.length > 0) {
+      let merged = candidateResults[0]
+      for (let i = 1; i < candidateResults.length; i++) {
+        merged = mergePaperRecords(merged, candidateResults[i])
+      }
+      return [merged]
+    }
   }
 
-  // 2. Check if arXiv ID
+  // 2. Direct arXiv identifier check
   const arxivId = parseArxivId(trimmed)
   if (arxivId) {
     const meta = await fetchArxivMetadata(arxivId)
     if (meta) {
       return [{
         source: "arxiv",
+        paperId: `ARXIV:${meta.arxivId}`,
         title: meta.title ?? query,
         authors: meta.authors ?? [],
         year: meta.publishedYear ? parseInt(meta.publishedYear, 10) : undefined,
+        venue: "arXiv preprint",
         abstract: meta.abstract,
         doi: meta.doi,
         arxivId: meta.arxivId,
         url: meta.pdfUrl,
+        openAccessPdfUrl: meta.pdfUrl,
       }]
     }
   }
 
-  // 3. Fallback to title search
-  const { papers } = await searchPaperByTitle(trimmed, limit)
-  return papers.map(scholarPaperToResult)
+  // 3. Parallel Multi-Source Query (OpenAlex + Semantic Scholar + Crossref)
+  const [openAlexList, scholarList, crossrefList] = await Promise.all([
+    searchOpenAlexWorks(trimmed, limit, {
+      yearFrom: options?.yearFrom,
+      yearTo: options?.yearTo,
+      signal: options?.signal,
+    }).catch(() => []),
+    searchPaperByTitle(trimmed, limit, options?.signal)
+      .then((r) => r.papers)
+      .catch(() => []),
+    searchCrossrefWorks(trimmed, limit, options?.signal).catch(() => []),
+  ])
+
+  // Aggregate and deduplicate records by normalized title key and DOI
+  const mapByKey = new Map<string, AcademicPaperResult>()
+
+  // A. Add OpenAlex results
+  for (const w of openAlexList) {
+    const res = openAlexWorkToResult(w)
+    const key = w.doi ? `doi:${w.doi.toLowerCase()}` : normalizeTitleKey(w.title)
+    if (key) mapByKey.set(key, res)
+  }
+
+  // B. Merge Semantic Scholar results
+  for (const sp of scholarList) {
+    const res = scholarPaperToResult(sp)
+    const key = sp.externalIds?.DOI
+      ? `doi:${sp.externalIds.DOI.toLowerCase()}`
+      : normalizeTitleKey(sp.title)
+    if (key) {
+      const existing = mapByKey.get(key)
+      if (existing) {
+        mapByKey.set(key, mergePaperRecords(existing, res))
+      } else {
+        mapByKey.set(key, res)
+      }
+    }
+  }
+
+  // C. Merge Crossref results
+  for (const c of crossrefList) {
+    const res = crossrefWorkToResult(c)
+    const key = c.doi ? `doi:${c.doi.toLowerCase()}` : normalizeTitleKey(c.title)
+    if (key) {
+      const existing = mapByKey.get(key)
+      if (existing) {
+        mapByKey.set(key, mergePaperRecords(existing, res))
+      } else {
+        mapByKey.set(key, res)
+      }
+    }
+  }
+
+  const mergedResults = Array.from(mapByKey.values())
+
+  // Sort by citation count (if available) and relevance
+  mergedResults.sort((a, b) => (b.citationCount || 0) - (a.citationCount || 0))
+
+  return mergedResults.slice(0, limit)
 }
 
 /**
- * Verify a single citation reference with prioritized identifiers:
- *  1. Direct DOI lookup
- *  2. Direct arXiv lookup
- *  3. Normalized title fuzzy search
+ * Verify a single citation reference with prioritized multi-source lookups.
  */
 export async function verifySingleCitation(
   citedText: string,
@@ -280,10 +452,15 @@ export async function verifySingleCitation(
   let verification: CitationVerification | null = null
   let enriched: AcademicPaperResult | undefined
 
-  // 1. Direct DOI lookup
+  // 1. Direct DOI lookup across OpenAlex / Semantic Scholar / Crossref
   if (refMeta.doi) {
-    const { paper, status } = await fetchPaperDetails(`DOI:${refMeta.doi}`, signal)
-    if (paper) {
+    const [scholarRes, openAlexRes] = await Promise.allSettled([
+      fetchPaperDetails(`DOI:${refMeta.doi}`, signal),
+      fetchOpenAlexByDoi(refMeta.doi, signal),
+    ])
+
+    if (scholarRes.status === "fulfilled" && scholarRes.value.paper) {
+      const paper = scholarRes.value.paper
       verification = {
         found: true,
         status: "verified",
@@ -292,15 +469,27 @@ export async function verifySingleCitation(
         attempts: 1,
       }
       enriched = scholarPaperToResult(paper)
-    } else if (status === "rate_limited" || status === "timeout" || status === "service_error") {
+    } else if (openAlexRes.status === "fulfilled" && openAlexRes.value) {
+      const oa = openAlexRes.value
+      const scholarShape: ScholarPaper = {
+        paperId: oa.id,
+        title: oa.title,
+        year: oa.publicationYear,
+        authors: oa.authors.map((name, i) => ({ authorId: `oa-${i}`, name })),
+        abstract: oa.abstract,
+        venue: oa.venue,
+        externalIds: { DOI: oa.doi },
+        url: oa.landingPageUrl,
+        citationCount: oa.citedByCount,
+      }
       verification = {
-        found: false,
-        status,
-        confidence: "not_found",
-        paper: null,
-        note: `Lookup unavailable (${status})`,
+        found: true,
+        status: "verified",
+        confidence: "high",
+        paper: scholarShape,
         attempts: 1,
       }
+      enriched = openAlexWorkToResult(oa)
     }
   }
 
@@ -328,12 +517,37 @@ export async function verifySingleCitation(
     }
   }
 
-  // 3. Normalized title search
+  // 3. Multi-source Title Fuzzy Search
   if (!verification || (!verification.found && verification.status === "not_found")) {
     const searchTarget = refMeta.title || citedText
     verification = await verifyCitation(searchTarget, signal)
     if (verification.paper) {
       enriched = scholarPaperToResult(verification.paper)
+    } else if (verification.status === "not_found") {
+      // Fallback to OpenAlex fuzzy title search
+      const oaFallback = await searchOpenAlexWorks(searchTarget, 1, { signal }).catch(() => [])
+      if (oaFallback.length > 0) {
+        const top = oaFallback[0]
+        const scholarShape: ScholarPaper = {
+          paperId: top.id,
+          title: top.title,
+          year: top.publicationYear,
+          authors: top.authors.map((name, i) => ({ authorId: `oa-${i}`, name })),
+          abstract: top.abstract,
+          venue: top.venue,
+          externalIds: { DOI: top.doi },
+          url: top.landingPageUrl,
+          citationCount: top.citedByCount,
+        }
+        verification = {
+          found: true,
+          status: "verified",
+          confidence: "medium",
+          paper: scholarShape,
+          attempts: 2,
+        }
+        enriched = openAlexWorkToResult(top)
+      }
     }
   }
 
@@ -427,4 +641,3 @@ export async function fetchAcademicAuthorProfile(name: string): Promise<AuthorPr
     recentPapers: papers.map((p) => ({ title: p.title, year: p.year })),
   }
 }
-

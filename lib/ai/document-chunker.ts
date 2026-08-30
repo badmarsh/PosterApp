@@ -11,32 +11,115 @@
  *  - Journal articles: title/abstract/section structure
  */
 
-import { classifySectionKind, normalizeHeading, type SectionKind } from "@/lib/ai/thesis-context"
 import { prisma } from "@/lib/prisma"
 import { generateLocalEmbedding } from "@/lib/ai/local-embeddings"
+import { classifySectionKind, type SectionKind } from "@/lib/ai/thesis-context"
+
+export type { SectionKind }
 
 export interface DocumentChunkInput {
   workspaceId: string
   documentId: string   // matches the fileId from ingestion (IngestFile.id)
   heading: string | null
+  headingPath?: string | null
   sectionKind: SectionKind
   content: string
   tokens: number
 }
 
+/**
+ * Splits text that exceeds maxChars into overlapping subchunks while respecting
+ * natural sentence (.!?) and paragraph boundaries where possible.
+ */
+function splitIntoSubchunks(
+  text: string,
+  maxChars: number,
+  overlapChars: number
+): string[] {
+  if (text.length <= maxChars) return [text]
+
+  // First try splitting into logical paragraphs or sentences
+  const sentencePattern = /[^.!?\n]+(?:[.!?\n]+(?:\s+|$)|$)/g
+  const rawSentences = text.match(sentencePattern) || [text]
+  const sentences = rawSentences.map((s) => s.trim()).filter((s) => s.length > 0)
+
+  // Fallback for single giant token / unbroken block without punctuation
+  if (sentences.length <= 1) {
+    const subchunks: string[] = []
+    let pos = 0
+    while (pos < text.length) {
+      const slice = text.slice(pos, pos + maxChars)
+      subchunks.push(slice)
+      pos += Math.max(1, maxChars - overlapChars)
+      if (pos >= text.length) break
+    }
+    return subchunks
+  }
+
+  const subchunks: string[] = []
+  let currentBuffer: string[] = []
+  let currentLen = 0
+
+  for (const sentence of sentences) {
+    if (sentence.length > maxChars) {
+      if (currentBuffer.length > 0) {
+        subchunks.push(currentBuffer.join(" "))
+        currentBuffer = []
+        currentLen = 0
+      }
+      let pos = 0
+      while (pos < sentence.length) {
+        subchunks.push(sentence.slice(pos, pos + maxChars))
+        pos += Math.max(1, maxChars - overlapChars)
+      }
+      continue
+    }
+
+    if (currentLen + sentence.length + 1 > maxChars && currentBuffer.length > 0) {
+      subchunks.push(currentBuffer.join(" "))
+
+      // Calculate overlap sentences from the end of currentBuffer
+      const overlapBuffer: string[] = []
+      let overlapLen = 0
+      for (let i = currentBuffer.length - 1; i >= 0; i--) {
+        const prevSentence = currentBuffer[i]
+        if (overlapLen + prevSentence.length + 1 <= overlapChars) {
+          overlapBuffer.unshift(prevSentence)
+          overlapLen += prevSentence.length + 1
+        } else {
+          break
+        }
+      }
+
+      currentBuffer = [...overlapBuffer, sentence]
+      currentLen = currentBuffer.reduce((acc, s) => acc + s.length + 1, 0)
+    } else {
+      currentBuffer.push(sentence)
+      currentLen += sentence.length + 1
+    }
+  }
+
+  if (currentBuffer.length > 0) {
+    subchunks.push(currentBuffer.join(" "))
+  }
+
+  return subchunks
+}
+
 /** Split markdown text into semantic chunks based on heading hierarchy. */
 export function chunkMarkdown(
-  markdown: string,
+  rawMarkdown: string,
   documentId: string,
   opts: {
     maxChunkChars?: number   // target max characters per chunk (default 2000)
-    minChunkChars?: number   // skip chunks smaller than this (default 100)
+    minChunkChars?: number   // skip chunks smaller than this (default 1)
     overlap?: number         // overlap between consecutive chunks in chars (default 200)
   } = {}
 ): Omit<DocumentChunkInput, "workspaceId">[] {
   const maxChunkChars = opts.maxChunkChars ?? 2000
-  const minChunkChars = opts.minChunkChars ?? 100
+  const minChunkChars = opts.minChunkChars ?? 1
   const overlap = opts.overlap ?? 200
+  const markdown = rawMarkdown.replace(/\r\n/g, "\n")
 
   // Split on all heading lines (# / ## / ### etc.)
   const headingRegex = /^(#{1,4})\s+(.+)$/gm
@@ -53,56 +136,63 @@ export function chunkMarkdown(
 
   const chunks: Omit<DocumentChunkInput, "workspaceId">[] = []
 
-  const addChunk = (heading: string | null, text: string) => {
+  const addChunk = (heading: string | null, headingPath: string | null, text: string) => {
     const trimmed = text.trim()
     if (trimmed.length < minChunkChars) return
 
     const sectionKind = heading ? classifySectionKind(heading, trimmed) : "unknown"
 
-    // If the chunk is too large, split it into overlapping subchunks
-    if (trimmed.length <= maxChunkChars) {
+    const subchunks = splitIntoSubchunks(trimmed, maxChunkChars, overlap)
+
+    if (subchunks.length === 1) {
       chunks.push({
         documentId,
         heading,
+        headingPath,
         sectionKind,
-        content: trimmed,
-        tokens: Math.ceil(trimmed.length / 4), // approx 4 chars/token
+        content: subchunks[0],
+        tokens: Math.ceil(subchunks[0].length / 4), // approx 4 chars/token
       })
     } else {
-      let pos = 0
-      let subIdx = 0
-      while (pos < trimmed.length) {
-        const slice = trimmed.slice(pos, pos + maxChunkChars)
+      subchunks.forEach((slice, idx) => {
         chunks.push({
           documentId,
-          heading: heading ? `${heading} [${++subIdx}]` : null,
+          heading: heading ? `${heading} [${idx + 1}]` : null,
+          headingPath: headingPath ? `${headingPath} [${idx + 1}]` : null,
           sectionKind,
           content: slice,
           tokens: Math.ceil(slice.length / 4),
         })
-        pos += maxChunkChars - overlap
-        if (pos + minChunkChars >= trimmed.length) break
-      }
+      })
     }
   }
 
   if (splits.length === 0) {
     // No headings found — treat entire doc as one chunk stream
-    addChunk(null, markdown)
+    addChunk(null, null, markdown)
     return chunks
   }
 
   // Add text before the first heading
   const preamble = markdown.slice(0, splits[0].startIdx)
-  addChunk("Preamble", preamble)
+  addChunk("Preamble", "Preamble", preamble)
+
+  const headingStack: Array<{ level: number; heading: string }> = []
 
   for (let i = 0; i < splits.length; i++) {
-    const { heading, startIdx } = splits[i]
+    const { level, heading, startIdx } = splits[i]
     const endIdx = i + 1 < splits.length ? splits[i + 1].startIdx : markdown.length
     const sectionText = markdown.slice(startIdx, endIdx)
     // Remove the heading line itself from content
     const contentOnly = sectionText.replace(/^#{1,4}\s+.+\n?/, "").trim()
-    addChunk(heading, contentOnly)
+
+    while (headingStack.length > 0 && headingStack[headingStack.length - 1].level >= level) {
+      headingStack.pop()
+    }
+    headingStack.push({ level, heading })
+    const headingPath = headingStack.map((h) => h.heading).join(" > ")
+
+    addChunk(heading, headingPath, contentOnly)
   }
 
   return chunks
@@ -136,10 +226,11 @@ export async function ingestDocumentChunks(
     await Promise.all(
       batch.map(async (chunk) => {
         try {
+          const contextHeading = chunk.headingPath || chunk.heading
           const embedding = await generateLocalEmbedding(
-            // Prepend heading for better retrieval quality
-            chunk.heading
-              ? `${chunk.heading}: ${chunk.content}`
+            // Prepend hierarchical heading path for rich contextual semantic embedding
+            contextHeading
+              ? `${contextHeading}: ${chunk.content}`
               : chunk.content
           )
 
@@ -168,12 +259,12 @@ export async function ingestDocumentChunks(
     )
   }
 
-  // Create HNSW index after first ingest (CREATE INDEX IF NOT EXISTS is safe)
+  // Create or optimize HNSW index with ef_construction = 128 for superior recall
   try {
     await prisma.$executeRaw`
       CREATE INDEX IF NOT EXISTS document_chunk_embedding_hnsw
       ON "DocumentChunk" USING hnsw (embedding vector_cosine_ops)
-      WITH (m = 16, ef_construction = 64)
+      WITH (m = 16, ef_construction = 128)
     `
   } catch {
     // Index may already exist, ignore

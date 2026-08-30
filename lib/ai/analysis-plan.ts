@@ -2,12 +2,27 @@
  * Analysis Plan & Pre-flight Diagnostics Generator.
  *
  * Implements the pre-analytical inspection stage:
- * Document -> Profile -> Analysis Plan -> User Confirmation -> Deep Review.
+ * Document -> Structural Intelligence -> Quality Gate -> Applicability Matrix -> User Approval -> Deep Review.
  */
 
 import { loadThesisContext, type ThesisRAGContext } from "./thesis-context"
-import type { ReviewAnalysisPlan, AnalysisPlanSection, StudyDesign, ReportingStandard, ReviewKind } from "./review-types"
+import type {
+  ReviewAnalysisPlan,
+  AnalysisPlanSection,
+  StudyDesign,
+  ReportingStandard,
+  ReviewKind,
+} from "./review-types"
 import type { ReviewLanguage, ThesisMetadata } from "./thesis-rubric"
+import {
+  extractDocumentStructure,
+  buildSourceQualityReport,
+  classifyDisciplineAndThesisType,
+} from "./document-understanding"
+import {
+  SK_ACADEMIC_RUBRIC_V1,
+  getApplicableCriteriaForThesisType,
+} from "./rubric-engine"
 
 export interface GenerateAnalysisPlanOptions {
   workspaceId: string
@@ -40,32 +55,62 @@ export function buildAnalysisPlanFromRAG(
   rag: ThesisRAGContext,
   metadata: {
     thesisTitle?: string
+    studentName?: string
+    department?: string
+    institution?: string
     reviewKind?: ReviewKind
     thesisType?: string
   },
   lang: ReviewLanguage = "sk"
 ): ReviewAnalysisPlan {
-  const fullLower = (rag.fullText + " " + rag.sections.map((s) => s.heading + " " + s.content).join(" ")).toLowerCase()
-  const detectedSections: AnalysisPlanSection[] = rag.sections.map((s) => ({
-    id: s.id,
-    heading: s.heading,
-    charCount: s.content.length,
-    status: s.content.trim().length > 50 ? "found" : "empty",
-  }))
+  const sectionsContent = rag.sections && rag.sections.length > 0
+    ? rag.sections.map((s) => `## ${s.heading}\n\n${s.content}`).join("\n\n")
+    : ""
+  const markdown = (rag.fullText && rag.fullText.length > 50)
+    ? rag.fullText
+    : sectionsContent || rag.fullText || ""
 
-  // Extraction quality assessment
-  let extractionQuality: "high" | "medium" | "low" = "low"
-  if (rag.totalChars > 15_000 && rag.sections.length >= 4) {
-    extractionQuality = "high"
-  } else if (rag.totalChars > 4_000 && rag.sections.length >= 2) {
-    extractionQuality = "medium"
-  }
+  // 1. Extract structural breakdown and quality report
+  const structure = extractDocumentStructure(markdown, {
+    thesisTitle: metadata.thesisTitle,
+    studentName: metadata.studentName,
+    department: metadata.department,
+    institution: metadata.institution,
+  })
+  const qualityReport = buildSourceQualityReport(markdown, {
+    thesisTitle: metadata.thesisTitle,
+    studentName: metadata.studentName,
+  }, lang)
 
-  // Study design detection
+  // 2. Classify discipline & detailed methodology type
+  const classification = classifyDisciplineAndThesisType(markdown, {
+    thesisTitle: metadata.thesisTitle,
+    department: metadata.department,
+    institution: metadata.institution,
+    thesisType: (metadata.thesisType as any) || "master",
+  }, lang)
+
+  // 3. Map detected sections
+  const detectedSections: AnalysisPlanSection[] = (rag.sections && rag.sections.length > 0
+    ? rag.sections.map((s) => ({
+        id: s.id,
+        heading: s.heading,
+        charCount: s.content.length,
+        status: s.content.trim().length > 50 ? "found" as const : "empty" as const,
+      }))
+    : structure.sections.map((s) => ({
+        id: s.id,
+        heading: s.heading,
+        charCount: s.charCount,
+        status: s.charCount > 50 ? "found" as const : "empty" as const,
+      })))
+
+  // 4. Determine study design & reporting guideline recommendation
   let studyDesign: StudyDesign = "unknown"
   let recommendedReportingGuideline: ReportingStandard = "none"
   let guidelineReason: string | undefined = undefined
 
+  const fullLower = (rag.fullText || markdown).toLowerCase()
   const hasML = /machine learning|neural network|transformer|deep learning|neurón|accuracy|dataset|benchmark|epoch|hyperparameter|loss function|f1-score/i.test(fullLower)
   const hasConsort = /randomiz|randomized|control group|clinical trial|patient|placebo|intervention/i.test(fullLower)
   const hasPrisma = /systematic review|meta-analysis|prisma|search strategy|inclusion criteria|eligibility criteria/i.test(fullLower)
@@ -103,17 +148,27 @@ export function buildAnalysisPlanFromRAG(
       : lang === "cs"
       ? "Detekována observační nebo epidemiologická studie (doporučený standard STROBE)."
       : "Detected observational study design (STROBE guideline recommended)."
-  } else if (rag.sections.some((s) => s.kind === "methodology" || s.kind === "results")) {
+  } else if (rag.sections && rag.sections.some((s) => s.kind === "methodology" || s.kind === "results")) {
     studyDesign = "empirical"
-  } else if (rag.sections.some((s) => s.kind === "literature")) {
+  } else if (classification.thesisType === "empirical_quantitative" || classification.thesisType === "qualitative") {
+    studyDesign = "empirical"
+  } else if (classification.thesisType === "theoretical") {
     studyDesign = "theoretical"
   } else {
     studyDesign = "methodological"
   }
 
-  // Citation availability
+  // 5. Extraction quality and Citation availability
+  const effectiveTotalChars = Math.max(rag.totalChars || 0, markdown.length)
+  let extractionQuality: "high" | "medium" | "low" = "low"
+  if (effectiveTotalChars > 15_000 && ((rag.sections && rag.sections.length >= 4) || structure.sections.length >= 4)) {
+    extractionQuality = "high"
+  } else if (effectiveTotalChars > 4_000 && ((rag.sections && rag.sections.length >= 2) || structure.sections.length >= 2)) {
+    extractionQuality = "medium"
+  }
+
   let citationAvailability: "rich" | "moderate" | "sparse" | "none" = "none"
-  const refCount = rag.referencesTitles.length
+  const refCount = Math.max(structure.detectedReferenceLines.length, rag.referencesTitles?.length || 0)
   if (refCount > 15) {
     citationAvailability = "rich"
   } else if (refCount >= 5) {
@@ -122,68 +177,62 @@ export function buildAnalysisPlanFromRAG(
     citationAvailability = "sparse"
   }
 
-  // Expected missing sections check
+  const hasTablesAndFigures = structure.figuresCount > 0 || structure.tablesCount > 0 || (rag.sections && rag.sections.some((s) => /table|tabuľka|figure|obrázok/i.test(s.content)))
+  const canProceedToDeepReview = extractionQuality !== "low" || effectiveTotalChars > 4_000 || (rag.sections && rag.sections.length >= 2)
+
+  // 6. Expected missing sections check
   const expectedMissingSections: string[] = []
-  const hasIntro = rag.sections.some((s) => s.kind === "introduction" || /úvod|uvod|introduction/i.test(s.heading))
-  const hasMethodology = rag.sections.some((s) => s.kind === "methodology" || /metod|method/i.test(s.heading))
-  const hasResults = rag.sections.some((s) => s.kind === "results" || /výsledk|vysledk|result/i.test(s.heading))
-  const hasDiscussion = rag.sections.some((s) => s.kind === "discussion" || /diskus|discuss/i.test(s.heading))
-  const hasConclusion = rag.sections.some((s) => s.kind === "conclusion" || /záver|zaver|conclus/i.test(s.heading))
-
-  if (!hasIntro) expectedMissingSections.push(lang === "sk" ? "Úvod" : "Introduction")
-  if (!hasMethodology) expectedMissingSections.push(lang === "sk" ? "Metodológia / Metódy" : "Methodology")
-  if (!hasResults) expectedMissingSections.push(lang === "sk" ? "Výsledky" : "Results")
-  if (!hasDiscussion) expectedMissingSections.push(lang === "sk" ? "Diskusia" : "Discussion")
-  if (!hasConclusion) expectedMissingSections.push(lang === "sk" ? "Záver" : "Conclusion")
-
-  // Limitations identification
-  const limitations: string[] = []
-  if (extractionQuality === "low") {
-    limitations.push(
-      lang === "sk"
-        ? "Nízky rozsah extrahovaného textu (menej ako 4000 znakov), hĺbková analýza môže byť limitovaná."
-        : "Low extracted character count (< 4000 chars), in-depth analysis may be limited."
-    )
+  if (!structure.sections.some((s) => /úvod|uvod|introduction/i.test(s.heading))) {
+    expectedMissingSections.push(lang === "sk" ? "Úvod" : "Introduction")
   }
-  if (citationAvailability === "none") {
-    limitations.push(
-      lang === "sk"
-        ? "V dokumente nebola detegovaná samostatná sekcia referencií / literatúry."
-        : "No bibliography/references section detected in the extracted text."
-    )
+  if (!structure.hasMethodologyMarkers) {
+    expectedMissingSections.push(lang === "sk" ? "Metodológia / Metódy" : "Methodology")
   }
-  if (expectedMissingSections.length > 0) {
-    limitations.push(
-      lang === "sk"
-        ? `Nenájdené štandardné kapitoly: ${expectedMissingSections.join(", ")}.`
-        : `Missing standard sections: ${expectedMissingSections.join(", ")}.`
-    )
+  if (!structure.hasResultsMarkers) {
+    expectedMissingSections.push(lang === "sk" ? "Výsledky" : "Results")
+  }
+  if (!structure.hasDiscussionMarkers) {
+    expectedMissingSections.push(lang === "sk" ? "Diskusia" : "Discussion")
+  }
+  if (!structure.hasConclusionMarkers) {
+    expectedMissingSections.push(lang === "sk" ? "Záver" : "Conclusion")
   }
 
-  // Recommended rubric
-  const reviewKind = metadata.reviewKind || "thesis"
-  const recommendedRubric =
-    reviewKind === "paper"
-      ? (lang === "sk" ? "Vedecký recenzný posudok (Nature / IEEE standard)" : "Scientific Peer Review (Nature / IEEE standard)")
-      : (lang === "sk" ? `Akademická rubrika pre ${String(metadata.thesisType || "master").toUpperCase()} prácu` : `Academic Rubric for ${String(metadata.thesisType || "master").toUpperCase()} Thesis`)
-
-  const hasTablesAndFigures = /table \d|tabuľka \d|figure \d|obrázok \d|graf \d/i.test(fullLower)
+  // 7. Applicable criteria matrix from rubric engine
+  const applicableCriteriaList = getApplicableCriteriaForThesisType(classification.thesisType, SK_ACADEMIC_RUBRIC_V1).map((item) => ({
+    criterionKey: item.criterion.key,
+    label: item.criterion.labels[lang] || item.criterion.labels.sk,
+    weight: item.criterion.weight,
+    applicability: item.applicability,
+  }))
 
   return {
-    documentTitle: metadata.thesisTitle || "Manuscript Document",
-    detectedType: reviewKind,
+    documentTitle: metadata.thesisTitle || "Záverečná práca",
+    detectedType: metadata.reviewKind || "thesis",
     language: lang,
-    discipline: hasML ? "Informatika & Umelá inteligencia" : "Všeobecný akademický výskum",
+    discipline: classification.primaryDiscipline,
     studyDesign,
     detectedSections,
     extractionQuality,
     hasTablesAndFigures,
     citationAvailability,
     expectedMissingSections,
-    recommendedRubric,
+    recommendedRubric: SK_ACADEMIC_RUBRIC_V1.slug,
     recommendedReportingGuideline,
     guidelineReason,
-    limitations,
-    canProceedToDeepReview: extractionQuality !== "low" || detectedSections.length > 0,
+    limitations: qualityReport.limitations,
+    canProceedToDeepReview,
+    sourceRevision: qualityReport.sourceRevision,
+    detailedThesisType: classification.thesisType,
+    qualityReport,
+    classification: {
+      primaryDiscipline: classification.primaryDiscipline,
+      secondaryDisciplines: classification.secondaryDisciplines,
+      thesisType: classification.thesisType,
+      confidence: classification.confidence,
+      rationale: classification.rationale,
+      sourceAnchors: classification.sourceAnchors,
+    },
+    applicableCriteria: applicableCriteriaList,
   }
 }

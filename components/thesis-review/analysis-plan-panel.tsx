@@ -124,12 +124,14 @@ export function AnalysisPlanPanel({
               </p>
             )}
 
-            <div className="flex items-center gap-3 pt-1">
+            <div className="flex flex-wrap items-center gap-3 pt-1">
               <Select value={selectedStandard} onValueChange={(val: any) => onSelectStandard(val)}>
-                <SelectTrigger className="h-8 text-xs bg-background max-w-sm">
-                  <SelectValue placeholder="Vyberte reporting štandard" />
+                <SelectTrigger className="h-8 text-xs bg-background min-w-[260px] max-w-sm">
+                  <SelectValue placeholder="Vyberte reporting štandard">
+                    {REPORTING_STANDARDS_INFO[selectedStandard]?.name || "Vyberte reporting štandard"}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="min-w-[360px] max-w-[520px]">
                   <SelectItem value="none">Všeobecné hodnotenie (bez špecifického checklistu)</SelectItem>
                   <SelectItem value="ml_reproducibility">ML Reproducibility Checklist (Strojové učenie)</SelectItem>
                   <SelectItem value="consort">CONSORT 2025 (Klinické / Randomizované štúdie)</SelectItem>
@@ -137,11 +139,52 @@ export function AnalysisPlanPanel({
                   <SelectItem value="strobe">STROBE (Observačné a kohortové štúdie)</SelectItem>
                 </SelectContent>
               </Select>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-[11px] text-muted-foreground flex-1 min-w-[200px]">
                 {REPORTING_STANDARDS_INFO[selectedStandard]?.description}
               </span>
             </div>
           </div>
+
+          {/* Rubric Applicability Matrix */}
+          {plan.applicableCriteria && plan.applicableCriteria.length > 0 && (
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold text-foreground flex items-center justify-between">
+                <span>Aplikovateľné kritériá rubriky ({plan.recommendedRubric || "sk-academic-v1"})</span>
+                <span className="text-[10px] text-muted-foreground font-normal">Váha / Status</span>
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto pr-1">
+                {plan.applicableCriteria.map((c) => (
+                  <div
+                    key={c.criterionKey}
+                    className={`flex items-center justify-between p-2 rounded border text-[11px] ${
+                      c.applicability === "not_applicable"
+                        ? "bg-muted/20 border-dashed opacity-60"
+                        : c.applicability === "partially_applicable"
+                        ? "bg-amber-500/5 border-amber-500/20"
+                        : "bg-card/60"
+                    }`}
+                  >
+                    <span className="truncate mr-1 font-medium">{c.label}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-[9px] font-mono text-muted-foreground">{c.weight}%</span>
+                      <Badge
+                        variant="outline"
+                        className={`text-[8px] py-0 px-1 ${
+                          c.applicability === "applicable"
+                            ? "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30"
+                            : c.applicability === "partially_applicable"
+                            ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {c.applicability === "applicable" ? "Plné" : c.applicability === "partially_applicable" ? "Čiast." : "N/A"}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Section inventory */}
           <div>
@@ -159,6 +202,39 @@ export function AnalysisPlanPanel({
               ))}
             </div>
           </div>
+
+          {/* Structural Quality Signals */}
+          {plan.qualityReport?.signals && plan.qualityReport.signals.length > 0 && (
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold text-foreground block">
+                Štrukturálne signály kvality textu ({plan.qualityReport.signals.length})
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                {plan.qualityReport.signals.map((sig) => (
+                  <div key={sig.id} className="p-1.5 rounded border bg-card/50 text-[11px] space-y-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-foreground text-[10px]">{sig.label}</span>
+                      <Badge
+                        variant="outline"
+                        className={`text-[8px] py-0 px-1 ${
+                          sig.status === "good"
+                            ? "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30"
+                            : sig.status === "warning"
+                            ? "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/30"
+                            : sig.status === "caution"
+                            ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {String(sig.value)}
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground leading-tight">{sig.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Limitations & Warnings */}
           {plan.limitations.length > 0 && (

@@ -65,9 +65,10 @@ export async function POST(
       suggestions,
     })
   } catch (err: unknown) {
+    if (err instanceof Response) return err
     console.error("Citation suggest route error:", err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to generate citation suggestions" },
+      { error: "Failed to generate citation suggestions" },
       { status: 500 }
     )
   }

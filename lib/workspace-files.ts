@@ -1,6 +1,6 @@
 import path from "path"
 
-export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+export const MAX_UPLOAD_BYTES = 200 * 1024 * 1024 // 200 MB — supports large PhD dissertations (50–150 MB)
 export const SAFE_FILE_ID = /^[A-Za-z0-9_-]{1,96}$/
 export const SAFE_FILENAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,180}$/
 

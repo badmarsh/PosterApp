@@ -1,6 +1,7 @@
 import { Document, Paragraph, TextRun, Packer, SectionType, ImageRun, Table, TableRow, TableCell, AlignmentType, WidthType, HeadingLevel } from "docx"
 import type { Project, OutputConfig } from "@/lib/poster-types"
 import { fetchImageBufferAndDimensions, parseMarkdownToDocxParagraphs } from "./helpers"
+import { sanitizeXmlString } from "@/lib/security"
 
 export async function generateDocx(project: Project, outputConfig: OutputConfig, workspaceId?: string): Promise<Blob> {
   const isPoster = outputConfig.outputType === "poster"
@@ -8,14 +9,14 @@ export async function generateDocx(project: Project, outputConfig: OutputConfig,
   
   // Title
   children.push(new Paragraph({
-    text: outputConfig.title || project.name,
+    text: sanitizeXmlString(outputConfig.title || project.name),
     heading: HeadingLevel.TITLE,
     alignment: AlignmentType.CENTER
   }))
   
   // Authors
   children.push(new Paragraph({
-    text: project.authors,
+    text: sanitizeXmlString(project.authors),
     heading: HeadingLevel.HEADING_2,
     alignment: AlignmentType.CENTER
   }))
@@ -23,7 +24,7 @@ export async function generateDocx(project: Project, outputConfig: OutputConfig,
   // Venue
   if (project.venue) {
     children.push(new Paragraph({
-      text: project.venue,
+      text: sanitizeXmlString(project.venue),
       alignment: AlignmentType.CENTER,
       spacing: { after: 400 }
     }))
@@ -33,7 +34,7 @@ export async function generateDocx(project: Project, outputConfig: OutputConfig,
   for (const card of outputConfig.cards) {
     // Card Title
     children.push(new Paragraph({
-      text: card.title,
+      text: sanitizeXmlString(card.title),
       heading: HeadingLevel.HEADING_1,
       spacing: { before: 400, after: 200 }
     }))

@@ -200,3 +200,48 @@ Deutsche Einführung.
     expect(headings).toContain("Einleitung")
   })
 })
+
+describe("chunkMarkdown — hierarchical heading breadcrumbs", () => {
+  it("computes nested heading breadcrumbs accurately", () => {
+    const md = `# 1. Metodika
+Úvod do metodiky.
+
+## 1.1 Návrh siete
+Popis architektúry.
+
+### 1.1.1 Konvolučné vrstvy
+Detail konvolúcií.
+
+# 2. Výsledky
+Prezentácia výsledkov.
+`
+    const chunks = chunkMarkdown(md, "hierarchical-doc")
+    const convChunk = chunks.find((c) => c.heading === "1.1.1 Konvolučné vrstvy")
+    expect(convChunk).toBeDefined()
+    expect(convChunk?.headingPath).toBe("1. Metodika > 1.1 Návrh siete > 1.1.1 Konvolučné vrstvy")
+
+    const resChunk = chunks.find((c) => c.heading === "2. Výsledky")
+    expect(resChunk?.headingPath).toBe("2. Výsledky")
+  })
+})
+
+describe("chunkMarkdown — sentence-aware splitting", () => {
+  it("splits large paragraphs along sentence boundaries without mid-sentence cuts", () => {
+    const s1 = "Prvá veta opisuje teoretický základ skúmaného problému."
+    const s2 = "Druhá veta vysvetľuje matematický aparát a použité rovnice."
+    const s3 = "Tretia veta sumarizuje praktickú realizáciu v laboratórnych podmienkach."
+    const text = `${s1} ${s2} ${s3}`
+
+    const chunks = chunkMarkdown(`# Sekcia\n${text}`, "sentence-doc", {
+      maxChunkChars: 120,
+      overlap: 20,
+    })
+
+    expect(chunks.length).toBeGreaterThan(1)
+    chunks.forEach((chunk) => {
+      // Chunk should end on punctuation when formed by sentences
+      expect(/[.!?]$/.test(chunk.content.trim())).toBe(true)
+    })
+  })
+})
+

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import * as fs from "fs/promises"
 import path from "path"
 
-import { requireWorkspaceEditor } from "@/lib/auth"
+import { requireWorkspaceAccess } from "@/lib/auth"
 import { workspacePath } from "@/lib/workspace-files"
 
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
@@ -19,7 +19,7 @@ export async function GET(
   }
 
   try {
-    await requireWorkspaceEditor(id)
+    await requireWorkspaceAccess(id)
   } catch (err) {
     if (err instanceof Response) return err
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

@@ -10,13 +10,28 @@ export async function GET() {
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     let workspaces = await prisma.workspace.findMany({
-      where: { userId },
-      select: { id: true, name: true },
+      where: {
+        OR: [
+          { userId },
+          { members: { some: { userId } } },
+        ]
+      },
+      include: {
+        outputs: {
+          select: {
+            id: true,
+            outputType: true,
+            templateId: true,
+            title: true,
+            isActive: true,
+          }
+        }
+      },
+      orderBy: { id: "asc" },
     })
 
     if (workspaces.length === 0) {
       const { sampleProject } = await import("@/lib/mock-data")
-      const { jsonStringify } = await import("@/lib/db-helpers")
 
       const demoId = `demo_${Date.now().toString(36)}`
       
@@ -53,13 +68,34 @@ export async function GET() {
             })),
           },
         },
-        select: { id: true, name: true }
+        include: {
+          outputs: {
+            select: {
+              id: true,
+              outputType: true,
+              templateId: true,
+              title: true,
+              isActive: true,
+            }
+          }
+        }
       })
       
       workspaces = [project]
     }
 
-    return NextResponse.json(workspaces)
+    const result = workspaces.map((ws) => {
+      const activeOut = ws.outputs?.find((o) => o.isActive) || ws.outputs?.[0]
+      return {
+        id: ws.id,
+        name: ws.name,
+        authors: ws.authors,
+        venue: ws.venue,
+        templateName: activeOut?.templateId ?? "atlas",
+      }
+    })
+
+    return NextResponse.json(result)
   } catch (err) {
     const msg = String(err);
     if (
@@ -74,7 +110,8 @@ export async function GET() {
         { status: 503 }
       )
     }
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error("[Workspaces GET] Server error:", err)
+    return NextResponse.json({ error: "Failed to load workspaces" }, { status: 500 })
   }
 }
 
@@ -147,6 +184,7 @@ export async function POST(req: Request) {
         { status: 503 }
       )
     }
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error("[Workspaces POST] Server error:", err)
+    return NextResponse.json({ error: "Failed to create workspace" }, { status: 500 })
   }
 }

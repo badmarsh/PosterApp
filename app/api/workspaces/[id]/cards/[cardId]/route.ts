@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { requireWorkspaceAccess, requireWorkspaceEditor } from "@/lib/auth"
 import { z } from "zod"
 
 const CardSchema = z.object({
@@ -27,17 +27,7 @@ export async function GET(
 ) {
   const { id, cardId } = await params
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const workspace = await prisma.workspace.findUnique({
-      where: { id, userId }
-    })
-    if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
-    }
+    await requireWorkspaceAccess(id)
 
     const card = await prisma.card.findUnique({
       where: { id: cardId },
@@ -54,7 +44,9 @@ export async function GET(
     }
     return NextResponse.json(data)
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    if (err instanceof Response) return err
+    console.error("[Card GET] Error:", err)
+    return NextResponse.json({ error: "Failed to load card" }, { status: 500 })
   }
 }
 
@@ -64,17 +56,7 @@ export async function PUT(
 ) {
   const { id, cardId } = await params
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const workspace = await prisma.workspace.findUnique({
-      where: { id, userId }
-    })
-    if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
-    }
+    await requireWorkspaceEditor(id)
 
     const rawBody = await req.json()
     const parsed = CardSchema.safeParse(rawBody)
@@ -132,7 +114,9 @@ export async function PUT(
     
     return NextResponse.json({ ok: true })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    if (err instanceof Response) return err
+    console.error("[Card PUT] Error:", err)
+    return NextResponse.json({ error: "Failed to update card" }, { status: 500 })
   }
 }
 
@@ -142,17 +126,7 @@ export async function DELETE(
 ) {
   const { id, cardId } = await params
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const workspace = await prisma.workspace.findUnique({
-      where: { id, userId }
-    })
-    if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
-    }
+    await requireWorkspaceEditor(id)
 
     const existing = await prisma.card.findUnique({ 
       where: { id: cardId },
@@ -167,6 +141,8 @@ export async function DELETE(
     await prisma.card.delete({ where: { id: cardId } })
     return NextResponse.json({ ok: true })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    if (err instanceof Response) return err
+    console.error("[Card DELETE] Error:", err)
+    return NextResponse.json({ error: "Failed to delete card" }, { status: 500 })
   }
 }

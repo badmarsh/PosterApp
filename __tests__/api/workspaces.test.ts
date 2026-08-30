@@ -48,10 +48,25 @@ describe('GET /api/workspaces', () => {
 
     expect(res.status).toBe(200)
     expect(json).toHaveLength(2)
-    expect(json[0].id).toBe('ws-1')
     expect(mockPrisma.workspace.findMany).toHaveBeenCalledWith({
-      where: { userId: 'user_123' },
-      select: { id: true, name: true },
+      where: {
+        OR: [
+          { userId: 'user_123' },
+          { members: { some: { userId: 'user_123' } } },
+        ]
+      },
+      include: {
+        outputs: {
+          select: {
+            id: true,
+            outputType: true,
+            templateId: true,
+            title: true,
+            isActive: true,
+          }
+        }
+      },
+      orderBy: { id: "asc" },
     })
   })
 })

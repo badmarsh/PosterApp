@@ -18,6 +18,8 @@ interface ImageEditRequest {
   originalFilename?: string
 }
 
+import { sanitizeFilename } from "@/lib/security"
+
 function resolveAssetPath(assetUrl: string): string | null {
   const prefix = "/api/workspaces/"
   if (!assetUrl.startsWith(prefix)) return null
@@ -25,8 +27,11 @@ function resolveAssetPath(assetUrl: string): string | null {
   const parts = rest.split("/")
   if (parts.length < 3 || parts[1] !== "assets") return null
   const workspaceId = parts[0]
+  if (!/^[a-zA-Z0-9_-]+$/.test(workspaceId)) return null
   const filename = parts.slice(2).join("/")
-  return path.join(WORKSPACES_DIR, workspaceId, "assets", filename)
+  const safeName = sanitizeFilename(filename)
+  if (!safeName || safeName.includes("/") || safeName.includes("\\")) return null
+  return path.join(WORKSPACES_DIR, workspaceId, "assets", safeName)
 }
 
 export async function POST(req: Request) {
@@ -98,7 +103,8 @@ export async function POST(req: Request) {
     if (!assetPath.includes("draft-")) {
       return NextResponse.json({ error: "Not a draft asset" }, { status: 400 })
     }
-    const originalName = body.originalFilename || path.basename(assetPath).replace(/draft-\d+-[a-z0-9]+-/, "") || "image.png"
+    const rawOriginal = body.originalFilename || path.basename(assetPath).replace(/draft-\d+-[a-z0-9]+-/, "") || "image.png"
+    const originalName = sanitizeFilename(rawOriginal, "image.png")
     const newFilePath = await atomicCreateVersionedFile(assetsDir, originalName, ".png")
     if (!newFilePath) return NextResponse.json({ error: 'Maximum number of edited versions reached' }, { status: 409 })
     
@@ -145,7 +151,7 @@ export async function POST(req: Request) {
       })
     } catch (err) {
       console.error("remove-bg failed:", err)
-      return NextResponse.json({ error: "Background removal failed", detail: String(err) }, { status: 500 })
+      return NextResponse.json({ error: "Background removal failed" }, { status: 500 })
     }
   }
 
@@ -188,7 +194,7 @@ export async function POST(req: Request) {
         })
       } catch (err) {
         console.error("Custom local transform failed:", err)
-        return NextResponse.json({ error: "Image transform failed", detail: String(err) }, { status: 500 })
+        return NextResponse.json({ error: "Image transform failed" }, { status: 500 })
       }
     }
 
@@ -249,7 +255,7 @@ export async function POST(req: Request) {
         })
       } catch (err) {
         console.error("OpenRouter image edit failed:", err)
-        return NextResponse.json({ error: "AI image edit failed", detail: String(err) }, { status: 502 })
+        return NextResponse.json({ error: "AI image edit failed" }, { status: 502 })
       }
     }
 
@@ -302,7 +308,7 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("Local Image Edit failed:", err)
     return NextResponse.json(
-      { error: "Image processing failed", detail: String(err) },
+      { error: "Image processing failed" },
       { status: 500 }
     )
   }

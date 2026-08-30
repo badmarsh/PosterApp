@@ -132,6 +132,7 @@ export async function POST(req: Request) {
     stage?: string
     progress?: number
     assets?: any[]
+    fileName?: string
     error?: string
     detail?: string
   }) => {
@@ -673,13 +674,28 @@ export async function POST(req: Request) {
 
     // Persist the IngestFile record in Prisma so it survives page reloads
     const parsedFileId = typeof fileId === "string" && SAFE_FILE_ID.test(fileId) ? fileId : `file_${Date.now()}`
+    
+    // Intelligently resolve document title from markdown heading if filename is generic
+    let resolvedFileName = uploadedFile.name
+    const isGenericName = /^(zaverecna_praca|zaverecna_prace|thesis|diplomovka|bakalarka|dizertacia|paper|manuscript|document|download|file|output|report)(?:\s*\(\d+\))?\.pdf$/i.test(uploadedFile.name)
+    if (isGenericName && results.md_content) {
+      const headingMatch = results.md_content.match(/^#\s+(.+)$/m)
+      if (headingMatch && headingMatch[1].trim().length > 4) {
+        const cleanTitle = headingMatch[1].replace(/[*_#`]/g, "").trim()
+        if (cleanTitle.length > 3) {
+          const shortTitle = cleanTitle.length > 50 ? `${cleanTitle.slice(0, 47)}...` : cleanTitle
+          resolvedFileName = `${shortTitle}.pdf`
+        }
+      }
+    }
+
     try {
       await prisma.ingestFile.upsert({
         where: { id: parsedFileId },
         create: {
           id: parsedFileId,
           workspaceId,
-          name: uploadedFile.name,
+          name: resolvedFileName,
           size: uploadedFile.size,
           method: "MinerU (WSL)",
           status: "done",
@@ -688,7 +704,7 @@ export async function POST(req: Request) {
         update: {
           status: "done",
           progress: 100,
-          name: uploadedFile.name,
+          name: resolvedFileName,
           size: uploadedFile.size,
         },
       })
@@ -699,6 +715,7 @@ export async function POST(req: Request) {
     await sendEvent({
       type: "complete",
       assets,
+      fileName: resolvedFileName,
       progress: 100,
     })
   } catch (err) {

@@ -215,7 +215,7 @@ Return EXACTLY (no markdown wrappers):
     if (error instanceof Response) return error
     console.error("Error in Review route:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
+      { error: "Failed to generate review" },
       { status: 500 }
     )
   }

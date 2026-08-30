@@ -84,6 +84,30 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+/** Format raw ugly filenames (e.g. 'zaverecna_prace (12).pdf') into clean, readable document titles. */
+export function formatDocumentDisplayName(filename?: string | null, detectedTitle?: string | null): string {
+  if (detectedTitle && detectedTitle.trim().length > 3) {
+    const clean = detectedTitle.replace(/^#+\s*/, "").replace(/[*_`]/g, "").trim()
+    if (clean.length > 0) return clean
+  }
+
+  if (!filename) return "Dokument"
+
+  // Strip extension
+  let cleanName = filename.replace(/\.(pdf|md|docx|tex|txt|bib)$/i, "")
+
+  // Strip browser download duplicate patterns e.g. " (12)", " (10)", "_copy"
+  cleanName = cleanName.replace(/\s*\(\d+\)$/, "")
+  cleanName = cleanName.replace(/[-_]+/g, " ").trim()
+
+  // Capitalize first letter
+  if (cleanName.length > 0 && cleanName === cleanName.toLowerCase()) {
+    cleanName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1)
+  }
+
+  return cleanName || filename
+}
+
 /** Pick a parser the way the backend pipeline would, based on file name. */
 export function detectMethod(name: string): ParseMethod {
   const n = name.toLowerCase()

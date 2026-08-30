@@ -21,6 +21,7 @@ import { WorkspaceSelector } from "@/components/workspace-selector"
 import { EquationRegistryDialog } from "@/components/equation-registry-dialog"
 import { ImageOcrDialog } from "@/components/scanner/image-ocr-dialog"
 import { BibliographyDialog } from "@/components/bibliography-dialog"
+import { AcademicSearchDialog } from "@/components/academic-search-dialog"
 
 import { CommandPalette } from "@/components/command-palette"
 
@@ -42,6 +43,11 @@ function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: ()
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [])
+
+  const isThesisReview = useEditor((s) => {
+    const o = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
+    return o?.outputType === "thesis-review"
+  })
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
@@ -70,14 +76,16 @@ function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: ()
             <PosterPreview />
           </ErrorBoundary>
         </main>
-        <ErrorBoundary name="Right Sidebar">
-          <RightSidebar />
-        </ErrorBoundary>
+        {!isThesisReview ? (
+          <ErrorBoundary name="Right Sidebar">
+            <RightSidebar />
+          </ErrorBoundary>
+        ) : null}
         {/* Always mounted — using CSS width-0 to hide rather than unmounting, so the
             RightSidebar / PdfViewer ResizeObserver is not triggered by layout reflow.
             Conditionally unmounting caused the PDF to re-render with incorrect containerWidth. */}
         <ErrorBoundary name="Agent Panel">
-          <div style={{ display: agentOpen ? "contents" : "none" }}>
+          <div style={{ display: agentOpen && !isThesisReview ? "contents" : "none" }}>
             <AgentPanel />
           </div>
         </ErrorBoundary>
@@ -265,6 +273,8 @@ export function Shell() {
   const project = useEditor((s) => s.project)
   const isSwitchingProject = useEditor((s) => s.isSwitchingProject)
   const lastWorkspaceId = useEditor((s) => s.lastWorkspaceId)
+  const isAcademicSearchOpen = useEditor((s) => s.isAcademicSearchOpen)
+  const setIsAcademicSearchOpen = useEditor((s) => s.setIsAcademicSearchOpen)
   
   const [showSelector, setShowSelector] = useState(false)
   const [hasAutoLoaded, setHasAutoLoaded] = useState(false)
@@ -313,6 +323,9 @@ export function Shell() {
       </ErrorBoundary>
       <ErrorBoundary name="Bibliography Library">
         <BibliographyDialog />
+      </ErrorBoundary>
+      <ErrorBoundary name="Academic Literature Search">
+        <AcademicSearchDialog open={isAcademicSearchOpen} onOpenChange={setIsAcademicSearchOpen} />
       </ErrorBoundary>
     </>
   )

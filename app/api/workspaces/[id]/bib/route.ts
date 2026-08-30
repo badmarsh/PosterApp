@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { parseBibKeys } from "@/lib/bib-parser"
-import { auth } from "@/lib/auth"
+import { requireWorkspaceAccess, requireWorkspaceEditor } from "@/lib/auth"
 
 export async function GET(
   _req: Request,
@@ -10,16 +10,15 @@ export async function GET(
   const { id } = await params
   
   try {
-    const { userId } = await auth()
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const access = await requireWorkspaceAccess(id)
 
     const workspace = await prisma.workspace.findUnique({
-      where: { id, userId },
+      where: { id },
       select: { bibContent: true, bibKeys: true }
     })
     
     if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
+      return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
     }
 
     const bib = workspace.bibContent || ""
@@ -27,7 +26,9 @@ export async function GET(
     
     return NextResponse.json({ bib, keys })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    if (err instanceof Response) return err
+    console.error("[Bib GET] Error:", err)
+    return NextResponse.json({ error: "Failed to load bibliography" }, { status: 500 })
   }
 }
 
@@ -38,11 +39,7 @@ export async function PUT(
   const { id } = await params
   
   try {
-    const { userId } = await auth()
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-    const existing = await prisma.workspace.findUnique({ where: { id, userId } })
-    if (!existing) return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
+    await requireWorkspaceEditor(id)
 
     const body = await req.json() as { bib: string }
     if (typeof body.bib !== "string") {
@@ -61,6 +58,8 @@ export async function PUT(
     
     return NextResponse.json({ ok: true, keys })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    if (err instanceof Response) return err
+    console.error("[Bib PUT] Error:", err)
+    return NextResponse.json({ error: "Failed to update bibliography" }, { status: 500 })
   }
 }

@@ -52,9 +52,10 @@ export async function POST(
       ...result,
     })
   } catch (err: unknown) {
+    if (err instanceof Response) return err
     console.error("QR code generation error:", err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to generate QR code" },
+      { error: "Failed to generate QR code" },
       { status: 500 }
     )
   }

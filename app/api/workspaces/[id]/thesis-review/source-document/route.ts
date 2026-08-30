@@ -78,6 +78,8 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const requestedFileId = req.nextUrl.searchParams.get("fileId")
+
   const sourcesDir = path.join(WORKSPACES_DIR, workspaceId, "sources")
 
   try {
@@ -87,7 +89,15 @@ export async function GET(
     const dirExists = await fs.access(sourcesDir).then(() => true).catch(() => false)
     if (dirExists) {
       const fileNames = await fs.readdir(sourcesDir)
-      const mdFiles = fileNames.filter((f) => f.endsWith(".md")).sort()
+      let mdFiles = fileNames.filter((f) => f.endsWith(".md")).sort()
+
+      if (requestedFileId) {
+        const cleanId = requestedFileId.replace(/\.(md|pdf)$/i, "")
+        const matched = mdFiles.filter((f) => f.replace(/\.md$/i, "") === cleanId || f.includes(cleanId))
+        if (matched.length > 0) {
+          mdFiles = matched
+        }
+      }
 
       for (const file of mdFiles) {
         // Prevent path traversal on individual files

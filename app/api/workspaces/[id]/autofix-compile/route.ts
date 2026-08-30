@@ -141,7 +141,7 @@ Respond EXACTLY in this JSON format (no markdown wrappers):
     if (error instanceof Response) return error
     console.error("Error in AI Autofix:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
+      { error: "Failed to autofix compilation errors" },
       { status: 500 }
     )
   }

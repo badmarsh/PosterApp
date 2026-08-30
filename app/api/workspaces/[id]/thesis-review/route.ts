@@ -30,7 +30,11 @@ import {
   type ReviewLanguage,
 } from "@/lib/ai/thesis-rubric"
 import { auditThesisCitations } from "@/lib/services/academic-connector"
-import { searchHybrid, rerankChunks } from "@/lib/ai/vector-rag"
+import {
+  retrieveForCriterion,
+  resolveThesisDomainContext,
+  getThesisCriterionQueryExpansion,
+} from "@/lib/ai/vector-rag"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
@@ -55,6 +59,8 @@ const ThesisMetadataSchema = z.object({
 
 const RequestBodySchema = z.object({
   thesisMetadata: ThesisMetadataSchema,
+  /** Optional: specific file ID to review in multi-document workspaces */
+  sourceFileId: z.string().optional(),
   /** Optional: restrict generation to specific criterion IDs */
   focusCriteria: z.array(z.string()).optional(),
   /** Skip Academic Connector citation audit (faster but less thorough) */
@@ -224,6 +230,7 @@ export async function POST(
     const ragContext = await loadThesisContext({
       workspaceId,
       thesisMetadata: normalizedMetadata,
+      sourceFileId: body.sourceFileId,
       focusSections: focusCriteria,
       maxChars: 120_000,
     })
@@ -273,33 +280,41 @@ export async function POST(
       }
     }
 
-    // 2b. pgvector hybrid search augmentation — per-criterion evidence retrieval.
-    // Runs after disk-based context to avoid blocking disk load; failures degrade
-    // gracefully (pgvector may not be indexed yet for new workspaces).
+    // 2b. pgvector 6-stage RAG augmentation — per-criterion evidence retrieval.
+    // Internally runs: multi-query fan-out → HyDE → RRF hybrid search →
+    // MMR deduplication → criterion-aware reranking → contextual compression.
+    // Failures degrade gracefully (pgvector may not be indexed for new workspaces).
     let vectorAugmentation = ""
     try {
+      const domainContext = resolveThesisDomainContext(normalizedMetadata)
       const criterionVectorContextParts: string[] = []
+
       await Promise.all(
         activeCriteria.map(async (c) => {
-          // Combine criterion label + guidance as a natural-language query
-          const query = `${c.labels.sk} ${c.guidance.sk}`.slice(0, 300)
-          const raw = await searchHybrid(workspaceId, query, 8, "STEM, Fyzika")
-          if (raw.length === 0) return
-          const reranked = await rerankChunks(query, raw)
-          const topChunks = reranked.slice(0, 4)
-          if (topChunks.length === 0) return
-          const chunkText = topChunks
+          const expansion = getThesisCriterionQueryExpansion(c.id, lang)
+          const query = `${c.labels[lang]} ${c.guidance[lang]}`.slice(0, 300)
+          const chunks = await retrieveForCriterion(workspaceId, query, {
+            topK: 4,
+            lambda: 0.7,
+            domainContext,
+            criterionId: c.id,
+            criterionExpansion: expansion,
+            useHyDE: true,
+            compress: true,
+          })
+          if (chunks.length === 0) return
+          const chunkText = chunks
             .map((ch) => (ch.heading ? `### ${ch.heading}\n${ch.content}` : ch.content))
             .join("\n\n")
           criterionVectorContextParts.push(`[VectorRAG:${c.id}]\n${chunkText}`)
         })
       )
+
       if (criterionVectorContextParts.length > 0) {
-        // Budget: leave room for routed context + citation audit within the 60k limit
+        // Budget: respect 60k char ceiling for the full prompt
         const usedChars = routedContext.length + citationAuditSummary.length + 1000
         const vectorBudget = Math.max(0, THESIS_CONTEXT_BUDGETS.fullGeneration - usedChars)
-        const rawVectorText = criterionVectorContextParts.join("\n\n---\n\n")
-        vectorAugmentation = rawVectorText.slice(0, vectorBudget)
+        vectorAugmentation = criterionVectorContextParts.join("\n\n---\n\n").slice(0, vectorBudget)
       }
     } catch (vectorErr) {
       // pgvector not yet indexed or unavailable — continue with disk-only context
@@ -327,6 +342,7 @@ export async function POST(
       const { generateProfessionalReview } = await import("@/lib/ai/review-engine")
       professionalResult = await generateProfessionalReview({
         workspaceId,
+        sourceFileId: body.sourceFileId,
         documentTitle: thesisMetadata.thesisTitle,
         authorName: thesisMetadata.studentName,
         reviewKind: thesisMetadata.reviewKind,
@@ -400,9 +416,11 @@ export async function POST(
         institution: thesisMetadata.institution ?? null,
         department: thesisMetadata.department ?? null,
         grade: result.overallGrade ?? null,
+        suggestedGrade: professionalResult?.grade ?? result.overallGrade ?? null,
         recommendation: result.recommendation,
+        suggestedRecommendation: professionalResult?.recommendation ?? result.recommendation ?? null,
         sections: JSON.stringify(result.sections),
-        defenseQuestions: JSON.stringify(result.defenseQuestions),
+        defenseQuestions: JSON.stringify(professionalResult?.defenseQuestions ? professionalResult.defenseQuestions.map((q: any) => typeof q === "string" ? q : q.question) : result.defenseQuestions),
         citationIssues: JSON.stringify([
           ...result.citationIssues,
           ...(citationAuditSummary ? [citationAuditSummary] : []),
@@ -412,6 +430,12 @@ export async function POST(
         summary: professionalResult?.summary ?? null,
         strengths: professionalResult?.strengths ? JSON.stringify(professionalResult.strengths) : null,
         findings: professionalResult?.anchoredFindings ? JSON.stringify(professionalResult.anchoredFindings) : null,
+        sourceRevision: professionalResult?.sourceRevision ?? null,
+        rubricVersion: "sk-academic-v1",
+        discipline: thesisMetadata.targetVenue ?? null,
+        proposedGradeRange: professionalResult?.proposedGradeRange ?? null,
+        confidence: 0.88,
+        limitationsSummary: null,
         reportingStandard: thesisMetadata.reportingStandard ?? "none",
         reportingGuidelineChecks: professionalResult?.reportingGuidelineChecks ? JSON.stringify(professionalResult.reportingGuidelineChecks) : null,
         confidentialComments: professionalResult?.confidentialComments ?? null,
@@ -428,6 +452,9 @@ export async function POST(
       summary: professionalResult?.summary,
       strengths: professionalResult?.strengths ?? [],
       findings: professionalResult?.anchoredFindings ?? [],
+      sourceRevision: professionalResult?.sourceRevision,
+      rubricVersion: "sk-academic-v1",
+      proposedGradeRange: professionalResult?.proposedGradeRange,
       reportingStandard: thesisMetadata.reportingStandard,
       reportingGuidelineChecks: professionalResult?.reportingGuidelineChecks ?? [],
       confidentialComments: professionalResult?.confidentialComments,
@@ -481,8 +508,24 @@ export async function GET(
       thesisType: true,
       reviewerRole: true,
       reviewerName: true,
+      institution: true,
+      department: true,
       grade: true,
+      suggestedGrade: true,
+      finalGrade: true,
       recommendation: true,
+      suggestedRecommendation: true,
+      finalRecommendation: true,
+      reviewKind: true,
+      targetVenue: true,
+      sourceRevision: true,
+      rubricVersion: true,
+      discipline: true,
+      proposedGradeRange: true,
+      confidence: true,
+      limitationsSummary: true,
+      reportingStandard: true,
+      confirmedAt: true,
       status: true,
       language: true,
       createdAt: true,

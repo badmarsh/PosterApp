@@ -119,7 +119,8 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
             throw new Error(msg)
           }
 
-          let produced: any[] = []
+          let produced: Partial<Asset>[] = []
+          let completedFileName: string | undefined = undefined
           const contentType = res.headers.get("content-type") || ""
 
           if (contentType.includes("text/event-stream") && res.body) {
@@ -157,6 +158,9 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
                     }
                   } else if (event.type === "complete") {
                     produced = event.assets || []
+                    if (event.fileName) {
+                      completedFileName = event.fileName
+                    }
                   } else if (event.type === "error") {
                     const msg = event.detail && event.error && event.detail !== event.error
                       ? `${event.error}: ${event.detail}`
@@ -174,6 +178,7 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
           } else {
             const data = await res.json().catch(() => ({}))
             produced = data.assets || []
+            if (data.fileName) completedFileName = data.fileName
           }
           
           if (get().project.id === capturedWorkspaceId) {
@@ -182,6 +187,9 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
               if (ingestFile) {
                 ingestFile.status = "done"
                 ingestFile.progress = 100
+                if (completedFileName) {
+                  ingestFile.name = completedFileName
+                }
                 onProgress(100)
               }
               const typedAssets = produced.map((a: Partial<Asset>) => ({
@@ -273,6 +281,26 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         s.project.assets = s.project.assets.filter((a) => a.fileId !== id)
       })
       get().saveProject()
+    },
+
+    renameFile: async (id, newName) => {
+      const trimmed = newName.trim()
+      if (!trimmed) return
+      set((s) => {
+        const f = s.project.ingestFiles.find((x) => x.id === id)
+        if (f) f.name = trimmed
+        s.isDirty = true
+      })
+      try {
+        const workspaceId = get().project.id
+        await apiFetch(`/api/workspaces/${workspaceId}/ingest-files/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ name: trimmed }),
+        })
+      } catch (e) {
+        console.error("Failed to persist renamed file:", e)
+      }
+      await get().saveProject()
     },
 
     dismissFile: (id) => {

@@ -60,7 +60,8 @@ export async function POST(
 
     return NextResponse.json({ ok: true, asset })
   } catch (err) {
+    if (err instanceof Response) return err
     console.error("Asset upload error:", err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: "Failed to upload asset" }, { status: 500 })
   }
 }

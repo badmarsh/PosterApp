@@ -11,9 +11,29 @@
 import type { ReviewLanguage, CriterionRating } from "./thesis-rubric"
 
 export type ReviewKind = "thesis" | "paper" | "grant"
-export type ReviewSeverity = "critical" | "major" | "minor" | "suggestion"
+export type ReviewSeverity = "critical" | "major" | "minor" | "suggestion" | "info"
 export type FindingStatus = "unreviewed" | "accepted" | "edited" | "rejected" | "resolved"
 export type ReportingStandard = "consort" | "prisma" | "strobe" | "ml_reproducibility" | "none"
+
+/**
+ * Epistemic status of a finding or assertion to clearly separate fact, judgment, and missing data.
+ */
+export type EpistemicStatus =
+  | "SUPPORTED_FACT"
+  | "SUPPORTED_INTERPRETATION"
+  | "REVIEWER_JUDGMENT"
+  | "MISSING_EVIDENCE"
+  | "POSSIBLE_RISK"
+  | "REQUIRES_HUMAN_VERIFICATION"
+
+export type EvidenceType =
+  | "quote"
+  | "section_summary"
+  | "structural_signal"
+  | "metadata"
+  | "citation_record"
+  | "retrieval_result"
+
 export type EvidenceState =
   | "verified-exact"
   | "verified-normalized"
@@ -27,40 +47,96 @@ export type FindingAudience = "author" | "editor" | "committee" | "private"
 
 export interface EvidenceReference {
   id?: string
+  evidenceType?: EvidenceType
+  sourceDocumentId?: string
+  sourceRevision?: string
+  chunkId?: string
   documentId?: string
   revision?: string
   page?: number
+  pageNumber?: number // Verified page number if supplied by parser
   sectionHeading?: string
+  sectionTitle?: string
   quote: string
+  exactQuote?: string
+  normalizedSummary?: string
+  relevanceExplanation?: string
+  confidence?: number
   startOffset?: number
   endOffset?: number
   verified?: boolean
   state?: EvidenceState
-  verificationMethod?: "exact" | "whitespace_normalized" | "approximate" | "manual"
+  verificationMethod?: "exact" | "whitespace_normalized" | "approximate" | "structural" | "manual"
+  staleAt?: string
+  createdAt?: string
 }
+
+export type FindingType =
+  | "strength"
+  | "weakness"
+  | "risk"
+  | "missing_evidence"
+  | "question"
+  | "recommendation"
 
 export interface ReviewFinding {
   id: string
   criterionId?: string
+  criterionKey?: string
   category: "methodology" | "results" | "statistics" | "literature" | "reproducibility" | "ethics" | "formal"
   title: string
+  findingType?: FindingType
+  epistemicStatus?: EpistemicStatus
   aiDraft?: string
   explanation: string
   recommendation: string
+  suggestedRevision?: string
   severity: ReviewSeverity
   confidence: number // 0.0 - 1.0
+  impact?: string
   evidence: EvidenceReference[]
   evidenceState?: EvidenceState
   status: FindingStatus
+  decisionStatus?: "open" | "accepted" | "dismissed" | "edited" | "needs_human_review"
+  humanRationale?: string
   source?: "ai" | "reviewer" | "checklist"
   audience?: FindingAudience
   reviewerNotes?: string
   resolutionNotes?: string
   duplicateGroup?: string
+  sourceRevision?: string
   includeInExport: boolean
   createdBy: "ai" | "reviewer"
   createdAt?: string
   updatedAt?: string
+}
+
+export interface CriterionAssessment {
+  criterionKey: string
+  applicability: "applicable" | "partially_applicable" | "not_applicable" | "unknown"
+  score?: number
+  scoreRange?: { min: number; max: number }
+  confidence: "low" | "medium" | "high" | number
+  rationale: string
+  strengthsSummary: string[]
+  weaknessesSummary: string[]
+  evidenceCoverage: "insufficient" | "partial" | "adequate" | "strong"
+  requiresHumanReview: boolean
+  sourceRevision?: string
+}
+
+export interface ReviewDefenseQuestion {
+  id: string
+  linkedCriterionKey?: string
+  question: string
+  motivation: string
+  evidenceIds: string[]
+  priority: "high" | "medium" | "low"
+  category: "clarification" | "methodology" | "validation" | "interpretation" | "limitation" | "contribution"
+  expectedAnswerBasis?: string
+  requiresHumanVerification?: boolean
+  decisionStatus?: "accepted" | "edited" | "dismissed"
+  includeInExport: boolean
 }
 
 export interface ReportingGuidelineCheck {
@@ -161,18 +237,21 @@ export const PEER_REVIEW_SEVERITY_LABELS: Record<ReviewLanguage, Record<ReviewSe
     major: { label: "Zásadná pripomienka", description: "Metodologický nedostatok alebo chýbajúce experimenty vyžadujúce podstatnú revíziu" },
     minor: { label: "Drobná pripomienka", description: "Formulačné, formálne alebo menšie vysvetľujúce doplnenia" },
     suggestion: { label: "Návrh / Odporúčanie", description: "Nezáväzné odporúčanie na zlepšenie do budúcna" },
+    info: { label: "Informačná poznámka", description: "Neutrálne zistenie alebo kontextuálna poznámka" },
   },
   cs: {
     critical: { label: "Kritická chyba", description: "Závažné metodologické nebo etické pochybení bránící publikaci" },
     major: { label: "Zásadní připomínka", description: "Metodologický nedostatek nebo chybějící experimenty vyžadující podstatnou revizi" },
     minor: { label: "Drobná připomínka", description: "Formulační, formální nebo menší vysvětlující doplnění" },
     suggestion: { label: "Návrh / Doporučení", description: "Nezávazné doporučení pro zlepšení do budoucna" },
+    info: { label: "Informační poznámka", description: "Neutrální zjištění nebo kontextuální poznámka" },
   },
   en: {
     critical: { label: "Critical Flaw", description: "Fatal methodological or ethical issue that precludes acceptance" },
     major: { label: "Major Concern", description: "Methodological gap or missing experiments requiring substantial revision" },
     minor: { label: "Minor Concern", description: "Clarifications, typographical issues, or minor textual refinements" },
     suggestion: { label: "Suggestion", description: "Optional recommendation for future improvement" },
+    info: { label: "Informational", description: "Neutral contextual note or observation" },
   },
 }
 
@@ -229,4 +308,39 @@ export interface ReviewAnalysisPlan {
   guidelineReason?: string
   limitations: string[]
   canProceedToDeepReview: boolean
+  sourceRevision?: string
+  detailedThesisType?: string
+  qualityReport?: {
+    sourceRevision: string
+    totalChars: number
+    totalWords: number
+    sectionCount: number
+    extractionQuality: "high" | "medium" | "low"
+    canProceedToDeepReview: boolean
+    warnings: string[]
+    limitations: string[]
+    signals: Array<{
+      id: string
+      label: string
+      value: string | number | boolean
+      status: "good" | "warning" | "caution" | "info"
+      category: "structure" | "citations" | "content" | "integrity"
+      signalType: "deterministic" | "heuristic" | "requires_human_verification"
+      description: string
+    }>
+  }
+  classification?: {
+    primaryDiscipline: string
+    secondaryDisciplines: string[]
+    thesisType: string
+    confidence: number
+    rationale: string
+    sourceAnchors: string[]
+  }
+  applicableCriteria?: Array<{
+    criterionKey: string
+    label: string
+    weight: number
+    applicability: "applicable" | "partially_applicable" | "not_applicable"
+  }>
 }

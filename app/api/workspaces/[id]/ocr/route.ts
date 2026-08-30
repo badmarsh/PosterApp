@@ -112,9 +112,10 @@ export async function POST(
       asset: createdAsset,
     })
   } catch (error: unknown) {
+    if (error instanceof Response) return error
     console.error("OCR route error:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to process image OCR" },
+      { error: "Failed to process image OCR" },
       { status: 500 }
     )
   }

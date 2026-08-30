@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { safeJsonParse, jsonStringify } from "@/lib/db-helpers"
-import { auth } from "@/lib/auth"
+import { auth, requireWorkspaceAccess, requireWorkspaceEditor } from "@/lib/auth"
 import { WorkspaceSchema } from "@/lib/validations/workspace"
 import { computeWorkspaceDiff } from "@/lib/snapshot-diff"
 import { generateSnapshotLabelAsync } from "@/lib/ai-labeler"
@@ -44,11 +44,10 @@ export async function GET(
   }
 
   try {
-    const { userId } = await auth()
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    await requireWorkspaceAccess(id)
 
     const workspace = await prisma.workspace.findUnique({
-      where: { id, userId },
+      where: { id },
       include: {
         outputs: {
           include: { cards: true },
@@ -106,6 +105,7 @@ export async function GET(
 
     return NextResponse.json(data)
   } catch (err) {
+    if (err instanceof Response) return err
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
@@ -122,12 +122,8 @@ export async function PUT(
 
   let nextRevision: number | undefined
   try {
-    const { userId } = await auth()
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-    // Check ownership first
-    const existing = await prisma.workspace.findUnique({ where: { id, userId } })
-    if (!existing) return NextResponse.json({ error: "Not found or unauthorized" }, { status: 404 })
+    const access = await requireWorkspaceEditor(id)
+    const existing = access.workspace
 
     const prevSnapshot = await prisma.workspaceSnapshot.findFirst({
       where: { workspaceId: id },
@@ -153,7 +149,7 @@ export async function PUT(
       // on a revision so a stale tab cannot delete another tab's newer children.
       const expectedRevision = body.revision ?? existing.revision
       const update = await tx.workspace.updateMany({
-        where: { id, userId, revision: expectedRevision },
+        where: { id, revision: expectedRevision },
         data: {
           name: body.name || id,
           authors: body.authors || "",
@@ -552,6 +548,7 @@ export async function PUT(
     
     return NextResponse.json({ ok: true, revision: nextRevision })
   } catch (err) {
+    if (err instanceof Response) return err
     console.error(err)
     if (err instanceof WorkspaceConflictError) {
       return NextResponse.json({ error: err.message }, { status: 409 })
@@ -574,15 +571,11 @@ export async function DELETE(
   }
 
   try {
-    const { userId } = await auth()
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-    const existing = await prisma.workspace.findUnique({ where: { id, userId } })
-    if (!existing) return NextResponse.json({ error: "Not found or unauthorized" }, { status: 404 })
-
+    await requireWorkspaceEditor(id)
     await prisma.workspace.delete({ where: { id } })
     return NextResponse.json({ ok: true })
   } catch (err) {
+    if (err instanceof Response) return err
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }

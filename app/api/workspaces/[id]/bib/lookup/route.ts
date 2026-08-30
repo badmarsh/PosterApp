@@ -80,9 +80,10 @@ Requirements:
       rawBibtex: cleanedBibtex,
     })
   } catch (err: unknown) {
+    if (err instanceof Response) return err
     console.error("Bib lookup error:", err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to lookup citation" },
+      { error: "Failed to lookup citation" },
       { status: 500 }
     )
   }

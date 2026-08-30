@@ -100,7 +100,7 @@ export function TopBar({
   onOpenWorkspaceSelector,
   onOpenCommandPalette,
 }: TopBarProps) {
-  const { project, pushEvent, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen, setIsScannerOpen, collabEnabled, setCollabEnabled, duplicateProject, newProject, saveProject, isDirty, isSaving, pdfData } = useEditor(
+  const { project, pushEvent, aiReview, openIngestion, switchProject, switchOutput, autoFillAllCardsAction, convertOutputAction, collaborators, yjsStatus, showLatexSource, toggleLatexSource, isHistoryOpen, setIsHistoryOpen, setIsScannerOpen, setIsAcademicSearchOpen, collabEnabled, setCollabEnabled, duplicateProject, newProject, saveProject, isDirty, isSaving, pdfData } = useEditor(
     useShallow((s) => ({
       project: s.project,
       pushEvent: s.pushEvent,
@@ -117,6 +117,7 @@ export function TopBar({
       isHistoryOpen: s.isHistoryOpen,
       setIsHistoryOpen: s.setIsHistoryOpen,
       setIsScannerOpen: s.setIsScannerOpen,
+      setIsAcademicSearchOpen: s.setIsAcademicSearchOpen,
       collabEnabled: s.collabEnabled,
       setCollabEnabled: s.setCollabEnabled,
       duplicateProject: s.duplicateProject,
@@ -130,12 +131,16 @@ export function TopBar({
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
   const [isHelpOpen, setIsHelpOpen] = useState(false)
 
-  useEffect(() => {
+  const refreshWorkspaces = () => {
     apiFetch("/api/workspaces")
       .then((r) => r.json())
       .then((data) => setWorkspaces(Array.isArray(data) ? data : []))
       .catch(() => {})
-  }, [])
+  }
+
+  useEffect(() => {
+    refreshWorkspaces()
+  }, [project.id])
 
   function exportTex() {
     const activeOutput = project.outputs?.find(o => o.id === project.activeOutputId) || project.outputs?.[0]
@@ -197,7 +202,7 @@ export function TopBar({
           <LayoutTemplate className="size-4" />
         </div>
 
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={(open) => { if (open) refreshWorkspaces() }}>
           <DropdownMenuTrigger
             render={
               <Button
@@ -306,6 +311,17 @@ export function TopBar({
         >
           <Camera className="size-3.5 text-primary" />
           <span className="hidden md:inline">Scan / OCR</span>
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5"
+          onClick={() => setIsAcademicSearchOpen(true)}
+          aria-label="Academic Search"
+        >
+          <Sparkles className="size-3.5 text-primary" />
+          <span className="hidden md:inline">Academic</span>
         </Button>
 
         <DropdownMenu>

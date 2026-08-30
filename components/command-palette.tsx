@@ -71,6 +71,7 @@ export function CommandPalette({
     compileProject,
     toggleLatexSource,
     setIsHistoryOpen,
+    setIsAcademicSearchOpen,
     isDirty,
   } = useEditor(
     useShallow((s) => ({
@@ -87,6 +88,7 @@ export function CommandPalette({
       compileProject: s.compileProject,
       toggleLatexSource: s.toggleLatexSource,
       setIsHistoryOpen: s.setIsHistoryOpen,
+      setIsAcademicSearchOpen: s.setIsAcademicSearchOpen,
       isDirty: s.isDirty,
     }))
   )
@@ -167,6 +169,10 @@ export function CommandPalette({
           <CommandItem onSelect={() => run(openIngestion)}>
             <FileStack />
             Ingest source PDFs
+          </CommandItem>
+          <CommandItem onSelect={() => run(() => setIsAcademicSearchOpen(true))}>
+            <Sparkles />
+            Search Academic Literature (Perplexity)
           </CommandItem>
         </CommandGroup>
 

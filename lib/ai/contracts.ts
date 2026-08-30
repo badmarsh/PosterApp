@@ -376,7 +376,9 @@ export function validateGeneratedSections(
     }
   }
 
-  for (const expected of expectedCriterionIds) {
+  // Only require core evaluation criteria (defense questions are returned as top-level array)
+  const coreExpected = expectedCriterionIds.filter((id) => id !== "defense_questions")
+  for (const expected of coreExpected) {
     if (!seenIds.has(expected)) {
       throw new Error(`Missing expected criterion in generated review: "${expected}".`)
     }
@@ -388,23 +390,49 @@ export const EvidenceReferenceSchema = z.preprocess((raw: any) => {
   if (raw && typeof raw === "object") {
     return {
       id: raw.id ? String(raw.id) : undefined,
+      evidenceType: raw.evidenceType ? String(raw.evidenceType) : "quote",
+      sourceDocumentId: raw.sourceDocumentId ? String(raw.sourceDocumentId) : undefined,
+      sourceRevision: raw.sourceRevision ? String(raw.sourceRevision) : undefined,
+      chunkId: raw.chunkId ? String(raw.chunkId) : undefined,
       page: typeof raw.page === "number" ? raw.page : undefined,
-      sectionHeading: String(raw.sectionHeading || raw.section || raw.heading || "").trim() || undefined,
-      quote: String(raw.quote || raw.text || raw.snippet || "").trim(),
+      pageNumber: typeof raw.pageNumber === "number" ? raw.pageNumber : (typeof raw.page === "number" ? raw.page : undefined),
+      sectionHeading: String(raw.sectionHeading || raw.sectionTitle || raw.section || raw.heading || "").trim() || undefined,
+      sectionTitle: String(raw.sectionTitle || raw.sectionHeading || raw.section || raw.heading || "").trim() || undefined,
+      quote: String(raw.quote || raw.exactQuote || raw.text || raw.snippet || "").trim(),
+      exactQuote: raw.exactQuote ? String(raw.exactQuote).trim() : undefined,
+      normalizedSummary: raw.normalizedSummary ? String(raw.normalizedSummary).trim() : undefined,
+      relevanceExplanation: raw.relevanceExplanation ? String(raw.relevanceExplanation).trim() : undefined,
+      confidence: typeof raw.confidence === "number" ? raw.confidence : undefined,
       startOffset: typeof raw.startOffset === "number" ? raw.startOffset : undefined,
       endOffset: typeof raw.endOffset === "number" ? raw.endOffset : undefined,
       verified: typeof raw.verified === "boolean" ? raw.verified : undefined,
+      state: raw.state ? String(raw.state) : undefined,
+      verificationMethod: raw.verificationMethod ? String(raw.verificationMethod) : undefined,
+      staleAt: raw.staleAt ? String(raw.staleAt) : undefined,
     }
   }
   return raw
 }, z.object({
   id: z.string().optional(),
+  evidenceType: z.enum(["quote", "section_summary", "structural_signal", "metadata", "citation_record", "retrieval_result"]).default("quote"),
+  sourceDocumentId: z.string().optional(),
+  sourceRevision: z.string().optional(),
+  chunkId: z.string().optional(),
   page: z.number().optional(),
+  pageNumber: z.number().optional(),
   sectionHeading: z.string().optional(),
+  sectionTitle: z.string().optional(),
   quote: z.string(),
+  exactQuote: z.string().optional(),
+  normalizedSummary: z.string().optional(),
+  relevanceExplanation: z.string().optional(),
+  confidence: z.number().optional(),
   startOffset: z.number().optional(),
   endOffset: z.number().optional(),
   verified: z.boolean().optional(),
+  state: z.enum(["verified-exact", "verified-normalized", "approximate", "unverified", "stale", "ambiguous", "verified"]).optional(),
+  verificationMethod: z.enum(["exact", "whitespace_normalized", "approximate", "structural", "manual"]).optional(),
+  staleAt: z.string().optional(),
 }))
 export type EvidenceReferenceContract = z.infer<typeof EvidenceReferenceSchema>
 
@@ -412,11 +440,26 @@ export type EvidenceReferenceContract = z.infer<typeof EvidenceReferenceSchema>
 export const ReviewFindingContractSchema = z.preprocess((raw: any) => {
   if (raw && typeof raw === "object") {
     const rawSev = String(raw.severity || "minor").toLowerCase().trim()
-    const severity = ["critical", "major", "minor", "suggestion"].includes(rawSev) ? rawSev : "minor"
+    const severity = ["critical", "major", "minor", "suggestion", "info"].includes(rawSev) ? rawSev : "minor"
     const rawCat = String(raw.category || "methodology").toLowerCase().trim()
     const category = ["methodology", "results", "statistics", "literature", "reproducibility", "ethics", "formal"].includes(rawCat) ? rawCat : "methodology"
     const rawStatus = String(raw.status || "unreviewed").toLowerCase().trim()
     const status = ["unreviewed", "accepted", "edited", "rejected", "resolved"].includes(rawStatus) ? rawStatus : "unreviewed"
+
+    const rawEpistemic = String(raw.epistemicStatus || "").trim()
+    const validEpistemic = [
+      "SUPPORTED_FACT",
+      "SUPPORTED_INTERPRETATION",
+      "REVIEWER_JUDGMENT",
+      "MISSING_EVIDENCE",
+      "POSSIBLE_RISK",
+      "REQUIRES_HUMAN_VERIFICATION",
+    ]
+    const epistemicStatus = validEpistemic.includes(rawEpistemic) ? rawEpistemic : "REVIEWER_JUDGMENT"
+
+    const rawFindingType = String(raw.findingType || "weakness").toLowerCase().trim()
+    const validFindingTypes = ["strength", "weakness", "risk", "missing_evidence", "question", "recommendation"]
+    const findingType = validFindingTypes.includes(rawFindingType) ? rawFindingType : "weakness"
 
     const evidenceRaw = Array.isArray(raw.evidence) ? raw.evidence : (raw.evidence ? [raw.evidence] : [])
     const evidence = evidenceRaw.map((ev: any) => {
@@ -426,19 +469,28 @@ export const ReviewFindingContractSchema = z.preprocess((raw: any) => {
 
     return {
       id: String(raw.id || `f-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
+      criterionId: raw.criterionId ? String(raw.criterionId) : undefined,
+      criterionKey: raw.criterionKey ? String(raw.criterionKey) : (raw.criterionId ? String(raw.criterionId) : undefined),
       category,
       title: String(raw.title || raw.heading || "Observation").trim(),
+      findingType,
+      epistemicStatus,
       explanation: String(raw.explanation || raw.description || raw.text || "").trim(),
       recommendation: String(raw.recommendation || raw.fix || raw.action || "").trim(),
+      suggestedRevision: raw.suggestedRevision ? String(raw.suggestedRevision).trim() : undefined,
       severity,
       confidence: typeof raw.confidence === "number" ? Math.min(1, Math.max(0, raw.confidence)) : 0.85,
+      impact: raw.impact ? String(raw.impact).trim() : undefined,
       evidence,
       status,
+      decisionStatus: raw.decisionStatus && ["open", "accepted", "dismissed", "edited", "needs_human_review"].includes(String(raw.decisionStatus)) ? String(raw.decisionStatus) : "open",
+      humanRationale: raw.humanRationale ? String(raw.humanRationale).trim() : undefined,
       reviewerNotes: raw.reviewerNotes ? String(raw.reviewerNotes).trim() : undefined,
       includeInExport: raw.includeInExport !== false,
       createdBy: raw.createdBy === "reviewer" ? "reviewer" : "ai",
       source: raw.source ? String(raw.source).trim() : undefined,
-      audience: raw.audience && ["author", "editor", "public"].includes(String(raw.audience)) ? String(raw.audience) : "author",
+      audience: raw.audience && ["author", "editor", "committee", "private", "public"].includes(String(raw.audience)) ? String(raw.audience) : "author",
+      sourceRevision: raw.sourceRevision ? String(raw.sourceRevision) : undefined,
       createdAt: raw.createdAt ? String(raw.createdAt) : undefined,
       updatedAt: raw.updatedAt ? String(raw.updatedAt) : undefined,
     }
@@ -446,19 +498,28 @@ export const ReviewFindingContractSchema = z.preprocess((raw: any) => {
   return raw
 }, z.object({
   id: z.string(),
+  criterionId: z.string().optional(),
+  criterionKey: z.string().optional(),
   category: z.enum(["methodology", "results", "statistics", "literature", "reproducibility", "ethics", "formal"]),
   title: z.string(),
+  findingType: z.enum(["strength", "weakness", "risk", "missing_evidence", "question", "recommendation"]).default("weakness"),
+  epistemicStatus: z.enum(["SUPPORTED_FACT", "SUPPORTED_INTERPRETATION", "REVIEWER_JUDGMENT", "MISSING_EVIDENCE", "POSSIBLE_RISK", "REQUIRES_HUMAN_VERIFICATION"]).default("REVIEWER_JUDGMENT"),
   explanation: z.string(),
   recommendation: z.string().default(""),
-  severity: z.enum(["critical", "major", "minor", "suggestion"]),
+  suggestedRevision: z.string().optional(),
+  severity: z.enum(["critical", "major", "minor", "suggestion", "info"]),
   confidence: z.number().min(0).max(1).default(0.85),
+  impact: z.string().optional(),
   evidence: z.array(EvidenceReferenceSchema).default([]),
   status: z.enum(["unreviewed", "accepted", "edited", "rejected", "resolved"]).default("unreviewed"),
+  decisionStatus: z.enum(["open", "accepted", "dismissed", "edited", "needs_human_review"]).default("open"),
+  humanRationale: z.string().optional(),
   reviewerNotes: z.string().optional(),
   includeInExport: z.boolean().default(true),
   createdBy: z.enum(["ai", "reviewer"]).default("ai"),
   source: z.string().optional(),
-  audience: z.enum(["author", "editor", "public"]).default("author"),
+  audience: z.enum(["author", "editor", "committee", "private", "public"]).default("author"),
+  sourceRevision: z.string().optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
 }))

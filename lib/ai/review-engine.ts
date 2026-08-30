@@ -5,7 +5,8 @@
  * and academic thesis peer reviews.
  *
  * Produces structured findings with explicit evidence anchors (quotes from text),
- * separated Major/Minor concerns, reporting guideline compliance checks, and questions for authors.
+ * epistemic status validation, separated Major/Minor concerns, reporting guideline compliance checks,
+ * calibrated defense questions, and proposed grade ranges.
  */
 
 import { generateAIResponse } from "@/lib/ai/client"
@@ -21,12 +22,34 @@ import {
   routeSectionsForCriterion,
   type ThesisRAGContext,
 } from "./thesis-context"
-import type { ReviewKind, ReportingStandard, ReviewFinding, EvidenceReference, EvidenceState } from "./review-types"
+import type {
+  ReviewKind,
+  ReportingStandard,
+  ReviewFinding,
+  EvidenceReference,
+  EvidenceState,
+  EpistemicStatus,
+  ReviewDefenseQuestion,
+} from "./review-types"
 import type { ReviewLanguage, ThesisType } from "./thesis-rubric"
 import { sortFindingsByPriority } from "./review-priorities"
+import {
+  extractDocumentStructure,
+  computeSourceRevision,
+} from "./document-understanding"
+import {
+  checkObjectiveAlignment,
+  auditCitationConsistency,
+  generateCalibratedDefenseQuestions,
+} from "./academic-checks"
+import {
+  validateAndCalibrateFindings,
+} from "./evidence-validator"
+import { calculateGradeRange } from "./rubric-engine"
 
 export interface GenerateProfessionalReviewOptions {
   workspaceId: string
+  sourceFileId?: string
   documentTitle: string
   authorName: string
   reviewKind: ReviewKind
@@ -96,7 +119,8 @@ function normalizeText(text: string): string {
  */
 export function anchorEvidenceQuotes(
   findings: ReviewFindingContract[],
-  rag: ThesisRAGContext
+  rag: ThesisRAGContext,
+  sourceRevision?: string
 ): ReviewFinding[] {
   return findings.map((f, idx) => {
     const rawEvidence = f.evidence || []
@@ -106,12 +130,14 @@ export function anchorEvidenceQuotes(
           id: `ev-${idx + 1}-${evIdx + 1}`,
           quote: ev.quote || "",
           verified: false,
+          state: "unverified",
+          sourceRevision,
         }
       }
 
       const cleanQuote = normalizeText(ev.quote)
       let state: EvidenceState = "unverified"
-      let verificationMethod: "exact" | "whitespace_normalized" | "approximate" | "manual" | undefined
+      let verificationMethod: "exact" | "whitespace_normalized" | "approximate" | "structural" | "manual" | undefined
       let isVerified = false
 
       // 1. Exact match search
@@ -139,12 +165,10 @@ export function anchorEvidenceQuotes(
           // 3. Approximate match
           const subQuote = cleanQuote.slice(0, 35)
           const approxMatches = rag.sections.filter((s) => normalizeText(s.content).includes(subQuote))
-          let approxMatchedSection: (typeof rag.sections)[0] | undefined
           if (approxMatches.length > 0) {
             state = "approximate"
             verificationMethod = "approximate"
             isVerified = false
-            approxMatchedSection = approxMatches[0]
           }
         }
       }
@@ -163,12 +187,14 @@ export function anchorEvidenceQuotes(
           id: `ev-${idx + 1}-${evIdx + 1}`,
           page: ev.page,
           sectionHeading: ev.sectionHeading || matchedSection.heading,
+          sectionTitle: ev.sectionHeading || matchedSection.heading,
           quote: ev.quote,
           startOffset: subIndex >= 0 ? subIndex : undefined,
           endOffset: subIndex >= 0 ? subIndex + ev.quote.length : undefined,
           verified: isVerified,
           state,
           verificationMethod,
+          sourceRevision,
         }
       }
 
@@ -177,9 +203,11 @@ export function anchorEvidenceQuotes(
         id: `ev-${idx + 1}-${evIdx + 1}`,
         page: ev.page,
         sectionHeading: ev.sectionHeading,
+        sectionTitle: ev.sectionHeading,
         quote: ev.quote,
         verified: false,
         state: "unverified",
+        sourceRevision,
       }
     })
 
@@ -197,17 +225,25 @@ export function anchorEvidenceQuotes(
 
     return {
       id: f.id || `finding-${idx + 1}`,
+      criterionKey: f.criterionKey || f.criterionId,
+      criterionId: f.criterionId || f.criterionKey,
       title: f.title,
+      findingType: f.findingType || "weakness",
+      epistemicStatus: f.epistemicStatus || "REVIEWER_JUDGMENT",
       explanation: f.explanation,
       recommendation: f.recommendation,
+      suggestedRevision: f.suggestedRevision,
       severity: f.severity,
       category: f.category,
       confidence: f.confidence ?? 0.85,
+      impact: f.impact,
       evidence: enrichedEvidence,
       evidenceState: overallFindingState,
       status: "unreviewed",
+      decisionStatus: "open",
       includeInExport: true,
       createdBy: "ai",
+      sourceRevision,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
@@ -219,9 +255,15 @@ export function anchorEvidenceQuotes(
  */
 export async function generateProfessionalReview(
   options: GenerateProfessionalReviewOptions
-): Promise<ProfessionalReviewGenerationResult & { anchoredFindings: ReviewFinding[] }> {
+): Promise<ProfessionalReviewGenerationResult & {
+  anchoredFindings: ReviewFinding[]
+  sourceRevision: string
+  proposedGradeRange: string
+  defenseQuestions: ReviewDefenseQuestion[]
+}> {
   const rag = await loadThesisContext({
     workspaceId: options.workspaceId,
+    sourceFileId: options.sourceFileId,
     thesisMetadata: {
       studentName: options.authorName,
       thesisTitle: options.documentTitle,
@@ -239,6 +281,12 @@ export async function generateProfessionalReview(
     throw err
   }
 
+  const sourceRevision = computeSourceRevision(rag.fullText)
+  const structure = extractDocumentStructure(rag.fullText, {
+    thesisTitle: options.documentTitle,
+    studentName: options.authorName,
+  })
+
   const standard = options.reportingStandard || "none"
   const standardGuidance = REPORTING_CHECKLIST_PROMPTS[standard]
 
@@ -246,15 +294,22 @@ export async function generateProfessionalReview(
 
 CRITICAL INSTRUCTIONS:
 1. Ground every finding in direct evidence from the manuscript. Quote specific sentences or passages in the "evidence" field.
-2. Differentiate strictly between:
+2. Tag every finding with an explicit "epistemicStatus":
+   - "SUPPORTED_FACT": Directly demonstrated fact citing exact quotation.
+   - "SUPPORTED_INTERPRETATION": Logical inference grounded in stated evidence.
+   - "REVIEWER_JUDGMENT": Evaluative appraisal of quality or style.
+   - "MISSING_EVIDENCE": Required information that could not be verified in the supplied text.
+   - "POSSIBLE_RISK": Potential risk or limitation framed conditionally.
+   - "REQUIRES_HUMAN_VERIFICATION": Area requiring verification in original complete PDF.
+3. Differentiate strictly between severity levels:
    - "critical": Fatal ethical or methodological errors precluding publication/pass.
    - "major": Core methodological flaws, inadequate baselines, missing controls, or unsubstantiated claims.
    - "minor": Unclear formulations, minor typographical errors, formatting, or secondary references.
    - "suggestion": Constructive non-binding recommendations for future work.
-3. Be constructive, professional, and actionable. State what the issue is, why it matters, and how the authors can fix it.
-4. If checking reporting guidelines (${standard}), evaluate whether each key requirement is compliant, partial, or missing.
-5. All assessment text MUST be written in the specified language: "${options.language}".
-6. Output MUST strictly match the requested JSON schema.`
+4. Be constructive, professional, and actionable. State what the issue is, why it matters, and how the authors can fix it.
+5. If checking reporting guidelines (${standard}), evaluate whether each key requirement is compliant, partial, or missing.
+6. All assessment text MUST be written in the specified language: "${options.language}".
+7. Output MUST strictly match the requested JSON schema.`
 
   const userPrompt = `Please evaluate the following academic manuscript and generate a comprehensive, structured peer review.
 
@@ -285,6 +340,8 @@ Respond with a valid JSON object matching this structure:
     {
       "id": "f-1",
       "category": "methodology | results | statistics | literature | reproducibility | ethics | formal",
+      "findingType": "strength | weakness | risk | missing_evidence | question | recommendation",
+      "epistemicStatus": "SUPPORTED_FACT | SUPPORTED_INTERPRETATION | REVIEWER_JUDGMENT | MISSING_EVIDENCE | POSSIBLE_RISK | REQUIRES_HUMAN_VERIFICATION",
       "title": "Clear concise title of the observation",
       "explanation": "Detailed scientific critique explaining why this is a concern",
       "recommendation": "Concrete actionable advice on how the author can address this",
@@ -325,11 +382,31 @@ Respond with a valid JSON object matching this structure:
     temperature: 0.2,
   })
 
-  const anchoredFindings = anchorEvidenceQuotes(validated.findings, rag)
+  // 1. Initial quote anchoring
+  const anchored = anchorEvidenceQuotes(validated.findings, rag, sourceRevision)
+
+  // 2. Deterministic alignment and citation checks
+  const alignCheck = checkObjectiveAlignment(structure, rag, options.language)
+  const citeCheck = auditCitationConsistency(structure, rag, options.language)
+
+  const mergedFindings = [...anchored, ...alignCheck.findings, ...citeCheck.findings]
+
+  // 3. Epistemic validation & calibration
+  const validationResult = validateAndCalibrateFindings(mergedFindings, rag.fullText, rag.sections, sourceRevision)
+  const finalFindings = sortFindingsByPriority(validationResult.validatedFindings, options.language)
+
+  // 4. Calibrated defense questions (5-12)
+  const calibratedQuestions = generateCalibratedDefenseQuestions(rag, finalFindings, options.thesisType || "master", options.language)
+
+  // 5. Calculate proposed grade range
+  const gradeRangeInfo = calculateGradeRange(85)
 
   return {
     ...validated,
-    anchoredFindings: sortFindingsByPriority(anchoredFindings, options.language),
+    anchoredFindings: finalFindings,
+    sourceRevision,
+    proposedGradeRange: gradeRangeInfo.range,
+    defenseQuestions: calibratedQuestions,
   }
 }
 

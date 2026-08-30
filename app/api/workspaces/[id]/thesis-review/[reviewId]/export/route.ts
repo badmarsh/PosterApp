@@ -19,6 +19,7 @@ import { generateThesisReviewLatex } from "@/lib/latex/generator-thesis-review"
 import type { ThesisReviewTemplate } from "@/lib/latex/templates-thesis"
 import type { ThesisSection, ReviewLanguage } from "@/lib/ai/thesis-rubric"
 import { deserializeThesisReview } from "@/lib/ai/review-serializer"
+import { safeContentDisposition, sanitizeFilename } from "@/lib/security"
 
 const ROOT = path.join(process.cwd(), "workspaces")
 const MAX_LOG = 6_000
@@ -141,11 +142,12 @@ export async function POST(
     await fs.mkdir(targetDir, { recursive: true })
     await fs.writeFile(path.join(targetDir, `thesis-review-${reviewId}.pdf`), pdfBuffer)
 
+    const pdfFilename = `posudok-${sanitizeFilename(review.studentName, "student")}.pdf`
     return new Response(pdfBuffer, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="posudok-${review.studentName.replace(/\s+/g, "-").slice(0, 40)}.pdf"`,
+        "Content-Disposition": safeContentDisposition(pdfFilename, "attachment"),
         "Content-Length": String(pdfBuffer.length),
       },
     })
@@ -185,6 +187,37 @@ export async function GET(
   }
 
   const format = req.nextUrl.searchParams.get("format")
+  const includeConfidential = req.nextUrl.searchParams.get("confidential") === "true"
+
+  if (format === "docx") {
+    const { generateThesisReviewDocx } = await import("@/lib/docx/generator-review")
+    const deserialized = deserializeThesisReview(review)
+    const blob = await generateThesisReviewDocx(deserialized as any, { includeConfidential })
+    const arrayBuffer = await blob.arrayBuffer()
+    const docxFilename = `posudok-${sanitizeFilename(review.studentName, "student")}${includeConfidential ? "-confidential" : ""}.docx`
+    return new Response(arrayBuffer, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "Content-Disposition": safeContentDisposition(docxFilename, "attachment"),
+      },
+    })
+  }
+
+  if (format === "md" || format === "markdown") {
+    const { composeFullReviewNarrative } = await import("@/lib/ai/review-composer")
+    const deserialized = deserializeThesisReview(review)
+    const composed = composeFullReviewNarrative(deserialized as any, includeConfidential ? "editor" : "author", review.language as any)
+    const mdFilename = `posudok-${sanitizeFilename(review.studentName, "student")}.md`
+    return new Response(composed.markdownText, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Content-Disposition": safeContentDisposition(mdFilename, "attachment"),
+      },
+    })
+  }
+
   if (format === "tex") {
     let template: ThesisReviewTemplate = "posudok-sk"
     if (review.language === "en") template = "posudok-en"
@@ -212,11 +245,12 @@ export async function GET(
       template,
     })
 
+    const texFilename = `posudok-${sanitizeFilename(review.studentName, "student")}.tex`
     return new Response(tex, {
       status: 200,
       headers: {
         "Content-Type": "text/x-tex; charset=utf-8",
-        "Content-Disposition": `attachment; filename="posudok-${review.studentName.replace(/\s+/g, "-").slice(0, 40)}.tex"`,
+        "Content-Disposition": safeContentDisposition(texFilename, "attachment"),
       },
     })
   }

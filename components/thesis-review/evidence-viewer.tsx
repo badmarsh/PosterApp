@@ -1,11 +1,11 @@
 "use client"
 
 /**
- * EvidenceViewer — Left-hand side of the Review Split Workspace.
+ * EvidenceViewer — Master Document & Manuscript Viewer.
  *
- * Renders the full parsed manuscript text from workspaces/[id]/sources/*.md,
- * highlights sections, and automatically scrolls and highlights the active evidence quote
- * when the reviewer clicks "Zobraziť dôkaz" on any finding card.
+ * Renders the full parsed manuscript text inside a paper-sheet canvas with realistic
+ * elevation shadow, typography hierarchy, markdown table support, and auto-scrolling
+ * synchronized evidence quote highlighting.
  */
 
 import React, { useEffect, useRef, useState, useMemo } from "react"
@@ -21,10 +21,12 @@ import {
   AlertCircle,
   HelpCircle,
   RefreshCw,
-  ChevronDown,
-  ChevronUp,
+  X,
+  BookOpen,
+  Quote,
 } from "lucide-react"
 import type { EvidenceReference } from "@/lib/ai/review-types"
+import { formatDocumentDisplayName } from "@/lib/ingestion"
 
 interface Props {
   workspaceId: string
@@ -62,7 +64,7 @@ export function EvidenceViewer({
 
   const handleMouseUp = () => {
     const selection = window.getSelection()
-    if (selection && selection.toString().trim().length > 10) {
+    if (selection && selection.toString().trim().length > 8) {
       setSelectedText(selection.toString().trim())
     } else {
       setSelectedText("")
@@ -84,7 +86,7 @@ export function EvidenceViewer({
               {i < parts.length - 1 && (
                 <mark
                   ref={activeHighlightRef}
-                  className="bg-primary/20 text-foreground border-b-2 border-primary font-medium px-1 rounded transition-all duration-300 ring-2 ring-primary/40 motion-reduce:animate-none animate-pulse"
+                  className="bg-primary/20 text-foreground border-b-2 border-primary font-medium px-1.5 py-0.5 rounded-md transition-all duration-300 ring-2 ring-primary/40 shadow-xs inline-block animate-pulse"
                 >
                   {cleanTarget}
                 </mark>
@@ -103,7 +105,7 @@ export function EvidenceViewer({
         return (
           <mark
             ref={activeHighlightRef}
-            className="bg-primary/20 text-foreground border-b-2 border-primary font-medium px-1 rounded ring-2 ring-primary/40"
+            className="bg-primary/20 text-foreground border-b-2 border-primary font-medium px-1.5 py-0.5 rounded-md ring-2 ring-primary/40 inline-block"
           >
             {text}
           </mark>
@@ -120,7 +122,7 @@ export function EvidenceViewer({
         <>
           {parts.map((part, i) =>
             regex.test(part) ? (
-              <mark key={i} className="bg-yellow-200 dark:bg-yellow-900/60 text-foreground px-0.5 rounded">
+              <mark key={i} className="bg-amber-200 dark:bg-amber-900/60 text-foreground px-1 py-0.2 rounded font-medium">
                 {part}
               </mark>
             ) : (
@@ -140,140 +142,218 @@ export function EvidenceViewer({
 
     if (st === "verified-exact" || st === "verified") {
       return (
-        <Badge variant="outline" className="text-[10px] text-green-600 dark:text-green-400 border-green-300 dark:border-green-800 gap-1 bg-green-500/10">
-          <CheckCircle2 className="h-3 w-3" /> Overený (presný citát)
+        <Badge variant="outline" className="text-[10px] text-emerald-600 dark:text-emerald-400 border-emerald-500/40 gap-1 bg-emerald-500/10 font-semibold shrink-0">
+          <CheckCircle2 className="h-3 w-3" /> Overený dôkaz
         </Badge>
       )
     }
     if (st === "verified-normalized") {
       return (
-        <Badge variant="outline" className="text-[10px] text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 gap-1 bg-emerald-500/10">
+        <Badge variant="outline" className="text-[10px] text-emerald-600 dark:text-emerald-400 border-emerald-500/40 gap-1 bg-emerald-500/10 font-semibold shrink-0">
           <CheckCircle2 className="h-3 w-3" /> Overený (normalizovaný)
         </Badge>
       )
     }
     if (st === "approximate") {
       return (
-        <Badge variant="outline" className="text-[10px] text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-800 gap-1 bg-amber-500/10">
-          <HelpCircle className="h-3 w-3" /> Približná zhoda dôkazu
+        <Badge variant="outline" className="text-[10px] text-amber-600 dark:text-amber-400 border-amber-500/40 gap-1 bg-amber-500/10 font-semibold shrink-0">
+          <HelpCircle className="h-3 w-3" /> Približná zhoda
         </Badge>
       )
     }
     if (st === "ambiguous") {
       return (
-        <Badge variant="outline" className="text-[10px] text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-800 gap-1 bg-purple-500/10">
+        <Badge variant="outline" className="text-[10px] text-purple-600 dark:text-purple-400 border-purple-500/40 gap-1 bg-purple-500/10 font-semibold shrink-0">
           <HelpCircle className="h-3 w-3" /> Viacnásobný výskyt
         </Badge>
       )
     }
     if (st === "stale") {
       return (
-        <Badge variant="outline" className="text-[10px] text-red-600 dark:text-red-400 border-red-300 dark:border-red-800 gap-1 bg-red-500/10">
-          <AlertCircle className="h-3 w-3" /> Zmenená verzia textu
+        <Badge variant="outline" className="text-[10px] text-red-600 dark:text-red-400 border-red-500/40 gap-1 bg-red-500/10 font-semibold shrink-0">
+          <AlertCircle className="h-3 w-3" /> Zmenený text
         </Badge>
       )
     }
     return (
-      <Badge variant="outline" className="text-[10px] text-muted-foreground gap-1">
-        <AlertCircle className="h-3 w-3" /> Neoverený dôkaz
+      <Badge variant="outline" className="text-[10px] text-muted-foreground gap-1 shrink-0">
+        <AlertCircle className="h-3 w-3" /> Neoverený
       </Badge>
     )
   }, [selectedEvidence])
 
   return (
-    <div className="flex flex-col h-full w-full border-r bg-background/50 overflow-hidden select-text">
+    <div className="flex flex-col h-full w-full border-r bg-muted/20 overflow-hidden select-text">
       {/* Top toolbar */}
-      <div className="flex items-center justify-between border-b px-4 py-2.5 bg-muted/30 shrink-0 gap-2">
+      <div className="flex items-center justify-between border-b px-4 py-2.5 bg-card/90 backdrop-blur-xs shrink-0 gap-2 shadow-2xs z-10">
         <div className="flex items-center gap-2 min-w-0">
-          <FileText className="h-4 w-4 text-primary shrink-0" />
-          <span className="text-xs font-semibold uppercase tracking-wider truncate">
-            Zdrojový dokument
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <FileText className="h-3.5 w-3.5" />
+          </div>
+          <span className="text-xs font-bold uppercase tracking-wider text-foreground truncate">
+            Zdrojový text
           </span>
           {selectedEvidence?.sectionHeading && (
-            <Badge variant="outline" className="text-[10px] hidden sm:inline-flex truncate max-w-[150px]">
+            <Badge variant="secondary" className="text-[10px] hidden sm:inline-flex truncate max-w-[160px] font-medium">
               {selectedEvidence.sectionHeading}
             </Badge>
           )}
           {evidenceStatusBadge}
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="relative w-36 sm:w-48">
-            <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="relative w-36 sm:w-52">
+            <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Hľadať v texte..."
-              className="h-7 text-xs pl-7"
+              className="h-7.5 text-xs pl-8 pr-7 rounded-lg bg-background"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-2 p-0.5 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Floating selection action bar */}
       {selectedText && onAddFindingFromSelection && (
-        <div className="bg-primary text-primary-foreground px-3 py-1.5 flex items-center justify-between shadow-md text-xs z-10 animate-in fade-in slide-in-from-top-1">
+        <div className="bg-primary text-primary-foreground px-4 py-2 flex items-center justify-between shadow-lg text-xs z-20 animate-in fade-in slide-in-from-top-1 border-b border-primary/20">
           <div className="flex items-center gap-2 truncate pr-2">
             <Highlighter className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate max-w-xs italic font-serif">&ldquo;{selectedText.slice(0, 60)}...&rdquo;</span>
+            <span className="truncate max-w-sm italic font-serif">&ldquo;{selectedText.slice(0, 75)}...&rdquo;</span>
           </div>
           <Button
             size="sm"
             variant="secondary"
-            className="h-6 text-[11px] font-semibold gap-1 shrink-0"
+            className="h-6.5 text-[11px] font-bold gap-1.5 shrink-0 shadow-2xs cursor-pointer"
             onClick={() => {
               onAddFindingFromSelection(selectedText, selectedEvidence?.sectionHeading)
               setSelectedText("")
             }}
           >
-            <PlusCircle className="h-3 w-3" />
+            <PlusCircle className="h-3 w-3 text-primary" />
             Vytvoriť pripomienku
           </Button>
         </div>
       )}
 
-      {/* Main Document Content */}
+      {/* Main Document Content Canvas (Paper Sheet with Shadow) */}
       <div
         ref={containerRef}
         onMouseUp={handleMouseUp}
-        className="flex-1 overflow-y-auto p-4 sm:p-6 font-serif text-sm leading-relaxed text-foreground/90 space-y-4"
+        className="flex-1 overflow-y-auto p-3 sm:p-6 bg-muted/40 dark:bg-zinc-950/60"
       >
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 space-y-2">
-            <RefreshCw className="h-6 w-6 animate-spin text-primary opacity-70" />
-            <p className="text-xs">Načítavam text rukopisu z workspace...</p>
+          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 space-y-3">
+            <RefreshCw className="h-7 w-7 animate-spin text-primary opacity-80" />
+            <p className="text-xs font-semibold text-foreground">Načítavam text rukopisu z workspace…</p>
           </div>
         ) : sourceMarkdown ? (
-          <div className="max-w-2xl mx-auto whitespace-pre-wrap font-sans text-xs sm:text-sm leading-relaxed space-y-3">
-            {sourceMarkdown.split("\n\n").map((para, idx) => {
-              if (para.startsWith("#")) {
-                const level = para.match(/^#+/)?.[0].length || 1
-                const title = para.replace(/^#+\s*/, "")
+          /* Elevated Paper Canvas */
+          <div className="max-w-3xl mx-auto bg-card dark:bg-card/95 rounded-2xl border border-border/80 shadow-xl ring-1 ring-black/5 dark:ring-white/10 p-6 sm:p-10 my-2 space-y-4 transition-all">
+            {/* Document Sheet Header */}
+            <div className="flex items-center justify-between border-b pb-3 text-xs text-muted-foreground mb-4">
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-primary" />
+                <span className="font-semibold text-foreground text-xs">Originálny rukopis práce</span>
+              </div>
+              <span className="text-[10px] font-mono">
+                {sourceMarkdown.split("\n\n").length} sekcií / odsekov
+              </span>
+            </div>
+
+            {/* Parsed paragraphs & headings */}
+            <div className="whitespace-pre-wrap font-sans text-xs sm:text-[13px] leading-relaxed space-y-3 text-foreground/90">
+              {sourceMarkdown.split("\n\n").map((para, idx) => {
+                const trimmed = para.trim()
+                if (!trimmed) return null
+
+                // Headings
+                if (trimmed.startsWith("#")) {
+                  const level = trimmed.match(/^#+/)?.[0].length || 1
+                  const title = trimmed.replace(/^#+\s*/, "")
+                  return (
+                    <h3
+                      key={idx}
+                      className={`font-bold text-foreground tracking-tight pt-4 border-b border-border/60 pb-1.5 ${
+                        level === 1
+                          ? "text-base sm:text-lg text-foreground font-black"
+                          : level === 2
+                          ? "text-sm sm:text-base text-foreground font-bold"
+                          : "text-xs sm:text-sm font-semibold text-foreground/90"
+                      }`}
+                    >
+                      {highlightQuote(title, selectedEvidence?.quote, searchQuery)}
+                    </h3>
+                  )
+                }
+
+                // Blockquotes
+                if (trimmed.startsWith(">")) {
+                  const quoteContent = trimmed.replace(/^>\s*/gm, "")
+                  return (
+                    <blockquote
+                      key={idx}
+                      className="border-l-3 border-primary/60 bg-primary/5 pl-3.5 py-2 my-2 rounded-r-lg text-xs italic font-serif text-foreground/85"
+                    >
+                      {highlightQuote(quoteContent, selectedEvidence?.quote, searchQuery)}
+                    </blockquote>
+                  )
+                }
+
+                // Table syntax (starts with |)
+                if (trimmed.startsWith("|")) {
+                  const rows = trimmed.split("\n").filter((r) => r.trim().startsWith("|"))
+                  return (
+                    <div key={idx} className="my-3 overflow-x-auto rounded-lg border bg-muted/20 p-1">
+                      <table className="w-full text-[11px] text-left border-collapse">
+                        <tbody>
+                          {rows.map((row, rIdx) => {
+                            if (row.includes("---")) return null
+                            const cols = row.split("|").map((c) => c.trim()).filter((_, i, arr) => i > 0 && i < arr.length - 1)
+                            const isHeader = rIdx === 0
+                            return (
+                              <tr key={rIdx} className={isHeader ? "border-b bg-muted/40 font-semibold" : "border-b border-border/40 hover:bg-muted/30"}>
+                                {cols.map((col, cIdx) => (
+                                  <td key={cIdx} className="p-1.5 px-2.5">
+                                    {highlightQuote(col, selectedEvidence?.quote, searchQuery)}
+                                  </td>
+                                ))}
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                }
+
+                // Standard paragraph
                 return (
-                  <h3
-                    key={idx}
-                    className={`font-sans font-bold text-foreground tracking-tight pt-3 border-b pb-1 ${
-                      level === 1 ? "text-base sm:text-lg" : "text-sm sm:text-base"
-                    }`}
-                  >
-                    {highlightQuote(title, selectedEvidence?.quote, searchQuery)}
-                  </h3>
+                  <p key={idx} className="text-foreground/85 leading-relaxed">
+                    {highlightQuote(trimmed, selectedEvidence?.quote, searchQuery)}
+                  </p>
                 )
-              }
-              return (
-                <p key={idx} className="text-muted-foreground leading-normal">
-                  {highlightQuote(para, selectedEvidence?.quote, searchQuery)}
-                </p>
-              )
-            })}
+              })}
+            </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 space-y-2">
-            <FileText className="h-8 w-8 opacity-40" />
-            <p className="text-xs">Žiadny textový náhľad dokumentu.</p>
-            <p className="text-[11px] opacity-75">
-              Nahrajte PDF/DOCX do workspace a spustite analýzu na extrakciu sekcií.
-            </p>
+          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 space-y-3">
+            <div className="p-4 rounded-2xl bg-card border shadow-sm">
+              <FileText className="h-10 w-10 text-muted-foreground/60 mx-auto mb-2" />
+              <h4 className="text-sm font-semibold text-foreground">Žiadny textový náhľad dokumentu</h4>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                Nahrajte PDF práce a spustite analýzu pre extrakciu textu a dôkazov.
+              </p>
+            </div>
           </div>
         )}
       </div>

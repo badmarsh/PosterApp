@@ -116,8 +116,10 @@ Respond EXACTLY in this JSON format with no markdown wrappers:
   } catch (err: unknown) {
     if (err instanceof Response) return err
     console.error("Card conversion failed:", err)
+    const msg = err instanceof Error ? err.message : ""
+    const isConfigError = msg.includes("AI API configuration missing")
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to convert card content" },
+      { error: isConfigError ? msg : "Failed to convert card content" },
       { status: 500 }
     )
   }

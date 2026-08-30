@@ -116,9 +116,11 @@ export async function POST(req: NextRequest) {
     })
   } catch (err: unknown) {
     console.error("Paper URL import error:", err)
+    const message = err instanceof Error ? err.message : "Failed to import paper from URL"
+    const isClientError = message.includes("SSRF") || message.includes("Invalid URL") || message.includes("Unsupported protocol")
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to import paper from URL" },
-      { status: 500 }
+      { error: isClientError ? message : "Failed to import paper from URL" },
+      { status: isClientError ? 400 : 500 }
     )
   }
 }

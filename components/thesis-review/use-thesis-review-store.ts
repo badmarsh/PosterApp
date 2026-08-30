@@ -20,6 +20,8 @@ import {
   type ThesisSection,
   type ThesisMetadata,
   type ReviewLanguage,
+  type ThesisType,
+  type ReviewerRole,
 } from "@/lib/ai/thesis-rubric"
 import type {
   ReviewKind,
@@ -59,6 +61,12 @@ export interface ThesisReviewRecord {
   summary?: string | null
   strengths?: string[]
   findings?: ReviewFinding[]
+  sourceRevision?: string | null
+  rubricVersion?: string | null
+  discipline?: string | null
+  proposedGradeRange?: string | null
+  confidence?: number | null
+  limitationsSummary?: string | null
   reportingStandard?: ReportingStandard | null
   reportingGuidelineChecks?: ReportingGuidelineCheck[]
   confidentialComments?: string | null
@@ -78,9 +86,24 @@ export interface ThesisReviewListItem {
   thesisType: string
   reviewerRole: string
   reviewerName?: string | null
+  institution?: string | null
+  department?: string | null
   grade?: string | null
+  suggestedGrade?: string | null
+  finalGrade?: string | null
   recommendation?: string | null
+  suggestedRecommendation?: string | null
+  finalRecommendation?: string | null
   reviewKind?: string | null
+  targetVenue?: string | null
+  sourceRevision?: string | null
+  rubricVersion?: string | null
+  discipline?: string | null
+  proposedGradeRange?: string | null
+  confidence?: number | null
+  limitationsSummary?: string | null
+  reportingStandard?: string | null
+  confirmedAt?: string | null
   status: string
   language: string
   createdAt: string
@@ -89,6 +112,7 @@ export interface ThesisReviewListItem {
 
 export interface ThesisReviewGenerateOptions {
   workspaceId: string
+  sourceFileId?: string
   metadata: ThesisMetadata & {
     reviewKind?: ReviewKind
     targetVenue?: string
@@ -97,6 +121,42 @@ export interface ThesisReviewGenerateOptions {
   focusCriteria?: string[]
   skipCitationAudit?: boolean
   professionalMode?: boolean
+}
+
+export interface ThesisReviewFormMetadata {
+  studentName: string
+  thesisTitle: string
+  thesisType: ThesisType
+  reviewerRole: ReviewerRole
+  reviewerName?: string
+  institution?: string
+  department?: string
+  language: ReviewLanguage
+  academicYear?: string
+  reviewKind: ReviewKind
+  targetVenue?: string
+  reportingStandard: ReportingStandard
+}
+
+export function normalizeFormMetadataToThesisMetadata(meta: ThesisReviewFormMetadata): ThesisMetadata & {
+  reviewKind?: ReviewKind
+  targetVenue?: string
+  reportingStandard?: ReportingStandard
+} {
+  return {
+    studentName: meta.studentName,
+    thesisTitle: meta.thesisTitle,
+    thesisType: meta.thesisType,
+    reviewerRole: meta.reviewerRole,
+    reviewerName: meta.reviewerName || undefined,
+    institution: meta.institution || undefined,
+    department: meta.department || undefined,
+    language: meta.language,
+    academicYear: meta.academicYear || undefined,
+    reviewKind: meta.reviewKind,
+    targetVenue: meta.targetVenue || undefined,
+    reportingStandard: meta.reportingStandard,
+  }
 }
 
 interface ThesisReviewState {
@@ -115,15 +175,25 @@ interface ThesisReviewState {
   saveError: string | null
   exportError: string | null
   isPanelOpen: boolean
+  isMetadataValid: boolean
+  formMetadata: ThesisReviewFormMetadata
+  confidentialityAgreed: boolean
+  skipCitationAudit: boolean
+  selectedFileId: string
 
   // Actions
   openPanel: () => void
   closePanel: () => void
+  setMetadataValid: (valid: boolean) => void
+  updateFormMetadata: (updates: Partial<ThesisReviewFormMetadata>) => void
+  setConfidentialityAgreed: (agreed: boolean) => void
+  setSkipCitationAudit: (skip: boolean) => void
+  setSelectedFileId: (fileId: string) => void
   setActiveReview: (review: ThesisReviewRecord | null) => void
   setSelectedEvidence: (ev: EvidenceReference | null) => void
   setAnalysisPlan: (plan: ReviewAnalysisPlan | null) => void
   generateAnalysisPlan: (workspaceId: string, metadata: any) => Promise<ReviewAnalysisPlan | null>
-  loadSourceDocument: (workspaceId: string) => Promise<void>
+  loadSourceDocument: (workspaceId: string, fileId?: string) => Promise<void>
   loadReviews: (workspaceId: string) => Promise<void>
   loadReview: (workspaceId: string, reviewId: string) => Promise<void>
   generateReview: (opts: ThesisReviewGenerateOptions) => Promise<ThesisReviewRecord | null>
@@ -155,8 +225,11 @@ interface ThesisReviewState {
 }
 
 // ---------------------------------------------------------------------------
-// Store
+// Store & Module Caches
 // ---------------------------------------------------------------------------
+
+// In-memory cache for source document markdown by workspace + fileId
+const sourceDocCache = new Map<string, string>()
 
 export const useThesisReviewStore = create<ThesisReviewState>()(
   immer((set, get) => ({
@@ -175,9 +248,54 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     saveError: null,
     exportError: null,
     isPanelOpen: false,
+    isMetadataValid: false,
+    formMetadata: {
+      studentName: "",
+      thesisTitle: "",
+      thesisType: "master",
+      reviewerRole: "opponent",
+      reviewerName: "",
+      institution: "Slovenská technická univerzita v Bratislave",
+      department: "FIIT - Ústav počítačového inžinierstva a aplikovanej informatiky",
+      language: "sk",
+      academicYear: "2025/2026",
+      reviewKind: "thesis",
+      targetVenue: "",
+      reportingStandard: "none",
+    },
+    confidentialityAgreed: true,
+    skipCitationAudit: false,
+    selectedFileId: "",
 
     openPanel: () => set((s) => { s.isPanelOpen = true }),
     closePanel: () => set((s) => { s.isPanelOpen = false }),
+    setMetadataValid: (valid) => set((s) => { s.isMetadataValid = valid }),
+    updateFormMetadata: (updates) =>
+      set((s) => {
+        Object.assign(s.formMetadata, updates)
+        const valid =
+          Boolean(s.formMetadata.studentName?.trim()) &&
+          Boolean(s.formMetadata.thesisTitle?.trim()) &&
+          s.confidentialityAgreed
+        s.isMetadataValid = valid
+      }),
+    setConfidentialityAgreed: (agreed) =>
+      set((s) => {
+        s.confidentialityAgreed = agreed
+        const valid =
+          Boolean(s.formMetadata.studentName?.trim()) &&
+          Boolean(s.formMetadata.thesisTitle?.trim()) &&
+          agreed
+        s.isMetadataValid = valid
+      }),
+    setSkipCitationAudit: (skip) =>
+      set((s) => {
+        s.skipCitationAudit = skip
+      }),
+    setSelectedFileId: (fileId) =>
+      set((s) => {
+        s.selectedFileId = fileId
+      }),
 
     setActiveReview: (review) => set((s) => { s.activeReview = review }),
     setSelectedEvidence: (ev) => set((s) => { s.selectedEvidence = ev }),
@@ -211,14 +329,29 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
       }
     },
 
-    loadSourceDocument: async (workspaceId: string) => {
+    loadSourceDocument: async (workspaceId: string, fileId?: string) => {
+      const cacheKey = `${workspaceId}:${fileId || "all"}`
+      const cached = sourceDocCache.get(cacheKey)
+      if (cached) {
+        set((s) => {
+          s.sourceMarkdown = cached
+          s.isLoadingSource = false
+        })
+        return
+      }
+
       set((s) => { s.isLoadingSource = true })
       try {
-        const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review/source-document`)
+        const url = fileId
+          ? `/api/workspaces/${workspaceId}/thesis-review/source-document?fileId=${encodeURIComponent(fileId)}`
+          : `/api/workspaces/${workspaceId}/thesis-review/source-document`
+        const res = await fetch(url)
         if (res.ok) {
           const data = await res.json()
+          const text = data.fullText ?? ""
+          sourceDocCache.set(cacheKey, text)
           set((s) => {
-            s.sourceMarkdown = data.fullText ?? ""
+            s.sourceMarkdown = text
             s.isLoadingSource = false
           })
         } else {
@@ -264,13 +397,14 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
       set((s) => { s.isGenerating = true; s.generateError = null })
       try {
         // Ensure source document is fetched
-        void get().loadSourceDocument(opts.workspaceId)
+        void get().loadSourceDocument(opts.workspaceId, opts.sourceFileId)
 
         const res = await fetch(`/api/workspaces/${opts.workspaceId}/thesis-review`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             thesisMetadata: opts.metadata,
+            sourceFileId: opts.sourceFileId,
             focusCriteria: opts.focusCriteria,
             skipCitationAudit: opts.skipCitationAudit ?? false,
           }),

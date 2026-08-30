@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { requireWorkspaceAccess, requireWorkspaceEditor } from "@/lib/auth"
 import { computeWorkspaceDiff } from "@/lib/snapshot-diff"
 import { generateSnapshotLabelAsync } from "@/lib/ai-labeler"
 
@@ -16,20 +16,22 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid workspace ID' }, { status: 400 })
   }
 
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    await requireWorkspaceAccess(id)
 
-  const workspace = await prisma.workspace.findUnique({ where: { id, userId }, select: { id: true } })
-  if (!workspace) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    const snapshots = await prisma.workspaceSnapshot.findMany({
+      where: { workspaceId: id },
+      orderBy: { savedAt: "desc" },
+      select: { id: true, savedAt: true, label: true, revision: true },
+      take: MAX_SNAPSHOTS,
+    })
 
-  const snapshots = await prisma.workspaceSnapshot.findMany({
-    where: { workspaceId: id },
-    orderBy: { savedAt: "desc" },
-    select: { id: true, savedAt: true, label: true, revision: true },
-    take: MAX_SNAPSHOTS,
-  })
-
-  return NextResponse.json({ snapshots })
+    return NextResponse.json({ snapshots })
+  } catch (err) {
+    if (err instanceof Response) return err
+    console.error("[History GET] Error:", err)
+    return NextResponse.json({ error: "Failed to load history" }, { status: 500 })
+  }
 }
 
 export async function POST(
@@ -42,18 +44,18 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid workspace ID' }, { status: 400 })
   }
 
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    await requireWorkspaceEditor(id)
 
-  const workspace = await prisma.workspace.findUnique({
-    where: { id, userId },
-    include: {
-      outputs: { include: { cards: true } },
-      assets: true,
-      ingestFiles: true,
-    },
-  })
-  if (!workspace) return NextResponse.json({ error: "Not found" }, { status: 404 })
+    const workspace = await prisma.workspace.findUnique({
+      where: { id },
+      include: {
+        outputs: { include: { cards: true } },
+        assets: true,
+        ingestFiles: true,
+      },
+    })
+    if (!workspace) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
   const body = await req.json().catch(() => ({}))
   const label = typeof body.label === "string" ? body.label.slice(0, 100) : null
@@ -104,6 +106,11 @@ export async function POST(
     }
   }
 
-  return NextResponse.json({ id: snapshot.id, savedAt: snapshot.savedAt, label: snapshot.label, revision: snapshot.revision })
+    return NextResponse.json({ id: snapshot.id, savedAt: snapshot.savedAt, label: snapshot.label, revision: snapshot.revision })
+  } catch (err) {
+    if (err instanceof Response) return err
+    console.error("[History POST] Error:", err)
+    return NextResponse.json({ error: "Failed to create snapshot" }, { status: 500 })
+  }
 }
 

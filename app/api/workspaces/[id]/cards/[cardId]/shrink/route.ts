@@ -94,7 +94,7 @@ Respond EXACTLY in this JSON format:
     if (err instanceof Response) return err
     console.error("Card shrink failed:", err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to shrink card content" },
+      { error: "Failed to shrink card content" },
       { status: 500 }
     )
   }

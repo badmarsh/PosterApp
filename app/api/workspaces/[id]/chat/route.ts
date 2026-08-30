@@ -236,7 +236,7 @@ This will allow the user to apply the fix automatically with one click.`
     if (error instanceof Response) return error
     console.error("Chat route error:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
+      { error: "Failed to generate chat response" },
       { status: 500 }
     )
   }

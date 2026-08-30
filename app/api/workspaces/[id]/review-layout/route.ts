@@ -236,7 +236,7 @@ STRICT CALIBRATION:
     if (err instanceof Response) return err
     console.error("VLM Review Error:", err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to run VLM layout review" },
+      { error: "Failed to run VLM layout review" },
       { status: 500 }
     )
   } finally {

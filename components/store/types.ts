@@ -76,6 +76,7 @@ export interface IngestionSlice {
   promoteAsset: (assetId: string, cardId: string, slot: AssignSlot) => void
   unassignAsset: (assetId: string) => void
   discardAsset: (assetId: string) => void
+  renameFile: (id: string, newName: string) => Promise<void>
   backfillCaptions: () => Promise<void>
   pushLog: (level: ParseLogEntry["level"], message: string) => void
 }
@@ -142,6 +143,8 @@ export interface UiSlice {
   setIsActionsOpen: (v: boolean) => void
   isScannerOpen: boolean
   setIsScannerOpen: (v: boolean) => void
+  isAcademicSearchOpen: boolean
+  setIsAcademicSearchOpen: (v: boolean) => void
   scannerImage: string | null
   setScannerImage: (img: string | null) => void
   openScannerWithImage: (img: string) => void

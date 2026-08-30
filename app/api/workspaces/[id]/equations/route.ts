@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/lib/auth"
+import { requireWorkspaceAccess, requireWorkspaceEditor } from "@/lib/auth"
 import { randomUUID } from "crypto"
 import { cleanFormula, slugifyEquationKey, type EquationItem } from "@/lib/equation-types"
 import { validateEquationKaTeX } from "@/lib/services/equation-service"
@@ -12,17 +12,7 @@ export async function GET(
   const { id } = await params
 
   try {
-    const { userId } = await auth()
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-    const workspace = await prisma.workspace.findUnique({
-      where: { id, userId },
-      select: { id: true }
-    })
-
-    if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
-    }
+    await requireWorkspaceAccess(id)
 
     const assets = await prisma.asset.findMany({
       where: {
@@ -46,7 +36,9 @@ export async function GET(
 
     return NextResponse.json({ equations })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    if (err instanceof Response) return err
+    console.error("[Equations GET] Error:", err)
+    return NextResponse.json({ error: "Failed to load equations" }, { status: 500 })
   }
 }
 
@@ -57,16 +49,7 @@ export async function POST(
   const { id } = await params
 
   try {
-    const { userId } = await auth()
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-    const workspace = await prisma.workspace.findUnique({
-      where: { id, userId },
-      select: { id: true }
-    })
-    if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
-    }
+    await requireWorkspaceEditor(id)
 
     const body = await req.json() as Partial<EquationItem>
     const rawFormula = body.formula?.trim() || ""
@@ -116,7 +99,9 @@ export async function POST(
 
     return NextResponse.json({ ok: true, equation })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    if (err instanceof Response) return err
+    console.error("[Equations POST] Error:", err)
+    return NextResponse.json({ error: "Failed to create equation" }, { status: 500 })
   }
 }
 
@@ -127,16 +112,7 @@ export async function PUT(
   const { id } = await params
 
   try {
-    const { userId } = await auth()
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-    const workspace = await prisma.workspace.findUnique({
-      where: { id, userId },
-      select: { id: true }
-    })
-    if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
-    }
+    await requireWorkspaceEditor(id)
 
     const body = await req.json() as Partial<EquationItem> & { id: string }
     if (!body.id) {
@@ -183,7 +159,9 @@ export async function PUT(
 
     return NextResponse.json({ ok: true, equation })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    if (err instanceof Response) return err
+    console.error("[Equations PUT] Error:", err)
+    return NextResponse.json({ error: "Failed to update equation" }, { status: 500 })
   }
 }
 
@@ -194,16 +172,7 @@ export async function DELETE(
   const { id } = await params
 
   try {
-    const { userId } = await auth()
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-    const workspace = await prisma.workspace.findUnique({
-      where: { id, userId },
-      select: { id: true }
-    })
-    if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found or unauthorized" }, { status: 404 })
-    }
+    await requireWorkspaceEditor(id)
 
     const url = new URL(req.url)
     const eqId = url.searchParams.get("id")
@@ -221,6 +190,8 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    if (err instanceof Response) return err
+    console.error("[Equations DELETE] Error:", err)
+    return NextResponse.json({ error: "Failed to delete equation" }, { status: 500 })
   }
 }

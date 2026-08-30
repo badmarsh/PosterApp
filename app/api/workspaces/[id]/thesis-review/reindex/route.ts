@@ -84,7 +84,7 @@ export async function POST(
     } catch (err) {
       skipped++
       console.error(`[reindex] Failed to index ${file.name}:`, err)
-      results.push({ fileId: file.id, name: file.name, chunks: 0, status: err instanceof Error ? err.message : String(err) })
+      results.push({ fileId: file.id, name: file.name, chunks: 0, status: "error" })
     }
   }
 

@@ -8,6 +8,8 @@ import {
 } from "@/lib/services/academic-connector"
 import * as semanticScholarService from "@/lib/services/semantic-scholar-service"
 import * as arxivService from "@/lib/services/arxiv-service"
+import * as openalexService from "@/lib/services/openalex-service"
+import * as crossrefService from "@/lib/services/crossref-service"
 
 describe("Academic Connector Service", () => {
   beforeEach(() => {
@@ -159,6 +161,40 @@ describe("Academic Connector Service", () => {
     expect(profile?.name).toBe("Geoffrey Hinton")
     expect(profile?.paperCount).toBe(300)
     expect(profile?.recentPapers).toHaveLength(1)
+  })
+
+  it("merges and deduplicates multi-source search results across OpenAlex and Crossref", async () => {
+    vi.spyOn(openalexService, "searchOpenAlexWorks").mockResolvedValue([
+      {
+        id: "https://openalex.org/W1234",
+        title: "Quantum Error Correction",
+        authors: ["Peter Shor"],
+        publicationYear: 1995,
+        citedByCount: 4500,
+        doi: "10.1103/PhysRevA.52.R2493",
+        openAccessPdfUrl: "https://arxiv.org/pdf/quant-ph/9506001.pdf",
+      },
+    ])
+    vi.spyOn(semanticScholarService, "searchPaperByTitle").mockResolvedValue({
+      papers: [
+        {
+          paperId: "s2-1",
+          title: "Quantum Error Correction",
+          authors: [{ authorId: "a1", name: "Peter Shor" }],
+          year: 1995,
+          citationCount: 4500,
+          externalIds: { DOI: "10.1103/PhysRevA.52.R2493" },
+        },
+      ],
+      status: "verified",
+    })
+    vi.spyOn(crossrefService, "searchCrossrefWorks").mockResolvedValue([])
+
+    const results = await searchAcademicPaper("Quantum Error Correction", 5)
+    expect(results.length).toBe(1)
+    expect(results[0].title).toBe("Quantum Error Correction")
+    expect(results[0].doi).toBe("10.1103/PhysRevA.52.R2493")
+    expect(results[0].openAccessPdfUrl).toBe("https://arxiv.org/pdf/quant-ph/9506001.pdf")
   })
 })
 

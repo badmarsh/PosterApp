@@ -27,8 +27,8 @@ import {
 } from "@/components/ui/dialog"
 
 import { FileStack, Copy, FilePlus2, BookOpen, Upload, Palette, Trash2, Loader2, Calculator } from "lucide-react"
-import { OUTPUT_TYPE_LABELS, getTemplateDef } from "@/lib/output-types"
-import type { OutputType } from "@/lib/output-types"
+import { OUTPUT_TYPE_LABELS, getTemplateDef, type OutputType } from "@/lib/output-types"
+import { ThesisMetadataPanel } from "@/components/thesis-review/thesis-metadata-panel"
 
 export function ProjectSettingsSidebar() {
   const { project, updateProject, isSwitchingProject, switchProject, newProject, duplicateProject, bibKeys, setIsBibManagerOpen, switchOutput, updateActiveThemeColor, equations, setIsEquationLibraryOpen } = useEditor(
@@ -102,6 +102,19 @@ export function ProjectSettingsSidebar() {
       >
         <div className="flex items-center p-4">
           <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+        </div>
+      </aside>
+    )
+  }
+
+  if (activeOutputType === "thesis-review") {
+    return (
+      <aside
+        className="flex w-80 lg:w-[360px] shrink-0 flex-col border-r border-border bg-sidebar"
+        aria-label="Thesis review parameters sidebar"
+      >
+        <div className="flex-1 overflow-y-auto">
+          <ThesisMetadataPanel workspaceId={project.id} />
         </div>
       </aside>
     )

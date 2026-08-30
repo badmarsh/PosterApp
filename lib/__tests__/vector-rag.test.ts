@@ -235,6 +235,7 @@ describe("searchHybrid — mocked DB integration", () => {
 
 describe("Full pipeline: searchHybrid → rerankChunks", () => {
   it("end-to-end: top reranked result is the most relevant chunk", async () => {
+    vi.resetModules()
     const physicsChunks = [
       {
         id: "phys-1",
@@ -272,5 +273,57 @@ describe("Full pipeline: searchHybrid → rerankChunks", () => {
 
     // phys-1 has both highest similarity AND keyword matches in heading → should be first
     expect(reranked[0].id).toBe("phys-1")
+  })
+})
+
+describe("resolveThesisDomainContext", () => {
+  it("resolves computer science domain for IT/software keywords", async () => {
+    const { resolveThesisDomainContext } = await import("@/lib/ai/vector-rag")
+    const ctx = resolveThesisDomainContext({
+      department: "FIIT - Ústav aplikovanej informatiky",
+      thesisTitle: "Systém na strojové učenie a neurónové siete",
+    })
+    expect(ctx).toContain("Informatika")
+    expect(ctx).toContain("AI")
+  })
+
+  it("resolves physics domain for physics keywords", async () => {
+    const { resolveThesisDomainContext } = await import("@/lib/ai/vector-rag")
+    const ctx = resolveThesisDomainContext({
+      department: "Katedra experimentálnej fyziky",
+      thesisTitle: "Kvantová optika a fotonika",
+    })
+    expect(ctx).toContain("Fyzika")
+  })
+
+  it("resolves engineering domain for mechanical/electrical keywords", async () => {
+    const { resolveThesisDomainContext } = await import("@/lib/ai/vector-rag")
+    const ctx = resolveThesisDomainContext({
+      department: "Strojnícka fakulta",
+      thesisTitle: "Návrh mechatronického pohonu",
+    })
+    expect(ctx).toContain("Inžinierstvo")
+  })
+
+  it("returns fallback domain for undefined metadata", async () => {
+    const { resolveThesisDomainContext } = await import("@/lib/ai/vector-rag")
+    expect(resolveThesisDomainContext(undefined)).toBe("STEM, Fyzika")
+  })
+})
+
+describe("getThesisCriterionQueryExpansion", () => {
+  it("provides rich query expansions for methodology", async () => {
+    const { getThesisCriterionQueryExpansion } = await import("@/lib/ai/vector-rag")
+    const exp = getThesisCriterionQueryExpansion("methodology", "sk")
+    expect(exp).toContain("metodika")
+    expect(exp).toContain("experimentálne")
+    expect(exp).toContain("implementácia")
+  })
+
+  it("provides rich query expansions for literature", async () => {
+    const { getThesisCriterionQueryExpansion } = await import("@/lib/ai/vector-rag")
+    const exp = getThesisCriterionQueryExpansion("literature", "sk")
+    expect(exp).toContain("literatúry")
+    expect(exp).toContain("rešerš")
   })
 })

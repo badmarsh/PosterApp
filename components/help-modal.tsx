@@ -326,7 +326,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
                 {/* ── 5. Doménové prednastavenia ──────────── */}
                 <div className="space-y-2">
                   <h4 className="font-semibold text-foreground text-sm border-b pb-1">5 · Doménové prednastavenia (STEM / Fyzika)</h4>
-                  <p className="text-xs">Všetky embedding volania predraďujú doménový prefix <code className="bg-muted px-1 rounded text-xs">"STEM, Fyzika: "</code> pred dotazom, čo posúva vektory bližšie k fyzikálnej terminológii (energia, experiment, meranie, výsledok, chyba merania). Formulár posudku je prednastavený na: <strong className="text-foreground">Dizertačná práca · Prírodovedecká fakulta · Katedra Fyziky (STEM)</strong>.</p>
+                  <p className="text-xs">Všetky embedding volania predraďujú doménový prefix <code className="bg-muted px-1 rounded text-xs">&quot;STEM, Fyzika: &quot;</code> pred dotazom, čo posúva vektory bližšie k fyzikálnej terminológii (energia, experiment, meranie, výsledok, chyba merania). Formulár posudku je prednastavený na: <strong className="text-foreground">Dizertačná práca · Prírodovedecká fakulta · Katedra Fyziky (STEM)</strong>.</p>
                 </div>
 
               </AccordionContent>
