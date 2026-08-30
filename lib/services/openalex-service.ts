@@ -102,8 +102,17 @@ export async function searchOpenAlexWorks(
   }
 ): Promise<OpenAlexWork[]> {
   try {
+    const cleanQuery = (query || "")
+      .replace(/^[\s?*+!#%&/\\-]+/, "")
+      .replace(/[\r\n\t]+/g, " ")
+      .trim()
+
+    if (!cleanQuery || cleanQuery.length < 2) {
+      return []
+    }
+
     const params = new URLSearchParams({
-      search: query.trim(),
+      search: cleanQuery,
       per_page: Math.min(limit, 20).toString(),
       sort: "relevance_score:desc",
     })
@@ -125,7 +134,8 @@ export async function searchOpenAlexWorks(
     })
 
     if (!res.ok) {
-      console.warn(`[OpenAlex] Search failed: HTTP ${res.status}`)
+      const errText = await res.text().catch(() => "")
+      console.warn(`[OpenAlex] Search failed: HTTP ${res.status} for "${cleanQuery.slice(0, 40)}": ${errText.slice(0, 100)}`)
       return []
     }
 
@@ -133,6 +143,9 @@ export async function searchOpenAlexWorks(
     const results = (data.results || []).map(parseOpenAlexWork)
     return results
   } catch (error) {
+    if ((error as any)?.name === "AbortError") {
+      return []
+    }
     console.warn("[OpenAlex] Search error:", error)
     return []
   }

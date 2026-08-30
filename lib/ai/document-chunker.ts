@@ -13,6 +13,7 @@
 
 import { prisma } from "@/lib/prisma"
 import { generateLocalEmbedding } from "@/lib/ai/local-embeddings"
+import { extractAndStoreGraphEntities } from "./graph-extractor"
 import { classifySectionKind, type SectionKind } from "@/lib/ai/thesis-context"
 
 export type { SectionKind }
@@ -251,6 +252,14 @@ export async function ingestDocumentChunks(
             )
           `
           chunksCreated++
+
+          // FIRE AND FORGET: GraphRAG Extraction (only for meaningful sections to save tokens, or all for PoC)
+          // We run this asynchronously without awaiting to not block vector ingestion return.
+          if (["methodology", "results", "literature_review", "introduction", "conclusion", "unknown"].includes(chunk.sectionKind)) {
+             await extractAndStoreGraphEntities(workspaceId, documentId, chunk.content).catch(e => {
+                console.error("[GraphRAG] Background extraction failed:", e)
+             })
+          }
         } catch (err) {
           console.error(`[VectorRAG] Failed to embed chunk "${chunk.heading}":`, err)
           skipped++

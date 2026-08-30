@@ -66,6 +66,8 @@ export interface GenerateProfessionalReviewOptions {
   reportingStandard?: ReportingStandard
   focusAreas?: string[]
   skipCitationAudit?: boolean
+  graphAugmentation?: string
+  vectorAugmentation?: string
 }
 
 const REPORTING_CHECKLIST_PROMPTS: Record<ReportingStandard, string> = {
@@ -125,7 +127,7 @@ function normalizeText(text: string): string {
  * precise section headings, line/character offsets, and verified status.
  */
 export function anchorEvidenceQuotes(
-  findings: ReviewFindingContract[],
+  findings: Array<Partial<ReviewFindingContract> & { title: string; explanation?: string; severity?: any; category?: any; evidence?: any[] }>,
   rag: ThesisRAGContext,
   sourceRevision?: string
 ): ReviewFinding[] {
@@ -237,8 +239,8 @@ export function anchorEvidenceQuotes(
       title: f.title,
       findingType: f.findingType || "weakness",
       epistemicStatus: f.epistemicStatus || "REVIEWER_JUDGMENT",
-      explanation: f.explanation,
-      recommendation: f.recommendation,
+      explanation: f.explanation || "",
+      recommendation: f.recommendation || "",
       suggestedRevision: f.suggestedRevision,
       severity: f.severity,
       category: f.category,
@@ -332,6 +334,9 @@ Reporting Standard: ${standard}
 
 --- REPORTING GUIDELINE FOCUS ---
 ${standardGuidance}
+
+${options.graphAugmentation ? `--- KNOWLEDGE GRAPH (MULTI-HOP REASONING) ---\n${options.graphAugmentation}\n` : ""}
+${options.vectorAugmentation ? `--- RELEVANT EXTRACTED CONTEXT (VECTOR RAG) ---\n${options.vectorAugmentation}\n` : ""}
 
 --- MANUSCRIPT EXCERPTS ---
 ${wrapUntrustedContext("manuscript_text", rag.fullText)}

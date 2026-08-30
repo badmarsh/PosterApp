@@ -26,6 +26,7 @@ import type { ReviewLanguage } from "@/lib/ai/thesis-rubric"
 import type { AcademicPaperResult } from "@/lib/services/academic-connector"
 import { academicPaperToBibEntry, slugifyCiteKey } from "@/lib/bib-types"
 import { useEditorStoreInstance } from "@/components/editor-store"
+import { CitationNetwork } from "./citation-network"
 
 interface Props {
   issues: string[]
@@ -173,6 +174,16 @@ export function CitationIssuesPanel({ issues, lang, workspaceId }: Props) {
               <div className="flex-1 whitespace-pre-wrap leading-relaxed">{issue}</div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* D3 Live Citation Network */}
+      {workspaceId && (
+        <div className="pt-4 pb-2 border-t">
+          <span className="text-sm font-semibold mb-2 block text-foreground">
+            {lang === "sk" ? "Vizuálna D3 Mapa Citácií" : "Visual Citation Map (D3)"}
+          </span>
+          <CitationNetwork workspaceId={workspaceId} />
         </div>
       )}
 

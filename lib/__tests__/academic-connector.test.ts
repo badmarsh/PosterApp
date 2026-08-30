@@ -196,5 +196,19 @@ describe("Academic Connector Service", () => {
     expect(results[0].doi).toBe("10.1103/PhysRevA.52.R2493")
     expect(results[0].openAccessPdfUrl).toBe("https://arxiv.org/pdf/quant-ph/9506001.pdf")
   })
+
+  it("handles empty or wildcard queries gracefully without HTTP 400", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch")
+    
+    // Empty queries and wildcards should return empty array without fetching
+    const emptyResult = await openalexService.searchOpenAlexWorks("")
+    const wildcardResult = await openalexService.searchOpenAlexWorks("???")
+    const punctuationResult = await openalexService.searchOpenAlexWorks("---")
+
+    expect(emptyResult).toEqual([])
+    expect(wildcardResult).toEqual([])
+    expect(punctuationResult).toEqual([])
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
 })
 

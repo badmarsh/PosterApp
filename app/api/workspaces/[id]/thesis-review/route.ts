@@ -321,6 +321,15 @@ export async function POST(
       console.warn("[thesis-review] pgvector augmentation skipped:", vectorErr)
     }
 
+    // 2c. GraphRAG augmentation — Retrieve multi-hop knowledge graph
+    let graphAugmentation = ""
+    try {
+      const { getGraphContextForWorkspace } = await import("@/lib/ai/graph-extractor")
+      graphAugmentation = await getGraphContextForWorkspace(workspaceId, body.sourceFileId)
+    } catch (graphErr) {
+      console.warn("[thesis-review] GraphRAG augmentation skipped:", graphErr)
+    }
+
     // 4. Build AI prompts
     const contextHeader = buildThesisContextHeader(normalizedMetadata, lang)
     const criteriaList = activeCriteria
@@ -329,6 +338,7 @@ export async function POST(
 
     const sourceContextWithAudit = routedContext
       + (vectorAugmentation ? `\n\n[Vector-Retrieved Evidence]\n${vectorAugmentation}` : "")
+      + (graphAugmentation ? `\n\n[GraphRAG Knowledge Graph]\n${graphAugmentation}` : "")
       + (citationAuditSummary ? `\n\n[Citation Audit (Advisory)]\n${citationAuditSummary}` : "")
 
     const systemPrompt = buildSystemPrompt(lang, normalizedMetadata)
@@ -351,6 +361,8 @@ export async function POST(
         targetVenue: thesisMetadata.targetVenue,
         language: lang,
         reportingStandard: thesisMetadata.reportingStandard,
+        graphAugmentation,
+        vectorAugmentation,
       })
 
       // Convert findings into criteria-like sections for backwards compatibility with LaTeX generator

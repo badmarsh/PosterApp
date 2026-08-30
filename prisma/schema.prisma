@@ -46,6 +46,8 @@ model Workspace {
   snapshots        WorkspaceSnapshot[]
   thesisReviews    ThesisReview[]
   documentChunks   DocumentChunk[]
+  graphNodes       GraphNode[]
+  graphEdges       GraphEdge[]
 }
 
 /// Access is deliberately modelled separately from Clerk.  The userId field above
@@ -242,3 +244,39 @@ model ThesisReview {
 
   @@index([workspaceId, createdAt(sort: Desc)])
 }
+
+model GraphNode {
+  id          String   @id @default(cuid())
+  workspaceId String
+  documentId  String
+  label       String   // "Methodology", "Dataset", "Metric", "Hypothesis", "Finding", "Citation"
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sourceEdges GraphEdge[] @relation("SourceNode")
+  targetEdges GraphEdge[] @relation("TargetNode")
+
+  @@unique([workspaceId, label, name])
+  @@index([workspaceId])
+}
+
+model GraphEdge {
+  id          String   @id @default(cuid())
+  workspaceId String
+  sourceId    String
+  targetId    String
+  relation    String   // "EVALUATED_ON", "PROVES", "USES", "CITES"
+  evidence    String?  // text snippet that proves this relationship
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  source      GraphNode @relation("SourceNode", fields: [sourceId], references: [id], onDelete: Cascade)
+  target      GraphNode @relation("TargetNode", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([sourceId])
+  @@index([targetId])
+}
+

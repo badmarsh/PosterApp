@@ -100,7 +100,7 @@ if (isMinerURunning) {
 console.log('🌐 Starting Next.js...')
 const nextProcess = spawn('npx', ['tsx', '--env-file=.env.local', 'server.ts'], {
   stdio: 'pipe',
-  env: { ...process.env, NODE_OPTIONS: '--max-old-space-size=4096' },
+  env: { ...process.env, NODE_OPTIONS: '--max-old-space-size=8192' },
   shell: isWin
 })
 nextProcess.stdout.on('data', (d) => process.stdout.write(`\x1b[36m[Next]\x1b[0m ${d}`))

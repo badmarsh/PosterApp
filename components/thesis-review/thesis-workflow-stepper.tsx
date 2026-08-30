@@ -113,101 +113,131 @@ export function ThesisWorkflowStepper({
   const progressPercent = Math.round((completedCount / 6) * 100)
 
   return (
-    <nav
+    <div
       aria-label="Kroky hodnotenia záverečnej práce"
-      className="rounded-xl border bg-card text-card-foreground shadow-2xs overflow-hidden"
+      className="rounded-xl border bg-card text-card-foreground shadow-2xs overflow-hidden p-4 sm:p-6 lg:p-8"
     >
-      {/* Horizontal Rail */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between p-1.5 sm:p-2 gap-1.5 sm:gap-2 bg-muted/10">
-        <ol role="list" className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-nowrap items-center gap-1 sm:gap-1.5 flex-1 min-w-0">
-          {steps.map((s) => {
+      <div className="relative w-full max-w-5xl mx-auto">
+        {/* Background Track (Hidden on smallest screens where we might stack, but here we can just do overflow-x-auto or scale down) */}
+        <div className="absolute top-7 left-[8%] right-[8%] h-1.5 bg-muted rounded-full hidden sm:block" />
+
+        {/* Animated Progress Track */}
+        <div
+          className="absolute top-7 left-[8%] h-1.5 bg-gradient-to-r from-emerald-400 via-emerald-500 to-[#8B2635] rounded-full transition-all duration-1000 ease-in-out hidden sm:block"
+          style={{ width: `${Math.min(100, (Math.max(0, currentStep - 1) / 5) * 84)}%` }}
+        />
+
+        {/* Steps Container */}
+        <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 sm:gap-0">
+          {steps.map((s, idx) => {
             const isCurrent = s.active && !s.done
             const isReady = s.num === 5 && isFormValid && isIndexed
+            const isActiveState = isCurrent || isReady
 
             return (
-              <li key={s.num} role="listitem" className="flex items-center gap-1 flex-1 min-w-0">
-                <button
-                  type="button"
-                  onClick={() => onStepClick?.(s.num)}
-                  aria-current={isCurrent || isReady ? "step" : undefined}
+              <div
+                key={s.num}
+                className="flex flex-row sm:flex-col items-center gap-4 sm:gap-0 group relative z-10 w-full sm:w-[16%] cursor-pointer"
+                onClick={() => onStepClick?.(s.num)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    onStepClick?.(s.num)
+                  }
+                }}
+              >
+                {/* Node Circle */}
+                <div
                   className={cn(
-                    "flex items-center gap-1.5 sm:gap-2 w-full px-2 py-1.5 rounded-lg border text-left transition-all text-xs cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
+                    "relative flex items-center justify-center shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-full border-4 transition-all duration-500 ease-out shadow-sm",
                     s.done
-                      ? "border-emerald-500/20 bg-emerald-500/5 text-muted-foreground hover:text-foreground hover:bg-emerald-500/10 hover:border-emerald-500/30"
-                      : isReady
-                      ? "border-[#8B2635]/60 bg-[#8B2635]/10 text-foreground font-semibold ring-1 ring-[#8B2635]/20 shadow-2xs"
-                      : isCurrent
-                      ? "border-[#8B2635] bg-card text-foreground font-semibold shadow-2xs ring-1 ring-[#8B2635]/30"
-                      : "border-transparent bg-transparent text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/30"
+                      ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:border-emerald-800/60 dark:text-emerald-400"
+                      : isActiveState
+                      ? "bg-[#8B2635] text-white border-white dark:border-zinc-900 shadow-md shadow-[#8B2635]/30 scale-110 sm:scale-125"
+                      : "bg-card text-muted-foreground border-muted hover:border-muted-foreground/30 hover:bg-muted/30"
                   )}
                   title={`${s.title} — ${s.detail}`}
                 >
-                  {/* Step Badge */}
+                  {s.done ? (
+                    <CheckCircle2 className="size-6 sm:size-7 transition-transform group-hover:scale-110 duration-300" />
+                  ) : isParsing && s.num === 2 ? (
+                    <Loader2 className="size-6 sm:size-7 animate-spin" />
+                  ) : (
+                    <s.icon className={cn("size-5 sm:size-6 transition-transform duration-300", isActiveState ? "animate-in zoom-in duration-500" : "group-hover:scale-110")} />
+                  )}
+
+                  {/* Pulsing ring for active state */}
+                  {isActiveState && (
+                    <div
+                      className="absolute inset-0 rounded-full border border-[#8B2635] animate-ping opacity-30"
+                      style={{ animationDuration: '2.5s' }}
+                    />
+                  )}
+                </div>
+
+                {/* Vertical Line for Mobile (connects nodes when stacked) */}
+                {idx < steps.length - 1 && (
+                  <div className="absolute top-12 bottom-[-1.5rem] left-6 w-0.5 bg-muted sm:hidden" />
+                )}
+                {/* Mobile Active Track */}
+                {idx < steps.length - 1 && (s.done || isActiveState) && (
                   <div
                     className={cn(
-                      "flex size-4.5 sm:size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition-transform",
-                      s.done
-                        ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                        : isReady || isCurrent
-                        ? "bg-[#8B2635] text-white"
-                        : "bg-muted text-muted-foreground/60"
+                      "absolute top-12 bottom-[-1.5rem] left-6 w-0.5 sm:hidden transition-all duration-700",
+                      s.done ? "bg-emerald-500" : "bg-gradient-to-b from-[#8B2635] to-transparent"
+                    )}
+                  />
+                )}
+
+                {/* Label Area */}
+                <div className="flex flex-col sm:items-center sm:text-center sm:mt-4 flex-1 w-full min-w-0">
+                  <div
+                    className={cn(
+                      "text-[10px] uppercase font-bold tracking-wider mb-1 transition-colors duration-300",
+                      isActiveState
+                        ? "text-[#8B2635] dark:text-[#E06D7B]"
+                        : s.done
+                        ? "text-emerald-600 dark:text-emerald-500"
+                        : "text-muted-foreground"
                     )}
                   >
-                    {s.done ? (
-                      <CheckCircle2 className="size-3 sm:size-3.5 text-emerald-600 dark:text-emerald-400" />
-                    ) : isParsing && s.num === 2 ? (
-                      <Loader2 className="size-3 animate-spin text-white" />
-                    ) : (
-                      <span>{s.num}</span>
+                    Krok {s.num}
+                  </div>
+                  <div
+                    className={cn(
+                      "text-sm sm:text-[13px] md:text-sm font-semibold leading-tight transition-colors duration-300 truncate w-full",
+                      isActiveState ? "text-foreground" : "text-foreground/70 group-hover:text-foreground"
                     )}
+                  >
+                    <span className="hidden lg:inline">{s.title.replace(/^\d+\.\s*/, '')}</span>
+                    <span className="lg:hidden">{s.shortTitle}</span>
                   </div>
-
-                  {/* Step Title & Subtitle */}
-                  <div className="min-w-0 flex-1 truncate">
-                    <p
-                      className={cn(
-                        "text-[10px] sm:text-[11px] truncate leading-tight",
-                        isCurrent || isReady
-                          ? "font-bold text-foreground"
-                          : s.done
-                          ? "font-medium text-foreground/80"
-                          : "font-normal text-muted-foreground/70"
-                      )}
-                    >
-                      <span className="hidden xl:inline">{s.title}</span>
-                      <span className="xl:hidden">{s.shortTitle}</span>
-                    </p>
-                    <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate leading-none pt-0.5">
-                      {s.detail}
-                    </p>
+                  <div className="text-[11px] sm:text-[10px] md:text-[11px] text-muted-foreground mt-1 sm:mt-1.5 opacity-90 transition-opacity truncate w-full max-w-[120px] sm:max-w-full">
+                    {s.detail}
                   </div>
-                </button>
-              </li>
+                </div>
+              </div>
             )
           })}
-        </ol>
-
-        {/* Right quick auto-fill affordance */}
+        </div>
+        
+        {/* Auto-fill affordance (Mobile only inside the flow, or absolute on desktop) */}
         {hasDocument && !isParsing && onAutoFillClick && (
-          <button
-            onClick={onAutoFillClick}
-            type="button"
-            className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#8B2635] dark:text-[#E06D7B] bg-[#8B2635]/5 hover:bg-[#8B2635]/10 border border-[#8B2635]/20 transition-all shrink-0 cursor-pointer self-end md:self-auto"
-            title="Predvyplniť metadáta z nahraného PDF"
-          >
-            <Sparkles className="size-3.5" />
-            <span className="hidden md:inline text-[11px]">Predvyplniť</span>
-          </button>
+          <div className="absolute -top-3 right-0 sm:top-auto sm:-bottom-4 sm:right-4 hidden md:block">
+            <button
+              onClick={onAutoFillClick}
+              type="button"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-[#8B2635] dark:text-[#E06D7B] bg-[#8B2635]/5 hover:bg-[#8B2635]/15 border border-[#8B2635]/20 transition-all shadow-sm cursor-pointer group"
+              title="Predvyplniť metadáta z nahraného PDF"
+            >
+              <Sparkles className="size-4 group-hover:rotate-12 transition-transform" />
+              <span>Predvyplniť metadáta</span>
+            </button>
+          </div>
         )}
       </div>
-
-      {/* Subtle progress track */}
-      <div className="h-0.5 w-full bg-muted/40 overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-emerald-500 via-[#8B2635] to-[#8B2635] transition-all duration-300"
-          style={{ width: `${Math.max(6, progressPercent)}%` }}
-        />
-      </div>
-    </nav>
+    </div>
   )
 }

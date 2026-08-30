@@ -24,11 +24,12 @@ import {
   Users,
 
   Search,
-
+  GitMerge,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { HelpModal } from "@/components/help-modal"
+import { WhatsNewModal } from "@/components/whats-new-modal"
 import { HistoryPanel } from "@/components/history-panel"
 import { UserButton } from "@clerk/nextjs"
 import { ManageWorkspaces } from "@/components/manage-workspaces"
@@ -130,6 +131,7 @@ export function TopBar({
   )
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
   const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false)
 
   const refreshWorkspaces = () => {
     apiFetch("/api/workspaces")
@@ -395,6 +397,16 @@ export function TopBar({
           )}
         </div>
 
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 border-green-500/50 text-green-600 bg-green-500/10 hover:bg-green-500/20"
+          onClick={() => setIsWhatsNewOpen(true)}
+        >
+          <GitMerge className="size-3.5 text-green-600" />
+          <span className="hidden md:inline font-semibold">What's New</span>
+        </Button>
+
         <ThemeToggle />
         <Tooltip>
           <TooltipTrigger
@@ -440,6 +452,7 @@ export function TopBar({
           </UserButton.UserProfilePage>
         </UserButton>
       </div>
+      <WhatsNewModal open={isWhatsNewOpen} onOpenChange={setIsWhatsNewOpen} />
       <HelpModal open={isHelpOpen} onOpenChange={setIsHelpOpen} />
       <HistoryPanel />
     </header>
