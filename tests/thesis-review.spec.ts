@@ -527,4 +527,127 @@ test.describe('Thesis Review Workflow & E2E Features', () => {
     fs.mkdirSync(screenshotDir, { recursive: true });
     await page.screenshot({ path: path.join(screenshotDir, 'viewport-390x844-mobile.png') });
   });
+
+  test('verifies pre-flight analysis plan generation, reporting guideline selection, and review confirmation', async ({ page }) => {
+    const wsId = `test-plan-${Date.now()}`;
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    // Create workspace
+    await page.evaluate(async (id) => {
+      const res = await fetch('/api/workspaces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          name: 'Analysis Plan Flow Test',
+          outputType: 'thesis-review',
+          templateId: 'posudok-sk',
+        }),
+      });
+      if (!res.ok) throw new Error(`Failed to create workspace: ${res.status}`);
+      const data = await res.json();
+      window.localStorage.setItem('posterapp-editor-storage', JSON.stringify({
+        state: { selectedCardId: null, lastWorkspaceId: data.id },
+        version: 1,
+      }));
+    }, wsId);
+
+    // Mock analysis-plan endpoint
+    await page.route(`**/api/workspaces/${wsId}/thesis-review/analysis-plan`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          documentTitle: 'Klasifikácia obrazov pomocou Vision Transformer',
+          detectedType: 'paper',
+          language: 'sk',
+          discipline: 'Informatika & Umelá inteligencia',
+          studyDesign: 'empirical',
+          detectedSections: [
+            { id: 'sec-1', heading: '1. Úvod', charCount: 2500, status: 'found' },
+            { id: 'sec-2', heading: '2. Metodológia a architektúra', charCount: 6500, status: 'found' },
+            { id: 'sec-3', heading: '3. Výsledky a benchmarky', charCount: 8000, status: 'found' },
+            { id: 'sec-4', heading: '4. Záver', charCount: 1500, status: 'found' },
+          ],
+          extractionQuality: 'high',
+          hasTablesAndFigures: true,
+          citationAvailability: 'rich',
+          expectedMissingSections: [],
+          recommendedRubric: 'Vedecký recenzný posudok',
+          recommendedReportingGuideline: 'ml_reproducibility',
+          guidelineReason: 'Detegované modely strojového učenia a experimentálne benchmarky.',
+          limitations: [],
+          canProceedToDeepReview: true,
+        }),
+      });
+    });
+
+    // Mock review generation endpoint
+    await page.route(`**/api/workspaces/${wsId}/thesis-review`, async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: 'plan-review-123',
+            studentName: 'Matej Tóth',
+            thesisTitle: 'Klasifikácia obrazov pomocou Vision Transformer',
+            thesisType: 'master',
+            reviewerRole: 'opponent',
+            overallGrade: 'A',
+            recommendation: 'Odporúčam na obhajobu.',
+            summary: 'Práca navrhuje vylepšenú pozornosť pre Vision Transformer.',
+            strengths: ['Vysoká presnosť 94.8% na ImageNet-1k'],
+            findings: [
+              {
+                id: 'f-1',
+                category: 'methodology',
+                title: 'Chýbajúce porovnanie s ConvNeXt baseline',
+                explanation: 'Nie sú uvedené časy trénovania.',
+                recommendation: 'Doplniť merania latencie.',
+                severity: 'major',
+                confidence: 0.9,
+                evidence: [{ quote: 'trénovanie prebehlo na 8x A100', verified: true, state: 'verified-exact' }],
+                status: 'unreviewed',
+                includeInExport: true,
+                createdBy: 'ai',
+              },
+            ],
+            reportingStandard: 'ml_reproducibility',
+            reportingGuidelineChecks: [],
+            defenseQuestions: ['Aká bola spotreba energie pri trénovaní?'],
+            status: 'draft',
+            language: 'sk',
+          }),
+        });
+      }
+    });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    // Fill form and click pre-flight
+    await page.locator('input[placeholder*="Ján Novák"]').fill('Matej Tóth');
+    await page.locator('input[placeholder*="Návrh a"]').fill('Klasifikácia obrazov pomocou Vision Transformer');
+
+    const preflightBtn = page.getByRole('button', { name: /Predanalýza a plánovanie/i });
+    await expect(preflightBtn).toBeVisible();
+    await preflightBtn.click();
+
+    // Verify AnalysisPlanPanel is displayed
+    await expect(page.getByText('Predanalytický plán hodnotenia')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Vysoká kvalita extrakcie')).toBeVisible();
+    await expect(page.getByText(/Informatika & Umelá inteligencia/)).toBeVisible();
+    await expect(page.getByText(/Detegované modely strojového učenia/)).toBeVisible();
+
+    // Confirm plan and trigger review
+    const confirmPlanBtn = page.getByRole('button', { name: /Spustiť expertné hodnotenie/i });
+    await expect(confirmPlanBtn).toBeEnabled();
+    await confirmPlanBtn.click();
+
+    // Verify generated review is rendered
+    await expect(page.getByText('Chýbajúce porovnanie s ConvNeXt baseline')).toBeVisible({ timeout: 10000 });
+  });
 });

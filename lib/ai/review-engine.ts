@@ -23,6 +23,7 @@ import {
 } from "./thesis-context"
 import type { ReviewKind, ReportingStandard, ReviewFinding, EvidenceReference, EvidenceState } from "./review-types"
 import type { ReviewLanguage, ThesisType } from "./thesis-rubric"
+import { sortFindingsByPriority } from "./review-priorities"
 
 export interface GenerateProfessionalReviewOptions {
   workspaceId: string
@@ -328,6 +329,8 @@ Respond with a valid JSON object matching this structure:
 
   return {
     ...validated,
-    anchoredFindings,
+    anchoredFindings: sortFindingsByPriority(anchoredFindings, options.language),
   }
 }
+
+export { calculateFindingPriority, sortFindingsByPriority } from "./review-priorities"

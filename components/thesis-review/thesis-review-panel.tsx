@@ -16,6 +16,7 @@ import { useEffect, useMemo } from "react"
 import { useThesisReviewStore } from "./use-thesis-review-store"
 import { ThesisMetadataPanel } from "./thesis-metadata-panel"
 import { ExpertReviewWorkspace } from "./expert-review-workspace"
+import { AnalysisPlanPanel } from "./analysis-plan-panel"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useEditor } from "@/components/editor-store"
@@ -33,6 +34,10 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
   const {
     reviews,
     activeReview,
+    analysisPlan,
+    setAnalysisPlan,
+    generateReview,
+    isGenerating,
     sourceMarkdown: storeSourceMarkdown,
     loadReviews,
     loadReview,
@@ -72,6 +77,37 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
         workspaceId={workspaceId}
         sourceMarkdown={effectiveMarkdown}
       />
+    )
+  }
+
+  if (analysisPlan) {
+    return (
+      <div className="p-4 lg:p-6 overflow-y-auto h-full w-full bg-background">
+        <AnalysisPlanPanel
+          plan={analysisPlan}
+          selectedStandard={analysisPlan.recommendedReportingGuideline}
+          onSelectStandard={(std) => {
+            setAnalysisPlan({ ...analysisPlan, recommendedReportingGuideline: std })
+          }}
+          onConfirmPlan={async () => {
+            await generateReview({
+              workspaceId,
+              metadata: {
+                studentName: analysisPlan.documentTitle,
+                thesisTitle: analysisPlan.documentTitle,
+                thesisType: (analysisPlan.detectedType === "paper" ? "phd" : "master") as any,
+                reviewerRole: "opponent",
+                language: analysisPlan.language,
+                reviewKind: analysisPlan.detectedType,
+                reportingStandard: analysisPlan.recommendedReportingGuideline,
+              },
+            })
+            setAnalysisPlan(null)
+          }}
+          onCancel={() => setAnalysisPlan(null)}
+          isGenerating={isGenerating}
+        />
+      </div>
     )
   }
 

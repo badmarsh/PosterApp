@@ -203,3 +203,30 @@ export const REPORTING_STANDARDS_INFO: Record<ReportingStandard, { name: string;
     itemsCount: 0,
   },
 }
+
+export type StudyDesign = "empirical" | "theoretical" | "systematic_review" | "methodological" | "unknown"
+
+export interface AnalysisPlanSection {
+  id: string
+  heading: string
+  charCount: number
+  status: "found" | "empty" | "missing"
+}
+
+export interface ReviewAnalysisPlan {
+  documentTitle: string
+  detectedType: ReviewKind
+  language: ReviewLanguage
+  discipline: string
+  studyDesign: StudyDesign
+  detectedSections: AnalysisPlanSection[]
+  extractionQuality: "high" | "medium" | "low"
+  hasTablesAndFigures: boolean
+  citationAvailability: "rich" | "moderate" | "sparse" | "none"
+  expectedMissingSections: string[]
+  recommendedRubric: string
+  recommendedReportingGuideline: ReportingStandard
+  guidelineReason?: string
+  limitations: string[]
+  canProceedToDeepReview: boolean
+}

@@ -62,7 +62,15 @@ const REVIEWER_ROLES = [
 ]
 
 export function ThesisMetadataPanel({ workspaceId }: Props) {
-  const { generateReview, isGenerating, generateError, clearErrors, activeReview } = useThesisReviewStore()
+  const {
+    generateReview,
+    generateAnalysisPlan,
+    isGenerating,
+    isGeneratingPlan,
+    generateError,
+    clearErrors,
+    activeReview,
+  } = useThesisReviewStore()
 
   const [lang, setLang] = useState<"sk" | "cs" | "en">("sk")
   const [reviewKind, setReviewKind] = useState<ReviewKind>("thesis")
@@ -304,25 +312,56 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
         </div>
       )}
 
-      {/* Generate button */}
-      <Button
-        onClick={handleGenerate}
-        disabled={!isValid || isGenerating}
-        className="w-full gap-2 font-semibold"
-        size="sm"
-      >
-        {isGenerating ? (
-          <>
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Analyzujem a generujem posudok…
-          </>
-        ) : (
-          <>
-            <Sparkles className="h-3.5 w-3.5" />
-            Vygenerovať odborný posudok
-          </>
-        )}
-      </Button>
+      {/* Generate buttons */}
+      <div className="space-y-2 pt-1">
+        <Button
+          onClick={handleGenerate}
+          disabled={!isValid || isGenerating || isGeneratingPlan}
+          className="w-full gap-2 font-semibold text-xs"
+          size="sm"
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Generujem odborný posudok…
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-3.5 w-3.5" />
+              Vygenerovať odborný posudok
+            </>
+          )}
+        </Button>
+
+        <Button
+          variant="outline"
+          onClick={async () => {
+            clearErrors()
+            await generateAnalysisPlan(workspaceId, {
+              ...metadata,
+              language: lang,
+              reviewKind,
+              targetVenue: targetVenue.trim() || undefined,
+              reportingStandard,
+            })
+          }}
+          disabled={!isValid || isGenerating || isGeneratingPlan}
+          className="w-full gap-2 text-xs"
+          size="sm"
+        >
+          {isGeneratingPlan ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Analyzujem štruktúru…
+            </>
+          ) : (
+            <>
+              <FileText className="h-3.5 w-3.5 text-primary" />
+              Predanalýza a plánovanie (Pre-flight)
+            </>
+          )}
+        </Button>
+      </div>
 
       {!isValid && (
         <p className="text-center text-xs text-muted-foreground">

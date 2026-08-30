@@ -62,6 +62,8 @@ import {
   formatReviewToPlainText,
 } from "@/lib/export/review-formatters"
 import { generateThesisReviewDocx } from "@/lib/docx/generator-review"
+import { composeFullReviewNarrative } from "@/lib/ai/review-composer"
+import { sortFindingsByPriority, calculateFindingPriority } from "@/lib/ai/review-priorities"
 import { THESIS_CRITERIA, type ThesisSection, type ReviewLanguage } from "@/lib/ai/thesis-rubric"
 import type { ReviewFinding, ReviewSeverity, FindingStatus, FindingAudience } from "@/lib/ai/review-types"
 
@@ -70,7 +72,7 @@ interface Props {
   sourceMarkdown?: string
 }
 
-type FilterTab = "priority" | "all" | "major" | "unverified" | "minor" | "accepted"
+type FilterTab = "priority" | "unreviewed" | "major" | "missing_evidence" | "reporting" | "export" | "resolved" | "all"
 
 export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Props) {
   const {
@@ -101,6 +103,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
   const [selectedFindingIndex, setSelectedFindingIndex] = useState<number>(0)
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
   const [showFinalDecisionModal, setShowFinalDecisionModal] = useState(false)
+  const [showNarrativeModal, setShowNarrativeModal] = useState(false)
 
   const [isAddingFinding, setIsAddingFinding] = useState(false)
   const [newTitle, setNewTitle] = useState("")
@@ -129,9 +132,12 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
   // Count stats for queue
   const majorCount = findings.filter((f) => f.severity === "critical" || f.severity === "major").length
   const unreviewedCount = findings.filter((f) => f.status === "unreviewed").length
-  const unverifiedEvidenceCount = findings.filter((f) => f.evidenceState === "unverified" || !f.evidence?.every((e) => e.verified)).length
-  const minorCount = findings.filter((f) => f.severity === "minor" || f.severity === "suggestion").length
-  const acceptedCount = findings.filter((f) => f.status === "accepted" || f.status === "edited").length
+  const missingEvidenceCount = findings.filter(
+    (f) => f.evidenceState === "unverified" || f.evidenceState === "stale" || f.evidenceState === "ambiguous" || !f.evidence?.every((e) => e.verified)
+  ).length
+  const reportingCount = findings.filter((f) => f.category === "reproducibility" || f.category === "statistics").length
+  const exportCount = findings.filter((f) => f.includeInExport !== false && f.status !== "rejected").length
+  const resolvedCount = findings.filter((f) => f.status === "accepted" || f.status === "resolved" || f.status === "rejected").length
   const openMajorBlockers = findings.filter(
     (f) => (f.severity === "critical" || f.severity === "major") && f.status === "unreviewed"
   ).length
@@ -163,33 +169,33 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
       list = list.filter((f) => (f.audience || "author") === selectedAudience)
     }
 
-    // 4. Tab filter & priority sorting
+    // 4. Tab filter
+    if (activeTab === "unreviewed") {
+      return list.filter((f) => f.status === "unreviewed")
+    }
     if (activeTab === "major") {
       return list.filter((f) => f.severity === "critical" || f.severity === "major")
     }
-    if (activeTab === "unverified") {
-      return list.filter((f) => f.evidenceState === "unverified" || !f.evidence?.every((e) => e.verified))
+    if (activeTab === "missing_evidence") {
+      return list.filter(
+        (f) => f.evidenceState === "unverified" || f.evidenceState === "stale" || f.evidenceState === "ambiguous" || !f.evidence?.every((e) => e.verified)
+      )
     }
-    if (activeTab === "minor") {
-      return list.filter((f) => f.severity === "minor" || f.severity === "suggestion")
+    if (activeTab === "reporting") {
+      return list.filter((f) => f.category === "reproducibility" || f.category === "statistics")
     }
-    if (activeTab === "accepted") {
-      return list.filter((f) => f.status === "accepted" || f.status === "edited")
+    if (activeTab === "export") {
+      return list.filter((f) => f.includeInExport !== false && f.status !== "rejected")
+    }
+    if (activeTab === "resolved") {
+      return list.filter((f) => f.status === "accepted" || f.status === "resolved" || f.status === "rejected")
     }
     if (activeTab === "priority") {
-      // Prioritized ordering: Critical unreviewed -> Major unreviewed -> Unverified evidence -> Others
-      return list.sort((a, b) => {
-        const severityRank = { critical: 4, major: 3, minor: 2, suggestion: 1 }
-        const statusRank = { unreviewed: 3, edited: 2, accepted: 1, rejected: 0, resolved: 0 }
-
-        const scoreA = (statusRank[a.status] || 0) * 10 + (severityRank[a.severity] || 0)
-        const scoreB = (statusRank[b.status] || 0) * 10 + (severityRank[b.severity] || 0)
-        return scoreB - scoreA
-      })
+      return sortFindingsByPriority(list, lang)
     }
 
     return list
-  }, [findings, activeTab, searchQuery, selectedCategory, selectedAudience])
+  }, [findings, activeTab, searchQuery, selectedCategory, selectedAudience, lang])
 
   // Keyboard navigation shortcuts
   const handleKeyDown = useCallback(
@@ -429,6 +435,11 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               }
             />
             <DropdownMenuContent align="end" className="w-56 text-xs">
+              <DropdownMenuItem onClick={() => setShowNarrativeModal(true)}>
+                <FileText className="h-4 w-4 mr-2 text-primary" />
+                Náhľad uceleného posudku (12 sekcií)
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => exportReviewPdf(workspaceId, activeReview.id)} disabled={isExporting}>
                 <FileCheck className="h-4 w-4 mr-2 text-primary" />
                 {isExporting ? "Kompilujem PDF..." : "Exportovať PDF (LaTeX)"}
@@ -619,6 +630,16 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 Prioritná fronta
               </button>
               <button
+                onClick={() => setActiveTab("unreviewed")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                  activeTab === "unreviewed"
+                    ? "bg-amber-600 text-white font-semibold"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                Na posúdenie ({unreviewedCount})
+              </button>
+              <button
                 onClick={() => setActiveTab("major")}
                 className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
                   activeTab === "major"
@@ -629,34 +650,44 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 Zásadné ({majorCount})
               </button>
               <button
-                onClick={() => setActiveTab("unverified")}
+                onClick={() => setActiveTab("missing_evidence")}
                 className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                  activeTab === "unverified"
-                    ? "bg-amber-600 text-white font-semibold"
+                  activeTab === "missing_evidence"
+                    ? "bg-red-600 text-white font-semibold"
                     : "text-muted-foreground hover:bg-muted"
                 }`}
               >
-                Neoverený dôkaz ({unverifiedEvidenceCount})
+                Chýbajúci dôkaz ({missingEvidenceCount})
               </button>
               <button
-                onClick={() => setActiveTab("minor")}
+                onClick={() => setActiveTab("reporting")}
                 className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                  activeTab === "minor"
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                  activeTab === "reporting"
+                    ? "bg-purple-600 text-white font-semibold"
+                    : "text-muted-foreground hover:bg-muted"
                 }`}
               >
-                Drobné ({minorCount})
+                Reporting ({reportingCount})
               </button>
               <button
-                onClick={() => setActiveTab("accepted")}
+                onClick={() => setActiveTab("export")}
                 className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                  activeTab === "accepted"
+                  activeTab === "export"
                     ? "bg-green-600 text-white font-semibold"
                     : "text-muted-foreground hover:bg-muted"
                 }`}
               >
-                Prijaté ({acceptedCount})
+                V exporte ({exportCount})
+              </button>
+              <button
+                onClick={() => setActiveTab("resolved")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                  activeTab === "resolved"
+                    ? "bg-slate-700 text-white font-semibold"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                Vyriešené ({resolvedCount})
               </button>
             </div>
 
@@ -891,6 +922,64 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 <CheckCircle2 className="h-4 w-4" />
                 Potvrdiť a uložiť
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Narrative Review Synthesis Modal */}
+      {showNarrativeModal && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border rounded-xl max-w-2xl w-full max-h-[85vh] flex flex-col p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b pb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                <div>
+                  <h3 className="font-bold text-sm">Ucelený syntetizovaný posudok (12 sekcií)</h3>
+                  <p className="text-[11px] text-muted-foreground">
+                    Zostavené z {(activeReview.findings ?? []).filter((f) => f.includeInExport !== false && f.status !== "rejected").length} schválených pripomienok.
+                  </p>
+                </div>
+              </div>
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setShowNarrativeModal(false)}>
+                ✕
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-1 space-y-4 text-xs font-serif leading-relaxed">
+              {composeFullReviewNarrative(activeReview, "author", lang).sections.map((sec) => (
+                <div key={sec.id} className="p-3 rounded-lg border bg-muted/20 space-y-1.5 font-sans">
+                  <h4 className="font-bold text-xs text-foreground tracking-tight">{sec.title}</h4>
+                  <pre className="whitespace-pre-wrap font-sans text-xs text-foreground/90 leading-relaxed">
+                    {sec.content}
+                  </pre>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t shrink-0">
+              <span className="text-[11px] text-muted-foreground">
+                Rešpektuje etické štandardy COPE a anonymitu recenzenta.
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const full = composeFullReviewNarrative(activeReview, "author", lang).plainText
+                    navigator.clipboard.writeText(full)
+                    setCopiedNotification(true)
+                    setTimeout(() => setCopiedNotification(false), 2000)
+                  }}
+                  className="text-xs gap-1.5"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  {copiedNotification ? "Skopírované! ✓" : "Kopírovať celý text"}
+                </Button>
+                <Button size="sm" onClick={() => setShowNarrativeModal(false)} className="text-xs">
+                  Zavrieť
+                </Button>
+              </div>
             </div>
           </div>
         </div>

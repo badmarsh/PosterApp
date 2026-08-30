@@ -43,6 +43,7 @@ export interface DeserializedThesisReview {
   reportingStandard: ReportingStandard
   reportingGuidelineChecks: ReportingGuidelineCheck[]
   confidentialComments: string | null
+  confirmedAt?: Date | string | null
   status: string
   language: string
   schemaVersion: number
@@ -283,19 +284,19 @@ export function deserializeThesisReview(dbRecord: any): DeserializedThesisReview
     institution: dbRecord.institution ? String(dbRecord.institution) : null,
     department: dbRecord.department ? String(dbRecord.department) : null,
     grade: dbRecord.grade ? String(dbRecord.grade) : null,
-    suggestedGrade: dbRecord.suggestedGrade ? String(dbRecord.suggestedGrade) : dbRecord.grade ? String(dbRecord.grade) : null,
-    finalGrade: dbRecord.finalGrade ? String(dbRecord.finalGrade) : dbRecord.grade ? String(dbRecord.grade) : null,
+    suggestedGrade: dbRecord.suggestedGrade
+      ? String(dbRecord.suggestedGrade)
+      : dbRecord.grade
+      ? String(dbRecord.grade)
+      : null,
+    finalGrade: dbRecord.finalGrade ? String(dbRecord.finalGrade) : null,
     recommendation: dbRecord.recommendation ? String(dbRecord.recommendation) : null,
     suggestedRecommendation: dbRecord.suggestedRecommendation
       ? String(dbRecord.suggestedRecommendation)
       : dbRecord.recommendation
       ? String(dbRecord.recommendation)
       : null,
-    finalRecommendation: dbRecord.finalRecommendation
-      ? String(dbRecord.finalRecommendation)
-      : dbRecord.recommendation
-      ? String(dbRecord.recommendation)
-      : null,
+    finalRecommendation: dbRecord.finalRecommendation ? String(dbRecord.finalRecommendation) : null,
     sections: Array.isArray(sections) ? sections : [],
     defenseQuestions: Array.isArray(defenseQuestions) ? defenseQuestions.map(String) : [],
     citationIssues: Array.isArray(citationIssues) ? citationIssues.map(String) : [],
@@ -307,6 +308,11 @@ export function deserializeThesisReview(dbRecord: any): DeserializedThesisReview
     reportingStandard,
     reportingGuidelineChecks: normalizeGuidelineChecks(rawChecks),
     confidentialComments: dbRecord.confidentialComments ? String(dbRecord.confidentialComments) : null,
+    confirmedAt: dbRecord.confirmedAt
+      ? dbRecord.confirmedAt instanceof Date
+        ? dbRecord.confirmedAt.toISOString()
+        : String(dbRecord.confirmedAt)
+      : null,
     status: String(dbRecord.status || "draft"),
     language: String(dbRecord.language || "sk"),
     schemaVersion: REVIEW_SCHEMA_VERSION,

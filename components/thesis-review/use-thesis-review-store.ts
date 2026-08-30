@@ -28,6 +28,7 @@ import type {
   ReportingStandard,
   ReportingGuidelineCheck,
   ReviewDiagnostics,
+  ReviewAnalysisPlan,
 } from "@/lib/ai/review-types"
 
 // ---------------------------------------------------------------------------
@@ -104,6 +105,8 @@ interface ThesisReviewState {
   sourceMarkdown: string
   isLoadingSource: boolean
   selectedEvidence: EvidenceReference | null
+  analysisPlan: ReviewAnalysisPlan | null
+  isGeneratingPlan: boolean
   isGenerating: boolean
   isSaving: boolean
   isExporting: boolean
@@ -118,6 +121,8 @@ interface ThesisReviewState {
   closePanel: () => void
   setActiveReview: (review: ThesisReviewRecord | null) => void
   setSelectedEvidence: (ev: EvidenceReference | null) => void
+  setAnalysisPlan: (plan: ReviewAnalysisPlan | null) => void
+  generateAnalysisPlan: (workspaceId: string, metadata: any) => Promise<ReviewAnalysisPlan | null>
   loadSourceDocument: (workspaceId: string) => Promise<void>
   loadReviews: (workspaceId: string) => Promise<void>
   loadReview: (workspaceId: string, reviewId: string) => Promise<void>
@@ -160,6 +165,8 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     sourceMarkdown: "",
     isLoadingSource: false,
     selectedEvidence: null,
+    analysisPlan: null,
+    isGeneratingPlan: false,
     isGenerating: false,
     isSaving: false,
     isExporting: false,
@@ -174,6 +181,35 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
 
     setActiveReview: (review) => set((s) => { s.activeReview = review }),
     setSelectedEvidence: (ev) => set((s) => { s.selectedEvidence = ev }),
+    setAnalysisPlan: (plan) => set((s) => { s.analysisPlan = plan }),
+
+    generateAnalysisPlan: async (workspaceId, metadata) => {
+      set((s) => { s.isGeneratingPlan = true; s.generateError = null })
+      try {
+        const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review/analysis-plan`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ thesisMetadata: metadata }),
+        })
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.message ?? errData.error ?? `HTTP ${res.status}`)
+        }
+        const plan: ReviewAnalysisPlan = await res.json()
+        set((s) => {
+          s.analysisPlan = plan
+          s.isGeneratingPlan = false
+        })
+        return plan
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Plan generation failed"
+        set((s) => {
+          s.isGeneratingPlan = false
+          s.generateError = msg
+        })
+        return null
+      }
+    },
 
     loadSourceDocument: async (workspaceId: string) => {
       set((s) => { s.isLoadingSource = true })

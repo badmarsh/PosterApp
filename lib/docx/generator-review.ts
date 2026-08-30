@@ -27,9 +27,10 @@ import type { ThesisReviewRecord } from "@/components/thesis-review/use-thesis-r
 
 export async function generateThesisReviewDocx(
   review: ThesisReviewRecord,
-  options: { anonymize?: boolean; includeConfidential?: boolean } = {}
+  options: { anonymize?: boolean; anonymizeReviewer?: boolean; includeConfidential?: boolean } = {}
 ): Promise<Blob> {
   const children: any[] = []
+  const isAnonymized = Boolean(options.anonymize || options.anonymizeReviewer)
 
   // Document Main Header
   children.push(
@@ -67,7 +68,24 @@ export async function generateThesisReviewDocx(
     }),
   ]
 
-  if (!options.anonymize && review.reviewerName) {
+  if (isAnonymized) {
+    tableRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: "Recenzent / Reviewer:", bold: true })] })],
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                text: "Anonymný recenzent / Blind Reviewer",
+              }),
+            ],
+          }),
+        ],
+      })
+    )
+  } else if (review.reviewerName) {
     tableRows.push(
       new TableRow({
         children: [
@@ -195,6 +213,17 @@ export async function generateThesisReviewDocx(
             children: [
               new TextRun({ text: "Odporúčaná náprava: ", bold: true, italics: true }),
               new TextRun({ text: f.recommendation, italics: true }),
+            ],
+            spacing: { after: 50 },
+          })
+        )
+      }
+      if (f.reviewerNotes) {
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Poznámka recenzenta: ", bold: true }),
+              new TextRun({ text: f.reviewerNotes }),
             ],
             spacing: { after: 50 },
           })
