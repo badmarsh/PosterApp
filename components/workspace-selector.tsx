@@ -147,7 +147,11 @@ export function WorkspaceSelector({ onSelect, onClose }: { onSelect: (id: string
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Template</label>
-                <Select value={newTemplate} onValueChange={setNewTemplate} disabled={isSubmitting}>
+                <Select
+                  value={newTemplate}
+                  onValueChange={(v) => setNewTemplate(v ?? "atlas")}
+                  disabled={isSubmitting}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>

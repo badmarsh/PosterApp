@@ -17,12 +17,25 @@ import { useIsDesktop } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { WorkspaceSelector } from "@/components/workspace-selector"
+import { CommandPalette } from "@/components/command-palette"
 
 type MobilePane = "structure" | "preview" | "editor" | "agent"
 
 function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () => void }) {
   const [structureOpen, setStructureOpen] = useState(true)
   const [agentOpen, setAgentOpen] = useState(true)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault()
+        setPaletteOpen((v) => !v)
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [])
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
@@ -31,6 +44,13 @@ function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: ()
         agentOpen={agentOpen}
         onToggleStructure={() => setStructureOpen((v) => !v)}
         onToggleAgent={() => setAgentOpen((v) => !v)}
+        onOpenWorkspaceSelector={onOpenWorkspaceSelector}
+        onOpenCommandPalette={() => setPaletteOpen(true)}
+      />
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        onToggleStructure={() => setStructureOpen((v) => !v)}
         onOpenWorkspaceSelector={onOpenWorkspaceSelector}
       />
       <div className="flex min-h-0 flex-1">
@@ -116,6 +136,7 @@ function MobileShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () 
   )
   const busy = isSwitchingProject || generatingIds.length > 0
   const [pane, setPane] = useState<MobilePane>("preview")
+  const [paletteOpen, setPaletteOpen] = useState(false)
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -129,6 +150,13 @@ function MobileShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () 
         agentOpen={false}
         onToggleStructure={() => setPane("structure")}
         onToggleAgent={() => setPane("agent")}
+        onOpenWorkspaceSelector={onOpenWorkspaceSelector}
+        onOpenCommandPalette={() => setPaletteOpen(true)}
+      />
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        onToggleStructure={() => setPane("structure")}
         onOpenWorkspaceSelector={onOpenWorkspaceSelector}
       />
       <div className="relative min-h-0 flex-1">
