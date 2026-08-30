@@ -125,6 +125,36 @@ export function composeFullReviewNarrative(
   ].filter(Boolean).join("\n")
   sections.push({ id: "identification", title: sec1Title, content: sec1Content })
 
+  if (review.phdEnrichment) {
+    const phd = review.phdEnrichment
+    if (phd.authorProfile) {
+      const title = lang === "sk" ? "Publikačná činnosť a profil autora (Academic Connector)" : "Author Track Record (Academic Connector)"
+      const lines = [
+        `| Metrika | Hodnota |`,
+        `|---|---|`,
+        `| **Meno autora** | ${phd.authorProfile.name} |`,
+        `| **Počet evidovaných prác** | ${phd.authorProfile.paperCount || 0} |`,
+        `| **Ohlasy (Citácie)** | ${phd.authorProfile.citationCount || 0} |`,
+      ]
+      if (phd.authorProfile.recentPapers?.length) {
+        lines.push("\n**Nedávne publikácie:**")
+        phd.authorProfile.recentPapers.forEach((p: any) => lines.push(`- *${p.title}* (${p.year || "N/A"})`))
+      }
+      sections.push({ id: "phd_track_record", title, content: lines.join("\n") })
+    }
+
+    if (phd.sotaBenchmarking?.length) {
+      const title = lang === "sk" ? "Porovnanie so súčasným stavom (SOTA Benchmarking)" : "SOTA Benchmarking"
+      const lines = [
+        lang === "sk" ? "Na základe analýzy literatúry (2024–2026) boli identifikované tieto nedávne kľúčové práce v rovnakej doméne:" : "Based on recent literature analysis (2024–2026), the following key works were identified:"
+      ]
+      phd.sotaBenchmarking.forEach((p: any) => {
+        lines.push(`- **${p.title}** (${p.year || "N/A"}) — *Citácií: ${p.citationCount || 0}*`)
+      })
+      sections.push({ id: "phd_sota", title, content: lines.join("\n") })
+    }
+  }
+
   // 2. Rozsah a limity podkladov pre posúdenie
   const sec2Title = lang === "sk" ? "2. Rozsah a limity podkladov pre posúdenie" : "2. Scope and Review Limitations"
   const sec2Content = review.limitationsSummary || (lang === "sk"
@@ -206,7 +236,10 @@ export function composeFullReviewNarrative(
 
   // 11. Otázky k obhajobe
   const sec11Title = lang === "sk" ? "11. Otázky a námety k obhajobe" : "11. Defense Questions"
-  const questions = review.questionsForAuthors?.length ? review.questionsForAuthors : review.defenseQuestions
+  let questions = review.questionsForAuthors?.length ? [...review.questionsForAuthors] : (review.defenseQuestions ? [...review.defenseQuestions] : [])
+  if (review.phdEnrichment?.defenseQuestionsExternal?.length) {
+    questions.push(...review.phdEnrichment.defenseQuestionsExternal)
+  }
   const sec11Content = questions && questions.length > 0
     ? questions.map((q, i) => `${i + 1}. ${q}`).join("\n\n")
     : (lang === "sk"
@@ -221,6 +254,7 @@ export function composeFullReviewNarrative(
   const sec12Lines = [
     effectiveRecommendation ? `Odporúčanie k obhajobe: ${effectiveRecommendation}` : null,
     effectiveGrade ? `Navrhovaná známka / ECTS: ${effectiveGrade}${proposedRange ? ` (Rozpätie: ${proposedRange})` : ""}` : `Navrhovaná známka / ECTS: ${proposedRange}`,
+    review.phdEnrichment?.statutoryClause ? `\nZákonné stanovisko:\n${review.phdEnrichment.statutoryClause}\n` : null,
     isConfirmed
       ? `(Rozhodnutie explicitne potvrdené recenzentom dňa: ${new Date(review.confirmedAt!).toLocaleDateString()})`
       : "(Návrh hodnotenia generovaný asistentom — podlieha nezávislému rozhodnutiu posudzovateľa)",

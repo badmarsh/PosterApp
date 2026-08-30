@@ -43,6 +43,12 @@ import {
   generateCalibratedDefenseQuestions,
 } from "./academic-checks"
 import {
+  auditThesisCitations,
+  fetchAcademicAuthorProfile,
+  searchAcademicPaper,
+  type AcademicPaperResult,
+} from "@/lib/services/academic-connector"
+import {
   validateAndCalibrateFindings,
 } from "./evidence-validator"
 import { calculateGradeRange } from "./rubric-engine"
@@ -59,6 +65,7 @@ export interface GenerateProfessionalReviewOptions {
   language: ReviewLanguage
   reportingStandard?: ReportingStandard
   focusAreas?: string[]
+  skipCitationAudit?: boolean
 }
 
 const REPORTING_CHECKLIST_PROMPTS: Record<ReportingStandard, string> = {
@@ -260,6 +267,7 @@ export async function generateProfessionalReview(
   sourceRevision: string
   proposedGradeRange: string
   defenseQuestions: ReviewDefenseQuestion[]
+  phdEnrichment?: any
 }> {
   const rag = await loadThesisContext({
     workspaceId: options.workspaceId,
@@ -401,12 +409,71 @@ Respond with a valid JSON object matching this structure:
   // 5. Calculate proposed grade range
   const gradeRangeInfo = calculateGradeRange(85)
 
+  // 6. PhD Opponent Enrichment
+  let phdEnrichment: any = null
+  if (options.thesisType === "phd" && options.reviewerRole === "opponent") {
+    let authorProfile = null
+    let sotaBenchmarking: AcademicPaperResult[] = []
+    let citationAudit = null
+
+    try {
+      const tasks = []
+      
+      tasks.push(
+        fetchAcademicAuthorProfile(options.authorName)
+          .then(res => { authorProfile = res })
+          .catch(err => console.warn("Failed to fetch author profile", err))
+      )
+      
+      tasks.push(
+        searchAcademicPaper(options.documentTitle, 3, { yearFrom: new Date().getFullYear() - 2 })
+          .then(res => { sotaBenchmarking = res })
+          .catch(err => console.warn("Failed to fetch SOTA", err))
+      )
+
+      if (!options.skipCitationAudit && rag.referencesTitles.length > 0) {
+        tasks.push(
+          auditThesisCitations(rag.referencesTitles.slice(0, 20))
+            .then(res => { citationAudit = res })
+            .catch(err => console.warn("Failed to audit citations", err))
+        )
+      }
+
+      await Promise.all(tasks)
+
+      const statutoryClause = options.language === "sk"
+        ? "Práca spĺňa všetky požiadavky kladené na dizertačné práce v zmysle § 54 ods. 3 Zákona č. 131/2002 Z. z. o vysokých školách a o zmene a doplnení niektorých zákonov."
+        : "The thesis meets all requirements for doctoral dissertations according to § 54 para. 3 of Act No. 131/2002 Coll. on Higher Education."
+
+      const defenseQuestionsExternal: string[] = []
+      if (sotaBenchmarking.length > 0) {
+        const topSota = sotaBenchmarking[0]
+        defenseQuestionsExternal.push(
+          options.language === "sk"
+            ? `Ako by ste porovnali Vaše výsledky so súčasným stavom poznania reprezentovaným prácou "${topSota.title}" (${topSota.year})?`
+            : `How do your results compare to the state-of-the-art represented by "${topSota.title}" (${topSota.year})?`
+        )
+      }
+
+      phdEnrichment = {
+        authorProfile,
+        sotaBenchmarking,
+        statutoryClause,
+        defenseQuestionsExternal,
+        citationAudit,
+      }
+    } catch (e) {
+      console.warn("PhD Enrichment failed", e)
+    }
+  }
+
   return {
     ...validated,
     anchoredFindings: finalFindings,
     sourceRevision,
     proposedGradeRange: gradeRangeInfo.range,
     defenseQuestions: calibratedQuestions,
+    phdEnrichment,
   }
 }
 

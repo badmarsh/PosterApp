@@ -9,11 +9,20 @@
  */
 
 import type { ReviewLanguage, CriterionRating } from "./thesis-rubric"
+import type { AuthorProfile, AcademicPaperResult, ThesisCitationAudit } from "@/lib/services/academic-connector"
 
 export type ReviewKind = "thesis" | "paper" | "grant"
 export type ReviewSeverity = "critical" | "major" | "minor" | "suggestion" | "info"
 export type FindingStatus = "unreviewed" | "accepted" | "edited" | "rejected" | "resolved"
 export type ReportingStandard = "consort" | "prisma" | "strobe" | "ml_reproducibility" | "none"
+
+export interface PhdEnrichmentData {
+  authorProfile?: AuthorProfile | null;
+  sotaBenchmarking?: AcademicPaperResult[];
+  statutoryClause?: string;
+  defenseQuestionsExternal?: string[];
+  citationAudit?: ThesisCitationAudit | null;
+}
 
 /**
  * Epistemic status of a finding or assertion to clearly separate fact, judgment, and missing data.
@@ -226,6 +235,8 @@ export interface ProfessionalReviewRecord {
 
   confirmedAt?: string | null
   confirmedBy?: string | null
+
+  phdEnrichment?: PhdEnrichmentData | null
 
   createdAt: string
   updatedAt: string

@@ -230,6 +230,8 @@ model ThesisReview {
   reportingGuidelineChecks String?
   /// Confidential remarks for the editor / committee
   confidentialComments String?
+  /// PhD Opponent enrichment data (track record, SOTA, statutory clauses) (JSON object)
+  phdEnrichment   String?
   /// "draft" | "final"
   status          String    @default("draft")
   /// ISO language code: "sk" | "cs" | "en"

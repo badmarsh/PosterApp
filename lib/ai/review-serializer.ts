@@ -10,6 +10,7 @@ import type {
   EvidenceState,
   FindingAudience,
   ReviewDiagnostics,
+  PhdEnrichmentData,
 } from "./review-types"
 import type { ThesisSection } from "./thesis-rubric"
 
@@ -43,6 +44,7 @@ export interface DeserializedThesisReview {
   reportingStandard: ReportingStandard
   reportingGuidelineChecks: ReportingGuidelineCheck[]
   confidentialComments: string | null
+  phdEnrichment?: PhdEnrichmentData | null
   confirmedAt?: Date | string | null
   status: string
   language: string
@@ -250,6 +252,12 @@ export function deserializeThesisReview(dbRecord: any): DeserializedThesisReview
     "reportingGuidelineChecks",
     diagnosticsCollector
   )
+  const phdEnrichment = safeJsonParseWithDiagnostics<PhdEnrichmentData | null>(
+    dbRecord.phdEnrichment,
+    null,
+    "phdEnrichment",
+    diagnosticsCollector
+  )
 
   const validReviewKinds = new Set(["thesis", "paper", "grant"])
   const reviewKind: ReviewKind = validReviewKinds.has(String(dbRecord.reviewKind))
@@ -308,6 +316,7 @@ export function deserializeThesisReview(dbRecord: any): DeserializedThesisReview
     reportingStandard,
     reportingGuidelineChecks: normalizeGuidelineChecks(rawChecks),
     confidentialComments: dbRecord.confidentialComments ? String(dbRecord.confidentialComments) : null,
+    phdEnrichment,
     confirmedAt: dbRecord.confirmedAt
       ? dbRecord.confirmedAt instanceof Date
         ? dbRecord.confirmedAt.toISOString()
@@ -418,6 +427,12 @@ export function serializeThesisReviewUpdate(data: Record<string, any>): Record<s
         : data.reportingGuidelineChecks
     const normalized = normalizeGuidelineChecks(parsed)
     result.reportingGuidelineChecks = JSON.stringify(normalized)
+  }
+
+  if (data.phdEnrichment !== undefined) {
+    result.phdEnrichment = typeof data.phdEnrichment === "string" || data.phdEnrichment === null
+      ? data.phdEnrichment
+      : JSON.stringify(data.phdEnrichment)
   }
 
   return result

@@ -439,6 +439,7 @@ export async function POST(
         reportingStandard: thesisMetadata.reportingStandard ?? "none",
         reportingGuidelineChecks: professionalResult?.reportingGuidelineChecks ? JSON.stringify(professionalResult.reportingGuidelineChecks) : null,
         confidentialComments: professionalResult?.confidentialComments ?? null,
+        phdEnrichment: professionalResult?.phdEnrichment ? JSON.stringify(professionalResult.phdEnrichment) : null,
         status: "draft",
         language: lang,
       },
@@ -458,6 +459,7 @@ export async function POST(
       reportingStandard: thesisMetadata.reportingStandard,
       reportingGuidelineChecks: professionalResult?.reportingGuidelineChecks ?? [],
       confidentialComments: professionalResult?.confidentialComments,
+      phdEnrichment: professionalResult?.phdEnrichment ?? null,
       ragStats: {
         totalChars: ragContext.totalChars,
         selectedChars,

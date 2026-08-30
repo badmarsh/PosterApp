@@ -39,6 +39,7 @@ const UpdateSchema = z.object({
   reportingStandard: z.string().optional().nullable(),
   reportingGuidelineChecks: z.union([z.string(), z.array(z.any())]).optional().nullable(),
   confidentialComments: z.string().optional().nullable(),
+  phdEnrichment: z.union([z.string(), z.any(), z.null()]).optional(),
   status: z.string().optional().nullable(),
   language: z.enum(["sk", "cs", "en"]).optional(),
 }).passthrough()

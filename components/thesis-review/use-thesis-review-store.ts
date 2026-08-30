@@ -70,6 +70,7 @@ export interface ThesisReviewRecord {
   reportingStandard?: ReportingStandard | null
   reportingGuidelineChecks?: ReportingGuidelineCheck[]
   confidentialComments?: string | null
+  phdEnrichment?: any | null // Or imported PhdEnrichmentData if possible, but let's just use any or import
   status: "draft" | "final"
   language: ReviewLanguage
   diagnostics?: ReviewDiagnostics
@@ -446,6 +447,7 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
           reportingGuidelineChecks: data.reportingGuidelineChecks ?? [],
           questionsForAuthors: data.questionsForAuthors ?? data.defenseQuestions ?? [],
           confidentialComments: data.confidentialComments,
+          phdEnrichment: data.phdEnrichment ?? null,
           status: "draft",
           language: opts.metadata.language,
           diagnostics: {
@@ -636,6 +638,7 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
             reportingStandard: activeReview.reportingStandard,
             reportingGuidelineChecks: activeReview.reportingGuidelineChecks ? JSON.stringify(activeReview.reportingGuidelineChecks) : undefined,
             confidentialComments: activeReview.confidentialComments,
+            phdEnrichment: activeReview.phdEnrichment ? JSON.stringify(activeReview.phdEnrichment) : undefined,
             status: activeReview.status,
             language: activeReview.language,
           }),
