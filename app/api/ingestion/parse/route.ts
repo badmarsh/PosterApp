@@ -336,7 +336,8 @@ export async function POST(req: Request) {
 
         // Auto-extract references to BibTeX (non-fatal)
         try {
-          await extractBibTeX(results.md_content, workspaceId)
+          const bibResult = await extractBibTeX(results.md_content, workspaceId)
+          console.log(`[Ingestion] BibTeX extraction complete: ${bibResult.count} citations registered for workspace ${workspaceId}`)
         } catch (err) {
           console.error("[Ingestion] BibTeX extraction failed (non-fatal):", err)
         }

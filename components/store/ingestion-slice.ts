@@ -212,6 +212,8 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
             // Clean up PDF blob in IndexedDB on success to prevent storage leaks
             await idbDel(`file_${id}`).catch(() => undefined)
             await get().saveProject()
+            // Refresh bibliography entries parsed from the uploaded manuscript
+            await get().fetchBib(capturedWorkspaceId)
 
             if (produced.length === 0) {
               get().pushLog("warning", `${f.name} parsed, but no assets were extracted.`)

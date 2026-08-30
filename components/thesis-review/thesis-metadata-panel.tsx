@@ -272,16 +272,16 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
   return (
     <div className="flex flex-col gap-4 p-4 h-full overflow-y-auto no-scrollbar bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between pb-1 border-b">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-[#8B2635]/10 text-[#8B2635] dark:text-[#E06D7B] border border-[#8B2635]/20">
-            <GraduationCap className="h-4 w-4" />
+      <div className="flex items-center justify-between pb-3 border-b border-border/70 gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#8B2635]/10 text-[#8B2635] dark:text-[#E06D7B] border border-[#8B2635]/20 shadow-2xs">
+            <GraduationCap className="size-4" />
           </div>
-          <div>
-            <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">
+          <div className="min-w-0">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-foreground truncate">
               Posudok záverečnej práce
             </h2>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground truncate">
               Parametre a spustenie AI hodnotenia
             </p>
           </div>
@@ -291,20 +291,20 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-[11px] font-medium text-[#8B2635] dark:text-[#E06D7B] hover:bg-[#8B2635]/10 gap-1 cursor-pointer"
+            className="h-7 px-2.5 text-[11px] font-medium text-[#8B2635] dark:text-[#E06D7B] bg-[#8B2635]/5 hover:bg-[#8B2635]/15 border border-[#8B2635]/20 rounded-lg gap-1.5 shadow-2xs transition-all shrink-0 cursor-pointer"
             onClick={() => applyExtraction(sourceMarkdown, activeFile?.name)}
             title="Znovu načítať metadáta z PDF"
           >
-            <Sparkles className="h-3 w-3" />
+            <Sparkles className="size-3.5" />
             <span>Načítať z PDF</span>
           </Button>
         )}
       </div>
 
       {activeReview && (
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <FileCheck2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between shadow-2xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <FileCheck2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <span className="truncate">Posudok: <strong>{activeReview.studentName}</strong></span>
           </div>
           {activeReview.grade && (
@@ -325,19 +325,19 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
       />
 
       {/* 1. Document Selection (Always visible) */}
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         <div className="flex items-center justify-between">
           <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-            <BookOpen className="h-3.5 w-3.5 text-[#8B2635] dark:text-[#E06D7B]" />
+            <BookOpen className="size-3.5 text-[#8B2635] dark:text-[#E06D7B]" />
             Zdrojový dokument
           </Label>
           <Button
             size="sm"
             variant="outline"
-            className="h-6 px-2 text-[10px] gap-1 border-dashed hover:border-solid cursor-pointer"
+            className="h-7 px-2.5 text-[11px] font-medium rounded-lg border-border/80 hover:bg-muted/80 gap-1.5 text-foreground/90 cursor-pointer shadow-2xs"
             onClick={() => fileInputRef.current?.click()}
           >
-            <FileUp className="h-3 w-3" />
+            <FileUp className="size-3.5" />
             Nahrať PDF
           </Button>
         </div>
@@ -354,7 +354,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                   }
                 }}
               >
-                <SelectTrigger className="h-9 text-xs w-full bg-card border-border/80 shadow-2xs font-medium">
+                <SelectTrigger className="h-8.5 text-xs w-full bg-card border-border/80 shadow-2xs font-medium rounded-lg px-3 hover:border-border transition-colors">
                   <SelectValue placeholder="Vyberte prácu...">
                     {formatDocumentDisplayName(activeFile?.name, formMetadata.thesisTitle)}
                   </SelectValue>
@@ -380,9 +380,9 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                 </SelectContent>
               </Select>
             ) : (
-              <div className="rounded-lg border bg-card/60 p-2.5 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 min-w-0">
-                  <FileText className="h-4 w-4 text-[#8B2635] dark:text-[#E06D7B] shrink-0" />
+              <div className="rounded-xl border bg-card/70 p-2.5 flex items-center justify-between text-xs shadow-2xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <FileText className="size-4 text-[#8B2635] dark:text-[#E06D7B] shrink-0" />
                   <div className="min-w-0 truncate">
                     <p className="font-medium text-foreground truncate">{formatDocumentDisplayName(activeFile?.name, formMetadata.thesisTitle)}</p>
                     <p className="text-[10px] text-muted-foreground font-mono truncate">{activeFile?.name} • {formatBytes(activeFile?.size || 0)}</p>
@@ -392,15 +392,15 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
             )}
 
             {autoExtractedSuccess && (
-              <div className="flex items-center gap-1.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 animate-fade-in">
-                <Sparkles className="h-3 w-3" />
+              <div className="flex items-center gap-1.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 animate-fade-in pl-0.5">
+                <Sparkles className="size-3" />
                 <span>Údaje úspešne načítané z dokumentu</span>
               </div>
             )}
 
             {isParsing && (
-              <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 p-2 rounded-md">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20">
+                <Loader2 className="size-3.5 animate-spin shrink-0" />
                 <span>MinerU spracováva PDF…</span>
               </div>
             )}
@@ -419,27 +419,27 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
               isDragging ? "border-[#8B2635] bg-[#8B2635]/10" : "border-border/60 hover:border-[#8B2635]/60 hover:bg-muted/40"
             }`}
           >
-            <UploadCloud className="h-6 w-6 text-[#8B2635] mx-auto mb-1 opacity-80" />
+            <UploadCloud className="size-6 text-[#8B2635] mx-auto mb-1.5 opacity-80" />
             <p className="text-xs font-semibold">Nahrajte PDF práce</p>
             <p className="text-[10px] text-muted-foreground">Presuňte súbor sem</p>
           </div>
         )}
       </div>
 
-      <Separator />
+      <Separator className="my-0.5 bg-border/60" />
 
       {/* 2. Metadata Section — Collapsible on complete (2.7) */}
       {isComplete && isFormCollapsed ? (
-        <div className="rounded-xl border bg-muted/20 p-3 space-y-2 transition-all">
+        <div className="rounded-xl border bg-muted/20 p-3 space-y-2 transition-all shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-              <FileCheck2 className="h-4 w-4" />
+              <FileCheck2 className="size-4" />
               Metadáta pripravené
             </span>
             <Button
               size="sm"
               variant="ghost"
-              className="h-6 px-2 text-[11px] font-medium text-primary hover:bg-muted cursor-pointer"
+              className="h-6 px-2 text-[11px] font-medium text-primary hover:bg-muted cursor-pointer rounded-md"
               onClick={() => setIsFormCollapsed(false)}
             >
               Upraviť
@@ -459,14 +459,15 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-xs font-semibold text-foreground">
+            <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <FileText className="size-3.5 text-[#8B2635] dark:text-[#E06D7B]" />
               Údaje o záverečnej práci
             </Label>
             {isComplete && (
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground cursor-pointer"
+                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer rounded-md"
                 onClick={() => setIsFormCollapsed(true)}
               >
                 Zbaliť
@@ -480,7 +481,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
               Názov práce *
             </Label>
             <Input
-              className="h-8 text-xs bg-card"
+              className="h-8 text-xs bg-card rounded-lg border-border/80"
               placeholder="Napr. Systém na automatizované vyhľadávanie a asistenciu pri príprave grantov"
               value={formMetadata.thesisTitle}
               onChange={(e) => updateFormMetadata({ thesisTitle: e.target.value })}
@@ -493,7 +494,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
               Meno autora/autorky *
             </Label>
             <Input
-              className="h-8 text-xs bg-card"
+              className="h-8 text-xs bg-card rounded-lg border-border/80"
               placeholder="Napr. Bc. Maroš Bednár"
               value={formMetadata.studentName}
               onChange={(e) => updateFormMetadata({ studentName: e.target.value })}
@@ -508,7 +509,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                 value={formMetadata.thesisType}
                 onValueChange={(v) => { if (v) updateFormMetadata({ thesisType: v as any }) }}
               >
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-8 text-xs bg-card rounded-lg border-border/80">
                   <SelectValue>{THESIS_TYPES.find((t) => t.value === formMetadata.thesisType)?.[lang] || "Diplomová práca"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -531,7 +532,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                   }
                 }}
               >
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-8 text-xs bg-card rounded-lg border-border/80">
                   <SelectValue>{LANGUAGES.find((l) => l.value === lang)?.label ?? "Slovenčina"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -553,7 +554,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                 value={formMetadata.reviewerRole}
                 onValueChange={(v) => { if (v) updateFormMetadata({ reviewerRole: v as ReviewerRole }) }}
               >
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-8 text-xs bg-card rounded-lg border-border/80">
                   <SelectValue>{REVIEWER_ROLES.find((r) => r.value === formMetadata.reviewerRole)?.[lang] || "Oponent práce"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -569,7 +570,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
             <div className="space-y-1">
               <Label className="text-[11px] font-medium text-muted-foreground">Meno recenzenta</Label>
               <Input
-                className="h-8 text-xs bg-card"
+                className="h-8 text-xs bg-card rounded-lg border-border/80"
                 placeholder="Ing. Richard Marko, PhD."
                 value={formMetadata.reviewerName ?? ""}
                 onChange={(e) => updateFormMetadata({ reviewerName: e.target.value })}
@@ -581,7 +582,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
           <div className="space-y-1">
             <Label className="text-[11px] font-medium text-muted-foreground">Univerzita a fakulta</Label>
             <Input
-              className="h-8 text-xs bg-card"
+              className="h-8 text-xs bg-card rounded-lg border-border/80"
               placeholder="Slovenská technická univerzita v Bratislave, FIIT"
               value={formMetadata.institution ?? ""}
               onChange={(e) => updateFormMetadata({ institution: e.target.value })}
@@ -590,7 +591,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
         </div>
       )}
 
-      <Separator />
+      <Separator className="my-0.5 bg-border/60" />
 
       {/* Pre-flight plan link (always accessible) */}
       <div className="space-y-2">
@@ -601,17 +602,17 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
             await generateAnalysisPlan(workspaceId, normalizeFormMetadataToThesisMetadata(formMetadata))
           }}
           disabled={!isComplete || isGenerating || isGeneratingPlan || isParsing}
-          className="w-full h-8 text-xs text-muted-foreground hover:text-foreground cursor-pointer gap-1.5"
+          className="w-full h-8.5 text-xs text-foreground hover:bg-muted/80 rounded-lg border-border/80 cursor-pointer gap-2 shadow-2xs font-medium"
           size="sm"
         >
           {isGeneratingPlan ? (
             <>
-              <Loader2 className="h-3 w-3 animate-spin" />
+              <Loader2 className="size-3.5 animate-spin" />
               Analyzujem štruktúru…
             </>
           ) : (
             <>
-              <Sparkles className="h-3 w-3 text-[#8B2635] dark:text-[#E06D7B]" />
+              <Sparkles className="size-3.5 text-[#8B2635] dark:text-[#E06D7B]" />
               <span>Predanalýza a plánovanie (Pre-flight)</span>
             </>
           )}
