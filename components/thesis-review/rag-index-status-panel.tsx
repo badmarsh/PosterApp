@@ -197,9 +197,9 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
         </Badge>
       )
     return (
-      <Badge variant="outline" className="text-xs text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/5 gap-1.5 py-0.5 px-2.5 font-medium">
-        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-        {stats.totalChunks} {pluralizeSk(stats.totalChunks, "chunk", "chunky", "chunkov")} · {stats.totalDocuments} {pluralizeSk(stats.totalDocuments, "dokument", "dokumenty", "dokumentov")} · HNSW ✓
+      <Badge variant="outline" className="text-[11px] font-normal text-muted-foreground border-border/70 bg-muted/40 gap-1.5 py-0.5 px-2">
+        <span className="size-1.5 rounded-full bg-emerald-500/80 shrink-0 inline-block" />
+        {stats.totalChunks} {pluralizeSk(stats.totalChunks, "chunk", "chunky", "chunkov")} · {stats.totalDocuments} {pluralizeSk(stats.totalDocuments, "dokument", "dokumenty", "dokumentov")} · HNSW
       </Badge>
     )
   }

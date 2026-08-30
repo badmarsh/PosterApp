@@ -2,18 +2,50 @@ import { prisma as db } from "../prisma"
 import { generateAIResponse } from "./client"
 import { z } from "zod"
 
+const nodeSchema = z.object({
+  label: z.preprocess((val) => {
+    if (Array.isArray(val)) return String(val[0] || "Concept")
+    if (typeof val === "object" && val !== null) return (val as any).name || (val as any).label || (val as any).type || "Concept"
+    return typeof val === "string" && val.trim() ? val.trim() : "Concept"
+  }, z.string().default("Concept")).describe("Entity type, preferably: 'Hypothesis', 'Methodology', 'Dataset', 'Metric', 'Finding', 'Citation', 'Concept'"),
+  name: z.preprocess((val) => {
+    if (Array.isArray(val)) return String(val[0] || "Unnamed Entity")
+    if (typeof val === "object" && val !== null) return (val as any).name || (val as any).label || (val as any).title || "Unnamed Entity"
+    return typeof val === "string" && val.trim() ? val.trim() : "Unnamed Entity"
+  }, z.string().default("Unnamed Entity")).describe("The specific name of the entity, e.g. 'YOLOv8', 'COCO dataset'"),
+  description: z.preprocess((val) => {
+    if (Array.isArray(val)) return val.filter(Boolean).map(String).join("; ")
+    if (typeof val === "object" && val !== null) return (val as any).description || (val as any).text || (val as any).summary || JSON.stringify(val)
+    return typeof val === "string" ? val.trim() : null
+  }, z.string().nullable().optional()).describe("Brief description or context of this entity within the document"),
+})
+
+const edgeSchema = z.object({
+  sourceName: z.preprocess((val) => {
+    if (typeof val === "string" && val.trim()) return val.trim()
+    if (typeof val === "object" && val !== null) return (val as any).name || (val as any).source || (val as any).sourceName || ""
+    return String(val || "")
+  }, z.string().default("")).describe("Must match a node name"),
+  targetName: z.preprocess((val) => {
+    if (typeof val === "string" && val.trim()) return val.trim()
+    if (typeof val === "object" && val !== null) return (val as any).name || (val as any).target || (val as any).targetName || ""
+    return String(val || "")
+  }, z.string().default("")).describe("Must match a node name"),
+  relation: z.preprocess((val) => {
+    if (Array.isArray(val)) return String(val[0] || "RELATED_TO")
+    if (typeof val === "object" && val !== null) return (val as any).type || (val as any).relation || (val as any).name || "RELATED_TO"
+    return typeof val === "string" && val.trim() ? val.trim() : "RELATED_TO"
+  }, z.string().default("RELATED_TO")).describe("Relationship type, preferably: 'EVALUATED_ON', 'PROVES', 'USES', 'CITES', 'MEASURES', 'CONTRADICTS', 'IMPROVES'"),
+  evidence: z.preprocess((val) => {
+    if (Array.isArray(val)) return val.filter(Boolean).map(String).join(" ")
+    if (typeof val === "object" && val !== null) return (val as any).quote || (val as any).text || (val as any).evidence || null
+    return typeof val === "string" ? val.trim() : null
+  }, z.string().nullable().optional()).describe("A short verbatim quote from the text that proves this relationship"),
+})
+
 const graphExtractionSchema = z.object({
-  nodes: z.array(z.object({
-    label: z.enum(["Hypothesis", "Methodology", "Dataset", "Metric", "Finding", "Citation", "Concept"]),
-    name: z.string().describe("The specific name of the entity, e.g. 'YOLOv8', 'COCO dataset'"),
-    description: z.string().describe("Brief description or context of this entity within the document")
-  })),
-  edges: z.array(z.object({
-    sourceName: z.string().describe("Must match a node name"),
-    targetName: z.string().describe("Must match a node name"),
-    relation: z.enum(["EVALUATED_ON", "PROVES", "USES", "CITES", "MEASURES", "CONTRADICTS", "IMPROVES"]),
-    evidence: z.string().describe("A short verbatim quote from the text that proves this relationship")
-  }))
+  nodes: z.array(nodeSchema).default([]),
+  edges: z.array(edgeSchema).default([]),
 })
 
 /**
@@ -31,7 +63,8 @@ export async function extractAndStoreGraphEntities(
       systemPrompt: `You are an expert academic knowledge graph extractor.
 Analyze the following text from an academic document and extract key entities and the relationships between them.
 Keep nodes focused on core academic elements: Hypotheses, Methodologies, Datasets, Metrics, Findings, Citations, or Concepts.
-Ensure that relationship 'sourceName' and 'targetName' strictly match the 'name' of extracted nodes.`,
+Ensure that relationship 'sourceName' and 'targetName' strictly match the 'name' of extracted nodes.
+Respond strictly with a JSON object containing "nodes" and "edges" arrays.`,
       userPrompt: textChunk,
       schema: graphExtractionSchema,
       temperature: 0.1,
