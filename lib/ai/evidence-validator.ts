@@ -232,3 +232,99 @@ export function validateAndCalibrateFindings(
     diagnostics,
   }
 }
+
+// ---------------------------------------------------------------------------
+// PaperQA2-style Context-Quote Grounding
+// ---------------------------------------------------------------------------
+
+export interface GroundedChunkResult {
+  chunkId: string
+  heading: string | null
+  /** Sentence from the chunk that best supports the claim */
+  anchorSentence: string
+  /** Normalized overlap score between claim tokens and anchor sentence tokens */
+  overlapScore: number
+  /** Full chunk content (trimmed to 600 chars) */
+  excerpt: string
+}
+
+/**
+ * PaperQA2-style grounding: given a claim string and a list of retrieved RAG chunks,
+ * finds the single best verbatim sentence from the corpus that supports the claim.
+ *
+ * Approach: token overlap scoring (no LLM, no API cost).
+ * The returned `anchorSentence` is verbatim from the source — it can be
+ * included directly in the review as a `quote` field to make hallucinations
+ * structurally impossible (the LLM is forced to cite what it retrieved).
+ *
+ * Used by the review engine BEFORE generating text: retrieve → ground → generate.
+ */
+export function groundClaimInChunks(
+  claimText: string,
+  chunks: Array<{ id: string; heading: string | null; content: string }>
+): GroundedChunkResult | null {
+  if (!claimText || chunks.length === 0) return null
+
+  // Tokenize claim
+  const claimTokens = new Set(
+    claimText.toLowerCase().replace(/[^\wÀ-žа-я]/g, " ").split(/\s+/).filter((t) => t.length > 3)
+  )
+  if (claimTokens.size === 0) return null
+
+  let bestResult: GroundedChunkResult | null = null
+  let bestScore = 0
+
+  for (const chunk of chunks) {
+    // Split chunk into sentences
+    const sentences = chunk.content
+      .split(/(?<=[.!?])\s+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 20)
+
+    for (const sentence of sentences) {
+      const sentTokens = sentence.toLowerCase().replace(/[^\wÀ-žа-я]/g, " ").split(/\s+/).filter((t) => t.length > 3)
+      if (sentTokens.length === 0) continue
+
+      // Jaccard-style token overlap: intersection / claim tokens
+      let hits = 0
+      for (const t of sentTokens) if (claimTokens.has(t)) hits++
+      const score = hits / claimTokens.size
+
+      if (score > bestScore) {
+        bestScore = score
+        bestResult = {
+          chunkId: chunk.id,
+          heading: chunk.heading,
+          anchorSentence: sentence,
+          overlapScore: Math.round(score * 1000) / 1000,
+          excerpt: chunk.content.slice(0, 600),
+        }
+      }
+    }
+  }
+
+  // Require minimum overlap to avoid spurious anchoring
+  return bestScore >= 0.15 ? bestResult : null
+}
+
+/**
+ * Formats grounded chunk results as a compact evidence block for the review LLM prompt.
+ * Injected BEFORE the "write your assessment" instruction so the LLM can only
+ * refer to what is shown — the PaperQA2 "evidence-first generation" pattern.
+ */
+export function formatGroundedEvidenceBlock(
+  grounds: Array<GroundedChunkResult | null>,
+  criterionLabel: string
+): string {
+  const valid = grounds.filter((g): g is GroundedChunkResult => g !== null && g.overlapScore >= 0.15)
+  if (valid.length === 0) return ""
+
+  const lines = [`[Retrieved Evidence for "${criterionLabel}" — quote verbatim from these passages]\n`]
+  for (const g of valid.slice(0, 6)) {
+    lines.push(`Section: ${g.heading || "—"}`)
+    lines.push(`> "${g.anchorSentence}"`)
+    lines.push(`(Chunk ${g.chunkId.slice(0, 8)}, overlap: ${Math.round(g.overlapScore * 100)}%)\n`)
+  }
+  lines.push("[End of retrieved evidence — do not fabricate citations outside the above]\n")
+  return lines.join("\n")
+}

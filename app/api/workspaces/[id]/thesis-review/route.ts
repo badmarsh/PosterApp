@@ -293,7 +293,7 @@ export async function POST(
         activeCriteria.map(async (c) => {
           const expansion = getThesisCriterionQueryExpansion(c.id, lang)
           const query = `${c.labels[lang]} ${c.guidance[lang]}`.slice(0, 300)
-          const chunks = await retrieveForCriterion(workspaceId, query, {
+          const { chunks, communityContext: localCommunityCtx } = await retrieveForCriterion(workspaceId, query, {
             topK: 4,
             lambda: 0.7,
             domainContext,
@@ -302,7 +302,9 @@ export async function POST(
             useHyDE: true,
             compress: true,
             documentId: body.sourceFileId,
+            includeCommunityContext: c === activeCriteria[0],
           })
+          if (localCommunityCtx) criterionVectorContextParts.push(localCommunityCtx)
           if (chunks.length === 0) return
           const chunkText = chunks
             .map((ch) => (ch.heading ? `### ${ch.heading}\n${ch.content}` : ch.content))

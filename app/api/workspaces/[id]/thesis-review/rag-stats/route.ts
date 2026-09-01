@@ -232,7 +232,7 @@ export async function POST(
     return NextResponse.json({ error: "query too long" }, { status: 400 })
   }
 
-  const chunks = await retrieveForCriterion(workspaceId, query, {
+  const { chunks } = await retrieveForCriterion(workspaceId, query, {
     topK: 5,
     lambda: 0.7,
     useHyDE: true,

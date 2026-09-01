@@ -606,12 +606,24 @@ export async function retrieveForCriterion(
     criterionId?: string
     criterionExpansion?: string
     documentId?: string
+    /** When true, fetches LightRAG-style community summaries alongside chunk retrieval.
+     *  These answer cross-chapter questions that per-chunk retrieval misses. */
+    includeCommunityContext?: boolean
   } = {}
-): Promise<Array<{ id: string; heading: string | null; content: string; tokens: number; relevanceScore: number }>> {
+): Promise<{
+  chunks: Array<{ id: string; heading: string | null; content: string; tokens: number; relevanceScore: number }>
+  /** Serialized community summary block — prepend to LLM prompt for global context */
+  communityContext: string
+}> {
   const topK = opts.topK ?? 5
   const lambda = opts.lambda ?? 0.7
   const domainContext = opts.domainContext ?? "STEM, Fyzika"
   const compress = opts.compress ?? true
+
+  // Community context fetch (LightRAG global retrieval) — run in parallel with chunk retrieval
+  const communityContextPromise = opts.includeCommunityContext
+    ? import("./graph-communities").then((m) => m.getCommunityContext(workspaceId, 6000)).catch(() => "")
+    : Promise.resolve("")
 
   // Stage 3: Hybrid retrieval with multi-query fan-out + HyDE
   const rawChunks = await searchHybrid(workspaceId, query, topK * 4, domainContext, opts.documentId, {
@@ -619,7 +631,9 @@ export async function retrieveForCriterion(
     useHyDE: opts.useHyDE ?? true,
   })
 
-  if (rawChunks.length === 0) return []
+  if (rawChunks.length === 0) {
+    return { chunks: [], communityContext: await communityContextPromise }
+  }
 
   // Stage 4: MMR deduplication — select topK*2 diverse candidates
   const mmrChunks = applyMMR(rawChunks, Math.min(topK * 2, rawChunks.length), lambda)
@@ -633,11 +647,16 @@ export async function retrieveForCriterion(
   // Stage 6: Contextual compression
   const finalChunks = compress ? compressChunks(query, topChunks) : topChunks
 
-  return finalChunks.map((c) => ({
-    id: c.id,
-    heading: c.heading,
-    content: c.content,
-    tokens: Math.ceil(c.content.length / 4),
-    relevanceScore: c.relevanceScore ?? c.similarity ?? 0,
-  }))
+  const communityContext = await communityContextPromise
+
+  return {
+    chunks: finalChunks.map((c) => ({
+      id: c.id,
+      heading: c.heading,
+      content: c.content,
+      tokens: Math.ceil(c.content.length / 4),
+      relevanceScore: c.relevanceScore ?? c.similarity ?? 0,
+    })),
+    communityContext,
+  }
 }
