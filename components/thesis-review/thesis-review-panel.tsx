@@ -53,6 +53,8 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
     setConfidentialityAgreed,
     skipCitationAudit,
     setSkipCitationAudit,
+    professionalModeOverride,
+    setProfessionalModeOverride,
     selectedFileId,
     loadReviews,
     loadReview,
@@ -116,7 +118,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
       sourceFileId: effectiveFileId,
       metadata: normalizeFormMetadataToThesisMetadata(formMetadata),
       skipCitationAudit,
-      professionalMode: formMetadata.reviewKind === "paper" || formMetadata.reportingStandard !== "none",
+      professionalMode: professionalModeOverride || formMetadata.reviewKind === "paper" || formMetadata.reportingStandard !== "none",
     })
   }
 
@@ -250,7 +252,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                 </div>
 
                 {/* Generation options */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                   <label
                     htmlFor="active-confidentiality"
                     className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/20 hover:bg-muted/30 p-2.5 rounded-lg border cursor-pointer transition-colors"
@@ -267,6 +269,21 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                     </span>
                   </label>
 
+                  <label
+                    htmlFor="active-professional-mode"
+                    className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/20 hover:bg-muted/30 p-2.5 rounded-lg border cursor-pointer transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      id="active-professional-mode"
+                      checked={professionalModeOverride}
+                      onChange={(e) => setProfessionalModeOverride(e.target.checked)}
+                      className="mt-0.5 rounded accent-[#8B2635] cursor-pointer shrink-0"
+                    />
+                    <span className="leading-tight text-[11px] select-none text-foreground/90">
+                      Odborný režim (rozšírené hodnotenie a overovanie dôkazov)
+                    </span>
+                  </label>
                   <label
                     htmlFor="active-skip-cite-audit"
                     className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/20 hover:bg-muted/30 p-2.5 rounded-lg border cursor-pointer transition-colors"

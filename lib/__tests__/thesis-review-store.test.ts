@@ -54,6 +54,31 @@ describe("Thesis Review Store State & Error Handling", () => {
     expect(updated?.recommendation).toContain("neodporúčam")
   })
 
+  it("sends the explicit professional-mode override when generating a review", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: "rev-1", sections: [], defenseQuestions: [], citationIssues: [] }), { status: 200 })
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    useThesisReviewStore.getState().setProfessionalModeOverride(true)
+
+    await useThesisReviewStore.getState().generateReview({
+      workspaceId: "ws-1",
+      metadata: {
+        studentName: "Ján Novák",
+        thesisTitle: "Test thesis",
+        thesisType: "master",
+        reviewerRole: "opponent",
+        language: "sk",
+      },
+    })
+
+    const reviewRequest = fetchMock.mock.calls.find(([url, options]) =>
+      String(url).endsWith("/thesis-review") && options?.method === "POST"
+    )
+    const requestBody = JSON.parse(reviewRequest?.[1].body)
+    expect(requestBody.professionalMode).toBe(true)
+  })
+
   it("handles delete failure by rolling back optimistic removal and recording error", async () => {
     const existingReviews = [
       { id: "rev-1", studentName: "A", thesisTitle: "T1", thesisType: "master", reviewerRole: "opponent", status: "draft", language: "sk", createdAt: "", updatedAt: "" },

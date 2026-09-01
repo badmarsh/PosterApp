@@ -180,6 +180,7 @@ interface ThesisReviewState {
   formMetadata: ThesisReviewFormMetadata
   confidentialityAgreed: boolean
   skipCitationAudit: boolean
+  professionalModeOverride: boolean
   selectedFileId: string
 
   // Actions
@@ -190,6 +191,7 @@ interface ThesisReviewState {
   setConfidentialityAgreed: (agreed: boolean) => void
   setSkipCitationAudit: (skip: boolean) => void
   setSelectedFileId: (fileId: string) => void
+  setProfessionalModeOverride: (enabled: boolean) => void
   setActiveReview: (review: ThesisReviewRecord | null) => void
   setSelectedEvidence: (ev: EvidenceReference | null) => void
   setAnalysisPlan: (plan: ReviewAnalysisPlan | null) => void
@@ -268,6 +270,7 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     skipCitationAudit: false,
     selectedFileId: "",
 
+    professionalModeOverride: false,
     openPanel: () => set((s) => { s.isPanelOpen = true }),
     closePanel: () => set((s) => { s.isPanelOpen = false }),
     setMetadataValid: (valid) => set((s) => { s.isMetadataValid = valid }),
@@ -293,6 +296,7 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
       set((s) => {
         s.skipCitationAudit = skip
       }),
+    setProfessionalModeOverride: (enabled) => set((s) => { s.professionalModeOverride = enabled }),
     setSelectedFileId: (fileId) =>
       set((s) => {
         s.selectedFileId = fileId
@@ -414,6 +418,7 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
             focusCriteria: opts.focusCriteria,
             skipCitationAudit: opts.skipCitationAudit ?? false,
           }),
+            professionalMode: get().professionalModeOverride,
         })
 
         if (!res.ok) {
