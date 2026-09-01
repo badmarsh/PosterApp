@@ -71,6 +71,12 @@ const RequestBodySchema = z.object({
 
 // ---------------------------------------------------------------------------
 // System/User prompt builders
+export function normalizeDefenseQuestions(
+  questions: Array<string | { question: string }>
+): string[] {
+  return questions.map((question) => typeof question === "string" ? question : question.question)
+}
+
 // ---------------------------------------------------------------------------
 
 function buildSystemPrompt(lang: ReviewLanguage, metadata: ThesisMetadata): string {
@@ -374,6 +380,7 @@ export async function POST(
     // 5. AI generation
     let result: any
     let professionalResult: any = null
+    let calibratedDefenseQuestions: string[] | null = null
 
     if (body.professionalMode || thesisMetadata.reviewKind === "paper" || (thesisMetadata.reportingStandard && thesisMetadata.reportingStandard !== "none")) {
       const { generateProfessionalReview } = await import("@/lib/ai/review-engine")
@@ -391,6 +398,7 @@ export async function POST(
         graphAugmentation,
         vectorAugmentation,
       })
+      calibratedDefenseQuestions = normalizeDefenseQuestions(professionalResult.defenseQuestions)
 
       // Convert findings into criteria-like sections for backwards compatibility with LaTeX generator
       const sections = activeCriteria.map((c) => {
@@ -421,7 +429,7 @@ export async function POST(
         sections,
         overallGrade: professionalResult.grade || "B",
         recommendation: professionalResult.recommendation,
-        defenseQuestions: professionalResult.questionsForAuthors,
+        defenseQuestions: calibratedDefenseQuestions,
         citationIssues: [],
       }
     } else {
@@ -459,7 +467,7 @@ export async function POST(
         recommendation: result.recommendation,
         suggestedRecommendation: professionalResult?.recommendation ?? result.recommendation ?? null,
         sections: JSON.stringify(result.sections),
-        defenseQuestions: JSON.stringify(professionalResult?.defenseQuestions ? professionalResult.defenseQuestions.map((q: any) => typeof q === "string" ? q : q.question) : result.defenseQuestions),
+        defenseQuestions: JSON.stringify(calibratedDefenseQuestions ?? result.defenseQuestions),
         citationIssues: JSON.stringify([
           ...result.citationIssues,
           ...(citationAuditSummary ? [citationAuditSummary] : []),

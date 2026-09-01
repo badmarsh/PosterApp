@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { NextRequest } from "next/server"
-import { GET as getReviews } from "@/app/api/workspaces/[id]/thesis-review/route"
+import { GET as getReviews, normalizeDefenseQuestions } from "@/app/api/workspaces/[id]/thesis-review/route"
 import { GET as getSingleReview, PUT as updateReview } from "@/app/api/workspaces/[id]/thesis-review/[reviewId]/route"
 
 // Mock auth
@@ -70,6 +70,16 @@ describe("Thesis Review Deduplication & Distinguishing Metadata Regression Tests
 
   beforeEach(() => {
     inMemoryDB[wsId] = []
+  })
+
+  it("normalizes calibrated defense questions for both response and persistence", () => {
+    expect(normalizeDefenseQuestions([
+      { question: "How were the results validated?" },
+      "Which limitation has the largest impact?",
+    ])).toEqual([
+      "How were the results validated?",
+      "Which limitation has the largest impact?",
+    ])
   })
 
   it("ensures GET returns all distinguishing metadata fields to tell reviews apart", async () => {
