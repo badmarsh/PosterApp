@@ -159,10 +159,10 @@ function MobileShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       <TopBar
-        structureOpen={false}
-        agentOpen={false}
-        onToggleStructure={() => setPane("structure")}
-        onToggleAgent={() => setPane("agent")}
+        structureOpen={pane === "structure"}
+        agentOpen={pane === "agent"}
+        onToggleStructure={() => setPane(pane === "structure" ? "preview" : "structure")}
+        onToggleAgent={() => setPane(pane === "agent" ? "preview" : "agent")}
         onOpenWorkspaceSelector={onOpenWorkspaceSelector}
         onOpenCommandPalette={() => setPaletteOpen(true)}
       />

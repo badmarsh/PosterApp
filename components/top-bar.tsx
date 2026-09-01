@@ -8,8 +8,10 @@ import {
   Sparkles,
   Moon,
   PanelLeft,
+  PanelRight,
   HelpCircle,
   Save,
+  Check,
   Sun,
   FolderOpen,
   Folders,
@@ -18,11 +20,9 @@ import {
   CodeIcon,
   Clock,
   Loader2,
-
   Camera,
   FileArchive,
   Users,
-
   Search,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -159,43 +159,67 @@ export function TopBar({
   }
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-card px-3">
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("size-8", structureOpen && "text-primary")}
-              onClick={onToggleStructure}
-              aria-label="Toggle structure panel"
-              aria-pressed={structureOpen}
-            >
-              <PanelLeft className="size-4" />
-            </Button>
-          }
-        />
-        <TooltipContent>Structure panel</TooltipContent>
-      </Tooltip>
+    <header className="flex h-12 shrink-0 items-center gap-2.5 border-b border-border bg-card px-3">
+      {/* Zone 1: View / Panel Toggles */}
+      <div className="flex items-center gap-1">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("size-8", structureOpen && "text-primary bg-primary/10")}
+                onClick={onToggleStructure}
+                aria-label="Toggle structure panel"
+                aria-pressed={structureOpen}
+              >
+                <PanelLeft className="size-4" />
+              </Button>
+            }
+          />
+          <TooltipContent>Structure panel</TooltipContent>
+        </Tooltip>
 
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("size-8", showLatexSource && "text-primary")}
-              onClick={toggleLatexSource}
-              aria-label="Toggle LaTeX Source View"
-              aria-pressed={showLatexSource}
-            >
-              <CodeIcon className="size-4" />
-            </Button>
-          }
-        />
-        <TooltipContent>Source code</TooltipContent>
-      </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("size-8", showLatexSource && "text-primary bg-primary/10")}
+                onClick={toggleLatexSource}
+                aria-label="Toggle LaTeX Source View"
+                aria-pressed={showLatexSource}
+              >
+                <CodeIcon className="size-4" />
+              </Button>
+            }
+          />
+          <TooltipContent>Source code</TooltipContent>
+        </Tooltip>
 
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("size-8", agentOpen && "text-primary bg-primary/10")}
+                onClick={onToggleAgent}
+                aria-label="Toggle agent panel"
+                aria-pressed={agentOpen}
+              >
+                <PanelRight className="size-4" />
+              </Button>
+            }
+          />
+          <TooltipContent>Agent panel</TooltipContent>
+        </Tooltip>
+      </div>
+
+      <Separator orientation="vertical" className="h-5" />
+
+      {/* Zone 2: Workspace Identity */}
       <div className="flex items-center gap-2">
         <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-xs">
           <LayoutTemplate className="size-4" />
@@ -239,10 +263,11 @@ export function TopBar({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-
-
       </div>
 
+      <Separator orientation="vertical" className="h-5 hidden sm:block" />
+
+      {/* Zone 3: Search / Command Palette */}
       <Tooltip>
         <TooltipTrigger
           render={
@@ -255,7 +280,7 @@ export function TopBar({
             >
               <Search className="size-3.5" />
               <span className="hidden md:inline">Search actions</span>
-              <kbd className="hidden rounded border border-border bg-muted px-1 font-mono text-[10px] text-muted-foreground lg:inline">
+              <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground lg:inline">
                 ⌘K
               </kbd>
             </Button>
@@ -266,29 +291,7 @@ export function TopBar({
 
       <div className="flex-1" />
 
-      {/* Manual Save Button */}
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn("h-8 gap-1.5 mr-1", isDirty && "border-primary text-primary")}
-              disabled={!isDirty || isSaving}
-              onClick={() => saveProject()}
-            >
-              {isSaving ? (
-                <Loader2 className="size-3.5 animate-spin text-primary" />
-              ) : (
-                <Save className="size-3.5 text-primary" />
-              )}
-              <span>{isDirty ? "Save changes" : "Saved"}</span>
-            </Button>
-          }
-        />
-        <TooltipContent>Save Project</TooltipContent>
-      </Tooltip>
-
+      {/* Zone 4: Document Ingestion & Export Actions */}
       <div className="flex items-center gap-1.5">
         <Button
           variant="outline"
@@ -297,7 +300,7 @@ export function TopBar({
           onClick={openIngestion}
           aria-label="Ingest source PDFs"
         >
-          <FileStack className="size-3.5 text-primary" />
+          <FileStack className="size-3.5" />
           <span className="hidden md:inline">Ingest</span>
         </Button>
 
@@ -308,7 +311,7 @@ export function TopBar({
           onClick={() => setIsScannerOpen(true)}
           aria-label="Scan Image / OCR"
         >
-          <Camera className="size-3.5 text-primary" />
+          <Camera className="size-3.5" />
           <span className="hidden md:inline">Scan / OCR</span>
         </Button>
 
@@ -319,7 +322,7 @@ export function TopBar({
           onClick={() => setIsAcademicSearchOpen(true)}
           aria-label="Academic Search"
         >
-          <Sparkles className="size-3.5 text-primary" />
+          <Sparkles className="size-3.5" />
           <span className="hidden md:inline">Academic</span>
         </Button>
 
@@ -332,7 +335,7 @@ export function TopBar({
                 className="h-8 gap-1.5"
                 aria-label="Export options"
               >
-                <Download className="size-3.5 text-primary" />
+                <Download className="size-3.5" />
                 <span className="hidden md:inline">Export</span>
               </Button>
             }
@@ -370,30 +373,99 @@ export function TopBar({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+      </div>
+
+      <Separator orientation="vertical" className="h-5" />
+
+      {/* Zone 5: Save & Collaboration */}
+      <div className="flex items-center gap-1.5">
+        {/* Autosave is OFF: Save is the primary CTA when isDirty */}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant={isDirty ? "default" : "outline"}
+                size="sm"
+                className={cn("h-8 gap-1.5", isDirty ? "font-medium shadow-xs" : "text-muted-foreground")}
+                disabled={!isDirty || isSaving}
+                onClick={() => saveProject()}
+                aria-label={isDirty ? "Save project changes" : "All changes saved"}
+              >
+                {isSaving ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : isDirty ? (
+                  <Save className="size-3.5" />
+                ) : (
+                  <Check className="size-3.5 text-chart-3" />
+                )}
+                <span>{isDirty ? "Save changes" : "Saved"}</span>
+              </Button>
+            }
+          />
+          <TooltipContent>{isDirty ? "Save unsaved changes" : "Project is up to date"}</TooltipContent>
+        </Tooltip>
 
         <Button
           variant={collabEnabled ? "default" : "outline"}
           size="sm"
-          className={cn("h-8 gap-1.5 mx-1", collabEnabled ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "")}
+          className={cn("h-8 gap-1.5", collabEnabled && "bg-chart-3 hover:bg-chart-3/90 text-white")}
           onClick={() => setCollabEnabled(!collabEnabled)}
+          aria-label={collabEnabled ? "Live Collaboration enabled" : "Enable Live Collaboration"}
+          aria-pressed={collabEnabled}
         >
-          <Users className={cn("size-3.5", collabEnabled ? "text-white" : "text-primary")} />
+          <Users className={cn("size-3.5", collabEnabled ? "text-white" : "")} />
           <span className="hidden md:inline">Live Collab</span>
         </Button>
         
-        <div className="flex -space-x-2 mr-2">
-          {collaborators.map(c => (
-            <div key={c.clientId} className="size-8 rounded-full border-2 border-background flex items-center justify-center text-xs text-white font-bold" style={{ backgroundColor: c.color }} title={c.name}>
-              {c.name.charAt(0)}
-            </div>
+        {/* Accessible Collaborator Avatar Stack */}
+        <div className="flex items-center -space-x-1.5 mr-1" role="group" aria-label="Active collaborators">
+          <span className="sr-only">
+            {collaborators.length > 0
+              ? `${collaborators.length} collaborator${collaborators.length > 1 ? "s" : ""} active`
+              : yjsStatus === "connected"
+              ? "Connected (solo session)"
+              : "Offline"}
+          </span>
+          {collaborators.map((c) => (
+            <Tooltip key={c.clientId}>
+              <TooltipTrigger
+                render={
+                  <div
+                    role="img"
+                    aria-label={`${c.name} — active now`}
+                    className="size-7 rounded-full border-2 border-background flex items-center justify-center text-[11px] text-white font-bold cursor-default select-none shadow-xs"
+                    style={{ backgroundColor: c.color }}
+                  >
+                    {c.name.charAt(0).toUpperCase()}
+                  </div>
+                }
+              />
+              <TooltipContent>{c.name} (Active)</TooltipContent>
+            </Tooltip>
           ))}
           {yjsStatus === "connected" && collaborators.length === 0 && (
-             <div className="size-8 rounded-full border-2 border-background flex items-center justify-center text-xs bg-muted text-muted-foreground font-semibold" title="Connected to Yjs (Solo)">
-               1
-             </div>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <div
+                    role="img"
+                    aria-label="Connected to Yjs (Solo session)"
+                    className="size-7 rounded-full border-2 border-background flex items-center justify-center text-[11px] bg-muted text-muted-foreground font-semibold cursor-default select-none shadow-xs"
+                  >
+                    1
+                  </div>
+                }
+              />
+              <TooltipContent>Connected (Solo session)</TooltipContent>
+            </Tooltip>
           )}
         </div>
+      </div>
 
+      <Separator orientation="vertical" className="h-5" />
+
+      {/* Zone 6: Theme, Help, History, User Account */}
+      <div className="flex items-center gap-1">
         <ThemeToggle />
         <Tooltip>
           <TooltipTrigger
