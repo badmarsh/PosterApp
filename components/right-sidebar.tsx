@@ -34,8 +34,6 @@ export function RightSidebar() {
     setPrevSelectionKey(currentSelectionKey)
     if (currentSelectionKey) {
       setActiveTab("editor")
-    } else if (!currentSelectionKey && activeTab === "editor") {
-      setActiveTab("pdf")
     }
   }
 
