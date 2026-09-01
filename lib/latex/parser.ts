@@ -1,3 +1,5 @@
+import { decodeHtmlEntities } from "@/lib/utils"
+
 type Slot = { placeholder: string; original: string }
 
 export function extractMath(input: string): { text: string; slots: Slot[] } {
@@ -92,7 +94,8 @@ function restoreCitations(text: string, slots: Slot[]): string {
 }
 
 export function escapeLatex(input: string): string {
-  let text = input
+  const decoded = decodeHtmlEntities(input)
+  let text = decoded
     .replace(/\\/g, "\\textbackslash{}")
     .replace(/[{}]/g, (char) => char === "{" ? "\\{" : "\\}")
     .replace(/\$/g, "\\$")

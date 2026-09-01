@@ -12,6 +12,8 @@ import { cleanFormula, slugifyEquationKey, isLikelyMathematicalFormula } from "@
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { detectedPdf, MAX_UPLOAD_BYTES, SAFE_FILE_ID, SAFE_FILENAME, workspacePath } from "@/lib/workspace-files"
 import { fetchMinerU, resolveMinerUUrl, ensureMinerUBridge } from "@/lib/services/mineru-bridge"
+import { parseHtmlTable } from "@/lib/table-parser"
+import { decodeHtmlEntities } from "@/lib/utils"
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 
 // ---------------------------------------------------------------------------
@@ -237,8 +239,8 @@ export async function POST(req: Request) {
         return
       }
 
-      // Map to hold extracted table rows by their original image_path
-      const tableMap = new Map<string, string[][]>()
+      // Map to hold extracted table rows and titles by their original image_path
+      const tableMap = new Map<string, { rows: string[][]; title?: string }>()
       const pageMap = new Map<string, number>()
 
       if (results.middle_json) {
@@ -253,19 +255,10 @@ export async function POST(req: Request) {
                   pageMap.set(obj.image_path, pageNum)
                 }
                 if (obj.type === "table" && obj.html && obj.image_path) {
-                  const rows: string[][] = []
-                  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi
-                  let trMatch
-                  while ((trMatch = trRegex.exec(obj.html)) !== null) {
-                    const cells: string[] = []
-                    const tdRegex = /<(td|th)[^>]*>([\s\S]*?)<\/\1>/gi
-                    let tdMatch
-                    while ((tdMatch = tdRegex.exec(trMatch[1])) !== null) {
-                      cells.push(tdMatch[2].replace(/<[^>]+>/g, "").trim())
-                    }
-                    if (cells.length > 0) rows.push(cells)
+                  const parsed = parseHtmlTable(obj.html)
+                  if (parsed.rows.length > 0) {
+                    tableMap.set(obj.image_path, { rows: parsed.rows, title: parsed.title })
                   }
-                  tableMap.set(obj.image_path, rows)
                 }
                 for (const key of Object.keys(obj)) {
                   searchImagePaths(obj[key])
@@ -291,14 +284,15 @@ export async function POST(req: Request) {
           let newFilename = ""
           if (tableMap.has(normName)) {
             newFilename = `${basename}_table_${tableIndex++}${ext}`
-            const rows = tableMap.get(normName)!
-            tableMap.set(newFilename, rows)
+            const tableData = tableMap.get(normName)!
+            tableMap.set(newFilename, tableData)
             pageMap.set(newFilename, pageMap.get(normName) || 1)
 
             // Inject the parsed table directly into the Markdown so the AI can read the data!
+            const rows = tableData.rows
             let mdTable = "\n\n"
             for (let i = 0; i < rows.length; i++) {
-              mdTable += "| " + rows[i].map((c: string) => c.replace(/\|/g, "-")).join(" | ") + " |\n"
+              mdTable += "| " + rows[i].map((c: string) => c.replace(/\|/g, "\\|").trim()).join(" | ") + " |\n"
               if (i === 0) {
                 mdTable += "| " + rows[i].map(() => "---").join(" | ") + " |\n"
               }
@@ -467,8 +461,11 @@ export async function POST(req: Request) {
             }
 
             const isTable = tableMap.has(uniqueFilename)
+            const tableData = isTable ? tableMap.get(uniqueFilename) : undefined
             const fallbackDefault = isTable ? "Table" : "Figure"
-            const assetCaption = generated.caption || generated.name || fallbackDefault
+            const candidateCaption = generated.caption || tableData?.title || generated.name || fallbackDefault
+            const assetCaption = decodeHtmlEntities(candidateCaption)
+            const assetSnippet = decodeHtmlEntities(generated.snippet || tableData?.title || "")
 
             assets.push({
               id: randomUUID(),
@@ -477,8 +474,8 @@ export async function POST(req: Request) {
               thumbnailUrl: `/api/workspaces/${workspaceId}/assets/${uniqueFilename}`,
               kind: isTable ? "table" : "figure",
               caption: assetCaption,
-              snippet: generated.snippet,
-              tableRows: isTable ? tableMap.get(uniqueFilename) : undefined,
+              snippet: assetSnippet,
+              tableRows: tableData ? tableData.rows : undefined,
               page: pageMap.get(uniqueFilename) || 1,
             })
           })

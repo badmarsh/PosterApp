@@ -2,6 +2,7 @@ import { generateAIResponse } from "@/lib/ai/client"
 import { VisionCaptionSchema } from "@/lib/ai/contracts"
 import { getVisionModelChain, resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
+import { decodeHtmlEntities } from "@/lib/utils"
 
 function cleanCaptionOrName(val?: string): string {
   if (!val) return ""
@@ -71,9 +72,9 @@ Respond STRICTLY with valid JSON.`
             signal: AbortSignal.timeout(AI_TIMEOUTS.vision),
           })
 
-          const name = cleanCaptionOrName(result.name)
-          const originalCaption = cleanCaptionOrName(result.originalCaption)
-          const description = (result.description || "").trim()
+          const name = decodeHtmlEntities(cleanCaptionOrName(result.name))
+          const originalCaption = decodeHtmlEntities(cleanCaptionOrName(result.originalCaption))
+          const description = decodeHtmlEntities((result.description || "").trim())
 
           // Determine the most informative caption/title
           const bestCaption = originalCaption || name || (description ? description.slice(0, 60) : "")

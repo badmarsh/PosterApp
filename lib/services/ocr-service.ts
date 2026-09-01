@@ -2,6 +2,7 @@ import { generateAIResponse } from "@/lib/ai/client"
 import { VisionOcrSchema, type VisionOcrResult } from "@/lib/ai/contracts"
 import { getVisionModelChain, AI_TIMEOUTS } from "@/lib/ai/models"
 import { cleanFormula, slugifyEquationKey } from "@/lib/equation-types"
+import { decodeHtmlEntities } from "@/lib/utils"
 
 export type OcrMode = "auto" | "equation" | "table" | "text" | "figure"
 
@@ -90,13 +91,22 @@ Guidelines:
           }
         }).filter(eq => eq.formula.length > 0)
 
+        // Clean tables and decode entities
+        const cleanedTables = (result.tables || []).map((t) => ({
+          caption: decodeHtmlEntities(t.caption || ""),
+          markdown: decodeHtmlEntities(t.markdown || ""),
+          rows: (t.rows || []).map((row) =>
+            Array.isArray(row) ? row.map((cell) => decodeHtmlEntities(String(cell ?? ""))) : []
+          ),
+        }))
+
         return {
-          title: result.title || "Scanned Content",
-          summary: result.summary || "",
-          text: result.text || "",
+          title: decodeHtmlEntities(result.title || "Scanned Content"),
+          summary: decodeHtmlEntities(result.summary || ""),
+          text: decodeHtmlEntities(result.text || ""),
           mode: result.mode || mode,
           equations: cleanedEquations,
-          tables: result.tables || [],
+          tables: cleanedTables,
         }
       } catch (err) {
         lastError = err

@@ -4,7 +4,7 @@ import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval"
 import { jobQueue } from "@/lib/job-queue"
 import { apiFetch } from "@/lib/api-fetch"
-import { safeRandomUUID } from "@/lib/utils"
+import { safeRandomUUID, decodeHtmlEntities } from "@/lib/utils"
 
 function makeLog(level: ParseLogEntry["level"], message: string): ParseLogEntry {
   return {
@@ -361,7 +361,7 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
 
         // ── Table ─────────────────────────────────────────────────────────
         } else if (asset.kind === "table") {
-          const parsedRows: string[][] = Array.isArray(asset.tableRows)
+          const rawRows: string[][] = Array.isArray(asset.tableRows)
             ? (asset.tableRows as string[][])
             : typeof asset.tableRows === "string"
             ? (() => {
@@ -372,10 +372,19 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
               })()
             : []
 
+          const maxCols = Math.max(0, ...rawRows.map(r => Array.isArray(r) ? r.length : 0))
+          const parsedRows = rawRows.map(row => {
+            const clean = Array.isArray(row) ? row.map(c => decodeHtmlEntities(String(c ?? ""))) : []
+            while (clean.length < maxCols) clean.push("")
+            return clean
+          })
+
+          const cleanCaption = decodeHtmlEntities(asset.caption ?? card.table?.caption ?? "")
+
           if (slot === "table") {
             card.table = {
               hasHeader: card.table?.hasHeader ?? true,
-              caption: asset.caption ?? card.table?.caption ?? "",
+              caption: cleanCaption,
               rows: parsedRows,
             }
           } else if (slot === "bullets") {
@@ -385,11 +394,11 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
               const sep = header.map(() => "---")
               const body = parsedRows.slice(1)
               const mdTable = [
-                `| ${header.join(" | ")} |`,
+                `| ${header.map(c => c.replace(/\|/g, "\\|")).join(" | ")} |`,
                 `| ${sep.join(" | ")} |`,
-                ...body.map((r) => `| ${r.join(" | ")} |`),
+                ...body.map((r) => `| ${r.map(c => c.replace(/\|/g, "\\|")).join(" | ")} |`),
               ].join("\n")
-              const captionLine = asset.caption ? `**${asset.caption}**\n\n` : ""
+              const captionLine = cleanCaption ? `**${cleanCaption}**\n\n` : ""
               const prefix = card.content.trim() ? "\n\n" : ""
               card.content = card.content + prefix + captionLine + mdTable
             }

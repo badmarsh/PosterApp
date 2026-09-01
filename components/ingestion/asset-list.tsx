@@ -19,7 +19,7 @@ import { useShallow } from "zustand/react/shallow"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/utils"
+import { cn, decodeHtmlEntities } from "@/lib/utils"
 import katex from "katex"
 import "katex/dist/katex.min.css"
 import {
@@ -91,12 +91,16 @@ function EquationPreview({ formula }: { formula: string }) {
 function TablePreview({ rows }: { rows: string[][] | string | undefined | null }) {
   let parsedRows: string[][] = []
   if (Array.isArray(rows)) {
-    parsedRows = rows.filter((r) => Array.isArray(r))
+    parsedRows = rows
+      .filter((r) => Array.isArray(r))
+      .map((r) => r.map((cell) => decodeHtmlEntities(String(cell ?? ""))))
   } else if (typeof rows === "string") {
     try {
       const parsed = JSON.parse(rows)
       if (Array.isArray(parsed)) {
-        parsedRows = parsed.filter((r) => Array.isArray(r))
+        parsedRows = parsed
+          .filter((r) => Array.isArray(r))
+          .map((r) => r.map((cell) => decodeHtmlEntities(String(cell ?? ""))))
       }
     } catch {
       parsedRows = []
@@ -309,14 +313,14 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
             <>
               {asset.caption ? (
                 <p className="mt-0.5 line-clamp-2 text-[11px] font-medium leading-tight">
-                  <OriginLabel asset={asset} /> <span className="ml-1">{asset.caption}</span>
+                  <OriginLabel asset={asset} /> <span className="ml-1">{decodeHtmlEntities(asset.caption)}</span>
                 </p>
               ) : (
                 <div className="mt-0.5"><OriginLabel asset={asset} /></div>
               )}
               {asset.snippet && (
                 <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
-                  {asset.snippet}
+                  {decodeHtmlEntities(asset.snippet)}
                 </p>
               )}
             </>
@@ -325,14 +329,14 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
             <div className="mt-0.5">
               {asset.caption ? (
                 <p className="mt-0.5 line-clamp-2 text-[11px] font-medium leading-tight">
-                  <OriginLabel asset={asset} /> <span className="ml-1">{asset.caption}</span>
+                  <OriginLabel asset={asset} /> <span className="ml-1">{decodeHtmlEntities(asset.caption)}</span>
                 </p>
               ) : (
                 <div className="mb-1"><OriginLabel asset={asset} /></div>
               )}
               {asset.snippet && (
                 <p className="mt-0.5 mb-1 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
-                  {asset.snippet}
+                  {decodeHtmlEntities(asset.snippet)}
                 </p>
               )}
               <TablePreview rows={asset.tableRows ?? []} />

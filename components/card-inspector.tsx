@@ -58,6 +58,7 @@ import {
   type ValidationMessage,
 } from "@/lib/poster-types"
 import { PATTERNS_FOR_TYPE, OUTPUT_TYPE_LABELS, type OutputType } from "@/lib/output-types"
+import { decodeHtmlEntities } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 
 function RagSourcesIllustration() {
@@ -531,22 +532,28 @@ function TableTab({ card }: { card: Card }) {
               if (!val) return
               const asset = parsedTables.find(a => a.id === val)
               if (asset && asset.tableRows) {
-                const parsedRows: string[][] = Array.isArray(asset.tableRows)
-                  ? asset.tableRows
+                const rawRows: string[][] = Array.isArray(asset.tableRows)
+                  ? (asset.tableRows as string[][])
                   : typeof asset.tableRows === "string"
                   ? (() => {
                       try {
-                        const p = JSON.parse(asset.tableRows)
-                        return Array.isArray(p) ? p : []
+                        const p = JSON.parse(asset.tableRows as string)
+                        return Array.isArray(p) ? (p as string[][]) : []
                       } catch {
                         return []
                       }
                     })()
                   : []
+                const maxCols = Math.max(0, ...rawRows.map(r => Array.isArray(r) ? r.length : 0))
+                const parsedRows = rawRows.map(row => {
+                  const clean = Array.isArray(row) ? row.map(c => decodeHtmlEntities(String(c ?? ""))) : []
+                  while (clean.length < maxCols) clean.push("")
+                  return clean
+                })
                 updateCard(card.id, {
                   table: {
                     hasHeader: true,
-                    caption: asset.caption ?? table.caption,
+                    caption: decodeHtmlEntities(asset.caption ?? table.caption),
                     rows: parsedRows,
                   }
                 })
