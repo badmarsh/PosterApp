@@ -113,12 +113,12 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
             render={
               <button
                 type="button"
-                aria-label={`Delete ${card.id}`}
+                aria-label={`Delete card ${card.title || card.id}`}
                 onClick={(e) => {
                   e.stopPropagation()
                   deleteCard(card.id)
                 }}
-                className="hidden rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive group-hover:block"
+                className="rounded p-1 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
               >
                 <Trash2 className="size-3.5" />
               </button>
@@ -128,15 +128,15 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
         </Tooltip>
       </div>
       {warning && (
-        <div className="flex flex-col gap-1 rounded bg-destructive/10 p-1.5 text-[10px] text-destructive mt-1">
+        <div className="flex flex-col gap-1 rounded bg-destructive/10 p-1.5 text-[11px] text-destructive mt-1">
           <div className="flex items-center gap-1 font-semibold">
-            <AlertTriangle className="size-3" /> Overflow Detected
+            <AlertTriangle className="size-3.5" /> Overflow Detected
           </div>
           <span className="leading-tight">{warning.issue}</span>
           <Button 
             size="sm" 
             variant="destructive" 
-            className="h-5 mt-0.5 text-[9px] uppercase tracking-wider"
+            className="h-7 px-2 mt-1 text-[11px] font-medium"
             disabled={isShrinking}
             onClick={async (e) => {
               e.stopPropagation();
@@ -195,7 +195,7 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
         </div>
       )}
       <div className="flex items-center justify-between gap-2 pl-5 mt-1">
-        <span className="truncate font-mono text-[10px] text-muted-foreground">
+        <span className="truncate font-mono text-[11px] text-muted-foreground">
           {card.id}
         </span>
         <div className="flex items-center gap-1.5">
@@ -204,7 +204,7 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
         </div>
       </div>
       <div className="pl-5">
-        <span className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground/70">
+        <span className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground/80">
           {PATTERN_SHORT[card.pattern]}
         </span>
       </div>
@@ -347,7 +347,7 @@ export function StructureSidebar() {
           <p className="text-[11px] font-medium leading-tight text-pretty">
             {project.posterTitle}
           </p>
-          <dl className="mt-1.5 space-y-0.5 text-[10px] text-muted-foreground">
+          <dl className="mt-1.5 space-y-0.5 text-[11px] text-muted-foreground">
             <div className="flex gap-1">
               <dt className="text-muted-foreground/70">Authors</dt>
               <dd className="truncate">{project.authors}</dd>
@@ -367,14 +367,14 @@ export function StructureSidebar() {
 
         <Button
           variant="outline"
-          size="xs"
-          className="w-full justify-start gap-1.5 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary"
+          size="sm"
+          className="w-full justify-start gap-1.5 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary h-8 text-[11px]"
           onClick={openIngestion}
         >
           <FileStack className="size-3.5" />
           Ingest sources (PDF)
           {(project.assets || []).length > 0 && (
-            <span className="ml-auto font-mono text-[9px] text-muted-foreground">
+            <span className="ml-auto font-mono text-[11px] text-muted-foreground">
               {promotedCount}/{(project.assets || []).length} used
             </span>
           )}
@@ -387,7 +387,7 @@ export function StructureSidebar() {
             Document structure
           </span>
           {activeCards.length > 0 && (
-            <span className="text-[10px] text-muted-foreground font-mono">
+            <span className="text-[11px] text-muted-foreground font-mono">
               {activeCards.length} cards
             </span>
           )}
@@ -417,9 +417,9 @@ export function StructureSidebar() {
       {unmatchedWarnings.length > 0 && (
         <div className="px-2.5 pb-2">
           {unmatchedWarnings.map((w, i) => (
-            <div key={i} className="flex flex-col gap-1 rounded bg-destructive/10 p-1.5 text-[10px] text-destructive mb-1.5">
+            <div key={i} className="flex flex-col gap-1 rounded bg-destructive/10 p-1.5 text-[11px] text-destructive mb-1.5">
               <div className="flex items-center gap-1 font-semibold">
-                <AlertTriangle className="size-3" /> Overflow Detected: {w.cardTitle}
+                <AlertTriangle className="size-3.5" /> Overflow Detected: {w.cardTitle}
               </div>
               <span className="leading-tight">{w.issue}</span>
             </div>

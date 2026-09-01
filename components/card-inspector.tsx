@@ -822,7 +822,7 @@ function Section({ title, items }: { title: string; items: ValidationMessage[] }
   if (!items.length) return null
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
       </span>
       {items.map((m, i) => {
@@ -834,7 +834,7 @@ function Section({ title, items }: { title: string; items: ValidationMessage[] }
           >
             <Icon className={cn("mt-0.5 size-3.5 shrink-0", className)} />
             <div className="min-w-0">
-              <span className="font-mono text-[10px] text-muted-foreground">{m.field}</span>
+              <span className="font-mono text-[11px] text-muted-foreground">{m.field}</span>
               <p className="text-[12px] leading-snug">{m.message}</p>
             </div>
           </div>
@@ -992,7 +992,7 @@ export function CardInspector() {
             <h2 className="truncate text-sm font-semibold">{card.title || "Untitled"}</h2>
             <StatusBadge level={status} />
           </div>
-          <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+          <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
             {cardSubtitle}
           </p>
         </div>
