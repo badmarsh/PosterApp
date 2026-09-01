@@ -722,7 +722,7 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
                   {card.title || "Untitled"}
                 </span>
               </div>
-              <div className="flex shrink-0 flex-col opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="flex shrink-0 flex-col opacity-40 transition-opacity group-hover:opacity-100">
                 <GripVertical className="size-4 text-muted-foreground" />
               </div>
             </div>
@@ -791,14 +791,19 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
                           style={{ width: `${Math.min(100, pct)}%` }}
                         />
                       </div>
-                      <span className="font-mono text-[9px] text-muted-foreground">
-                        {height}u
+                      <span
+                        className={cn(
+                          "font-mono text-[9px]",
+                          pct > 100 ? "font-semibold text-destructive" : "text-muted-foreground"
+                        )}
+                      >
+                        {pct > 100 ? `${pct}%` : `${height}u`}
                       </span>
                     </div>
                   }
                 />
                 <TooltipContent>
-                  Estimated height {height}u / {COLUMN_BUDGET}u budget
+                  Estimated fill: {pct}% ({height}u / {COLUMN_BUDGET}u budget)
                 </TooltipContent>
               </Tooltip>
             </div>
