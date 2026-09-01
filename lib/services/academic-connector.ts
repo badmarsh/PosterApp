@@ -31,6 +31,7 @@ import { fetchArxivMetadata, parseArxivId } from "./arxiv-service"
 import { searchOpenAlexWorks, fetchOpenAlexByDoi, type OpenAlexWork } from "./openalex-service"
 import { searchCrossrefWorks, fetchCrossrefByDoi, type CrossrefWork } from "./crossref-service"
 import { extractStructuredReferences, type ExtractedReference } from "@/lib/ai/thesis-context"
+import { searchTavily } from "./tavily-service"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,7 +40,7 @@ import { extractStructuredReferences, type ExtractedReference } from "@/lib/ai/t
 export type { AcademicLookupStatus }
 
 export interface AcademicPaperResult {
-  source: "semanticscholar" | "arxiv" | "openalex" | "crossref"
+  source: "semanticscholar" | "arxiv" | "openalex" | "crossref" | "tavily"
   paperId?: string
   title: string
   authors: string[]
@@ -370,8 +371,8 @@ export async function searchAcademicPaper(
     }
   }
 
-  // 3. Parallel Multi-Source Query (OpenAlex + Semantic Scholar + Crossref)
-  const [openAlexList, scholarList, crossrefList] = await Promise.all([
+  // 3. Parallel Multi-Source Query (OpenAlex + Semantic Scholar + Crossref + Tavily)
+  const [openAlexList, scholarList, crossrefList, tavilyList] = await Promise.all([
     searchOpenAlexWorks(trimmed, limit, {
       yearFrom: options?.yearFrom,
       yearTo: options?.yearTo,
@@ -381,6 +382,7 @@ export async function searchAcademicPaper(
       .then((r) => r.papers)
       .catch(() => []),
     searchCrossrefWorks(trimmed, limit, options?.signal).catch(() => []),
+    searchTavily(trimmed, options?.signal).catch(() => []),
   ])
 
   // Aggregate and deduplicate records by normalized title key and DOI
@@ -420,6 +422,20 @@ export async function searchAcademicPaper(
       } else {
         mapByKey.set(key, res)
       }
+    }
+  }
+
+  // D. Merge Tavily results
+  for (const t of tavilyList) {
+    const key = normalizeTitleKey(t.title)
+    if (key && !mapByKey.has(key)) {
+      mapByKey.set(key, {
+        source: "tavily",
+        title: t.title,
+        authors: [],
+        abstract: t.content,
+        url: t.url,
+      })
     }
   }
 
@@ -547,6 +563,35 @@ export async function verifySingleCitation(
           attempts: 2,
         }
         enriched = openAlexWorkToResult(top)
+      } else {
+        // Fallback to Tavily Web Search
+        const tavilyResults = await searchTavily(searchTarget, signal).catch(() => [])
+        if (tavilyResults.length > 0) {
+          const top = tavilyResults[0]
+          const scholarShape: ScholarPaper = {
+            paperId: `tavily-${Date.now()}`,
+            title: top.title || refMeta.title || "Web Resource",
+            year: refMeta.year,
+            authors: refMeta.authors?.map((name, i) => ({ authorId: `t-${i}`, name })) || [],
+            abstract: top.content,
+            url: top.url,
+          }
+          verification = {
+            found: true,
+            status: "verified",
+            confidence: "low",
+            paper: scholarShape,
+            attempts: 3,
+          }
+          enriched = {
+            source: "tavily",
+            title: scholarShape.title,
+            authors: refMeta.authors || [],
+            year: refMeta.year,
+            abstract: top.content,
+            url: top.url,
+          }
+        }
       }
     }
   }
