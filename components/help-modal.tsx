@@ -235,7 +235,7 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
                   </div>
                   <div className="text-left">
                     <span className="font-semibold text-base block">Školiteľské posudky — Technická dokumentácia</span>
-                    <span className="text-xs text-muted-foreground font-normal">Pipeline · Vector RAG · HNSW · MinerU → pgvector</span>
+                    <span className="text-xs text-muted-foreground font-normal">Pipeline · Vector RAG · GraphRAG · HNSW · MinerU → pgvector</span>
                   </div>
                 </div>
               </AccordionTrigger>
@@ -327,6 +327,36 @@ export function HelpModal({ open, onOpenChange }: HelpModalProps) {
                 <div className="space-y-2">
                   <h4 className="font-semibold text-foreground text-sm border-b pb-1">5 · Doménové prednastavenia (STEM / Fyzika)</h4>
                   <p className="text-xs">Všetky embedding volania predraďujú doménový prefix <code className="bg-muted px-1 rounded text-xs">&quot;STEM, Fyzika: &quot;</code> pred dotazom, čo posúva vektory bližšie k fyzikálnej terminológii (energia, experiment, meranie, výsledok, chyba merania). Formulár posudku je prednastavený na: <strong className="text-foreground">Dizertačná práca · Prírodovedecká fakulta · Katedra Fyziky (STEM)</strong>.</p>
+                </div>
+
+                {/* ── 6. Knowledge Graph (GraphRAG) ───────── */}
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-foreground text-sm border-b pb-1">6 · Znalostný graf (GraphRAG — multi-hop dôkazy)</h4>
+                  <p className="text-xs">Počas ingestácie beží na pozadí <strong className="text-foreground">entitná extrakcia</strong> (LLM, <code className="bg-muted px-1 rounded text-[10px]">graph-extractor.ts</code>): z chunkov sa extrahujú akademické entity (Hypotéza, Metodika, Dataset, Metrika, Zistenie, Citácia) a vzťahy medzi nimi s verbatim dôkazom. Názvy entít sa <strong className="text-foreground">kanonizujú</strong> (diakritika, veľkosť písmen, interpunkcia), takže &quot;YOLOv8&quot; a &quot;yolov8&quot; sa zlúčia do jedného uzla.</p>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div className="bg-muted/40 rounded-lg p-3 text-xs space-y-1">
+                      <strong className="text-foreground block">Extrakcia (ingest)</strong>
+                      <span className="text-muted-foreground">Max 60 chunkov/dokument · prioritné sekcie (metodika, výsledky, literatúra) · min. 400 znakov · sekvenčne na pozadí, neblokuje embedding · vypnuteľné cez <code className="text-[10px]">GRAPH_RAG_ENABLED=false</code></span>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg p-3 text-xs space-y-1">
+                      <strong className="text-foreground block">Retrieval (Stage 7)</strong>
+                      <span className="text-muted-foreground"><code className="text-[10px]">retrieveGraphContext()</code> — prepojí dopyt s entitami (lexikálne + lokálny embedding), rozbalí okolie do 2 hopov (max 40 uzlov) a serializuje s pevným rozpočtom (max 4 000 znakov) a značkami pôvodu <code className="text-[10px]">[doc: …]</code></span>
+                    </div>
+                  </div>
+                  <pre className="bg-muted rounded-lg p-3 text-[10px] overflow-x-auto font-mono">{`model GraphNode {
+  label       String   -- Hypothesis | Methodology | Dataset | Metric | Finding | Citation | Concept
+  name        String   -- kanonizovaný názov entity
+  documentId  String   -- dokument prvej extrakcie
+  -- unique [workspaceId, label, name] + kanonizačný kľúč proti near-duplikátom
+}
+model GraphEdge {
+  sourceId → GraphNode
+  targetId → GraphNode
+  relation    String   -- EVALUATED_ON | PROVES | USES | CITES | MEASURES | …
+  evidence    String?  -- verbatim dôkaz zo zdrojového textu
+  documentId  String?  -- pôvod extrakcie (provenance)
+}`}</pre>
+                  <p className="text-xs text-muted-foreground">Graf je workspace-scoped: entity zdieľané viacerými nahranými dokumentmi (napr. práca + citované články) sa prepoja — posudok tak získa multi-hop súvislosti (metodika → dataset → metrika) aj naprieč dokumentmi, pričom každý fakt je dohľadateľný späť k dokumentu pôvodu.</p>
                 </div>
 
               </AccordionContent>

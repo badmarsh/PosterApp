@@ -113,7 +113,14 @@ export function classifySectionKind(heading: string, content: string = ""): Sect
   }
 
   // References / Bibliography
-  if (/^(?:zoznam literatury|zoznam pouzitej literatury|literatura|pouzita literatura|bibliografia|bibliography|references|literarni prehled)\b/i.test(norm)) {
+  if (
+    /^(?:zoznam literatury|zoznam pouzitej literatury|seznam literatury|seznam pouzite literatury|seznam pouzitych zdroju|zoznam pouzitych zdrojov|seznam zdroju|zoznam zdrojov|pouzite zdroje|pouzita literatura|literatura|referencie|reference|bibliografia|bibliography|references|literarni prehled|zoznam bibliografickych odkazov|seznam bibliografickych odkazu)\b/i.test(
+      norm
+    ) ||
+    /(?:pouzitych zdroju|pouzitej literatury|pouzite zdroje|pouzita literatura|bibliografick)/i.test(
+      norm
+    )
+  ) {
     return "references"
   }
 

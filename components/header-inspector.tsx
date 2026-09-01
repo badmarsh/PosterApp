@@ -17,6 +17,7 @@ import {
   QrCode,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api-fetch"
+import Image from "next/image"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -871,11 +872,12 @@ export function HeaderInspector() {
                 {metadata.logoUrl ? (
                   <div className="flex items-center justify-between gap-2 p-2 rounded-md border border-border bg-muted/20">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="size-8 rounded border border-border bg-background flex items-center justify-center overflow-hidden p-0.5 shrink-0">
-                        <img
+                      <div className="size-8 relative rounded border border-border bg-background flex items-center justify-center overflow-hidden p-0.5 shrink-0">
+                        <Image
                           src={metadata.logoUrl}
                           alt="Document Logo"
-                          className="max-h-full max-w-full object-contain"
+                          fill
+                          className="object-contain"
                         />
                       </div>
                       <div className="min-w-0">
@@ -1039,8 +1041,8 @@ export function HeaderInspector() {
               {qrAssetUrl && (
                 <div className="flex items-center justify-between gap-3 p-2 rounded-md border border-border bg-muted/20 mt-2">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="size-10 rounded border border-border bg-white flex items-center justify-center p-0.5 shrink-0">
-                      <img src={qrAssetUrl} alt="QR Code" className="max-h-full max-w-full object-contain" />
+                    <div className="size-10 relative rounded border border-border bg-white flex items-center justify-center p-0.5 shrink-0">
+                      <Image src={qrAssetUrl} alt="QR Code" fill className="object-contain" />
                     </div>
                     <div className="min-w-0 space-y-0.5">
                       <p className="text-[10px] font-semibold text-foreground truncate">

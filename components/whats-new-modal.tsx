@@ -23,7 +23,7 @@ export function WhatsNewModal({ open, onOpenChange }: WhatsNewModalProps) {
           </div>
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             <GitMerge className="size-6 text-primary" />
-            What's New in PosterApp
+            What&apos;s New in PosterApp
           </DialogTitle>
           <DialogDescription className="text-base text-muted-foreground mt-2">
             We have successfully integrated several major feature branches directly into the <code className="bg-muted px-1 rounded">main</code> branch. Here are the newly available modules:

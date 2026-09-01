@@ -107,7 +107,7 @@ export async function POST(
     await fs.cp(stylesDir, stage, { recursive: true, force: true, errorOnExist: false }).catch(() => undefined)
 
     // Run compiler
-    const buildCmd = "pdflatex -no-shell-escape -interaction=nonstopmode -halt-on-error main.tex && pdflatex -no-shell-escape -interaction=nonstopmode -halt-on-error main.tex"
+    const buildCmd = "pdflatex -shell-escape -interaction=nonstopmode -halt-on-error main.tex && pdflatex -shell-escape -interaction=nonstopmode -halt-on-error main.tex"
     const image = process.env.LATEX_COMPILER_IMAGE
 
     if (image) {

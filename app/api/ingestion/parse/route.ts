@@ -11,8 +11,8 @@ import { generateEquationCaption } from "@/lib/services/equation-service"
 import { cleanFormula, slugifyEquationKey, isLikelyMathematicalFormula } from "@/lib/equation-types"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { detectedPdf, MAX_UPLOAD_BYTES, SAFE_FILE_ID, SAFE_FILENAME, workspacePath } from "@/lib/workspace-files"
+import { fetchMinerU, resolveMinerUUrl, ensureMinerUBridge } from "@/lib/services/mineru-bridge"
 const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
-const MINERU_API_URL = process.env.MINERU_API_URL ?? "http://127.0.0.1:8001"
 
 // ---------------------------------------------------------------------------
 // Types for the MinerU response
@@ -154,7 +154,6 @@ export async function POST(req: Request) {
 
       // Forward to MinerU
       try {
-        const { ensureMinerUBridge } = await import("@/lib/services/mineru-bridge")
         ensureMinerUBridge()
       } catch {}
 
@@ -171,17 +170,18 @@ export async function POST(req: Request) {
 
       let mineruResponse: Response
       try {
-        mineruResponse = await fetch(`${MINERU_API_URL}/file_parse`, {
+        mineruResponse = await fetchMinerU("/file_parse", {
           method: "POST",
           body: mineruForm,
           signal: AbortSignal.timeout(300_000), // 5 minute timeout for large PDFs
         })
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
+        const currentUrl = await resolveMinerUUrl().catch(() => "http://127.0.0.1:8001")
         await sendEvent({
           type: "error",
           error: "MinerU document parsing service is unavailable",
-          detail: `Could not connect to MinerU at ${MINERU_API_URL} (${message}). Please ensure the service is running (e.g. via start-mineru.bat).`,
+          detail: `Could not connect to MinerU at ${currentUrl} (${message}). Please ensure the service is running (e.g. via start-mineru.bat).`,
         })
         return
       }
@@ -275,8 +275,8 @@ export async function POST(req: Request) {
             searchImagePaths(p)
             pageNum++
           }
-        } catch (e) {
-          console.error("Failed to parse middle_json for tables and pages", e)
+        } catch (e: any) {
+          console.error("Failed to parse middle_json for tables and pages:", e?.message || e)
         }
       }
 
@@ -532,8 +532,8 @@ export async function POST(req: Request) {
           }
           pageNum++
         }
-      } catch (e) {
-        console.error("Failed to parse middle_json for equations", e)
+      } catch (e: any) {
+        console.error("Failed to parse middle_json for equations:", e?.message || e)
       }
     }
 

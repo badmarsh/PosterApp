@@ -214,7 +214,7 @@ export function PlagiarismCheckPanel({
                   </div>
 
                   <div className="bg-muted/30 p-2.5 rounded border border-border/60 font-serif italic text-xs text-foreground/90 leading-relaxed">
-                    "{p.snippet}"
+                    &quot;{p.snippet}&quot;
                   </div>
 
                   <p className="text-xs text-muted-foreground">

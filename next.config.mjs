@@ -5,7 +5,7 @@ const cspHeader = `
   style-src 'self' 'unsafe-inline';
   img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com https://images.unsplash.com;
   font-src 'self' data:;
-  connect-src 'self' ws: wss: https://*.clerk.accounts.dev https://*.clerk.com https://openrouter.ai https://*.openrouter.ai;
+  connect-src 'self' ws: wss: http: https: https://*.clerk.accounts.dev https://*.clerk.com https://openrouter.ai https://*.openrouter.ai;
   frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com;
   object-src 'self' blob:;
   base-uri 'self';
@@ -42,7 +42,19 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  allowedDevOrigins: ["127.0.0.1", "localhost", "127.0.0.1:3333", "localhost:3333"],
+  turbopack: {
+    root: import.meta.dirname,
+  },
+  allowedDevOrigins: [
+    "127.0.0.1",
+    "localhost",
+    "127.0.0.1:3333",
+    "localhost:3333",
+    "192.168.0.100",
+    "192.168.0.100:3333",
+    "0.0.0.0",
+    "0.0.0.0:3333",
+  ],
   images: {
     unoptimized: true,
   },

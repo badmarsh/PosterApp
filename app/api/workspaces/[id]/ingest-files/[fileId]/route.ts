@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireWorkspaceEditor } from "@/lib/auth"
+import fs from "fs"
+import path from "path"
 
 export async function PATCH(
   req: Request,
@@ -43,12 +45,38 @@ export async function DELETE(
   try {
     await requireWorkspaceEditor(id)
 
-    await prisma.ingestFile.delete({
+    // 1. Delete IngestFile
+    await prisma.ingestFile.deleteMany({
       where: {
         id: fileId,
         workspaceId: id,
       },
     })
+
+    // 2. Cascade delete associated DocumentChunks & GraphNodes
+    await prisma.documentChunk.deleteMany({
+      where: {
+        workspaceId: id,
+        documentId: fileId,
+      },
+    })
+
+    await prisma.graphNode.deleteMany({
+      where: {
+        workspaceId: id,
+        documentId: fileId,
+      },
+    })
+
+    // 3. Remove source markdown file on disk if exists
+    try {
+      const sourceMd = path.join(process.cwd(), "workspaces", id, "sources", `${fileId}.md`)
+      if (fs.existsSync(sourceMd)) {
+        fs.unlinkSync(sourceMd)
+      }
+    } catch (fsErr) {
+      console.warn("[IngestFile DELETE] Could not delete source file on disk:", fsErr)
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err) {

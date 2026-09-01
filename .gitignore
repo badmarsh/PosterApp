@@ -56,3 +56,7 @@ tmp/
 *.log
 vitest-out.log
 test-results.log
+
+# Dev orchestrator PID file
+.dev.pid
+.qwen/

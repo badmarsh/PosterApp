@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api-fetch"
 
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
+import Image from "next/image"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -193,11 +194,12 @@ export function ProjectSettingsSidebar() {
             {project.logoUrl ? (
               <div className="flex items-center justify-between gap-2 p-2 rounded-md border border-border bg-muted/20">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="size-9 rounded border border-border bg-background flex items-center justify-center overflow-hidden p-1 shrink-0">
-                    <img
+                  <div className="size-9 relative rounded border border-border bg-background flex items-center justify-center overflow-hidden p-1 shrink-0">
+                    <Image
                       src={project.logoUrl}
                       alt="Project Logo"
-                      className="max-h-full max-w-full object-contain"
+                      fill
+                      className="object-contain"
                     />
                   </div>
                   <div className="min-w-0">
@@ -257,11 +259,12 @@ export function ProjectSettingsSidebar() {
               {project.secondaryLogoUrl ? (
                 <div className="flex items-center justify-between gap-2 p-1.5 rounded-md border border-border bg-muted/20">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="size-7 rounded border border-border bg-background flex items-center justify-center overflow-hidden p-0.5 shrink-0">
-                      <img
+                    <div className="size-7 relative rounded border border-border bg-background flex items-center justify-center overflow-hidden p-0.5 shrink-0">
+                      <Image
                         src={project.secondaryLogoUrl}
                         alt="Secondary Logo"
-                        className="max-h-full max-w-full object-contain"
+                        fill
+                        className="object-contain"
                       />
                     </div>
                     <div className="min-w-0">

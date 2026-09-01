@@ -48,7 +48,9 @@ export function useYjs(workspaceId: string) {
     let currentYCards: Y.Map<string> | null = null
 
     ydoc = new Y.Doc()
-    const wsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL!
+    const wsUrl = typeof window !== "undefined"
+      ? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/api/yjs`
+      : (process.env.NEXT_PUBLIC_YJS_WS_URL || "ws://localhost:3333/api/yjs")
 
     const thesisReviewsMap = ydoc.getMap<string>("thesisReviews")
     const thesisObserver = (event: Y.YMapEvent<string>) => {

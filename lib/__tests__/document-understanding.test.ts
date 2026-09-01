@@ -5,6 +5,8 @@ import {
   computeStructuralQualitySignals,
   buildSourceQualityReport,
   classifyDisciplineAndThesisType,
+  computeAcademicMetrics,
+  buildTOCTree,
 } from "@/lib/ai/document-understanding"
 
 describe("Document Understanding & Intelligence Engine", () => {
@@ -116,5 +118,55 @@ Práca úspešne splnila všetky stanovené ciele. Navrhnuté riešenie je priam
     expect(classification.confidence).toBeGreaterThan(0.7)
     expect(classification.sourceAnchors.length).toBeGreaterThan(0)
     expect(classification.rationale.toLowerCase()).toContain("fyzik")
+  })
+
+  it("classifies Cybersecurity & Ethical Hacking thesis accurately without false Physics fallback", () => {
+    const hackingMarkdown = `
+# Etický hacking a ochrana webových aplikací
+
+## Abstrakt
+Diplomová práce se zabývá etickým hackingem, penetračním testováním a ochranou webových aplikací.
+Analyzujeme zranitelnosti XSS, SQL injection, CSRF a command injection v prostředí Kali Linux a DVWA s využitím Burp Suite.
+
+## 1. Úvod
+Webové aplikace čelí rostoucímu počtu kybernetických hrozeb. Cílem je demonstrovat útoky a navrhnout bezpečnostní opatření.
+
+## 2. Teoretická východiska
+Etický hacking představuje autorizované penetrační testování za účelem nalezení bezpečnostních zranitelností před zneužitím útočníky.
+
+## 3. Metodika a realizace testů
+Provedení útoků SQL injection, XSS a brute force v testovacím prostředí DVWA.
+
+## 4. Výsledky a komparace
+Úspěšnost nasazených ochran před a po aplikaci bezpečnostních patchů.
+
+## 5. Závěr
+Navržené postupy efektivně eliminují identifikované zranitelnosti.
+
+## 8 Seznam použitých zdrojů
+[1] Stuttard, D., Pinto, M. (2011). The Web Application Hacker's Handbook. Wiley.
+[2] OWASP Foundation. (2021). Top 10 Web Application Security Risks.
+[3] Regueiro, C. (2018). Kali Linux Revealed. OffSec.
+`
+
+    const structure = extractDocumentStructure(hackingMarkdown)
+    expect(structure.hasReferencesSection).toBe(true)
+    expect(structure.detectedReferenceLines.length).toBeGreaterThanOrEqual(3)
+
+    const classification = classifyDisciplineAndThesisType(hackingMarkdown, {
+      thesisTitle: "Etický hacking a ochrana webových aplikací",
+      thesisType: "master",
+    }, "sk")
+
+    expect(classification.primaryDiscipline).toContain("kybernetická bezpečnosť")
+    expect(classification.thesisType).toBe("cybersecurity_audit")
+    expect(classification.confidence).toBeGreaterThan(0.8)
+
+    const metrics = computeAcademicMetrics(hackingMarkdown, structure, { thesisType: "master" }, "sk")
+    expect(metrics.balance.theoryRatio).toBeGreaterThan(0)
+    expect(metrics.balance.practicalRatio).toBeGreaterThan(0)
+    expect(metrics.lexical.typeTokenRatio).toBeGreaterThan(0.2)
+    expect(metrics.citations.totalReferences).toBeGreaterThanOrEqual(3)
+    expect(metrics.imrad.completenessScore).toBeGreaterThan(50)
   })
 })

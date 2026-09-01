@@ -169,6 +169,21 @@ export function composeFullReviewNarrative(
     : `The submitted manuscript investigates "${review.thesisTitle}".`)
   sections.push({ id: "summary", title: sec3Title, content: sec3Content })
 
+  // 3.5 Prehľad kľúčových bodov posudku (Summary Table)
+  if (eligibleFindings.length > 0) {
+    const tableTitle = lang === "sk" ? "📌 Prehľad kľúčových bodov posudku" : "📌 Key Findings Overview"
+    const header = lang === "sk" 
+      ? `| Kategória | Závažnosť | Pripomienka | Jadro problému |\n|---|---|---|---|` 
+      : `| Category | Severity | Finding | Core Issue |\n|---|---|---|---|`
+    const rows = eligibleFindings.map(f => {
+      const issue = f.explanation ? f.explanation.replace(/\n/g, " ") : ""
+      const shortIssue = issue.length > 150 ? issue.substring(0, 147) + "..." : issue
+      return `| ${f.category} | ${f.severity} | ${f.title} | ${shortIssue} |`
+    }).join("\n")
+    
+    sections.push({ id: "key_points_overview", title: tableTitle, content: `${header}\n${rows}` })
+  }
+
   // 4. Zhodnotenie cieľov a prínosu
   const sec4Title = lang === "sk" ? "4. Zhodnotenie cieľov a prínosu práce" : "4. Evaluation of Objectives and Contribution"
   const sec4Findings = eligibleFindings.filter((f) => f.criterionKey === "objectives_clarity" || f.criterionKey === "problem_relevance" || f.criterionKey === "originality_contribution")

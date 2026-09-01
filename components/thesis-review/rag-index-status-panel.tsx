@@ -20,17 +20,13 @@ import { pluralizeSk } from "@/lib/utils"
 import { formatDocumentDisplayName } from "@/lib/ingestion"
 import {
   Database,
-  Layers,
   Search,
-  Zap,
-  CheckCircle2,
   AlertCircle,
   RefreshCw,
   ChevronDown,
   ChevronRight,
   FileText,
-  Cpu,
-  Sparkles,
+  Share2,
 } from "lucide-react"
 
 interface ChunkDocument {
@@ -43,6 +39,13 @@ interface ChunkDocument {
   lastIngestedAt: string
 }
 
+interface GraphStatsInfo {
+  nodeCount: number
+  edgeCount: number
+  documentsCovered: number
+  topLabels: Array<{ label: string; count: number }>
+}
+
 export interface RagStats {
   workspaceId: string
   totalChunks: number
@@ -52,6 +55,7 @@ export interface RagStats {
   hnswIndexReady: boolean
   embeddingModel: string
   embeddingDimensions: number
+  graphStats?: GraphStatsInfo
   documents: ChunkDocument[]
 }
 
@@ -87,7 +91,6 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [isSearching, startSearchTransition] = useTransition()
   const [searchError, setSearchError] = useState<string | null>(null)
-  const [docsExpanded, setDocsExpanded] = useState(true)
 
   const loadStats = useCallback(async (forceRefresh = false) => {
     if (!forceRefresh) {
@@ -215,7 +218,7 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
           aria-controls="rag-index-details"
           className="flex items-center gap-2.5 text-left flex-1 min-w-0 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring rounded-md py-0.5"
         >
-          <div className="p-1.5 rounded-md bg-[#8B2635]/10 text-[#8B2635] dark:text-[#E06D7B]">
+          <div className="p-1.5 rounded-md bg-muted text-muted-foreground">
             <Database className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
@@ -225,7 +228,11 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
             </div>
             {!expanded && stats && stats.totalChunks > 0 ? (
               <p className="text-[11px] text-muted-foreground truncate">
-                {stats.embeddingModel.split("/").pop()} · {stats.embeddingDimensions}D · Kliknite pre podrobnosti a testovacie vyhľadávanie
+                {stats.embeddingModel.split("/").pop()} · {stats.embeddingDimensions}D
+                {stats.graphStats && stats.graphStats.nodeCount > 0
+                  ? ` · Graf: ${stats.graphStats.nodeCount} ${pluralizeSk(stats.graphStats.nodeCount, "entita", "entity", "entít")}, ${stats.graphStats.edgeCount} ${pluralizeSk(stats.graphStats.edgeCount, "vzťah", "vzťahy", "vzťahov")}`
+                  : ""}
+                {" · Kliknite pre podrobnosti a testovacie vyhľadávanie"}
               </p>
             ) : (
               <p className="text-[11px] text-muted-foreground truncate">
@@ -272,135 +279,102 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
             </div>
           )}
 
-          {/* Stats grid */}
-          {stats && (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <StatCard
-                  icon={<Layers className="h-4 w-4 text-[#8B2635] dark:text-[#E06D7B]" />}
-                  label="Chunky v databáze"
-                  value={stats.totalChunks}
-                  sub={`${stats.totalEmbedded} vektorovo zaindexovaných`}
-                />
-                <StatCard
-                  icon={<FileText className="h-4 w-4 text-[#8B2635] dark:text-[#E06D7B]" />}
-                  label="Zdrojové dokumenty"
-                  value={stats.totalDocuments}
-                  sub={`${stats.totalDocuments} ${pluralizeSk(stats.totalDocuments, "indexovaný súbor", "indexované súbory", "indexovaných súborov")}`}
-                />
-                <StatCard
-                  icon={<Cpu className="h-4 w-4 text-[#8B2635] dark:text-[#E06D7B]" />}
-                  label="Priemerná dĺžka"
-                  value={stats.avgTokensPerChunk}
-                  sub="tokenov na chunk"
-                />
-              </div>
-
-              {/* Model & index info banner */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-lg border bg-muted/30 p-3 text-xs">
-                <div className="space-y-0.5">
-                  <span className="text-muted-foreground text-[11px] block">Embedding model</span>
-                  <span className="font-mono font-medium text-foreground text-xs">
-                    {stats.embeddingModel.split("/").pop()}
-                  </span>
-                </div>
-                <div className="space-y-0.5">
-                  <span className="text-muted-foreground text-[11px] block">Vektorová dimenzia</span>
-                  <span className="font-mono font-medium text-foreground text-xs">{stats.embeddingDimensions}D (Dense)</span>
-                </div>
-                <div className="space-y-0.5">
-                  <span className="text-muted-foreground text-[11px] block">Stav indexu</span>
-                  {stats.hnswIndexReady ? (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> HNSW aktívny
-                    </span>
-                  ) : (
-                    <span className="text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
-                      <AlertCircle className="h-3.5 w-3.5" /> Index sa buduje
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Per-document breakdown */}
-              {stats.documents.length > 0 && (
-                <div className="rounded-lg border bg-card p-3 space-y-2.5">
-                  <button
-                    onClick={() => setDocsExpanded((v) => !v)}
-                    className="flex items-center justify-between w-full text-xs font-semibold text-foreground hover:text-primary transition-colors"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <FileText className="h-3.5 w-3.5 text-primary" />
-                      Prehľad indexovaných dokumentov ({stats.documents.length})
-                    </span>
-                    {docsExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                  </button>
-
-                  {docsExpanded && (
-                    <div className="space-y-2.5 pt-1">
-                      {stats.documents.map((doc) => {
-                        const pct =
-                          doc.chunkCount > 0
-                            ? Math.round((doc.embeddedCount / doc.chunkCount) * 100)
-                            : 0
-                        return (
-                          <div key={doc.documentId} className="rounded-lg bg-muted/30 p-3 space-y-2 border">
-                            <div className="flex items-start justify-between text-xs gap-2">
-                              <div className="space-y-0.5 min-w-0 flex-1">
-                                <span className="font-semibold text-xs text-foreground truncate block" title={doc.detectedTopic || doc.name}>
-                                  {formatDocumentDisplayName(doc.name, doc.detectedTopic)}
-                                </span>
-                                {doc.name !== formatDocumentDisplayName(doc.name, doc.detectedTopic) && (
-                                  <span className="text-[10px] text-muted-foreground font-mono block truncate" title={doc.name}>
-                                    {doc.name}
-                                  </span>
-                                )}
-                              </div>
-                              <Badge variant="secondary" className="text-[10px] font-mono shrink-0">
-                                {doc.chunkCount} {pluralizeSk(doc.chunkCount, "chunk", "chunky", "chunkov")} · ~{doc.avgTokens} tok/ch
-                              </Badge>
-                            </div>
-                            {/* Embedding progress bar */}
-                            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-[#8B2635] transition-all duration-300"
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                              <span>{pct}% zaindexované</span>
-                              <span>Aktualizované: {new Date(doc.lastIngestedAt).toLocaleDateString("sk-SK")}</span>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Live hybrid search preview */}
-          <div className="rounded-lg border bg-card p-3.5 space-y-3">
-            <div className="flex items-start gap-2.5 rounded-lg border border-[#8B2635]/20 bg-[#8B2635]/5 p-2.5 text-xs text-foreground">
-              <Zap className="h-4 w-4 text-[#8B2635] dark:text-[#E06D7B] shrink-0 mt-0.5" />
-              <div className="min-w-0 flex-1 space-y-0.5">
-                <span className="font-semibold text-xs text-foreground block">
-                  Testovacie hybridné vyhľadávanie (70% Cosine + 30% FTS)
+          {/* Active indexed documents overview */}
+          {stats && stats.documents.length > 0 && (
+            <div className="rounded-xl border bg-card p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground flex items-center gap-2">
+                  <FileText className="size-3.5 text-muted-foreground" />
+                  Zaindexované dokumenty ({stats.documents.length})
                 </span>
-                <p className="text-[11px] text-muted-foreground">
-                  Overte relevanciu RAG extrakcie pred generovaním
-                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2.5 text-[11px] gap-1.5 font-medium rounded-lg"
+                  onClick={handleReindex}
+                  disabled={isReindexing || isLoading}
+                >
+                  {isReindexing ? (
+                    <RefreshCw className="size-3 animate-spin text-primary" />
+                  ) : (
+                    <Database className="size-3 text-primary" />
+                  )}
+                  {isReindexing ? "Indexujem…" : "Preindexovať"}
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                {stats.documents.map((doc) => {
+                  const pct =
+                    doc.chunkCount > 0
+                      ? Math.round((doc.embeddedCount / doc.chunkCount) * 100)
+                      : 0
+                  return (
+                    <div key={doc.documentId} className="rounded-lg bg-muted/20 p-2.5 space-y-1.5 border border-border/70">
+                      <div className="flex items-center justify-between text-xs gap-2">
+                        <div className="min-w-0 flex-1">
+                          <span className="font-medium text-xs text-foreground truncate block" title={doc.detectedTopic || doc.name}>
+                            {formatDocumentDisplayName(doc.name, doc.detectedTopic)}
+                          </span>
+                        </div>
+                        <Badge variant="secondary" className="text-[10px] font-mono shrink-0 px-2 py-0.5">
+                          {doc.chunkCount} {pluralizeSk(doc.chunkCount, "chunk", "chunky", "chunkov")}
+                        </Badge>
+                      </div>
+                      {/* Embedding progress bar */}
+                      <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-emerald-500/70 dark:bg-emerald-400/70 transition-all duration-300"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
+          )}
 
+          {/* Knowledge graph (GraphRAG) overview */}
+          {stats?.graphStats && stats.graphStats.nodeCount > 0 && (
+            <div className="rounded-xl border bg-card p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground flex items-center gap-2">
+                  <Share2 className="size-3.5 text-muted-foreground" />
+                  Znalostný graf (GraphRAG)
+                </span>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  {stats.graphStats.documentsCovered}{" "}
+                  {pluralizeSk(stats.graphStats.documentsCovered, "dokument", "dokumenty", "dokumentov")}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge variant="secondary" className="text-[10px] font-mono px-2 py-0.5">
+                  {stats.graphStats.nodeCount} {pluralizeSk(stats.graphStats.nodeCount, "entita", "entity", "entít")}
+                </Badge>
+                <Badge variant="secondary" className="text-[10px] font-mono px-2 py-0.5">
+                  {stats.graphStats.edgeCount} {pluralizeSk(stats.graphStats.edgeCount, "vzťah", "vzťahy", "vzťahov")}
+                </Badge>
+                {stats.graphStats.topLabels.map((l) => (
+                  <Badge key={l.label} variant="outline" className="text-[10px] px-2 py-0.5 text-muted-foreground">
+                    {l.label}: {l.count}
+                  </Badge>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Entity a vzťahy extrahované z dokumentov obohacujú posudok o multi-hop súvislosti (napr. metodika → dataset → metrika) vrátane prepojení naprieč dokumentmi.
+              </p>
+            </div>
+          )}
+
+          {/* Live search */}
+          <div className="rounded-xl border bg-card p-3.5 space-y-3">
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
                 <Input
-                  className="h-9 pl-8 text-xs"
-                  placeholder="Napíšte testovaciu otázku (napr. metodika merania, ciele práce, závery)..."
+                  className="h-9 pl-8 text-xs bg-muted/20 rounded-lg"
+                  placeholder="Testovacie vyhľadávanie v indexe (napr. metodika, ciele)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => {
@@ -410,14 +384,15 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
               </div>
               <Button
                 size="sm"
-                className="h-9 px-4 text-xs gap-1.5 shrink-0 bg-[#8B2635] hover:bg-[#741E2B] text-white shadow-xs font-semibold transition-colors"
+                variant="secondary"
+                className="h-9 px-3.5 text-xs gap-1.5 shrink-0 font-medium rounded-lg cursor-pointer"
                 onClick={handleSearch}
                 disabled={isSearching || searchQuery.trim().length < 3 || stats?.totalChunks === 0}
               >
                 {isSearching ? (
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  <RefreshCw className="size-3.5 animate-spin" />
                 ) : (
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <Search className="size-3.5" />
                 )}
                 Vyhľadať
               </Button>
@@ -429,24 +404,24 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
 
             {stats?.totalChunks === 0 && (
               <p className="text-xs text-muted-foreground italic py-1">
-                Žiadny dokument nie je zatiaľ vektorizovaný. Nahrajte PDF cez Ingestion panel v hornej lište.
+                Žiadny dokument nie je zatiaľ vektorizovaný. Nahrajte PDF práce pre vytvorenie indexu.
               </p>
             )}
 
             {searchResults.length > 0 && (
               <div className="space-y-2 pt-1">
                 <p className="text-[11px] font-medium text-muted-foreground">
-                  Top {searchResults.length} najrelevantnejších úryvkov:
+                  Nájdené úryvky ({searchResults.length}):
                 </p>
                 <div className="space-y-2">
                   {searchResults.map((r, i) => (
                     <div
                       key={r.id}
-                      className="rounded-lg border bg-muted/20 p-3 space-y-1.5 hover:border-primary/40 transition-colors"
+                      className="rounded-lg border bg-muted/20 p-3 space-y-1.5 text-xs transition-colors hover:bg-muted/30"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 shrink-0">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Badge variant="secondary" className="text-[10px] font-mono px-1 py-0">
                             #{i + 1}
                           </Badge>
                           {r.heading ? (
@@ -459,15 +434,9 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
                         </div>
                         <Badge
                           variant="outline"
-                          className={`text-[10px] font-semibold shrink-0 tabular-nums px-2 py-0.5 ${
-                            r.similarity >= 0.8
-                              ? "border-emerald-500/40 text-emerald-600 bg-emerald-500/10 dark:text-emerald-400"
-                              : r.similarity >= 0.6
-                              ? "border-amber-500/40 text-amber-600 bg-amber-500/10 dark:text-amber-400"
-                              : "border-muted-foreground/30 text-muted-foreground"
-                          }`}
+                          className="text-[10px] font-semibold shrink-0 tabular-nums px-1.5 py-0 border-muted-foreground/30 text-muted-foreground"
                         >
-                          {(r.similarity * 100).toFixed(1)}% zhoda
+                          {(r.similarity * 100).toFixed(0)}%
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
@@ -483,66 +452,8 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
               </div>
             )}
           </div>
-
-          {/* Action footer */}
-          <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs text-muted-foreground hover:text-foreground gap-1.5"
-              onClick={() => loadStats(true)}
-              disabled={isLoading}
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
-              Obnoviť stav
-            </Button>
-
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs gap-1.5"
-              onClick={handleReindex}
-              disabled={isReindexing || isLoading}
-            >
-              {isReindexing ? (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" />
-              ) : (
-                <Database className="h-3.5 w-3.5 text-primary" />
-              )}
-              {stats?.totalChunks === 0 ? "Indexovať dokumenty" : "Preindexovať dokumenty"}
-            </Button>
-          </div>
         </div>
       )}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Sub-component
-// ---------------------------------------------------------------------------
-
-function StatCard({
-  icon,
-  label,
-  value,
-  sub,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: number
-  sub: string
-}) {
-  return (
-    <div className="rounded-lg border bg-muted/20 p-3 space-y-1">
-      <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <p className="text-xl font-bold tabular-nums tracking-tight text-foreground leading-tight">
-        {value.toLocaleString()}
-      </p>
-      <p className="text-[11px] text-muted-foreground">{sub}</p>
     </div>
   )
 }

@@ -61,7 +61,11 @@ export function ParseStatusBadge({ status }: { status: ParseStatus }) {
       icon: <XCircle className="size-3" />,
     },
   }
-  const m = meta[status]
+  const m = meta[status] || {
+    label: status || "Unknown",
+    className: "border-border bg-muted text-muted-foreground",
+    icon: <CircleDashed className="size-3" />,
+  }
   return (
     <span
       className={cn(

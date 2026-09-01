@@ -146,4 +146,29 @@ describe("Thesis Review Extended API & Export Pipeline", () => {
     expect(tex).toContain("\\documentclass")
     expect(tex).toContain("Jana Kováčová")
   })
+
+  it("handles analysis-plan generation with sourceFileId and custom metadata", async () => {
+    const req = new NextRequest("http://localhost:3333/api/workspaces/ws-test-1/thesis-review/analysis-plan", {
+      method: "POST",
+      body: JSON.stringify({
+        sourceFileId: "file_irradiation_proceedings.md",
+        thesisMetadata: {
+          studentName: "Jana Kováčová",
+          thesisTitle: "Neurónové siete v bioinformatike",
+          thesisType: "master",
+          reviewerRole: "opponent",
+          language: "sk",
+          reviewKind: "thesis",
+        },
+      }),
+    })
+
+    const res = await analysisPlanHandler(req, { params: Promise.resolve({ id: "ws-test-1" }) })
+    expect(res.status).toBe(200)
+    const plan = await res.json()
+    expect(plan).toHaveProperty("documentTitle")
+    expect(plan).toHaveProperty("detectedType")
+    expect(plan).toHaveProperty("canProceedToDeepReview")
+  })
 })
+

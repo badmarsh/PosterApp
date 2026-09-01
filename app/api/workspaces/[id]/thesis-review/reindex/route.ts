@@ -58,13 +58,14 @@ export async function POST(
 
   let indexed = 0
   let skipped = 0
-  const results: Array<{ fileId: string; name: string; chunks: number; status: string }> = []
+  let graphQueued = 0
+  const results: Array<{ fileId: string; name: string; chunks: number; graphQueued: number; status: string }> = []
 
   for (const file of files) {
     const mdPath = path.join(WORKSPACES_DIR, workspaceId, "sources", `${file.id}.md`)
     if (!fs.existsSync(mdPath)) {
       skipped++
-      results.push({ fileId: file.id, name: file.name, chunks: 0, status: "no_markdown" })
+      results.push({ fileId: file.id, name: file.name, chunks: 0, graphQueued: 0, status: "no_markdown" })
       continue
     }
 
@@ -73,20 +74,27 @@ export async function POST(
       // Adaptive chunk size: PhD dissertations (> 200k chars) get larger chunks
       // to preserve the flow of longer arguments
       const maxChunkChars = markdown.length > 200_000 ? 3000 : 1800
-      const { chunksCreated } = await ingestDocumentChunks(
+      const { chunksCreated, graphQueued: docGraphQueued } = await ingestDocumentChunks(
         workspaceId,
         file.id,
         markdown,
         { maxChunkChars }
       )
       indexed++
-      results.push({ fileId: file.id, name: file.name, chunks: chunksCreated, status: "ok" })
+      graphQueued += docGraphQueued
+      results.push({
+        fileId: file.id,
+        name: file.name,
+        chunks: chunksCreated,
+        graphQueued: docGraphQueued,
+        status: "ok",
+      })
     } catch (err) {
       skipped++
       console.error(`[reindex] Failed to index ${file.name}:`, err)
-      results.push({ fileId: file.id, name: file.name, chunks: 0, status: "error" })
+      results.push({ fileId: file.id, name: file.name, chunks: 0, graphQueued: 0, status: "error" })
     }
   }
 
-  return NextResponse.json({ indexed, skipped, results })
+  return NextResponse.json({ indexed, skipped, graphQueued, results })
 }

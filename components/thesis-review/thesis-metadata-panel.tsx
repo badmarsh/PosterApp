@@ -136,7 +136,7 @@ export function extractSmartThesisMetadata(text: string, filename?: string) {
     }
   }
   if (!institution) {
-    institution = "Slovenská technická univerzita v Bratislave"
+    institution = ""
   }
 
   // 5. Faculty / Department
@@ -150,7 +150,7 @@ export function extractSmartThesisMetadata(text: string, filename?: string) {
     }
   }
   if (!department) {
-    department = "FIIT - Ústav počítačového inžinierstva a aplikovanej informatiky"
+    department = ""
   }
 
   // 6. Degree / Type
@@ -204,18 +204,21 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
   const [autoExtractedSuccess, setAutoExtractedSuccess] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const lastExtractedDocRef = useRef<string | null>(null)
 
-  // Default to Bednár file if present, otherwise first ingest file
-  const defaultFileId = useMemo(() => {
-    const bednarFile = ingestFiles.find((f) => /bednar|debnar|grant/i.test(f.name) || f.id.includes("mtfrbmoo"))
-    return bednarFile?.id || ingestFiles[0]?.id || ""
-  }, [ingestFiles])
-
+  const defaultFileId = ingestFiles[0]?.id || ""
   const activeFileId = selectedFileId || defaultFileId
   const activeFile = ingestFiles.find((f) => f.id === activeFileId) || ingestFiles[0]
   const isParsing = ingestFiles.some((f) => f.status === "parsing" || f.status === "queued")
 
-  // Load document and auto-extract when active file changes
+  // Synchronize selectedFileId in store if files exist and none selected
+  useEffect(() => {
+    if (ingestFiles.length > 0 && !selectedFileId) {
+      setSelectedFileId(ingestFiles[0].id)
+    }
+  }, [ingestFiles, selectedFileId, setSelectedFileId])
+
+  // Load document when active file changes
   useEffect(() => {
     if (activeFileId) {
       loadSourceDocument(workspaceId, activeFileId)
@@ -227,29 +230,45 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
     if (!text.trim()) return
     const ext = extractSmartThesisMetadata(text, filename)
     updateFormMetadata({
-      thesisTitle: ext.title || formMetadata.thesisTitle,
-      studentName: ext.studentName || formMetadata.studentName,
-      thesisType: ext.thesisType || formMetadata.thesisType,
-      reviewerName: ext.reviewerName || formMetadata.reviewerName,
-      institution: ext.institution || formMetadata.institution,
-      department: ext.department || formMetadata.department,
-      academicYear: ext.academicYear || formMetadata.academicYear,
+      thesisTitle: ext.title,
+      studentName: ext.studentName,
+      thesisType: ext.thesisType,
+      reviewerName: ext.reviewerName,
+      institution: ext.institution,
+      department: ext.department,
+      academicYear: ext.academicYear,
     })
     setAutoExtractedSuccess(true)
     setTimeout(() => setAutoExtractedSuccess(false), 3000)
-  }, [updateFormMetadata, formMetadata])
+  }, [updateFormMetadata])
 
-  // Auto-fill on initial load or source update if form is pristine
+  // Reset or re-extract form when document changes (ONLY once per unique document change, never re-runs on user typing)
   useEffect(() => {
-    if (sourceMarkdown && (!formMetadata.studentName || !formMetadata.thesisTitle)) {
+    if (ingestFiles.length === 0) {
+      lastExtractedDocRef.current = null
+      updateFormMetadata({
+        thesisTitle: "",
+        studentName: "",
+        reviewerName: "",
+        institution: "",
+        department: "",
+        academicYear: "",
+      })
+      return
+    }
+
+    if (activeFileId && sourceMarkdown && lastExtractedDocRef.current !== activeFileId) {
+      lastExtractedDocRef.current = activeFileId
       applyExtraction(sourceMarkdown, activeFile?.name)
     }
-  }, [sourceMarkdown, activeFile, formMetadata.studentName, formMetadata.thesisTitle, applyExtraction])
+  }, [ingestFiles.length, activeFileId, sourceMarkdown, activeFile, applyExtraction, updateFormMetadata])
+
 
   const handleFileUpload = (files: FileList | File[] | null) => {
     if (!files || files.length === 0) return
     const pdfFiles = Array.from(files).filter((f) => f.name.toLowerCase().endsWith(".pdf") || f.type.includes("pdf"))
     if (pdfFiles.length > 0) {
+      lastExtractedDocRef.current = null
       uploadFiles(pdfFiles)
       loadSourceDocument(workspaceId)
     }
@@ -272,13 +291,13 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
   return (
     <div className="flex flex-col gap-4 p-4 h-full overflow-y-auto no-scrollbar bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-border/70 gap-2">
+      <div className="flex items-center pb-3 border-b border-border/70">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#8B2635]/10 text-[#8B2635] dark:text-[#E06D7B] border border-[#8B2635]/20 shadow-2xs">
             <GraduationCap className="size-4" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-foreground truncate">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">
               Posudok záverečnej práce
             </h2>
             <p className="text-[11px] text-muted-foreground truncate">
@@ -286,19 +305,6 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
             </p>
           </div>
         </div>
-
-        {sourceMarkdown && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2.5 text-[11px] font-medium text-[#8B2635] dark:text-[#E06D7B] bg-[#8B2635]/5 hover:bg-[#8B2635]/15 border border-[#8B2635]/20 rounded-lg gap-1.5 shadow-2xs transition-all shrink-0 cursor-pointer"
-            onClick={() => applyExtraction(sourceMarkdown, activeFile?.name)}
-            title="Znovu načítať metadáta z PDF"
-          >
-            <Sparkles className="size-3.5" />
-            <span>Načítať z PDF</span>
-          </Button>
-        )}
       </div>
 
       {activeReview && (
@@ -325,22 +331,11 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
       />
 
       {/* 1. Document Selection (Always visible) */}
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between">
-          <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-            <BookOpen className="size-3.5 text-[#8B2635] dark:text-[#E06D7B]" />
-            Zdrojový dokument
-          </Label>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 px-2.5 text-[11px] font-medium rounded-lg border-border/80 hover:bg-muted/80 gap-1.5 text-foreground/90 cursor-pointer shadow-2xs"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <FileUp className="size-3.5" />
-            Nahrať PDF
-          </Button>
-        </div>
+      <div className="space-y-2">
+        <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+          <BookOpen className="size-3.5 text-[#8B2635] dark:text-[#E06D7B]" />
+          Zdrojový dokument
+        </Label>
 
         {ingestFiles.length > 0 ? (
           <div className="space-y-1.5">
@@ -467,7 +462,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer rounded-md"
+                className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer rounded-md"
                 onClick={() => setIsFormCollapsed(true)}
               >
                 Zbaliť
@@ -591,36 +586,8 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
         </div>
       )}
 
-      <Separator className="my-0.5 bg-border/60" />
-
-      {/* Pre-flight plan link (always accessible) */}
-      <div className="space-y-2">
-        <Button
-          variant="outline"
-          onClick={async () => {
-            clearErrors()
-            await generateAnalysisPlan(workspaceId, normalizeFormMetadataToThesisMetadata(formMetadata))
-          }}
-          disabled={!isComplete || isGenerating || isGeneratingPlan || isParsing}
-          className="w-full h-8.5 text-xs text-foreground hover:bg-muted/80 rounded-lg border-border/80 cursor-pointer gap-2 shadow-2xs font-medium"
-          size="sm"
-        >
-          {isGeneratingPlan ? (
-            <>
-              <Loader2 className="size-3.5 animate-spin" />
-              Analyzujem štruktúru…
-            </>
-          ) : (
-            <>
-              <Sparkles className="size-3.5 text-[#8B2635] dark:text-[#E06D7B]" />
-              <span>Predanalýza a plánovanie (Pre-flight)</span>
-            </>
-          )}
-        </Button>
-      </div>
-
       {!isMetadataValid && (
-        <p className="text-[10px] text-amber-600 dark:text-amber-400 text-center">
+        <p className="text-[10px] text-amber-600 dark:text-amber-400 text-center pt-1">
           Doplňte názov práce a meno autora pre spustenie posudku.
         </p>
       )}

@@ -498,7 +498,10 @@ export async function PUT(
           existingFileIds.delete(file.id)
         }
         if (existingFileIds.size > 0) {
-          await tx.ingestFile.deleteMany({ where: { id: { in: Array.from(existingFileIds) } } })
+          const removedIds = Array.from(existingFileIds)
+          await tx.ingestFile.deleteMany({ where: { id: { in: removedIds } } })
+          await tx.documentChunk.deleteMany({ where: { workspaceId: id, documentId: { in: removedIds } } })
+          await tx.graphNode.deleteMany({ where: { workspaceId: id, documentId: { in: removedIds } } })
         }
       }
 

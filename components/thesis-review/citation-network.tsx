@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import * as d3 from "d3"
 import { Badge } from "@/components/ui/badge"
 import { Loader2 } from "lucide-react"
@@ -32,6 +32,28 @@ export function CitationNetwork({ workspaceId }: { workspaceId: string }) {
   // Maintain a mutable ref of nodes/links for the D3 simulation to use
   const graphRef = useRef({ nodes: [] as CitationNode[], links: [] as CitationLink[] })
   const simulationRef = useRef<d3.Simulation<CitationNode, CitationLink> | null>(null)
+
+  const updateSimulation = () => {
+    setNodes([...graphRef.current.nodes])
+    setLinks([...graphRef.current.links])
+    
+    if (simulationRef.current) {
+      simulationRef.current.nodes(graphRef.current.nodes)
+      
+      const linkForce = d3.forceLink<CitationNode, CitationLink>(graphRef.current.links)
+        .id(d => d.id)
+        .distance(120)
+        
+      simulationRef.current.force("link", linkForce)
+      simulationRef.current.alpha(1).restart()
+      
+      simulationRef.current.on("tick", () => {
+        // Trigger React re-render for positions
+        setNodes([...graphRef.current.nodes])
+        setLinks([...graphRef.current.links])
+      })
+    }
+  }
 
   useEffect(() => {
     if (!workspaceId) return
@@ -97,30 +119,8 @@ export function CitationNetwork({ workspaceId }: { workspaceId: string }) {
     }
   }, [workspaceId])
 
-  const updateSimulation = () => {
-    setNodes([...graphRef.current.nodes])
-    setLinks([...graphRef.current.links])
-    
-    if (simulationRef.current) {
-      simulationRef.current.nodes(graphRef.current.nodes)
-      
-      const linkForce = d3.forceLink<CitationNode, CitationLink>(graphRef.current.links)
-        .id(d => d.id)
-        .distance(120)
-        
-      simulationRef.current.force("link", linkForce)
-      simulationRef.current.alpha(1).restart()
-      
-      simulationRef.current.on("tick", () => {
-        // Trigger React re-render for positions
-        setNodes([...graphRef.current.nodes])
-        setLinks([...graphRef.current.links])
-      })
-    }
-  }
-
   // Helper to extract or find node from D3 drag event
-  const resolveNode = (e: any, d?: CitationNode): CitationNode | undefined => {
+  const resolveNode = useCallback((e: any, d?: CitationNode): CitationNode | undefined => {
     if (d && d.id) return d
     if (e.subject && e.subject.id) return e.subject
     const target = e.sourceEvent?.target as Element | null
@@ -130,25 +130,25 @@ export function CitationNetwork({ workspaceId }: { workspaceId: string }) {
       return graphRef.current.nodes.find((n) => n.id === id)
     }
     return undefined
-  }
+  }, [])
 
   // D3 Drag handlers integrated with React
-  const dragStart = (e: any, d?: CitationNode) => {
+  const dragStart = useCallback((e: any, d?: CitationNode) => {
     const node = resolveNode(e, d)
     if (!node) return
     if (!e.active && simulationRef.current) simulationRef.current.alphaTarget(0.3).restart()
     node.fx = node.x ?? e.x
     node.fy = node.y ?? e.y
-  }
+  }, [resolveNode])
 
-  const dragged = (e: any, d?: CitationNode) => {
+  const dragged = useCallback((e: any, d?: CitationNode) => {
     const node = resolveNode(e, d)
     if (!node) return
     node.fx = e.x
     node.fy = e.y
-  }
+  }, [resolveNode])
 
-  const dragEnd = (e: any, d?: CitationNode) => {
+  const dragEnd = useCallback((e: any, d?: CitationNode) => {
     const node = resolveNode(e, d)
     if (!node) return
     if (!e.active && simulationRef.current) simulationRef.current.alphaTarget(0)
@@ -156,7 +156,7 @@ export function CitationNetwork({ workspaceId }: { workspaceId: string }) {
       node.fx = null
       node.fy = null
     }
-  }
+  }, [resolveNode])
 
   useEffect(() => {
     if (!svgRef.current) return
@@ -173,7 +173,7 @@ export function CitationNetwork({ workspaceId }: { workspaceId: string }) {
       .on("end", dragEnd)
       
     nodeGroups.call(drag)
-  }, [nodes.length])
+  }, [nodes.length, resolveNode, dragStart, dragged, dragEnd])
 
   // Get color based on status string
   const getColor = (status?: string, isCentral = false) => {

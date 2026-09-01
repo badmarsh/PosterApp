@@ -238,7 +238,7 @@ function MobileShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () 
   )
 }
 
-function AppSkeleton() {
+export function AppSkeleton() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       <div className="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-card px-3">

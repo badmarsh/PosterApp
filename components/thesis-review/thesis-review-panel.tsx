@@ -84,6 +84,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
 
   const effectiveMarkdown = storeSourceMarkdown || assetSourceMarkdown
   const ingestFiles = project?.ingestFiles ?? []
+  const effectiveFileId = selectedFileId || ingestFiles[0]?.id || undefined
   const hasDocument = ingestFiles.length > 0 || !!effectiveMarkdown
   const isParsing = ingestFiles.some((f) => f.status === "parsing" || f.status === "queued")
 
@@ -105,14 +106,14 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
 
   useEffect(() => {
     loadReviews(workspaceId)
-    loadSourceDocument(workspaceId)
-  }, [workspaceId, loadReviews, loadSourceDocument])
+    loadSourceDocument(workspaceId, effectiveFileId)
+  }, [workspaceId, effectiveFileId, loadReviews, loadSourceDocument])
 
   const handleGenerate = async () => {
     clearErrors()
     await generateReview({
       workspaceId,
-      sourceFileId: selectedFileId || undefined,
+      sourceFileId: effectiveFileId,
       metadata: normalizeFormMetadataToThesisMetadata(formMetadata),
       skipCitationAudit,
       professionalMode: formMetadata.reviewKind === "paper" || formMetadata.reportingStandard !== "none",
@@ -121,7 +122,11 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
 
   const handlePreflight = async () => {
     clearErrors()
-    await generateAnalysisPlan(workspaceId, normalizeFormMetadataToThesisMetadata(formMetadata))
+    await generateAnalysisPlan(
+      workspaceId,
+      normalizeFormMetadataToThesisMetadata(formMetadata),
+      effectiveFileId
+    )
   }
 
   if (activeReview) {
@@ -145,13 +150,17 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
           onConfirmPlan={async () => {
             await generateReview({
               workspaceId,
+              sourceFileId: effectiveFileId,
               metadata: {
-                studentName: analysisPlan.documentTitle,
-                thesisTitle: analysisPlan.documentTitle,
-                thesisType: (analysisPlan.detectedType === "paper" ? "phd" : "master") as any,
-                reviewerRole: "opponent",
-                language: analysisPlan.language,
-                reviewKind: analysisPlan.detectedType,
+                studentName: formMetadata.studentName || analysisPlan.documentTitle,
+                thesisTitle: formMetadata.thesisTitle || analysisPlan.documentTitle,
+                thesisType: formMetadata.thesisType || (analysisPlan.detectedType === "paper" ? "phd" : "master") as any,
+                reviewerRole: formMetadata.reviewerRole || "opponent",
+                reviewerName: formMetadata.reviewerName,
+                institution: formMetadata.institution,
+                department: formMetadata.department,
+                language: analysisPlan.language || formMetadata.language,
+                reviewKind: analysisPlan.detectedType || formMetadata.reviewKind,
                 reportingStandard: analysisPlan.recommendedReportingGuideline,
               },
             })
@@ -166,188 +175,161 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
 
   return (
     <div className="flex-1 h-full w-full min-h-0 overflow-y-auto p-4 lg:p-8 bg-background">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-3xl mx-auto space-y-6">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">Odborné posudky a hodnotenia</h2>
-          <p className="text-sm text-muted-foreground">
-            Šesťstupňový transparentný proces: integrita podkladu → porozumenie textu → plán a rubrika → dôkazová analýza → návrh posudku → export.
+          <h2 className="text-xl font-bold tracking-tight text-foreground">Odborný posudok záverečnej práce</h2>
+          <p className="text-xs text-muted-foreground">
+            Sémantická analýza rukopisu, ukotvenie dôkazov v texte a automatické hodnotenie podľa akademických štandardov.
           </p>
         </div>
 
-        {/* 2.1 Workflow Stepper Guide (Compact Horizontal Rail with 6 stages) */}
-        <ThesisWorkflowStepper
-          currentStep={currentStep}
-          hasDocument={hasDocument}
-          isParsing={isParsing}
-          isIndexed={isIndexed}
-          chunkCount={chunkCount}
-          isFormValid={isMetadataValid}
-          hasPlan={false}
-          hasReview={false}
-          isConfirmed={false}
-          activeFileName={project?.ingestFiles?.[0]?.name}
-        />
-
-        {/* 2.2 & 2.3 Merged Active Step Action Panel */}
+        {/* Hero Action Card */}
         <div className="rounded-xl border bg-card text-card-foreground shadow-2xs overflow-hidden">
-          <div className="p-4 sm:p-5 space-y-4">
-            {/* Ready / Status Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`flex size-6 items-center justify-center rounded-full text-xs font-bold ${
-                      isReadyToGenerate
-                        ? "bg-emerald-500 text-white"
-                        : "bg-[#8B2635] text-white"
-                    }`}
-                  >
-                    {isReadyToGenerate ? <FileCheck2 className="size-3.5" /> : <span>4</span>}
-                  </div>
-                  <h3 className="text-sm font-bold text-foreground">
-                    {isReadyToGenerate
-                      ? "Pripravené na spustenie posudku"
-                      : !hasDocument
-                      ? "Krok 1: Nahrajte PDF práce"
-                      : isParsing
-                      ? "Krok 2: Prebieha spracovanie PDF…"
-                      : !isMetadataValid
-                      ? "Krok 2: Doplňte metadáta v paneli vľavo"
-                      : "Krok 3: Dokončuje sa vektorový RAG index"}
+          <div className="p-5 space-y-4">
+            {isGenerating || isGeneratingPlan ? (
+              <div className="flex flex-col items-center justify-center space-y-4 py-8 text-center animate-fade-in">
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-full blur-xl bg-[#8B2635]/20 animate-pulse" />
+                  <Loader2 className="size-12 text-[#8B2635] animate-spin relative z-10" />
+                </div>
+                <div className="space-y-1 max-w-md">
+                  <h3 className="text-base font-bold text-foreground">
+                    {isGeneratingPlan
+                      ? "Analyzujem štruktúru a pripravujem plán posudku…"
+                      : "Umelá inteligencia generuje odborný posudok…"}
                   </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {isGeneratingPlan
+                      ? "Kontrola výskumných cieľov, metodiky a odporúčaných štandardov."
+                      : "Prechádzanie vektorových dôkazov cez 12 rubrík, audit citácií a formulácia otázok na obhajobu (60 – 90 s)."}
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground pl-8">
-                  {isReadyToGenerate
-                    ? `Vektorový RAG obsahuje ${chunkCount} chunkov s HNSW indexom. Metadáta pre "${formMetadata.studentName || 'autora'}" sú pripravené.`
-                    : !hasDocument
-                    ? "Nahrajte PDF práce cez Ingestion panel v hornej lište alebo v bočnom paneli."
-                    : isParsing
-                    ? "MinerU extrahuje text, tabuľky a obrázky z nahraného súboru."
-                    : "Skontrolujte názov a autora práce v bočnom paneli metadát."}
-                </p>
-              </div>
-
-              {isReadyToGenerate && (
-                <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold text-xs py-1 px-2.5 shrink-0 self-start sm:self-center">
-                  Pripravené na AI beh
-                </Badge>
-              )}
-            </div>
-
-            {/* 2.3 Generation-affecting options moved from sidebar */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t">
-              <label
-                htmlFor="active-confidentiality"
-                className="flex items-start gap-2.5 text-xs text-muted-foreground bg-muted/20 hover:bg-muted/30 p-2.5 rounded-lg border cursor-pointer transition-colors"
-              >
-                <input
-                  type="checkbox"
-                  id="active-confidentiality"
-                  checked={confidentialityAgreed}
-                  onChange={(e) => setConfidentialityAgreed(e.target.checked)}
-                  className="mt-0.5 rounded accent-[#8B2635] cursor-pointer shrink-0"
-                />
-                <span className="leading-tight text-[11px] select-none text-foreground/90">
-                  Posudzovanie v súlade s etickými pravidlami akademického hodnotenia.
-                </span>
-              </label>
-
-              <label
-                htmlFor="active-skip-cite-audit"
-                className="flex items-start gap-2.5 text-xs text-muted-foreground bg-muted/20 hover:bg-muted/30 p-2.5 rounded-lg border cursor-pointer transition-colors"
-              >
-                <input
-                  type="checkbox"
-                  id="active-skip-cite-audit"
-                  checked={skipCitationAudit}
-                  onChange={(e) => setSkipCitationAudit(e.target.checked)}
-                  className="mt-0.5 rounded accent-[#8B2635] cursor-pointer shrink-0"
-                />
-                <span className="leading-tight text-[11px] select-none text-foreground/90">
-                  Preskočiť citačný audit (rýchlejšie generovanie)
-                </span>
-              </label>
-            </div>
-
-            {/* Error display with visible retry action */}
-            {generateError && (
-              <div className="flex items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                <div className="flex items-center gap-2">
-                  <span>{generateError}</span>
+                <div className="w-full max-w-sm space-y-2 pt-2">
+                  <div className="h-2 w-full bg-muted overflow-hidden rounded-full">
+                    <div className="h-full w-2/3 bg-[#8B2635] animate-pulse rounded-full" />
+                  </div>
+                  <span className="text-[11px] text-muted-foreground font-medium">Spracovávam sémantický kontext…</span>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs border-destructive/40 hover:bg-destructive/10 cursor-pointer"
-                  onClick={handleGenerate}
-                >
-                  Skúsiť znova
-                </Button>
               </div>
-            )}
+            ) : (
+              <>
+                {/* Document & Author Summary */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <GraduationCap className="size-4 text-[#8B2635] dark:text-[#E06D7B] shrink-0" />
+                      <h3 className="text-sm font-bold text-foreground truncate">
+                        {formMetadata.studentName || formMetadata.thesisTitle
+                          ? `${formMetadata.studentName || 'Autor'} — ${formMetadata.thesisTitle || 'Záverečná práca'}`
+                          : "Nový posudok"}
+                      </h3>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="capitalize">
+                        {formMetadata.thesisType === "phd" ? "Dizertačná práca (PhD)" : formMetadata.thesisType === "master" ? "Diplomová práca (Ing./Mgr.)" : "Bakalárska práca (Bc.)"}
+                      </span>
+                      {formMetadata.department && (
+                        <>
+                          <span>·</span>
+                          <span className="truncate">{formMetadata.department}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
 
-            {/* Primary & Secondary Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1">
-              <Button
-                onClick={handleGenerate}
-                disabled={!isReadyToGenerate || isGenerating || isGeneratingPlan || isParsing}
-                className="flex-1 h-10 gap-2 font-semibold text-xs bg-[#8B2635] hover:bg-[#741E2B] text-white shadow-xs transition-all cursor-pointer"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    Generujem odborný posudok…
-                  </>
-                ) : (
-                  <>
+                  {isReadyToGenerate ? (
+                    <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold text-xs py-1 px-2.5 shrink-0 self-start sm:self-center">
+                      <FileCheck2 className="size-3.5 mr-1" />
+                      Pripravené
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs py-1 px-2.5 shrink-0 text-amber-600 dark:text-amber-400 self-start sm:self-center">
+                      {!hasDocument ? "Nahrajte PDF" : "Doplňte metadáta"}
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Generation options */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <label
+                    htmlFor="active-confidentiality"
+                    className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/20 hover:bg-muted/30 p-2.5 rounded-lg border cursor-pointer transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      id="active-confidentiality"
+                      checked={confidentialityAgreed}
+                      onChange={(e) => setConfidentialityAgreed(e.target.checked)}
+                      className="mt-0.5 rounded accent-[#8B2635] cursor-pointer shrink-0"
+                    />
+                    <span className="leading-tight text-[11px] select-none text-foreground/90">
+                      Posudzovanie v súlade s etickými pravidlami
+                    </span>
+                  </label>
+
+                  <label
+                    htmlFor="active-skip-cite-audit"
+                    className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/20 hover:bg-muted/30 p-2.5 rounded-lg border cursor-pointer transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      id="active-skip-cite-audit"
+                      checked={skipCitationAudit}
+                      onChange={(e) => setSkipCitationAudit(e.target.checked)}
+                      className="mt-0.5 rounded accent-[#8B2635] cursor-pointer shrink-0"
+                    />
+                    <span className="leading-tight text-[11px] select-none text-foreground/90">
+                      Preskočiť citačný audit (rýchlejšie)
+                    </span>
+                  </label>
+                </div>
+
+                {/* Error display with retry */}
+                {generateError && (
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                    <span>{generateError}</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs border-destructive/40 hover:bg-destructive/10 cursor-pointer"
+                      onClick={handleGenerate}
+                    >
+                      Skúsiť znova
+                    </Button>
+                  </div>
+                )}
+
+                {/* Primary & Secondary Action Buttons */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1">
+                  <Button
+                    onClick={handleGenerate}
+                    disabled={!isReadyToGenerate || isGenerating || isGeneratingPlan || isParsing}
+                    className="flex-1 h-10 gap-2 font-semibold text-xs bg-[#8B2635] hover:bg-[#741E2B] text-white shadow-xs transition-all cursor-pointer rounded-lg"
+                  >
                     <Sparkles className="size-4" />
                     Vygenerovať posudok (AI + RAG)
-                  </>
-                )}
-              </Button>
+                  </Button>
 
-              <Button
-                variant="outline"
-                onClick={handlePreflight}
-                disabled={!hasDocument || isGenerating || isGeneratingPlan || isParsing}
-                className="h-10 text-xs text-foreground hover:bg-muted font-medium cursor-pointer shrink-0"
-              >
-                {isGeneratingPlan ? (
-                  <>
-                    <Loader2 className="size-3.5 animate-spin mr-1.5" />
-                    Analyzujem štruktúru…
-                  </>
-                ) : (
-                  "Predanalýza a plánovanie (Pre-flight)"
-                )}
-              </Button>
-            </div>
+                  <Button
+                    variant="outline"
+                    onClick={handlePreflight}
+                    disabled={!hasDocument || isGenerating || isGeneratingPlan || isParsing}
+                    className="h-10 text-xs text-foreground hover:bg-muted font-medium cursor-pointer shrink-0 rounded-lg"
+                  >
+                    <Sparkles className="size-3.5 mr-1.5 text-[#8B2635] dark:text-[#E06D7B]" />
+                    Predanalýza (Pre-flight)
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* 2.4 & 2.5 RAG vector index diagnostics (Collapsed by default) */}
+        {/* RAG vector index diagnostics */}
         <RagIndexStatusPanel workspaceId={workspaceId} onRefresh={setRagStats} />
 
-        {isGenerating ? (
-          <div className="flex flex-col items-center justify-center space-y-6 py-12">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full blur-xl bg-[#8B2635]/20 animate-pulse" />
-              <Loader2 className="h-16 w-16 text-[#8B2635] animate-spin relative z-10" />
-            </div>
-            <div className="space-y-2 text-center">
-              <h3 className="text-lg font-bold">Umelá inteligencia analyzuje rukopis</h3>
-              <p className="text-sm text-muted-foreground max-w-sm">
-                Toto môže trvať 60 až 90 sekúnd. Systém prechádza dôkazy v texte, overuje citácie v akademických databázach a formuluje odborné zistenia.
-              </p>
-            </div>
-            <div className="w-full max-w-md space-y-3 pt-4">
-              <div className="h-3 w-full bg-muted animate-pulse rounded-md" />
-              <div className="h-3 w-5/6 bg-muted animate-pulse rounded-md" />
-              <div className="h-3 w-4/6 bg-muted animate-pulse rounded-md" />
-            </div>
-          </div>
-        ) : reviews.length > 0 ? (
-          /* 2.6 Saved Reviews List with Rich Distinguishing Metadata */
+        {/* 2.6 Saved Reviews List with Rich Distinguishing Metadata */}
+        {reviews.length > 0 ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">

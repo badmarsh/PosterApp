@@ -269,6 +269,7 @@ model GraphEdge {
   targetId    String
   relation    String   // "EVALUATED_ON", "PROVES", "USES", "CITES"
   evidence    String?  // text snippet that proves this relationship
+  documentId  String?
   createdAt   DateTime @default(now())
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

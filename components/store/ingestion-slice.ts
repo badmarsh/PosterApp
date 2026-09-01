@@ -4,10 +4,11 @@ import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval"
 import { jobQueue } from "@/lib/job-queue"
 import { apiFetch } from "@/lib/api-fetch"
+import { safeRandomUUID } from "@/lib/utils"
 
 function makeLog(level: ParseLogEntry["level"], message: string): ParseLogEntry {
   return {
-    id: crypto.randomUUID(),
+    id: safeRandomUUID(),
     ts: new Date().toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -52,6 +53,11 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         progress: 10,
       }))
       set((s) => {
+        // Clear log if we are starting fresh (no currently parsing files)
+        const isParsing = s.project.ingestFiles.some(f => f.status === "parsing" || f.status === "queued")
+        if (!isParsing) {
+          s.parseLog = []
+        }
         s.project.ingestFiles.unshift(...created)
         s.isDirty = true
       })

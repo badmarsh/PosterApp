@@ -19,7 +19,7 @@ const { setupWSConnection } = require("y-websocket/bin/utils")
 const dev = process.env.NODE_ENV !== "production"
 const port = parseInt(process.env.PORT || "3333", 10)
 
-const app = next({ dev, port, turbopack: false })
+const app = next({ dev, port, turbopack: true })
 const handle = app.getRequestHandler()
 
 const WORKSPACE_ID = /^[A-Za-z0-9_-]{3,64}$/
@@ -34,10 +34,6 @@ async function canAccessWorkspace(workspaceId: string, userId: string) {
 }
 
 app.prepare().then(() => {
-  try {
-    require("./lib/services/mineru-bridge").ensureMinerUBridge()
-  } catch {}
-
   const server = createServer((req, res) => {
     const parsedUrl = parse(req.url!, true)
     handle(req, res, parsedUrl)
@@ -105,8 +101,9 @@ app.prepare().then(() => {
     })
   })
 
-  const httpServer = server.listen(port, () => {
-    console.log(`\n  ▲ Next.js (custom server) ready on http://localhost:${port}`)
+  const host = process.env.HOST || "0.0.0.0"
+  const httpServer = server.listen(port, host, () => {
+    console.log(`\n  ▲ Next.js (custom server) ready on http://localhost:${port} and http://${host}:${port}`)
     console.log(`  ⚡ Yjs WebSocket ready on ws://localhost:${port}/api/yjs\n`)
   })
 

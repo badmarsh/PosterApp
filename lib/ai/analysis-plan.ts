@@ -1,10 +1,3 @@
-/**
- * Analysis Plan & Pre-flight Diagnostics Generator.
- *
- * Implements the pre-analytical inspection stage:
- * Document -> Structural Intelligence -> Quality Gate -> Applicability Matrix -> User Approval -> Deep Review.
- */
-
 import { loadThesisContext, type ThesisRAGContext } from "./thesis-context"
 import type {
   ReviewAnalysisPlan,
@@ -18,6 +11,8 @@ import {
   extractDocumentStructure,
   buildSourceQualityReport,
   classifyDisciplineAndThesisType,
+  computeAcademicMetrics,
+  buildTOCTree,
 } from "./document-understanding"
 import {
   SK_ACADEMIC_RUBRIC_V1,
@@ -26,6 +21,7 @@ import {
 
 export interface GenerateAnalysisPlanOptions {
   workspaceId: string
+  sourceFileId?: string
   thesisMetadata: ThesisMetadata & {
     reviewKind?: ReviewKind
     targetVenue?: string
@@ -39,11 +35,12 @@ export interface GenerateAnalysisPlanOptions {
 export async function generateReviewAnalysisPlan(
   options: GenerateAnalysisPlanOptions
 ): Promise<ReviewAnalysisPlan> {
-  const { workspaceId, thesisMetadata } = options
+  const { workspaceId, sourceFileId, thesisMetadata } = options
   const lang: ReviewLanguage = thesisMetadata.language || "sk"
 
   const rag = await loadThesisContext({
     workspaceId,
+    sourceFileId,
     thesisMetadata,
     maxChars: 120_000,
   })
@@ -90,22 +87,33 @@ export function buildAnalysisPlanFromRAG(
     thesisType: (metadata.thesisType as any) || "master",
   }, lang)
 
-  // 3. Map detected sections
+  // 3. Compute Deep Academic Metrics & Hierarchical TOC
+  const metrics = computeAcademicMetrics(markdown, structure, {
+    thesisTitle: metadata.thesisTitle,
+    studentName: metadata.studentName,
+    thesisType: (metadata.thesisType as any) || "master",
+  }, lang)
+
+  const tocTree = buildTOCTree(structure.sections, qualityReport.totalWords)
+
+  // 4. Map detected sections
   const detectedSections: AnalysisPlanSection[] = (rag.sections && rag.sections.length > 0
     ? rag.sections.map((s) => ({
         id: s.id,
         heading: s.heading,
         charCount: s.content.length,
+        wordCount: s.content.split(/\s+/).filter(Boolean).length,
         status: s.content.trim().length > 50 ? "found" as const : "empty" as const,
       }))
     : structure.sections.map((s) => ({
         id: s.id,
         heading: s.heading,
         charCount: s.charCount,
+        wordCount: s.wordCount,
         status: s.charCount > 50 ? "found" as const : "empty" as const,
       })))
 
-  // 4. Determine study design & reporting guideline recommendation
+  // 5. Determine study design & reporting guideline recommendation
   let studyDesign: StudyDesign = "unknown"
   let recommendedReportingGuideline: ReportingStandard = "none"
   let guidelineReason: string | undefined = undefined
@@ -150,7 +158,7 @@ export function buildAnalysisPlanFromRAG(
       : "Detected observational study design (STROBE guideline recommended)."
   } else if (rag.sections && rag.sections.some((s) => s.kind === "methodology" || s.kind === "results")) {
     studyDesign = "empirical"
-  } else if (classification.thesisType === "empirical_quantitative" || classification.thesisType === "qualitative") {
+  } else if (classification.thesisType === "empirical_quantitative" || classification.thesisType === "qualitative" || classification.thesisType === "cybersecurity_audit") {
     studyDesign = "empirical"
   } else if (classification.thesisType === "theoretical") {
     studyDesign = "theoretical"
@@ -158,7 +166,7 @@ export function buildAnalysisPlanFromRAG(
     studyDesign = "methodological"
   }
 
-  // 5. Extraction quality and Citation availability
+  // 6. Extraction quality and Citation availability
   const effectiveTotalChars = Math.max(rag.totalChars || 0, markdown.length)
   let extractionQuality: "high" | "medium" | "low" = "low"
   if (effectiveTotalChars > 15_000 && ((rag.sections && rag.sections.length >= 4) || structure.sections.length >= 4)) {
@@ -180,7 +188,7 @@ export function buildAnalysisPlanFromRAG(
   const hasTablesAndFigures = structure.figuresCount > 0 || structure.tablesCount > 0 || (rag.sections && rag.sections.some((s) => /table|tabuľka|figure|obrázok/i.test(s.content)))
   const canProceedToDeepReview = extractionQuality !== "low" || effectiveTotalChars > 4_000 || (rag.sections && rag.sections.length >= 2)
 
-  // 6. Expected missing sections check
+  // 7. Expected missing sections check
   const expectedMissingSections: string[] = []
   if (!structure.sections.some((s) => /úvod|uvod|introduction/i.test(s.heading))) {
     expectedMissingSections.push(lang === "sk" ? "Úvod" : "Introduction")
@@ -198,7 +206,7 @@ export function buildAnalysisPlanFromRAG(
     expectedMissingSections.push(lang === "sk" ? "Záver" : "Conclusion")
   }
 
-  // 7. Applicable criteria matrix from rubric engine
+  // 8. Applicable criteria matrix from rubric engine
   const applicableCriteriaList = getApplicableCriteriaForThesisType(classification.thesisType, SK_ACADEMIC_RUBRIC_V1).map((item) => ({
     criterionKey: item.criterion.key,
     label: item.criterion.labels[lang] || item.criterion.labels.sk,
@@ -233,6 +241,9 @@ export function buildAnalysisPlanFromRAG(
       rationale: classification.rationale,
       sourceAnchors: classification.sourceAnchors,
     },
+    disciplineScoreBreakdown: classification.scoreBreakdown,
     applicableCriteria: applicableCriteriaList,
+    metrics,
+    tocTree,
   }
 }

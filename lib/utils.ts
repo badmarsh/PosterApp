@@ -20,3 +20,19 @@ export function pluralizeSk(count: number, one: string, few: string, many: strin
   if (n >= 2 && n <= 4) return few
   return many
 }
+
+/**
+ * Generates a UUID v4 string safely in both secure (HTTPS/localhost) and
+ * insecure (e.g. LAN HTTP) browser environments without crashing.
+ */
+export function safeRandomUUID(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === "x" ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+

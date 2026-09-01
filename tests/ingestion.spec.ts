@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import { setupClerkTestingToken } from '@clerk/testing/playwright';
 import fs from 'fs';
 
+import { isMinerUAvailable } from '../lib/services/mineru-bridge';
+
 const filePath = process.env.E2E_TEST_PDF || 'C:\\Users\\marek\\Documents\\Robco PhD\\poster4\\Sources\\PO_152.pdf';
 
 test.beforeAll(() => {
@@ -29,7 +31,7 @@ test('workspace selector loads and shows workspaces', async ({ page }) => {
 
 test('ingestion of PDF via UI', async ({ page }) => {
   test.skip(!fs.existsSync(filePath), 'Test PDF not found');
-  const mineruAvailable = await fetch('http://localhost:8001/openapi.json').then(() => true).catch(() => false);
+  const mineruAvailable = await isMinerUAvailable();
   test.skip(!mineruAvailable, 'MinerU parsing service is not running on port 8001');
   test.setTimeout(240000); // 4 minutes timeout for full GPU VLM pipeline
 

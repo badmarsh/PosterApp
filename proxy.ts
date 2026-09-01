@@ -11,7 +11,7 @@ const handler = clerkMiddleware(async (auth, req) => {
   return NextResponse.next()
 })
 
-export default function middleware(req: any, ev: any) {
+export default function proxy(req: any, ev: any) {
   if (process.env.NEXT_PUBLIC_E2E_TEST === '1' && process.env.NODE_ENV !== 'production') {
     return NextResponse.next()
   }

@@ -25,6 +25,7 @@ const RequestSchema = z.object({
     targetVenue: z.string().optional(),
     reportingStandard: z.enum(["consort", "prisma", "strobe", "ml_reproducibility", "none"]).default("none"),
   }),
+  sourceFileId: z.string().optional(),
 })
 
 export async function POST(
@@ -55,6 +56,7 @@ export async function POST(
   try {
     const plan = await generateReviewAnalysisPlan({
       workspaceId,
+      sourceFileId: body.sourceFileId,
       thesisMetadata: body.thesisMetadata as any,
     })
 

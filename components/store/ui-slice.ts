@@ -1,11 +1,12 @@
 import type { EditorSlice, UiSlice } from "./types"
 import type { AgentEvent } from "@/lib/poster-types"
 import { apiFetch } from "@/lib/api-fetch"
+import { safeRandomUUID } from "@/lib/utils"
 
 function makeEvent(e: Omit<AgentEvent, "id" | "ts" | "createdAt">): AgentEvent {
   return {
     ...e,
-    id: crypto.randomUUID(),
+    id: safeRandomUUID(),
     createdAt: Date.now(),
     ts: new Date().toLocaleTimeString([], {
       hour: "2-digit",

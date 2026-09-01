@@ -17,6 +17,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { Prisma } from "@prisma/client"
 import { retrieveForCriterion } from "@/lib/ai/vector-rag"
 import { getEmbeddingCacheStats } from "@/lib/ai/local-embeddings"
 
@@ -37,8 +38,35 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // Aggregate stats per document
-  const rows = await prisma.$queryRaw<
+  // 1. Fetch active IngestFiles for this workspace
+  const ingestFiles = await prisma.ingestFile.findMany({
+    where: { workspaceId },
+    select: { id: true, name: true },
+  })
+  const activeDocIds = ingestFiles.map((f) => f.id)
+
+  // 2. Asynchronously cleanup any orphaned chunks or graph nodes for deleted files
+  if (activeDocIds.length > 0) {
+    await prisma.documentChunk.deleteMany({
+      where: {
+        workspaceId,
+        documentId: { notIn: activeDocIds },
+      },
+    }).catch(() => {})
+
+    await prisma.graphNode.deleteMany({
+      where: {
+        workspaceId,
+        documentId: { notIn: activeDocIds },
+      },
+    }).catch(() => {})
+  } else {
+    await prisma.documentChunk.deleteMany({ where: { workspaceId } }).catch(() => {})
+    await prisma.graphNode.deleteMany({ where: { workspaceId } }).catch(() => {})
+  }
+
+  // 3. Aggregate stats per document (strictly for active files)
+  const rows = activeDocIds.length > 0 ? await prisma.$queryRaw<
     Array<{
       documentId: string
       chunkCount: bigint
@@ -55,9 +83,10 @@ export async function GET(
       COUNT(*) FILTER (WHERE embedding IS NOT NULL)       AS "embeddedCount"
     FROM "DocumentChunk"
     WHERE "workspaceId" = ${workspaceId}
+      AND "documentId" IN (${Prisma.join(activeDocIds)})
     GROUP BY "documentId"
     ORDER BY MAX("createdAt") DESC
-  `
+  ` : []
 
   const totalChunks = rows.reduce((s, r) => s + Number(r.chunkCount), 0)
   const totalEmbedded = rows.reduce((s, r) => s + Number(r.embeddedCount), 0)
@@ -79,15 +108,36 @@ export async function GET(
   `
   const hnswReady = indexCheck.length > 0
 
+  // GraphRAG knowledge graph statistics (active documents only)
+  const graphNodeWhere = activeDocIds.length > 0
+    ? { workspaceId, documentId: { in: activeDocIds } }
+    : { workspaceId }
+  const [graphNodeCount, graphEdgeCount, graphLabelGroups, graphDocs] = await Promise.all([
+    prisma.graphNode.count({ where: graphNodeWhere }),
+    prisma.graphEdge.count({
+      where: activeDocIds.length > 0
+        ? { workspaceId, source: { documentId: { in: activeDocIds } } }
+        : { workspaceId },
+    }),
+    prisma.graphNode.groupBy({ by: ["label"], where: graphNodeWhere, _count: { _all: true } }),
+    prisma.graphNode.findMany({
+      where: graphNodeWhere,
+      select: { documentId: true },
+      distinct: ["documentId"],
+    }),
+  ])
+  const graphStats = {
+    nodeCount: graphNodeCount,
+    edgeCount: graphEdgeCount,
+    documentsCovered: graphDocs.length,
+    topLabels: graphLabelGroups
+      .map((g) => ({ label: g.label, count: g._count._all }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5),
+  }
+
   // Resolve IngestFile names and detected topics for display
   const docIds = rows.map((r) => r.documentId)
-  const ingestFiles =
-    docIds.length > 0
-      ? await prisma.ingestFile.findMany({
-          where: { workspaceId, id: { in: docIds } },
-          select: { id: true, name: true },
-        })
-      : []
   const nameById: Record<string, string> = {}
   for (const f of ingestFiles) nameById[f.id] = f.name
 
@@ -150,6 +200,7 @@ export async function GET(
     embeddingModel: "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
     embeddingDimensions: 384,
     embeddingCacheStats: getEmbeddingCacheStats(),
+    graphStats,
     documents,
   })
 }

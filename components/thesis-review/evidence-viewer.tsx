@@ -336,6 +336,24 @@ export function EvidenceViewer({
                   )
                 }
 
+                // Images (Markdown syntax)
+                if (trimmed.startsWith("![") && trimmed.includes("](") && trimmed.endsWith(")")) {
+                  const altMatch = trimmed.match(/!\[([^\]]*)\]/);
+                  const urlMatch = trimmed.match(/\]\(([^)]+)\)/);
+                  const alt = altMatch ? altMatch[1] : "Figure";
+                  const url = urlMatch ? urlMatch[1] : "";
+                  
+                  if (url) {
+                    return (
+                      <figure key={idx} className="my-6 flex flex-col items-center justify-center p-2 rounded-lg bg-muted/10 border border-border/50">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={alt} className="max-w-full max-h-[300px] object-contain rounded shadow-sm bg-white dark:bg-zinc-950" loading="lazy" />
+                        {alt && alt !== "Figure" && <figcaption className="text-[10px] text-muted-foreground mt-2 font-medium">{alt}</figcaption>}
+                      </figure>
+                    )
+                  }
+                }
+
                 // Standard paragraph
                 return (
                   <p key={idx} className="text-foreground/85 leading-relaxed">

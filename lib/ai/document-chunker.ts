@@ -18,6 +18,24 @@ import { classifySectionKind, type SectionKind } from "@/lib/ai/thesis-context"
 
 export type { SectionKind }
 
+// ---------------------------------------------------------------------------
+// GraphRAG extraction guards
+// ---------------------------------------------------------------------------
+
+const GRAPH_RAG_ENABLED = process.env.GRAPH_RAG_ENABLED !== "false"
+/** Chunks shorter than this rarely yield meaningful academic entities. */
+const GRAPH_EXTRACTION_MIN_CHARS = 400
+/** Hard cap per document — bounds LLM extraction cost on 200k+ char PhD dissertations. */
+const GRAPH_EXTRACTION_MAX_CHUNKS_PER_DOC = 60
+/** Section kinds prioritized for entity extraction (thesis evaluation focus). */
+const GRAPH_EXTRACTION_PRIORITY_KINDS = new Set([
+  "methodology",
+  "results",
+  "literature_review",
+  "introduction",
+  "conclusion",
+])
+
 export interface DocumentChunkInput {
   workspaceId: string
   documentId: string   // matches the fileId from ingestion (IngestFile.id)
@@ -200,17 +218,46 @@ export function chunkMarkdown(
 }
 
 /**
+ * Runs GraphRAG entity extraction sequentially in the background (detached —
+ * not awaited by the caller). Sequential execution keeps LLM extraction cost
+ * predictable and never delays vector embedding, which finishes first and
+ * unblocks the ingestion response.
+ */
+function runGraphExtractionQueue(
+  workspaceId: string,
+  documentId: string,
+  candidates: Array<{ sectionKind: string; content: string }>
+): void {
+  ;(async () => {
+    let extracted = 0
+    for (const candidate of candidates) {
+      try {
+        const res = await extractAndStoreGraphEntities(workspaceId, documentId, candidate.content)
+        if (res && (res.nodes > 0 || res.edges > 0)) extracted++
+      } catch (err) {
+        console.error("[GraphRAG] Background extraction failed:", err)
+      }
+    }
+    if (extracted > 0) {
+      console.log(`[GraphRAG] Extracted entities from ${extracted}/${candidates.length} chunks (doc ${documentId})`)
+    }
+  })().catch(() => {})
+}
+
+/**
  * Ingest a MinerU-parsed Markdown file into DocumentChunk table with embeddings.
  * Called after successful MinerU parse in the ingestion pipeline.
  *
  * Uses concurrency control to avoid OOM on large dissertations.
+ * Returns `graphQueued` — number of chunks queued for background GraphRAG
+ * entity extraction (runs detached; not part of the synchronous return path).
  */
 export async function ingestDocumentChunks(
   workspaceId: string,
   documentId: string,
   markdown: string,
   opts: { maxChunkChars?: number; concurrency?: number } = {}
-): Promise<{ chunksCreated: number; skipped: number }> {
+): Promise<{ chunksCreated: number; skipped: number; graphQueued: number }> {
   const concurrency = opts.concurrency ?? 3
 
   // Delete old chunks for this document (re-ingest is idempotent)
@@ -220,6 +267,7 @@ export async function ingestDocumentChunks(
 
   let chunksCreated = 0
   let skipped = 0
+  const graphCandidates: Array<{ sectionKind: string; content: string }> = []
 
   // Process in batches to avoid memory pressure
   for (let i = 0; i < rawChunks.length; i += concurrency) {
@@ -253,12 +301,10 @@ export async function ingestDocumentChunks(
           `
           chunksCreated++
 
-          // FIRE AND FORGET: GraphRAG Extraction (only for meaningful sections to save tokens, or all for PoC)
-          // We run this asynchronously without awaiting to not block vector ingestion return.
-          if (["methodology", "results", "literature_review", "introduction", "conclusion", "unknown"].includes(chunk.sectionKind)) {
-             await extractAndStoreGraphEntities(workspaceId, documentId, chunk.content).catch(e => {
-                console.error("[GraphRAG] Background extraction failed:", e)
-             })
+          // Collect GraphRAG candidates — extraction runs detached after the
+          // embedding loop so it never delays the ingestion return path.
+          if (GRAPH_RAG_ENABLED && chunk.content.length >= GRAPH_EXTRACTION_MIN_CHARS) {
+            graphCandidates.push({ sectionKind: chunk.sectionKind, content: chunk.content })
           }
         } catch (err) {
           console.error(`[VectorRAG] Failed to embed chunk "${chunk.heading}":`, err)
@@ -279,5 +325,16 @@ export async function ingestDocumentChunks(
     // Index may already exist, ignore
   }
 
-  return { chunksCreated, skipped }
+  // Detached GraphRAG extraction: priority section kinds first, capped per doc
+  let graphQueued = 0
+  if (GRAPH_RAG_ENABLED && graphCandidates.length > 0) {
+    const prioritized = [
+      ...graphCandidates.filter((c) => GRAPH_EXTRACTION_PRIORITY_KINDS.has(c.sectionKind)),
+      ...graphCandidates.filter((c) => !GRAPH_EXTRACTION_PRIORITY_KINDS.has(c.sectionKind)),
+    ].slice(0, GRAPH_EXTRACTION_MAX_CHUNKS_PER_DOC)
+    graphQueued = prioritized.length
+    runGraphExtractionQueue(workspaceId, documentId, prioritized)
+  }
+
+  return { chunksCreated, skipped, graphQueued }
 }

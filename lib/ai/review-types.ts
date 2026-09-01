@@ -300,7 +300,80 @@ export interface AnalysisPlanSection {
   id: string
   heading: string
   charCount: number
+  wordCount?: number
   status: "found" | "empty" | "missing"
+}
+
+export interface TOCNode {
+  id: string
+  title: string
+  level: number
+  wordCount: number
+  percentOfTotal: number
+  kind: "preamble" | "introduction" | "literature" | "methodology" | "results" | "discussion" | "conclusion" | "references" | "appendix" | "unknown"
+  isEmpty: boolean
+  hasWarning?: boolean
+  children: TOCNode[]
+}
+
+export interface AcademicMetricsReport {
+  balance: {
+    theoryWordCount: number
+    practicalWordCount: number
+    formalWordCount: number
+    theoryRatio: number // 0.0 - 1.0
+    practicalRatio: number // 0.0 - 1.0
+    targetBenchmark: { theoryRatio: number; practicalRatio: number; label: string }
+    status: "balanced" | "theory_heavy" | "practical_heavy" | "unclear"
+    summary: string
+  }
+  lexical: {
+    typeTokenRatio: number // 0.0 - 1.0
+    vocabularyRichness: "high" | "moderate" | "low"
+    hapaxLegomenaRatio: number // 0.0 - 1.0
+    avgSentenceLengthWords: number
+    avgWordLengthChars: number
+    academicFormalityScore: number // 0 - 100
+    hedgingRatioPer1000: number
+    detectedFirstPersonPronounsCount: number
+  }
+  citations: {
+    totalReferences: number
+    inTextCitationsCount: number
+    citationsPer1000Words: number
+    medianPublicationYear: number | null
+    recency5YearsRatio: number // 0.0 - 1.0
+    recencyStatus: "fresh" | "adequate" | "outdated" | "no_data"
+    decadeBreakdown: Record<string, number>
+    sourceTypesBreakdown: Record<string, number>
+  }
+  crossReferencing: {
+    figuresTotal: number
+    figuresReferenced: number
+    figuresOrphaned: number
+    tablesTotal: number
+    tablesReferenced: number
+    tablesOrphaned: number
+    integrityScore: number // 0 - 100
+    orphanedItems: string[]
+  }
+  formalization: {
+    equationsCount: number
+    codeBlocksCount: number
+    equationsDensityPer10k: number
+    codeDensityPer10k: number
+    technicalRigorLevel: "high" | "medium" | "low" | "none"
+  }
+  imrad: {
+    phases: Array<{
+      key: string
+      name: string
+      status: "complete" | "partial" | "missing"
+      wordCount: number
+      percentage: number
+    }>
+    completenessScore: number // 0 - 100
+  }
 }
 
 export interface ReviewAnalysisPlan {
@@ -348,10 +421,18 @@ export interface ReviewAnalysisPlan {
     rationale: string
     sourceAnchors: string[]
   }
+  disciplineScoreBreakdown?: Array<{
+    name: string
+    score: number
+    confidence: number
+    tags: string[]
+  }>
   applicableCriteria?: Array<{
     criterionKey: string
     label: string
     weight: number
     applicability: "applicable" | "partially_applicable" | "not_applicable"
   }>
+  metrics?: AcademicMetricsReport
+  tocTree?: TOCNode[]
 }

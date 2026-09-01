@@ -134,6 +134,10 @@ export async function searchOpenAlexWorks(
     })
 
     if (!res.ok) {
+      if (res.status === 429) {
+        // OpenAlex anonymous rate limit reached, fail silently
+        return []
+      }
       const errText = await res.text().catch(() => "")
       console.warn(`[OpenAlex] Search failed: HTTP ${res.status} for "${cleanQuery.slice(0, 40)}": ${errText.slice(0, 100)}`)
       return []

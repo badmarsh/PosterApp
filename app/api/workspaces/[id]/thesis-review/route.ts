@@ -301,6 +301,7 @@ export async function POST(
             criterionExpansion: expansion,
             useHyDE: true,
             compress: true,
+            documentId: body.sourceFileId,
           })
           if (chunks.length === 0) return
           const chunkText = chunks
@@ -321,11 +322,35 @@ export async function POST(
       console.warn("[thesis-review] pgvector augmentation skipped:", vectorErr)
     }
 
-    // 2c. GraphRAG augmentation — Retrieve multi-hop knowledge graph
+    // 2c. GraphRAG augmentation — query-aware multi-hop subgraph retrieval.
+    // The knowledge graph is workspace-scoped (entities shared across ingested
+    // documents merge), so retrieval is cross-document; every fact carries a
+    // `[doc: …]` provenance tag. The block shares the fullGeneration budget
+    // with the vector augmentation and is hard-capped by its serializer.
     let graphAugmentation = ""
     try {
-      const { getGraphContextForWorkspace } = await import("@/lib/ai/graph-extractor")
-      graphAugmentation = await getGraphContextForWorkspace(workspaceId, body.sourceFileId)
+      const { retrieveGraphContext } = await import("@/lib/ai/graph-rag")
+      const graphBudget = Math.max(
+        0,
+        THESIS_CONTEXT_BUDGETS.fullGeneration
+          - routedContext.length
+          - citationAuditSummary.length
+          - vectorAugmentation.length
+          - 500 // prompt scaffolding reserve
+      )
+      if (graphBudget > 200) {
+        const graphQuery = [
+          normalizedMetadata.thesisTitle,
+          ...activeCriteria.map((c) => c.labels[lang]),
+        ]
+          .join(" ")
+          .slice(0, 500)
+        const subgraph = await retrieveGraphContext(workspaceId, graphQuery, {
+          charBudget: Math.min(4000, graphBudget),
+          documentId: body.sourceFileId,
+        })
+        if (subgraph) graphAugmentation = subgraph.serialized
+      }
     } catch (graphErr) {
       console.warn("[thesis-review] GraphRAG augmentation skipped:", graphErr)
     }

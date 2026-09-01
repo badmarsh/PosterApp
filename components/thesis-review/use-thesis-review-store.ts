@@ -193,7 +193,7 @@ interface ThesisReviewState {
   setActiveReview: (review: ThesisReviewRecord | null) => void
   setSelectedEvidence: (ev: EvidenceReference | null) => void
   setAnalysisPlan: (plan: ReviewAnalysisPlan | null) => void
-  generateAnalysisPlan: (workspaceId: string, metadata: any) => Promise<ReviewAnalysisPlan | null>
+  generateAnalysisPlan: (workspaceId: string, metadata: any, sourceFileId?: string) => Promise<ReviewAnalysisPlan | null>
   loadSourceDocument: (workspaceId: string, fileId?: string) => Promise<void>
   loadReviews: (workspaceId: string) => Promise<void>
   loadReview: (workspaceId: string, reviewId: string) => Promise<void>
@@ -302,13 +302,17 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     setSelectedEvidence: (ev) => set((s) => { s.selectedEvidence = ev }),
     setAnalysisPlan: (plan) => set((s) => { s.analysisPlan = plan }),
 
-    generateAnalysisPlan: async (workspaceId, metadata) => {
+    generateAnalysisPlan: async (workspaceId, metadata, fileId) => {
       set((s) => { s.isGeneratingPlan = true; s.generateError = null })
       try {
+        const targetFileId = fileId || get().selectedFileId || undefined
         const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review/analysis-plan`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ thesisMetadata: metadata }),
+          body: JSON.stringify({
+            thesisMetadata: metadata,
+            sourceFileId: targetFileId,
+          }),
         })
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}))
@@ -384,7 +388,7 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
         // Parallel fetch of review record and real source document
         const [reviewRes] = await Promise.all([
           fetch(`/api/workspaces/${workspaceId}/thesis-review/${reviewId}`),
-          get().loadSourceDocument(workspaceId),
+          get().loadSourceDocument(workspaceId, get().selectedFileId || undefined),
         ])
         if (!reviewRes.ok) throw new Error("Review not found")
         const review = await reviewRes.json()
@@ -397,15 +401,16 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     generateReview: async (opts) => {
       set((s) => { s.isGenerating = true; s.generateError = null })
       try {
+        const fileId = opts.sourceFileId || get().selectedFileId || undefined
         // Ensure source document is fetched
-        void get().loadSourceDocument(opts.workspaceId, opts.sourceFileId)
+        void get().loadSourceDocument(opts.workspaceId, fileId)
 
         const res = await fetch(`/api/workspaces/${opts.workspaceId}/thesis-review`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             thesisMetadata: opts.metadata,
-            sourceFileId: opts.sourceFileId,
+            sourceFileId: fileId,
             focusCriteria: opts.focusCriteria,
             skipCitationAudit: opts.skipCitationAudit ?? false,
           }),
