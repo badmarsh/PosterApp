@@ -8,7 +8,6 @@ import {
   Sparkles,
   Moon,
   PanelLeft,
-  PanelRight,
   HelpCircle,
   Save,
   Check,
@@ -160,7 +159,7 @@ export function TopBar({
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2.5 border-b border-border bg-card px-3">
-      {/* Zone 1: View / Panel Toggles */}
+      {/* Zone 1: View Toggles — structure panel (left) and LaTeX source */}
       <div className="flex items-center gap-1">
         <Tooltip>
           <TooltipTrigger
@@ -196,24 +195,6 @@ export function TopBar({
             }
           />
           <TooltipContent>Source code</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("size-8", agentOpen && "text-primary bg-primary/10")}
-                onClick={onToggleAgent}
-                aria-label="Toggle agent panel"
-                aria-pressed={agentOpen}
-              >
-                <PanelRight className="size-4" />
-              </Button>
-            }
-          />
-          <TooltipContent>Agent panel</TooltipContent>
         </Tooltip>
       </div>
 
@@ -290,6 +271,34 @@ export function TopBar({
       </Tooltip>
 
       <div className="flex-1" />
+
+      {/* Autosave is OFF — Save sits first from center so it's the shortest reach from the canvas */}
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant={isDirty ? "default" : "outline"}
+              size="sm"
+              className={cn("h-8 gap-1.5", isDirty ? "font-medium shadow-xs" : "text-muted-foreground")}
+              disabled={!isDirty || isSaving}
+              onClick={() => saveProject()}
+              aria-label={isDirty ? "Save project changes" : "All changes saved"}
+            >
+              {isSaving ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : isDirty ? (
+                <Save className="size-3.5" />
+              ) : (
+                <Check className="size-3.5 text-chart-3" />
+              )}
+              <span>{isDirty ? "Save changes" : "Saved"}</span>
+            </Button>
+          }
+        />
+        <TooltipContent>{isDirty ? "Save unsaved changes" : "Project is up to date"}</TooltipContent>
+      </Tooltip>
+
+      <Separator orientation="vertical" className="h-5" />
 
       {/* Zone 4: Document Ingestion & Export Actions */}
       <div className="flex items-center gap-1.5">
@@ -377,34 +386,8 @@ export function TopBar({
 
       <Separator orientation="vertical" className="h-5" />
 
-      {/* Zone 5: Save & Collaboration */}
+      {/* Zone 5: Collaboration */}
       <div className="flex items-center gap-1.5">
-        {/* Autosave is OFF: Save is the primary CTA when isDirty */}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant={isDirty ? "default" : "outline"}
-                size="sm"
-                className={cn("h-8 gap-1.5", isDirty ? "font-medium shadow-xs" : "text-muted-foreground")}
-                disabled={!isDirty || isSaving}
-                onClick={() => saveProject()}
-                aria-label={isDirty ? "Save project changes" : "All changes saved"}
-              >
-                {isSaving ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : isDirty ? (
-                  <Save className="size-3.5" />
-                ) : (
-                  <Check className="size-3.5 text-chart-3" />
-                )}
-                <span>{isDirty ? "Save changes" : "Saved"}</span>
-              </Button>
-            }
-          />
-          <TooltipContent>{isDirty ? "Save unsaved changes" : "Project is up to date"}</TooltipContent>
-        </Tooltip>
-
         <Button
           variant={collabEnabled ? "default" : "outline"}
           size="sm"
