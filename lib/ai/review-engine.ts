@@ -86,6 +86,8 @@ export interface GenerateProfessionalReviewOptions {
    *  prohibitedInferences to the prompt. Defaults to "unknown" — a separate axis from
    *  the degree-level `thesisType` above, with no conversion between them. */
   detailedThesisType?: DetailedThesisType
+  /** Institution name — used to gate jurisdiction-specific statutory clauses (e.g. Slovak §54/131/2002). */
+  institution?: string
   graphAugmentation?: string
   vectorAugmentation?: string
 }
@@ -884,9 +886,21 @@ Respond with a valid JSON object matching this structure:
 
       await Promise.all(tasks)
 
-      const statutoryClause = options.language === "sk"
-        ? "Práca spĺňa všetky požiadavky kladené na dizertačné práce v zmysle § 54 ods. 3 Zákona č. 131/2002 Z. z. o vysokých školách a o zmene a doplnení niektorých zákonov."
-        : "The thesis meets all requirements for doctoral dissertations according to § 54 para. 3 of Act No. 131/2002 Coll. on Higher Education."
+      // Determine jurisdiction from institution name and language
+      const institutionLower = options.institution?.toLowerCase() || ""
+
+      let statutoryClause: string | undefined
+      if (options.language === "sk" || 
+          institutionLower.includes("slovak") || 
+          institutionLower.includes("slovensk")) {
+        statutoryClause = "Práca spĺňa všetky požiadavky kladené na dizertačné práce v zmysle § 54 ods. 3 Zákona č. 131/2002 Z. z. o vysokých školách a o zmene a doplnení niektorých zákonov."
+      } else if (options.language === "cs" ||
+                 institutionLower.includes("czech") ||
+                 institutionLower.includes("česk") ||
+                 institutionLower.includes("morav")) {
+        statutoryClause = "Práce splňuje všechny požadavky kladené na dizertační práce v souladu s § 54 odst. 3 zákona č. 111/1998 Sb., o vysokých školách."
+      }
+      // Otherwise: no statutory clause (non-Slovak/Czech institution)
 
       const defenseQuestionsExternal: string[] = []
       if (sotaBenchmarking.length > 0) {

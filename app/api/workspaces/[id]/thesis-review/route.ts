@@ -440,6 +440,7 @@ export async function POST(
         language: lang,
         reportingStandard: thesisMetadata.reportingStandard,
         multiAgentDebate: body.multiAgentDebate,
+        institution: thesisMetadata.institution,
         graphAugmentation,
         vectorAugmentation,
       })
