@@ -37,11 +37,26 @@ import {
   getThesisCriterionQueryExpansion,
 } from "@/lib/ai/vector-rag"
 import { prisma } from "@/lib/prisma"
+import {
+  classifyDisciplineAndThesisType,
+  detectReportingGuideline,
+  extractDocumentStructure,
+} from "@/lib/ai/document-understanding"
+import {
+  RUBRIC_CRITERIA_MAP,
+  NO_FINDINGS_SYNTHESIS,
+  getApplicableCriteriaForThesisType,
+  SK_ACADEMIC_RUBRIC_V1,
+} from "@/lib/ai/rubric-engine"
+import {
+  checkObjectiveAlignment,
+  auditCitationConsistency,
+} from "@/lib/ai/academic-checks"
+import { buildPreGenerationGrounding } from "@/lib/ai/review-engine"
 import { z } from "zod"
 
-// ---------------------------------------------------------------------------
-// Input validation
-// ---------------------------------------------------------------------------
+// Starting value; needs empirical tuning
+export const AUTO_APPLY_CONFIDENCE_THRESHOLD = 0.8
 
 const ThesisMetadataSchema = z.object({
   studentName: z.string().min(1).max(200),
@@ -250,7 +265,6 @@ export async function POST(
       focusSections: focusCriteria,
       maxChars: 120_000,
     })
-
     // Strict Grounding Guard: Do not generate authoritative review without parsed source text
     if (ragContext.totalChars === 0 || !ragContext.fullText.trim()) {
       return NextResponse.json(
@@ -262,11 +276,49 @@ export async function POST(
       )
     }
 
-    const activeCriteria = focusCriteria?.length
-      ? THESIS_CRITERIA.filter((c) => focusCriteria.includes(c.id))
-      : THESIS_CRITERIA
+    // 1c. Deterministic discipline and methodology classification
+    const classification = classifyDisciplineAndThesisType(
+      ragContext.fullText,
+      {
+        thesisTitle: thesisMetadata.thesisTitle,
+        studentName: thesisMetadata.studentName,
+        department: thesisMetadata.department,
+        institution: thesisMetadata.institution,
+        thesisType: thesisMetadata.thesisType,
+      },
+      lang
+    )
+
+    // Task 10: Drive activeCriteria from SK_ACADEMIC_RUBRIC_V1 applicability matrix
+    const applicableCriteria = getApplicableCriteriaForThesisType(
+      classification.thesisType,
+      SK_ACADEMIC_RUBRIC_V1
+    ).filter(({ applicability }) => applicability !== "not_applicable")
+
+    const applicableLegacyIds = new Set(
+      applicableCriteria.map(({ criterion }) => RUBRIC_CRITERIA_MAP[criterion.key] || criterion.key)
+    )
+
+    const activeCriteria = THESIS_CRITERIA.filter((c) => {
+      if (focusCriteria?.length && !focusCriteria.includes(c.id)) return false
+      // Always include defense_questions unless explicitly excluded by focusCriteria
+      if (c.id === "defense_questions") return true
+      return applicableLegacyIds.has(c.id)
+    })
 
     const activeCriterionIds = activeCriteria.map((c) => c.id)
+
+    const detectedReportingGuideline = detectReportingGuideline(ragContext.fullText)
+    let effectiveReportingStandard = thesisMetadata.reportingStandard ?? "none"
+    let suggestedReportingStandard: string | null = null
+
+    if (effectiveReportingStandard === "none" && detectedReportingGuideline !== "none") {
+      if (classification.confidence >= AUTO_APPLY_CONFIDENCE_THRESHOLD) {
+        effectiveReportingStandard = detectedReportingGuideline
+      } else {
+        suggestedReportingStandard = detectedReportingGuideline
+      }
+    }
 
     // 1b. Vector index readiness check — detect race condition where user generates
     // a review before the fire-and-forget ingestDocumentChunks has finished.
@@ -320,9 +372,6 @@ export async function POST(
     }
 
     // 2b. pgvector 6-stage RAG augmentation — per-criterion evidence retrieval.
-    // Internally runs: multi-query fan-out → HyDE → RRF hybrid search →
-    // MMR deduplication → criterion-aware reranking → contextual compression.
-    // Failures degrade gracefully (pgvector may not be indexed for new workspaces).
     let vectorAugmentation = ""
     try {
       const domainContext = resolveThesisDomainContext(normalizedMetadata)
@@ -364,10 +413,6 @@ export async function POST(
     }
 
     // 2c. GraphRAG augmentation — query-aware multi-hop subgraph retrieval.
-    // The knowledge graph is workspace-scoped (entities shared across ingested
-    // documents merge), so retrieval is cross-document; every fact carries a
-    // `[doc: …]` provenance tag. The block shares the fullGeneration budget
-    // with the vector augmentation and is hard-capped by its serializer.
     let graphAugmentation = ""
     let graphWarning: string | null = null
     try {
@@ -407,13 +452,15 @@ export async function POST(
       graphWarning = "GraphRAG augmentation failed unexpectedly and was skipped for this review."
     }
 
-    // 4. Build AI prompts
+    // 4. Build AI prompts with pre-generation grounding (PaperQA2 retrieve-ground-generate)
+    const preGroundingText = await buildPreGenerationGrounding(ragContext.sections, lang)
     const contextHeader = buildThesisContextHeader(normalizedMetadata, lang)
     const criteriaList = activeCriteria
       .map((c) => `[${c.id}] ${c.labels[lang]} (weight: ${c.weight}%)\nGuidance: ${c.guidance[lang]}`)
       .join("\n\n")
 
     const sourceContextWithAudit = routedContext
+      + (preGroundingText ? `\n\n${preGroundingText}` : "")
       + (vectorAugmentation ? `\n\n[Vector-Retrieved Evidence]\n${vectorAugmentation}` : "")
       + (graphAugmentation ? `\n\n[GraphRAG Knowledge Graph]\n${graphAugmentation}` : "")
       + (citationAuditSummary ? `\n\n[Citation Audit (Advisory)]\n${citationAuditSummary}` : "")
@@ -421,12 +468,13 @@ export async function POST(
     const systemPrompt = buildSystemPrompt(lang, normalizedMetadata)
     const userPrompt = buildUserPrompt(normalizedMetadata, contextHeader, sourceContextWithAudit, criteriaList, lang)
 
-    // 5. AI generation
+    // 5. AI generation: Standard review mode is the default (Path A), Professional review mode is opt-in (Path B).
+    const useProfessionalMode = Boolean(body.professionalMode)
     let result: any
     let professionalResult: any = null
     let calibratedDefenseQuestions: string[] | null = null
 
-    if (body.professionalMode || thesisMetadata.reviewKind === "paper" || (thesisMetadata.reportingStandard && thesisMetadata.reportingStandard !== "none")) {
+    if (useProfessionalMode) {
       const { generateProfessionalReview } = await import("@/lib/ai/review-engine")
       professionalResult = await generateProfessionalReview({
         workspaceId,
@@ -435,10 +483,11 @@ export async function POST(
         authorName: thesisMetadata.studentName,
         reviewKind: thesisMetadata.reviewKind,
         thesisType: thesisMetadata.thesisType,
+        detailedThesisType: classification.thesisType,
         reviewerRole: thesisMetadata.reviewerRole,
         targetVenue: thesisMetadata.targetVenue,
         language: lang,
-        reportingStandard: thesisMetadata.reportingStandard,
+        reportingStandard: effectiveReportingStandard,
         multiAgentDebate: body.multiAgentDebate,
         institution: thesisMetadata.institution,
         graphAugmentation,
@@ -446,19 +495,25 @@ export async function POST(
       })
       calibratedDefenseQuestions = normalizeDefenseQuestions(professionalResult.defenseQuestions)
 
-      // Convert findings into criteria-like sections for backwards compatibility with LaTeX generator
       const sections = activeCriteria.map((c) => {
         const matchingFindings = professionalResult.anchoredFindings.filter((f: any) => {
+          // Direct or mapped criterion matching
+          if (f.criterionId && (RUBRIC_CRITERIA_MAP[f.criterionId] === c.id || f.criterionId === c.id)) return true
+          if (f.criterionKey && (RUBRIC_CRITERIA_MAP[f.criterionKey] === c.id || f.criterionKey === c.id)) return true
+
+          // Category fallbacks to ensure unmapped findings are attributed correctly
           if (c.id === "methodology") return f.category === "methodology" || f.category === "statistics"
           if (c.id === "results") return f.category === "results" || f.category === "reproducibility"
           if (c.id === "citations_bibliography") return f.category === "literature"
+          if (c.id === "goal_definition") return f.category === "problem" || f.category === "theory"
+          if (c.id === "originality") return f.category === "impact"
           if (c.id === "formal_structure" || c.id === "language_quality") return f.category === "formal"
-          return true
+          return false
         })
 
         const text = matchingFindings.length > 0
           ? matchingFindings.map((f: any) => `• ${f.title}: ${f.explanation}`).join("\n\n")
-          : professionalResult.summary
+          : (NO_FINDINGS_SYNTHESIS[lang] || NO_FINDINGS_SYNTHESIS.sk)
 
         return {
           id: c.id,
@@ -466,8 +521,6 @@ export async function POST(
           criterionId: c.id,
           text,
           rating: professionalResult.grade || "B",
-          // Use the derived score from the review engine (computed from finding severity)
-          // instead of the previously hardcoded constant 85.
           numericScore: professionalResult.derivedScore ?? 75,
           suggestions: matchingFindings.map((f: any) => f.recommendation).filter(Boolean),
         }
@@ -481,6 +534,7 @@ export async function POST(
         citationIssues: [],
       }
     } else {
+      // Path A: Standard review generation (Default)
       result = await generateAIResponse("thesis-review", {
         model: resolveAiModel("thesis"),
         systemPrompt,
@@ -492,6 +546,32 @@ export async function POST(
 
       // Post-generation validation
       validateGeneratedSections(result.sections, activeCriterionIds)
+
+      // Task 11: Deterministic academic checks on Path A
+      const structure = extractDocumentStructure(ragContext.fullText, normalizedMetadata)
+      const alignmentResult = checkObjectiveAlignment(structure, ragContext, lang)
+      const citationAuditResult = auditCitationConsistency(structure, ragContext, lang)
+
+      // 1. Merge citation consistency issues into result.citationIssues
+      const deterministicCitationIssues = citationAuditResult.findings.map(
+        (f) => `${f.title}: ${f.explanation}`
+      )
+      result.citationIssues = Array.from(
+        new Set([...(result.citationIssues || []), ...deterministicCitationIssues])
+      )
+
+      // 2. Merge objective alignment suggestions into matching legacy section suggestions
+      for (const f of alignmentResult.findings) {
+        const targetId = (f.criterionId && RUBRIC_CRITERIA_MAP[f.criterionId]) || f.criterionId || "goal_definition"
+        const targetSec = result.sections.find(
+          (s: any) => s.id === targetId || s.sectionId === targetId || s.criterionId === targetId
+        )
+        if (targetSec && f.recommendation) {
+          targetSec.suggestions = Array.from(
+            new Set([...(targetSec.suggestions || []), f.recommendation])
+          )
+        }
+      }
     }
 
     // 7. Compute recommendation if not provided
@@ -531,7 +611,7 @@ export async function POST(
         proposedGradeRange: professionalResult?.proposedGradeRange ?? null,
         confidence: 0.88,
         limitationsSummary: null,
-        reportingStandard: thesisMetadata.reportingStandard ?? "none",
+        reportingStandard: effectiveReportingStandard,
         reportingGuidelineChecks: professionalResult?.reportingGuidelineChecks ? JSON.stringify(professionalResult.reportingGuidelineChecks) : null,
         confidentialComments: professionalResult?.confidentialComments ?? null,
         debateLog: professionalResult?.debateLog ?? null,
@@ -553,7 +633,13 @@ export async function POST(
       rubricVersion: "sk-academic-v1",
       proposedGradeRange: professionalResult?.proposedGradeRange,
       derivedScore: professionalResult?.derivedScore,
-      reportingStandard: thesisMetadata.reportingStandard,
+      reportingStandard: effectiveReportingStandard,
+      suggestedReportingStandard,
+      disciplineClassification: classification ? {
+        primaryDiscipline: classification.primaryDiscipline,
+        thesisType: classification.thesisType,
+        confidence: classification.confidence,
+      } : null,
       reportingGuidelineChecks: professionalResult?.reportingGuidelineChecks ?? [],
       confidentialComments: professionalResult?.confidentialComments,
       phdEnrichment: professionalResult?.phdEnrichment ?? null,
@@ -598,7 +684,6 @@ export async function GET(
     if (err instanceof Response) return err
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
-
   const reviews = await prisma.thesisReview.findMany({
     where: { workspaceId },
     orderBy: { createdAt: "desc" },
