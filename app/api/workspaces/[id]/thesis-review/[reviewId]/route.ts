@@ -124,7 +124,10 @@ export async function PUT(
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error("[thesis-review PUT] Error:", err)
-    return NextResponse.json({ error: "Update failed" }, { status: 500 })
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Update failed" },
+      { status: 500 }
+    )
   }
 }
 
@@ -161,6 +164,9 @@ export async function DELETE(
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error("[thesis-review DELETE] Error:", err)
-    return NextResponse.json({ error: "Delete failed" }, { status: 500 })
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Delete failed" },
+      { status: 500 }
+    )
   }
 }

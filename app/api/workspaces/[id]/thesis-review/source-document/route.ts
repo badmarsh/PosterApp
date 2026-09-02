@@ -167,9 +167,9 @@ export async function GET(
       },
     })
   } catch (error) {
-    console.error("[thesis-review/source-document GET] Error reading source document")
+    console.error("[thesis-review/source-document GET] Error reading source document:", error)
     return NextResponse.json(
-      { error: "Failed to load manuscript source document" },
+      { error: error instanceof Error ? error.message : "Failed to load manuscript source document" },
       { status: 500 }
     )
   }

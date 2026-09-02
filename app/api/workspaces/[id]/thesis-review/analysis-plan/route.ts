@@ -64,7 +64,7 @@ export async function POST(
   } catch (err) {
     console.error("[analysis-plan POST] Error:", err)
     return NextResponse.json(
-      { error: "Failed to generate analysis plan" },
+      { error: err instanceof Error ? err.message : "Failed to generate analysis plan" },
       { status: 500 }
     )
   }
