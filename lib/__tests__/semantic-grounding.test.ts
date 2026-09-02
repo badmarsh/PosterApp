@@ -1,4 +1,12 @@
-import { describe, it, expect } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+
+const { mockGenerateLocalEmbedding } = vi.hoisted(() => ({
+  mockGenerateLocalEmbedding: vi.fn(),
+}))
+
+vi.mock("@/lib/ai/local-embeddings", () => ({
+  generateLocalEmbedding: mockGenerateLocalEmbedding,
+}))
 import {
   groundClaimInChunks,
   formatGroundedEvidenceBlock,
@@ -6,6 +14,13 @@ import {
 } from "@/lib/ai/evidence-validator"
 
 describe("Task 12: Strengthen Grounding Beyond Lexical Jaccard (Embedding-Assisted)", () => {
+  beforeEach(() => {
+    mockGenerateLocalEmbedding.mockReset()
+    mockGenerateLocalEmbedding
+      .mockResolvedValueOnce([1, 0])
+      .mockResolvedValue([0.8, 0.6])
+  })
+
   it("exports calibrated semantic match threshold of 0.6", () => {
     expect(SEMANTIC_MATCH_THRESHOLD).toBe(0.6)
   })
@@ -30,6 +45,7 @@ describe("Task 12: Strengthen Grounding Beyond Lexical Jaccard (Embedding-Assist
     expect(result!.chunkId).toBe("chunk-1")
     expect(result!.overlapScore).toBeGreaterThanOrEqual(0.15)
     expect(result!.verificationMethod).toBe("approximate")
+    expect(mockGenerateLocalEmbedding).not.toHaveBeenCalled()
   })
 
   it("returns null for completely unrelated claims with < 0.05 lexical overlap", async () => {
@@ -54,17 +70,16 @@ describe("Task 12: Strengthen Grounding Beyond Lexical Jaccard (Embedding-Assist
         id: "chunk-lr",
         heading: "Hyperparameters",
         // Paraphrase with shared semantic meaning but few identical content tokens
-        content: "We scheduled step decay for gradient descent optimization using half-cycle cosine decay parameters over 100 epochs.",
+        content: "We used scheduled parameter decay while performing optimization for one hundred epochs.",
       },
     ]
 
     const result = await groundClaimInChunks(claim, chunks)
-    // If local embedding finds semantic match or Jaccard clears threshold
-    if (result) {
-      expect(result.chunkId).toBe("chunk-lr")
-      expect(result.overlapScore).toBeGreaterThan(0)
-      expect(["approximate", "semantic_embedding"]).toContain(result.verificationMethod)
-    }
+    expect(result).not.toBeNull()
+    expect(result!.chunkId).toBe("chunk-lr")
+    expect(result!.overlapScore).toBeGreaterThanOrEqual(SEMANTIC_MATCH_THRESHOLD)
+    expect(result!.verificationMethod).toBe("semantic_embedding")
+    expect(mockGenerateLocalEmbedding).toHaveBeenCalledTimes(2)
   })
 
   it("formats grounded evidence block with proper labels for both approximate and semantic methods", () => {

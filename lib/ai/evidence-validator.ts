@@ -253,22 +253,32 @@ export function validateAndCalibrateFindings(
 // PaperQA2-style Context-Quote Grounding
 // ---------------------------------------------------------------------------
 
+// Starting value; needs empirical tuning.
+export const SEMANTIC_MATCH_THRESHOLD = 0.6
+
 export interface GroundedChunkResult {
   chunkId: string
   heading: string | null
   /** Sentence from the chunk that best supports the claim */
   anchorSentence: string
-  /** Normalized overlap score between claim tokens and anchor sentence tokens */
+  /** Normalized lexical overlap or embedding similarity for the supporting sentence. */
   overlapScore: number
+  verificationMethod: "approximate" | "semantic_embedding"
   /** Full chunk content (trimmed to 600 chars) */
   excerpt: string
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length || a.length === 0) return 0
+  return a.reduce((sum, value, index) => sum + value * b[index], 0)
 }
 
 /**
  * PaperQA2-style grounding: given a claim string and a list of retrieved RAG chunks,
  * finds the single best verbatim sentence from the corpus that supports the claim.
  *
- * Approach: token overlap scoring (no LLM, no API cost).
+ * Approach: lexical overlap first, then embeddings only for candidates in the
+ * ambiguous band. This keeps the common case free of embedding latency.
  *
  * The returned `anchorSentence` is verbatim from the source — it can be
  * included directly in the review as a `quote` field to make hallucinations
@@ -276,10 +286,10 @@ export interface GroundedChunkResult {
  *
  * Used by the review engine BEFORE generating text: retrieve → ground → generate.
  */
-export function groundClaimInChunks(
+export async function groundClaimInChunks(
   claimText: string,
   chunks: Array<{ id: string; heading: string | null; content: string }>
-): GroundedChunkResult | null {
+): Promise<GroundedChunkResult | null> {
   if (!claimText || chunks.length === 0) return null
 
   // Tokenize claim
@@ -288,8 +298,7 @@ export function groundClaimInChunks(
   )
   if (claimTokens.size === 0) return null
 
-  let bestResult: GroundedChunkResult | null = null
-  let bestScore = 0
+  const candidates: GroundedChunkResult[] = []
 
   for (const chunk of chunks) {
     // Split chunk into sentences
@@ -307,21 +316,56 @@ export function groundClaimInChunks(
       for (const t of sentTokens) if (claimTokens.has(t)) hits++
       const score = hits / claimTokens.size
 
-      if (score > bestScore) {
-        bestScore = score
-        bestResult = {
+      if (score > 0) {
+        candidates.push({
           chunkId: chunk.id,
           heading: chunk.heading,
           anchorSentence: sentence,
           overlapScore: Math.round(score * 1000) / 1000,
+          verificationMethod: "approximate",
           excerpt: chunk.content.slice(0, 600),
-        }
+        })
       }
     }
   }
 
-  // Require minimum overlap to avoid spurious anchoring
-  return bestScore >= 0.15 ? bestResult : null
+  if (candidates.length === 0) return null
+  candidates.sort((a, b) => b.overlapScore - a.overlapScore)
+
+  const bestLexical = candidates[0]
+  if (bestLexical.overlapScore >= 0.15) return bestLexical
+  if (bestLexical.overlapScore < 0.05) return null
+
+  try {
+    const { generateLocalEmbedding } = await import("./local-embeddings")
+    const claimEmbedding = await generateLocalEmbedding(claimText)
+    let bestSemantic: GroundedChunkResult | null = null
+
+    // Starting value; needs empirical tuning. Restrict embedding work to the
+    // strongest lexical candidates so every sentence is never embedded.
+    const SEMANTIC_CANDIDATE_LIMIT = 5
+    for (const candidate of candidates.slice(0, SEMANTIC_CANDIDATE_LIMIT)) {
+      const similarity = cosineSimilarity(
+        claimEmbedding,
+        await generateLocalEmbedding(candidate.anchorSentence)
+      )
+      if (!bestSemantic || similarity > bestSemantic.overlapScore) {
+        bestSemantic = {
+          ...candidate,
+          overlapScore: Math.round(similarity * 1000) / 1000,
+          verificationMethod: "semantic_embedding",
+        }
+      }
+    }
+
+    if (bestSemantic && bestSemantic.overlapScore >= SEMANTIC_MATCH_THRESHOLD) {
+      return bestSemantic
+    }
+  } catch (error) {
+    console.warn("[groundClaimInChunks] Embedding verification unavailable:", error)
+  }
+
+  return null
 }
 
 /**
@@ -333,14 +377,17 @@ export function formatGroundedEvidenceBlock(
   grounds: Array<GroundedChunkResult | null>,
   criterionLabel: string
 ): string {
-  const valid = grounds.filter((g): g is GroundedChunkResult => g !== null && g.overlapScore >= 0.15)
+  const valid = grounds.filter((g): g is GroundedChunkResult => g !== null && (
+    g.overlapScore >= 0.15 || g.verificationMethod === "semantic_embedding"
+  ))
   if (valid.length === 0) return ""
 
   const lines = [`[Retrieved Evidence for "${criterionLabel}" — quote verbatim from these passages]\n`]
   for (const g of valid.slice(0, 6)) {
     lines.push(`Section: ${g.heading || "—"}`)
     lines.push(`> "${g.anchorSentence}"`)
-    lines.push(`(Chunk ${g.chunkId.slice(0, 8)}, overlap: ${Math.round(g.overlapScore * 100)}%)\n`)
+    const method = g.verificationMethod === "semantic_embedding" ? "semantic similarity" : "overlap"
+    lines.push(`(Chunk ${g.chunkId.slice(0, 8)}, ${method}: ${Math.round(g.overlapScore * 100)}%)\n`)
   }
   lines.push("[End of retrieved evidence — do not fabricate citations outside the above]\n")
   return lines.join("\n")
