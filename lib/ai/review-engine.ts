@@ -60,6 +60,10 @@ import {
   calculateGradeRange,
   getApplicableCriteriaForThesisType,
   SK_ACADEMIC_RUBRIC_V1,
+  reconcileGrade,
+  HARSH_OUTLIER_THRESHOLD,
+  GRADE_DIVERGENCE_THRESHOLD,
+  type GradeReconciliationResult,
 } from "./rubric-engine"
 import { THESIS_CRITERIA } from "./thesis-rubric"
 
@@ -131,10 +135,10 @@ export function buildRubricGuidanceText(
  * model writes, so it has verbatim best-matching sentences available up front.
  * PaperQA2 "retrieve → ground → generate" pattern.
  */
-export function buildPreGenerationGrounding(
+export async function buildPreGenerationGrounding(
   sections: Array<{ id: string; heading: string; content: string }>,
   language: ReviewLanguage
-): string {
+): Promise<string> {
   if (sections.length === 0) return ""
 
   const chunks = sections.map((s) => ({ id: s.id, heading: s.heading, content: s.content }))
@@ -144,7 +148,7 @@ export function buildPreGenerationGrounding(
     if (criterion.id === "defense_questions") continue
     const label = criterion.labels[language] ?? criterion.labels.en
     const claimText = `${label}: ${criterion.guidance[language] ?? criterion.guidance.en}`
-    const result = groundClaimInChunks(claimText, chunks)
+    const result = await groundClaimInChunks(claimText, chunks)
     const block = formatGroundedEvidenceBlock([result], label)
     if (block) grounds.push(block)
   }
@@ -184,33 +188,6 @@ export function computeScoreFromFindings(findings: ReviewFinding[]): number {
     score -= deduction
   }
   return Math.min(100, Math.max(10, score))
-}
-
-const ECTS_TO_SCORE: Record<string, number> = { A: 95, B: 85, C: 75, D: 65, E: 55, FX: 20 }
-const GRADE_DIVERGENCE_THRESHOLD = 15
-
-/**
- * Reconciles the LLM's free-text self-reported grade against the evidence-derived
- * score. Never allows the saved grade to be more LENIENT than the derived grade by
- * more than GRADE_DIVERGENCE_THRESHOLD score points — a self-report that is harsher
- * than the derived score is left alone (erring conservative is safe).
- */
-export function reconcileGrade(
-  selfReportedGrade: string | undefined,
-  derivedScore: number,
-  derivedGrade: string
-): { grade: string; note?: string } {
-  if (!selfReportedGrade || !(selfReportedGrade in ECTS_TO_SCORE)) {
-    return { grade: derivedGrade }
-  }
-  const selfScore = ECTS_TO_SCORE[selfReportedGrade]
-  if (selfScore - derivedScore > GRADE_DIVERGENCE_THRESHOLD) {
-    return {
-      grade: derivedGrade,
-      note: `AI self-reported grade (${selfReportedGrade}, ~${selfScore}) was more lenient than the evidence-derived score (${Math.round(derivedScore)} \u2192 ${derivedGrade}) by more than ${GRADE_DIVERGENCE_THRESHOLD} points. Downgraded to the derived grade as the more conservative, evidence-grounded estimate.`,
-    }
-  }
-  return { grade: selfReportedGrade }
 }
 
 /**
@@ -610,7 +587,7 @@ ${formatGradeAnchorsText(profile, options.language)}
 
   const effectiveThesisType: DetailedThesisType = options.detailedThesisType ?? "unknown"
   const rubricGuidanceText = buildRubricGuidanceText(effectiveThesisType, options.language)
-  const preGroundingText = buildPreGenerationGrounding(rag.sections, options.language)
+  const preGroundingText = await buildPreGenerationGrounding(rag.sections, options.language)
 
   const systemPrompt = `You are a distinguished senior peer reviewer and academic expert performing a highly critical, rigorous, evidence-grounded review of a manuscript following COPE Ethical Guidelines and Nature/PLOS standards.
 
@@ -861,3 +838,9 @@ Respond with a valid JSON object matching this structure:
 }
 
 export { calculateFindingPriority, sortFindingsByPriority } from "./review-priorities"
+export {
+  reconcileGrade,
+  HARSH_OUTLIER_THRESHOLD,
+  GRADE_DIVERGENCE_THRESHOLD,
+  type GradeReconciliationResult,
+} from "./rubric-engine"

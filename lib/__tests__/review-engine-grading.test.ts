@@ -14,10 +14,11 @@ describe("reconcileGrade", () => {
     expect(result.note).toMatch(/Downgraded/)
   })
 
-  it("keeps a harsher self-report unchanged (D vs derivedScore 95 -> stays D)", () => {
+  it("keeps a harsher self-report unchanged (D vs derivedScore 95 -> stays D) with harsh outlier warning", () => {
     const result = reconcileGrade("D", 95, "A")
     expect(result.grade).toBe("D")
-    expect(result.note).toBeUndefined()
+    expect(result.harshOutlierDivergence).toBe(true)
+    expect(result.note).toContain("[Warning]")
   })
 
   it("falls back to derivedGrade when self-report is undefined", () => {

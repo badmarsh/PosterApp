@@ -321,3 +321,11 @@ export function composeFullReviewNarrative(
     includedFindingsCount: eligibleFindings.length,
   }
 }
+
+export {
+  reconcileGrade,
+  HARSH_OUTLIER_THRESHOLD,
+  GRADE_DIVERGENCE_THRESHOLD,
+  type GradeReconciliationResult,
+} from "./rubric-engine"
+

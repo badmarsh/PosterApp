@@ -902,8 +902,9 @@ export interface GradeReconciliationResult {
  * more than GRADE_DIVERGENCE_THRESHOLD score points — a self-report that is harsher
  * than the derived score is left alone (erring conservative is safe).
  *
- * Additionally flags severe divergences (|selfScore - derivedScore| >= HARSH_OUTLIER_THRESHOLD)
- * with `harshOutlierDivergence: true` and a warning to alert the human reviewer.
+ * A self-report that is substantially harsher than the evidence-derived score is
+ * preserved but flagged for the human reviewer; lenient self-reports remain subject
+ * only to the existing corrective guard below.
  */
 export function reconcileGrade(
   selfReportedGrade: string | undefined,
@@ -914,21 +915,20 @@ export function reconcileGrade(
     return { grade: derivedGrade }
   }
   const selfScore = ECTS_TO_SCORE[selfReportedGrade]
-  const delta = Math.abs(selfScore - derivedScore)
-  const isHarshOutlier = delta >= HARSH_OUTLIER_THRESHOLD
+  const harshDelta = derivedScore - selfScore
+  const isHarshOutlier = harshDelta > HARSH_OUTLIER_THRESHOLD
 
   const divergenceWarning = isHarshOutlier
-    ? `Primary self-reported assessment (${selfReportedGrade}, ~${selfScore}) and evidence-derived score (${Math.round(derivedScore)} \u2192 ${derivedGrade}) diverged significantly (delta = ${Math.round(delta)} >= ${HARSH_OUTLIER_THRESHOLD}). Human reviewer should carefully verify findings before finalizing grade.`
+    ? `AI self-reported grade (${selfReportedGrade}, ~${selfScore}) is likely a harsh miscalibration outlier: it is ${Math.round(harshDelta)} points below the evidence-derived score (${Math.round(derivedScore)} \u2192 ${derivedGrade}), exceeding the ${HARSH_OUTLIER_THRESHOLD}-point review threshold. The grade was preserved for human review.`
     : undefined
 
   if (selfScore - derivedScore > GRADE_DIVERGENCE_THRESHOLD) {
     const note = `AI self-reported grade (${selfReportedGrade}, ~${selfScore}) was more lenient than the evidence-derived score (${Math.round(derivedScore)} \u2192 ${derivedGrade}) by more than ${GRADE_DIVERGENCE_THRESHOLD} points. Downgraded to the derived grade as the more conservative, evidence-grounded estimate.`
     return {
       grade: derivedGrade,
-      note: divergenceWarning ? `${note}\n\n[Warning] ${divergenceWarning}` : note,
-      harshOutlierDivergence: isHarshOutlier,
-      divergenceDelta: Math.round(delta),
-      divergenceWarning,
+      note,
+      harshOutlierDivergence: false,
+      divergenceDelta: Math.round(Math.abs(selfScore - derivedScore)),
     }
   }
 
@@ -936,7 +936,7 @@ export function reconcileGrade(
     grade: selfReportedGrade,
     note: divergenceWarning ? `[Warning] ${divergenceWarning}` : undefined,
     harshOutlierDivergence: isHarshOutlier,
-    divergenceDelta: Math.round(delta),
+    divergenceDelta: Math.round(Math.abs(selfScore - derivedScore)),
     divergenceWarning,
   }
 }

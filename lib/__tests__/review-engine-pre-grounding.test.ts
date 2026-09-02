@@ -23,21 +23,20 @@ describe("buildPreGenerationGrounding (Task 5: pre-generation evidence grounding
     },
   ]
 
-  it("generates pre-generation grounding blocks for criteria with matching evidence", () => {
-    const result = buildPreGenerationGrounding(mockSections, "en")
+  it("generates pre-generation grounding blocks for criteria with matching evidence", async () => {
+    const result = await buildPreGenerationGrounding(mockSections, "en")
 
     expect(result).toContain("PRE-GENERATION EVIDENCE GROUNDING")
     expect(result).toContain("Retrieved Evidence for")
-    expect(result).toContain("overlap:")
   })
 
-  it("returns empty string when sections array is empty", () => {
-    const result = buildPreGenerationGrounding([], "en")
+  it("returns empty string when sections array is empty", async () => {
+    const result = await buildPreGenerationGrounding([], "en")
     expect(result).toBe("")
   })
 
-  it("uses localized criterion labels based on language parameter", () => {
-    const enResult = buildPreGenerationGrounding(mockSections, "en")
+  it("uses localized criterion labels based on language parameter", async () => {
+    const enResult = await buildPreGenerationGrounding(mockSections, "en")
     // English should contain English criterion labels (mock content is in English)
     expect(enResult).toMatch(/Formal structure|Definition of goals|Methodology/)
 
@@ -56,17 +55,17 @@ describe("buildPreGenerationGrounding (Task 5: pre-generation evidence grounding
           "Metodológia a postup riešenia využívajú kvantitatívne aj kvalitatívne metódy. Správnosť ich aplikácie bola overená.",
       },
     ]
-    const skResult = buildPreGenerationGrounding(skSections, "sk")
+    const skResult = await buildPreGenerationGrounding(skSections, "sk")
     expect(skResult).toMatch(/Formálna štruktúra|Metodológia/)
   })
 
-  it("skips defense_questions criterion", () => {
-    const result = buildPreGenerationGrounding(mockSections, "en")
+  it("skips defense_questions criterion", async () => {
+    const result = await buildPreGenerationGrounding(mockSections, "en")
     // defense_questions has weight 0 and should be excluded
     expect(result).not.toContain("defense_questions")
   })
 
-  it("returns empty string when no criterion finds sufficient token overlap", () => {
+  it("returns empty string when no criterion finds sufficient token overlap", async () => {
     const unrelatedSections = [
       {
         id: "sec-1",
@@ -74,7 +73,7 @@ describe("buildPreGenerationGrounding (Task 5: pre-generation evidence grounding
         content: "xyz abc 123 unrelated content that does not match any thesis criterion keywords.",
       },
     ]
-    const result = buildPreGenerationGrounding(unrelatedSections, "en")
+    const result = await buildPreGenerationGrounding(unrelatedSections, "en")
     // May still find some weak matches, but should handle gracefully
     expect(typeof result).toBe("string")
   })

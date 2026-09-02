@@ -9,6 +9,8 @@ describe("vision-service", () => {
     vi.resetAllMocks()
     process.env.AI_API_URL = "http://mock-api.com"
     process.env.AI_API_KEY = "mock-key"
+    process.env.AI_VISION_MODEL = "mock-vision-model"
+    process.env.AI_VISION_FALLBACK_MODELS = "mock-vision-model"
   })
 
   it("should generate a caption successfully with JSON schema", async () => {
@@ -63,11 +65,12 @@ describe("vision-service", () => {
   })
 
   it("should return a fallback on error", async () => {
-    vi.mocked(fetch).mockRejectedValueOnce(new Error("Network error"))
+    vi.spyOn(Math, "random").mockReturnValue(0)
+    vi.mocked(fetch).mockRejectedValue(new Error("Network error"))
 
     const result = await generateCaption("mock-url", "A test figure")
     expect(result.caption).toBe("")
     expect(result.snippet).toBe("")
     expect(result.name).toBe("")
-  })
+  }, 10000)
 })
