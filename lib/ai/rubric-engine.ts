@@ -852,3 +852,92 @@ export function calculateGradeRange(score: number): { grade: CriterionRating; ra
 
   return { grade, range, minScore, maxScore }
 }
+
+/**
+ * Maps granular rubric criteria (12 from SK_ACADEMIC_RUBRIC_V1 + formal_language)
+ * to the display/export criteria (7 core criteria from THESIS_CRITERIA).
+ */
+export const RUBRIC_CRITERIA_MAP: Record<string, string> = {
+  problem_relevance: "goal_definition",
+  objectives_clarity: "goal_definition",
+  theoretical_background: "goal_definition",
+  methodology_rigor: "methodology",
+  analytical_execution: "methodology",
+  results_validity: "results",
+  discussion_relation: "results",
+  limitations_future_work: "results",
+  originality_contribution: "originality",
+  structure_coherence: "formal_structure",
+  citations_quality: "citations_bibliography",
+  ethics_transparency: "formal_structure",
+  formal_language: "language_quality",
+}
+
+export const NO_FINDINGS_SYNTHESIS: Record<ReviewLanguage, string> = {
+  sk: "V tejto oblasti neboli identifikované žiadne zásadné nedostatky. Práca spĺňa stanovené požiadavky na primeranej úrovni.",
+  cs: "V této oblasti nebyly identifikovány žádné zásadní nedostatky. Práce splňuje stanovené požadavky na odpovídající úrovni.",
+  en: "No significant deficiencies were identified in this area. The thesis meets the established requirements at an appropriate standard.",
+}
+
+export function mapRubricCriterionToDisplay(criterionIdOrKey: string): string {
+  return RUBRIC_CRITERIA_MAP[criterionIdOrKey] || criterionIdOrKey
+}
+
+const ECTS_TO_SCORE: Record<string, number> = { A: 95, B: 85, C: 75, D: 65, E: 55, FX: 20 }
+// Starting value; needs empirical tuning
+export const HARSH_OUTLIER_THRESHOLD = 20
+export const GRADE_DIVERGENCE_THRESHOLD = 15
+
+export interface GradeReconciliationResult {
+  grade: string
+  note?: string
+  harshOutlierDivergence?: boolean
+  divergenceDelta?: number
+  divergenceWarning?: string
+}
+
+/**
+ * Reconciles the LLM's free-text self-reported grade against the evidence-derived
+ * score. Never allows the saved grade to be more LENIENT than the derived grade by
+ * more than GRADE_DIVERGENCE_THRESHOLD score points — a self-report that is harsher
+ * than the derived score is left alone (erring conservative is safe).
+ *
+ * Additionally flags severe divergences (|selfScore - derivedScore| >= HARSH_OUTLIER_THRESHOLD)
+ * with `harshOutlierDivergence: true` and a warning to alert the human reviewer.
+ */
+export function reconcileGrade(
+  selfReportedGrade: string | undefined,
+  derivedScore: number,
+  derivedGrade: string
+): GradeReconciliationResult {
+  if (!selfReportedGrade || !(selfReportedGrade in ECTS_TO_SCORE)) {
+    return { grade: derivedGrade }
+  }
+  const selfScore = ECTS_TO_SCORE[selfReportedGrade]
+  const delta = Math.abs(selfScore - derivedScore)
+  const isHarshOutlier = delta >= HARSH_OUTLIER_THRESHOLD
+
+  const divergenceWarning = isHarshOutlier
+    ? `Primary self-reported assessment (${selfReportedGrade}, ~${selfScore}) and evidence-derived score (${Math.round(derivedScore)} \u2192 ${derivedGrade}) diverged significantly (delta = ${Math.round(delta)} >= ${HARSH_OUTLIER_THRESHOLD}). Human reviewer should carefully verify findings before finalizing grade.`
+    : undefined
+
+  if (selfScore - derivedScore > GRADE_DIVERGENCE_THRESHOLD) {
+    const note = `AI self-reported grade (${selfReportedGrade}, ~${selfScore}) was more lenient than the evidence-derived score (${Math.round(derivedScore)} \u2192 ${derivedGrade}) by more than ${GRADE_DIVERGENCE_THRESHOLD} points. Downgraded to the derived grade as the more conservative, evidence-grounded estimate.`
+    return {
+      grade: derivedGrade,
+      note: divergenceWarning ? `${note}\n\n[Warning] ${divergenceWarning}` : note,
+      harshOutlierDivergence: isHarshOutlier,
+      divergenceDelta: Math.round(delta),
+      divergenceWarning,
+    }
+  }
+
+  return {
+    grade: selfReportedGrade,
+    note: divergenceWarning ? `[Warning] ${divergenceWarning}` : undefined,
+    harshOutlierDivergence: isHarshOutlier,
+    divergenceDelta: Math.round(delta),
+    divergenceWarning,
+  }
+}
+
