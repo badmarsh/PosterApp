@@ -4,6 +4,7 @@ import { parseBibKeys } from "@/lib/bib-parser"
 import { requireWorkspaceAccess, requireWorkspaceEditor } from "@/lib/auth"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { extractBibTeX } from "@/lib/services/bibtex-service"
+import { workspacePath } from "@/lib/workspace-files"
 import fs from "fs"
 import path from "path"
 
@@ -112,7 +113,7 @@ export async function POST(
   }
 
   try {
-    const sourcesDir = path.join(process.cwd(), "workspaces", id, "sources")
+    const sourcesDir = workspacePath(id, "sources")
     if (!fs.existsSync(sourcesDir)) {
       return NextResponse.json({ ok: true, count: 0, message: "No source files found" })
     }

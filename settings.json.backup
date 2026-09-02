@@ -1,0 +1,44 @@
+{
+  "ai": {
+    "models": {
+      "default": "gemini-3.7-flash",
+      "generation": "gemini-3.7-flash",
+      "structure": "gemini-3.7-flash",
+      "convert": "gemini-3.7-flash",
+      "shrink": "gemini-3.7-flash",
+      "review": "gemini-3.7-flash",
+      "reviewLayout": "qwen3-vl-flash",
+      "vision": "qwen3-vl-flash",
+      "ocr": "qwen3-vl-flash",
+      "chat": "gemini-3.7-flash",
+      "bibtex": "gemini-3.7-flash",
+      "labeler": "gemini-3.7-flash",
+      "autofix": "gemini-3.7-flash",
+      "thesis": "gemini-3.7-flash"
+    },
+    "timeouts": {
+      "vision": 60000,
+      "ocr": 90000,
+      "bibtex": 45000,
+      "labeler": 45000,
+      "structure": 60000,
+      "shrink": 120000,
+      "generation": 180000,
+      "review": 180000,
+      "chat": 180000,
+      "thesis": 120000
+    },
+    "fallbackVisionModels": [
+      "qwen-omni-turbo",
+      "qwen3-omni-flash",
+      "qwen3-vl-plus",
+      "qwen3-vl-flash",
+      "qwen-vl-max",
+      "qwen-vl-plus",
+      "qwen3-vl-235b-a22b-instruct",
+      "qwen3-omni-flash-2025-12-01",
+      "qwen3-vl-plus-2025-12-19",
+      "qwen3-vl-flash-2026-01-22"
+    ]
+  }
+}

@@ -3,7 +3,7 @@ import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
 import { getTwoColumnTemplate, getSingleColumnTemplate, getIEEEConfTemplate, getACMSigconfTemplate, getSpringerLLNCSTemplate, getJinstProceedingsTemplate, getPosProceedingsTemplate } from "./templates"
 import type { LatexGenerator } from "./types"
-import { assetUrlToLatexPath } from "./helpers"
+import { assetUrlToLatexPath, normalizeLatexPath } from "./helpers"
 
 function cleanCaption(caption: string | undefined, prefix: "Figure" | "Table"): string {
   if (!caption) return ""
@@ -53,7 +53,7 @@ function generateFigures(card: Card, workspaceId = "", isTwoColumn = false): str
   if (!figs.length) return "% no figures"
 
   function latexPath(url: string): string {
-    return workspaceId ? assetUrlToLatexPath(url, workspaceId) : url
+    return normalizeLatexPath(workspaceId ? assetUrlToLatexPath(url, workspaceId) : url)
   }
 
   const env = isTwoColumn ? "figure*" : "figure"

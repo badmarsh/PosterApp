@@ -1,10 +1,15 @@
 import { auth as clerkAuth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { prisma, type Prisma } from "@/lib/prisma"
 
 export const WORKSPACE_ROLES = ["owner", "editor", "viewer"] as const
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number]
 const WORKSPACE_ID = /^[A-Za-z0-9_-]{3,64}$/
+
+/** Workspace row as returned by requireWorkspaceAccess (includes filtered members). */
+export type WorkspaceWithMembers = Prisma.WorkspaceGetPayload<{
+  include: { members: { where: { userId: string }; select: { role: true } } }
+}>
 
 export async function auth() {
   if (process.env.NEXT_PUBLIC_E2E_TEST === "1" && process.env.NODE_ENV !== "production" && !process.env.VITEST) {
@@ -21,7 +26,7 @@ export function apiError(code: string, message: string, status: number) {
 }
 
 /** Central authorization boundary; legacy Workspace.userId remains the owner. */
-export async function requireWorkspaceAccess(workspaceId: string) {
+export async function requireWorkspaceAccess(workspaceId: string): Promise<{ workspace: WorkspaceWithMembers; userId: string; role: WorkspaceRole }> {
   if (!WORKSPACE_ID.test(workspaceId)) throw apiError("INVALID_WORKSPACE_ID", "Invalid workspace ID", 400)
   const { userId } = await auth()
   if (!userId) throw apiError("UNAUTHENTICATED", "Sign in to continue", 401)

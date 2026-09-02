@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { WORKSPACES_ROOT } from "@/lib/workspace-files"
 import fs from "fs"
 import path from "path"
 import { generateCaption } from "@/lib/services/vision-service"
@@ -60,7 +61,7 @@ async function backfillCaptions() {
 
     // Load sources context if available
     let contextWindow = ""
-    const sourcesDir = path.join(process.cwd(), "workspaces", workspaceId, "sources")
+    const sourcesDir = path.join(WORKSPACES_ROOT, workspaceId, "sources")
     if (fs.existsSync(sourcesDir)) {
       try {
         const sourceFiles = fs.readdirSync(sourcesDir).filter((f) => f.endsWith(".md"))
@@ -104,7 +105,7 @@ async function backfillCaptions() {
           console.log(`     - Description: "${generated.description}"\n`)
         }
       } else if (filename) {
-        const assetPath = path.join(process.cwd(), "workspaces", workspaceId, "assets", filename)
+        const assetPath = path.join(WORKSPACES_ROOT, workspaceId, "assets", filename)
         if (!fs.existsSync(assetPath)) {
           console.warn(`  ⚠️ File not found on disk at: ${assetPath}`)
           continue

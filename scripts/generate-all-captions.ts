@@ -2,6 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { prisma } from "../lib/prisma"
 import { generateCaption } from "../lib/services/vision-service"
+import { WORKSPACES_ROOT } from "../lib/workspace-files"
 
 async function run() {
   const workspaceId = "demo_mt6u6y7a"
@@ -14,7 +15,7 @@ async function run() {
 
   console.log(`[Captions] Found ${assets.length} total assets in workspace.`)
 
-  const assetsDir = path.join(process.cwd(), "workspaces", workspaceId, "assets")
+  const assetsDir = path.join(WORKSPACES_ROOT, workspaceId, "assets")
   let updatedCount = 0
   let failedCount = 0
 

@@ -99,6 +99,8 @@ export function useYjs(workspaceId: string) {
       cards.observe(currentObserver)
     }
 
+    let canWrite = false
+
     const connect = async () => {
       if (isCancelled) return
 
@@ -108,11 +110,14 @@ export function useYjs(workspaceId: string) {
           credentials: "same-origin",
         })
         if (isCancelled || !ticketResponse.ok) {
+          canWrite = false
           store.getState().setYjsStatus("disconnected")
           return
         }
         const { ticket } = (await ticketResponse.json()) as { ticket?: string }
         if (!ticket || isCancelled) return
+
+        canWrite = true
 
         class TicketWebSocket extends WebSocket {
           constructor(url: string | URL, _protocols?: string | string[]) {
@@ -163,6 +168,7 @@ export function useYjs(workspaceId: string) {
         })
       } catch (err) {
         console.error("[Yjs] Connection failed:", err)
+        canWrite = false
         store.getState().setYjsStatus("disconnected")
         if (!isCancelled) {
           if (reconnectTimer) clearTimeout(reconnectTimer)
@@ -175,7 +181,7 @@ export function useYjs(workspaceId: string) {
       bindOutput(currentBoundOutputId)
     }
 
-    // Listen for local Zustand changes and update Yjs
+    // Listen for local Zustand changes and update Yjs (gated on canWrite permission)
     let lastCards =
       store.getState().project.outputs?.find((o) => o.id === store.getState().project.activeOutputId)?.cards ?? []
     unsubscribeZustand = store.subscribe((state) => {
@@ -183,7 +189,7 @@ export function useYjs(workspaceId: string) {
       if (activeId !== currentBoundOutputId) {
         bindOutput(activeId)
       }
-      if (!currentYCards || !activeId) return
+      if (!canWrite || !currentYCards || !activeId) return
       const newCards = state.project.outputs?.find((o) => o.id === activeId)?.cards ?? []
       if (newCards !== lastCards) {
         lastCards = newCards
@@ -229,7 +235,7 @@ export function useYjs(workspaceId: string) {
       }
     }
 
-    // Listen for local Thesis Review changes and update Yjs
+    // Listen for local Thesis Review changes and update Yjs (gated on canWrite permission)
     let lastActiveReview: ThesisReviewRecord | null = useThesisReviewStore.getState().activeReview
     let unbindGranular: (() => void) | null = null
 
@@ -247,7 +253,7 @@ export function useYjs(workspaceId: string) {
           }
         }
         lastActiveReview = active
-        if (active && ydoc) {
+        if (canWrite && active && ydoc) {
           hydrateReviewIntoYDoc(ydoc, active, "local")
           ydoc.transact(() => {
             const currentStr = thesisReviewsMap.get(active.id)

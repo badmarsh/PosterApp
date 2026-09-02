@@ -37,13 +37,39 @@ export function sanitizeCiteKeys(
 
 /**
  * Wraps untrusted text (such as extracted PDF context) in delimited XML tags,
- * escaping any literal closing tags within the content to prevent prompt injection breakouts.
+ * escaping any literal closing tags and known prompt-structural tags within
+ * the content to prevent prompt injection breakouts.
  */
 export function wrapUntrustedContext(tag: string, content: string): string {
   if (!content) return `<${tag}>\n</${tag}>`
-  const escapedTag = tag.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")
-  const closeTagRegex = new RegExp(`</\\s*${escapedTag}\\s*>`, "gi")
-  const sanitized = content.replace(closeTagRegex, `< /${tag}>`)
+  
+  let sanitized = content
+  
+  // 1. Neutralize CDATA sections first (before tag processing)
+  sanitized = sanitized.replace(/<!\[CDATA\[/gi, '<![ CDATA[')
+  sanitized = sanitized.replace(/\]\]>/g, ']] >')
+  
+  // 2. Neutralize XML processing instructions
+  sanitized = sanitized.replace(/<\?/g, '< ?')
+  sanitized = sanitized.replace(/\?>/g, '? >')
+  
+  // 3. Neutralize DOCTYPE declarations
+  sanitized = sanitized.replace(/<!DOCTYPE\b/gi, '<! DOCTYPE')
+  
+  // 4. Neutralize ALL opening tags (not just known ones)
+  // This prevents injection of <script>, <img>, <instructions>, <=== TAG ===>, etc.
+  // Match: < followed by any non-whitespace char (tag name start), then everything up to > or />
+  sanitized = sanitized.replace(/<([^\s>\/][^>\/]*?)(\s[^>]*)?\/?>/g, (_match, tagName: string, attrs: string) => {
+    return `<${tagName}${attrs ? ' ' + attrs.trim() : ''} >`
+  })
+  
+  // 5. Neutralize ALL closing tags (including non-standard like </=== TAG ===>)
+  // First pass: well-formed closing tags </TAG>
+  sanitized = sanitized.replace(/<\/\s*([a-zA-Z0-9_\s/=-]+?)\s*>/g, (_match, tagName: string) => `< /${tagName}>`)
+  // Second pass: unclosed </ at start or preceded by something other than space
+  // Handles edge cases like "</content<..." where </ appears but isn't properly closed
+  sanitized = sanitized.replace(/<(\/[a-zA-Z0-9_\s/=-]+?)(?![^<>]*>)/g, '< $1')
+  
   return `<${tag}>\n${sanitized}\n</${tag}>`
 }
 

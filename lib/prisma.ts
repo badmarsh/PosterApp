@@ -1,7 +1,8 @@
 import { config } from "dotenv"
 config({ path: ".env.local" })
 config()
-import { PrismaClient } from "@prisma/client"
+import { PrismaClient, Prisma } from "@prisma/client"
+export type { Prisma } from "@prisma/client"
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined

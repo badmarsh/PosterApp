@@ -21,8 +21,7 @@ import type { ThesisReviewTemplate } from "@/lib/latex/templates-thesis"
 import type { ThesisSection, ReviewLanguage } from "@/lib/ai/thesis-rubric"
 import { deserializeThesisReview } from "@/lib/ai/review-serializer"
 import { safeContentDisposition, sanitizeFilename } from "@/lib/security"
-
-const ROOT = path.join(process.cwd(), "workspaces")
+import { WORKSPACES_ROOT, workspacePath } from "@/lib/workspace-files"
 import { safeLog, runSandboxedLatex } from "@/lib/latex/compiler-runner"
 
 export async function POST(
@@ -116,7 +115,7 @@ export async function POST(
     const pdfBuffer = await fs.readFile(pdfPath)
 
     // Also save a copy to workspace directory
-    const targetDir = path.join(ROOT, workspaceId)
+    const targetDir = workspacePath(workspaceId)
     await fs.mkdir(targetDir, { recursive: true })
     await fs.writeFile(path.join(targetDir, `thesis-review-${reviewId}.pdf`), pdfBuffer)
 
@@ -233,7 +232,7 @@ export async function GET(
     })
   }
 
-  const pdfPath = path.join(ROOT, workspaceId, `thesis-review-${reviewId}.pdf`)
+  const pdfPath = workspacePath(workspaceId, `thesis-review-${reviewId}.pdf`)
   const exists = await fs.access(pdfPath).then(() => true).catch(() => false)
 
   return NextResponse.json({ exists, url: exists ? `/api/workspaces/${workspaceId}/thesis-review/${reviewId}/pdf` : null })

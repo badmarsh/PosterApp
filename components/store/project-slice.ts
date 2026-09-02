@@ -1,6 +1,6 @@
 import type { EditorSlice, ProjectSlice } from "./types"
 import { sampleProjects } from "@/lib/mock-data"
-import { COLUMN_BUDGET, estimateHeight, generateLatexForCard, levelFromMessages, validateCard } from "@/lib/latex"
+import { COLUMN_BUDGET, estimateHeight, generateLatexForCard, hasUnsafeLatex, levelFromMessages, validateCard } from "@/lib/latex"
 import type { Project, OutputConfig, BlockPattern, Card } from "@/lib/poster-types"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { apiFetch } from "@/lib/api-fetch"
@@ -674,6 +674,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     const eligibleCards = sourceCards.filter((c) => c.pattern !== "references" && c.content.trim() !== "")
     let succeeded = 0
     let failed = 0
+    const validationWarnings: string[] = []
 
     for (let i = 0; i < eligibleCards.length; i++) {
       const sourceCard = eligibleCards[i]
@@ -711,19 +712,34 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
 
           const data = await res.json()
 
-          set((s) => {
-            if (s.project.id !== workspaceId || s.project.activeOutputId !== newOutputId) return
-            const c = syncActiveCards(s.project).find((c) => c.id === targetCard.id)
-            if (c && data.bullets) {
-              const rawBullets = Array.isArray(data.bullets) ? data.bullets : [data.bullets]
-              const sanitized = sanitizeCiteKeys(rawBullets, get().bibKeys || [])
-              c.content = targetType === "paper"
-                ? sanitized.join("\n\n")
-                : sanitized.map((b: string) => b.startsWith("* ") || b.startsWith("- ") ? b : `* ${b}`).join("\n\n")
-              c.title = data.title || targetCard.title
-              s.isDirty = true
+          // F5 fix: validate converted content before applying (matches autofix/chat flows)
+          if (data.bullets) {
+            const rawBullets = Array.isArray(data.bullets) ? data.bullets : [data.bullets]
+            const sanitized = sanitizeCiteKeys(rawBullets, get().bibKeys || [])
+            const newContent = targetType === "paper"
+              ? sanitized.join("\n\n")
+              : sanitized.map((b: string) => b.startsWith("* ") || b.startsWith("- ") ? b : `* ${b}`).join("\n\n")
+
+            const unsafeIssues = hasUnsafeLatex(newContent)
+            const cardErrors = validateCard({ ...targetCard, content: newContent })
+              .filter((m) => m.level === "error")
+              .map((m) => m.message)
+            const allErrors = [...unsafeIssues, ...cardErrors]
+
+            if (allErrors.length > 0) {
+              validationWarnings.push(`${targetCard.title || targetCard.id}: ${allErrors.join("; ")}`)
             }
-          })
+
+            set((s) => {
+              if (s.project.id !== workspaceId || s.project.activeOutputId !== newOutputId) return
+              const c = syncActiveCards(s.project).find((c) => c.id === targetCard.id)
+              if (c) {
+                c.content = newContent
+                c.title = data.title || targetCard.title
+                s.isDirty = true
+              }
+            })
+          }
 
           cardSucceeded = true
           succeeded++
@@ -753,9 +769,10 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     }
 
     get().updateEvent(evId, {
-      status: failed > 0 ? "warning" : "done",
+      status: failed > 0 ? "warning" : validationWarnings.length > 0 ? "warning" : "done",
       title: `Conversion Complete`,
-      detail: `${succeeded} succeeded, ${failed} failed.`
+      detail: `${succeeded} succeeded, ${failed} failed.${validationWarnings.length > 0 ? ` ${validationWarnings.length} card(s) have LaTeX validation warnings.` : ""}`,
+      ...(validationWarnings.length > 0 ? { validationWarnings } : {}),
     })
   },
 

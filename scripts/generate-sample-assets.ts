@@ -438,7 +438,7 @@ export async function generateSampleAssets() {
     const pngBuffer = await sharp(Buffer.from(svg)).png().toBuffer()
 
     for (const ws of workspaces) {
-      const dir = path.join(process.cwd(), "workspaces", ws, "assets")
+      const dir = path.join(WORKSPACES_ROOT, ws, "assets")
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
       fs.writeFileSync(path.join(dir, fig.name), pngBuffer)
     }

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { generateCaption } from "@/lib/services/vision-service"
+import { WORKSPACES_ROOT } from "@/lib/workspace-files"
 
 export async function POST(
   req: Request,
@@ -64,7 +65,7 @@ export async function POST(
     })
   }
 
-  const sourcesDir = path.join(process.cwd(), "workspaces", workspaceId, "sources")
+  const sourcesDir = path.join(WORKSPACES_ROOT, workspaceId, "sources")
   const sourcesMap = new Map<string, string>()
   if (fs.existsSync(sourcesDir)) {
     try {
@@ -76,7 +77,7 @@ export async function POST(
   }
 
   const { generateEquationCaption } = await import("@/lib/services/equation-service")
-  const updatedAssets: any[] = []
+  const updatedAssets: { id: string; caption: string }[] = []
   let updatedCount = 0
 
   for (let i = 0; i < candidates.length; i++) {
@@ -129,7 +130,7 @@ export async function POST(
           }
         }
       } else if (filename) {
-        const assetPath = path.join(process.cwd(), "workspaces", workspaceId, "assets", filename)
+        const assetPath = path.join(WORKSPACES_ROOT, workspaceId, "assets", filename)
         if (fs.existsSync(assetPath)) {
           const fileBuffer = fs.readFileSync(assetPath)
           const base64 = fileBuffer.toString("base64")

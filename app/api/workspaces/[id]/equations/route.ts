@@ -4,6 +4,8 @@ import { requireWorkspaceAccess, requireWorkspaceEditor } from "@/lib/auth"
 import { randomUUID } from "crypto"
 import { cleanFormula, slugifyEquationKey, type EquationItem } from "@/lib/equation-types"
 import { validateEquationKaTeX } from "@/lib/services/equation-service"
+import { rateLimitAsync } from "@/lib/rate-limit"
+import { safeApiError } from "@/lib/security"
 
 export async function GET(
   _req: Request,
@@ -38,7 +40,7 @@ export async function GET(
   } catch (err) {
     if (err instanceof Response) return err
     console.error("[Equations GET] Error:", err)
-    return NextResponse.json({ error: "Failed to load equations" }, { status: 500 })
+    return safeApiError("Failed to load equations", 500)
   }
 }
 
@@ -49,7 +51,15 @@ export async function POST(
   const { id } = await params
 
   try {
-    await requireWorkspaceEditor(id)
+    const { userId } = await requireWorkspaceEditor(id)
+
+    const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:${id}:equation-create`, 20, 60_000)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many equation requests", retryAfterMs },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+      )
+    }
 
     const body = await req.json() as Partial<EquationItem>
     const rawFormula = body.formula?.trim() || ""
@@ -112,7 +122,15 @@ export async function PUT(
   const { id } = await params
 
   try {
-    await requireWorkspaceEditor(id)
+    const { userId } = await requireWorkspaceEditor(id)
+
+    const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:${id}:equation-update`, 20, 60_000)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many equation update requests", retryAfterMs },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+      )
+    }
 
     const body = await req.json() as Partial<EquationItem> & { id: string }
     if (!body.id) {
@@ -161,7 +179,7 @@ export async function PUT(
   } catch (err) {
     if (err instanceof Response) return err
     console.error("[Equations PUT] Error:", err)
-    return NextResponse.json({ error: "Failed to update equation" }, { status: 500 })
+    return safeApiError("Failed to update equation", 500)
   }
 }
 
@@ -172,7 +190,16 @@ export async function DELETE(
   const { id } = await params
 
   try {
-    await requireWorkspaceEditor(id)
+    // Editor role is appropriate for deleting workspace equation assets
+    const { userId } = await requireWorkspaceEditor(id)
+
+    const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:${id}:equation-delete`, 20, 60_000)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many equation delete requests", retryAfterMs },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+      )
+    }
 
     const url = new URL(req.url)
     const eqId = url.searchParams.get("id")
@@ -192,6 +219,6 @@ export async function DELETE(
   } catch (err) {
     if (err instanceof Response) return err
     console.error("[Equations DELETE] Error:", err)
-    return NextResponse.json({ error: "Failed to delete equation" }, { status: 500 })
+    return safeApiError("Failed to delete equation", 500)
   }
 }

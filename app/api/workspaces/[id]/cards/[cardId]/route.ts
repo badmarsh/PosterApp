@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { requireWorkspaceAccess, requireWorkspaceEditor } from "@/lib/auth"
+import { rateLimitAsync } from "@/lib/rate-limit"
+import { safeApiError } from "@/lib/security"
 import { z } from "zod"
 
 const CardSchema = z.object({
@@ -46,7 +48,7 @@ export async function GET(
   } catch (err) {
     if (err instanceof Response) return err
     console.error("[Card GET] Error:", err)
-    return NextResponse.json({ error: "Failed to load card" }, { status: 500 })
+    return safeApiError("Failed to load card", 500)
   }
 }
 
@@ -56,7 +58,16 @@ export async function PUT(
 ) {
   const { id, cardId } = await params
   try {
-    await requireWorkspaceEditor(id)
+    // Editor role is appropriate for updating individual cards in a project
+    const { userId } = await requireWorkspaceEditor(id)
+
+    const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:${id}:card-update`, 30, 60_000)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many card update requests", retryAfterMs },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+      )
+    }
 
     const rawBody = await req.json()
     const parsed = CardSchema.safeParse(rawBody)
@@ -116,7 +127,7 @@ export async function PUT(
   } catch (err) {
     if (err instanceof Response) return err
     console.error("[Card PUT] Error:", err)
-    return NextResponse.json({ error: "Failed to update card" }, { status: 500 })
+    return safeApiError("Failed to update card", 500)
   }
 }
 
@@ -126,7 +137,16 @@ export async function DELETE(
 ) {
   const { id, cardId } = await params
   try {
-    await requireWorkspaceEditor(id)
+    // Editor role is appropriate for deleting individual cards within an existing output
+    const { userId } = await requireWorkspaceEditor(id)
+
+    const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:${id}:card-delete`, 30, 60_000)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many card delete requests", retryAfterMs },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+      )
+    }
 
     const existing = await prisma.card.findUnique({ 
       where: { id: cardId },
@@ -143,6 +163,6 @@ export async function DELETE(
   } catch (err) {
     if (err instanceof Response) return err
     console.error("[Card DELETE] Error:", err)
-    return NextResponse.json({ error: "Failed to delete card" }, { status: 500 })
+    return safeApiError("Failed to delete card", 500)
   }
 }

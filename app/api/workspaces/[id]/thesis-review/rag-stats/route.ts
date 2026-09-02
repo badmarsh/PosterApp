@@ -21,6 +21,7 @@ import { prisma } from "@/lib/prisma"
 import { Prisma } from "@prisma/client"
 import { retrieveForCriterion } from "@/lib/ai/vector-rag"
 import { getEmbeddingCacheStats } from "@/lib/ai/local-embeddings"
+import { workspacePath } from "@/lib/workspace-files"
 
 // ---------------------------------------------------------------------------
 // GET — index diagnostics
@@ -165,7 +166,7 @@ export async function GET(
     for (const docId of docIds) {
       if (!topicById[docId]) {
         try {
-          const srcPath = path.join(process.cwd(), "workspaces", workspaceId, "sources", `${docId}.md`)
+          const srcPath = workspacePath(workspaceId, "sources", `${docId}.md`)
           if (fs.existsSync(srcPath)) {
             const raw = fs.readFileSync(srcPath, "utf-8").slice(0, 4000)
             const match = raw.match(/^#\s+(.+)$/m) || raw.match(/^[A-ZÁ-Ž0-9\s]{6,80}$/m)

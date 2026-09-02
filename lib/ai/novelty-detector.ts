@@ -98,7 +98,7 @@ export async function extractClaims(thesisText: string, maxClaims = MAX_CLAIMS):
   const sample = thesisText.slice(0, 40000)
 
   const result = await generateAIResponse("NoveltyDetector-ClaimExtraction", {
-    model: process.env.AI_MODEL || "gemini-3-flash",
+    model: process.env.AI_MODEL || "gemini-3.7-flash",
     systemPrompt: `You are an expert academic reviewer. Extract the ${maxClaims} most important, specific, and testable factual claims from the following thesis excerpt. 
 Focus on:
 - Empirical findings ("We found that X achieves Y%...")

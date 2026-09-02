@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest"
 import {
   buildWorkflowSteps,
-  mapLegacyStepToId,
   WORKFLOW_PRESETS,
   ALL_WORKFLOW_STEPS,
   type WorkflowContext,

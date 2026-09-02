@@ -280,28 +280,3 @@ export function buildWorkflowSteps(
   })
 }
 
-/**
- * Maps legacy 4-step numbers (1..4) or standard 6-step numbers (1..6) to a WorkflowStepId.
- */
-export function mapLegacyStepToId(stepNum: number, maxSteps: number = 6): WorkflowStepId {
-  if (maxSteps === 4) {
-    switch (stepNum) {
-      case 1: return "document_integrity"
-      case 2: return "text_understanding"
-      case 3: return "evidence_analysis"
-      case 4: return "draft_review"
-      default: return "document_integrity"
-    }
-  }
-
-  // Standard 6-step mapping
-  switch (stepNum) {
-    case 1: return "document_integrity"
-    case 2: return "text_understanding"
-    case 3: return "plan_and_rubric"
-    case 4: return "evidence_analysis"
-    case 5: return "draft_review"
-    case 6: return "verification_and_export"
-    default: return "document_integrity"
-  }
-}

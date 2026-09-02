@@ -6,12 +6,21 @@ export function indent(s: string, n = 2): string {
     .join("\n")
 }
 
+/**
+ * LaTeX cannot handle Windows backslash separators in \includegraphics paths:
+ * `assets\remote\fig.jpg` is parsed as control sequences (`\r`, `\remote`).
+ * Always emit forward slashes in generated .tex.
+ */
+export function normalizeLatexPath(p: string): string {
+  return p.replace(/\\/g, "/")
+}
+
 export function assetUrlToLatexPath(apiUrl: string, workspaceId: string): string {
   const prefix = `/api/workspaces/${workspaceId}/assets/`
   if (apiUrl.startsWith(prefix)) {
-    return `assets/${apiUrl.slice(prefix.length)}`
+    return normalizeLatexPath(`assets/${apiUrl.slice(prefix.length)}`)
   }
-  return apiUrl
+  return normalizeLatexPath(apiUrl)
 }
 
 export function cleanCaption(caption: string | undefined, prefix: "Figure" | "Table"): string {

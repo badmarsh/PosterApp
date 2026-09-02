@@ -4,7 +4,7 @@ import { extractCiteKeys } from "@/lib/bib-parser"
 import type { LatexGenerator } from "./types"
 import { getMetropolisTemplate, getBeamerAtlasTemplate, getMadridTemplate, getDefaultTemplate, getFocusTemplate } from "./templates"
 
-import { assetUrlToLatexPath } from "./helpers"
+import { assetUrlToLatexPath, normalizeLatexPath } from "./helpers"
 
 export class BeamerSlidesGenerator implements LatexGenerator {
   outputType = "slides" as const
@@ -52,7 +52,7 @@ export class BeamerSlidesGenerator implements LatexGenerator {
           // Text left, figure right
           leftContent = parseMarkdownToLatex(c.content)
           const f = c.figures[0]!
-          const imgPath = workspaceId ? assetUrlToLatexPath(f.url, workspaceId) : f.url
+          const imgPath = normalizeLatexPath(workspaceId ? assetUrlToLatexPath(f.url, workspaceId) : f.url)
           rightContent = `\\includegraphics[width=\\linewidth,keepaspectratio]{${imgPath}}`
           if (f.caption) rightContent += `\n\\\\\n{\\footnotesize ${parseMarkdownToLatex(f.caption)}}`
           rightContent = `\\centering\n${rightContent}`

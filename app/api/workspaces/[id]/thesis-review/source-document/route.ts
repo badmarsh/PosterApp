@@ -12,11 +12,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import type { ReviewSourceDocument, ReviewSourceBlock } from "@/lib/ai/review-types"
+import { workspacePath } from "@/lib/workspace-files"
 import fs from "fs/promises"
 import path from "path"
 import { createHash } from "crypto"
 
-const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 const MAX_SOURCE_DOC_BYTES = 10 * 1024 * 1024 // 10 MB limit
 
 function parseMarkdownIntoBlocks(markdown: string): ReviewSourceBlock[] {
@@ -80,7 +80,7 @@ export async function GET(
 
   const requestedFileId = req.nextUrl.searchParams.get("fileId")
 
-  const sourcesDir = path.join(WORKSPACES_DIR, workspaceId, "sources")
+  const sourcesDir = workspacePath(workspaceId, "sources")
 
   try {
     let fullText = ""

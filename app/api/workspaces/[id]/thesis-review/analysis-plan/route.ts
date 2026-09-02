@@ -9,6 +9,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { generateReviewAnalysisPlan } from "@/lib/ai/analysis-plan"
+import { rateLimitAsync } from "@/lib/rate-limit"
+import { safeApiError } from "@/lib/security"
 import { z } from "zod"
 
 const RequestSchema = z.object({
@@ -38,11 +40,21 @@ export async function POST(
     return NextResponse.json({ error: "Invalid workspace ID" }, { status: 400 })
   }
 
+  let userId: string
   try {
-    await requireWorkspaceEditor(workspaceId)
+    const access = await requireWorkspaceEditor(workspaceId)
+    userId = access.userId
   } catch (err) {
     if (err instanceof Response) return err
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:${workspaceId}:analysis-plan`, 5, 60_000)
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many analysis plan requests", retryAfterMs },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+    )
   }
 
   let body: z.infer<typeof RequestSchema>
@@ -63,9 +75,6 @@ export async function POST(
     return NextResponse.json(plan)
   } catch (err) {
     console.error("[analysis-plan POST] Error:", err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to generate analysis plan" },
-      { status: 500 }
-    )
+    return safeApiError("Failed to generate analysis plan", 500)
   }
 }

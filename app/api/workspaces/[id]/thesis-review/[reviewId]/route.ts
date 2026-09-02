@@ -7,6 +7,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { rateLimitAsync } from "@/lib/rate-limit"
+import { safeApiError } from "@/lib/security"
 import { z } from "zod"
 import {
   deserializeThesisReview,
@@ -91,11 +93,21 @@ export async function PUT(
     return NextResponse.json({ error: "Invalid workspace ID" }, { status: 400 })
   }
 
+  let userId: string
   try {
-    await requireWorkspaceEditor(workspaceId)
+    const access = await requireWorkspaceEditor(workspaceId)
+    userId = access.userId
   } catch (err) {
     if (err instanceof Response) return err
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:${workspaceId}:thesis-review-update`, 10, 60_000)
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many update requests", retryAfterMs },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+    )
   }
 
   let updates: Record<string, any>
@@ -124,10 +136,7 @@ export async function PUT(
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error("[thesis-review PUT] Error:", err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Update failed" },
-      { status: 500 }
-    )
+    return safeApiError("Update failed", 500)
   }
 }
 
@@ -145,11 +154,22 @@ export async function DELETE(
     return NextResponse.json({ error: "Invalid workspace ID" }, { status: 400 })
   }
 
+  let userId: string
   try {
-    await requireWorkspaceEditor(workspaceId)
+    // Editor role is appropriate for managing and removing thesis reviews in a workspace
+    const access = await requireWorkspaceEditor(workspaceId)
+    userId = access.userId
   } catch (err) {
     if (err instanceof Response) return err
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:${workspaceId}:thesis-review-delete`, 10, 60_000)
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many delete requests", retryAfterMs },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+    )
   }
 
   try {
@@ -164,9 +184,6 @@ export async function DELETE(
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error("[thesis-review DELETE] Error:", err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Delete failed" },
-      { status: 500 }
-    )
+    return safeApiError("Delete failed", 500)
   }
 }

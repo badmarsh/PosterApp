@@ -22,7 +22,7 @@ export async function GET(
 
   let isClosed = false
 
-  const sendEvent = async (event: string, data: any) => {
+  const sendEvent = async (event: string, data: unknown) => {
     if (isClosed || req.signal.aborted) return
     try {
       await writer.write(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`))

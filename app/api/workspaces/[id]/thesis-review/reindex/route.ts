@@ -15,10 +15,8 @@ import { rateLimitAsync } from "@/lib/rate-limit"
 import { prisma } from "@/lib/prisma"
 import { ingestDocumentChunks } from "@/lib/ai/document-chunker"
 import { resolveChunkSize } from "@/lib/ai/chunking-config"
+import { workspacePath } from "@/lib/workspace-files"
 import fs from "fs"
-import path from "path"
-
-const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 
 export async function POST(
   req: NextRequest,
@@ -63,7 +61,7 @@ export async function POST(
   const results: Array<{ fileId: string; name: string; chunks: number; graphQueued: number; status: string }> = []
 
   for (const file of files) {
-    const mdPath = path.join(WORKSPACES_DIR, workspaceId, "sources", `${file.id}.md`)
+    const mdPath = workspacePath(workspaceId, "sources", `${file.id}.md`)
     if (!fs.existsSync(mdPath)) {
       skipped++
       results.push({ fileId: file.id, name: file.name, chunks: 0, graphQueued: 0, status: "no_markdown" })

@@ -4,9 +4,9 @@ import path from "path"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { randomUUID } from "crypto"
+import { rateLimitAsync } from "@/lib/rate-limit"
 import { detectedImageMime, MAX_UPLOAD_BYTES, SAFE_FILENAME, workspacePath } from "@/lib/workspace-files"
-
-const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
+import { WORKSPACES_ROOT } from "@/lib/workspace-files"
 
 export async function POST(
   req: Request,
@@ -18,14 +18,31 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid workspace ID' }, { status: 400 })
   }
 
-  try {
-    await requireWorkspaceEditor(id)
+  // A5: Reject early if size info is absent — prevents streaming bypass of size limit
+  const contentLengthHeader = req.headers.get("content-length")
+  const transferEncoding = req.headers.get("transfer-encoding") ?? ""
+  const contentLength = Number(contentLengthHeader)
+  if (!contentLengthHeader || !Number.isFinite(contentLength) || contentLength <= 0) {
+    return NextResponse.json(
+      { error: "Content-Length header is required for uploads" },
+      { status: 411 }
+    )
+  }
+  if (contentLength > MAX_UPLOAD_BYTES) {
+    return NextResponse.json(
+      { error: `File exceeds the ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)}MB upload limit` },
+      { status: 413 }
+    )
+  }
 
-    const contentLength = Number(req.headers.get("content-length") ?? "0")
-    if (contentLength > MAX_UPLOAD_BYTES) {
+  try {
+    const { userId } = await requireWorkspaceEditor(id)
+
+    const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:${id}:upload`, 10, 60_000)
+    if (!allowed) {
       return NextResponse.json(
-        { error: "File exceeds the 200MB upload limit" },
-        { status: 413 }
+        { error: "Too many upload requests", retryAfterMs },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
       )
     }
 

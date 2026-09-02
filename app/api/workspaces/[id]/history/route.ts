@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { requireWorkspaceAccess, requireWorkspaceEditor } from "@/lib/auth"
 import { computeWorkspaceDiff } from "@/lib/snapshot-diff"
 import { generateSnapshotLabelAsync } from "@/lib/ai-labeler"
+import { rateLimitAsync } from "@/lib/rate-limit"
+import { safeApiError } from "@/lib/security"
 
 const MAX_SNAPSHOTS = 50
 
@@ -30,7 +32,7 @@ export async function GET(
   } catch (err) {
     if (err instanceof Response) return err
     console.error("[History GET] Error:", err)
-    return NextResponse.json({ error: "Failed to load history" }, { status: 500 })
+    return safeApiError("Failed to load history", 500)
   }
 }
 
@@ -45,7 +47,15 @@ export async function POST(
   }
 
   try {
-    await requireWorkspaceEditor(id)
+    const { userId } = await requireWorkspaceEditor(id)
+
+    const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:${id}:history-snapshot`, 10, 60_000)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many snapshot creation requests", retryAfterMs },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+      )
+    }
 
     const workspace = await prisma.workspace.findUnique({
       where: { id },
@@ -61,7 +71,7 @@ export async function POST(
   const label = typeof body.label === "string" ? body.label.slice(0, 100) : null
 
   // Retrieve latest previous snapshot to compute diff for AI auto-labeling if label is not provided
-  let prevWs: any = null
+  let prevWs: unknown = null
   if (!label) {
     const prevSnap = await prisma.workspaceSnapshot.findFirst({
       where: { workspaceId: id },
@@ -110,7 +120,7 @@ export async function POST(
   } catch (err) {
     if (err instanceof Response) return err
     console.error("[History POST] Error:", err)
-    return NextResponse.json({ error: "Failed to create snapshot" }, { status: 500 })
+    return safeApiError("Failed to create snapshot", 500)
   }
 }
 

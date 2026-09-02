@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireWorkspaceEditor } from "@/lib/auth"
+import { rateLimitAsync } from "@/lib/rate-limit"
+import { safeApiError } from "@/lib/security"
+import { workspacePath } from "@/lib/workspace-files"
 import fs from "fs"
-import path from "path"
 
 export async function PATCH(
   req: Request,
@@ -11,7 +13,15 @@ export async function PATCH(
   const { id, fileId } = await params
 
   try {
-    await requireWorkspaceEditor(id)
+    const { userId } = await requireWorkspaceEditor(id)
+
+    const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:${id}:ingest-file-patch`, 20, 60_000)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many file update requests", retryAfterMs },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+      )
+    }
 
     const body = await req.json()
     const name = typeof body.name === "string" ? body.name.trim() : ""
@@ -32,7 +42,7 @@ export async function PATCH(
   } catch (err) {
     if (err instanceof Response) return err
     console.error("[IngestFile PATCH] Error:", err)
-    return NextResponse.json({ error: "Failed to update file" }, { status: 500 })
+    return safeApiError("Failed to update file", 500)
   }
 }
 
@@ -43,7 +53,16 @@ export async function DELETE(
   const { id, fileId } = await params
 
   try {
-    await requireWorkspaceEditor(id)
+    // Editor role is appropriate for deleting individual uploaded source files from a workspace
+    const { userId } = await requireWorkspaceEditor(id)
+
+    const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:${id}:ingest-file-delete`, 20, 60_000)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many file delete requests", retryAfterMs },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+      )
+    }
 
     // 1. Delete IngestFile
     await prisma.ingestFile.deleteMany({
@@ -68,9 +87,9 @@ export async function DELETE(
       },
     })
 
-    // 3. Remove source markdown file on disk if exists
+    // 3. Remove source markdown file on disk if exists (B5: using workspacePath)
     try {
-      const sourceMd = path.join(process.cwd(), "workspaces", id, "sources", `${fileId}.md`)
+      const sourceMd = workspacePath(id, "sources", `${fileId}.md`)
       if (fs.existsSync(sourceMd)) {
         fs.unlinkSync(sourceMd)
       }
@@ -82,6 +101,6 @@ export async function DELETE(
   } catch (err) {
     if (err instanceof Response) return err
     console.error("[IngestFile DELETE] Error:", err)
-    return NextResponse.json({ error: "Failed to delete file" }, { status: 500 })
+    return safeApiError("Failed to delete file", 500)
   }
 }

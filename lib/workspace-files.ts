@@ -4,8 +4,18 @@ export const MAX_UPLOAD_BYTES = 200 * 1024 * 1024 // 200 MB — supports large P
 export const SAFE_FILE_ID = /^[A-Za-z0-9_-]{1,96}$/
 export const SAFE_FILENAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,180}$/
 
+/**
+ * Root directory for all workspace files (assets, sources, compiled PDFs).
+ * Reads WORKSPACES_DIR env var if set (useful in Docker / custom deployments),
+ * otherwise falls back to <cwd>/workspaces.  Single source of truth — replaces
+ * every scattered `path.join(process.cwd(), "workspaces")` call.
+ */
+export const WORKSPACES_ROOT: string = process.env.WORKSPACES_DIR
+  ? path.resolve(process.env.WORKSPACES_DIR)
+  : path.resolve(process.cwd(), "workspaces")
+
 export function workspacePath(workspaceId: string, ...parts: string[]) {
-  const root = path.resolve(process.cwd(), "workspaces", workspaceId)
+  const root = path.resolve(WORKSPACES_ROOT, workspaceId)
   const result = path.resolve(root, ...parts)
   if (result !== root && !result.startsWith(`${root}${path.sep}`)) throw new Error("Unsafe workspace path")
   return result

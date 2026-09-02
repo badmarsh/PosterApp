@@ -78,7 +78,7 @@ The application requires several environment variables to function correctly. Co
 | `DATABASE_URL` | PostgreSQL connection string |
 | `AI_API_URL` | Base URL for the AI API (OpenRouter compatible) |
 | `AI_API_KEY` | Bearer token for AI requests |
-| `AI_MODEL` | Default model used for chat and generation (`gemini-3-flash`) |
+| `AI_MODEL` | Default model used for chat and generation (`gemini-3.7-flash`) |
 | `LATEX_COMPILER_IMAGE` | Docker image for sandboxed LaTeX compilation in production |
 | `UPSTASH_REDIS_REST_URL` | (Optional) Upstash Redis URL for distributed rate limiting |
 | `UPSTASH_REDIS_REST_TOKEN` | (Optional) Upstash Redis REST Token |

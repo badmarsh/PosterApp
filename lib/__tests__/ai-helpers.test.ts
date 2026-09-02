@@ -1,19 +1,7 @@
 import { describe, it, expect } from "vitest"
-import { stripMarkdownFences, parseAiJson } from "../ai-helpers"
+import { parseAiJson } from "../ai-helpers"
 
 describe("AiHelpers", () => {
-  describe("stripMarkdownFences", () => {
-    it("removes ```json fences", () => {
-      expect(stripMarkdownFences("```json\n{}\n```")).toBe("{}")
-    })
-    it("removes bare ``` fences", () => {
-      expect(stripMarkdownFences("```\n{}\n```")).toBe("{}")
-    })
-    it("is a no-op for plain JSON without fences", () => {
-      expect(stripMarkdownFences("{}")).toBe("{}")
-    })
-  })
-
   describe("parseAiJson", () => {
     it("returns { data, error: null } for valid JSON", () => {
       expect(parseAiJson('{"a": 1}')).toEqual({ data: { a: 1 }, error: null })

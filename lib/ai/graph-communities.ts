@@ -243,7 +243,7 @@ async function summarizeCommunity(
     .join("\n")
 
   const result = await generateAIResponse("GraphCommunity-Summary", {
-    model: process.env.AI_MODEL || "gemini-3-flash",
+    model: process.env.AI_MODEL || "gemini-3.7-flash",
     systemPrompt:
       "You are an academic knowledge graph analyst. Given a cluster of related academic concepts extracted from a PhD thesis, produce a concise label and 2-4 sentence summary describing what this conceptual cluster represents. Be specific to the academic domain.",
     userPrompt: `Entities in this cluster:\n${nodeText}\n\nRelationships:\n${edgeText || "(none detected)"}`,

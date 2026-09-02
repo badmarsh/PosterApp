@@ -10,8 +10,7 @@
 import * as fs from "fs"
 import * as path from "path"
 import type { ThesisMetadata, ReviewLanguage } from "./thesis-rubric"
-
-const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
+import { WORKSPACES_ROOT } from "@/lib/workspace-files"
 
 // ---------------------------------------------------------------------------
 // Context Budgets
@@ -736,7 +735,7 @@ export async function loadThesisContext(options: {
   maxChars?: number
 }): Promise<ThesisRAGContext> {
   const { workspaceId, sourceFileId, maxChars = 120_000 } = options
-  const sourcesDir = path.join(WORKSPACES_DIR, workspaceId, "sources")
+  const sourcesDir = path.join(WORKSPACES_ROOT, workspaceId, "sources")
 
   if (!fs.existsSync(sourcesDir)) {
     return {

@@ -1,8 +1,8 @@
 import * as fs from "fs"
 import * as path from "path"
 import { AI_CONFIG } from "@/lib/config/ai"
+import { WORKSPACES_ROOT } from "@/lib/workspace-files"
 
-const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 export const MAX_SOURCE_CHARS = AI_CONFIG.generation.maxSourceChars
 
 const MAX_CACHE_ENTRIES = 200
@@ -28,7 +28,7 @@ export interface LoadContextOptions {
  */
 export async function loadSourceContext(options: LoadContextOptions): Promise<string> {
   const { workspaceId, sourceIds, maxChars = MAX_SOURCE_CHARS } = options;
-  const sourcesDir = path.join(WORKSPACES_DIR, workspaceId, "sources");
+  const sourcesDir = path.join(WORKSPACES_ROOT, workspaceId, "sources");
   
   if (!fs.existsSync(sourcesDir)) {
     return "";

@@ -3,7 +3,7 @@ import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
 import { getAtlasTemplate, getMinimalTemplate, getGeminiTemplate, getTikzposterTemplate, getA0PosterTemplate } from "./templates"
 import type { LatexGenerator } from "./types"
-import { indent, assetUrlToLatexPath, cleanCaption } from "./helpers"
+import { indent, assetUrlToLatexPath, normalizeLatexPath, cleanCaption } from "./helpers"
 
 function generateTable(card: Card): string {
   const rows = card.table.rows
@@ -31,7 +31,7 @@ function generateFigures(card: Card, workspaceId = ""): string {
   if (!figs.length) return "% no figures"
 
   function latexPath(url: string): string {
-    return workspaceId ? assetUrlToLatexPath(url, workspaceId) : url
+    return normalizeLatexPath(workspaceId ? assetUrlToLatexPath(url, workspaceId) : url)
   }
 
   if (figs.length >= 2) {

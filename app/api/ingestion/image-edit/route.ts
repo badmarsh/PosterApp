@@ -6,7 +6,6 @@ import { atomicCreateVersionedFile } from "@/lib/asset-versioning"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { rateLimitAsync } from "@/lib/rate-limit"
 
-const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 
 type ImageEditOperation = "remove-bg" | "crop-tight" | "upscale" | "custom" | "discard" | "accept"
 

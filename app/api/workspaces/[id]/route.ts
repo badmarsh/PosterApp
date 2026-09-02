@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { safeJsonParse, jsonStringify } from "@/lib/db-helpers"
-import { auth, requireWorkspaceAccess, requireWorkspaceEditor } from "@/lib/auth"
+import { auth, requireWorkspaceAccess, requireWorkspaceEditor, requireWorkspaceOwner } from "@/lib/auth"
+import { safeApiError } from "@/lib/security"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { WorkspaceSchema } from "@/lib/validations/workspace"
 import { computeWorkspaceDiff } from "@/lib/snapshot-diff"
@@ -24,7 +25,7 @@ class WorkspaceConflictError extends Error {
 /**
  * Helper: parse a DB Card row's JSON fields into plain objects.
  */
-function parseCard(c: any) {
+function parseCard(c: { table?: unknown; figures?: unknown; sourceIds?: unknown } & Record<string, unknown>) {
   const defaultTable = { hasHeader: true, caption: "", rows: [] }
   return {
     ...c,
@@ -45,7 +46,7 @@ export async function GET(
   }
 
   try {
-    await requireWorkspaceAccess(id)
+    const access = await requireWorkspaceAccess(id)
 
     const workspace = await prisma.workspace.findUnique({
       where: { id },
@@ -68,6 +69,7 @@ export async function GET(
     // Build response with both new outputs format and legacy flat fields
     const data = {
       id: workspace.id,
+      role: access.role,
       revision: workspace.revision,
       name: workspace.name,
       authors: workspace.authors,
@@ -79,7 +81,7 @@ export async function GET(
       templateName: activeOutput?.templateId ?? "atlas",
       cards: activeOutput?.cards.map(parseCard) ?? [],
       // New outputs format
-      outputs: workspace.outputs.map((o: any) => ({
+      outputs: workspace.outputs.map((o) => ({
         id: o.id,
         outputType: o.outputType,
         templateId: o.templateId,
@@ -107,7 +109,8 @@ export async function GET(
     return NextResponse.json(data)
   } catch (err) {
     if (err instanceof Response) return err
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error("[Workspace GET] Unhandled error:", err)
+    return safeApiError("Failed to load workspace", 500)
   }
 }
 
@@ -154,7 +157,7 @@ export async function PUT(
       )
     }
     const body = parsed.data
-    const pendingSnapshotRef: { current: { snapId: string; diff: any[] } | null } = { current: null }
+    const pendingSnapshotRef: { current: { snapId: string; diff: unknown[] } | null } = { current: null }
 
     // Use a transaction to safely replace outputs, cards, assets, and ingest files
     await prisma.$transaction(async (tx) => {
@@ -565,14 +568,14 @@ export async function PUT(
     return NextResponse.json({ ok: true, revision: nextRevision })
   } catch (err) {
     if (err instanceof Response) return err
-    console.error(err)
+    console.error("[Workspace PUT] Unhandled error:", err)
     if (err instanceof WorkspaceConflictError) {
       return NextResponse.json({ error: err.message }, { status: 409 })
     }
     if (err instanceof ForeignChildIdError) {
       return NextResponse.json({ error: err.message }, { status: 409 })
     }
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return safeApiError("Failed to save workspace", 500)
   }
 }
 
@@ -587,11 +590,13 @@ export async function DELETE(
   }
 
   try {
-    await requireWorkspaceEditor(id)
+    // Owner-only: editors must not be able to destroy a workspace (MED-02 fix)
+    await requireWorkspaceOwner(id)
     await prisma.workspace.delete({ where: { id } })
     return NextResponse.json({ ok: true })
   } catch (err) {
     if (err instanceof Response) return err
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    console.error("[Workspace DELETE] Unhandled error:", err)
+    return safeApiError("Failed to delete workspace", 500)
   }
 }

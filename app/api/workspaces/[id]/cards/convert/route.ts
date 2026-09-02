@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { requireWorkspaceEditor } from "@/lib/auth"
+import { loadSourceContext } from "@/lib/ai/context"
 import { generateAIResponse } from "@/lib/ai/client"
 import { CardGenerationSchema } from "@/lib/ai/contracts"
 import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
@@ -9,12 +10,13 @@ import { buildCitationInstruction, buildGroundingInstruction, wrapUntrustedConte
 import { z } from "zod"
 
 const RequestBodySchema = z.object({
-  sourceContent: z.string().min(1).max(100_000),
+  sourceContent: z.string().min(1).max(100_000).optional(),
   sourceTopic: z.string().max(1000).optional().default(""),
   sourceType: z.enum(["poster", "slides", "paper"]),
   targetType: z.enum(["poster", "slides", "paper"]),
   characterLimit: z.number().int().positive().optional().default(300),
   bibKeys: z.array(z.string()).optional().default([]),
+  sourceIds: z.array(z.string()).optional(),
 })
 
 export async function POST(
@@ -50,7 +52,18 @@ export async function POST(
     if (!parsedBody.success) {
       return NextResponse.json({ error: "Invalid request payload", details: parsedBody.error.format() }, { status: 400 })
     }
-    const { sourceContent, sourceTopic, sourceType, targetType, characterLimit, bibKeys } = parsedBody.data
+    const { sourceContent, sourceTopic, sourceType, targetType, characterLimit, bibKeys, sourceIds } = parsedBody.data
+
+    // F9 fix: prefer server-side size-capped context loader over client-provided content
+    let resolvedContent: string
+    if (sourceIds && sourceIds.length > 0) {
+      resolvedContent = await loadSourceContext({ workspaceId, sourceIds, maxChars: 40_000 })
+    } else if (sourceContent) {
+      // Fallback: client-provided content, capped to 40k to match other routes
+      resolvedContent = sourceContent.slice(0, 40_000)
+    } else {
+      return NextResponse.json({ error: "Either sourceIds or sourceContent is required" }, { status: 400 })
+    }
 
     const typeLabelMap = {
       poster: "a scientific poster",
@@ -76,10 +89,9 @@ export async function POST(
 
     const groundingInstruction = buildGroundingInstruction()
     const citationInstruction = buildCitationInstruction(bibKeys)
-    const boundedContent = typeof sourceContent === "string" ? sourceContent.slice(0, 20_000) : ""
     const wrappedContent = wrapUntrustedContext(
       "Source Content",
-      `Topic: ${sourceTopic || "Untitled"}\nText:\n${boundedContent}`
+      `Topic: ${sourceTopic || "Untitled"}\nText:\n${resolvedContent}`
     )
 
     const prompt = `You are an expert academic assistant tasked with rewriting content for ${targetLabel}.

@@ -14,7 +14,6 @@ import { detectedPdf, MAX_UPLOAD_BYTES, SAFE_FILE_ID, SAFE_FILENAME, workspacePa
 import { fetchMinerU, resolveMinerUUrl, ensureMinerUBridge } from "@/lib/services/mineru-bridge"
 import { parseHtmlTable } from "@/lib/table-parser"
 import { decodeHtmlEntities } from "@/lib/utils"
-const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 
 // ---------------------------------------------------------------------------
 // Types for the MinerU response
@@ -81,8 +80,8 @@ export async function POST(req: Request) {
   const contentLength = Number(req.headers.get("content-length"))
   if (!Number.isFinite(contentLength) || contentLength <= 0 || contentLength > MAX_UPLOAD_BYTES + 128 * 1024) return NextResponse.json({ error: "Upload is too large" }, { status: 413 })
 
-  // -- Validate workspace exists ------------------------------------------
-  const assetsDir = path.join(WORKSPACES_DIR, workspaceId, "assets")
+  // -- Validate workspace exists (B5: using workspacePath) -----------------
+  const assetsDir = workspacePath(workspaceId, "assets")
   if (!fs.existsSync(assetsDir)) {
     fs.mkdirSync(assetsDir, { recursive: true })
   }
@@ -108,7 +107,7 @@ export async function POST(req: Request) {
 
   const uploadedFile = fileEntry as File
   if (uploadedFile.size <= 0 || uploadedFile.size > MAX_UPLOAD_BYTES || !/\.pdf$/i.test(uploadedFile.name) || !detectedPdf(new Uint8Array(await uploadedFile.slice(0, 5).arrayBuffer()))) {
-    return NextResponse.json({ error: "Only valid PDF documents up to 25 MB are accepted" }, { status: 415 })
+    return NextResponse.json({ error: `Only valid PDF documents up to ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB are accepted` }, { status: 415 })
   }
 
   let existingAssets: string[] = []
@@ -133,7 +132,7 @@ export async function POST(req: Request) {
     type: "progress" | "complete" | "error"
     stage?: string
     progress?: number
-    assets?: any[]
+    assets?: unknown[]
     fileName?: string
     error?: string
     detail?: string
@@ -198,7 +197,7 @@ export async function POST(req: Request) {
         return
       }
 
-      let mineruData: { results?: Record<string, { md_content?: string; images?: Record<string, string>; middle_json?: any }> }
+      let mineruData: { results?: Record<string, { md_content?: string; images?: Record<string, string>; middle_json?: unknown }> }
       try {
         mineruData = await mineruResponse.json()
       } catch {
@@ -248,27 +247,26 @@ export async function POST(req: Request) {
           const middle = typeof results.middle_json === "string" ? JSON.parse(results.middle_json) : results.middle_json
           let pageNum = 1
           for (const p of middle.pdf_info || []) {
-            const searchImagePaths = (obj: any) => {
-              if (!obj) return
-              if (typeof obj === "object") {
-                if (obj.image_path) {
-                  pageMap.set(obj.image_path, pageNum)
+            const searchImagePaths = (node: unknown) => {
+              if (!node || typeof node !== "object") return
+              const n = node as Record<string, unknown>
+              if (typeof n.image_path === "string") {
+                pageMap.set(n.image_path, pageNum)
+              }
+              if (n.type === "table" && typeof n.html === "string" && typeof n.image_path === "string") {
+                const parsed = parseHtmlTable(n.html)
+                if (parsed.rows.length > 0) {
+                  tableMap.set(n.image_path, { rows: parsed.rows, title: parsed.title })
                 }
-                if (obj.type === "table" && obj.html && obj.image_path) {
-                  const parsed = parseHtmlTable(obj.html)
-                  if (parsed.rows.length > 0) {
-                    tableMap.set(obj.image_path, { rows: parsed.rows, title: parsed.title })
-                  }
-                }
-                for (const key of Object.keys(obj)) {
-                  searchImagePaths(obj[key])
-                }
+              }
+              for (const key of Object.keys(n)) {
+                searchImagePaths(n[key])
               }
             }
             searchImagePaths(p)
             pageNum++
           }
-        } catch (e: any) {
+        } catch (e: unknown) {
           console.error("Failed to parse middle_json for tables and pages:", e?.message || e)
         }
       }
@@ -338,7 +336,7 @@ export async function POST(req: Request) {
 
         // Async vector chunking for RAG — fire-and-forget, non-blocking
         // This runs in background after SSE completes to avoid timeout
-        const parsedIdForChunking = typeof fileId === "string" ? fileId : `file_${Date.now()}`
+        const parsedIdForChunking = typeof fileId === "string" && SAFE_FILE_ID.test(fileId) ? fileId : `file_${randomUUID()}`
 
         // Mark indexing as "indexing" SYNCHRONOUSLY before handing off to setImmediate.
         // This prevents the review route from silently generating with zero RAG if the
@@ -527,7 +525,7 @@ export async function POST(req: Request) {
         const middle = typeof results.middle_json === "string" ? JSON.parse(results.middle_json) : results.middle_json
         let pageNum = 1
         for (const p of middle.pdf_info || []) {
-          const blocks: any[] = p.blocks || []
+          const blocks: Array<{ type?: string; text?: string; latex?: string }> = (p.blocks ?? []) as Array<{ type?: string; text?: string; latex?: string }>
           for (let i = 0; i < blocks.length; i++) {
             const obj = blocks[i]
             if (obj && (obj.type === "equation" || obj.type === "interline_equation") && (obj.text || obj.latex)) {
@@ -550,7 +548,7 @@ export async function POST(req: Request) {
           }
           pageNum++
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error("Failed to parse middle_json for equations:", e?.message || e)
       }
     }
@@ -692,7 +690,7 @@ export async function POST(req: Request) {
     }
 
     // Persist the IngestFile record in Prisma so it survives page reloads
-    const parsedFileId = typeof fileId === "string" && SAFE_FILE_ID.test(fileId) ? fileId : `file_${Date.now()}`
+    const parsedFileId = typeof fileId === "string" && SAFE_FILE_ID.test(fileId) ? fileId : `file_${randomUUID()}`
     
     // Intelligently resolve document title from markdown heading if filename is generic
     let resolvedFileName = uploadedFile.name
@@ -741,8 +739,8 @@ export async function POST(req: Request) {
     console.error("[Ingestion] Unexpected error in parsing pipeline:", err)
     await sendEvent({
       type: "error",
-      error: err instanceof Error ? err.message : "Document parsing failed",
-      detail: String(err),
+      error: "Document parsing failed",
+      detail: process.env.NODE_ENV === "development" ? (err instanceof Error ? err.message : String(err)) : undefined,
     })
   } finally {
     try {

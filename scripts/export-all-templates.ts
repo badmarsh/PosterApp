@@ -6,9 +6,10 @@ import { spawn } from 'child_process'
 import { generateFullTemplate } from '../lib/latex'
 import { TEMPLATE_REGISTRY } from '../lib/output-types'
 import type { Card, Project } from '../lib/poster-types'
+import { WORKSPACES_ROOT } from '../lib/workspace-files'
 
 const prisma = new PrismaClient()
-const ROOT = path.join(process.cwd(), "workspaces")
+const ROOT = WORKSPACES_ROOT
 import { safeLog, runSandboxedLatex } from '../lib/latex/compiler-runner'
 
 function asProject(workspace: any): Project {

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { WorkspaceCreateSchema } from "@/lib/validations/workspace"
 import { auth } from "@/lib/auth"
 import { getDefaultTemplateId, getTemplateDef } from "@/lib/output-types"
+import { rateLimitAsync } from "@/lib/rate-limit"
+import { safeApiError } from "@/lib/security"
 
 export async function GET() {
   try {
@@ -121,6 +123,14 @@ export async function POST(req: Request) {
   try {
     const { userId } = await auth()
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:workspaces-create`, 20, 60_000)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many workspace create requests", retryAfterMs },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+      )
+    }
 
     const rawBody = await req.json()
     const parsed = WorkspaceCreateSchema.safeParse(rawBody)

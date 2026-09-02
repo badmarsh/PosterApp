@@ -89,7 +89,7 @@ export async function extractAndStoreGraphEntities(
 ) {
   try {
     const result = await generateAIResponse("GraphRAG-Extraction", {
-      model: process.env.AI_MODEL || "gemini-3-flash",
+      model: process.env.AI_MODEL || "gemini-3.7-flash",
       systemPrompt: `You are an expert academic knowledge graph extractor.
 Analyze the following text from an academic document and extract key entities and the relationships between them.
 Keep nodes focused on core academic elements: Hypotheses, Methodologies, Datasets, Metrics, Findings, Citations, or Concepts.

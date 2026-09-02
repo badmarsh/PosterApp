@@ -19,7 +19,7 @@ export async function POST(
   }
 
   let userId: string
-  let workspace: any
+  let workspace: Awaited<ReturnType<typeof requireWorkspaceEditor>>["workspace"]
   try {
     const access = await requireWorkspaceEditor(workspaceId)
     userId = access.userId

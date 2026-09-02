@@ -2,6 +2,7 @@ import fs from "fs"
 import path from "path"
 import { prisma } from "@/lib/prisma"
 import { randomUUID } from "crypto"
+import { WORKSPACES_ROOT } from "@/lib/workspace-files"
 
 function extractEquationsFromMarkdown(mdContent: string) {
   const extracted: { formula: string; title: string }[] = []
@@ -41,7 +42,7 @@ async function backfillEquations() {
 
   for (const ws of workspaces) {
     const workspaceId = ws.id
-    const sourcesDir = path.join(process.cwd(), "workspaces", workspaceId, "sources")
+    const sourcesDir = path.join(WORKSPACES_ROOT, workspaceId, "sources")
     if (!fs.existsSync(sourcesDir)) continue
 
     const existingEqFilenames = new Set(

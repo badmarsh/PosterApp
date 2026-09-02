@@ -4,6 +4,9 @@ import { rateLimitAsync } from "@/lib/rate-limit"
 import { resolvePdfUrl, fetchArxivMetadata } from "@/lib/services/arxiv-service"
 import { prisma } from "@/lib/prisma"
 import { parseBibEntries, formatBibEntry, slugifyCiteKey } from "@/lib/bib-types"
+import { assertSafeExternalUrl } from "@/lib/security"
+
+const MAX_PDF_BYTES = 50 * 1024 * 1024 // 50 MB
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,27 +43,77 @@ export async function POST(req: NextRequest) {
 
     const { pdfUrl, arxivId, filename } = resolvePdfUrl(url)
 
-    // Download the PDF file
-    const pdfResponse = await fetch(pdfUrl, {
-      headers: {
-        "User-Agent": "PosterApp-Paper-Downloader/1.0 (academic research tool)",
-      },
-      signal: AbortSignal.timeout(60_000), // 1 minute download timeout
-    })
+    // Validate initial URL for SSRF protection
+    assertSafeExternalUrl(pdfUrl)
 
-    if (!pdfResponse.ok) {
+    // Safe fetch with manual redirect validation loop (max 5 hops)
+    let currentUrl = pdfUrl
+    let pdfResponse: Response | null = null
+    const MAX_REDIRECTS = 5
+
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      assertSafeExternalUrl(currentUrl)
+
+      const res = await fetch(currentUrl, {
+        headers: {
+          "User-Agent": "PosterApp-Paper-Downloader/1.0 (academic research tool)",
+        },
+        redirect: "manual",
+        signal: AbortSignal.timeout(60_000), // 1 minute download timeout
+      })
+
+      if ([301, 302, 303, 307, 308].includes(res.status)) {
+        const location = res.headers.get("location")
+        if (!location) {
+          return NextResponse.json({ error: "Redirect location header missing" }, { status: 502 })
+        }
+        currentUrl = new URL(location, currentUrl).toString()
+        continue
+      }
+
+      pdfResponse = res
+      break
+    }
+
+    if (!pdfResponse || !pdfResponse.ok) {
       return NextResponse.json(
-        { error: `Failed to download PDF from source (HTTP ${pdfResponse.status})` },
+        { error: `Failed to download PDF from source (HTTP ${pdfResponse?.status ?? 502})` },
         { status: 502 }
       )
     }
 
-    const arrayBuffer = await pdfResponse.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-
-    if (buffer.length > 50 * 1024 * 1024) {
-      return NextResponse.json({ error: "PDF file is too large (max 50MB)" }, { status: 413 })
+    // Check Content-Length header before buffering (A5)
+    const clHeader = pdfResponse.headers.get("content-length")
+    if (clHeader) {
+      const declaredLen = Number(clHeader)
+      if (Number.isFinite(declaredLen) && declaredLen > MAX_PDF_BYTES) {
+        return NextResponse.json({ error: "PDF file is too large (max 50MB)" }, { status: 413 })
+      }
     }
+
+    // Stream the body with a byte cap to prevent memory exhaustion (A5)
+    if (!pdfResponse.body) {
+      return NextResponse.json({ error: "Empty response body" }, { status: 502 })
+    }
+
+    const reader = pdfResponse.body.getReader()
+    const chunks: Uint8Array[] = []
+    let totalBytes = 0
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (value) {
+        totalBytes += value.length
+        if (totalBytes > MAX_PDF_BYTES) {
+          await reader.cancel()
+          return NextResponse.json({ error: "PDF file is too large (max 50MB)" }, { status: 413 })
+        }
+        chunks.push(value)
+      }
+    }
+
+    const buffer = Buffer.concat(chunks)
 
     // Optional: fetch arXiv metadata if available
     let metadata = null

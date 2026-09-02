@@ -1,6 +1,15 @@
 const aiOrigin = (() => { try { return new URL(process.env.AI_API_URL ?? "").origin } catch { return null } })()
 const aiFallbackOrigin = (() => { try { return new URL(process.env.AI_API_URL_FALLBACK ?? "").origin } catch { return null } })()
-const yjsOrigin = process.env.NEXT_PUBLIC_YJS_URL // already wss:// if used
+const yjsOrigin = (() => {
+  const wsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL
+  if (!wsUrl) return null
+  try {
+    const parsed = new URL(wsUrl)
+    return `${parsed.protocol === "wss:" ? "https:" : "http:"}//${parsed.host}`
+  } catch {
+    return null
+  }
+})()
 
 const connectSrc = [
   "'self'",

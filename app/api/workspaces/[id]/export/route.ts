@@ -7,9 +7,13 @@ import path from "node:path"
 import { safeJsonParse } from "@/lib/db-helpers"
 import { type Project, type OutputConfig, resolveOutputMetadata } from "@/lib/poster-types"
 import { generateFullTemplate } from "@/lib/latex"
+import { resolveBibSource } from "@/lib/latex/bib-source"
+import { materializeRemoteFigures, rewriteTexRemoteUrls } from "@/lib/latex/remote-assets"
+import os from "node:os"
+import { WORKSPACES_ROOT } from "@/lib/workspace-files"
 import { safeContentDisposition, sanitizeFilename } from "@/lib/security"
 
-function parseDbCard(c: any) {
+function parseDbCard(c: { table?: unknown; figures?: unknown; sourceIds?: unknown } & Record<string, unknown>) {
   const defaultTable = { hasHeader: true, caption: "", rows: [] }
   return {
     ...c,
@@ -31,18 +35,13 @@ export async function GET(
 
   try {
     await requireWorkspaceAccess(workspaceId)
-  } catch (err) {
-    if (err instanceof Response) return err
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
 
-  try {
     const workspace = await prisma.workspace.findUnique({
       where: { id: workspaceId },
       include: {
         outputs: {
           include: {
-            cards: { orderBy: { order: "asc" } },
+            cards: true,
           },
         },
         assets: true,
@@ -53,29 +52,23 @@ export async function GET(
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
     }
 
-    const activeOutputRecord =
-      workspace.outputs.find((o) => o.isActive) || workspace.outputs[0]
-
-    if (!activeOutputRecord) {
-      return NextResponse.json({ error: "No active output found" }, { status: 400 })
-    }
-
-    // Construct Project object
+    // Convert to Project shape
     const project: Project = {
       id: workspace.id,
       revision: workspace.revision,
       name: workspace.name,
-      posterTitle: activeOutputRecord.title ?? workspace.name,
+      posterTitle: workspace.name,
       authors: workspace.authors,
       venue: workspace.venue,
       logoUrl: workspace.logoUrl,
       secondaryLogoUrl: workspace.secondaryLogoUrl,
-      templateName: activeOutputRecord.templateId,
-      activeOutputId: activeOutputRecord.id,
-      assets: workspace.assets.map((a: any) => ({
+      templateName: "",
+      activeOutputId: workspace.outputs.find((o) => o.isActive)?.id || workspace.outputs[0]?.id || "",
+      assets: workspace.assets.map((a) => ({
         id: a.id,
-        filename: a.filename || "",
+        filename: a.filename || "asset",
         url: a.url || "",
+        thumbnailUrl: a.thumbnailUrl || a.url || "",
         caption: a.caption || "",
         type: a.type || "figure",
         fileId: a.fileId || "",
@@ -103,33 +96,49 @@ export async function GET(
 
     // Generate main.tex
     const mainTex = generateFullTemplate(project, activeOutputConfig, workspaceId)
-    const bibContent = workspace.bibContent || ""
+    // Shared bibliography resolution (B4)
+    const bibContent = resolveBibSource(workspace, activeOutputConfig.cards)
 
     // Create ZIP archive
     const zip = new JSZip()
-    zip.file("main.tex", mainTex)
-    zip.file("references.bib", bibContent)
 
-    // Read and bundle assets
-    const assetsFolder = zip.folder("assets")
-    const assetsDiskDir = path.join(process.cwd(), "workspaces", workspaceId, "assets")
-
+    // pdflatex cannot fetch http(s) URLs — download remote figures into a temp
+    // stage and rewrite the .tex to reference them as local files.
+    const remoteStage = await fs.mkdtemp(path.join(os.tmpdir(), "posterapp-export-"))
+    let exportTex = mainTex
     try {
-      const filesOnDisk = await fs.readdir(assetsDiskDir)
-      for (const file of filesOnDisk) {
-        try {
-          const filePath = path.join(assetsDiskDir, file)
-          const stat = await fs.stat(filePath)
-          if (stat.isFile()) {
-            const data = await fs.readFile(filePath)
-            assetsFolder?.file(file, data)
-          }
-        } catch (fileErr) {
-          console.warn(`Could not add asset ${file} to export zip:`, fileErr)
-        }
+      const remoteMapping = await materializeRemoteFigures(project, remoteStage)
+      exportTex = rewriteTexRemoteUrls(exportTex, remoteMapping)
+      zip.file("main.tex", exportTex)
+      zip.file("references.bib", bibContent)
+
+      // Read and bundle assets
+      const assetsFolder = zip.folder("assets")
+      for (const [, relative] of remoteMapping) {
+        const data = await fs.readFile(path.join(remoteStage, relative))
+        assetsFolder?.file(relative.replace(/^assets[\\/]/, ""), data)
       }
-    } catch {
-      // assets dir may not exist yet if empty
+      const assetsDiskDir = path.join(WORKSPACES_ROOT, workspaceId, "assets")
+
+      try {
+        const filesOnDisk = await fs.readdir(assetsDiskDir)
+        for (const file of filesOnDisk) {
+          try {
+            const filePath = path.join(assetsDiskDir, file)
+            const stat = await fs.stat(filePath)
+            if (stat.isFile()) {
+              const data = await fs.readFile(filePath)
+              assetsFolder?.file(file, data)
+            }
+          } catch (fileErr) {
+            console.warn(`Could not add asset ${file} to export zip:`, fileErr)
+          }
+        }
+      } catch {
+        // assets dir may not exist yet if empty
+      }
+    } finally {
+      await fs.rm(remoteStage, { recursive: true, force: true })
     }
 
     // Add README.md

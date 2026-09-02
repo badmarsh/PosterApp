@@ -38,8 +38,8 @@ export const sampleProjects: Project[] = [
           content: "We define the state transition model in the latent space $\\mathcal{Z}$ parameterized by $\\theta$. The objective is to maximize the evidence lower bound (ELBO):\n\n$ \\mathcal{L}(\\theta, \\phi) = \\mathbb{E}_{q_\\phi(z|x)} [\\log p_\\theta(x|z)] - D_{\\text{KL}}(q_\\phi(z|x) || p(z)) $\n\nWhere the prior $p(z)$ is updated via the transition dynamics $p(z_t | z_{t-1}, a_{t-1})$. This continuous-time formulation allows handling missing observations gracefully. [@reyes2026]",
           sourceIds: ["asset_eq_1"],
           figures: [
-            { id: "fig_mock_1a", url: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&q=80", caption: "Model architecture diagram" },
-            { id: "fig_mock_1b", url: "https://images.unsplash.com/photo-1589254065878-42c9da997008?w=400&q=80", caption: "Physical robot setup" }
+            { id: "fig_mock_1a", url: "/api/workspaces/demo_ws/assets/fig_mock_1a.png", caption: "Model architecture diagram" },
+            { id: "fig_mock_1b", url: "/api/workspaces/demo_ws/assets/fig_mock_1b.png", caption: "Physical robot setup" }
           ],
           table: { hasHeader: false, caption: "", rows: [] },
           figureLayout: "single",
@@ -56,7 +56,7 @@ export const sampleProjects: Project[] = [
           figures: [
             {
               id: "fig_mock",
-              url: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&q=80",
+              url: "/api/workspaces/demo_ws/assets/fig_mock.png",
               caption: "System Architecture: Recurrent state-space model."
             }
           ],
@@ -129,8 +129,8 @@ export const sampleProjects: Project[] = [
           content: "In addition to standard RL, our physics-informed prior utilizes Lagrangian mechanics to constrain the learned latent space:\n\n$ \\frac{d}{dt} \\left( \\frac{\\partial \\mathcal{L}}{\\partial \\dot{q}} \\right) - \\frac{\\partial \\mathcal{L}}{\\partial q} = Q_{nc} $\n\nThis ensures the decoded trajectories are physically plausible even in low-data regimes. [@reyes2026]",
           sourceIds: ["asset_eq_1"],
           figures: [
-            { id: "fig_mock_2a", url: "https://images.unsplash.com/photo-1589254065878-42c9da997008?w=400&q=80", caption: "Robot joint configuration" },
-            { id: "fig_mock_2b", url: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&q=80", caption: "Latent space visualization" }
+            { id: "fig_mock_2a", url: "/api/workspaces/demo_ws/assets/fig_mock_2a.png", caption: "Robot joint configuration" },
+            { id: "fig_mock_2b", url: "/api/workspaces/demo_ws/assets/fig_mock_2b.png", caption: "Latent space visualization" }
           ],
           table: { hasHeader: false, caption: "", rows: [] },
           figureLayout: "single",
@@ -147,7 +147,7 @@ export const sampleProjects: Project[] = [
           figures: [
             {
               id: "fig_mock_p3",
-              url: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&q=80",
+              url: "/api/workspaces/demo_ws/assets/fig_mock_p3.png",
               caption: "Model Architecture"
             }
           ],
@@ -234,7 +234,7 @@ export const sampleProjects: Project[] = [
           figures: [
             {
               id: "fig_mock_3",
-              url: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&q=80",
+              url: "/api/workspaces/demo_ws/assets/fig_mock_3.png",
               caption: "Model Architecture"
             }
           ],
@@ -253,7 +253,7 @@ export const sampleProjects: Project[] = [
           figures: [
             {
               id: "fig_mock_4",
-              url: "https://images.unsplash.com/photo-1589254065878-42c9da997008?w=800&q=80",
+              url: "/api/workspaces/demo_ws/assets/fig_mock_4.png",
               caption: "Performance overview"
             }
           ],
@@ -282,7 +282,7 @@ export const sampleProjects: Project[] = [
       id: "asset_img_1",
       fileId: "file_1",
       filename: "architecture_fig_1.png",
-      url: "https://images.unsplash.com/photo-1620825937374-87fc1d62c289?w=400&q=80",
+      url: "/api/workspaces/demo_ws/assets/architecture_fig_1.png",
       kind: "figure",
       page: 3,
       confidence: "high",
@@ -292,7 +292,7 @@ export const sampleProjects: Project[] = [
       id: "asset_img_2",
       fileId: "file_1",
       filename: "results_plot.png",
-      url: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&q=80",
+      url: "/api/workspaces/demo_ws/assets/results_plot.png",
       kind: "figure",
       page: 6,
       confidence: "high",

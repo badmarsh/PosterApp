@@ -3,6 +3,7 @@ import fs from "node:fs/promises"
 import path from "node:path"
 import { randomUUID } from "node:crypto"
 import { prisma } from "@/lib/prisma"
+import { WORKSPACES_ROOT } from "@/lib/workspace-files"
 
 export interface QRCodeOptions {
   url: string
@@ -46,7 +47,7 @@ export async function generateAndSaveQRCodeAsset(
   options: QRCodeOptions
 ): Promise<{ assetId: string; url: string; label: string }> {
   const buffer = await generateQRCodePngBuffer(options)
-  const assetsDir = path.join(process.cwd(), "workspaces", workspaceId, "assets")
+  const assetsDir = path.join(WORKSPACES_ROOT, workspaceId, "assets")
   await fs.mkdir(assetsDir, { recursive: true })
 
   const filename = "qrcode.png"

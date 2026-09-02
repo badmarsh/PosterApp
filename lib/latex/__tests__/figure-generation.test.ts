@@ -125,6 +125,65 @@ describe("Figure Generation in Papers", () => {
   })
 })
 
+describe("Windows backslash path normalization", () => {
+  it("converts backslash separators to forward slashes in poster figures", () => {
+    const card: Card = {
+      id: "card_win",
+      title: "Remote Fig",
+      pattern: "bullets-image",
+      column: 1,
+      order: 1,
+      content: "Remote figure",
+      figures: [{ id: "fig_win", url: "assets\\remote\\remote-abc123.jpg", caption: "" }],
+      figureLayout: "single",
+      table: { hasHeader: false, caption: "", rows: [] },
+      validation: "valid",
+    }
+    const { project, output } = createMockProject(card, "poster", "atlas")
+    const tex = new TikzPosterGenerator("atlas").generateDocument(project, output, "ws_test_figs")
+    expect(tex).toContain("\\includegraphics[width=1.0\\linewidth,keepaspectratio]{assets/remote/remote-abc123.jpg}")
+    expect(tex).not.toContain("\\includegraphics[width=1.0\\linewidth,keepaspectratio]{assets\\remote")
+  })
+
+  it("converts backslash separators in paper figures", () => {
+    const card: Card = {
+      id: "card_win_paper",
+      title: "Remote Fig",
+      pattern: "section-figure",
+      column: 1,
+      order: 1,
+      content: "Remote figure.",
+      figures: [{ id: "fig_win", url: "assets\\remote\\remote-def456.png", caption: "" }],
+      figureLayout: "single",
+      table: { hasHeader: false, caption: "", rows: [] },
+      validation: "valid",
+    }
+    const { project, output } = createMockProject(card, "paper", "article-twocol")
+    const tex = new StandardPaperGenerator("article-twocol").generateDocument(project, output, "ws_test_figs")
+    expect(tex).toContain("{assets/remote/remote-def456.png}")
+    expect(tex).not.toContain("{assets\\remote")
+  })
+
+  it("converts backslash separators in slide figures", () => {
+    const card: Card = {
+      id: "card_win_slide",
+      title: "Remote Fig",
+      pattern: "figure-slide",
+      column: 1,
+      order: 1,
+      content: "Remote figure.",
+      figures: [{ id: "fig_win", url: "assets\\remote\\remote-abc789.jpg", caption: "" }],
+      figureLayout: "single",
+      table: { hasHeader: false, caption: "", rows: [] },
+      validation: "valid",
+    }
+    const { project, output } = createMockProject(card, "slides", "beamer-metropolis")
+    const tex = new BeamerSlidesGenerator("beamer-metropolis").generateDocument(project, output, "ws_test_figs")
+    expect(tex).toContain("{assets/remote/remote-abc789.jpg}")
+    expect(tex).not.toContain("{assets\\remote")
+  })
+})
+
 describe("Figure Generation in Slides", () => {
   const gen = new BeamerSlidesGenerator("beamer-metropolis")
 

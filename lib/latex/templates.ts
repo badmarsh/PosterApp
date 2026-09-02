@@ -1,6 +1,6 @@
 import { Project, resolveOutputMetadata } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
-import { assetUrlToLatexPath } from "./helpers"
+import { assetUrlToLatexPath, normalizeLatexPath } from "./helpers"
 
 // ---------------------------------------------------------------------------
 // Helper: Resolve title, authors, venue for the active output
@@ -133,10 +133,10 @@ export function getAtlasTemplate(project: Project, themeColor?: string, workspac
   const authors = parseMarkdownToLatex(m.authors)
   const venue = parseMarkdownToLatex(m.venue)
   const rightLogo = m.secondaryLogoUrl
-    ? (workspaceId ? assetUrlToLatexPath(m.secondaryLogoUrl, workspaceId) : m.secondaryLogoUrl)
+    ? normalizeLatexPath(workspaceId ? assetUrlToLatexPath(m.secondaryLogoUrl, workspaceId) : m.secondaryLogoUrl)
     : "logos/atlas_transparent.png"
   const leftLogo = m.logoUrl
-    ? (workspaceId ? assetUrlToLatexPath(m.logoUrl, workspaceId) : m.logoUrl)
+    ? normalizeLatexPath(workspaceId ? assetUrlToLatexPath(m.logoUrl, workspaceId) : m.logoUrl)
     : "logos/uk_logo.png"
 
   return `

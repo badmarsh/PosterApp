@@ -1,7 +1,7 @@
 generator client {
   provider        = "prisma-client-js"
-  binaryTargets   = ["native", "windows"]
   previewFeatures = ["postgresqlExtensions"]
+  binaryTargets   = ["native", "windows"]
 }
 
 datasource db {
@@ -11,18 +11,18 @@ datasource db {
 }
 
 model DocumentChunk {
-  id          String   @id @default(cuid())
+  id          String                 @id @default(cuid())
   workspaceId String
   documentId  String
   heading     String?
   content     String
   tokens      Int
-  embedding   Unsupported("vector(384)")?
-  createdAt   DateTime @default(now())
-
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  embedding   Unsupported("vector")?
+  createdAt   DateTime               @default(now())
+  workspace   Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+  @@index([embedding], map: "document_chunk_embedding_hnsw")
 }
 
 model Workspace {
@@ -40,15 +40,15 @@ model Workspace {
   secondaryLogoUrl String?
   assets           Asset[]
   collabTickets    CollaborationTicket[]
+  documentChunks   DocumentChunk[]
+  graphCommunities GraphCommunity[]
+  graphEdges       GraphEdge[]
+  graphNodes       GraphNode[]
   ingestFiles      IngestFile[]
   outputs          Output[]
+  thesisReviews    ThesisReview[]
   members          WorkspaceMember[]
   snapshots        WorkspaceSnapshot[]
-  thesisReviews    ThesisReview[]
-  documentChunks   DocumentChunk[]
-  graphNodes       GraphNode[]
-  graphEdges       GraphEdge[]
-  graphCommunities GraphCommunity[]
 }
 
 /// Access is deliberately modelled separately from Clerk.  The userId field above
@@ -134,35 +134,34 @@ model Asset {
   assignedCardId String?
   assignedSlot   String?
   tableRows      Json?
-  assignedCard   Card?     @relation(fields: [assignedCardId], references: [id], onDelete: SetNull)
+  assignedCard   Card?     @relation(fields: [assignedCardId], references: [id])
   workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, filename])
 }
 
 model IngestFile {
-  id          String    @id
-  workspaceId String
-  name        String
-  size        Int
-  method      String
-  status      String
-  progress    Int
-  error       String?
-  dismissed   Boolean   @default(false)
+  id              String    @id
+  workspaceId     String
+  name            String
+  size            Int
+  method          String
+  status          String
+  progress        Int
+  error           String?
+  dismissed       Boolean   @default(false)
+  /// Number of DocumentChunks successfully created for this file
+  vectorChunks    Int       @default(0)
+  /// Timestamp when vectorStatus last transitioned to "ready"
+  vectorIndexedAt DateTime?
   /// Vector indexing status: "pending" | "indexing" | "ready" | "error"
   /// "pending"  — not yet attempted (new uploads before ingestDocumentChunks fires)
   /// "indexing" — setImmediate callback is running (chunks being written)
   /// "ready"    — all chunks embedded and HNSW index created
   /// "error"    — embedding failed; see server logs
-  vectorStatus      String    @default("pending")
-  /// Number of DocumentChunks successfully created for this file
-  vectorChunks      Int       @default(0)
-  /// Timestamp when vectorStatus last transitioned to "ready"
-  vectorIndexedAt   DateTime?
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  vectorStatus    String    @default("pending")
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
-
 
 model WorkspaceSnapshot {
   id          String    @id @default(cuid())
@@ -179,116 +178,114 @@ model WorkspaceSnapshot {
 /// Stores metadata for a thesis assessment (posudok diplomovej práce).
 /// Each workspace can have multiple reviews (supervisor + opponent).
 model ThesisReview {
-  id              String    @id @default(cuid())
-  schemaVersion   String    @default("1.0")
-  workspaceId     String
+  id                       String    @id @default(cuid())
+  schemaVersion            String    @default("1.0")
+  workspaceId              String
   /// Full name of the student author
-  studentName     String
+  studentName              String
   /// Title of the thesis as submitted
-  thesisTitle     String
+  thesisTitle              String
   /// "bachelor" | "master" | "phd"
-  thesisType      String    @default("master")
+  thesisType               String    @default("master")
   /// "supervisor" | "opponent"
-  reviewerRole    String    @default("opponent")
+  reviewerRole             String    @default("opponent")
   /// Name of the reviewing person
-  reviewerName    String?
-  institution     String?
-  department      String?
+  reviewerName             String?
+  institution              String?
+  department               String?
   /// Overall ECTS grade: A | B | C | D | E | FX | pending
-  grade           String?
+  grade                    String?
   /// Suggested ECTS grade by AI or initial analysis
-  suggestedGrade  String?
+  suggestedGrade           String?
   /// Final confirmed ECTS grade by human reviewer
-  finalGrade      String?
+  finalGrade               String?
   /// Formal recommendation text (obhajoba doporučená / nedoporučená)
-  recommendation  String?
+  recommendation           String?
   /// Suggested recommendation text by AI
-  suggestedRecommendation String?
+  suggestedRecommendation  String?
   /// Final confirmed recommendation text by human reviewer
-  finalRecommendation String?
+  finalRecommendation      String?
   /// Timestamp of human reviewer decision confirmation
-  confirmedAt     DateTime?
+  confirmedAt              DateTime?
   /// Serialized JSON: array of ThesisReviewSection objects
-  sections        String?
+  sections                 String?
   /// Generated defense questions (JSON string[])
-  defenseQuestions String?
+  defenseQuestions         String?
   /// Citation issues found (JSON string[])
-  citationIssues  String?
+  citationIssues           String?
   /// "thesis" | "paper" | "grant"
-  reviewKind      String    @default("thesis")
+  reviewKind               String    @default("thesis")
   /// Target venue, journal, conference, or university
-  targetVenue     String?
+  targetVenue              String?
   /// Executive overview / summary of the manuscript
-  summary         String?
+  summary                  String?
   /// Strengths of the paper (JSON string[])
-  strengths       String?
+  strengths                String?
   /// Structured review findings with evidence anchors (JSON ReviewFinding[])
-  findings        String?
+  findings                 String?
   /// Source document revision hash at time of analysis
-  sourceRevision  String?
+  sourceRevision           String?
   /// Rubric version used for evaluation
-  rubricVersion   String?   @default("sk-academic-v1")
+  rubricVersion            String?   @default("sk-academic-v1")
   /// Classified or user-specified academic discipline
-  discipline      String?
+  discipline               String?
   /// Proposed ECTS grade range (e.g. "A - B")
-  proposedGradeRange String?
+  proposedGradeRange       String?
   /// Confidence level of the review (0.0 - 1.0)
-  confidence      Float?
+  confidence               Float?
   /// Overview of source quality and review limitations
-  limitationsSummary String?
+  limitationsSummary       String?
   /// Serialized ReviewAnalysisPlan JSON
-  analysisPlan    String?
+  analysisPlan             String?
   /// "consort" | "prisma" | "strobe" | "ml_reproducibility" | "none"
-  reportingStandard String?
+  reportingStandard        String?
   /// Reporting guideline compliance checks (JSON ReportingGuidelineCheck[])
   reportingGuidelineChecks String?
   /// Confidential remarks for the editor / committee
-  confidentialComments String?
+  confidentialComments     String?
   /// PhD Opponent enrichment data (track record, SOTA, statutory clauses) (JSON object)
-  phdEnrichment   String?
-  /// Multi-Agent debate transcript for Hivemind Bias mitigation
-  debateLog       String?
+  phdEnrichment            String?
   /// "draft" | "final"
-  status          String    @default("draft")
+  status                   String    @default("draft")
   /// ISO language code: "sk" | "cs" | "en"
-  language        String    @default("sk")
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  language                 String    @default("sk")
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  /// Multi-Agent debate transcript for Hivemind Bias mitigation
+  debateLog                String?
+  workspace                Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, createdAt(sort: Desc)])
 }
 
 model GraphNode {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   workspaceId String
   documentId  String
-  label       String   // "Methodology", "Dataset", "Metric", "Hypothesis", "Finding", "Citation"
+  label       String
   name        String
   description String?
-  createdAt   DateTime @default(now())
-
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now())
   sourceEdges GraphEdge[] @relation("SourceNode")
   targetEdges GraphEdge[] @relation("TargetNode")
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, label, name])
   @@index([workspaceId])
 }
 
 model GraphEdge {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   workspaceId String
   sourceId    String
   targetId    String
-  relation    String   // "EVALUATED_ON", "PROVES", "USES", "CITES"
-  evidence    String?  // text snippet that proves this relationship
+  relation    String
+  evidence    String?
   documentId  String?
-  createdAt   DateTime @default(now())
-
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
   source      GraphNode @relation("SourceNode", fields: [sourceId], references: [id], onDelete: Cascade)
   target      GraphNode @relation("TargetNode", fields: [targetId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@index([sourceId])
@@ -297,7 +294,7 @@ model GraphEdge {
 
 /// Louvain-detected semantic community of graph nodes for cross-chapter synthesis.
 model GraphCommunity {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   workspaceId   String
   /// Human-readable label generated by LLM (e.g. "Methodology & Experiments")
   label         String
@@ -305,10 +302,9 @@ model GraphCommunity {
   memberNodeIds Json
   /// LLM-generated narrative summary of what this community of concepts represents
   summary       String?
-  nodeCount     Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
+  nodeCount     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])

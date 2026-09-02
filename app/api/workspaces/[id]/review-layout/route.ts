@@ -9,8 +9,8 @@ import * as os from "os"
 import { runSandboxedLatex } from "@/lib/latex/compiler-runner"
 import type { Card } from "@/lib/poster-types"
 import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
+import { workspacePath } from "@/lib/workspace-files"
 
-const WORKSPACES_DIR = path.join(process.cwd(), "workspaces")
 const MAX_PAGES_TO_REVIEW = 25
 
 export async function POST(
@@ -51,7 +51,7 @@ export async function POST(
     return NextResponse.json({ error: "Stale revision" }, { status: 409 })
   }
 
-  const workspaceDir = path.join(WORKSPACES_DIR, workspaceId)
+  const workspaceDir = workspacePath(workspaceId)
   const pdfPath = path.join(workspaceDir, "main.pdf")
 
   try {

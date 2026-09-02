@@ -6,6 +6,7 @@ import { loadSourceContext } from "@/lib/ai/context"
 import { validateCard } from "@/lib/latex/validation"
 import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
 import { buildCitationInstruction, wrapUntrustedContext } from "@/lib/ai/prompts"
+import type { Card as DbCard } from "@prisma/client"
 
 const MAX_SOURCE_CHARS = 40_000
 const MAX_HISTORY_MESSAGES = 20
@@ -13,9 +14,21 @@ const MAX_HISTORY_CHARS = 40_000
 
 type ChatMessage = {
   role: "user" | "assistant" | "system"
-  content: string | any[]
+  content: string | unknown[]
   images?: string[]
 }
+
+type FrontendCard = ReturnType<typeof validateCard> extends { field: string } ? {
+  id: string
+  title: string
+  column?: number | null
+  order: number
+  pattern: string
+  content?: string | null
+  heightBudget?: number | null
+  figures: unknown[]
+  table: { rows: unknown[] }
+} : never
 
 export async function POST(
   req: NextRequest,
@@ -28,7 +41,7 @@ export async function POST(
   }
 
   let userId: string
-  let workspace: any
+  let workspace: Awaited<ReturnType<typeof requireWorkspaceEditor>>["workspace"]
   try {
     const access = await requireWorkspaceEditor(workspaceId)
     userId = access.userId
@@ -69,14 +82,14 @@ export async function POST(
       where: { id: workspaceId },
       include: { outputs: { include: { cards: true } } },
     })
-    const activeOutput = full?.outputs?.find((o: any) => o.isActive) || full?.outputs?.[0]
+    const activeOutput = full?.outputs?.find((o) => o.isActive) || full?.outputs?.[0]
     const cards = activeOutput?.cards || []
 
     // 2. Build card list summary
     const cardListSummary = cards
-      .sort((a: any, b: any) => (a.column || 0) - (b.column || 0) || a.order - b.order)
+      .sort((a, b) => (a.column || 0) - (b.column || 0) || a.order - b.order)
       .map(
-        (c: any) =>
+        (c) =>
           `  [${c.id}] Col ${c.column || "N/A"} | "${c.title}" | pattern: ${c.pattern}`
       )
       .join("\n")
@@ -84,12 +97,12 @@ export async function POST(
     // 3. Selected card full content
     let selectedCardContext = ""
     if (selectedCardId) {
-      const card = cards.find((c: any) => c.id === selectedCardId)
+      const card = cards.find((c) => c.id === selectedCardId)
       if (card) {
-        const frontendCard: any = {
+        const frontendCard = {
           ...card,
-          figures: (card.figures as any) || [],
-          table: (card.table as any) || { rows: [] },
+          figures: card.figures ?? [],
+          table: card.table ?? { rows: [] },
         }
 
         const validationMessages = validateCard(frontendCard)
@@ -97,7 +110,7 @@ export async function POST(
           validationMessages.length > 0
             ? `\n\n` + wrapUntrustedContext(
                 "Validation Errors",
-                validationMessages.map((m: any) => `- [${m.level}] ${m.field}: ${m.message}`).join("\n")
+                validationMessages.map((m) => `- [${m.level}] ${m.field}: ${m.message}`).join("\n")
               )
             : ""
 
@@ -181,7 +194,7 @@ This will allow the user to apply the fix automatically with one click.`
       .slice(-MAX_HISTORY_MESSAGES)
 
     let accumulatedChars = 0
-    const historyMessages: any[] = []
+    const historyMessages: { role: string; content: string | unknown[] }[] = []
     for (let i = rawHistory.length - 1; i >= 0; i--) {
       const msg = rawHistory[i]
       const textContent = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content)

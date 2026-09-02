@@ -14,6 +14,9 @@
 - TypeScript strict mode
 - ESLint via `pnpm run lint` (must be 0 errors before PR)
 - Vitest for unit tests — add tests for new store actions and API routes
+- **No `any` in `app/api/**`** — use Zod-inferred types for request bodies, cast Prisma JSON to `unknown` then narrow
+- **Every mutating route** (`POST`/`PUT`/`PATCH`/`DELETE`) must import and call `rateLimitAsync` (enforced by `__tests__/api/rate-limit-coverage.test.ts`)
+- **Every `catch` block** returning a JSON error must use `safeApiError(...)` from `lib/security.ts` — never leak raw error strings
 
 ## Architecture
 See `AGENTS.md` for full architecture documentation.

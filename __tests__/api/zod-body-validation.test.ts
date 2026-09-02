@@ -75,13 +75,13 @@ vi.mock("@/lib/bib-types", () => ({
 
 describe("Zod body validation — negative tests", () => {
   describe("POST /cards/convert", () => {
-    it("rejects missing sourceContent", async () => {
+    it("rejects missing sourceContent and sourceIds", async () => {
       const { POST } = await import("../../app/api/workspaces/[id]/cards/convert/route")
       const req = mockRequest({ sourceType: "poster", targetType: "slides" })
       const res = await POST(req, { params: Promise.resolve({ id: WORKSPACE_ID }) })
       expect(res.status).toBe(400)
       const body = await res.json()
-      expect(body.error).toMatch(/invalid/i)
+      expect(body.error).toMatch(/sourceIds or sourceContent/i)
     })
 
     it("rejects invalid sourceType enum", async () => {

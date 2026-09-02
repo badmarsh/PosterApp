@@ -2,14 +2,13 @@ import fs from "fs/promises"
 import path from "path"
 import { NextResponse } from "next/server"
 import { requireWorkspaceAccess } from "@/lib/auth"
-
-const ROOT = path.join(process.cwd(), "workspaces")
+import { workspacePath } from "@/lib/workspace-files"
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   try {
     await requireWorkspaceAccess(id)
-    const file = path.join(ROOT, id, "main.pdf")
+    const file = workspacePath(id, "main.pdf")
     const stat = await fs.stat(file).catch(() => null)
     if (!stat?.isFile()) return NextResponse.json({ error: { code: "PDF_NOT_FOUND", message: "PDF not found — compile first" } }, { status: 404 })
     const range = req.headers.get("range")
