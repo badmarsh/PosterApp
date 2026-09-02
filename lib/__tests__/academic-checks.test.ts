@@ -57,8 +57,7 @@ Použili sme metódu z práce [?] a taktiež vzťah (cit. chyba).
   it("generates 5-12 calibrated defense questions prioritized by severity", () => {
     const questions = generateCalibratedDefenseQuestions(sampleMarkdown, [], "master", "sk")
 
-    expect(questions.length).toBeGreaterThanOrEqual(5)
-    expect(questions.length).toBeLessThanOrEqual(12)
+    expect(questions.length).toBe(5)
 
     const highPriority = questions.filter((q) => q.priority === "high")
     expect(highPriority.length).toBeGreaterThan(0)
@@ -68,5 +67,23 @@ Použili sme metódu z práce [?] a taktiež vzťah (cit. chyba).
       expect(q.question.length).toBeGreaterThan(10)
       expect(q.motivation.length).toBeGreaterThan(5)
     }
+  })
+
+  it("scales defense questions with findings up to the 12-question ceiling", () => {
+    const mockFindings: any[] = Array.from({ length: 10 }, (_, i) => ({
+      id: `f-${i + 1}`,
+      title: `Finding issue ${i + 1}`,
+      explanation: `Detailed explanation of finding issue ${i + 1}`,
+      recommendation: `Fix issue ${i + 1}`,
+      severity: i < 3 ? "critical" : i < 6 ? "major" : "minor",
+      category: "methodology",
+      evidence: [{ id: `ev-${i + 1}` }],
+    }))
+
+    const scaledQuestions = generateCalibratedDefenseQuestions(sampleMarkdown, mockFindings, "master", "sk")
+    // 5 base + 7 finding-derived = 12 (capped at 12)
+    expect(scaledQuestions.length).toBe(12)
+    expect(scaledQuestions.some((q) => q.question.includes("Finding issue 1"))).toBe(true)
+    expect(scaledQuestions.some((q) => q.question.includes("Finding issue 2"))).toBe(true)
   })
 })

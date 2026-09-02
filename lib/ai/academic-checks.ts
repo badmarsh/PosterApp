@@ -326,26 +326,49 @@ export function generateCalibratedDefenseQuestions(
     includeInExport: true,
   })
 
-  // 6. Clarification on specific findings (if available)
-  if (safeFindings.length > 0) {
-    const topWeakness = safeFindings.find((f) => f.severity === "critical" || f.severity === "major")
-    if (topWeakness) {
-      questions.push({
-        id: `q-def-6-${Date.now()}`,
-        linkedCriterionKey: topWeakness.criterionKey || "methodology_rigor",
-        question: lang === "sk"
-          ? `V práci sa uvádza "${topWeakness.title}". Mohli by ste počas obhajoby bližšie vysvetliť dôvody tohto riešenia a ako vplýva na celkové výsledky?`
-          : `The thesis mentions "${topWeakness.title}". Could you elaborate on this design choice during defense?`,
-        motivation: lang === "sk"
-          ? `Objasnenie zisteného nedostatku / otázky: ${topWeakness.explanation.slice(0, 100)}...`
-          : "Clarify identified finding.",
-        evidenceIds: topWeakness.evidence?.map((e) => e.id || "").filter(Boolean) || [],
-        priority: "high",
-        category: "clarification",
-        expectedAnswerBasis: topWeakness.recommendation,
-        includeInExport: true,
-      })
+  // 6. Targeted finding-derived questions (scaling up to 12 questions maximum)
+  const MAX_DEFENSE_QUESTIONS = 12
+  const candidateFindings = safeFindings.filter(
+    (f) => f.title && (f.severity === "critical" || f.severity === "major" || f.severity === "minor")
+  )
+
+  let findingIndex = 0
+  for (const finding of candidateFindings) {
+    if (questions.length >= MAX_DEFENSE_QUESTIONS) break
+    findingIndex++
+
+    const isHigh = finding.severity === "critical" || finding.severity === "major"
+    const priority = isHigh ? "high" : "medium"
+
+    let questionText = ""
+    if (lang === "sk") {
+      questionText = `V práci sa uvádza "${finding.title}". Mohli by ste počas obhajoby bližšie vysvetliť dôvody tohto riešenia a ako vplýva na celkové výsledky?`
+    } else if (lang === "cs") {
+      questionText = `V práci se uvádí "${finding.title}". Mohl/a byste během obhajoby blíže vysvětlit důvody tohoto řešení a jak ovlivňuje celkové výsledky?`
+    } else {
+      questionText = `The thesis states "${finding.title}". Could you elaborate on this design choice during the defense and how it affects the overall results?`
     }
+
+    let motivationText = ""
+    if (lang === "sk") {
+      motivationText = `Objasnenie zistenia (${finding.severity}): ${finding.explanation ? finding.explanation.slice(0, 100) : finding.title}...`
+    } else if (lang === "cs") {
+      motivationText = `Objasnění zjištění (${finding.severity}): ${finding.explanation ? finding.explanation.slice(0, 100) : finding.title}...`
+    } else {
+      motivationText = `Clarification of finding (${finding.severity}): ${finding.explanation ? finding.explanation.slice(0, 100) : finding.title}...`
+    }
+
+    questions.push({
+      id: `q-def-${5 + findingIndex}-${Date.now()}`,
+      linkedCriterionKey: finding.criterionKey || finding.criterionId || "methodology_rigor",
+      question: questionText,
+      motivation: motivationText,
+      evidenceIds: finding.evidence?.map((e) => e.id || "").filter(Boolean) || [],
+      priority,
+      category: finding.category === "methodology" ? "methodology" : "clarification",
+      expectedAnswerBasis: finding.recommendation || (lang === "sk" ? "Zdôvodnenie metodického alebo technického rozhodnutia." : "Justification of methodological or technical decision."),
+      includeInExport: true,
+    })
   }
 
   return questions
