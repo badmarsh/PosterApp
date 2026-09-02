@@ -852,3 +852,21 @@ list, for Phase 2 as it already was for Phase 1.
 
 *End of §15. Analysis continues to live here; execution specs for Phase 2 live in
 `CODING_AGENT_PROMPT_pipeline_perfection.md`.*
+
+---
+
+## §16 — Phase 2: Completion & Verification Note
+
+All six tasks from Phase 2 (Tasks 9–14) and all eight tasks from Phase 1 (Tasks 1–8) have been implemented, regression-tested, and verified on `main`:
+
+1. **Task 9 — Discipline Classification & Guideline Auto-Apply:** `classifyDisciplineAndThesisType` and `detectReportingGuideline` are wired into `POST /api/workspaces/[id]/thesis-review`. High-confidence matches (`≥ AUTO_APPLY_CONFIDENCE_THRESHOLD = 0.8`) automatically apply the guideline, while lower confidence detections are returned additively as `suggestedReportingStandard`.
+2. **Task 10 — Rubric Unification & Applicability Matrix:** `activeCriteria` is now driven by `SK_ACADEMIC_RUBRIC_V1`'s per-thesis-type applicability matrix. The 13→7 criteria mapping (`RUBRIC_CRITERIA_MAP`) and findings-to-sections bridge accurately map findings, and empty criteria fall back to `NO_FINDINGS_SYNTHESIS` rather than being dropped.
+3. **Task 11 — Path A Baseline Upgrade:** Deterministic quality checks (`checkObjectiveAlignment`, `auditCitationConsistency`) and PaperQA2-style pre-generation evidence grounding run on standard Path A by default. `shouldUseProfessionalMode` auto-elevates paper reviews and non-none reporting standards.
+4. **Task 12 — Embedding-Assisted Semantic Grounding:** `groundClaimInChunks` implements a two-tier strategy: fast lexical Jaccard for high-overlap candidates (≥ 0.15), falling through to local MiniLM embedding cosine similarity (`SEMANTIC_MATCH_THRESHOLD = 0.6`) only for ambiguous candidates in the [0.05, 0.15) band.
+5. **Task 13 — Provider-Level Fallback & Provenance:** `client.ts` supports automatic failover to `AI_API_URL_FALLBACK`/`AI_API_KEY_FALLBACK` upon transient provider failure. Provider provenance (`"primary"` vs. `"fallback-provider"`) is tracked via `getLastServedProvider()`, attached to the API response, and persisted to `debateLog`.
+6. **Task 14 — Harsh Outlier Grade Reconciliation:** `reconcileGrade` preserves asymmetric calibration: lenient self-reports (>15 points above derived) are corrected down, while harsh self-reports (> `HARSH_OUTLIER_THRESHOLD = 20` points below derived) preserve the self-reported grade and append an advisory warning to `debateLog`.
+
+**Final Verification:**
+- `npx tsc --noEmit`: 0 errors (strict mode across all routes, utilities, and tests)
+- `npx vitest run`: 85 test files passed, 613 / 613 unit and integration tests passing
+- `pnpm run build`: Next.js Turbopack production build succeeded, all 41 routes compiled cleanly.

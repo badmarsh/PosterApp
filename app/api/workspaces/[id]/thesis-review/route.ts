@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { requireWorkspaceEditor } from "@/lib/auth"
-import { generateAIResponse } from "@/lib/ai/client"
+import { generateAIResponse, getLastServedProvider } from "@/lib/ai/client"
 import { ThesisReviewGenerationSchema, validateGeneratedSections } from "@/lib/ai/contracts"
 import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
@@ -593,7 +593,15 @@ export async function POST(
       result.recommendation = gradeToRecommendation(result.overallGrade, lang)
     }
 
-    // 8. Save to database
+    // 8. Record provider provenance (Task 13) in saved review and API response
+    const providerProvenance = getLastServedProvider()
+    let finalDebateLog = professionalResult?.debateLog ?? null
+    if (providerProvenance === "fallback-provider") {
+      const fallbackNote = `[Provider Fallback] Review generated via fallback provider.`
+      finalDebateLog = finalDebateLog ? `${finalDebateLog}\n${fallbackNote}` : fallbackNote
+    }
+
+    // 9. Save to database
     const saved = await prisma.thesisReview.create({
       data: {
         workspaceId,
@@ -628,7 +636,7 @@ export async function POST(
         reportingStandard: effectiveReportingStandard,
         reportingGuidelineChecks: professionalResult?.reportingGuidelineChecks ? JSON.stringify(professionalResult.reportingGuidelineChecks) : null,
         confidentialComments: professionalResult?.confidentialComments ?? null,
-        debateLog: professionalResult?.debateLog ?? null,
+        debateLog: finalDebateLog,
         phdEnrichment: professionalResult?.phdEnrichment ? JSON.stringify(professionalResult.phdEnrichment) : null,
         status: "draft",
         language: lang,
@@ -657,6 +665,7 @@ export async function POST(
       reportingGuidelineChecks: professionalResult?.reportingGuidelineChecks ?? [],
       confidentialComments: professionalResult?.confidentialComments,
       phdEnrichment: professionalResult?.phdEnrichment ?? null,
+      providerProvenance,
       vectorWarning,
       graphWarning,
       ragStats: {

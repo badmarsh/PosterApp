@@ -317,17 +317,17 @@ threshold on both sides — confirm no regression of existing leniency behavior.
 
 ## Final checklist
 
-- [ ] Phase 1 (Tasks 1–8) confirmed merged before starting any task in this file
-- [ ] Task 9 — classification auto-wired; confidence-gated `reportingStandard` suggestion
-- [ ] Task 10 — `activeCriteria` driven by `SK_ACADEMIC_RUBRIC_V1`; 13→7 legacy-id
+- [x] Phase 1 (Tasks 1–8) confirmed merged before starting any task in this file
+- [x] Task 9 — classification auto-wired; confidence-gated `reportingStandard` suggestion
+- [x] Task 10 — `activeCriteria` driven by `SK_ACADEMIC_RUBRIC_V1`; 13→7 legacy-id
       mapping table complete; findings→sections bridge fallback bug fixed
-- [ ] Task 11 — deterministic checks + pre-generation grounding run on Path A by
+- [x] Task 11 — deterministic checks + pre-generation grounding run on Path A by
       default; `multiAgentDebate`/PhD enrichment still opt-in only
-- [ ] Task 12 — embedding-assisted grounding blended with Jaccard; new
+- [x] Task 12 — embedding-assisted grounding blended with Jaccard; new
       `"semantic_embedding"` verification-method tag
-- [ ] Task 13 — provider-level fallback, visible in saved output
-- [ ] Task 14 — harsh-outlier flag in `reconcileGrade`; leniency-only correction
+- [x] Task 13 — provider-level fallback, visible in saved output
+- [x] Task 14 — harsh-outlier flag in `reconcileGrade`; leniency-only correction
       behavior preserved
-- [ ] Full test suite + typecheck green
-- [ ] `PIPELINE_ARCHITECTURE_AND_PERFECTION_ROADMAP.md` updated with a closing note once
+- [x] Full test suite + typecheck green
+- [x] `PIPELINE_ARCHITECTURE_AND_PERFECTION_ROADMAP.md` updated with a closing note once
       all six tasks land, mirroring how §12/§13 close out Phase 1
