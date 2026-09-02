@@ -38,27 +38,22 @@ import type {
   ReviewSeverity,
   FindingStatus,
   EvidenceReference,
+  EvidenceState,
   FindingAudience,
 } from "@/lib/ai/review-types"
 import type { ReviewLanguage } from "@/lib/ai/thesis-rubric"
+import { StatusBadge } from "./status-badge"
+import { SEVERITY_CLASSES, EPISTEMIC_CLASSES, EVIDENCE_CLASSES } from "@/lib/thesis-review/badge-styles"
 
 interface Props {
   finding: ReviewFinding
-  lang: ReviewLanguage
+  lang?: ReviewLanguage
   isSelected?: boolean
   onSelectEvidence: (ev: EvidenceReference) => void
   onAccept: (id: string) => void
   onReject: (id: string) => void
   onEdit: (id: string, updates: Partial<ReviewFinding>) => void
   onToggleExport: (id: string) => void
-}
-
-const SEVERITY_CLASSES: Record<ReviewSeverity, string> = {
-  critical: "bg-destructive/15 text-destructive border-destructive/30",
-  major: "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30",
-  minor: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
-  suggestion: "bg-muted text-muted-foreground border-muted-foreground/30",
-  info: "bg-muted/60 text-muted-foreground border-muted-foreground/20",
 }
 
 const STATUS_ICONS: Record<FindingStatus, any> = {
@@ -69,9 +64,209 @@ const STATUS_ICONS: Record<FindingStatus, any> = {
   resolved: CheckCircle2,
 }
 
+const EVIDENCE_ICONS: Record<EvidenceState, any> = {
+  "verified-exact": CheckCircle2,
+  "verified-normalized": CheckCircle2,
+  approximate: HelpCircle,
+  ambiguous: HelpCircle,
+  stale: AlertCircle,
+  unverified: AlertCircle,
+  verified: CheckCircle2,
+}
+
+type FindingCardLabels = {
+  severityOptions: Record<"critical" | "major" | "minor" | "suggestion", string>
+  audienceOptions: Record<FindingAudience, string>
+  originAi: string
+  originReviewer: string
+  statusLabels: Record<FindingStatus, string>
+  toggleExportOn: string
+  toggleExportOff: string
+  editTitlePlaceholder: string
+  editExplanationPlaceholder: string
+  editRecommendationPlaceholder: string
+  cancelEdit: string
+  saveEdit: string
+  confidential: string
+  recommendationLabel: string
+  evidenceLabel: string
+  viewInDocument: string
+  evidenceStates: Record<EvidenceState, string>
+  epistemic: Record<string, { label: string; title: string }>
+  reviewerNoteLabel: string
+  reviewerNotePlaceholder: string
+  accept: string
+  reject: string
+  edit: string
+  hideNote: string
+  addNote: string
+}
+
+const LABELS: Record<ReviewLanguage, FindingCardLabels> = {
+  sk: {
+    severityOptions: {
+      critical: "Kritická chyba (Critical)",
+      major: "Zásadná pripomienka (Major)",
+      minor: "Drobná pripomienka (Minor)",
+      suggestion: "Návrh / Odporúčanie (Suggestion)",
+    },
+    audienceOptions: { author: "Pre autora", editor: "Dôverné (Editor)", committee: "Pre komisiu", private: "Súkromné" },
+    originAi: "AI",
+    originReviewer: "Recenzent",
+    statusLabels: {
+      unreviewed: "Nepreskúmané",
+      accepted: "Prijaté",
+      edited: "Upravené",
+      rejected: "Odmietnuté",
+      resolved: "Vyriešené",
+    },
+    toggleExportOn: "Zahrnuté v exporte",
+    toggleExportOff: "Vylúčené z exportu",
+    editTitlePlaceholder: "Názov zistenia",
+    editExplanationPlaceholder: "Podrobné vysvetlenie problému",
+    editRecommendationPlaceholder: "Odporúčaná náprava pre autora",
+    cancelEdit: "Zrušiť",
+    saveEdit: "Uložiť zmeny",
+    confidential: "Dôverné",
+    recommendationLabel: "Odporúčaná náprava:",
+    evidenceLabel: "Dôkaz v texte:",
+    viewInDocument: "Zobraziť v dokumente",
+    evidenceStates: {
+      "verified-exact": "Presný citát ✓",
+      "verified-normalized": "Normalizovaný ✓",
+      approximate: "Približná zhoda ~",
+      ambiguous: "Viacero výskytov ⧉",
+      stale: "Zmenená verzia ⚠",
+      unverified: "Neoverený",
+      verified: "Presný citát ✓",
+    },
+    epistemic: {
+      SUPPORTED_FACT: { label: "Doložený fakt ✓", title: "Doložený fakt: overený priamy citát z rukopisu" },
+      SUPPORTED_INTERPRETATION: { label: "Interpretácia", title: "Interpretácia doložená textom práce" },
+      REVIEWER_JUDGMENT: { label: "Úsudok", title: "Hodnotenie recenzenta" },
+      MISSING_EVIDENCE: { label: "Chýbajúci podklad", title: "Chýbajúci podklad: v dostupnom texte nebolo možné overiť" },
+      POSSIBLE_RISK: { label: "Možné riziko", title: "Hodnotenie recenzenta" },
+      REQUIRES_HUMAN_VERIFICATION: { label: "Nutné overiť ⚠", title: "Vyžaduje overenie recenzentom v origináli" },
+    },
+    reviewerNoteLabel: "Vlastná poznámka recenzenta:",
+    reviewerNotePlaceholder: "Doplňte vlastné odborné stanovisko k tomuto bodu...",
+    accept: "Prijať",
+    reject: "Odmietnuť",
+    edit: "Upraviť",
+    hideNote: "Skryť poznámku",
+    addNote: "+ Poznámka recenzenta",
+  },
+  cs: {
+    severityOptions: {
+      critical: "Kritická chyba (Critical)",
+      major: "Zásadní připomínka (Major)",
+      minor: "Drobná připomínka (Minor)",
+      suggestion: "Návrh / Doporučení (Suggestion)",
+    },
+    audienceOptions: { author: "Pro autora", editor: "Důvěrné (Editor)", committee: "Pro komisi", private: "Soukromé" },
+    originAi: "AI",
+    originReviewer: "Recenzent",
+    statusLabels: {
+      unreviewed: "Nepřezkoumáno",
+      accepted: "Přijato",
+      edited: "Upraveno",
+      rejected: "Zamítnuto",
+      resolved: "Vyřešeno",
+    },
+    toggleExportOn: "Zahrnuto v exportu",
+    toggleExportOff: "Vyloučeno z exportu",
+    editTitlePlaceholder: "Název zjištění",
+    editExplanationPlaceholder: "Podrobné vysvětlení problému",
+    editRecommendationPlaceholder: "Doporučená náprava pro autora",
+    cancelEdit: "Zrušit",
+    saveEdit: "Uložit změny",
+    confidential: "Důvěrné",
+    recommendationLabel: "Doporučená náprava:",
+    evidenceLabel: "Důkaz v textu:",
+    viewInDocument: "Zobrazit v dokumentu",
+    evidenceStates: {
+      "verified-exact": "Přesná citace ✓",
+      "verified-normalized": "Normalizováno ✓",
+      approximate: "Přibližná shoda ~",
+      ambiguous: "Více výskytů ⧉",
+      stale: "Změněná verze ⚠",
+      unverified: "Neověřeno",
+      verified: "Přesná citace ✓",
+    },
+    epistemic: {
+      SUPPORTED_FACT: { label: "Doložený fakt ✓", title: "Doložený fakt: ověřená přímá citace z rukopisu" },
+      SUPPORTED_INTERPRETATION: { label: "Interpretace", title: "Interpretace doložená textem práce" },
+      REVIEWER_JUDGMENT: { label: "Úsudek", title: "Hodnocení recenzenta" },
+      MISSING_EVIDENCE: { label: "Chybějící podklad", title: "Chybějící podklad: v dostupném textu nebylo možné ověřit" },
+      POSSIBLE_RISK: { label: "Možné riziko", title: "Hodnocení recenzenta" },
+      REQUIRES_HUMAN_VERIFICATION: { label: "Nutno ověřit ⚠", title: "Vyžaduje ověření recenzentem v originále" },
+    },
+    reviewerNoteLabel: "Vlastní poznámka recenzenta:",
+    reviewerNotePlaceholder: "Doplňte vlastní odborné stanovisko k tomuto bodu...",
+    accept: "Přijmout",
+    reject: "Zamítnout",
+    edit: "Upravit",
+    hideNote: "Skrýt poznámku",
+    addNote: "+ Poznámka recenzenta",
+  },
+  en: {
+    severityOptions: {
+      critical: "Critical error (Critical)",
+      major: "Major comment (Major)",
+      minor: "Minor comment (Minor)",
+      suggestion: "Suggestion / Recommendation",
+    },
+    audienceOptions: { author: "For author", editor: "Confidential (Editor)", committee: "For committee", private: "Private" },
+    originAi: "AI",
+    originReviewer: "Reviewer",
+    statusLabels: {
+      unreviewed: "Unreviewed",
+      accepted: "Accepted",
+      edited: "Edited",
+      rejected: "Rejected",
+      resolved: "Resolved",
+    },
+    toggleExportOn: "Included in export",
+    toggleExportOff: "Excluded from export",
+    editTitlePlaceholder: "Finding title",
+    editExplanationPlaceholder: "Detailed explanation of the issue",
+    editRecommendationPlaceholder: "Recommended fix for the author",
+    cancelEdit: "Cancel",
+    saveEdit: "Save changes",
+    confidential: "Confidential",
+    recommendationLabel: "Recommended fix:",
+    evidenceLabel: "Evidence in text:",
+    viewInDocument: "Show in document",
+    evidenceStates: {
+      "verified-exact": "Exact quote ✓",
+      "verified-normalized": "Normalized ✓",
+      approximate: "Approximate match ~",
+      ambiguous: "Multiple occurrences ⧉",
+      stale: "Changed version ⚠",
+      unverified: "Unverified",
+      verified: "Exact quote ✓",
+    },
+    epistemic: {
+      SUPPORTED_FACT: { label: "Supported fact ✓", title: "Supported fact: verified direct quote from the manuscript" },
+      SUPPORTED_INTERPRETATION: { label: "Interpretation", title: "Interpretation supported by the text" },
+      REVIEWER_JUDGMENT: { label: "Judgment", title: "Reviewer's assessment" },
+      MISSING_EVIDENCE: { label: "Missing evidence", title: "Missing evidence: could not be verified in the available text" },
+      POSSIBLE_RISK: { label: "Possible risk", title: "Reviewer's assessment" },
+      REQUIRES_HUMAN_VERIFICATION: { label: "Needs verification ⚠", title: "Requires verification by the reviewer in the original" },
+    },
+    reviewerNoteLabel: "Reviewer's note:",
+    reviewerNotePlaceholder: "Add your own expert opinion on this point...",
+    accept: "Accept",
+    reject: "Reject",
+    edit: "Edit",
+    hideNote: "Hide note",
+    addNote: "+ Reviewer note",
+  },
+}
+
 export function FindingCard({
   finding,
-  lang,
+  lang = "sk",
   isSelected = false,
   onSelectEvidence,
   onAccept,
@@ -79,6 +274,7 @@ export function FindingCard({
   onEdit,
   onToggleExport,
 }: Props) {
+  const L = LABELS[lang]
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState(finding.title)
   const [explanation, setExplanation] = useState(finding.explanation)
@@ -102,65 +298,12 @@ export function FindingCard({
 
   const renderEvidenceState = (ev?: EvidenceReference) => {
     if (!ev?.quote) return null
-    const st = ev.state || (ev.verified ? "verified-exact" : "unverified")
-
-    if (st === "verified-exact" || st === "verified") {
-      return (
-        <Badge
-          variant="outline"
-          className="text-[9px] py-0 px-1 text-green-700 dark:text-green-400 bg-green-500/10 border-green-500/30 gap-0.5"
-        >
-          <CheckCircle2 className="h-2.5 w-2.5" /> Presný citát ✓
-        </Badge>
-      )
-    }
-    if (st === "verified-normalized") {
-      return (
-        <Badge
-          variant="outline"
-          className="text-[9px] py-0 px-1 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30 gap-0.5"
-        >
-          <CheckCircle2 className="h-2.5 w-2.5" /> Normalizovaný ✓
-        </Badge>
-      )
-    }
-    if (st === "approximate") {
-      return (
-        <Badge
-          variant="outline"
-          className="text-[9px] py-0 px-1 text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/30 gap-0.5"
-        >
-          <HelpCircle className="h-2.5 w-2.5" /> Približná zhoda ~
-        </Badge>
-      )
-    }
-    if (st === "ambiguous") {
-      return (
-        <Badge
-          variant="outline"
-          className="text-[9px] py-0 px-1 text-purple-700 dark:text-purple-400 bg-purple-500/10 border-purple-500/30 gap-0.5"
-        >
-          <HelpCircle className="h-2.5 w-2.5" /> Viacero výskytov ⧉
-        </Badge>
-      )
-    }
-    if (st === "stale") {
-      return (
-        <Badge
-          variant="outline"
-          className="text-[9px] py-0 px-1 text-destructive bg-destructive/10 border-destructive/30 gap-0.5"
-        >
-          <AlertCircle className="h-2.5 w-2.5" /> Zmenená verzia ⚠
-        </Badge>
-      )
-    }
+    const st: EvidenceState = ev.state || (ev.verified ? "verified-exact" : "unverified")
+    const Icon = EVIDENCE_ICONS[st] || AlertCircle
     return (
-      <Badge
-        variant="outline"
-        className="text-[9px] py-0 px-1 text-muted-foreground bg-muted border-border gap-0.5"
-      >
-        <AlertCircle className="h-2.5 w-2.5" /> Neoverený
-      </Badge>
+      <StatusBadge variant={EVIDENCE_CLASSES[st]} icon={<Icon className="h-2.5 w-2.5" />}>
+        {L.evidenceStates[st]}
+      </StatusBadge>
     )
   }
 
@@ -184,22 +327,22 @@ export function FindingCard({
             onValueChange={(val) => onEdit(finding.id, { severity: val as ReviewSeverity })}
           >
             <SelectTrigger
-              className={`h-6 text-[11px] font-bold px-2 py-0 border rounded ${SEVERITY_CLASSES[finding.severity]}`}
+              className={`h-6 text-[11px] font-bold px-2 py-0 border rounded-md ${SEVERITY_CLASSES[finding.severity]}`}
             >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="critical" className="text-xs font-bold text-destructive">
-                Kritická chyba (Critical)
+                {L.severityOptions.critical}
               </SelectItem>
-              <SelectItem value="major" className="text-xs font-bold text-orange-600">
-                Zásadná pripomienka (Major)
+              <SelectItem value="major" className="text-xs font-bold text-severity-major">
+                {L.severityOptions.major}
               </SelectItem>
-              <SelectItem value="minor" className="text-xs font-bold text-blue-600">
-                Drobná pripomienka (Minor)
+              <SelectItem value="minor" className="text-xs font-bold text-status-info">
+                {L.severityOptions.minor}
               </SelectItem>
               <SelectItem value="suggestion" className="text-xs text-muted-foreground">
-                Návrh / Odporúčanie (Suggestion)
+                {L.severityOptions.suggestion}
               </SelectItem>
             </SelectContent>
           </Select>
@@ -210,46 +353,14 @@ export function FindingCard({
           </Badge>
 
           {/* Epistemic Status badge */}
-          {finding.epistemicStatus && (
-            <Badge
-              variant="outline"
-              className={`text-[9px] font-medium py-0 px-1.5 ${
-                finding.epistemicStatus === "SUPPORTED_FACT"
-                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
-                  : finding.epistemicStatus === "SUPPORTED_INTERPRETATION"
-                  ? "bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/30"
-                  : finding.epistemicStatus === "MISSING_EVIDENCE"
-                  ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30"
-                  : finding.epistemicStatus === "REQUIRES_HUMAN_VERIFICATION"
-                  ? "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30"
-                  : finding.epistemicStatus === "POSSIBLE_RISK"
-                  ? "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30"
-                  : "bg-muted text-muted-foreground border-border"
-              }`}
-              title={
-                finding.epistemicStatus === "SUPPORTED_FACT"
-                  ? "Doložený fakt: overený priamy citát z rukopisu"
-                  : finding.epistemicStatus === "SUPPORTED_INTERPRETATION"
-                  ? "Interpretácia doložená textom práce"
-                  : finding.epistemicStatus === "MISSING_EVIDENCE"
-                  ? "Chýbajúci podklad: v dostupnom texte nebolo možné overiť"
-                  : finding.epistemicStatus === "REQUIRES_HUMAN_VERIFICATION"
-                  ? "Vyžaduje overenie recenzentom v origináli"
-                  : "Hodnotenie recenzenta"
-              }
+          {finding.epistemicStatus && L.epistemic[finding.epistemicStatus] && (
+            <StatusBadge
+              size="md"
+              variant={EPISTEMIC_CLASSES[finding.epistemicStatus]}
+              title={L.epistemic[finding.epistemicStatus].title}
             >
-              {finding.epistemicStatus === "SUPPORTED_FACT"
-                ? "Doložený fakt ✓"
-                : finding.epistemicStatus === "SUPPORTED_INTERPRETATION"
-                ? "Interpretácia"
-                : finding.epistemicStatus === "MISSING_EVIDENCE"
-                ? "Chýbajúci podklad"
-                : finding.epistemicStatus === "REQUIRES_HUMAN_VERIFICATION"
-                ? "Nutné overiť ⚠"
-                : finding.epistemicStatus === "POSSIBLE_RISK"
-                ? "Možné riziko"
-                : "Úsudok"}
-            </Badge>
+              {L.epistemic[finding.epistemicStatus].label}
+            </StatusBadge>
           )}
 
           {/* Audience selector */}
@@ -257,25 +368,31 @@ export function FindingCard({
             value={finding.audience || "author"}
             onValueChange={(val) => onEdit(finding.id, { audience: val as FindingAudience })}
           >
-            <SelectTrigger className="h-6 text-[10px] px-1.5 py-0 border rounded w-28">
+            <SelectTrigger className="h-6 text-[10px] px-1.5 py-0 border rounded-md w-28">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="author" className="text-xs">Pre autora</SelectItem>
-              <SelectItem value="editor" className="text-xs font-bold text-amber-600">Dôverné (Editor)</SelectItem>
-              <SelectItem value="committee" className="text-xs font-bold text-blue-600">Pre komisiu</SelectItem>
+              <SelectItem value="author" className="text-xs">{L.audienceOptions.author}</SelectItem>
+              <SelectItem value="editor" className="text-xs font-bold text-warning">{L.audienceOptions.editor}</SelectItem>
+              <SelectItem value="committee" className="text-xs font-bold text-status-info">{L.audienceOptions.committee}</SelectItem>
             </SelectContent>
           </Select>
 
           {/* AI vs Reviewer origin badge */}
           {finding.createdBy === "ai" ? (
-            <span className="flex items-center gap-1 text-[10px] text-muted-foreground font-mono">
-              <Sparkles className="h-3 w-3 text-primary/70" /> AI
-            </span>
+            <Badge
+              variant="outline"
+              className="text-[10px] font-mono gap-1 text-muted-foreground border-muted-foreground/30"
+            >
+              <Sparkles className="h-3 w-3 text-primary/70" /> {L.originAi}
+            </Badge>
           ) : (
-            <span className="flex items-center gap-1 text-[10px] text-primary font-mono font-bold">
-              <User className="h-3 w-3" /> Recenzent
-            </span>
+            <Badge
+              variant="outline"
+              className="text-[10px] font-mono font-bold gap-1 text-primary border-primary/30 bg-primary/5"
+            >
+              <User className="h-3 w-3" /> {L.originReviewer}
+            </Badge>
           )}
         </div>
 
@@ -285,25 +402,21 @@ export function FindingCard({
             variant="secondary"
             className={`text-[10px] font-semibold gap-1 ${
               finding.status === "accepted"
-                ? "text-green-600 bg-green-50 dark:bg-green-950/40"
+                ? "text-success bg-success/10"
                 : finding.status === "rejected"
                 ? "text-destructive bg-destructive/10"
                 : ""
             }`}
           >
             <StatusIcon className="h-3 w-3" />
-            {finding.status === "unreviewed" && "Nepreskúmané"}
-            {finding.status === "accepted" && "Prijaté"}
-            {finding.status === "edited" && "Upravené"}
-            {finding.status === "rejected" && "Odmietnuté"}
-            {finding.status === "resolved" && "Vyriešené"}
+            {L.statusLabels[finding.status]}
           </Badge>
 
           <Button
             size="icon"
             variant="ghost"
             className="h-6 w-6 text-muted-foreground"
-            title={finding.includeInExport ? "Zahrnuté v exporte" : "Vylúčené z exportu"}
+            title={finding.includeInExport ? L.toggleExportOn : L.toggleExportOff}
             onClick={() => onToggleExport(finding.id)}
           >
             {finding.includeInExport ? (
@@ -321,27 +434,27 @@ export function FindingCard({
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Názov zistenia"
+            placeholder={L.editTitlePlaceholder}
             className="text-xs font-bold"
           />
           <Textarea
             value={explanation}
             onChange={(e) => setExplanation(e.target.value)}
-            placeholder="Podrobné vysvetlenie problému"
+            placeholder={L.editExplanationPlaceholder}
             className="text-xs min-h-[60px]"
           />
           <Textarea
             value={recommendation}
             onChange={(e) => setRecommendation(e.target.value)}
-            placeholder="Odporúčaná náprava pre autora"
+            placeholder={L.editRecommendationPlaceholder}
             className="text-xs min-h-[50px]"
           />
           <div className="flex justify-end gap-2 pt-1">
             <Button size="sm" variant="outline" onClick={() => setIsEditing(false)} className="h-7 text-xs">
-              Zrušiť
+              {L.cancelEdit}
             </Button>
             <Button size="sm" onClick={handleSaveEdit} className="h-7 text-xs font-semibold">
-              Uložiť zmeny
+              {L.saveEdit}
             </Button>
           </div>
         </div>
@@ -352,8 +465,8 @@ export function FindingCard({
               {finding.title}
             </h4>
             {finding.audience === "editor" && (
-              <Badge variant="outline" className="text-[9px] text-amber-600 border-amber-300 gap-1 shrink-0">
-                <Lock className="h-2.5 w-2.5" /> Dôverné
+              <Badge variant="outline" className="text-[9px] text-warning border-warning/40 gap-1 shrink-0">
+                <Lock className="h-2.5 w-2.5" /> {L.confidential}
               </Badge>
             )}
           </div>
@@ -364,7 +477,7 @@ export function FindingCard({
 
           {finding.recommendation && (
             <div className="rounded bg-muted/40 p-2 text-xs border-l-2 border-primary/50 text-foreground/90">
-              <span className="font-semibold text-[11px] block text-primary">Odporúčaná náprava:</span>
+              <span className="font-semibold text-[11px] block text-primary">{L.recommendationLabel}</span>
               {finding.recommendation}
             </div>
           )}
@@ -376,7 +489,7 @@ export function FindingCard({
         <div className="rounded bg-muted/30 border p-2.5 space-y-1 text-xs">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-              <Quote className="h-3 w-3 text-primary" /> Dôkaz v texte:
+              <Quote className="h-3 w-3 text-primary" /> {L.evidenceLabel}
               {renderEvidenceState(primaryEvidence)}
             </span>
             <Button
@@ -386,7 +499,7 @@ export function FindingCard({
               onClick={() => onSelectEvidence(primaryEvidence)}
             >
               <Search className="h-3 w-3" />
-              Zobraziť v dokumente
+              {L.viewInDocument}
             </Button>
           </div>
           <p className="italic font-serif text-[11px] text-foreground/80 pl-2 border-l-2 border-primary/40 line-clamp-2">
@@ -399,7 +512,7 @@ export function FindingCard({
       {isNotesOpen && (
         <div className="pt-1 space-y-1">
           <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-            <MessageSquare className="h-3 w-3 text-primary" /> Vlastná poznámka recenzenta:
+            <MessageSquare className="h-3 w-3 text-primary" /> {L.reviewerNoteLabel}
           </label>
           <Textarea
             value={reviewerNotes}
@@ -407,7 +520,7 @@ export function FindingCard({
               setReviewerNotes(e.target.value)
               onEdit(finding.id, { reviewerNotes: e.target.value })
             }}
-            placeholder="Doplňte vlastné odborné stanovisko k tomuto bodu..."
+            placeholder={L.reviewerNotePlaceholder}
             className="text-xs min-h-[50px]"
           />
         </div>
@@ -423,7 +536,7 @@ export function FindingCard({
             onClick={() => onAccept(finding.id)}
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
-            Prijať
+            {L.accept}
           </Button>
 
           <Button
@@ -433,7 +546,7 @@ export function FindingCard({
             onClick={() => onReject(finding.id)}
           >
             <XCircle className="h-3.5 w-3.5" />
-            Odmietnuť
+            {L.reject}
           </Button>
 
           <Button
@@ -443,7 +556,7 @@ export function FindingCard({
             onClick={() => setIsEditing(!isEditing)}
           >
             <Edit3 className="h-3.5 w-3.5" />
-            Upraviť
+            {L.edit}
           </Button>
         </div>
 
@@ -454,7 +567,7 @@ export function FindingCard({
           onClick={() => setIsNotesOpen(!isNotesOpen)}
         >
           <MessageSquare className="h-3 w-3" />
-          {isNotesOpen ? "Skryť poznámku" : "+ Poznámka recenzenta"}
+          {isNotesOpen ? L.hideNote : L.addNote}
         </Button>
       </div>
     </div>

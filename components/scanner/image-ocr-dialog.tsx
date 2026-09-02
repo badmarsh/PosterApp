@@ -616,7 +616,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                                   onClick={() => handleCopy(eq.formula, `eq_${i}`)}
                                   className="h-6 text-[10px] gap-1 text-muted-foreground"
                                 >
-                                  {copiedKey === `eq_${i}` ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
+                                  {copiedKey === `eq_${i}` ? <Check className="size-3 text-chart-3" /> : <Copy className="size-3" />}
                                   {copiedKey === `eq_${i}` ? "Copied" : "Copy LaTeX"}
                                 </Button>
                                 <Button
@@ -679,7 +679,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                                 onClick={() => handleCopy(t.markdown || "", `tbl_${i}`)}
                                 className="h-6 text-[10px] gap-1"
                               >
-                                {copiedKey === `tbl_${i}` ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
+                                {copiedKey === `tbl_${i}` ? <Check className="size-3 text-chart-3" /> : <Copy className="size-3" />}
                                 Copy Markdown
                               </Button>
                             </div>
@@ -708,7 +708,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                           onClick={() => handleCopy(ocrResult.text, "full_text")}
                           className="h-6 text-[10px] gap-1"
                         >
-                          {copiedKey === "full_text" ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
+                          {copiedKey === "full_text" ? <Check className="size-3 text-chart-3" /> : <Copy className="size-3" />}
                           Copy Markdown
                         </Button>
                       </div>

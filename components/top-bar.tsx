@@ -391,12 +391,12 @@ export function TopBar({
         <Button
           variant={collabEnabled ? "default" : "outline"}
           size="sm"
-          className={cn("h-8 gap-1.5", collabEnabled && "bg-chart-3 hover:bg-chart-3/90 text-white")}
+          className={cn("h-8 gap-1.5", collabEnabled && "bg-chart-3 hover:bg-chart-3/90 text-primary-foreground")}
           onClick={() => setCollabEnabled(!collabEnabled)}
           aria-label={collabEnabled ? "Live Collaboration enabled" : "Enable Live Collaboration"}
           aria-pressed={collabEnabled}
         >
-          <Users className={cn("size-3.5", collabEnabled ? "text-white" : "")} />
+          <Users className={cn("size-3.5", collabEnabled ? "text-primary-foreground" : "")} />
           <span className="hidden md:inline">Live Collab</span>
         </Button>
         

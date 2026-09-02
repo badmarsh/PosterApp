@@ -135,7 +135,7 @@ export function ThesisWorkflowStepper({
 
         {/* Animated Progress Track */}
         <div
-          className="absolute top-7 left-[5%] h-1.5 bg-gradient-to-r from-emerald-400 via-emerald-500 to-[#8B2635] rounded-full transition-all duration-1000 ease-in-out hidden sm:block"
+          className="absolute top-7 left-[5%] h-1.5 bg-gradient-to-r from-emerald-400 via-emerald-500 to-primary rounded-full transition-all duration-1000 ease-in-out hidden sm:block"
           style={{ width: `${Math.min(90, (Math.max(0, currentStep - 1) / Math.max(1, totalSteps - 1)) * 90)}%` }}
         />
 
@@ -167,7 +167,7 @@ export function ThesisWorkflowStepper({
                     s.done
                       ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:border-emerald-800/60 dark:text-emerald-400"
                       : isActiveState
-                      ? "bg-[#8B2635] text-white border-white dark:border-zinc-900 shadow-md shadow-[#8B2635]/30 scale-105 sm:scale-115"
+                      ? "bg-primary text-primary-foreground border-white dark:border-zinc-900 shadow-md shadow-primary/30 scale-105 sm:scale-115"
                       : "bg-card text-muted-foreground border-muted hover:border-muted-foreground/30 hover:bg-muted/30"
                   )}
                   title={`${s.title} — ${s.detail}`}
@@ -183,7 +183,7 @@ export function ThesisWorkflowStepper({
                   {/* Pulsing ring for active state */}
                   {isActiveState && (
                     <div
-                      className="absolute inset-0 rounded-full border border-[#8B2635] animate-ping opacity-30"
+                      className="absolute inset-0 rounded-full border border-primary animate-ping opacity-30"
                       style={{ animationDuration: "2.5s" }}
                     />
                   )}
@@ -198,7 +198,7 @@ export function ThesisWorkflowStepper({
                   <div
                     className={cn(
                       "absolute top-11 bottom-[-1.5rem] left-5.5 w-0.5 sm:hidden transition-all duration-700",
-                      s.done ? "bg-emerald-500" : "bg-gradient-to-b from-[#8B2635] to-transparent"
+                      s.done ? "bg-emerald-500" : "bg-gradient-to-b from-primary to-transparent"
                     )}
                   />
                 )}
@@ -207,9 +207,9 @@ export function ThesisWorkflowStepper({
                 <div className="flex flex-col sm:items-center sm:text-center sm:mt-3 flex-1 w-full min-w-0">
                   <div
                     className={cn(
-                      "text-[9px] uppercase font-bold tracking-wider mb-0.5 transition-colors duration-300",
+                      "text-[10px] uppercase font-bold tracking-wider mb-0.5 transition-colors duration-300",
                       isActiveState
-                        ? "text-[#8B2635] dark:text-[#E06D7B]"
+                        ? "text-primary"
                         : s.done
                         ? "text-emerald-600 dark:text-emerald-500"
                         : "text-muted-foreground"
@@ -241,7 +241,7 @@ export function ThesisWorkflowStepper({
             <button
               onClick={onAutoFillClick}
               type="button"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium text-[#8B2635] dark:text-[#E06D7B] bg-[#8B2635]/5 hover:bg-[#8B2635]/15 border border-[#8B2635]/20 transition-all shadow-xs cursor-pointer group"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium text-primary bg-primary/5 hover:bg-primary/15 border border-primary/20 transition-all shadow-xs cursor-pointer group"
               title="Predvyplniť metadáta z nahraného PDF"
             >
               <Sparkles className="size-3.5 group-hover:rotate-12 transition-transform" />

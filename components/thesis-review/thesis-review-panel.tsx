@@ -193,8 +193,8 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
             {isGenerating || isGeneratingPlan ? (
               <div className="flex flex-col items-center justify-center space-y-4 py-8 text-center animate-fade-in">
                 <div className="relative">
-                  <div className="absolute inset-0 rounded-full blur-xl bg-[#8B2635]/20 animate-pulse" />
-                  <Loader2 className="size-12 text-[#8B2635] animate-spin relative z-10" />
+                  <div className="absolute inset-0 rounded-full blur-xl bg-primary/20 animate-pulse" />
+                  <Loader2 className="size-12 text-primary animate-spin relative z-10" />
                 </div>
                 <div className="space-y-1 max-w-md">
                   <h3 className="text-base font-bold text-foreground">
@@ -210,7 +210,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                 </div>
                 <div className="w-full max-w-sm space-y-2 pt-2">
                   <div className="h-2 w-full bg-muted overflow-hidden rounded-full">
-                    <div className="h-full w-2/3 bg-[#8B2635] animate-pulse rounded-full" />
+                    <div className="h-full w-2/3 bg-primary animate-pulse rounded-full" />
                   </div>
                   <span className="text-[11px] text-muted-foreground font-medium">Spracovávam sémantický kontext…</span>
                 </div>
@@ -221,7 +221,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b">
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <GraduationCap className="size-4 text-[#8B2635] dark:text-[#E06D7B] shrink-0" />
+                      <GraduationCap className="size-4 text-primary shrink-0" />
                       <h3 className="text-sm font-bold text-foreground truncate">
                         {formMetadata.studentName || formMetadata.thesisTitle
                           ? `${formMetadata.studentName || 'Autor'} — ${formMetadata.thesisTitle || 'Záverečná práca'}`
@@ -264,7 +264,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                       id="active-confidentiality"
                       checked={confidentialityAgreed}
                       onChange={(e) => setConfidentialityAgreed(e.target.checked)}
-                      className="mt-0.5 rounded accent-[#8B2635] cursor-pointer shrink-0"
+                      className="mt-0.5 rounded accent-primary cursor-pointer shrink-0"
                     />
                     <span className="leading-tight text-[11px] select-none text-foreground/90">
                       Posudzovanie v súlade s etickými pravidlami
@@ -280,7 +280,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                       id="active-multi-agent"
                       checked={multiAgentDebate}
                       onChange={(e) => setMultiAgentDebate(e.target.checked)}
-                      className="mt-0.5 rounded accent-[#8B2635] cursor-pointer shrink-0"
+                      className="mt-0.5 rounded accent-primary cursor-pointer shrink-0"
                     />
                     <span className="leading-tight text-[11px] select-none text-foreground/90">
                       Multi-Agent Debate (Hivemind Bias prevencia)
@@ -296,7 +296,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                       id="active-professional-mode"
                       checked={professionalModeOverride}
                       onChange={(e) => setProfessionalModeOverride(e.target.checked)}
-                      className="mt-0.5 rounded accent-[#8B2635] cursor-pointer shrink-0"
+                      className="mt-0.5 rounded accent-primary cursor-pointer shrink-0"
                     />
                     <span className="leading-tight text-[11px] select-none text-foreground/90">
                       Odborný režim (rozšírené hodnotenie a overovanie dôkazov)
@@ -312,7 +312,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                       id="active-skip-cite-audit"
                       checked={skipCitationAudit}
                       onChange={(e) => setSkipCitationAudit(e.target.checked)}
-                      className="mt-0.5 rounded accent-[#8B2635] cursor-pointer shrink-0"
+                      className="mt-0.5 rounded accent-primary cursor-pointer shrink-0"
                     />
                     <span className="leading-tight text-[11px] select-none text-foreground/90">
                       Preskočiť citačný audit (rýchlejšie)
@@ -340,7 +340,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                   <Button
                     onClick={handleGenerate}
                     disabled={!isReadyToGenerate || isGenerating || isGeneratingPlan || isParsing}
-                    className="flex-1 h-10 gap-2 font-semibold text-xs bg-[#8B2635] hover:bg-[#741E2B] text-white shadow-xs transition-all cursor-pointer rounded-lg"
+                    className="flex-1 h-10 gap-2 font-semibold text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs transition-all cursor-pointer rounded-lg"
                   >
                     <Sparkles className="size-4" />
                     Vygenerovať posudok (AI + RAG)
@@ -352,7 +352,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                     disabled={!hasDocument || isGenerating || isGeneratingPlan || isParsing}
                     className="h-10 text-xs text-foreground hover:bg-muted font-medium cursor-pointer shrink-0 rounded-lg"
                   >
-                    <Sparkles className="size-3.5 mr-1.5 text-[#8B2635] dark:text-[#E06D7B]" />
+                    <Sparkles className="size-3.5 mr-1.5 text-primary" />
                     Predanalýza (Pre-flight)
                   </Button>
                 </div>
@@ -394,11 +394,11 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                         loadReview(workspaceId, rev.id)
                       }
                     }}
-                    className="cursor-pointer group flex items-center justify-between rounded-xl border bg-card p-4 transition-all hover:border-[#8B2635]/50 hover:shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                    className="cursor-pointer group flex items-center justify-between rounded-xl border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <div className="space-y-1.5 min-w-0 flex-1 pr-3">
                       <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex size-7 items-center justify-center rounded-full bg-[#8B2635]/10 text-[#8B2635] dark:text-[#E06D7B] shrink-0">
+                        <div className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-primary shrink-0">
                           <GraduationCap className="h-4 w-4" />
                         </div>
                         <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 text-muted-foreground">

@@ -167,8 +167,8 @@ const EventRow = memo(function EventRow({
                 tip.severity === "error"
                   ? "bg-destructive/10 text-destructive border-destructive/20"
                   : tip.severity === "warning"
-                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
-                    : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                    ? "bg-chart-4/10 text-chart-4 border-chart-4/20"
+                    : "bg-status-info/10 text-status-info border-status-info/20"
 
               // Separate issue description from suggested fix
               let issueText = tip.issue || ""
@@ -227,7 +227,7 @@ const EventRow = memo(function EventRow({
 
                   {fixText && (
                     <div className="mt-0.5 flex items-start gap-1.5 rounded-md bg-muted/60 px-2 py-1.5 text-[11px] border border-border/40">
-                      <Sparkles className="size-3.5 mt-0.5 text-amber-500 dark:text-amber-400 shrink-0" />
+                      <Sparkles className="size-3.5 mt-0.5 text-chart-4 shrink-0" />
                       <div className="flex-1 leading-snug">
                         <span className="font-semibold text-foreground">Action: </span>
                         <span className="text-muted-foreground">{fixText}</span>
@@ -240,9 +240,9 @@ const EventRow = memo(function EventRow({
           </div>
         )}
         {event.fixes && event.fixes.length > 0 && (
-          <div className="mt-2 flex flex-col gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 shadow-sm">
+          <div className="mt-2 flex flex-col gap-1.5 rounded-md border border-chart-4/30 bg-chart-4/10 p-2 shadow-sm">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+              <span className="text-[11px] font-semibold text-chart-4">
                 {event.fixesApplied
                   ? "✓ Fixes Applied"
                   : `${event.fixes.length} AI Fix${event.fixes.length === 1 ? "" : "es"} Available`}
@@ -250,7 +250,7 @@ const EventRow = memo(function EventRow({
               {!event.fixesApplied && (
                 <Button
                   size="sm"
-                  className="h-6 px-2.5 text-[10px] font-semibold bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:text-black dark:hover:bg-amber-400 border-0"
+                  className="h-6 px-2.5 text-[10px] font-semibold bg-chart-4 hover:bg-chart-4/90 text-primary-foreground border-0"
                   onClick={async () => {
                     const activeCards = project.outputs?.find((o) => o.id === project.activeOutputId)?.cards ?? []
                     const validationErrors: string[] = []
@@ -534,7 +534,7 @@ function AssistantTextContent() {
               isApplied
                 ? "bg-muted/30 text-muted-foreground border-transparent cursor-default"
                 : hasValidationErrors
-                ? "border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
+                ? "border-chart-4/50 bg-chart-4/10 text-chart-4 hover:bg-chart-4/20"
                 : "border-primary/50 bg-primary/5 text-primary hover:bg-primary/15"
             )}
             onClick={() => {
@@ -582,7 +582,7 @@ function AssistantTextContent() {
             {isApplied ? (
               <CheckCircle2 className="size-4 shrink-0" />
             ) : hasValidationErrors ? (
-              <AlertTriangle className="size-4 shrink-0 text-amber-500" />
+              <AlertTriangle className="size-4 shrink-0 text-chart-4" />
             ) : (
               <Wrench className="size-4 shrink-0" />
             )}

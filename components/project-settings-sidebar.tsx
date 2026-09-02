@@ -359,7 +359,7 @@ export function ProjectSettingsSidebar() {
                   <Calculator className="size-3.5 text-primary" />
                   Manage Equations
                 </span>
-                <span className="rounded-full bg-muted px-1.5 py-0.2 text-[10px] font-mono text-muted-foreground">
+                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
                   {equations?.length || 0}
                 </span>
               </Button>

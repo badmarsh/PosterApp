@@ -74,7 +74,7 @@ export function TemplateHeader({ variant = "poster", className }: TemplateHeader
       <p className="mt-0.5 text-[10px] text-muted-foreground">
         {metadata.authors || "No authors set"}
       </p>
-      <p className="text-[9px] text-muted-foreground/80">
+      <p className="text-[10px] text-muted-foreground/80">
         {metadata.venue || "No venue / conference set"}
       </p>
     </div>

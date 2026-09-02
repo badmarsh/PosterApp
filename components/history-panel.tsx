@@ -273,7 +273,7 @@ export function HistoryPanel() {
         <DialogContent className="sm:max-w-sm" showCloseButton={false}>
           <DialogHeader>
             <div className="flex items-center gap-2 mb-1">
-              <AlertCircle className="size-4 shrink-0 text-amber-500" />
+              <AlertCircle className="size-4 shrink-0 text-chart-4" />
               <DialogTitle>Restore Snapshot?</DialogTitle>
             </div>
             <DialogDescription>

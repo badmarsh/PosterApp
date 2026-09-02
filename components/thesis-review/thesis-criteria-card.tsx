@@ -33,6 +33,7 @@ import {
 import type { ThesisSection, ThesisCriterion, ReviewLanguage, CriterionRating } from "@/lib/ai/thesis-rubric"
 import { useThesisReviewStore } from "./use-thesis-review-store"
 import { cn } from "@/lib/utils"
+import { RATING_CLASSES } from "@/lib/thesis-review/badge-styles"
 
 interface Props {
   criterion: ThesisCriterion
@@ -44,16 +45,6 @@ interface Props {
 }
 
 const RATING_OPTIONS: CriterionRating[] = ["A", "B", "C", "D", "E", "FX", "pending"]
-
-const RATING_COLORS: Record<string, string> = {
-  A: "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-200",
-  B: "bg-lime-100 text-lime-800 border-lime-300 dark:bg-lime-900/30 dark:text-lime-200",
-  C: "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-200",
-  D: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-200",
-  E: "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-200",
-  FX: "bg-red-200 text-red-900 border-red-400 dark:bg-red-900/50 dark:text-red-100",
-  pending: "bg-muted text-muted-foreground border-border",
-}
 
 const SUGGESTIONS_LABELS: Record<ReviewLanguage, string> = {
   sk: "Návrhy na zlepšenie",
@@ -129,7 +120,7 @@ export function ThesisCriteriaCard({
           {rating && (
             <Badge
               variant="outline"
-              className={cn("text-xs font-bold tabular-nums", RATING_COLORS[rating])}
+              className={cn("text-xs font-bold tabular-nums", RATING_CLASSES[rating])}
             >
               {rating}
             </Badge>

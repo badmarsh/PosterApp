@@ -434,7 +434,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <Button size="sm" className="text-xs h-8 px-3.5 gap-1.5 font-semibold bg-[#8B2635] hover:bg-[#741E2B] text-white rounded-lg shadow-xs transition-all cursor-pointer">
+                <Button size="sm" className="text-xs h-8 px-3.5 gap-1.5 font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-xs transition-all cursor-pointer">
                   <FileDown className="h-3.5 w-3.5" />
                   Exportovať posudok
                 </Button>
@@ -649,7 +649,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               >
                 <span>Na posúdenie</span>
                 <span className={cn(
-                  "px-1.5 py-0.2 rounded-full text-[10px] font-mono",
+                  "px-1.5 py-0.5 rounded-full text-[10px] font-mono",
                   activeTab === "unreviewed" ? "bg-amber-500/15 text-amber-800 dark:text-amber-300 font-semibold" : "bg-muted text-muted-foreground"
                 )}>
                   {unreviewedCount}
@@ -667,7 +667,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               >
                 <span>Zásadné</span>
                 <span className={cn(
-                  "px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold",
+                  "px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold",
                   activeTab === "major" ? "bg-red-500/15 text-red-700 dark:text-red-300" : "bg-muted text-muted-foreground"
                 )}>
                   {majorCount}
@@ -685,7 +685,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               >
                 <span>Chýbajúci dôkaz</span>
                 <span className={cn(
-                  "px-1.5 py-0.2 rounded-full text-[10px] font-mono",
+                  "px-1.5 py-0.5 rounded-full text-[10px] font-mono",
                   activeTab === "missing_evidence" ? "bg-purple-500/15 text-purple-700 dark:text-purple-300" : "bg-muted text-muted-foreground"
                 )}>
                   {missingEvidenceCount}
@@ -702,7 +702,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 )}
               >
                 <span>Reporting</span>
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-muted text-muted-foreground">
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-muted text-muted-foreground">
                   {reportingCount}
                 </span>
               </button>
@@ -717,7 +717,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 )}
               >
                 <span>V exporte</span>
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-muted text-muted-foreground">
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-muted text-muted-foreground">
                   {exportCount}
                 </span>
               </button>
@@ -733,7 +733,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               >
                 <span>Vyriešené</span>
                 <span className={cn(
-                  "px-1.5 py-0.2 rounded-full text-[10px] font-mono",
+                  "px-1.5 py-0.5 rounded-full text-[10px] font-mono",
                   activeTab === "resolved" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-muted text-muted-foreground"
                 )}>
                   {resolvedCount}

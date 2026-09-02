@@ -26,7 +26,7 @@ export function MethodBadge({ method }: { method: ParseMethod }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded border px-1 py-px font-mono text-[9px] font-medium uppercase tracking-wide",
+        "inline-flex items-center rounded border px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase tracking-wide",
         styles[method],
       )}
     >

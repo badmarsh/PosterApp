@@ -135,7 +135,7 @@ function TablePreview({ rows }: { rows: string[][] | string | undefined | null }
         </tbody>
       </table>
       {parsedRows.length > 3 && (
-        <p className="bg-card px-1 py-0.5 text-[8px] text-muted-foreground">
+        <p className="bg-card px-1 py-0.5 text-[9px] text-muted-foreground">
           +{parsedRows.length - 3} more rows
         </p>
       )}
@@ -229,7 +229,7 @@ const CitationRow = memo(function CitationRow({ entry }: { entry: BibEntry }) {
             onClick={handleCopyCite}
             title="Copy LaTeX cite command"
           >
-            {copiedKey ? <Check className="size-2.5 text-emerald-500" /> : <Copy className="size-2.5" />}
+            {copiedKey ? <Check className="size-2.5 text-chart-3" /> : <Copy className="size-2.5" />}
             <span>\cite</span>
           </Button>
           <Button
@@ -239,7 +239,7 @@ const CitationRow = memo(function CitationRow({ entry }: { entry: BibEntry }) {
             onClick={handleCopyBibTeX}
             title="Copy raw BibTeX entry"
           >
-            {copiedBib ? <Check className="size-2.5 text-emerald-500" /> : <Copy className="size-2.5" />}
+            {copiedBib ? <Check className="size-2.5 text-chart-3" /> : <Copy className="size-2.5" />}
             <span>BibTeX</span>
           </Button>
         </div>
@@ -597,7 +597,7 @@ export function AssetList() {
                 {tab.icon}
                 <span>{tab.label}</span>
                 <span className={cn(
-                  "font-mono text-[9px] px-1 py-0.2 rounded-full",
+                  "font-mono text-[9px] px-1 py-0.5 rounded-full",
                   isActive ? "bg-primary/15 text-primary font-semibold" : "bg-muted text-muted-foreground"
                 )}>
                   {tab.count}

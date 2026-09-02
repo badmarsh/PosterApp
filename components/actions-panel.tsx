@@ -73,7 +73,7 @@ export function ActionsPanel() {
               Automatically fill all empty cards in your project using AI and ingested context.
             </p>
             <Button
-              className="w-full justify-start gap-2 bg-blue-50/50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/40"
+              className="w-full justify-start gap-2 bg-status-info/10 text-status-info hover:bg-status-info/20"
               variant="outline"
               onClick={() => {
                 autoFillAllCardsAction();

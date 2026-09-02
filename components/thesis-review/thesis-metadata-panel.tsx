@@ -293,7 +293,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
       {/* Header */}
       <div className="flex items-center pb-3 border-b border-border/70">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#8B2635]/10 text-[#8B2635] dark:text-[#E06D7B] border border-[#8B2635]/20 shadow-2xs">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20 shadow-2xs">
             <GraduationCap className="size-4" />
           </div>
           <div className="min-w-0">
@@ -333,7 +333,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
       {/* 1. Document Selection (Always visible) */}
       <div className="space-y-2">
         <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-          <BookOpen className="size-3.5 text-[#8B2635] dark:text-[#E06D7B]" />
+          <BookOpen className="size-3.5 text-primary" />
           Zdrojový dokument
         </Label>
 
@@ -377,7 +377,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
             ) : (
               <div className="rounded-xl border bg-card/70 p-2.5 flex items-center justify-between text-xs shadow-2xs">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <FileText className="size-4 text-[#8B2635] dark:text-[#E06D7B] shrink-0" />
+                  <FileText className="size-4 text-primary shrink-0" />
                   <div className="min-w-0 truncate">
                     <p className="font-medium text-foreground truncate">{formatDocumentDisplayName(activeFile?.name, formMetadata.thesisTitle)}</p>
                     <p className="text-[10px] text-muted-foreground font-mono truncate">{activeFile?.name} • {formatBytes(activeFile?.size || 0)}</p>
@@ -411,10 +411,10 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
             }}
             onClick={() => fileInputRef.current?.click()}
             className={`cursor-pointer rounded-xl border-2 border-dashed p-4 text-center transition-all ${
-              isDragging ? "border-[#8B2635] bg-[#8B2635]/10" : "border-border/60 hover:border-[#8B2635]/60 hover:bg-muted/40"
+              isDragging ? "border-primary bg-primary/10" : "border-border/60 hover:border-primary/60 hover:bg-muted/40"
             }`}
           >
-            <UploadCloud className="size-6 text-[#8B2635] mx-auto mb-1.5 opacity-80" />
+            <UploadCloud className="size-6 text-primary mx-auto mb-1.5 opacity-80" />
             <p className="text-xs font-semibold">Nahrajte PDF práce</p>
             <p className="text-[10px] text-muted-foreground">Presuňte súbor sem</p>
           </div>
@@ -455,7 +455,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-              <FileText className="size-3.5 text-[#8B2635] dark:text-[#E06D7B]" />
+              <FileText className="size-3.5 text-primary" />
               Údaje o záverečnej práci
             </Label>
             {isComplete && (
