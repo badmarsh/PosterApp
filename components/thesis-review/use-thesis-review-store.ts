@@ -388,11 +388,25 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
           fetch(`/api/workspaces/${workspaceId}/thesis-review/${reviewId}`),
           get().loadSourceDocument(workspaceId, get().selectedFileId || undefined),
         ])
-        if (!reviewRes.ok) throw new Error("Review not found")
+        if (!reviewRes.ok) {
+          if (reviewRes.status === 404) {
+            // Stale review ID from past session — clean up local state
+            set((s) => {
+              s.reviews = s.reviews.filter((r) => r.id !== reviewId)
+              if (s.activeReview?.id === reviewId) {
+                s.activeReview = null
+              }
+            })
+            console.warn(`[ThesisReviewStore] Review ${reviewId} not found (404)`)
+            return
+          }
+          const errData = await reviewRes.json().catch(() => ({}))
+          throw new Error(errData.error ?? errData.message ?? `HTTP ${reviewRes.status}`)
+        }
         const review = await reviewRes.json()
         set((s) => { s.activeReview = review })
       } catch (err) {
-        console.error("[ThesisReviewStore] loadReview failed:", err)
+        console.warn("[ThesisReviewStore] loadReview failed:", err)
       }
     },
 
@@ -412,7 +426,7 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
             focusCriteria: opts.focusCriteria,
             skipCitationAudit: opts.skipCitationAudit ?? false,
             multiAgentDebate: get().multiAgentDebate,
-            professionalMode: get().professionalModeOverride,
+            professionalMode: opts.professionalMode ?? get().professionalModeOverride,
           }),
         })
 

@@ -79,6 +79,57 @@ describe("Thesis Review Store State & Error Handling", () => {
     expect(requestBody.professionalMode).toBe(true)
   })
 
+  it("prioritizes opts.professionalMode when professionalModeOverride is false", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: "rev-2", sections: [], defenseQuestions: [], citationIssues: [] }), { status: 200 })
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    useThesisReviewStore.getState().setProfessionalModeOverride(false)
+
+    await useThesisReviewStore.getState().generateReview({
+      workspaceId: "ws-1",
+      metadata: {
+        studentName: "Ján Novák",
+        thesisTitle: "Test thesis",
+        thesisType: "master",
+        reviewerRole: "opponent",
+        language: "sk",
+      },
+      professionalMode: true,
+    })
+
+    const reviewRequest = fetchMock.mock.calls.find(([url, options]) =>
+      String(url).endsWith("/thesis-review") && options?.method === "POST"
+    )
+    const requestBody = JSON.parse(reviewRequest?.[1].body)
+    expect(requestBody.professionalMode).toBe(true)
+  })
+
+  it("cleans up stale 404 review from reviews list during loadReview without throwing", async () => {
+    const existingReviews = [
+      { id: "rev-1", studentName: "A", thesisTitle: "T1", thesisType: "master", reviewerRole: "opponent", status: "draft", language: "sk", createdAt: "", updatedAt: "" },
+      { id: "rev-2", studentName: "B", thesisTitle: "T2", thesisType: "bachelor", reviewerRole: "supervisor", status: "draft", language: "sk", createdAt: "", updatedAt: "" },
+    ]
+    useThesisReviewStore.setState({
+      reviews: existingReviews as any,
+      activeReview: { id: "rev-1" } as any,
+    })
+
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/thesis-review/rev-1")) {
+        return Promise.resolve(new Response(JSON.stringify({ error: "Not found" }), { status: 404 }))
+      }
+      return Promise.resolve(new Response(JSON.stringify({ fullText: "" }), { status: 200 }))
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await useThesisReviewStore.getState().loadReview("ws-1", "rev-1")
+
+    const state = useThesisReviewStore.getState()
+    expect(state.reviews.map((r) => r.id)).toEqual(["rev-2"])
+    expect(state.activeReview).toBeNull()
+  })
+
   it("handles delete failure by rolling back optimistic removal and recording error", async () => {
     const existingReviews = [
       { id: "rev-1", studentName: "A", thesisTitle: "T1", thesisType: "master", reviewerRole: "opponent", status: "draft", language: "sk", createdAt: "", updatedAt: "" },
