@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { detectNovelty } from "@/lib/ai/novelty-detector"
+import { rateLimitAsync } from "@/lib/rate-limit"
 import path from "path"
 import fs from "fs"
-
-// Rate-limit: 1 run per 3 minutes per workspace
-const runLimiter = new Map<string, number>()
-const RUN_COOLDOWN_MS = 3 * 60 * 1000
 
 export async function POST(
   req: NextRequest,
@@ -15,19 +12,27 @@ export async function POST(
   const { id: workspaceId } = await params
 
   let bibContent: string | null = null
+  let userId: string
   try {
     const access = await requireWorkspaceEditor(workspaceId)
     bibContent = access.workspace.bibContent
+    userId = access.userId
   } catch (err) {
     if (err instanceof Response) return err
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const lastRun = runLimiter.get(workspaceId)
-  if (lastRun && Date.now() - lastRun < RUN_COOLDOWN_MS) {
-    return NextResponse.json({ error: "Rate limited — wait 3 minutes between novelty scans" }, { status: 429 })
+  const { allowed, retryAfterMs } = await rateLimitAsync(
+    `${userId}:${workspaceId}:novelty`,
+    1,
+    3 * 60 * 1000
+  )
+  if (!allowed) {
+    return NextResponse.json(
+      { error: `Rate limited — try again in ${Math.ceil(retryAfterMs / 1000)}s` },
+      { status: 429 }
+    )
   }
-  runLimiter.set(workspaceId, Date.now())
 
   // Load source markdowns from disk (up to 60k chars total)
   const workspacesDir = process.env.WORKSPACES_DIR || "workspaces"

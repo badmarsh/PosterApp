@@ -1,3 +1,16 @@
+const aiOrigin = (() => { try { return new URL(process.env.AI_API_URL ?? "").origin } catch { return null } })()
+const aiFallbackOrigin = (() => { try { return new URL(process.env.AI_API_URL_FALLBACK ?? "").origin } catch { return null } })()
+const yjsOrigin = process.env.NEXT_PUBLIC_YJS_URL // already wss:// if used
+
+const connectSrc = [
+  "'self'",
+  "https://*.clerk.accounts.dev",
+  "https://*.clerk.com",
+  aiOrigin,
+  aiFallbackOrigin,
+  yjsOrigin,
+].filter(Boolean).join(" ")
+
 const cspHeader = `
   default-src 'self';
   script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com;
@@ -5,7 +18,7 @@ const cspHeader = `
   style-src 'self' 'unsafe-inline';
   img-src 'self' data: blob: https://*.clerk.com https://img.clerk.com https://images.unsplash.com;
   font-src 'self' data:;
-  connect-src 'self' ws: wss: http: https: https://*.clerk.accounts.dev https://*.clerk.com https://openrouter.ai https://*.openrouter.ai;
+  connect-src ${connectSrc};
   frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com;
   object-src 'self' blob:;
   base-uri 'self';

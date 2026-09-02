@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { buildGraphCommunities } from "@/lib/ai/graph-communities"
-
-// Rate-limit: 1 rebuild per 2 minutes per workspace
-const buildLimiter = new Map<string, number>()
-const BUILD_COOLDOWN_MS = 2 * 60 * 1000
+import { rateLimitAsync } from "@/lib/rate-limit"
 
 export async function POST(
   req: NextRequest,
@@ -13,22 +10,26 @@ export async function POST(
 ) {
   const { id: workspaceId } = await params
 
+  let userId: string
   try {
-    await requireWorkspaceEditor(workspaceId)
+    const access = await requireWorkspaceEditor(workspaceId)
+    userId = access.userId
   } catch (err) {
     if (err instanceof Response) return err
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // Rate limit
-  const lastBuild = buildLimiter.get(workspaceId)
-  if (lastBuild && Date.now() - lastBuild < BUILD_COOLDOWN_MS) {
+  const { allowed, retryAfterMs } = await rateLimitAsync(
+    `${userId}:${workspaceId}:build-communities`,
+    1,
+    2 * 60 * 1000
+  )
+  if (!allowed) {
     return NextResponse.json(
-      { error: "Rate limited — wait 2 minutes between community rebuilds" },
+      { error: `Rate limited — try again in ${Math.ceil(retryAfterMs / 1000)}s` },
       { status: 429 }
     )
   }
-  buildLimiter.set(workspaceId, Date.now())
 
   try {
     const result = await buildGraphCommunities(workspaceId)

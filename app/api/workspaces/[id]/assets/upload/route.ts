@@ -21,6 +21,14 @@ export async function POST(
   try {
     await requireWorkspaceEditor(id)
 
+    const contentLength = Number(req.headers.get("content-length") ?? "0")
+    if (contentLength > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { error: "File exceeds the 200MB upload limit" },
+        { status: 413 }
+      )
+    }
+
     const formData = await req.formData()
     const file = formData.get("file") as File | null
     
