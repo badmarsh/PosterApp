@@ -58,6 +58,14 @@ import { z } from "zod"
 // Starting value; needs empirical tuning
 export const AUTO_APPLY_CONFIDENCE_THRESHOLD = 0.8
 
+export function shouldUseProfessionalMode(
+  professionalMode: boolean | undefined,
+  reviewKind: "thesis" | "paper" | "grant" | undefined,
+  reportingStandard: string | undefined
+): boolean {
+  return Boolean(professionalMode) || reviewKind === "paper" || (reportingStandard !== undefined && reportingStandard !== "none")
+}
+
 const ThesisMetadataSchema = z.object({
   studentName: z.string().min(1).max(200),
   thesisTitle: z.string().min(1).max(500),
@@ -468,8 +476,14 @@ export async function POST(
     const systemPrompt = buildSystemPrompt(lang, normalizedMetadata)
     const userPrompt = buildUserPrompt(normalizedMetadata, contextHeader, sourceContextWithAudit, criteriaList, lang)
 
-    // 5. AI generation: Standard review mode is the default (Path A), Professional review mode is opt-in (Path B).
-    const useProfessionalMode = Boolean(body.professionalMode)
+    // A reviewer can opt in explicitly, and paper/reporting-standard reviews always
+    // use the professional path. This also makes a high-confidence auto-applied
+    // guideline effective for direct API callers.
+    const useProfessionalMode = shouldUseProfessionalMode(
+      body.professionalMode,
+      thesisMetadata.reviewKind,
+      effectiveReportingStandard
+    )
     let result: any
     let professionalResult: any = null
     let calibratedDefenseQuestions: string[] | null = null
