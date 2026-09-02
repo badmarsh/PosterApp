@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest"
 import { verifyEvidenceQuote, validateAndCalibrateFindings } from "@/lib/ai/evidence-validator"
+import { anchorEvidenceQuotes } from "@/lib/ai/review-engine"
+import type { ThesisRAGContext } from "@/lib/ai/thesis-context"
 import type { ReviewFinding } from "@/lib/ai/review-types"
 
 describe("Evidence Validator & Epistemic Calibration", () => {
@@ -84,5 +86,122 @@ Dosiahnuté Dice skóre segmentácie dosiahlo hodnotu 0.912 ± 0.005.
     expect(validated[1].epistemicStatus).toBe("REQUIRES_HUMAN_VERIFICATION")
     expect(validated[1].evidence[0].verified).toBe(false)
     expect(validated[1].confidence).toBeLessThan(0.6)
+  })
+})
+
+describe("Task 7 regression guard: anchorEvidenceQuotes ↔ verifyEvidenceQuote parity", () => {
+  // Both entry points must classify evidence quotes identically. The review
+  // engine's anchoring step used to maintain a private copy of the tier
+  // cascade; these shared cases pin the behavior so a future threshold change
+  // (e.g. the approximate-anchor length) cannot drift between them again.
+  const sections = [
+    {
+      id: "p-1",
+      sourceFile: "thesis.md",
+      heading: "1. Úvod",
+      normalizedHeading: "1. uvod",
+      level: 1,
+      startOffset: 0,
+      content: "Metóda bola overená na kontrolnej vzorke s presnosťou 92.3%.",
+      kind: "introduction" as const,
+    },
+    {
+      id: "p-2",
+      sourceFile: "thesis.md",
+      heading: "2. Metóda",
+      normalizedHeading: "2. metoda",
+      level: 1,
+      startOffset: 100,
+      content: "Trénovanie modelu prebiehalo s dávkou 32 vzoriek na iteráciu.",
+      kind: "methodology" as const,
+    },
+    {
+      id: "p-3",
+      sourceFile: "thesis.md",
+      heading: "3. Výsledky",
+      normalizedHeading: "3. vysledky",
+      level: 1,
+      startOffset: 200,
+      content: "Trénovanie modelu prebiehalo s dávkou 32 vzoriek na iteráciu aj v druhej fáze.",
+      kind: "results" as const,
+    },
+    {
+      id: "p-4",
+      sourceFile: "thesis.md",
+      heading: "4. Diskusia",
+      normalizedHeading: "4. diskusia",
+      level: 1,
+      startOffset: 300,
+      content: "Model dosiahol výrazné zlepšenie oproti predchádzajúcim baseline modelom.",
+      kind: "discussion" as const,
+    },
+  ]
+
+  const anchorSourceText = sections.map((s) => s.content).join("\n")
+
+  const rag: ThesisRAGContext = {
+    fullText: anchorSourceText,
+    sections,
+    references: [],
+    referencesTitles: [],
+    totalChars: anchorSourceText.length,
+    truncated: false,
+    sourceFiles: ["thesis.md"],
+  }
+
+  const cases: Array<{ name: string; quote: string; expectedState: string; expectedVerified: boolean }> = [
+    {
+      name: "single exact match → verified-exact",
+      quote: "overená na kontrolnej vzorke",
+      expectedState: "verified-exact",
+      expectedVerified: true,
+    },
+    {
+      name: "whitespace differences → verified-normalized",
+      quote: "Metóda  bola   overená na kontrolnej vzorke",
+      expectedState: "verified-normalized",
+      expectedVerified: true,
+    },
+    {
+      name: "verbatim match in multiple sections → ambiguous",
+      quote: "Trénovanie modelu prebiehalo s dávkou 32 vzoriek",
+      expectedState: "ambiguous",
+      expectedVerified: true,
+    },
+    {
+      name: "normalized match in multiple sections → ambiguous",
+      quote: "Trénovanie  modelu  prebiehalo s dávkou 32 vzoriek",
+      expectedState: "ambiguous",
+      expectedVerified: true,
+    },
+    {
+      name: "long quote sharing ≥60-char prefix → approximate",
+      quote: "Model dosiahol výrazné zlepšenie oproti predchádzajúcim baseline modelom na novom datasete",
+      expectedState: "approximate",
+      expectedVerified: false,
+    },
+    {
+      name: "fabricated quote → unverified",
+      quote: "Autor použil kvantový počítač s 10 000 qubitmi.",
+      expectedState: "unverified",
+      expectedVerified: false,
+    },
+    {
+      name: "empty quote → unverified",
+      quote: "",
+      expectedState: "unverified",
+      expectedVerified: false,
+    },
+  ]
+
+  it.each(cases)("$name classifies identically in both implementations", ({ quote, expectedState, expectedVerified }) => {
+    const anchored = anchorEvidenceQuotes([{ title: "Parity case", evidence: [{ quote, evidenceType: "quote" }] }], rag)
+    const fromAnchor = anchored[0].evidence[0]
+    const fromValidator = verifyEvidenceQuote(quote, anchorSourceText, sections)
+
+    expect(fromAnchor.state).toBe(expectedState)
+    expect(fromAnchor.verified).toBe(expectedVerified)
+    expect(fromValidator.state).toBe(expectedState)
+    expect(fromValidator.verified).toBe(expectedVerified)
   })
 })

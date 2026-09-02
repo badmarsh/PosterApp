@@ -76,20 +76,24 @@ export function verifyEvidenceQuote(
   const normSource = normalizeWhitespace(sourceText)
 
   // 1. Exact match search
-  if (sourceText.includes(quote)) {
-    const idx = sourceText.indexOf(quote)
-    const matchedSec = sections.find((s) => s.content && s.content.includes(quote))
+  const exactMatches = sections.filter((s) => s.content && s.content.includes(quote))
+  if (exactMatches.length > 0 || sourceText.includes(quote)) {
+    const isAmbiguous = exactMatches.length > 1
+    const state: EvidenceState = isAmbiguous ? "ambiguous" : "verified-exact"
+    const matchedSec = exactMatches[0] || sections.find((s) => s.content && s.content.includes(quote))
+    const idx = sourceText.includes(quote) ? sourceText.indexOf(quote) : undefined
+
     return {
       ...evidence,
       quote,
       exactQuote: quote,
-      startOffset: idx >= 0 ? idx : undefined,
-      endOffset: idx >= 0 ? idx + quote.length : undefined,
+      startOffset: idx !== undefined && idx >= 0 ? idx : undefined,
+      endOffset: idx !== undefined && idx >= 0 ? idx + quote.length : undefined,
       sectionHeading: evidence.sectionHeading || matchedSec?.heading,
       sectionTitle: evidence.sectionTitle || matchedSec?.heading,
       verified: true,
-      state: "verified-exact",
-      confidence: 1.0,
+      state,
+      confidence: isAmbiguous ? 0.95 : 1.0,
       verificationMethod: "exact",
       // Protect against synthetic page numbers: only keep if explicitly numeric and verified
       page: undefined,
@@ -98,18 +102,22 @@ export function verifyEvidenceQuote(
   }
 
   // 2. Whitespace-normalized match search
-  if (normSource.includes(cleanQuote)) {
-    const normIdx = normSource.indexOf(cleanQuote)
-    const matchedSec = sections.find((s) => s.content && normalizeWhitespace(s.content).includes(cleanQuote))
+  const normMatches = sections.filter((s) => s.content && normalizeWhitespace(s.content).includes(cleanQuote))
+  if (normMatches.length > 0 || normSource.includes(cleanQuote)) {
+    const isAmbiguous = normMatches.length > 1
+    const state: EvidenceState = isAmbiguous ? "ambiguous" : "verified-normalized"
+    const matchedSec = normMatches[0] || sections.find((s) => s.content && normalizeWhitespace(s.content).includes(cleanQuote))
+    const normIdx = normSource.includes(cleanQuote) ? normSource.indexOf(cleanQuote) : undefined
+
     return {
       ...evidence,
       quote,
-      startOffset: normIdx >= 0 ? normIdx : undefined,
-      endOffset: normIdx >= 0 ? normIdx + quote.length : undefined,
+      startOffset: normIdx !== undefined && normIdx >= 0 ? normIdx : undefined,
+      endOffset: normIdx !== undefined && normIdx >= 0 ? normIdx + cleanQuote.length : undefined,
       sectionHeading: evidence.sectionHeading || matchedSec?.heading,
       sectionTitle: evidence.sectionTitle || matchedSec?.heading,
       verified: true,
-      state: "verified-normalized",
+      state,
       confidence: 0.95,
       verificationMethod: "whitespace_normalized",
     }
@@ -122,11 +130,15 @@ export function verifyEvidenceQuote(
   // Confidence 0.45 (clearly between unverified=0.1 and normalized=0.95).
   if (cleanQuote.length > 60) {
     const prefix = cleanQuote.slice(0, 60)
-    if (normSource.includes(prefix)) {
-      const matchedSec = sections.find((s) => normalizeWhitespace(s.content).includes(prefix))
+    const approxMatches = sections.filter((s) => s.content && normalizeWhitespace(s.content).includes(prefix))
+    if (approxMatches.length > 0 || normSource.includes(prefix)) {
+      const matchedSec = approxMatches[0] || sections.find((s) => s.content && normalizeWhitespace(s.content).includes(prefix))
+      const subIndex = normSource.includes(prefix) ? normSource.indexOf(prefix) : undefined
       return {
         ...evidence,
         quote,
+        startOffset: subIndex !== undefined && subIndex >= 0 ? subIndex : undefined,
+        endOffset: subIndex !== undefined && subIndex >= 0 ? subIndex + prefix.length : undefined,
         sectionHeading: evidence.sectionHeading || matchedSec?.heading,
         sectionTitle: evidence.sectionTitle || matchedSec?.heading,
         verified: false,
@@ -257,6 +269,7 @@ export interface GroundedChunkResult {
  * finds the single best verbatim sentence from the corpus that supports the claim.
  *
  * Approach: token overlap scoring (no LLM, no API cost).
+ *
  * The returned `anchorSentence` is verbatim from the source — it can be
  * included directly in the review as a `quote` field to make hallucinations
  * structurally impossible (the LLM is forced to cite what it retrieved).

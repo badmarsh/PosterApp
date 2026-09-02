@@ -54,6 +54,7 @@ import {
   validateAndCalibrateFindings,
   groundClaimInChunks,
   formatGroundedEvidenceBlock,
+  verifyEvidenceQuote,
 } from "./evidence-validator"
 import {
   calculateGradeRange,
@@ -486,10 +487,6 @@ Focus on general scientific rigor:
 `,
 }
 
-function normalizeText(text: string): string {
-  return text.replace(/\s+/g, " ").trim().toLowerCase()
-}
-
 /**
  * Searches for finding evidence quotes in the parsed sections and attaches
  * precise section headings, line/character offsets, and verified status.
@@ -502,91 +499,15 @@ export function anchorEvidenceQuotes(
   return findings.map((f, idx) => {
     const rawEvidence = f.evidence || []
     const enrichedEvidence: EvidenceReference[] = rawEvidence.map((ev, evIdx) => {
-      if (!ev.quote || !ev.quote.trim()) {
-        return {
-          id: `ev-${idx + 1}-${evIdx + 1}`,
-          quote: ev.quote || "",
-          verified: false,
-          state: "unverified",
-          sourceRevision,
-        }
-      }
-
-      const cleanQuote = normalizeText(ev.quote)
-      let state: EvidenceState = "unverified"
-      let verificationMethod: "exact" | "whitespace_normalized" | "approximate" | "structural" | "manual" | undefined
-      let isVerified = false
-
-      // 1. Exact match search
-      const exactMatches = rag.sections.filter((s) => s.content.includes(ev.quote))
-      if (exactMatches.length === 1) {
-        state = "verified-exact"
-        verificationMethod = "exact"
-        isVerified = true
-      } else if (exactMatches.length > 1) {
-        state = "ambiguous"
-        verificationMethod = "exact"
-        isVerified = true
-      } else {
-        // 2. Normalized match search
-        const normMatches = rag.sections.filter((s) => normalizeText(s.content).includes(cleanQuote))
-        if (normMatches.length === 1) {
-          state = "verified-normalized"
-          verificationMethod = "whitespace_normalized"
-          isVerified = true
-        } else if (normMatches.length > 1) {
-          state = "ambiguous"
-          verificationMethod = "whitespace_normalized"
-          isVerified = true
-        } else if (cleanQuote.length > 60) {
-          // 3. Approximate match — require ≥60-char anchor to resist hallucinated continuations.
-          // Confidence set to 0.45 (clearly below verified-normalized 0.95, above unverified 0.1)
-          const subQuote = cleanQuote.slice(0, 60)
-          const approxMatches = rag.sections.filter((s) => normalizeText(s.content).includes(subQuote))
-          if (approxMatches.length > 0) {
-            state = "approximate"
-            verificationMethod = "approximate"
-            isVerified = false
-          }
-        }
-      }
-
-      const matchedSection =
-        rag.sections.find((s) => s.content.includes(ev.quote) || normalizeText(s.content).includes(cleanQuote)) ||
-        (state === "approximate"
-          ? rag.sections.find((s) => normalizeText(s.content).includes(cleanQuote.slice(0, 60)))
-          : undefined)
-
-      if (matchedSection) {
-        const normSec = normalizeText(matchedSection.content)
-        const quoteIndex = normSec.indexOf(cleanQuote)
-        const subIndex = quoteIndex >= 0 ? quoteIndex : normSec.indexOf(cleanQuote.slice(0, 35))
-        return {
-          id: `ev-${idx + 1}-${evIdx + 1}`,
-          page: ev.page,
-          sectionHeading: ev.sectionHeading || matchedSection.heading,
-          sectionTitle: ev.sectionHeading || matchedSection.heading,
-          quote: ev.quote,
-          startOffset: subIndex >= 0 ? subIndex : undefined,
-          endOffset: subIndex >= 0 ? subIndex + ev.quote.length : undefined,
-          verified: isVerified,
-          state,
-          verificationMethod,
-          sourceRevision,
-        }
-      }
-
-      // Quote could not be confirmed in extracted text
-      return {
+      const evidence: EvidenceReference = {
         id: `ev-${idx + 1}-${evIdx + 1}`,
+        quote: ev.quote || "",
         page: ev.page,
         sectionHeading: ev.sectionHeading,
         sectionTitle: ev.sectionHeading,
-        quote: ev.quote,
-        verified: false,
-        state: "unverified",
         sourceRevision,
       }
+      return verifyEvidenceQuote(evidence, rag.fullText, rag.sections, sourceRevision)
     })
 
     const overallFindingState: EvidenceState = enrichedEvidence.some((e) => e.state === "stale")
