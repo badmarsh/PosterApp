@@ -24,6 +24,13 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { HelpModal } from "@/components/help-modal"
 import { HistoryPanel } from "@/components/history-panel"
 import { UserButton } from "@clerk/nextjs"
@@ -98,6 +105,7 @@ export function TopBar({
   )
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
   const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const refreshWorkspaces = () => {
     apiFetch("/api/workspaces")
@@ -455,13 +463,13 @@ export function TopBar({
         </Tooltip>
 
         <UserButton>
-          <UserButton.UserProfilePage
-            label="Settings"
-            url="settings"
-            labelIcon={<SettingsIcon className="h-4 w-4" />}
-          >
-            <SettingsPanel />
-          </UserButton.UserProfilePage>
+          <UserButton.MenuItems>
+            <UserButton.Action
+              label="Settings"
+              labelIcon={<SettingsIcon className="h-4 w-4" />}
+              onClick={() => setSettingsOpen(true)}
+            />
+          </UserButton.MenuItems>
           <UserButton.UserProfilePage
             label="Manage Workspaces"
             url="workspaces"
@@ -472,6 +480,24 @@ export function TopBar({
         </UserButton>
       </div>
       <HelpModal open={isHelpOpen} onOpenChange={setIsHelpOpen} />
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="sm:max-w-3xl max-w-[calc(100vw-2rem)] w-[90vw] max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden bg-background">
+          <div className="border-b border-border bg-muted/20 p-6 pb-4">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                <SettingsIcon className="size-5 text-primary" />
+                Settings
+              </DialogTitle>
+              <DialogDescription className="text-sm">
+                Workspace appearance, review language, AI models and display preferences.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <SettingsPanel />
+          </div>
+        </DialogContent>
+      </Dialog>
       <HistoryPanel />
     </header>
   )
