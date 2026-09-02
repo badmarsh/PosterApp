@@ -164,6 +164,72 @@ function buildRepairPayload(
   ], true)
 }
 
+export type AIProviderSource = "primary" | "fallback-provider"
+
+let lastServedProvider: AIProviderSource = "primary"
+
+export function getLastServedProvider(): AIProviderSource {
+  return lastServedProvider
+}
+
+function resolveFallbackProvider(): { apiUrl: string; apiKey: string } | null {
+  const apiUrl = process.env.AI_API_URL_FALLBACK
+  const apiKey = process.env.AI_API_KEY_FALLBACK || process.env.AI_API_KEY
+  if (!apiUrl || !apiKey) {
+    return null
+  }
+  return { apiUrl, apiKey }
+}
+
+async function executeWithProviderFallback<R>(
+  operationName: string,
+  options: AIRequestOptions,
+  operationFn: (apiUrl: string, apiKey: string) => Promise<R>
+): Promise<R> {
+  const { apiUrl: primaryUrl, apiKey: primaryKey } = resolveProvider(options)
+  const fallback = resolveFallbackProvider()
+
+  try {
+    const result = await operationFn(primaryUrl, primaryKey)
+    lastServedProvider = "primary"
+    return result
+  } catch (primaryError) {
+    if (primaryError instanceof Error && primaryError.name === "AbortError") {
+      throw primaryError
+    }
+
+    // Do NOT retry 4xx client errors (400, 401, 403, 404, 422) on fallback, except 429
+    const is4xxClientError =
+      primaryError instanceof AIProviderError &&
+      primaryError.status >= 400 &&
+      primaryError.status < 500 &&
+      primaryError.status !== 429
+
+    if (!fallback || is4xxClientError) {
+      throw primaryError
+    }
+
+    console.warn(
+      `[AI ${operationName}] Primary provider (${primaryUrl}) failed: ${primaryError instanceof Error ? primaryError.message : String(primaryError)}. Attempting fallback provider (${fallback.apiUrl})...`
+    )
+
+    try {
+      const result = await operationFn(fallback.apiUrl, fallback.apiKey)
+      lastServedProvider = "fallback-provider"
+      console.warn(`[AI client] Primary provider failed; succeeded via fallback provider ${fallback.apiUrl}`)
+      return result
+    } catch (fallbackError) {
+      if (fallbackError instanceof Error && fallbackError.name === "AbortError") {
+        throw fallbackError
+      }
+      console.error(
+        `[AI ${operationName}] Fallback provider (${fallback.apiUrl}) also failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`
+      )
+      throw primaryError
+    }
+  }
+}
+
 /**
  * Shared boundary for interacting with the AI provider.
  * Normalizes requests, enforces schemas, retries transient failures, and repairs one malformed response.
@@ -172,55 +238,58 @@ export async function generateAIResponse<T>(
   operationName: string,
   options: AIClientOptions<T>
 ): Promise<T> {
-  const { apiUrl, apiKey } = resolveProvider(options)
   const messages = buildMessages(options)
   const payload = buildPayload(options, messages, true)
-  let content: string | null = null
 
-  try {
-    content = await requestCompletion(operationName, options, apiUrl, apiKey, payload)
-    return validateStructuredContent(content, options.schema)
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      console.warn(`[AI ${operationName}] Request aborted`)
-      throw error
-    }
-
-    if (!(error instanceof AIValidationError) || content === null) {
-      if (error instanceof AIProviderError) throw error
-      console.error(`[AI ${operationName}] Unhandled error:`, error instanceof Error ? error.message : String(error))
-      throw new Error(`AI operation failed: ${error instanceof Error ? error.message : "Unknown error"}`)
-    }
+  return executeWithProviderFallback(operationName, options, async (apiUrl, apiKey) => {
+    let content: string | null = null
 
     try {
-      const repairPayload = buildRepairPayload(options, messages, content, error)
-      const repairedContent = await requestCompletion(operationName, options, apiUrl, apiKey, repairPayload)
-      return validateStructuredContent(repairedContent, options.schema)
-    } catch (repairError) {
-      if (repairError instanceof Error && repairError.name === "AbortError") throw repairError
-      if (repairError instanceof AIProviderError || repairError instanceof AIValidationError) throw repairError
-      throw new Error(`AI operation failed: ${repairError instanceof Error ? repairError.message : "Unknown error"}`)
+      content = await requestCompletion(operationName, options, apiUrl, apiKey, payload)
+      return validateStructuredContent(content, options.schema)
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        console.warn(`[AI ${operationName}] Request aborted`)
+        throw error
+      }
+
+      if (!(error instanceof AIValidationError) || content === null) {
+        if (error instanceof AIProviderError) throw error
+        console.error(`[AI ${operationName}] Unhandled error:`, error instanceof Error ? error.message : String(error))
+        throw new Error(`AI operation failed: ${error instanceof Error ? error.message : "Unknown error"}`)
+      }
+
+      try {
+        const repairPayload = buildRepairPayload(options, messages, content, error)
+        const repairedContent = await requestCompletion(operationName, options, apiUrl, apiKey, repairPayload)
+        return validateStructuredContent(repairedContent, options.schema)
+      } catch (repairError) {
+        if (repairError instanceof Error && repairError.name === "AbortError") throw repairError
+        if (repairError instanceof AIProviderError || repairError instanceof AIValidationError) throw repairError
+        throw new Error(`AI operation failed: ${repairError instanceof Error ? repairError.message : "Unknown error"}`)
+      }
     }
-  }
+  })
 }
 
 export async function generateAITextResponse(
   operationName: string,
   options: Omit<AIClientOptions<any>, "schema">
 ): Promise<string> {
-  const { apiUrl, apiKey } = resolveProvider(options)
   const messages = buildMessages(options, true)
   const payload = buildPayload(options, messages, false)
 
-  try {
-    return await requestCompletion(operationName, options, apiUrl, apiKey, payload)
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      console.warn(`[AI ${operationName}] Request aborted`)
-      throw error
+  return executeWithProviderFallback(operationName, options, async (apiUrl, apiKey) => {
+    try {
+      return await requestCompletion(operationName, options, apiUrl, apiKey, payload)
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        console.warn(`[AI ${operationName}] Request aborted`)
+        throw error
+      }
+      if (error instanceof AIProviderError) throw error
+      console.error(`[AI ${operationName}] Unhandled error:`, error instanceof Error ? error.message : String(error))
+      throw new Error(`AI operation failed: ${error instanceof Error ? error.message : "Unknown error"}`)
     }
-    if (error instanceof AIProviderError) throw error
-    console.error(`[AI ${operationName}] Unhandled error:`, error instanceof Error ? error.message : String(error))
-    throw new Error(`AI operation failed: ${error instanceof Error ? error.message : "Unknown error"}`)
-  }
+  })
 }
