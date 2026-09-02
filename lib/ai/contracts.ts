@@ -431,7 +431,7 @@ export const EvidenceReferenceSchema = z.preprocess((raw: any) => {
   endOffset: z.number().optional(),
   verified: z.boolean().optional(),
   state: z.enum(["verified-exact", "verified-normalized", "approximate", "unverified", "stale", "ambiguous", "verified"]).optional(),
-  verificationMethod: z.enum(["exact", "whitespace_normalized", "approximate", "structural", "manual"]).optional(),
+  verificationMethod: z.enum(["exact", "whitespace_normalized", "approximate", "structural", "manual", "semantic_embedding"]).optional(),
   staleAt: z.string().optional(),
 }))
 export type EvidenceReferenceContract = z.infer<typeof EvidenceReferenceSchema>

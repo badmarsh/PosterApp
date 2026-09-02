@@ -149,19 +149,54 @@ export function expandQuery(query: string, criterionExpansion = ""): string[] {
 
 // ---------------------------------------------------------------------------
 // Stage 2 — HyDE (Hypothetical Document Embedding)
+// Zero LLM cost multilingual academic templates (SK/CS/EN)
+// ---------------------------------------------------------------------------
+
 export async function generateHypotheticalDocument(
   query: string,
   domainContext: string,
   lang: ReviewLanguage = "sk"
 ): Promise<string> {
-  const result = await generateAIResponse("HyDE-Generation", {
-    model: process.env.AI_MODEL || "gemini-3-flash",
-    systemPrompt: `You are an academic researcher in ${domainContext}. Write a short (2-3 sentences) ideal academic thesis excerpt that directly addresses the concept. Language: ${lang}. Do not use introductory phrases, just output the excerpt.`,
-    userPrompt: query,
-    schema: z.object({ excerpt: z.string() }),
-    temperature: 0.1,
-  })
-  return result?.excerpt || query
+  const lowerQuery = query.toLowerCase()
+  const domain = domainContext || (lang === "cs" ? "STEM, Fyzika" : lang === "en" ? "STEM / Physics" : "STEM, Fyzika")
+
+  if (lang === "en") {
+    if (lowerQuery.includes("result") || lowerQuery.includes("evaluat") || lowerQuery.includes("finding") || lowerQuery.includes("diskusi")) {
+      return `In this work, the experimental results demonstrate significant performance characteristics in ${domain}. The quantitative evaluation confirms our hypotheses and theoretical predictions.`
+    }
+    if (lowerQuery.includes("method") || lowerQuery.includes("implement") || lowerQuery.includes("dataset") || lowerQuery.includes("approach")) {
+      return `In this work, we propose a rigorous methodology and architectural approach for ${domain}. The dataset and implementation pipeline are thoroughly described and validated.`
+    }
+    if (lowerQuery.includes("literatur") || lowerQuery.includes("related") || lowerQuery.includes("state") || lowerQuery.includes("survey")) {
+      return `In this work, we present a comprehensive state of the art survey of literature and related research in ${domain}.`
+    }
+    return `In this work, we investigate fundamental properties and key concepts in ${domain}, addressing ${query}.`
+  }
+
+  if (lang === "cs") {
+    if (lowerQuery.includes("výsled") || lowerQuery.includes("vyhodnocen") || lowerQuery.includes("diskusi") || lowerQuery.includes("zjištěn")) {
+      return `Tato práce přináší experimentální výsledky a jejich podrobné vyhodnocení v oblasti ${domain}. Dosažené výsledky potvrzují stanovené hypotézy.`
+    }
+    if (lowerQuery.includes("metod") || lowerQuery.includes("implement") || lowerQuery.includes("postup") || lowerQuery.includes("přístup")) {
+      return `Tato práce popisuje metodologii řešení a postup implementace v oblasti ${domain}. Metodický rámec je podrobně specifikován.`
+    }
+    if (lowerQuery.includes("literatur") || lowerQuery.includes("rešerš") || lowerQuery.includes("stav")) {
+      return `Tato práce analyzuje současný stav poznání a odbornou literaturu v oblasti ${domain}.`
+    }
+    return `Tato práce se zabývá řešením problematiky ${query} v kontextu ${domain}.`
+  }
+
+  // Slovak (default)
+  if (lowerQuery.includes("výsled") || lowerQuery.includes("vyhodnoten") || lowerQuery.includes("diskusi") || lowerQuery.includes("prínos")) {
+    return `Táto práca prezentuje experimentálne výsledky a ich podrobné vyhodnotenie v oblasti ${domain}. Dosiahnuté výsledky a prínos potvrdzujú stanovené hypotézy.`
+  }
+  if (lowerQuery.includes("metod") || lowerQuery.includes("implement") || lowerQuery.includes("postup") || lowerQuery.includes("dataset")) {
+    return `Táto práca opisuje metodológiu výskumu a postup implementácie v oblasti ${domain}. Metodický postup a dataset sú detailne analyzované.`
+  }
+  if (lowerQuery.includes("literatúr") || lowerQuery.includes("rešerš") || lowerQuery.includes("stav")) {
+    return `Táto práca poskytuje prehľad literatúry a analyzuje súčasný stav poznania v oblasti ${domain}.`
+  }
+  return `Táto práca sa zameriava na analýzu a riešenie problematiky ${query} v rámci odboru ${domain}.`
 }
 
 // ---------------------------------------------------------------------------
