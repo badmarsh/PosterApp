@@ -52,12 +52,15 @@ import {
 } from "@/lib/services/academic-connector"
 import {
   validateAndCalibrateFindings,
+  groundClaimInChunks,
+  formatGroundedEvidenceBlock,
 } from "./evidence-validator"
 import {
   calculateGradeRange,
   getApplicableCriteriaForThesisType,
   SK_ACADEMIC_RUBRIC_V1,
 } from "./rubric-engine"
+import { THESIS_CRITERIA } from "./thesis-rubric"
 
 export interface GenerateProfessionalReviewOptions {
   workspaceId: string
@@ -117,6 +120,34 @@ export function buildRubricGuidanceText(
     blocks.push(`### ${label}${applicabilityNote}\nCaution: ${caution}\nDo not infer:\n${prohibited}`)
   }
   return blocks.join("\n\n")
+}
+
+/**
+ * Pre-generation grounding (Task 5): runs groundClaimInChunks per criterion against
+ * the RAG context sections. Returns formatted evidence blocks to inject BEFORE the
+ * model writes, so it has verbatim best-matching sentences available up front.
+ * PaperQA2 "retrieve → ground → generate" pattern.
+ */
+export function buildPreGenerationGrounding(
+  sections: Array<{ id: string; heading: string; content: string }>,
+  language: ReviewLanguage
+): string {
+  if (sections.length === 0) return ""
+
+  const chunks = sections.map((s) => ({ id: s.id, heading: s.heading, content: s.content }))
+  const grounds: Array<ReturnType<typeof formatGroundedEvidenceBlock> | null> = []
+
+  for (const criterion of THESIS_CRITERIA) {
+    if (criterion.id === "defense_questions") continue
+    const label = criterion.labels[language] ?? criterion.labels.en
+    const claimText = `${label}: ${criterion.guidance[language] ?? criterion.guidance.en}`
+    const result = groundClaimInChunks(claimText, chunks)
+    const block = formatGroundedEvidenceBlock([result], label)
+    if (block) grounds.push(block)
+  }
+
+  if (grounds.length === 0) return ""
+  return `\n--- PRE-GENERATION EVIDENCE GROUNDING ---\n${grounds.join("\n")}`
 }
 
 // ---------------------------------------------------------------------------
@@ -656,6 +687,7 @@ ${formatGradeAnchorsText(profile, options.language)}
 
   const effectiveThesisType: DetailedThesisType = options.detailedThesisType ?? "unknown"
   const rubricGuidanceText = buildRubricGuidanceText(effectiveThesisType, options.language)
+  const preGroundingText = buildPreGenerationGrounding(rag.sections, options.language)
 
   const systemPrompt = `You are a distinguished senior peer reviewer and academic expert performing a highly critical, rigorous, evidence-grounded review of a manuscript following COPE Ethical Guidelines and Nature/PLOS standards.
 
@@ -704,6 +736,7 @@ ${rubricGuidanceText ? `--- RUBRIC ANTI-OVER-PENALIZATION GUIDANCE (sk-academic-
 
 ${options.graphAugmentation ? `--- KNOWLEDGE GRAPH (MULTI-HOP REASONING) ---\n${options.graphAugmentation}\n` : ""}
 ${options.vectorAugmentation ? `--- RELEVANT EXTRACTED CONTEXT (VECTOR RAG) ---\n${options.vectorAugmentation}\n` : ""}
+${preGroundingText}
 
 --- MANUSCRIPT EXCERPTS ---
 ${wrapUntrustedContext("manuscript_text", rag.fullText)}
