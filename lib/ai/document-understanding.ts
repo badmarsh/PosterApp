@@ -12,6 +12,7 @@ import type {
   ReviewKind,
   AcademicMetricsReport,
   TOCNode,
+  ReportingStandard,
 } from "./review-types"
 import { classifySectionKind, normalizeHeading, type SectionKind } from "./thesis-context"
 
@@ -983,3 +984,22 @@ export function classifyDisciplineAndThesisType(
     scoreBreakdown: scores.slice(0, 5),
   }
 }
+
+/**
+ * Detects whether the manuscript text strongly exhibits patterns corresponding to
+ * international reporting guidelines (PRISMA, CONSORT, ML Reproducibility, STROBE).
+ */
+export function detectReportingGuideline(text: string): ReportingStandard {
+  const fullLower = text.toLowerCase()
+  const hasML = /machine learning|neural network|transformer|deep learning|neurón|accuracy|dataset|benchmark|epoch|hyperparameter|loss function|f1-score/i.test(fullLower)
+  const hasConsort = /randomiz|randomized|control group|clinical trial|patient|placebo|intervention/i.test(fullLower)
+  const hasPrisma = /systematic review|meta-analysis|prisma|search strategy|inclusion criteria|eligibility criteria/i.test(fullLower)
+  const hasStrobe = /cohort|case-control|cross-sectional|observational study/i.test(fullLower)
+
+  if (hasPrisma) return "prisma"
+  if (hasConsort) return "consort"
+  if (hasML) return "ml_reproducibility"
+  if (hasStrobe) return "strobe"
+  return "none"
+}
+
