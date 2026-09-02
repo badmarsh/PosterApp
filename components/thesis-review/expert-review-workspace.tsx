@@ -416,7 +416,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 : "border-amber-500/40 text-amber-800 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20"
             )}
           >
-            <Award className={cn("h-3.5 w-3.5", activeReview.confirmedAt ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")} />
+            <Award className={cn("h-3.5 w-3.5", activeReview.confirmedAt ? "text-success" : "text-amber-600 dark:text-amber-400")} />
             {activeReview.confirmedAt ? "Rozhodnutie potvrdené ✓" : "Potvrdiť známku"}
           </Button>
 
@@ -661,14 +661,14 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5",
                   activeTab === "major"
-                    ? "bg-background text-red-700 dark:text-red-300 font-semibold shadow-2xs border border-red-500/30"
+                    ? "bg-background text-destructive font-semibold shadow-2xs border border-destructive/30"
                     : "text-muted-foreground hover:text-foreground hover:bg-background/40"
                 )}
               >
                 <span>Zásadné</span>
                 <span className={cn(
                   "px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold",
-                  activeTab === "major" ? "bg-red-500/15 text-red-700 dark:text-red-300" : "bg-muted text-muted-foreground"
+                  activeTab === "major" ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"
                 )}>
                   {majorCount}
                 </span>

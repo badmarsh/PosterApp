@@ -17,7 +17,7 @@ function CompileLog({ log, ok }: { log: string; ok: boolean }) {
         onClick={() => setOpen((v) => !v)}
         className={cn(
           "flex w-full items-center justify-between px-3 py-1.5 text-left text-[10px] font-mono font-semibold uppercase tracking-wide transition-colors hover:bg-muted/40",
-          ok ? "text-emerald-600 dark:text-emerald-400" : "text-destructive",
+          ok ? "text-success" : "text-destructive",
         )}
       >
         <span>{ok ? "✓ Compile succeeded" : "✗ Compile failed"} — log</span>
@@ -30,7 +30,7 @@ function CompileLog({ log, ok }: { log: string; ok: boolean }) {
           className={cn(
             "max-h-48 overflow-auto px-3 py-2 font-mono text-[9px] leading-relaxed",
             ok
-              ? "text-emerald-700 dark:text-emerald-300"
+              ? "text-success/80"
               : "text-destructive",
           )}
         >
