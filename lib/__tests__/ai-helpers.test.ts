@@ -26,5 +26,55 @@ describe("AiHelpers", () => {
       const res = parseAiJson<any[]>('Here are the issues:\n[{"cardTitle": "Intro", "issue": "Text bleed"}]\nHope this helps!')
       expect(res.data).toEqual([{ cardTitle: "Intro", issue: "Text bleed" }])
     })
+    it("recovers from trailing commas in objects", () => {
+      const res = parseAiJson('{"a": 1, "b": 2,}')
+      expect(res.data).toEqual({ a: 1, b: 2 })
+      expect(res.error).toBeNull()
+    })
+    it("recovers from trailing commas in arrays", () => {
+      const res = parseAiJson('[1, 2, 3,]')
+      expect(res.data).toEqual([1, 2, 3])
+      expect(res.error).toBeNull()
+    })
+    it("handles empty string input", () => {
+      const res = parseAiJson("")
+      expect(res.data).toBeNull()
+      expect(res.error).toContain("invalid JSON")
+    })
+    it("handles whitespace-only input", () => {
+      const res = parseAiJson("   \n  ")
+      expect(res.data).toBeNull()
+      expect(res.error).toContain("invalid JSON")
+    })
+    it("parses JSON with unescaped newlines and tabs", () => {
+      const res = parseAiJson('{"text": "Hello\nWorld\t!"}')
+      expect(res.data).toEqual({ text: "Hello\nWorld\t!" })
+      expect(res.error).toBeNull()
+    })
+    it("recovers nested JSON with escaped characters", () => {
+      const res = parseAiJson('{"nested": {"key": "value with \\"quotes\\""}}')
+      expect(res.data).toEqual({ nested: { key: 'value with "quotes"' } })
+      expect(res.error).toBeNull()
+    })
+    it("rejects completely malformed input", () => {
+      const res = parseAiJson("not even close to json")
+      expect(res.data).toBeNull()
+      expect(res.error).toContain("invalid JSON")
+    })
+    it("recovers JSON with extra whitespace and newlines", () => {
+      const res = parseAiJson('{\n  "a": 1,\n  "b": [\n    2,\n    3\n  ]\n}')
+      expect(res.data).toEqual({ a: 1, b: [2, 3] })
+      expect(res.error).toBeNull()
+    })
+    it("strips code fences with language prefix that has no newline", () => {
+      const res = parseAiJson('```json{"a": 1}```')
+      expect(res.data).toEqual({ a: 1 })
+      expect(res.error).toBeNull()
+    })
+    it("recovers JSON from markdown text with code fences and commentary", () => {
+      const res = parseAiJson('The result is:\n```json\n{"items": [1, 2, 3]}\n```\nLet me know if you need changes.')
+      expect(res.data).toEqual({ items: [1, 2, 3] })
+      expect(res.error).toBeNull()
+    })
   })
 })

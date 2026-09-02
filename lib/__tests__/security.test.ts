@@ -6,6 +6,7 @@ import {
   isPrivateOrReservedHost,
   assertSafeExternalUrl,
   safeApiError,
+  redactSensitiveData,
 } from "@/lib/security"
 
 describe("lib/security", () => {
@@ -153,6 +154,104 @@ describe("lib/security", () => {
         error: "Something went wrong",
         code: "INTERNAL_ERROR",
       })
+    })
+
+    it("reflects custom status code and error code", async () => {
+      const res = safeApiError("Not found", 404, "NOT_FOUND")
+      expect(res.status).toBe(404)
+      const json = await res.json()
+      expect(json.error).toBe("Not found")
+      expect(json.code).toBe("NOT_FOUND")
+    })
+
+    it("includes optional details when provided", async () => {
+      const res = safeApiError("Validation failed", 400, "VALIDATION_ERROR", {
+        field: "name",
+      })
+      const json = await res.json()
+      expect(json.details).toEqual({ field: "name" })
+    })
+
+    it("sets Content-Type to application/json", () => {
+      const res = safeApiError("test")
+      expect(res.headers.get("Content-Type")).toBe("application/json")
+    })
+
+    it("redacts database connection strings from error messages", async () => {
+      const res = safeApiError("DATABASE_URL=postgres://secret@host")
+      const json = await res.json()
+      expect(json.error).not.toContain("postgres://")
+      expect(json.error).not.toContain("secret@host")
+    })
+
+    it("redacts API keys from error messages", async () => {
+      const res = safeApiError("API_KEY=sk-1234567890abcdef")
+      const json = await res.json()
+      expect(json.error).not.toContain("sk-1234567890abcdef")
+    })
+  })
+
+  describe("redactSensitiveData", () => {
+    it("redacts postgres connection strings", () => {
+      const result = redactSensitiveData("postgres://user:pass@host:5432/db")
+      expect(result).toBe("[redacted]")
+    })
+
+    it("redacts mysql connection strings", () => {
+      const result = redactSensitiveData("mysql://user:pass@host:3306/db")
+      expect(result).toBe("[redacted]")
+    })
+
+    it("redacts DATABASE_URL key=value patterns", () => {
+      const result = redactSensitiveData("DATABASE_URL=postgres://secret@host")
+      expect(result).toBe("[redacted]")
+    })
+
+    it("redacts API_KEY key=value patterns", () => {
+      const result = redactSensitiveData("API_KEY=sk-1234567890abcdef")
+      expect(result).toBe("[redacted]")
+    })
+
+    it("redacts TOKEN key=value patterns", () => {
+      const result = redactSensitiveData("TOKEN=ghp_1234567890abcdef")
+      expect(result).toBe("[redacted]")
+    })
+
+    it("redacts SECRET key=value patterns", () => {
+      const result = redactSensitiveData("SECRET=super-secret-value")
+      expect(result).toBe("[redacted]")
+    })
+
+    it("redacts PASSWORD key=value patterns", () => {
+      const result = redactSensitiveData("PASSWORD=hunter2")
+      expect(result).toBe("[redacted]")
+    })
+
+    it("redacts AUTH key=value patterns", () => {
+      const result = redactSensitiveData("AUTH=basic:YWRtaW46cGFzcw==")
+      expect(result).toBe("[redacted]")
+    })
+
+    it("preserves safe messages without sensitive data", () => {
+      const result = redactSensitiveData("Card generation failed: timeout")
+      expect(result).toBe("Card generation failed: timeout")
+    })
+
+    it("preserves normal text with URLs", () => {
+      const result = redactSensitiveData("Failed to fetch https://arxiv.org/abs/2301.12345")
+      expect(result).toBe("Failed to fetch https://arxiv.org/abs/2301.12345")
+    })
+
+    it("preserves empty string", () => {
+      expect(redactSensitiveData("")).toBe("")
+    })
+
+    it("handles mixed content with sensitive and safe parts", () => {
+      const msg = "Error: Failed to connect. DATABASE_URL=postgres://user:pass@localhost:5432/prod. Request ID: abc-123"
+      const result = redactSensitiveData(msg)
+      expect(result).toContain("Error: Failed to connect.")
+      expect(result).toContain("Request ID: abc-123")
+      expect(result).not.toContain("postgres://user:pass@localhost:5432/prod")
     })
   })
 })

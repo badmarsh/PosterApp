@@ -3,6 +3,7 @@ import {
   buildWorkflowSteps,
   WORKFLOW_PRESETS,
   ALL_WORKFLOW_STEPS,
+  mapLegacyStepToId,
   type WorkflowContext,
 } from "@/lib/workflow/step-registry"
 
