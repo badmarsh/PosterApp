@@ -37,6 +37,7 @@ import { sortFindingsByPriority } from "./review-priorities"
 import {
   extractDocumentStructure,
   computeSourceRevision,
+  type DetailedThesisType,
 } from "./document-understanding"
 import {
   checkObjectiveAlignment,
@@ -52,7 +53,11 @@ import {
 import {
   validateAndCalibrateFindings,
 } from "./evidence-validator"
-import { calculateGradeRange } from "./rubric-engine"
+import {
+  calculateGradeRange,
+  getApplicableCriteriaForThesisType,
+  SK_ACADEMIC_RUBRIC_V1,
+} from "./rubric-engine"
 
 export interface GenerateProfessionalReviewOptions {
   workspaceId: string
@@ -73,8 +78,45 @@ export interface GenerateProfessionalReviewOptions {
    *  Named "multiAgentDebate" for backwards API compatibility.
    *  2× LLM cost, produces genuine divergence (separate sampling contexts). */
   multiAgentDebate?: boolean
+  /** Methodology-level thesis classification (from `classifyDisciplineAndThesisType`).
+   *  Drives which SK_ACADEMIC_RUBRIC_V1 criteria contribute cautionGuidance /
+   *  prohibitedInferences to the prompt. Defaults to "unknown" — a separate axis from
+   *  the degree-level `thesisType` above, with no conversion between them. */
+  detailedThesisType?: DetailedThesisType
   graphAugmentation?: string
   vectorAugmentation?: string
+}
+
+/**
+ * Builds rubric-guidance prompt text from SK_ACADEMIC_RUBRIC_V1's per-criterion
+ * `cautionGuidance` / `prohibitedInferences` for a given methodology thesis type.
+ * This is the anti-over-penalization content rubric-engine.ts already defines, but
+ * which previously never reached the generation prompt. Criteria ruled
+ * "not_applicable" for the thesis type are excluded; the rest are emitted with their
+ * localized label and (for "partially_applicable") an applicability caveat.
+ */
+export function buildRubricGuidanceText(
+  thesisType: DetailedThesisType,
+  language: ReviewLanguage
+): string {
+  const applicable = getApplicableCriteriaForThesisType(thesisType, SK_ACADEMIC_RUBRIC_V1).filter(
+    ({ applicability }) => applicability !== "not_applicable"
+  )
+
+  if (applicable.length === 0) return ""
+
+  const blocks: string[] = []
+  for (const { criterion, applicability } of applicable) {
+    const label = criterion.labels[language] ?? criterion.labels.en
+    const caution = criterion.cautionGuidance[language] ?? criterion.cautionGuidance.en
+    const prohibited = (criterion.prohibitedInferences[language] ?? criterion.prohibitedInferences.en)
+      .map((rule) => `- ${rule}`)
+      .join("\n")
+    const applicabilityNote =
+      applicability === "partially_applicable" ? " (partially applicable — apply with caution)" : ""
+    blocks.push(`### ${label}${applicabilityNote}\nCaution: ${caution}\nDo not infer:\n${prohibited}`)
+  }
+  return blocks.join("\n\n")
 }
 
 // ---------------------------------------------------------------------------
@@ -612,6 +654,9 @@ ${formatGradeAnchorsText(profile, options.language)}
 `
   }
 
+  const effectiveThesisType: DetailedThesisType = options.detailedThesisType ?? "unknown"
+  const rubricGuidanceText = buildRubricGuidanceText(effectiveThesisType, options.language)
+
   const systemPrompt = `You are a distinguished senior peer reviewer and academic expert performing a highly critical, rigorous, evidence-grounded review of a manuscript following COPE Ethical Guidelines and Nature/PLOS standards.
 
 CRITICAL INSTRUCTIONS:
@@ -655,6 +700,7 @@ Source Revision: ${sourceRevision}
 --- REPORTING GUIDELINE FOCUS ---
 ${standardGuidance}
 ${levelExpectationsText}
+${rubricGuidanceText ? `--- RUBRIC ANTI-OVER-PENALIZATION GUIDANCE (sk-academic-v1) ---\n${rubricGuidanceText}\n` : ""}
 
 ${options.graphAugmentation ? `--- KNOWLEDGE GRAPH (MULTI-HOP REASONING) ---\n${options.graphAugmentation}\n` : ""}
 ${options.vectorAugmentation ? `--- RELEVANT EXTRACTED CONTEXT (VECTOR RAG) ---\n${options.vectorAugmentation}\n` : ""}
