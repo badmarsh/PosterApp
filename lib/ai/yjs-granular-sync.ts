@@ -189,7 +189,9 @@ export function extractReviewFromYDoc(
     if (!order.includes(id)) {
       try {
         findings.push(JSON.parse(raw))
-      } catch (err) {}
+      } catch (err) {
+        console.warn("[Yjs] Failed to parse out-of-order finding:", id, err)
+      }
     }
   })
 
@@ -198,7 +200,9 @@ export function extractReviewFromYDoc(
   reportingMap.forEach((raw) => {
     try {
       reportingGuidelineChecks.push(JSON.parse(raw))
-    } catch (err) {}
+    } catch (err) {
+      console.warn("[Yjs] Failed to parse reporting guideline check:", err)
+    }
   })
 
   return {

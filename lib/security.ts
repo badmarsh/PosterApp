@@ -168,6 +168,20 @@ export function assertSafeExternalUrl(urlStr: string): URL {
 }
 
 /**
+ * Strips sensitive environment variable values and connection strings from
+ * error messages that could leak into API responses.
+ */
+export function redactSensitiveData(message: string): string {
+  return message
+    // Connection strings (postgres://, mysql://, mongodb://, redis://, etc.)
+    .replace(/(?:postgres|mysql|mongodb|redis|sqlite|jdbc|mssql):\/\/[^\s"'`<>]*/gi, "[redacted]")
+    // KEY=VALUE patterns for known sensitive env vars — replace entire match
+    .replace(/(?:DATABASE_URL|SECRET|API_KEY|TOKEN|PASSWORD|AUTH)=[^\s"'`<>]*/gi, "[redacted]")
+    // Bearer / API key tokens
+    .replace(/(?:Bearer|sk-|pk-|key-)[^\s"'`<>]*/gi, "[redacted]")
+}
+
+/**
  * Returns a standardized, structured JSON error response that never leaks
  * database internals, stack traces, or internal server paths.
  */
@@ -179,7 +193,7 @@ export function safeApiError(
 ): Response {
   return new Response(
     JSON.stringify({
-      error: message,
+      error: redactSensitiveData(message),
       code,
       ...(details ? { details } : {}),
     }),

@@ -5,6 +5,7 @@ import sharp from "sharp"
 import { atomicCreateVersionedFile } from "@/lib/asset-versioning"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { rateLimitAsync } from "@/lib/rate-limit"
+import { WORKSPACES_ROOT } from "@/lib/workspace-files"
 
 
 type ImageEditOperation = "remove-bg" | "crop-tight" | "upscale" | "custom" | "discard" | "accept"
@@ -30,7 +31,7 @@ function resolveAssetPath(assetUrl: string): string | null {
   const filename = parts.slice(2).join("/")
   const safeName = sanitizeFilename(filename)
   if (!safeName || safeName.includes("/") || safeName.includes("\\")) return null
-  return path.join(WORKSPACES_DIR, workspaceId, "assets", safeName)
+  return path.join(WORKSPACES_ROOT, workspaceId, "assets", safeName)
 }
 
 export async function POST(req: Request) {
@@ -77,7 +78,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Could not resolve assetUrl" }, { status: 400 })
   }
 
-  const assetsDir = path.join(WORKSPACES_DIR, workspaceId, "assets")
+  const assetsDir = path.join(WORKSPACES_ROOT, workspaceId, "assets")
   const relative = path.relative(assetsDir, assetPath)
   if (relative.startsWith("..") || path.isAbsolute(relative)) {
     return NextResponse.json({ error: "Invalid asset path" }, { status: 400 })

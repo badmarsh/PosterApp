@@ -683,7 +683,7 @@ export async function POST(req: Request) {
         await sendEvent({
           type: "error",
           error: "Failed to save extracted assets to database",
-          detail: String(err),
+          detail: process.env.NODE_ENV === "development" ? (err instanceof Error ? err.message : String(err)) : undefined,
         })
         return
       }

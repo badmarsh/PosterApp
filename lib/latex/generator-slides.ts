@@ -89,7 +89,7 @@ export class BeamerSlidesGenerator implements LatexGenerator {
             const imgHeight = hasBullets 
               ? (bulletLines > 3 ? "0.32\\textheight" : bulletLines > 1 ? "0.36\\textheight" : "0.42\\textheight")
               : "0.62\\textheight"
-            tex += `\\begin{center}\n\\includegraphics[height=${imgHeight},width=0.9\\linewidth,keepaspectratio]{${workspaceId ? assetUrlToLatexPath(f.url, workspaceId) : f.url}}\n`
+            tex += `\\begin{center}\n\\includegraphics[height=${imgHeight},width=0.9\\linewidth,keepaspectratio]{${normalizeLatexPath(workspaceId ? assetUrlToLatexPath(f.url, workspaceId) : f.url)}}\n`
             if (f.caption) tex += `\\\\{\\footnotesize ${parseMarkdownToLatex(f.caption)}}\n`
             tex += `\\end{center}\n`
           }

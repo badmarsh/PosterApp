@@ -261,6 +261,32 @@ export const WORKFLOW_PRESETS: Record<WorkflowPresetId, { name: string; descript
 }
 
 /**
+ * Maps legacy numeric step numbers to WorkflowStepIds for backward compatibility.
+ * Supports both 6-step and 4-step legacy pipelines.
+ */
+export function mapLegacyStepToId(stepNumber: number, totalSteps: number): WorkflowStepId {
+  if (totalSteps === 6) {
+    const map: Record<number, WorkflowStepId> = {
+      1: "document_integrity",
+      2: "text_understanding",
+      3: "plan_and_rubric",
+      4: "evidence_analysis",
+      5: "draft_review",
+      6: "verification_and_export",
+    }
+    return map[stepNumber] || "document_integrity"
+  }
+  // 4-step legacy
+  const map: Record<number, WorkflowStepId> = {
+    1: "document_integrity",
+    2: "text_understanding",
+    3: "evidence_analysis",
+    4: "draft_review",
+  }
+  return map[stepNumber] || "document_integrity"
+}
+
+/**
  * Builds an array of ordered WorkflowStepConfig objects for the active preset.
  */
 export function buildWorkflowSteps(
