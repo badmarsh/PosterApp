@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@clerk/nextjs/server"
-import { prisma } from "@/lib/prisma"
+import { requireWorkspaceEditor } from "@/lib/auth"
 import { detectNovelty } from "@/lib/ai/novelty-detector"
 import path from "path"
 import fs from "fs"
@@ -13,16 +12,16 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
   const { id: workspaceId } = await params
 
-  const workspace = await prisma.workspace.findFirst({
-    where: { id: workspaceId, userId },
-    select: { id: true, bibContent: true },
-  })
-  if (!workspace) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  let bibContent: string | null = null
+  try {
+    const access = await requireWorkspaceEditor(workspaceId)
+    bibContent = access.workspace.bibContent
+  } catch (err) {
+    if (err instanceof Response) return err
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
   const lastRun = runLimiter.get(workspaceId)
   if (lastRun && Date.now() - lastRun < RUN_COOLDOWN_MS) {
@@ -52,7 +51,7 @@ export async function POST(
   }
 
   try {
-    const report = await detectNovelty(thesisText, workspace.bibContent || "")
+    const report = await detectNovelty(thesisText, bibContent || "")
     return NextResponse.json(report)
   } catch (err) {
     console.error("[novelty] Error:", err)

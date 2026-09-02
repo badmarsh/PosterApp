@@ -38,6 +38,8 @@ import { prisma } from "@/lib/prisma"
 import { Prisma } from "@prisma/client"
 import { generateLocalEmbedding } from "./local-embeddings"
 import type { ReviewLanguage, ThesisMetadata } from "./thesis-rubric"
+import { generateAIResponse } from "./client"
+import { z } from "zod"
 
 // ---------------------------------------------------------------------------
 // Domain Context Resolution
@@ -147,72 +149,19 @@ export function expandQuery(query: string, criterionExpansion = ""): string[] {
 
 // ---------------------------------------------------------------------------
 // Stage 2 — HyDE (Hypothetical Document Embedding)
-// ---------------------------------------------------------------------------
-
-/**
- * Generates a hypothetical document excerpt for the query — a short "ideal answer"
- * in academic register. Embeds this instead of the raw query to bridge the
- * representation gap between question-style queries and document passages.
- *
- * Supports multilingual academic templates (Slovak, Czech, English).
- *
- * Pure local string generation (no LLM required) using template patterns.
- */
-export function generateHypotheticalDocument(
+export async function generateHypotheticalDocument(
   query: string,
   domainContext: string,
   lang: ReviewLanguage = "sk"
-): string {
-  const q = query.toLowerCase()
-
-  // English detection / selection
-  if (lang === "en" || (!/[áäčďéíĺľňóôŕšťúýžěščřž]/i.test(query) && /\b(?:the|and|for|with|from|method|results|analysis)\b/i.test(q))) {
-    if (/method|architect|implement|experiment|dataset|model|measur|benchmark/i.test(q)) {
-      return `In this work, we propose and evaluate the methodology for ${query}. The experimental evaluation was performed on a representative benchmark dataset. The measurement results confirm the validity of the proposed approach in the domain of ${domainContext}.`
-    }
-    if (/result|evaluat|discuss|compar|contribut|validat/i.test(q)) {
-      return `The results achieved in ${query} demonstrate statistically significant improvements compared to state-of-the-art baselines. The discussion provides detailed interpretation in the context of ${domainContext}.`
-    }
-    if (/literat|survey|state of the art|related|background|citat/i.test(q)) {
-      return `A review of current literature in the domain of ${domainContext} demonstrates that ${query}. Relevant related work covers multiple foundational approaches to addressing this challenge.`
-    }
-    if (/goal|aim|intro|motiv|objectiv|hypothes/i.test(q)) {
-      return `The main goal of this thesis is to investigate ${query} in the context of ${domainContext}. This work provides novel research contributions and fulfills the stated research hypotheses.`
-    }
-    return `In the context of ${domainContext}, this chapter addresses ${query}. The presented approach builds upon state-of-the-art research and introduces novel findings in the field.`
-  }
-
-  // Czech templates
-  if (lang === "cs") {
-    if (/metod|archit|implement|experiment|dataset|model|meren|benchmark/i.test(q)) {
-      return `V této práci jsme navrhli a implementovali metodiku ${query}. Experimentální ověření bylo provedeno na reprezentativním datasetu. Výsledky měření potvrzují platnost navrženého přístupu v oblasti ${domainContext}.`
-    }
-    if (/vysledk|výsledk|evalu|diskus|porovnan|prinos|přínos|validac/i.test(q)) {
-      return `Dosažené výsledky v oblasti ${query} ukazují statisticky významné zlepšení oproti stávajícím řešením. Diskuse výsledků zahrnuje jejich interpretaci v kontextu ${domainContext}.`
-    }
-    if (/literat|resers|rešerš|stav|related|background|citac|citace/i.test(q)) {
-      return `Přehled současného stavu poznání v oblasti ${domainContext} ukazuje, že ${query}. Relevantní práce zahrnují řadu přístupů k řešení dané problematiky.`
-    }
-    if (/cil|cíl|uvod|úvod|motiv|prinos|přínos|zadani|zadání|hypotez|hypotéz/i.test(q)) {
-      return `Cílem této práce je ${query} v kontextu ${domainContext}. Práce přináší originální přínos v oblasti výzkumu a naplňuje zadání stanovenými hypotézami.`
-    }
-    return `V kontextu ${domainContext}, tato kapitola se zabývá ${query}. Prezentovaný přístup vychází z aktuálního stavu výzkumu a přináší nové poznatky v dané oblasti.`
-  }
-
-  // Slovak (default)
-  if (/metod|archit|implement|experiment|dataset|model|meran|benchmark/i.test(q)) {
-    return `V tejto práci sme navrhli a implementovali metodiku ${query}. Experimentálne overenie bolo vykonané na reprezentatívnom datasete. Výsledky meraní potvrdzujú platnosť navrhnutého prístupu v oblasti ${domainContext}.`
-  }
-  if (/výsledk|evalu|diskus|porovnan|prínos|validac/i.test(q)) {
-    return `Dosiahnuté výsledky v oblasti ${query} ukazujú štatisticky významné zlepšenie oproti existujúcim riešeniam. Diskusia výsledkov zahŕňa ich interpretáciu v kontexte ${domainContext}.`
-  }
-  if (/literat|rešerš|stav|related|background|citáci/i.test(q)) {
-    return `Prehľad súčasného stavu poznania v oblasti ${domainContext} ukazuje, že ${query}. Relevantné práce zahŕňajú viacero prístupov k riešeniu danej problematiky.`
-  }
-  if (/cieľ|úvod|motiv|prínos|zadani|hypotéz/i.test(q)) {
-    return `Cieľom tejto práce je ${query} v kontexte ${domainContext}. Práca prináša originálny prínos v oblasti výskumu a napĺňa zadanie stanovenými hypotézami.`
-  }
-  return `V kontexte ${domainContext}, táto kapitola sa zaoberá ${query}. Prezentovaný prístup vychádza z aktuálneho stavu výskumu a prináša nové poznatky v danej oblasti.`
+): Promise<string> {
+  const result = await generateAIResponse("HyDE-Generation", {
+    model: process.env.AI_MODEL || "gemini-3-flash",
+    systemPrompt: `You are an academic researcher in ${domainContext}. Write a short (2-3 sentences) ideal academic thesis excerpt that directly addresses the concept. Language: ${lang}. Do not use introductory phrases, just output the excerpt.`,
+    userPrompt: query,
+    schema: z.object({ excerpt: z.string() }),
+    temperature: 0.1,
+  })
+  return result?.excerpt || query
 }
 
 // ---------------------------------------------------------------------------
@@ -310,7 +259,7 @@ export async function searchHybrid(
   // Embed all variants + HyDE in parallel (cache makes repeated calls free)
   const embedInputs = queryVariants.map((q) => `${domainContext}: ${q}`)
   if (useHyDE) {
-    const hydeDoc = generateHypotheticalDocument(query, domainContext, opts?.lang)
+    const hydeDoc = await generateHypotheticalDocument(query, domainContext, opts?.lang)
     embedInputs.push(hydeDoc)
   }
 
@@ -337,7 +286,11 @@ export async function searchHybrid(
       if (existing) {
         existing.rrfScore += rrfScore
       } else {
-        scoreMap.set(chunk.id, { chunk, rrfScore: chunk.similarity + rrfScore })
+        // Seed with only the outer RRF term — NOT chunk.similarity.
+        // chunk.similarity is itself an inner RRF fusion score (different units/scale),
+        // so mixing it with the outer 1/(60+rank) term produces an undefined hybrid.
+        // Pure RRF accumulates only rank-derived scores, which is what we do here.
+        scoreMap.set(chunk.id, { chunk, rrfScore })
       }
     }
   }

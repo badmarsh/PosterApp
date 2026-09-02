@@ -568,6 +568,7 @@ export const ProfessionalReviewGenerationSchema = z.preprocess((raw: any) => {
       reportingGuidelineChecks,
       questionsForAuthors,
       confidentialComments: raw.confidentialComments ? String(raw.confidentialComments).trim() : undefined,
+      debateLog: raw.debateLog ? String(raw.debateLog).trim() : undefined,
       recommendation: String(raw.recommendation || raw.verdict || "minor_revisions").trim(),
       grade: raw.grade ? String(raw.grade).trim().toUpperCase() : undefined,
     }
@@ -581,6 +582,7 @@ export const ProfessionalReviewGenerationSchema = z.preprocess((raw: any) => {
   reportingGuidelineChecks: z.array(ReportingGuidelineCheckContractSchema).default([]),
   questionsForAuthors: z.array(z.string()).default([]),
   confidentialComments: z.string().optional(),
+  debateLog: z.string().optional(),
   recommendation: z.string().default("minor_revisions"),
   grade: z.string().optional(),
 }))

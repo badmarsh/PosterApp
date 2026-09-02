@@ -3,20 +3,20 @@
  */
 
 export const DEFAULT_AI_MODELS = {
-  default: "gemini-3-flash",
-  generation: "gemini-3-flash",
-  structure: "gemini-3-flash",
-  convert: "gemini-3-flash",
-  shrink: "gemini-3-flash",
-  review: "gemini-3-flash",
+  default: "gemini-3.7-flash",
+  generation: "gemini-3.7-flash",
+  structure: "gemini-3.7-flash",
+  convert: "gemini-3.7-flash",
+  shrink: "gemini-3.7-flash",
+  review: "gemini-3.7-flash",
   reviewLayout: "qwen3-vl-flash",
   vision: "qwen3-vl-flash",
   ocr: "qwen3-vl-flash",
-  chat: "gemini-3-flash",
-  bibtex: "gemini-3-flash",
-  labeler: "gemini-3-flash",
-  autofix: "gemini-3-flash",
-  thesis: "gemini-3-flash",
+  chat: "gemini-3.7-flash",
+  bibtex: "gemini-3.7-flash",
+  labeler: "gemini-3.7-flash",
+  autofix: "gemini-3.7-flash",
+  thesis: "gemini-3.7-flash",
 } as const
 
 export type AiModelRole = keyof typeof DEFAULT_AI_MODELS

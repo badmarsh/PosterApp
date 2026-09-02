@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@clerk/nextjs/server"
+import { requireWorkspaceEditor } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { buildGraphCommunities } from "@/lib/ai/graph-communities"
 
@@ -11,17 +11,14 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
   const { id: workspaceId } = await params
 
-  // Ownership check
-  const workspace = await prisma.workspace.findFirst({
-    where: { id: workspaceId, userId },
-    select: { id: true },
-  })
-  if (!workspace) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  try {
+    await requireWorkspaceEditor(workspaceId)
+  } catch (err) {
+    if (err instanceof Response) return err
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
   // Rate limit
   const lastBuild = buildLimiter.get(workspaceId)
@@ -46,10 +43,14 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
   const { id: workspaceId } = await params
+
+  try {
+    await requireWorkspaceEditor(workspaceId)
+  } catch (err) {
+    if (err instanceof Response) return err
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
   const communities = await prisma.graphCommunity.findMany({
     where: { workspaceId },

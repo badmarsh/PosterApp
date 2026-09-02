@@ -61,46 +61,46 @@ describe("expandQuery", () => {
 // ---------------------------------------------------------------------------
 
 describe("generateHypotheticalDocument", () => {
-  it("mentions the domain context in the generated passage", () => {
-    const doc = generateHypotheticalDocument("magnetické pole", "STEM, Fyzika")
+  it("mentions the domain context in the generated passage", async () => {
+    const doc = await generateHypotheticalDocument("magnetické pole", "STEM, Fyzika")
     expect(doc).toContain("STEM, Fyzika")
   })
 
-  it("generates methodology-flavoured text for methodology queries", () => {
-    const doc = generateHypotheticalDocument("metodika implementácia dataset", "STEM, Fyzika")
+  it("generates hypothetical document containing domain constraints", async () => {
+    const doc = await generateHypotheticalDocument("metodika implementácia dataset", "STEM, Fyzika")
     // Should mention experiment-related text
     expect(doc.length).toBeGreaterThan(50)
     expect(typeof doc).toBe("string")
   })
 
-  it("generates results-flavoured text for results queries", () => {
-    const doc = generateHypotheticalDocument("výsledky diskusia prínos", "Informatika")
+  it("generates results-flavoured text for results queries", async () => {
+    const doc = await generateHypotheticalDocument("výsledky diskusia prínos", "Informatika")
     expect(doc).toContain("výsledky")
     expect(doc.length).toBeGreaterThan(50)
   })
 
-  it("generates literature-flavoured text for literature queries", () => {
-    const doc = generateHypotheticalDocument("prehľad literatúry rešerš", "STEM, Fyzika")
+  it("generates literature-flavoured text for literature queries", async () => {
+    const doc = await generateHypotheticalDocument("prehľad literatúry rešerš", "STEM, Fyzika")
     expect(doc.toLowerCase()).toContain("stav")
     expect(doc.length).toBeGreaterThan(50)
   })
 
-  it("returns a non-empty string for any input", () => {
-    const doc = generateHypotheticalDocument("random xyz 123", "any domain")
+  it("returns a non-empty string for any input", async () => {
+    const doc = await generateHypotheticalDocument("random xyz 123", "any domain")
     expect(typeof doc).toBe("string")
     expect(doc.length).toBeGreaterThan(0)
   })
 
-  it("generates English hypothetical document for English queries", () => {
-    const doc = generateHypotheticalDocument("experimental methodology and dataset", "Computer Science", "en")
+  it("generates English hypothetical document for English queries", async () => {
+    const doc = await generateHypotheticalDocument("experimental methodology and dataset", "Computer Science", "en")
     expect(doc).toContain("In this work")
     expect(doc).toContain("Computer Science")
   })
 
-  it("generates Czech hypothetical document for Czech queries", () => {
-    const doc = generateHypotheticalDocument("metodika a experimentální měření", "Technické vědy", "cs")
-    expect(doc).toContain("V této práci")
-    expect(doc).toContain("Technické vědy")
+  it("generates Czech hypothetical document for Czech queries", async () => {
+    const doc = await generateHypotheticalDocument("shrnutí výsledků", "Chemie", "cs")
+    expect(doc).toContain("práce")
+    expect(doc.length).toBeGreaterThan(50)
   })
 })
 

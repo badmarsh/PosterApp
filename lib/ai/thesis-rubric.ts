@@ -330,3 +330,25 @@ export function gradeToRecommendation(grade: string, lang: ReviewLanguage): stri
   const outcome = grade === "FX" ? "fail" : "pass"
   return recs[outcome][lang]
 }
+
+/**
+ * Formats a thesis level's grade anchors as prompt-ready text, localized by header.
+ * Anchor descriptions themselves stay in English (consistent with evidenceExpectations /
+ * originalityExpectation / methodologyExpectation, which are also English-only today).
+ */
+export function formatGradeAnchorsText(
+  profile: ThesisLevelProfile,
+  lang: ReviewLanguage
+): string {
+  const headers: Record<ReviewLanguage, string> = {
+    sk: "Kritériá pre pridelenie známky na tejto úrovni (použite PRESNE tieto definície, nie všeobecnú intuíciu):",
+    cs: "Kritéria pro přidělení známky na této úrovni (použijte PŘESNĚ tyto definice):",
+    en: "Grade anchors for this level — apply these EXACT definitions, not generic cross-level intuition:",
+  }
+  const grades: Array<Exclude<CriterionRating, "pending">> = ["A", "B", "C", "D", "E", "FX"]
+  return [
+    headers[lang],
+    ...grades.map((g) => `- ${g}: ${profile.gradeAnchors[g]}`),
+  ].join("\n")
+}
+

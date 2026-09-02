@@ -339,24 +339,45 @@ export async function POST(req: Request) {
         // Async vector chunking for RAG — fire-and-forget, non-blocking
         // This runs in background after SSE completes to avoid timeout
         const parsedIdForChunking = typeof fileId === "string" ? fileId : `file_${Date.now()}`
+
+        // Mark indexing as "indexing" SYNCHRONOUSLY before handing off to setImmediate.
+        // This prevents the review route from silently generating with zero RAG if the
+        // user clicks "Generate Review" before the background job finishes.
+        try {
+          await prisma.ingestFile.updateMany({
+            where: { id: parsedIdForChunking, workspaceId },
+            data: { vectorStatus: "indexing" },
+          })
+        } catch { /* non-fatal: IngestFile row may not exist yet */ }
+
         setImmediate(async () => {
           try {
             const { ingestDocumentChunks } = await import("@/lib/ai/document-chunker")
+            const { resolveChunkSize } = await import("@/lib/ai/chunking-config")
             const { chunksCreated, skipped } = await ingestDocumentChunks(
               workspaceId,
               parsedIdForChunking,
               results.md_content!,
-              // Use larger chunks for long documents (PhD/MSc) — approximated by content length
               {
-                maxChunkChars: results.md_content!.length > 200_000 ? 3000 : 1800,
+                maxChunkChars: resolveChunkSize(results.md_content!.length),
                 concurrency: 2,
+                ingestFileId: parsedIdForChunking,
               }
             )
             console.log(`[VectorRAG] Indexed ${chunksCreated} chunks for ${workspaceId}/${parsedIdForChunking} (${skipped} skipped)`)
           } catch (err) {
             console.error("[VectorRAG] Background chunking failed (non-fatal):", err)
+            // Mark as error so the review route can surface a warning
+            try {
+              const { prisma: db } = await import("@/lib/prisma")
+              await db.ingestFile.updateMany({
+                where: { id: parsedIdForChunking, workspaceId },
+                data: { vectorStatus: "error" },
+              })
+            } catch { /* non-fatal */ }
           }
         })
+
       }  // end: if (fileId && results.md_content)
 
   const assets: {

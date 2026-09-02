@@ -166,27 +166,97 @@ async function findRelatedPapers(
 // Step 4: Bibliography matching
 // ---------------------------------------------------------------------------
 
-/** Normalizes a bibliography entry for fuzzy matching */
-function normalizeBibEntry(text: string): string {
-  return text.toLowerCase().replace(/[^a-z0-9]/g, "").trim()
+interface ParsedBibEntry {
+  doi?: string
+  title?: string
+  normalizedTitle: string
 }
 
 /**
- * Checks if a paper title or DOI appears in the raw BibTeX bibliography string.
+ * Parses a raw BibTeX string into an array of structured entries, extracting
+ * title and DOI fields. Much more robust than raw substring search because it:
+ *  - Handles title variations (preprint vs camera-ready, subtitle punctuation)
+ *  - Avoids false-positive DOI matches on partial string overlaps
+ *  - Works across different capitalizations and whitespace
+ */
+function parseBibEntries(bibContent: string): ParsedBibEntry[] {
+  if (!bibContent) return []
+  const entries: ParsedBibEntry[] = []
+
+  // Split on BibTeX entry openers: @type{key,
+  const entryRegex = /@\w+\{[^,]+,([\s\S]*?)(?=@\w+\{|$)/g
+  let m: RegExpExecArray | null
+  while ((m = entryRegex.exec(bibContent)) !== null) {
+    const body = m[1]
+
+    // Extract title = {...} or title = "..."
+    const titleMatch = body.match(/title\s*=\s*[{"]([^}"]+)[}"]/i)
+    const doiMatch = body.match(/doi\s*=\s*[{"]([^}"]+)[}"]/i)
+
+    const rawTitle = titleMatch ? titleMatch[1].replace(/[{}]/g, "").trim() : undefined
+    const doi = doiMatch ? doiMatch[1].trim().toLowerCase() : undefined
+    const normalizedTitle = rawTitle
+      ? rawTitle.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim()
+      : ""
+
+    if (rawTitle || doi) {
+      entries.push({ doi, title: rawTitle, normalizedTitle })
+    }
+  }
+  return entries
+}
+
+/**
+ * Computes a simple word-level Jaccard similarity between two normalized strings.
+ * Used to match thesis titles that may differ in subtitle punctuation or preprint
+ * vs final-version wording.
+ */
+function titleJaccard(a: string, b: string): number {
+  const wordsA = new Set(a.split(/\s+/).filter((w) => w.length > 2))
+  const wordsB = new Set(b.split(/\s+/).filter((w) => w.length > 2))
+  if (wordsA.size === 0 || wordsB.size === 0) return 0
+  let inter = 0
+  for (const w of wordsA) if (wordsB.has(w)) inter++
+  return inter / (wordsA.size + wordsB.size - inter)
+}
+
+/**
+ * Checks if a paper (identified by title and/or DOI) appears in the bibliography.
+ * Uses structured BibTeX parsing + Jaccard title similarity for robustness.
+ * Falls back to raw substring matching if parsing yields no entries.
  */
 function isInBibliography(
   paper: { title?: string; doi?: string },
   bibContent: string
 ): boolean {
   if (!bibContent) return false
-  const normBib = normalizeBibEntry(bibContent)
+
+  const entries = parseBibEntries(bibContent)
+
+  // Structured matching (preferred)
+  if (entries.length > 0) {
+    // 1. DOI exact match
+    if (paper.doi) {
+      const normPaperDoi = paper.doi.toLowerCase().trim()
+      if (entries.some((e) => e.doi && e.doi === normPaperDoi)) return true
+    }
+    // 2. Title Jaccard similarity ≥ 0.6 (handles subtitle differences, preprint titles)
+    if (paper.title && paper.title.length > 10) {
+      const normPaperTitle = paper.title.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim()
+      if (entries.some((e) => e.normalizedTitle && titleJaccard(normPaperTitle, e.normalizedTitle) >= 0.6)) {
+        return true
+      }
+    }
+    return false
+  }
+
+  // Fallback: original raw substring approach (if BibTeX couldn't be parsed)
+  const normBib = bibContent.toLowerCase().replace(/[^a-z0-9]/g, "")
   if (paper.doi) {
-    const normDoi = normalizeBibEntry(paper.doi)
-    if (normBib.includes(normDoi)) return true
+    if (normBib.includes(paper.doi.toLowerCase().replace(/[^a-z0-9]/g, ""))) return true
   }
   if (paper.title && paper.title.length > 10) {
-    // Check first 40 chars of title (fuzzy — handles different capitalizations)
-    const normTitle = normalizeBibEntry(paper.title.slice(0, 40))
+    const normTitle = paper.title.slice(0, 40).toLowerCase().replace(/[^a-z0-9]/g, "")
     if (normBib.includes(normTitle)) return true
   }
   return false
@@ -275,7 +345,7 @@ export async function detectNovelty(
   // Deduplicate missing prior art by paper title
   const seen = new Set<string>()
   const uniqueMissing = missingPriorArt.filter((r) => {
-    const key = normalizeBibEntry(r.relatedPaper.title.slice(0, 30))
+    const key = r.relatedPaper.title.slice(0, 30).toLowerCase().replace(/[^a-z0-9]/g, "")
     if (seen.has(key)) return false
     seen.add(key)
     return true

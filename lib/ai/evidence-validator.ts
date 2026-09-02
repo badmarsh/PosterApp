@@ -115,9 +115,13 @@ export function verifyEvidenceQuote(
     }
   }
 
-  // 3. Approximate match for long quotes (> 35 characters)
-  if (cleanQuote.length > 35) {
-    const prefix = cleanQuote.slice(0, 35)
+  // 3. Approximate match for long quotes (> 60 characters)
+  // Require a 60-char anchor to resist hallucinated continuations:
+  // an LLM appending fabricated text after a real prefix must reproduce
+  // at least 60 real characters before we grant any match.
+  // Confidence 0.45 (clearly between unverified=0.1 and normalized=0.95).
+  if (cleanQuote.length > 60) {
+    const prefix = cleanQuote.slice(0, 60)
     if (normSource.includes(prefix)) {
       const matchedSec = sections.find((s) => normalizeWhitespace(s.content).includes(prefix))
       return {
@@ -127,7 +131,7 @@ export function verifyEvidenceQuote(
         sectionTitle: evidence.sectionTitle || matchedSec?.heading,
         verified: false,
         state: "approximate",
-        confidence: 0.7,
+        confidence: 0.45,
         verificationMethod: "approximate",
         page: undefined,
         pageNumber: undefined,

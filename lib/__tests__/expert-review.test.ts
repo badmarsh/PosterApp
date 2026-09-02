@@ -217,6 +217,8 @@ describe("Evidence Quote Grounding & State Classification", () => {
   })
 
   it("classifies partial match of long quote as approximate", () => {
+    // The source section s-3 contains: "Model dosiahol výrazné zlepšenie oproti predchádzajúcim baseline modelom."
+    // Our quote shares the first 71 chars verbatim, then diverges — this tests the ≥60 char anchor threshold.
     const findings = anchorEvidenceQuotes(
       [
         {
@@ -231,7 +233,7 @@ describe("Evidence Quote Grounding & State Classification", () => {
           audience: "author",
           severity: "minor",
           category: "results",
-          evidence: [{ evidenceType: "quote", quote: "Model dosiahol výrazné zlepšenie oproti starým baseline modelom na novom testovacom datasete" }],
+          evidence: [{ evidenceType: "quote", quote: "Model dosiahol výrazné zlepšenie oproti predchádzajúcim baseline modelom na novom testovacom datasete" }],
         },
       ],
       sampleRAG

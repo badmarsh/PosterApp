@@ -150,8 +150,19 @@ model IngestFile {
   progress    Int
   error       String?
   dismissed   Boolean   @default(false)
+  /// Vector indexing status: "pending" | "indexing" | "ready" | "error"
+  /// "pending"  — not yet attempted (new uploads before ingestDocumentChunks fires)
+  /// "indexing" — setImmediate callback is running (chunks being written)
+  /// "ready"    — all chunks embedded and HNSW index created
+  /// "error"    — embedding failed; see server logs
+  vectorStatus      String    @default("pending")
+  /// Number of DocumentChunks successfully created for this file
+  vectorChunks      Int       @default(0)
+  /// Timestamp when vectorStatus last transitioned to "ready"
+  vectorIndexedAt   DateTime?
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
+
 
 model WorkspaceSnapshot {
   id          String    @id @default(cuid())
@@ -235,6 +246,8 @@ model ThesisReview {
   confidentialComments String?
   /// PhD Opponent enrichment data (track record, SOTA, statutory clauses) (JSON object)
   phdEnrichment   String?
+  /// Multi-Agent debate transcript for Hivemind Bias mitigation
+  debateLog       String?
   /// "draft" | "final"
   status          String    @default("draft")
   /// ISO language code: "sk" | "cs" | "en"

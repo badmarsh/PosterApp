@@ -359,6 +359,24 @@ model GraphEdge {
                   <p className="text-xs text-muted-foreground">Graf je workspace-scoped: entity zdieľané viacerými nahranými dokumentmi (napr. práca + citované články) sa prepoja — posudok tak získa multi-hop súvislosti (metodika → dataset → metrika) aj naprieč dokumentmi, pričom každý fakt je dohľadateľný späť k dokumentu pôvodu.</p>
                 </div>
 
+                {/* ── 7. Graph Communities (LightRAG) ───────── */}
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-foreground text-sm border-b pb-1">7 · Graph Communities (LightRAG prístup)</h4>
+                  <p className="text-xs">Na detekciu širšieho kontextu (high-level pochopenie práce) sa na vybudovanom grafe (pozri bod 6) vykonáva <strong>Louvain community detection algoritmus</strong> (<code className="bg-muted px-1 rounded text-[10px]">graph-communities.ts</code>). Ten rozdelí uzly do zhlukov a pre každý zhluk vygeneruje abstraktné syntetické zhrnutie. Tieto komunity sa pri vyhľadávaní použijú (spolu s HNSW chunkmi) ako prídavný sémantický kontext, čo rieši neschopnosť štandardného Vector RAGu odpovedať na globálne otázky (napr. "Aký je celkový prínos práce?").</p>
+                </div>
+
+                {/* ── 8. Chýbajúci Prior Art & Novosť (PaperQA2) ── */}
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-foreground text-sm border-b pb-1">8 · Kontrola Novosti a Prior Artu (PaperQA2 prístup)</h4>
+                  <p className="text-xs">Novosť (Novelty) posudzujeme detekciou chýbajúceho <em>prior artu</em>. Cez <code className="bg-muted px-1 rounded text-[10px]">novelty-detector.ts</code> systém zistí atomické tvrdenia (claims) obsiahnuté v práci, zavolá Semantic Scholar a OpenAlex API a vektorovou podobnosťou zistí, či existujú významné články z posledných rokov (podobnosť {">"} 0.82), ktoré autor ignoroval alebo necitoval.</p>
+                </div>
+
+                {/* ── 9. Multi-Agent Debate (Hivemind Bias) ── */}
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-foreground text-sm border-b pb-1">9 · Prevencia Hivemind Bias (Multi-Agent Debate)</h4>
+                  <p className="text-xs">Umelá inteligencia má tendenciu skĺznuť k prvému nájdenému riešeniu (Hivemind bias / sycophancy). Keď je v UI zapnutá voľba <strong>Multi-Agent Debate</strong>, LLM v jednom behu asynchrónne simuluje panelovú diskusiu troch expertov (Pesimista, Optimista, Metodik), ich argumenty zaznamená do <code className="bg-muted px-1 rounded text-[10px]">debateLog</code> a až na základe ich konsenzu sformuluje finálne hodnotenie. Toto výrazne znižuje výskyt "AI halucinácií" a povrchného hodnotenia.</p>
+                </div>
+
               </AccordionContent>
             </AccordionItem>
 

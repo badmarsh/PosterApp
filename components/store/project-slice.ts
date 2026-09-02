@@ -1,5 +1,5 @@
 import type { EditorSlice, ProjectSlice } from "./types"
-import { sampleProject } from "@/lib/mock-data"
+import { sampleProjects } from "@/lib/mock-data"
 import { COLUMN_BUDGET, estimateHeight, generateLatexForCard, levelFromMessages, validateCard } from "@/lib/latex"
 import type { Project, OutputConfig, BlockPattern, Card } from "@/lib/poster-types"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
@@ -30,7 +30,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
   }
 
   return ({
-  project: sampleProject,
+  project: sampleProjects[0],
   selectedCardId: null,
   isSwitchingProject: false,
   columnCount: 3,

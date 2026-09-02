@@ -53,6 +53,8 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
     setConfidentialityAgreed,
     skipCitationAudit,
     setSkipCitationAudit,
+    multiAgentDebate,
+    setMultiAgentDebate,
     professionalModeOverride,
     setProfessionalModeOverride,
     selectedFileId,
@@ -270,6 +272,22 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                   </label>
 
                   <label
+                    htmlFor="active-multi-agent"
+                    className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/20 hover:bg-muted/30 p-2.5 rounded-lg border cursor-pointer transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      id="active-multi-agent"
+                      checked={multiAgentDebate}
+                      onChange={(e) => setMultiAgentDebate(e.target.checked)}
+                      className="mt-0.5 rounded accent-[#8B2635] cursor-pointer shrink-0"
+                    />
+                    <span className="leading-tight text-[11px] select-none text-foreground/90">
+                      Multi-Agent Debate (Hivemind Bias prevencia)
+                    </span>
+                  </label>
+
+                  <label
                     htmlFor="active-professional-mode"
                     className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/20 hover:bg-muted/30 p-2.5 rounded-lg border cursor-pointer transition-colors"
                   >
@@ -284,6 +302,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                       Odborný režim (rozšírené hodnotenie a overovanie dôkazov)
                     </span>
                   </label>
+
                   <label
                     htmlFor="active-skip-cite-audit"
                     className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/20 hover:bg-muted/30 p-2.5 rounded-lg border cursor-pointer transition-colors"

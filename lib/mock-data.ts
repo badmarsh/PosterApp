@@ -1,6 +1,7 @@
 import type { Project, Card } from "./poster-types"
 
-export const sampleProject: Project = {
+export const sampleProjects: Project[] = [
+  {
   id: "demo_ws",
   name: "Advanced Layouts & Latent Dynamics",
   posterTitle: "Advanced Layouts & Latent Dynamics",
@@ -456,9 +457,4 @@ export const sampleProject: Project = {
     }
   ]
 }
-
-// ensure cards fallback matches the active output for legacy code
-const activeOut = sampleProject.outputs.find(o => o.id === sampleProject.activeOutputId)
-if (activeOut) {
-  
-}
+]

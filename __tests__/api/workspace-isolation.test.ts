@@ -20,6 +20,29 @@ vi.mock("@/lib/prisma", () => ({
   },
 }))
 
+// Mock mock-data so the route's dynamic import only creates one workspace
+vi.mock("@/lib/mock-data", () => ({
+  sampleProjects: [
+    {
+      id: "demo_user_b",
+      name: "Sample Project",
+      authors: "",
+      venue: "",
+      activeOutputId: "out_1",
+      outputs: [
+        {
+          id: "out_1",
+          outputType: "poster",
+          templateId: "atlas",
+          title: "Sample Project",
+          themeColor: null,
+          cards: [],
+        },
+      ],
+    },
+  ],
+}))
+
 import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
 import { GET as getWorkspaces } from "@/app/api/workspaces/route"
@@ -41,6 +64,8 @@ describe("Multi-tenant Workspace Isolation", () => {
       id: "demo_user_b",
       name: "Sample Project",
       userId: "user_B",
+      authors: "",
+      venue: "",
       outputs: [
         {
           id: "out_1",

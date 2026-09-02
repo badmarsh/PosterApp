@@ -14,6 +14,7 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { prisma } from "@/lib/prisma"
 import { ingestDocumentChunks } from "@/lib/ai/document-chunker"
+import { resolveChunkSize } from "@/lib/ai/chunking-config"
 import fs from "fs"
 import path from "path"
 
@@ -71,14 +72,14 @@ export async function POST(
 
     try {
       const markdown = fs.readFileSync(mdPath, "utf8")
-      // Adaptive chunk size: PhD dissertations (> 200k chars) get larger chunks
-      // to preserve the flow of longer arguments
-      const maxChunkChars = markdown.length > 200_000 ? 3000 : 1800
       const { chunksCreated, graphQueued: docGraphQueued } = await ingestDocumentChunks(
         workspaceId,
         file.id,
         markdown,
-        { maxChunkChars }
+        {
+          maxChunkChars: resolveChunkSize(markdown.length),
+          ingestFileId: file.id,
+        }
       )
       indexed++
       graphQueued += docGraphQueued

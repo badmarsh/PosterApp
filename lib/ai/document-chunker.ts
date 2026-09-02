@@ -15,6 +15,7 @@ import { prisma } from "@/lib/prisma"
 import { generateLocalEmbedding } from "@/lib/ai/local-embeddings"
 import { extractAndStoreGraphEntities } from "./graph-extractor"
 import { classifySectionKind, type SectionKind } from "@/lib/ai/thesis-context"
+import { resolveChunkSize } from "./chunking-config"
 
 export type { SectionKind }
 
@@ -251,14 +252,28 @@ function runGraphExtractionQueue(
  * Uses concurrency control to avoid OOM on large dissertations.
  * Returns `graphQueued` — number of chunks queued for background GraphRAG
  * entity extraction (runs detached; not part of the synchronous return path).
+ *
+ * @param opts.ingestFileId  Optional IngestFile.id to track vectorStatus in DB.
+ *                           When provided, status is updated:
+ *                           pending → indexing (on start), then ready/error (on finish).
  */
 export async function ingestDocumentChunks(
   workspaceId: string,
   documentId: string,
   markdown: string,
-  opts: { maxChunkChars?: number; concurrency?: number } = {}
+  opts: { maxChunkChars?: number; concurrency?: number; ingestFileId?: string } = {}
 ): Promise<{ chunksCreated: number; skipped: number; graphQueued: number }> {
   const concurrency = opts.concurrency ?? 3
+
+  // Mark indexing started (non-fatal if IngestFile row doesn't exist)
+  if (opts.ingestFileId) {
+    try {
+      await prisma.ingestFile.updateMany({
+        where: { id: opts.ingestFileId, workspaceId },
+        data: { vectorStatus: "indexing" },
+      })
+    } catch { /* non-fatal */ }
+  }
 
   // Delete old chunks for this document (re-ingest is idempotent)
   await prisma.documentChunk.deleteMany({ where: { workspaceId, documentId } })
@@ -334,6 +349,20 @@ export async function ingestDocumentChunks(
     ].slice(0, GRAPH_EXTRACTION_MAX_CHUNKS_PER_DOC)
     graphQueued = prioritized.length
     runGraphExtractionQueue(workspaceId, documentId, prioritized)
+  }
+
+  // Mark indexing complete
+  if (opts.ingestFileId) {
+    try {
+      await prisma.ingestFile.updateMany({
+        where: { id: opts.ingestFileId, workspaceId },
+        data: {
+          vectorStatus: skipped > 0 && chunksCreated === 0 ? "error" : "ready",
+          vectorChunks: chunksCreated,
+          vectorIndexedAt: new Date(),
+        },
+      })
+    } catch { /* non-fatal */ }
   }
 
   return { chunksCreated, skipped, graphQueued }

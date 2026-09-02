@@ -233,6 +233,7 @@ export interface ProfessionalReviewRecord {
 
   diagnostics?: ReviewDiagnostics
 
+  debateLog?: string | null
   confirmedAt?: string | null
   confirmedBy?: string | null
 

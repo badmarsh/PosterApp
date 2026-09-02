@@ -193,22 +193,12 @@ export function detectCommunities(
     for (const nid of members) finalCom.set(nid, comIdxRemap.get(comId)!)
   }
 
-  // Assign orphan nodes to community 0 (or their nearest neighbor's community)
+  // Assign all orphaned nodes (from discarded small communities or isolated nodes)
+  // to a single "Miscellaneous" community to prevent contaminating well-formed communities.
+  const ORPHAN_COM_ID = remapIdx++
   for (const nodeId of nodeIds) {
     if (!finalCom.has(nodeId)) {
-      const nbrs = adj.get(nodeId) || new Map()
-      let assigned = false
-      for (const nbrId of nbrs.keys()) {
-        if (finalCom.has(nbrId)) {
-          finalCom.set(nodeId, finalCom.get(nbrId)!)
-          assigned = true
-          break
-        }
-      }
-      if (!assigned) {
-        // Isolated node — its own singleton community
-        finalCom.set(nodeId, remapIdx++)
-      }
+      finalCom.set(nodeId, ORPHAN_COM_ID)
     }
   }
 

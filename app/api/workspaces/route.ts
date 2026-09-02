@@ -31,57 +31,59 @@ export async function GET() {
     })
 
     if (workspaces.length === 0) {
-      const { sampleProject } = await import("@/lib/mock-data")
+      const { sampleProjects } = await import("@/lib/mock-data")
 
-      const demoId = `demo_${Date.now().toString(36)}`
-      
-      const project = await prisma.workspace.create({
-        data: {
-          id: demoId,
-          name: sampleProject.name,
-          authors: sampleProject.authors,
-          venue: sampleProject.venue,
-          userId,
-          outputs: {
-            create: sampleProject.outputs?.map((out) => ({
-              id: `out_${out.outputType}_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`,
-              outputType: out.outputType,
-              templateId: out.templateId,
-              title: out.title,
-              themeColor: out.themeColor ?? getTemplateDef(out.templateId)?.colors[0]?.hex ?? null,
-              isActive: out.id === sampleProject.activeOutputId,
-              cards: {
-                create: out.cards.map((c) => ({
-                  id: `card_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`,
-                  title: c.title || "",
-                  column: c.column,
-                  order: c.order,
-                  pattern: c.pattern,
-                  content: c.content,
-                  table: c.table ?? undefined,
-                  figures: c.figures ?? undefined,
-                  figureLayout: c.figureLayout || "auto",
-                  sourceIds: c.sourceIds ?? undefined,
-                  validation: c.validation || "ok",
-                })),
-              },
-            })),
+      const demoWorkspaces = await Promise.all(sampleProjects.map(async (sampleProj, idx) => {
+        const demoId = idx === 0 ? `demo_${Date.now().toString(36)}` : sampleProj.id
+        
+        return prisma.workspace.create({
+          data: {
+            id: demoId,
+            name: sampleProj.name,
+            authors: sampleProj.authors,
+            venue: sampleProj.venue,
+            userId,
+            outputs: {
+              create: sampleProj.outputs?.map((out) => ({
+                id: `out_${out.outputType}_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`,
+                outputType: out.outputType,
+                templateId: out.templateId,
+                title: out.title,
+                themeColor: out.themeColor ?? getTemplateDef(out.templateId)?.colors[0]?.hex ?? null,
+                isActive: out.id === sampleProj.activeOutputId,
+                cards: {
+                  create: out.cards.map((c) => ({
+                    id: `card_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`,
+                    title: c.title || "",
+                    column: c.column,
+                    order: c.order,
+                    pattern: c.pattern,
+                    content: c.content,
+                    table: c.table ?? undefined,
+                    figures: c.figures ?? undefined,
+                    figureLayout: c.figureLayout || "auto",
+                    sourceIds: c.sourceIds ?? undefined,
+                    validation: c.validation || "ok",
+                  })),
+                },
+              })),
+            },
           },
-        },
-        include: {
-          outputs: {
-            select: {
-              id: true,
-              outputType: true,
-              templateId: true,
-              title: true,
-              isActive: true,
+          include: {
+            outputs: {
+              select: {
+                id: true,
+                outputType: true,
+                templateId: true,
+                title: true,
+                isActive: true,
+              }
             }
           }
-        }
-      })
+        })
+      }))
       
-      workspaces = [project]
+      workspaces = demoWorkspaces
     }
 
     const result = workspaces.map((ws) => {

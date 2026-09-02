@@ -180,6 +180,7 @@ interface ThesisReviewState {
   formMetadata: ThesisReviewFormMetadata
   confidentialityAgreed: boolean
   skipCitationAudit: boolean
+  multiAgentDebate: boolean
   professionalModeOverride: boolean
   selectedFileId: string
 
@@ -190,8 +191,9 @@ interface ThesisReviewState {
   updateFormMetadata: (updates: Partial<ThesisReviewFormMetadata>) => void
   setConfidentialityAgreed: (agreed: boolean) => void
   setSkipCitationAudit: (skip: boolean) => void
-  setSelectedFileId: (fileId: string) => void
+  setMultiAgentDebate: (debate: boolean) => void
   setProfessionalModeOverride: (enabled: boolean) => void
+  setSelectedFileId: (fileId: string) => void
   setActiveReview: (review: ThesisReviewRecord | null) => void
   setSelectedEvidence: (ev: EvidenceReference | null) => void
   setAnalysisPlan: (plan: ReviewAnalysisPlan | null) => void
@@ -268,9 +270,10 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     },
     confidentialityAgreed: true,
     skipCitationAudit: false,
+    multiAgentDebate: false,
+    professionalModeOverride: false,
     selectedFileId: "",
 
-    professionalModeOverride: false,
     openPanel: () => set((s) => { s.isPanelOpen = true }),
     closePanel: () => set((s) => { s.isPanelOpen = false }),
     setMetadataValid: (valid) => set((s) => { s.isMetadataValid = valid }),
@@ -286,21 +289,12 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     setConfidentialityAgreed: (agreed) =>
       set((s) => {
         s.confidentialityAgreed = agreed
-        const valid =
-          Boolean(s.formMetadata.studentName?.trim()) &&
-          Boolean(s.formMetadata.thesisTitle?.trim()) &&
-          agreed
-        s.isMetadataValid = valid
+        s.isMetadataValid = Boolean(s.formMetadata.studentName?.trim()) && Boolean(s.formMetadata.thesisTitle?.trim()) && agreed
       }),
-    setSkipCitationAudit: (skip) =>
-      set((s) => {
-        s.skipCitationAudit = skip
-      }),
+    setSkipCitationAudit: (skip) => set((s) => { s.skipCitationAudit = skip }),
+    setMultiAgentDebate: (debate) => set((s) => { s.multiAgentDebate = debate }),
     setProfessionalModeOverride: (enabled) => set((s) => { s.professionalModeOverride = enabled }),
-    setSelectedFileId: (fileId) =>
-      set((s) => {
-        s.selectedFileId = fileId
-      }),
+    setSelectedFileId: (fileId) => set((s) => { s.selectedFileId = fileId }),
 
     setActiveReview: (review) => set((s) => { s.activeReview = review }),
     setSelectedEvidence: (ev) => set((s) => { s.selectedEvidence = ev }),
@@ -417,8 +411,9 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
             sourceFileId: fileId,
             focusCriteria: opts.focusCriteria,
             skipCitationAudit: opts.skipCitationAudit ?? false,
-          }),
+            multiAgentDebate: get().multiAgentDebate,
             professionalMode: get().professionalModeOverride,
+          }),
         })
 
         if (!res.ok) {
