@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { X, Clock, RotateCcw, Tag, Trash2, AlertTriangle, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { apiFetch } from "@/lib/api-fetch"
@@ -146,8 +147,18 @@ export function HistoryPanel() {
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
-              Loading history...
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="rounded-lg border border-border bg-card p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <Skeleton className="h-3 w-2/3" />
+                      <Skeleton className="h-2 w-1/2" />
+                    </div>
+                    <Skeleton className="h-5 w-12" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : snapshots.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center gap-2">

@@ -6,6 +6,7 @@ import { Trash2, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
   DialogContent,
@@ -62,7 +63,27 @@ export function ManageWorkspaces() {
 
   const workspaceToDelete = workspaces.find((w) => w.id === confirmDeleteId)
 
-  if (loading) return <div className="p-8 text-sm text-muted-foreground">Loading workspaces...</div>
+  if (loading) {
+    return (
+      <div className="p-8 flex flex-col gap-6 w-full h-full">
+        <div>
+          <Skeleton className="h-7 w-40" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="flex flex-col gap-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center justify-between p-4 border rounded-lg bg-card">
+              <div className="flex flex-col gap-1 flex-1">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-3 w-1/4" />
+              </div>
+              <Skeleton className="h-8 w-8 rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
   if (error) return <div className="p-8 text-sm text-destructive">Error: {error}</div>
 
   return (

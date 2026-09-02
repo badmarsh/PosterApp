@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api-fetch"
 import { FolderOpen, Plus } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 import {
   Dialog,
@@ -112,7 +113,17 @@ export function WorkspaceSelector({
         )}
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <div className="flex flex-col gap-2">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex items-center gap-3 rounded-lg border border-border/60 bg-card px-3 py-2.5">
+                <Skeleton className="size-4 shrink-0 rounded" />
+                <div className="min-w-0 flex-1 space-y-1">
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : !isDbDown ? (
           <div className="flex flex-col gap-1.5 max-h-[40vh] overflow-y-auto -mx-1 px-1">
             {workspaces.map((ws) => (
