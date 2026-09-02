@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Security
+- **Rate limiting (Tier A/B):** Migrated the last in-memory `rateLimit` route guards to the distributed-capable `rateLimitAsync` (Upstash Redis REST with automatic in-memory fallback) for `thesis-review/build-communities` and `thesis-review/novelty`. Added per-user-workspace rate limits — keyed `${userId}:${workspaceId}:op` — to five previously unrated write routes: workspace `PUT` save (20/min), `compile` (10/min), `thesis-review/[reviewId]/export` (5/min), `bib` extract (3/min), and `thesis-review/rag-stats` hybrid search (20/min). Resolves audit finding **F1**.
+- **LaTeX compiler sandboxing (Tier B):** Switched `pdflatex` from `-shell-escape` to `-shell-restricted` in the compile route, the thesis-review export route, and `scripts/export-all-templates.ts`, after verifying no `\minted`/unrestricted-`\write18` usage depends on it. Blocks arbitrary command execution while retaining the safe `\write18` subset.
+- **CSP hardening (Tier A):** `connect-src` is now assembled from configured env origins (`AI_API_URL`, `AI_API_URL_FALLBACK`, `NEXT_PUBLIC_YJS_URL`) plus Clerk, removing the previous overly-permissive wildcard.
+- **Upload size enforcement (Tier A):** `assets/upload` rejects oversized bodies early via a `Content-Length` check (200MB limit) before parsing form data.
+- **Path-traversal fuzz tests (Tier A):** Added `fast-check` property tests asserting `workspacePath()` never escapes the workspace root across 1000 randomized inputs (`..` traversal, absolute-path injection).
 
 ## [0.1.2] - 2026-08-23
 ### Added

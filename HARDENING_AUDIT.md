@@ -110,7 +110,7 @@ All use shared `generateAIResponse` / Zod schema layer. **No bypassing reimpleme
 
 | ID | Severity | Title | Status |
 |---|---|---|---|
-| **F1** | Medium | `rateLimitAsync` fully implemented but never used (all routes use in-memory `rateLimit`) | ⚠️ Open |
+| **F1** | Medium | `rateLimitAsync` fully implemented but never used (all routes use in-memory `rateLimit`) | ✅ **Fixed** (Tier A/B, 2026-09-02 — all 28 API call sites migrated to `rateLimitAsync`; in-memory `rateLimit` retained only as the Redis-unavailable fallback inside `rateLimitAsync` + its unit test. Commits `ee2ba34`, `256327b`) |
 | **F2** | Medium | Ingestion rate-limit keyed by spoofable `x-forwarded-for` header, runs before auth | ⚠️ Open |
 | **F3** | Medium | `convertOutputAction` fires unlimited concurrent requests against 10/60s limit; no retry unlike sibling | ⚠️ Open |
 | **F4** | Low-Med | Citation-hallucination sanitization in `autoFillCardAction` absent from `convertOutputAction` | ⚠️ Open |
