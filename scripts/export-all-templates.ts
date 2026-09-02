@@ -9,11 +9,7 @@ import type { Card, Project } from '../lib/poster-types'
 
 const prisma = new PrismaClient()
 const ROOT = path.join(process.cwd(), "workspaces")
-const MAX_LOG = 8_000
-
-function safeLog(value: string) {
-  return value.replace(/[A-Za-z]:\\[^\s]+/g, "[path]").replace(/\/[^\s]+/g, "[path]").slice(-MAX_LOG)
-}
+import { safeLog, runSandboxedLatex } from '../lib/latex/compiler-runner'
 
 function asProject(workspace: any): Project {
   const outputs = workspace.outputs.map((output: any) => ({
@@ -39,16 +35,7 @@ function asProject(workspace: any): Project {
   }
 }
 
-async function runCompilerCmd(command: string, args: string[], cwd: string) {
-  return new Promise<string>((resolve, reject) => {
-    const child = spawn(command, args, { cwd, windowsHide: true, signal: AbortSignal.timeout(60_000) })
-    let log = ""
-    child.stdout.on("data", (data) => { log = (log + data.toString()).slice(-MAX_LOG * 2) })
-    child.stderr.on("data", (data) => { log = (log + data.toString()).slice(-MAX_LOG * 2) })
-    child.on("error", reject)
-    child.on("close", (code) => code === 0 ? resolve(log) : reject(new Error(safeLog(log || `Compiler exited with ${code}`))) )
-  })
-}
+
 
 async function exportTemplate(project: Project, baseOutput: any, template: any, workspaceId: string, workspaceBib = "") {
   console.log(`\n--- Exporting ${template.outputType} with template ${template.id} ---`)
@@ -77,9 +64,9 @@ async function exportTemplate(project: Project, baseOutput: any, template: any, 
 
   const buildCmd = "pdflatex -shell-restricted -interaction=nonstopmode main.tex && (bibtex main || true) && pdflatex -shell-restricted -interaction=nonstopmode main.tex && pdflatex -shell-restricted -interaction=nonstopmode -halt-on-error main.tex"
   
-  console.log('Compiling in WSL...')
+  console.log('Compiling...')
   try {
-    await runCompilerCmd("wsl", ["--cd", stage, "bash", "-lc", `ulimit -t 55 -v 524288 -f 20480; ${buildCmd}`], stage)
+    await runSandboxedLatex({ stage, buildCmd, timeoutMs: 60_000 })
     
     const compiled = path.join(stage, "main.pdf")
     const outDir = path.join(process.cwd(), "public", "exports")

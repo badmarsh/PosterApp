@@ -166,7 +166,7 @@ describe('AI Workflows Integration', () => {
       const res = await ShrinkPOST(req, { params: Promise.resolve({ id: 'ws-1', cardId: 'c-1' }) })
       expect(res.status).toBe(400)
       const data = await res.json()
-      expect(data.error).toBe('Current card content is required')
+      expect(data.error).toBe('Invalid request payload')
     })
   })
 

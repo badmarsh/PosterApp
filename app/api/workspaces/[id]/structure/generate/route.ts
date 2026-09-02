@@ -7,6 +7,13 @@ import { StructureGenerationSchema } from "@/lib/ai/contracts"
 import { buildDefaultStructure, OutputType } from "@/lib/output-types"
 import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
+import { z } from "zod"
+
+const RequestBodySchema = z.object({
+  outputType: z.enum(["poster", "slides", "paper"]).optional().default("poster"),
+  count: z.number().int().positive().optional(),
+  sourceIds: z.array(z.string()).optional(),
+})
 
 // ─── Per-type structural constraints ─────────────────────────────────────────
 
@@ -150,10 +157,12 @@ export async function POST(
 
 
   try {
-    const body = await req.json()
-    const outputType = (body.outputType || "poster") as OutputType
-    const count = typeof body.count === "number" ? body.count : undefined
-    const sourceIds = Array.isArray(body.sourceIds) ? body.sourceIds : undefined
+    const rawBody = await req.json()
+    const parsedBody = RequestBodySchema.safeParse(rawBody)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request payload", details: parsedBody.error.format() }, { status: 400 })
+    }
+    const { outputType, count, sourceIds } = parsedBody.data
 
     const n = clampCount(outputType, count)
 

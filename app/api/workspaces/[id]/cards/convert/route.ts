@@ -6,6 +6,17 @@ import { CardGenerationSchema } from "@/lib/ai/contracts"
 import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
 import { buildCitationInstruction, buildGroundingInstruction, wrapUntrustedContext } from "@/lib/ai/prompts"
 
+import { z } from "zod"
+
+const RequestBodySchema = z.object({
+  sourceContent: z.string().min(1).max(100_000),
+  sourceTopic: z.string().max(1000).optional().default(""),
+  sourceType: z.enum(["poster", "slides", "paper"]),
+  targetType: z.enum(["poster", "slides", "paper"]),
+  characterLimit: z.number().int().positive().optional().default(300),
+  bibKeys: z.array(z.string()).optional().default([]),
+})
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -34,17 +45,12 @@ export async function POST(
   }
 
   try {
-    const body = await req.json()
-    const { sourceContent, sourceTopic, sourceType, targetType, characterLimit = 300, bibKeys = [] } = body
-
-    if (!sourceContent) {
-      return NextResponse.json({ error: "sourceContent is required" }, { status: 400 })
+    const rawBody = await req.json()
+    const parsedBody = RequestBodySchema.safeParse(rawBody)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request payload", details: parsedBody.error.format() }, { status: 400 })
     }
-
-    const validTypes = ["poster", "slides", "paper"]
-    if (!validTypes.includes(sourceType) || !validTypes.includes(targetType)) {
-      return NextResponse.json({ error: "Invalid sourceType or targetType" }, { status: 400 })
-    }
+    const { sourceContent, sourceTopic, sourceType, targetType, characterLimit, bibKeys } = parsedBody.data
 
     const typeLabelMap = {
       poster: "a scientific poster",

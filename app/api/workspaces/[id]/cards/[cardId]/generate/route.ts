@@ -7,6 +7,17 @@ import { CardGenerationSchema } from "@/lib/ai/contracts"
 import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
 import { buildCitationInstruction, buildGroundingInstruction, wrapUntrustedContext } from "@/lib/ai/prompts"
 
+import { z } from "zod"
+
+const RequestBodySchema = z.object({
+  topic: z.string().min(1).max(10_000),
+  assets: z.array(z.any()).optional().default([]),
+  sourceIds: z.array(z.string()).optional(),
+  characterLimit: z.number().int().optional().default(300),
+  bibKeys: z.array(z.string()).optional().default([]),
+  outputType: z.enum(["poster", "slides", "paper"]).optional().default("poster")
+})
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; cardId: string }> }
@@ -36,12 +47,12 @@ export async function POST(
 
 
   try {
-    const body = await req.json()
-    const { topic, assets, sourceIds, characterLimit = 300, bibKeys = [], outputType = "poster" } = body
-
-    if (!topic) {
-      return NextResponse.json({ error: "Card topic is required" }, { status: 400 })
+    const rawBody = await req.json()
+    const parsedBody = RequestBodySchema.safeParse(rawBody)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request payload", details: parsedBody.error.format() }, { status: 400 })
     }
+    const { topic, assets, sourceIds, characterLimit, bibKeys, outputType } = parsedBody.data
 
     if (characterLimit <= 0) {
       return NextResponse.json(

@@ -7,6 +7,15 @@ import { loadSourceContext } from "@/lib/ai/context"
 import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 
+import { z } from "zod"
+
+const RequestBodySchema = z.object({
+  content: z.string().min(1).max(50_000),
+  warning: z.string().max(10_000).optional(),
+  targetCharacters: z.number().int().positive().optional().default(200),
+  sourceIds: z.array(z.string()).optional(),
+})
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; cardId: string }> }
@@ -44,12 +53,12 @@ export async function POST(
   }
 
   try {
-    const body = await req.json()
-    const { content, warning, targetCharacters = 200, sourceIds } = body
-
-    if (!content) {
-      return NextResponse.json({ error: "Current card content is required" }, { status: 400 })
+    const rawBody = await req.json()
+    const parsedBody = RequestBodySchema.safeParse(rawBody)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request payload", details: parsedBody.error.format() }, { status: 400 })
     }
+    const { content, warning, targetCharacters, sourceIds } = parsedBody.data
 
     // Load source context to help the AI maintain facts while summarizing
     const sourceContext = await loadSourceContext({ workspaceId, sourceIds, maxChars: 30_000 })

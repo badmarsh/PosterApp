@@ -3,7 +3,7 @@
 ## Development Setup
 1. `pnpm install`
 2. Copy `.env.example` → `.env.local` and fill in keys
-3. `npx prisma db push && npx prisma generate`
+3. `pnpm exec prisma migrate dev && pnpm exec prisma generate`
 4. `pnpm run dev`
 
 ## Testing

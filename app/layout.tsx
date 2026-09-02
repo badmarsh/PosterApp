@@ -60,6 +60,7 @@ export default function RootLayout({
           <ThemeProvider
             attribute="class"
             defaultTheme="light"
+            themes={["light", "dark", "vercel", "vercel-dark", "midnight"]}
             enableSystem={false}
             disableTransitionOnChange
           >

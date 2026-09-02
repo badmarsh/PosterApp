@@ -9,13 +9,11 @@ import {
   FolderOpen,
   Folders,
   LayoutTemplate,
-  Moon,
   PanelLeft,
   Play,
   Plus,
   Save,
   Sparkles,
-  Sun,
   Clock,
   Copy,
 } from "lucide-react"
@@ -220,11 +218,29 @@ export function CommandPalette({
             <Clock />
             Open save history
           </CommandItem>
-          <CommandItem
-            onSelect={() => run(() => setTheme(resolvedTheme === "dark" ? "light" : "dark"))}
-          >
-            {resolvedTheme === "dark" ? <Sun /> : <Moon />}
-            Toggle theme
+          <CommandItem onSelect={() => run(() => setTheme("light"))}>
+            <span className="flex size-4 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ring-border" style={{ background: "#faf9f6" }}>
+              <span className="size-1.5 rounded-full" style={{ background: "#8B2635" }} />
+            </span>
+            Light
+          </CommandItem>
+          <CommandItem onSelect={() => run(() => setTheme("dark"))}>
+            <span className="flex size-4 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ring-border" style={{ background: "#1c1917" }}>
+              <span className="size-1.5 rounded-full" style={{ background: "#d9777f" }} />
+            </span>
+            Dark
+          </CommandItem>
+          <CommandItem onSelect={() => run(() => setTheme("vercel"))}>
+            <span className="flex size-4 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ring-border" style={{ background: "#ffffff" }}>
+              <span className="size-1.5 rounded-full" style={{ background: "#000000" }} />
+            </span>
+            Vercel
+          </CommandItem>
+          <CommandItem onSelect={() => run(() => setTheme("vercel-dark"))}>
+            <span className="flex size-4 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ring-border" style={{ background: "#000000" }}>
+              <span className="size-1.5 rounded-full" style={{ background: "#ffffff" }} />
+            </span>
+            Vercel Dark
           </CommandItem>
         </CommandGroup>
       </CommandList>

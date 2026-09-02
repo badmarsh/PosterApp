@@ -6,7 +6,7 @@ import { LayoutWarningsSchema } from "@/lib/ai/contracts"
 import * as path from "path"
 import * as fs from "fs/promises"
 import * as os from "os"
-import { spawn } from "child_process"
+import { runSandboxedLatex } from "@/lib/latex/compiler-runner"
 import type { Card } from "@/lib/poster-types"
 import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
 
@@ -77,26 +77,17 @@ export async function POST(
     // Copy the PDF into the temporary stage so WSL doesn't have to deal with Windows absolute paths
     await fs.copyFile(pdfPath, path.join(stage, "input.pdf"))
 
-    // Use WSL pdftoppm to convert pages (up to 25) to PNG and scale to max 1024px
-    const wslArgs = [
-      "--cd",
-      stage,
-      "bash",
-      "-c",
-      `pdftoppm -png -f 1 -l ${MAX_PAGES_TO_REVIEW} -scale-to 1024 input.pdf page 2>&1`,
-    ]
-
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn("wsl", wslArgs, { signal: AbortSignal.timeout(30_000) })
-      let log = ""
-      child.stdout.on("data", (d) => (log += d.toString()))
-      child.stderr.on("data", (d) => (log += d.toString()))
-      child.on("close", (code) => {
-        if (code === 0) resolve()
-        else reject(new Error(`pdftoppm failed: ${log}`))
-      })
-      child.on("error", reject)
-    })
+    // Use sandboxed compiler to convert pages (up to 25) to PNG and scale to max 1024px
+    const buildCmd = `pdftoppm -png -f 1 -l ${MAX_PAGES_TO_REVIEW} -scale-to 1024 input.pdf page 2>&1`
+    
+    try {
+      await runSandboxedLatex({ stage, buildCmd, timeoutMs: 30_000 })
+    } catch (err: any) {
+      if (err.message === "COMPILER_UNAVAILABLE") {
+        return NextResponse.json({ error: { code: "PDF_TOOLS_UNAVAILABLE", message: "PDF layout review requires compiler tools in production" } }, { status: 503 })
+      }
+      throw new Error(`pdftoppm failed: ${err.message}`)
+    }
 
     const stageFiles = await fs.readdir(stage)
     const pageFiles = stageFiles

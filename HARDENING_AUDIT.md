@@ -111,19 +111,20 @@ All use shared `generateAIResponse` / Zod schema layer. **No bypassing reimpleme
 | ID | Severity | Title | Status |
 |---|---|---|---|
 | **F1** | Medium | `rateLimitAsync` fully implemented but never used (all routes use in-memory `rateLimit`) | ✅ **Fixed** (Tier A/B, 2026-09-02 — all 28 API call sites migrated to `rateLimitAsync`; in-memory `rateLimit` retained only as the Redis-unavailable fallback inside `rateLimitAsync` + its unit test. Commits `ee2ba34`, `256327b`) |
-| **F2** | Medium | Ingestion rate-limit keyed by spoofable `x-forwarded-for` header, runs before auth | ⚠️ Open |
-| **F3** | Medium | `convertOutputAction` fires unlimited concurrent requests against 10/60s limit; no retry unlike sibling | ⚠️ Open |
-| **F4** | Low-Med | Citation-hallucination sanitization in `autoFillCardAction` absent from `convertOutputAction` | ⚠️ Open |
+| **F2** | Medium | Ingestion rate-limit keyed by spoofable `x-forwarded-for` header, runs before auth | ✅ Fixed (Tier A, 2026-09-02) |
+| **F3** | Medium | `convertOutputAction` fires unlimited concurrent requests against 10/60s limit; no retry unlike sibling | ✅ Fixed (Tier A, 2026-09-02) |
+| **F4** | Low-Med | Citation-hallucination sanitization in `autoFillCardAction` absent from `convertOutputAction` | ✅ Fixed (Tier A, 2026-09-02) |
 | **F5** | Medium | Apply-time content validation inconsistent across 3 near-identical AI apply flows | ⚠️ Open |
-| **F6** | Low-Med | `autofix-compile` validates patch IDs but never validates patch content | ⚠️ Open |
+| **F6** | Low-Med | `autofix-compile` validates patch IDs but never validates patch content | ✅ Fixed (Tier A, 2026-09-02) |
 | **F7** | Low | Untrusted content interpolated into prompt delimiters with no escaping (`wrapUntrustedContext` added as partial fix) | ⚠️ Partial |
-| **F8** | Low | Chat history passed with no length cap; all other context components are capped | ⚠️ Open |
+| **F8** | Low | Chat history passed with no length cap; all other context components are capped | ✅ Fixed (Tier A, 2026-09-02) |
 | **F9** | Low | `cards/convert` source text bypasses shared size-capped context loader | ⚠️ Open |
-| **F10** | Low | `.env.example` documents `OPENROUTER_*` vars; client reads `AI_API_URL`/`AI_API_KEY` | ⚠️ Open |
-| **F11** | Low | `lib/config/ai.ts` dead (zero importers) and duplicates real values | ⚠️ Open |
-| **F12** | Low | `generateSnapshotLabelAsync` fully implemented but never called | ⚠️ Open |
+| **F10** | Low | `.env.example` documents `OPENROUTER_*` vars; client reads `AI_API_URL`/`AI_API_KEY` | ✅ Partial (naming split: image-edit legitimately uses OPENROUTER_*) |
+| **F11** | Low | `lib/config/ai.ts` dead (zero importers) and duplicates real values | ✅ Fixed (Tier A, 2026-09-02) |
+| **F12** | Low | `generateSnapshotLabelAsync` fully implemented but never called | ✅ Fixed (Tier A, 2026-09-02) |
 | **F13** | Info | Minor role/env-var naming drift (zero functional impact) | 📋 Informational |
-
+| **A-1** | High | Schema/migration drift will break thesis review on any `migrate deploy` | ✅ Fixed (Tier A, 2026-09-02) |
+| **A-2** | Medium | `review-layout` dev-only code unconditionally spawns `wsl` with no production guard | ✅ Fixed (Tier A, 2026-09-02) |
 ---
 
 ## 4. Ingestion Pipeline Audit (Pass 1)

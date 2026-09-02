@@ -1,17 +1,14 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import { useTheme } from "next-themes"
 import {
   Download,
   FileStack,
   Sparkles,
-  Moon,
   PanelLeft,
   HelpCircle,
   Save,
   Check,
-  Sun,
   FolderOpen,
   Folders,
   LayoutTemplate,
@@ -39,47 +36,18 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { ThemePicker } from "./theme-picker"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { generateFullTemplate } from "@/lib/latex"
 import { cn } from "@/lib/utils"
 import { apiFetch } from "@/lib/api-fetch"
-
-function ThemeToggle() {
-  const { resolvedTheme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
-  const isDark = resolvedTheme === "dark"
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            onClick={() => setTheme(isDark ? "light" : "dark")}
-            aria-label="Toggle theme"
-          >
-            {mounted && isDark ? (
-              <Sun className="size-4" />
-            ) : (
-              <Moon className="size-4" />
-            )}
-          </Button>
-        }
-      />
-      <TooltipContent>Toggle theme</TooltipContent>
-    </Tooltip>
-  )
-}
 
 type TopBarProps = {
   structureOpen: boolean
@@ -449,7 +417,7 @@ export function TopBar({
 
       {/* Zone 6: Theme, Help, History, User Account */}
       <div className="flex items-center gap-1">
-        <ThemeToggle />
+        <ThemePicker />
         <Tooltip>
           <TooltipTrigger
             render={

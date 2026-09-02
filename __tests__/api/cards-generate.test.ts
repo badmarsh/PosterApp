@@ -151,7 +151,7 @@ describe('POST /api/workspaces/[id]/cards/[cardId]/generate', () => {
     const json = await res.json()
 
     expect(res.status).toBe(400)
-    expect(json.error).toBe('Card topic is required')
+    expect(json.error).toBe('Invalid request payload')
 
     // Restore
     process.env.AI_API_URL = originalUrl || ''

@@ -3,6 +3,13 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { generateAndSaveQRCode } from "@/lib/services/qr-service"
 
+import { z } from "zod"
+
+const RequestBodySchema = z.object({
+  url: z.string().url().max(2000),
+  label: z.string().max(100).optional(),
+})
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -34,17 +41,16 @@ export async function POST(
   }
 
   try {
-    const body = await req.json()
-    const { url, label } = body
-
-    if (!url || typeof url !== "string" || !url.trim()) {
-      return NextResponse.json({ error: "Valid URL is required" }, { status: 400 })
+    const rawBody = await req.json()
+    const parsedBody = RequestBodySchema.safeParse(rawBody)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request payload", details: parsedBody.error.format() }, { status: 400 })
     }
+    const { url, label } = parsedBody.data
 
-    const trimmedUrl = url.trim()
     const result = await generateAndSaveQRCode(workspaceId, {
-      url: trimmedUrl,
-      label: typeof label === "string" ? label.trim() : undefined,
+      url: url.trim(),
+      label: label?.trim(),
     })
 
     return NextResponse.json({

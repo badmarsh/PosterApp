@@ -6,6 +6,12 @@ import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
 import { parseBibEntries } from "@/lib/bib-types"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 
+import { z } from "zod"
+
+const RequestBodySchema = z.object({
+  query: z.string().min(1).max(2000),
+})
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -37,12 +43,12 @@ export async function POST(
   }
 
   try {
-    const body = await req.json()
-    const { query } = body
-
-    if (!query || typeof query !== "string" || !query.trim()) {
-      return NextResponse.json({ error: "Query is required" }, { status: 400 })
+    const rawBody = await req.json()
+    const parsedBody = RequestBodySchema.safeParse(rawBody)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request payload", details: parsedBody.error.format() }, { status: 400 })
     }
+    const { query } = parsedBody.data
 
     const trimmedQuery = query.trim()
 

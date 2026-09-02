@@ -8,6 +8,15 @@ import { processImageOcr, type OcrMode } from "@/lib/services/ocr-service"
 import { prisma } from "@/lib/prisma"
 import { workspacePath, SAFE_FILENAME } from "@/lib/workspace-files"
 
+import { z } from "zod"
+
+const RequestBodySchema = z.object({
+  image: z.string().min(1),
+  mode: z.string().optional().default("auto"),
+  prompt: z.string().max(2000).optional(),
+  saveAsAsset: z.boolean().optional().default(false),
+})
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -39,28 +48,15 @@ export async function POST(
   }
 
   try {
-    const body = await req.json()
-    const {
-      image,
-      mode = "auto",
-      prompt,
-      saveAsAsset = false,
-    }: {
-      image: string
-      mode?: OcrMode
-      prompt?: string
-      saveAsAsset?: boolean
-    } = body
-
-    if (!image || typeof image !== "string") {
-      return NextResponse.json(
-        { error: "image (base64 string or data URI) is required" },
-        { status: 400 }
-      )
+    const rawBody = await req.json()
+    const parsedBody = RequestBodySchema.safeParse(rawBody)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid request payload", details: parsedBody.error.format() }, { status: 400 })
     }
+    const { image, mode, prompt, saveAsAsset } = parsedBody.data
 
     // Process OCR via multimodal vision model
-    const ocrResult = await processImageOcr(image, mode, prompt)
+    const ocrResult = await processImageOcr(image, mode as OcrMode, prompt)
 
     let createdAsset = null
     if (saveAsAsset) {

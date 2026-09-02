@@ -9,11 +9,7 @@ import { generateFullTemplate } from "@/lib/latex"
 import type { Card, Project } from "@/lib/poster-types"
 
 const ROOT = path.join(process.cwd(), "workspaces")
-const MAX_LOG = 8_000
-
-function safeLog(value: string) {
-  return value.replace(/[A-Za-z]:\\[^\s]+/g, "[path]").replace(/\/[^\s]+/g, "[path]").slice(-MAX_LOG)
-}
+import { safeLog, runSandboxedLatex } from "@/lib/latex/compiler-runner"
 
 function asProject(workspace: any): Project {
   const outputs = workspace.outputs.map((output: any) => ({
@@ -30,17 +26,6 @@ function asProject(workspace: any): Project {
     id: workspace.id, revision: workspace.revision, name: workspace.name, authors: workspace.authors, venue: workspace.venue,
     outputs, activeOutputId: active?.id ?? "", assets: workspace.assets.map((asset: any) => ({ ...asset, tableRows: asset.tableRows ?? undefined })), ingestFiles: [],
   }
-}
-
-async function run(command: string, args: string[], cwd: string) {
-  return new Promise<string>((resolve, reject) => {
-    const child = spawn(command, args, { cwd, windowsHide: true, signal: AbortSignal.timeout(60_000) })
-    let log = ""
-    child.stdout.on("data", (data) => { log = (log + data.toString()).slice(-MAX_LOG * 2) })
-    child.stderr.on("data", (data) => { log = (log + data.toString()).slice(-MAX_LOG * 2) })
-    child.on("error", reject)
-    child.on("close", (code) => code === 0 ? resolve(log) : reject(new Error(safeLog(log || `Compiler exited with ${code}`))) )
-  })
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -114,35 +99,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const buildCmd = needsBibtex
         ? "pdflatex -shell-restricted -interaction=nonstopmode main.tex && (bibtex main || true) && pdflatex -shell-restricted -interaction=nonstopmode main.tex && pdflatex -shell-restricted -interaction=nonstopmode -halt-on-error main.tex"
         : "pdflatex -shell-restricted -interaction=nonstopmode -halt-on-error main.tex"
-      if (image) {
-        // Production worker: an isolated container with no network, dropped capabilities, and read-only root with staging mount.
-        return await run(
-          "docker",
-          [
-            "run",
-            "--rm",
-            "--network", "none",
-            "--user", "1000:1000",
-            "--cpus", "1",
-            "--memory", "512m",
-            "--pids-limit", "64",
-            "--security-opt", "no-new-privileges",
-            "--cap-drop=ALL",
-            "--read-only",
-            "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
-            "-v", `${stage}:/work`,
-            "-w", "/work",
-            image,
-            "sh", "-c", buildCmd,
-          ],
-          stage
-        )
-      } else if (process.env.NODE_ENV !== "production") {
-        // Development-only WSL fallback; production must configure LATEX_COMPILER_IMAGE.
-        return await run("wsl", ["--cd", stage, "bash", "-lc", `ulimit -t 55 -v 524288 -f 20480; ${buildCmd}`], stage)
-      } else {
-        throw new Error("COMPILER_UNAVAILABLE")
-      }
+      
+      return await runSandboxedLatex({ stage, buildCmd, timeoutMs: 60_000, image })
     }
 
     try {

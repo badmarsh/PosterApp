@@ -329,17 +329,6 @@ export async function ingestDocumentChunks(
     )
   }
 
-  // Create or optimize HNSW index with ef_construction = 128 for superior recall
-  try {
-    await prisma.$executeRaw`
-      CREATE INDEX IF NOT EXISTS document_chunk_embedding_hnsw
-      ON "DocumentChunk" USING hnsw (embedding vector_cosine_ops)
-      WITH (m = 16, ef_construction = 128)
-    `
-  } catch {
-    // Index may already exist, ignore
-  }
-
   // Detached GraphRAG extraction: priority section kinds first, capped per doc
   let graphQueued = 0
   if (GRAPH_RAG_ENABLED && graphCandidates.length > 0) {

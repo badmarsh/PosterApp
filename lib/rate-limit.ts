@@ -105,6 +105,10 @@ export async function rateLimitAsync(
     })
 
     if (!res.ok) {
+      if (process.env.RATE_LIMIT_FAIL_MODE === "closed") {
+        console.error(`[rate-limit] Upstash HTTP error ${res.status} (fail-closed)`)
+        return { allowed: false, retryAfterMs: windowMs }
+      }
       console.warn(`[rate-limit] Upstash HTTP error ${res.status}, falling back to memory`)
       return rateLimit(key, limit, windowMs)
     }
@@ -120,6 +124,10 @@ export async function rateLimitAsync(
 
     return { allowed: true, retryAfterMs: 0 }
   } catch (err) {
+    if (process.env.RATE_LIMIT_FAIL_MODE === "closed") {
+      console.error("[rate-limit] Upstash error (fail-closed):", err)
+      return { allowed: false, retryAfterMs: windowMs }
+    }
     console.warn("[rate-limit] Upstash error, falling back to memory:", err)
     return rateLimit(key, limit, windowMs)
   }

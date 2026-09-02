@@ -121,7 +121,7 @@ describe('POST /api/workspaces/[id]/cards/convert', () => {
     const json = await res.json()
 
     expect(res.status).toBe(400)
-    expect(json.error).toBe('sourceContent is required')
+    expect(json.error).toBe('Invalid request payload')
 
     process.env.AI_API_URL = originalUrl || ''
     process.env.AI_API_KEY = originalKey || ''

@@ -36,9 +36,9 @@ PosterApp is an intelligent, Next.js-based academic poster editor that assists r
    docker compose up -d
    ```
 
-4. Push the database schema:
+4. Apply the database schema migrations:
    ```bash
-   pnpm exec prisma db push
+   pnpm exec prisma migrate dev
    ```
 
 5. Start the application (runs Next.js and Yjs WebSocket concurrently on port 3333):

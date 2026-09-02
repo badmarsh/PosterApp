@@ -23,22 +23,7 @@ import { deserializeThesisReview } from "@/lib/ai/review-serializer"
 import { safeContentDisposition, sanitizeFilename } from "@/lib/security"
 
 const ROOT = path.join(process.cwd(), "workspaces")
-const MAX_LOG = 6_000
-
-function safeLog(value: string) {
-  return value.replace(/[A-Za-z]:\\[^\s]+/g, "[path]").replace(/\/[^\s]+/g, "[path]").slice(-MAX_LOG)
-}
-
-async function run(command: string, args: string[], cwd: string) {
-  return new Promise<string>((resolve, reject) => {
-    const child = spawn(command, args, { cwd, windowsHide: true, signal: AbortSignal.timeout(90_000) })
-    let log = ""
-    child.stdout.on("data", (data) => { log = (log + data.toString()).slice(-MAX_LOG * 2) })
-    child.stderr.on("data", (data) => { log = (log + data.toString()).slice(-MAX_LOG * 2) })
-    child.on("error", reject)
-    child.on("close", (code) => code === 0 ? resolve(log) : reject(new Error(safeLog(log || `Compiler exited with ${code}`))))
-  })
-}
+import { safeLog, runSandboxedLatex } from "@/lib/latex/compiler-runner"
 
 export async function POST(
   req: NextRequest,
@@ -124,29 +109,7 @@ export async function POST(
     // Run compiler
     const buildCmd = "pdflatex -shell-restricted -interaction=nonstopmode -halt-on-error main.tex && pdflatex -shell-restricted -interaction=nonstopmode -halt-on-error main.tex"
     const image = process.env.LATEX_COMPILER_IMAGE
-
-    if (image) {
-      await run("docker", [
-        "run", "--rm",
-        "--network", "none",
-        "--user", "1000:1000",
-        "--cpus", "1",
-        "--memory", "512m",
-        "--pids-limit", "64",
-        "--security-opt", "no-new-privileges",
-        "--cap-drop=ALL",
-        "--read-only",
-        "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
-        "-v", `${stage}:/work`,
-        "-w", "/work",
-        image,
-        "sh", "-c", buildCmd,
-      ], stage)
-    } else if (process.env.NODE_ENV !== "production") {
-      await run("wsl", ["--cd", stage, "bash", "-lc", `ulimit -t 55 -v 524288 -f 20480; ${buildCmd}`], stage)
-    } else {
-      throw new Error("COMPILER_UNAVAILABLE")
-    }
+    await runSandboxedLatex({ stage, buildCmd, timeoutMs: 90_000, image })
 
     // Read and return PDF
     const pdfPath = path.join(stage, "main.pdf")
