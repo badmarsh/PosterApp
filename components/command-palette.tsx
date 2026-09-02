@@ -242,6 +242,12 @@ export function CommandPalette({
             </span>
             Vercel Dark
           </CommandItem>
+          <CommandItem onSelect={() => run(() => setTheme("midnight"))}>
+            <span className="flex size-4 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ring-border" style={{ background: "#1a1a3a" }}>
+              <span className="size-1.5 rounded-full" style={{ background: "#7c6cf0" }} />
+            </span>
+            Midnight
+          </CommandItem>
         </CommandGroup>
       </CommandList>
     </CommandDialog>

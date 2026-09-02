@@ -275,21 +275,9 @@ export function Shell() {
   const lastWorkspaceId = useEditor((s) => s.lastWorkspaceId)
   const isAcademicSearchOpen = useEditor((s) => s.isAcademicSearchOpen)
   const setIsAcademicSearchOpen = useEditor((s) => s.setIsAcademicSearchOpen)
-  
+
   const [showSelector, setShowSelector] = useState(false)
   const [hasAutoLoaded, setHasAutoLoaded] = useState(false)
-
-  // Autosave Hook
-  const agentEvents = useEditor((s) => s.agentEvents)
-  const chatMessages = useEditor((s) => s.chatMessages)
-  const saveProject = useEditor((s) => s.saveProject)
-  const isDirty = useEditor((s) => s.isDirty)
-  
-  useEffect(() => {
-    // Autosave has been disabled per user request.
-    // The manual Save button in top-bar.tsx is now the primary way to save.
-    return
-  }, [project, agentEvents, chatMessages, isSwitchingProject, saveProject, isDirty])
 
   useEffect(() => {
     if (!hasAutoLoaded) {

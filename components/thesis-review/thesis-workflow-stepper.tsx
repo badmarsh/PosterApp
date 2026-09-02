@@ -21,10 +21,91 @@ import {
 
 export type PipelineStep = number
 
+type Lang = "sk" | "cs" | "en"
+
+const LABELS: Record<Lang, {
+  ariaLabel: string
+  upload: string
+  parsing: string
+  structureVerified: string
+  metadata: string
+  planApproved: string
+  preflightPlan: string
+  evidenceAnchored: string
+  ready: string
+  vectorRag: string
+  sectionsReady: string
+  generatingReview: string
+  confirmedFinal: string
+  decisionDocx: string
+  step: string
+  autofillMetadata: string
+  autofillTitle: string
+}> = {
+  sk: {
+    ariaLabel: "Kroky hodnotenia záverečnej práce",
+    upload: "Nahrajte PDF",
+    parsing: "Parsovanie…",
+    structureVerified: "Štruktúra overená",
+    metadata: "Metadáta",
+    planApproved: "Plán schválený",
+    preflightPlan: "Pre-flight plán",
+    evidenceAnchored: "Dôkazy ukotvené",
+    ready: "Pripravené",
+    vectorRag: "Vektorový RAG",
+    sectionsReady: "14 sekcií pripravených",
+    generatingReview: "Generovanie posudku",
+    confirmedFinal: "Potvrdené (Finál)",
+    decisionDocx: "Rozhodnutie & DOCX",
+    step: "Krok",
+    autofillMetadata: "Predvyplniť metadáta",
+    autofillTitle: "Predvyplniť metadáta z nahraného PDF",
+  },
+  cs: {
+    ariaLabel: "Kroky hodnocení závěrečné práce",
+    upload: "Nahrajte PDF",
+    parsing: "Parsování…",
+    structureVerified: "Struktura ověřena",
+    metadata: "Metadata",
+    planApproved: "Plán schválen",
+    preflightPlan: "Pre-flight plán",
+    evidenceAnchored: "Důkazy ukotveny",
+    ready: "Připraveno",
+    vectorRag: "Vektorový RAG",
+    sectionsReady: "14 sekcí připraveno",
+    generatingReview: "Generování posudku",
+    confirmedFinal: "Potvrzeno (Finál)",
+    decisionDocx: "Rozhodnutí & DOCX",
+    step: "Krok",
+    autofillMetadata: "Předvyplnit metadata",
+    autofillTitle: "Předvyplnit metadata z nahraného PDF",
+  },
+  en: {
+    ariaLabel: "Thesis review workflow steps",
+    upload: "Upload PDF",
+    parsing: "Parsing…",
+    structureVerified: "Structure verified",
+    metadata: "Metadata",
+    planApproved: "Plan approved",
+    preflightPlan: "Pre-flight plan",
+    evidenceAnchored: "Evidence anchored",
+    ready: "Ready",
+    vectorRag: "Vector RAG",
+    sectionsReady: "14 sections ready",
+    generatingReview: "Generating review",
+    confirmedFinal: "Confirmed (Final)",
+    decisionDocx: "Decision & DOCX",
+    step: "Step",
+    autofillMetadata: "Autofill metadata",
+    autofillTitle: "Autofill metadata from uploaded PDF",
+  },
+}
+
 interface Props {
   currentStep: number
   activeStepId?: WorkflowStepId
   presetId?: WorkflowPresetId
+  lang?: Lang
   hasDocument: boolean
   isParsing: boolean
   isIndexed: boolean
@@ -50,6 +131,7 @@ export function ThesisWorkflowStepper({
   currentStep,
   activeStepId,
   presetId = "standard_6_step",
+  lang = "sk",
   hasDocument,
   isParsing,
   isIndexed,
@@ -70,6 +152,7 @@ export function ThesisWorkflowStepper({
   onAutoFillClick,
   onStepClick,
 }: Props) {
+  const L = LABELS[lang] || LABELS.sk
   const cleanDocName = formatDocumentDisplayName(activeFileName, detectedTitle)
 
   const ctx: WorkflowContext = {
@@ -98,17 +181,17 @@ export function ThesisWorkflowStepper({
 
     let detail = cfg.description
     if (cfg.id === "document_integrity") {
-      detail = hasDocument ? cleanDocName : "Nahrajte PDF"
+      detail = hasDocument ? cleanDocName : L.upload
     } else if (cfg.id === "text_understanding") {
-      detail = isParsing ? "Parsovanie…" : isFormValid ? "Štruktúra overená" : "Metadáta"
+      detail = isParsing ? L.parsing : isFormValid ? L.structureVerified : L.metadata
     } else if (cfg.id === "plan_and_rubric") {
-      detail = hasPlan ? "Plán schválený" : isIndexed ? `${chunkCount} chunkov (HNSW ✓)` : "Pre-flight plán"
+      detail = hasPlan ? L.planApproved : isIndexed ? `${chunkCount} chunkov (HNSW ✓)` : L.preflightPlan
     } else if (cfg.id === "evidence_analysis") {
-      detail = hasReview ? "Dôkazy ukotvené" : isIndexed ? "Pripravené" : "Vektorový RAG"
+      detail = hasReview ? L.evidenceAnchored : isIndexed ? L.ready : L.vectorRag
     } else if (cfg.id === "draft_review") {
-      detail = hasReview ? "14 sekcií pripravených" : "Generovanie posudku"
+      detail = hasReview ? L.sectionsReady : L.generatingReview
     } else if (cfg.id === "verification_and_export") {
-      detail = isConfirmed ? "Potvrdené (Finál)" : "Rozhodnutie & DOCX"
+      detail = isConfirmed ? L.confirmedFinal : L.decisionDocx
     }
 
     return {
@@ -126,7 +209,7 @@ export function ThesisWorkflowStepper({
 
   return (
     <div
-      aria-label="Kroky hodnotenia záverečnej práce"
+      aria-label={L.ariaLabel}
       className="rounded-xl border bg-card text-card-foreground shadow-2xs overflow-hidden p-4 sm:p-6"
     >
       <div className="relative w-full max-w-5xl mx-auto">
@@ -135,7 +218,7 @@ export function ThesisWorkflowStepper({
 
         {/* Animated Progress Track */}
         <div
-          className="absolute top-7 left-[5%] h-1.5 bg-gradient-to-r from-emerald-400 via-emerald-500 to-primary rounded-full transition-all duration-1000 ease-in-out hidden sm:block"
+          className="absolute top-7 left-[5%] h-1.5 bg-gradient-to-r from-success via-success to-primary rounded-full transition-all duration-1000 ease-in-out hidden sm:block"
           style={{ width: `${Math.min(90, (Math.max(0, currentStep - 1) / Math.max(1, totalSteps - 1)) * 90)}%` }}
         />
 
@@ -165,9 +248,9 @@ export function ThesisWorkflowStepper({
                   className={cn(
                     "relative flex items-center justify-center shrink-0 w-11 h-11 sm:w-13 sm:h-13 rounded-full border-4 transition-all duration-500 ease-out shadow-xs",
                     s.done
-                      ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:border-emerald-800/60 dark:text-emerald-400"
+                      ? "bg-success/10 text-success border-success/30 dark:bg-success/5 dark:border-success/20 dark:text-success"
                       : isActiveState
-                      ? "bg-primary text-primary-foreground border-white dark:border-zinc-900 shadow-md shadow-primary/30 scale-105 sm:scale-115"
+                      ? "bg-primary text-primary-foreground border-background shadow-md shadow-primary/30 scale-105 sm:scale-115"
                       : "bg-card text-muted-foreground border-muted hover:border-muted-foreground/30 hover:bg-muted/30"
                   )}
                   title={`${s.title} — ${s.detail}`}
@@ -198,7 +281,7 @@ export function ThesisWorkflowStepper({
                   <div
                     className={cn(
                       "absolute top-11 bottom-[-1.5rem] left-5.5 w-0.5 sm:hidden transition-all duration-700",
-                      s.done ? "bg-emerald-500" : "bg-gradient-to-b from-primary to-transparent"
+                      s.done ? "bg-success" : "bg-gradient-to-b from-primary to-transparent"
                     )}
                   />
                 )}
@@ -211,11 +294,11 @@ export function ThesisWorkflowStepper({
                       isActiveState
                         ? "text-primary"
                         : s.done
-                        ? "text-emerald-600 dark:text-emerald-500"
+                        ? "text-success"
                         : "text-muted-foreground"
                     )}
                   >
-                    Krok {s.number}
+                    {L.step} {s.number}
                   </div>
                   <div
                     className={cn(
@@ -242,10 +325,10 @@ export function ThesisWorkflowStepper({
               onClick={onAutoFillClick}
               type="button"
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium text-primary bg-primary/5 hover:bg-primary/15 border border-primary/20 transition-all shadow-xs cursor-pointer group"
-              title="Predvyplniť metadáta z nahraného PDF"
+              title={L.autofillTitle}
             >
               <Sparkles className="size-3.5 group-hover:rotate-12 transition-transform" />
-              <span>Predvyplniť metadáta</span>
+              <span>{L.autofillMetadata}</span>
             </button>
           </div>
         )}

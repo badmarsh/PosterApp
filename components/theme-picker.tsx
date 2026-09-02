@@ -20,20 +20,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-type ThemeEntry = {
+export type ThemeEntry = {
   id: string
   name: string
   desc: string
-  /** Mini palette swatches shown in the dropdown preview strip */
   palette: [string, string, string]
-  /** Background for the dot swatch */
   bg: string
-  /** Accent color for the dot swatch */
   accent: string
   border: string
 }
 
-const THEMES: ThemeEntry[] = [
+export const THEMES: ThemeEntry[] = [
   {
     id: "light",
     name: "Light",
@@ -69,6 +66,15 @@ const THEMES: ThemeEntry[] = [
     bg: "#000000",
     accent: "#ffffff",
     border: "rgba(255,255,255,0.2)",
+  },
+  {
+    id: "midnight",
+    name: "Midnight",
+    desc: "Deep Navy / Indigo",
+    palette: ["#1a1a3a", "#7c6cf0", "#2a2a5a"],
+    bg: "#1a1a3a",
+    accent: "#7c6cf0",
+    border: "rgba(255,255,255,0.15)",
   },
 ] as const
 
