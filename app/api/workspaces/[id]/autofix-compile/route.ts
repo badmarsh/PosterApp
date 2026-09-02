@@ -4,7 +4,7 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { generateAIResponse } from "@/lib/ai/client"
 import { CompileFixesSchema } from "@/lib/ai/contracts"
 import type { Card } from "@/lib/poster-types"
-import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
 import { hasUnsafeLatex } from "@/lib/latex/validation"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 
@@ -112,8 +112,11 @@ Respond EXACTLY in this JSON format (no markdown wrappers):
 }`
     )}`
 
+    // Parse AI model overrides from request headers
+    const modelOverrides = parseAiModelOverrides(req.headers)
+
     const parsedData = await generateAIResponse("autofix-compile", {
-      model: resolveAiModel("autofix"),
+      model: resolveAiModelWithOverrides("autofix", modelOverrides),
       systemPrompt,
       userPrompt,
       schema: CompileFixesSchema,

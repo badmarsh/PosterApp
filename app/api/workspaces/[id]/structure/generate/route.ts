@@ -5,7 +5,7 @@ import { loadSourceContext } from "@/lib/ai/context"
 import { generateAIResponse } from "@/lib/ai/client"
 import { StructureGenerationSchema } from "@/lib/ai/contracts"
 import { buildDefaultStructure, OutputType } from "@/lib/output-types"
-import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 import { z } from "zod"
 
@@ -177,8 +177,9 @@ export async function POST(
     const prompt = buildPrompt(outputType, n, sourceContext)
 
     try {
+      const modelOverrides = parseAiModelOverrides(req.headers)
       const parsedData = await generateAIResponse("generate-structure", {
-        model: resolveAiModel("structure"),
+        model: resolveAiModelWithOverrides("structure", modelOverrides),
         userPrompt: prompt,
         schema: StructureGenerationSchema,
         signal: AbortSignal.timeout(AI_TIMEOUTS.structure),

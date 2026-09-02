@@ -65,6 +65,8 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
 
   autoCompile: false,
   setAutoCompile: (v) => set({ autoCompile: v }),
+  compactMode: false,
+  setCompactMode: (v) => set({ compactMode: v }),
   lastCompileFormat: "poster",
   setLastCompileFormat: (format) => set({ lastCompileFormat: format }),
   layoutWarnings: [],

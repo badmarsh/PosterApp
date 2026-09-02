@@ -31,6 +31,8 @@ export function createEditorStore() {
         partialize: (state) => ({
           selectedCardId: state.selectedCardId,
           lastWorkspaceId: state.lastWorkspaceId,
+          autoCompile: state.autoCompile,
+          compactMode: state.compactMode,
         }),
       }
     )

@@ -124,6 +124,8 @@ export interface UiSlice {
 
   autoCompile: boolean
   setAutoCompile: (v: boolean) => void
+  compactMode: boolean
+  setCompactMode: (v: boolean) => void
   lastCompileFormat: OutputType
   setLastCompileFormat: (format: OutputType) => void
   layoutWarnings: { cardId?: string; cardTitle: string; issue: string; recommendation: string; estimatedOverflowCharacters?: number; compiledRevision?: number }[]

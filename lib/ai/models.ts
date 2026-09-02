@@ -58,6 +58,43 @@ export function getVisionModelChain(): string[] {
   return unique.slice(0, 10)
 }
 
+/**
+ * Header name for AI model overrides sent from client to server.
+ * Format: JSON-encoded Partial<Record<AiModelRole, string>>
+ */
+export const AI_MODEL_OVERRIDE_HEADER = "X-AI-Model-Override"
+
+/**
+ * Parse AI model overrides from request headers.
+ * Returns empty object if header is missing or invalid.
+ */
+export function parseAiModelOverrides(headers: Headers): Partial<Record<AiModelRole, string>> {
+  const headerValue = headers.get(AI_MODEL_OVERRIDE_HEADER)
+  if (!headerValue) return {}
+  try {
+    const parsed = JSON.parse(headerValue)
+    if (parsed && typeof parsed === "object") {
+      return parsed as Partial<Record<AiModelRole, string>>
+    }
+  } catch {
+    // Invalid JSON, ignore
+  }
+  return {}
+}
+
+/**
+ * Resolve AI model for a given role, checking for user overrides first.
+ * If overrides are provided, they take precedence over env vars.
+ */
+export function resolveAiModelWithOverrides(
+  role: AiModelRole,
+  overrides: Partial<Record<AiModelRole, string>>
+): string {
+  const override = overrides[role]
+  if (override) return override
+  return resolveAiModel(role)
+}
+
 export function resolveAiModel(role: AiModelRole = "default"): string {
   switch (role) {
     case "vision":

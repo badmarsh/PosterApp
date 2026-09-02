@@ -14,7 +14,7 @@ import { rateLimitAsync } from "@/lib/rate-limit"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { generateAIResponse, getLastServedProvider } from "@/lib/ai/client"
 import { ThesisReviewGenerationSchema, validateGeneratedSections } from "@/lib/ai/contracts"
-import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 import {
   loadThesisContext,
@@ -488,6 +488,9 @@ export async function POST(
     let professionalResult: Record<string, unknown> | null = null
     let calibratedDefenseQuestions: string[] | null = null
 
+    // Parse AI model overrides from request headers
+    const modelOverrides = parseAiModelOverrides(req.headers)
+
     if (useProfessionalMode) {
       const { generateProfessionalReview } = await import("@/lib/ai/review-engine")
       professionalResult = await generateProfessionalReview({
@@ -550,7 +553,7 @@ export async function POST(
     } else {
       // Path A: Standard review generation (Default)
       result = await generateAIResponse("thesis-review", {
-        model: resolveAiModel("thesis"),
+        model: resolveAiModelWithOverrides("thesis", modelOverrides),
         systemPrompt,
         userPrompt,
         schema: ThesisReviewGenerationSchema,

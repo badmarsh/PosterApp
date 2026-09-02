@@ -4,7 +4,7 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { generateAIResponse } from "@/lib/ai/client"
 import { ShrinkContentSchema } from "@/lib/ai/contracts"
 import { loadSourceContext } from "@/lib/ai/context"
-import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 
 import { z } from "zod"
@@ -85,8 +85,11 @@ Respond EXACTLY in this JSON format:
 }`
     )}`
 
+    // Parse AI model overrides from request headers
+    const modelOverrides = parseAiModelOverrides(req.headers)
+
     const parsedData = await generateAIResponse("shrink", {
-      model: resolveAiModel("shrink"),
+      model: resolveAiModelWithOverrides("shrink", modelOverrides),
       systemPrompt,
       userPrompt,
       schema: ShrinkContentSchema,

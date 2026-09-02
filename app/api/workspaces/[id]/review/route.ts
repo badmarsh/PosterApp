@@ -6,7 +6,7 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { loadSourceContext } from "@/lib/ai/context"
 import { generateAIResponse } from "@/lib/ai/client"
 import { ReviewTipsSchema } from "@/lib/ai/contracts"
-import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 import { AI_CONFIG } from "@/lib/config/ai"
 
@@ -190,8 +190,9 @@ Return EXACTLY (no markdown wrappers):
 {"tips": [{"severity":"...", "category":"...", "message":"..."}]}`)}`
 
     try {
+      const modelOverrides = parseAiModelOverrides(req.headers)
       const parsedData = await generateAIResponse("review", {
-        model: resolveAiModel("review"),
+        model: resolveAiModelWithOverrides("review", modelOverrides),
         systemPrompt,
         userPrompt,
         schema: ReviewTipsSchema,

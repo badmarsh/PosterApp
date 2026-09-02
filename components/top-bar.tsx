@@ -20,6 +20,7 @@ import {
   FileArchive,
   Users,
   Search,
+  Settings as SettingsIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -43,6 +44,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ThemePicker } from "./theme-picker"
+import { SettingsPanel } from "./settings-panel"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { generateFullTemplate } from "@/lib/latex"
@@ -453,9 +455,16 @@ export function TopBar({
         </Tooltip>
 
         <UserButton>
-          <UserButton.UserProfilePage 
-            label="Manage Workspaces" 
-            url="workspaces" 
+          <UserButton.UserProfilePage
+            label="Settings"
+            url="settings"
+            labelIcon={<SettingsIcon className="h-4 w-4" />}
+          >
+            <SettingsPanel />
+          </UserButton.UserProfilePage>
+          <UserButton.UserProfilePage
+            label="Manage Workspaces"
+            url="workspaces"
             labelIcon={<Folders className="h-4 w-4" />}
           >
             <ManageWorkspaces />

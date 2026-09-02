@@ -4,7 +4,7 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { loadSourceContext } from "@/lib/ai/context"
 import { generateAIResponse } from "@/lib/ai/client"
 import { CardGenerationSchema } from "@/lib/ai/contracts"
-import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
 import { buildCitationInstruction, buildGroundingInstruction, wrapUntrustedContext } from "@/lib/ai/prompts"
 
 import { z } from "zod"
@@ -95,8 +95,11 @@ export async function POST(
       characterLimit,
     })
 
+    // Parse AI model overrides from request headers
+    const modelOverrides = parseAiModelOverrides(req.headers)
+
     const parsedData = await generateAIResponse("generate-card", {
-      model: resolveAiModel("generation"),
+      model: resolveAiModelWithOverrides("generation", modelOverrides),
       userPrompt: prompt,
       schema: CardGenerationSchema,
       signal: AbortSignal.timeout(AI_TIMEOUTS.generation),

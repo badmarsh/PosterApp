@@ -17,7 +17,7 @@ model DocumentChunk {
   heading     String?
   content     String
   tokens      Int
-  embedding   Unsupported("vector")?
+  embedding   Unsupported("vector(384)")?
   createdAt   DateTime               @default(now())
   workspace   Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 

@@ -4,7 +4,7 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { loadSourceContext } from "@/lib/ai/context"
 import { generateAIResponse } from "@/lib/ai/client"
 import { CardGenerationSchema } from "@/lib/ai/contracts"
-import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
 import { buildCitationInstruction, buildGroundingInstruction, wrapUntrustedContext } from "@/lib/ai/prompts"
 
 import { z } from "zod"
@@ -117,8 +117,11 @@ Respond EXACTLY in this JSON format with no markdown wrappers:
   "bullets": ["Point 1...", "Point 2..."]
 }`
 
+    // Parse AI model overrides from request headers
+    const modelOverrides = parseAiModelOverrides(req.headers)
+
     const parsedData = await generateAIResponse("convert", {
-      model: resolveAiModel("convert"),
+      model: resolveAiModelWithOverrides("convert", modelOverrides),
       userPrompt: prompt,
       schema: CardGenerationSchema,
       signal: AbortSignal.timeout(AI_TIMEOUTS.generation),

@@ -8,7 +8,7 @@ import * as fs from "fs/promises"
 import * as os from "os"
 import { runSandboxedLatex } from "@/lib/latex/compiler-runner"
 import type { Card } from "@/lib/poster-types"
-import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
 import { workspacePath } from "@/lib/workspace-files"
 
 const MAX_PAGES_TO_REVIEW = 25
@@ -160,8 +160,9 @@ STRICT CALIBRATION:
 - Default to clean: If the document is properly typeset, return {"warnings": []}.
 - NEVER include entries with "No issues detected", "None", or "Clean".`
 
+    const modelOverrides = parseAiModelOverrides(req.headers)
     const parsedData = await generateAIResponse("review-layout", {
-      model: resolveAiModel("reviewLayout"),
+      model: resolveAiModelWithOverrides("reviewLayout", modelOverrides),
       systemPrompt,
       userPrompt,
       schema: LayoutWarningsSchema,

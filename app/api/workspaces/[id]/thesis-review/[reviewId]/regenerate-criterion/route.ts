@@ -12,7 +12,7 @@ import { rateLimitAsync } from "@/lib/rate-limit"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { generateAIResponse } from "@/lib/ai/client"
 import { ThesisSingleSectionSchema } from "@/lib/ai/contracts"
-import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 import { loadThesisContext, buildCriterionContext, buildThesisContextHeader } from "@/lib/ai/thesis-context"
 import {
@@ -173,8 +173,9 @@ Return JSON format:
   "suggestions": ["<suggestion 1>", "<suggestion 2>"]
 }`
 
+    const modelOverrides = parseAiModelOverrides(req.headers)
     const result = await generateAIResponse("thesis-regen-criterion", {
-      model: resolveAiModel("thesis"),
+      model: resolveAiModelWithOverrides("thesis", modelOverrides),
       systemPrompt,
       userPrompt,
       schema: ThesisSingleSectionSchema,

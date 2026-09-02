@@ -4,7 +4,7 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { generateAITextResponse } from "@/lib/ai/client"
 import { loadSourceContext } from "@/lib/ai/context"
 import { validateCard } from "@/lib/latex/validation"
-import { resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
 import { buildCitationInstruction, wrapUntrustedContext } from "@/lib/ai/prompts"
 import type { Card as DbCard } from "@prisma/client"
 
@@ -233,7 +233,10 @@ This will allow the user to apply the fix automatically with one click.`
       accumulatedChars += textContent.length
     }
 
-    const selectedModel = hasImages ? resolveAiModel("vision") : resolveAiModel("chat")
+    const modelOverrides = parseAiModelOverrides(req.headers)
+    const selectedModel = hasImages
+      ? resolveAiModelWithOverrides("vision", modelOverrides)
+      : resolveAiModelWithOverrides("chat", modelOverrides)
     const assistantContent = await generateAITextResponse("chat", {
       role: hasImages ? "vision" : "chat",
       model: selectedModel,

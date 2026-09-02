@@ -13,6 +13,7 @@
 
 import { create } from "zustand"
 import { immer } from "zustand/middleware/immer"
+import { getSettingsStore } from "@/lib/settings-store"
 import {
   computeOverallScore,
   scoreToEctsGrade,
@@ -262,7 +263,7 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
       reviewerName: "",
       institution: "Slovenská technická univerzita v Bratislave",
       department: "FIIT - Ústav počítačového inžinierstva a aplikovanej informatiky",
-      language: "sk",
+      language: getSettingsStore().getState().defaultReviewLanguage,
       academicYear: "2025/2026",
       reviewKind: "thesis",
       targetVenue: "",
