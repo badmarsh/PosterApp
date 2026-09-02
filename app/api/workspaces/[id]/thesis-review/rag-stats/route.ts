@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from "next/server"
 import * as fs from "fs"
 import * as path from "path"
 import { requireWorkspaceEditor } from "@/lib/auth"
+import { rateLimitAsync } from "@/lib/rate-limit"
 import { prisma } from "@/lib/prisma"
 import { Prisma } from "@prisma/client"
 import { retrieveForCriterion } from "@/lib/ai/vector-rag"
@@ -215,11 +216,25 @@ export async function POST(
 ) {
   const { id: workspaceId } = await params
 
+  let userId: string
   try {
-    await requireWorkspaceEditor(workspaceId)
+    const access = await requireWorkspaceEditor(workspaceId)
+    userId = access.userId
   } catch (err) {
     if (err instanceof Response) return err
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const { allowed, retryAfterMs } = await rateLimitAsync(
+    `${userId}:${workspaceId}:rag-search`,
+    20,
+    60_000
+  )
+  if (!allowed) {
+    return NextResponse.json(
+      { error: `Rate limited — try again in ${Math.ceil(retryAfterMs / 1000)}s` },
+      { status: 429 }
+    )
   }
 
   const body = await req.json().catch(() => ({}))

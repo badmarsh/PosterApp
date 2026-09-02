@@ -14,6 +14,7 @@ import path from "path"
 import os from "os"
 import { spawn } from "child_process"
 import { requireWorkspaceEditor } from "@/lib/auth"
+import { rateLimitAsync } from "@/lib/rate-limit"
 import { prisma } from "@/lib/prisma"
 import { generateThesisReviewLatex } from "@/lib/latex/generator-thesis-review"
 import type { ThesisReviewTemplate } from "@/lib/latex/templates-thesis"
@@ -49,11 +50,25 @@ export async function POST(
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 })
   }
 
+  let userId: string
   try {
-    await requireWorkspaceEditor(workspaceId)
+    const access = await requireWorkspaceEditor(workspaceId)
+    userId = access.userId
   } catch (err) {
     if (err instanceof Response) return err
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const { allowed, retryAfterMs } = await rateLimitAsync(
+    `${userId}:${workspaceId}:export-review`,
+    5,
+    60_000
+  )
+  if (!allowed) {
+    return NextResponse.json(
+      { error: `Rate limited — try again in ${Math.ceil(retryAfterMs / 1000)}s` },
+      { status: 429 }
+    )
   }
 
   const review = await prisma.thesisReview.findFirst({
@@ -107,7 +122,7 @@ export async function POST(
     await fs.cp(stylesDir, stage, { recursive: true, force: true, errorOnExist: false }).catch(() => undefined)
 
     // Run compiler
-    const buildCmd = "pdflatex -shell-escape -interaction=nonstopmode -halt-on-error main.tex && pdflatex -shell-escape -interaction=nonstopmode -halt-on-error main.tex"
+    const buildCmd = "pdflatex -shell-restricted -interaction=nonstopmode -halt-on-error main.tex && pdflatex -shell-restricted -interaction=nonstopmode -halt-on-error main.tex"
     const image = process.env.LATEX_COMPILER_IMAGE
 
     if (image) {

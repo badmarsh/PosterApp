@@ -4,6 +4,7 @@ import path from "path"
 import os from "os"
 import { spawn } from "child_process"
 import { requireWorkspaceEditor } from "@/lib/auth"
+import { rateLimitAsync } from "@/lib/rate-limit"
 import { generateFullTemplate } from "@/lib/latex"
 import type { Card, Project } from "@/lib/poster-types"
 
@@ -49,8 +50,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const url = new URL(req.url)
     const expectedRevision = url.searchParams.get("revision")
 
-    const { workspace } = await requireWorkspaceEditor(id)
-    
+    const { workspace, userId } = await requireWorkspaceEditor(id)
+
+    const { allowed, retryAfterMs } = await rateLimitAsync(
+      `${userId}:${id}:compile`,
+      10,
+      60_000
+    )
+    if (!allowed) {
+      return NextResponse.json(
+        { error: { code: "RATE_LIMITED", message: `Too many compilations — try again in ${Math.ceil(retryAfterMs / 1000)}s` } },
+        { status: 429 }
+      )
+    }
+
     if (expectedRevision && workspace.revision !== parseInt(expectedRevision, 10)) {
       return NextResponse.json({ error: { code: "CONFLICT", message: "Workspace modified concurrently" } }, { status: 409 })
     }
@@ -99,8 +112,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     
     const runCompiler = async () => {
       const buildCmd = needsBibtex
-        ? "pdflatex -shell-escape -interaction=nonstopmode main.tex && (bibtex main || true) && pdflatex -shell-escape -interaction=nonstopmode main.tex && pdflatex -shell-escape -interaction=nonstopmode -halt-on-error main.tex"
-        : "pdflatex -shell-escape -interaction=nonstopmode -halt-on-error main.tex"
+        ? "pdflatex -shell-restricted -interaction=nonstopmode main.tex && (bibtex main || true) && pdflatex -shell-restricted -interaction=nonstopmode main.tex && pdflatex -shell-restricted -interaction=nonstopmode -halt-on-error main.tex"
+        : "pdflatex -shell-restricted -interaction=nonstopmode -halt-on-error main.tex"
       if (image) {
         // Production worker: an isolated container with no network, dropped capabilities, and read-only root with staging mount.
         return await run(

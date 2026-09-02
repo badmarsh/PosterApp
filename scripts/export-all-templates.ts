@@ -75,7 +75,7 @@ async function exportTemplate(project: Project, baseOutput: any, template: any, 
   const workspaceLogos = path.join(ROOT, workspaceId, "logos")
   await fs.cp(workspaceLogos, path.join(stage, "logos"), { recursive: true, force: true, errorOnExist: false }).catch(() => undefined)
 
-  const buildCmd = "pdflatex -shell-escape -interaction=nonstopmode main.tex && (bibtex main || true) && pdflatex -shell-escape -interaction=nonstopmode main.tex && pdflatex -shell-escape -interaction=nonstopmode -halt-on-error main.tex"
+  const buildCmd = "pdflatex -shell-restricted -interaction=nonstopmode main.tex && (bibtex main || true) && pdflatex -shell-restricted -interaction=nonstopmode main.tex && pdflatex -shell-restricted -interaction=nonstopmode -halt-on-error main.tex"
   
   console.log('Compiling in WSL...')
   try {

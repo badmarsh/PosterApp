@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { safeJsonParse, jsonStringify } from "@/lib/db-helpers"
 import { auth, requireWorkspaceAccess, requireWorkspaceEditor } from "@/lib/auth"
+import { rateLimitAsync } from "@/lib/rate-limit"
 import { WorkspaceSchema } from "@/lib/validations/workspace"
 import { computeWorkspaceDiff } from "@/lib/snapshot-diff"
 import { generateSnapshotLabelAsync } from "@/lib/ai-labeler"
@@ -124,6 +125,18 @@ export async function PUT(
   try {
     const access = await requireWorkspaceEditor(id)
     const existing = access.workspace
+
+    const { allowed, retryAfterMs } = await rateLimitAsync(
+      `${access.userId}:${id}:save`,
+      20,
+      60_000
+    )
+    if (!allowed) {
+      return NextResponse.json(
+        { error: `Rate limited — try again in ${Math.ceil(retryAfterMs / 1000)}s` },
+        { status: 429 }
+      )
+    }
 
     const prevSnapshot = await prisma.workspaceSnapshot.findFirst({
       where: { workspaceId: id },

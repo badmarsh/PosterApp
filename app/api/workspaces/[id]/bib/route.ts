@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { parseBibKeys } from "@/lib/bib-parser"
 import { requireWorkspaceAccess, requireWorkspaceEditor } from "@/lib/auth"
+import { rateLimitAsync } from "@/lib/rate-limit"
 import { extractBibTeX } from "@/lib/services/bibtex-service"
 import fs from "fs"
 import path from "path"
@@ -89,9 +90,28 @@ export async function POST(
 ) {
   const { id } = await params
 
+  let userId: string
   try {
-    await requireWorkspaceEditor(id)
+    const access = await requireWorkspaceEditor(id)
+    userId = access.userId
+  } catch (err) {
+    if (err instanceof Response) return err
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
+  const { allowed, retryAfterMs } = await rateLimitAsync(
+    `${userId}:${id}:bib-extract`,
+    3,
+    60_000
+  )
+  if (!allowed) {
+    return NextResponse.json(
+      { error: `Rate limited — try again in ${Math.ceil(retryAfterMs / 1000)}s` },
+      { status: 429 }
+    )
+  }
+
+  try {
     const sourcesDir = path.join(process.cwd(), "workspaces", id, "sources")
     if (!fs.existsSync(sourcesDir)) {
       return NextResponse.json({ ok: true, count: 0, message: "No source files found" })
