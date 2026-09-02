@@ -124,20 +124,17 @@ describe("Task 10: Rubric Unification and Findings-to-Sections Bridge", () => {
     expect(origSection!.text).not.toContain("Global summary")
   })
 
-  it("drives applicable criteria correctly across bachelor, master, and phd thesis types", () => {
-    const bscApplicable = getApplicableCriteriaForThesisType("bachelor", SK_ACADEMIC_RUBRIC_V1)
+  it("drives applicable criteria correctly across detailed thesis types", () => {
+    const empiricalApplicable = getApplicableCriteriaForThesisType("empirical_quantitative", SK_ACADEMIC_RUBRIC_V1)
       .filter((item) => item.applicability !== "not_applicable")
-    const bscLegacyIds = new Set(
-      bscApplicable.map((item) => RUBRIC_CRITERIA_MAP[item.criterion.key] || item.criterion.key)
+    const empiricalLegacyIds = new Set(
+      empiricalApplicable.map((item) => RUBRIC_CRITERIA_MAP[item.criterion.key] || item.criterion.key)
     )
-    expect(bscLegacyIds.has("methodology")).toBe(true)
-    expect(bscLegacyIds.has("goal_definition")).toBe(true)
+    expect(empiricalLegacyIds.has("methodology")).toBe(true)
+    expect(empiricalLegacyIds.has("goal_definition")).toBe(true)
 
-    const phdApplicable = getApplicableCriteriaForThesisType("phd", SK_ACADEMIC_RUBRIC_V1)
-      .filter((item) => item.applicability !== "not_applicable")
-    const phdLegacyIds = new Set(
-      phdApplicable.map((item) => RUBRIC_CRITERIA_MAP[item.criterion.key] || item.criterion.key)
-    )
-    expect(phdLegacyIds.has("originality")).toBe(true)
+    const theoreticalApplicable = getApplicableCriteriaForThesisType("theoretical", SK_ACADEMIC_RUBRIC_V1)
+    const analyticalExecution = theoreticalApplicable.find((item) => item.criterion.key === "analytical_execution")
+    expect(analyticalExecution?.applicability).toBe("partially_applicable")
   })
 })
