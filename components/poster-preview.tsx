@@ -61,6 +61,8 @@ import type { OutputType } from "@/lib/output-types"
 import { TemplateHeader } from "@/components/template-header"
 import { OUTPUT_TYPE_LABELS, TEMPLATE_REGISTRY, getTemplatesForType } from "@/lib/output-types"
 import { ThesisReviewPanel } from "@/components/thesis-review/thesis-review-panel"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { getExistingThesisReviewStore } from "@/components/thesis-review/use-thesis-review-store"
 
 // ---------------------------------------------------------------------------
@@ -574,7 +576,9 @@ function OutputTabBar() {
     useShallow((s) => ({ project: s.project, switchOutput: s.switchOutput, deleteOutput: s.deleteOutput }))
   )
   const [addOpen, setAddOpen] = useState(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const outputs = project.outputs ?? []
+  const pendingDelete = outputs.find((o) => o.id === pendingDeleteId)
 
   return (
     <>
@@ -597,7 +601,7 @@ function OutputTabBar() {
               </button>
               {outputs.length > 1 && !isActive && (
                 <button
-                  onClick={() => deleteOutput(o.id)}
+                  onClick={(e) => { e.stopPropagation(); setPendingDeleteId(o.id) }}
                   className="absolute right-1 opacity-0 group-hover:opacity-100 p-0.5 rounded-sm hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
                   aria-label="Delete output"
                 >
@@ -617,7 +621,31 @@ function OutputTabBar() {
         </button>
       </div>
       <AddOutputDialog open={addOpen} onClose={() => setAddOpen(false)} />
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        onOpenChange={(o) => { if (!o) setPendingDeleteId(null) }}
+        title="Delete output?"
+        description={<>This removes <strong>{pendingDelete ? getOutputTabLabel(pendingDelete, project) : "this output"}</strong> and all {pendingDelete?.cards?.length ?? 0} of its cards from the workspace. The change is permanent once saved.</>}
+        confirmLabel="Delete output"
+        onConfirm={() => { if (pendingDeleteId) deleteOutput(pendingDeleteId); setPendingDeleteId(null) }}
+      />
     </>
+  )
+}
+
+/** Isolates a single card's render failure so one bad card cannot blank the whole canvas. */
+function CardBoundary({ card, children }: { card: Card; children: React.ReactNode }) {
+  return (
+    <ErrorBoundary
+      name={`Card "${card.title}"`}
+      fallback={
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
+          Card “{card.title}” could not be rendered. Select it in the Structure sidebar to edit or delete it.
+        </div>
+      }
+    >
+      {children}
+    </ErrorBoundary>
   )
 }
 
@@ -902,7 +930,7 @@ function PosterColumn({ column }: { column: ColumnIndex }) {
       <div className="flex flex-col gap-2 min-h-[100px] rounded-md p-1 -mx-1">
         <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
           {cards.length ? (
-            cards.map((c) => <MiniBlock key={c.id} card={c} />)
+            cards.map((c) => <CardBoundary key={c.id} card={c}><MiniBlock card={c} /></CardBoundary>)
           ) : (
             <div className="rounded-md border border-dashed border-border px-2 py-6 text-center text-[10px] leading-snug text-muted-foreground">
               Drop cards here
@@ -1237,7 +1265,7 @@ function SlidesView() {
             </div>
           </div>
           <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
-            {cards.map((c, i) => <SlideCard key={c.id} card={c} index={i} />)}
+            {cards.map((c, i) => <CardBoundary key={c.id} card={c}><SlideCard card={c} index={i} /></CardBoundary>)}
           </SortableContext>
           <button
             onClick={() => addCard(null)}
@@ -1302,7 +1330,7 @@ function PaperView() {
             </div>
           </div>
           <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
-            {cards.map((c) => <PaperSection key={c.id} card={c} />)}
+            {cards.map((c) => <CardBoundary key={c.id} card={c}><PaperSection card={c} /></CardBoundary>)}
           </SortableContext>
           <button
             onClick={() => addCard(null)}

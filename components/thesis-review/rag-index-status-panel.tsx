@@ -57,6 +57,16 @@ export interface RagStats {
   embeddingDimensions: number
   graphStats?: GraphStatsInfo
   documents: ChunkDocument[]
+  embeddingHealth?: { warmedUp: boolean; degraded: boolean; fallbackCount: number; lastError: string | null }
+  reranker?: { enabled: boolean; model: string; warmedUp: boolean; lastError: string | null; failures: number; calls: number }
+  aiUsage?: {
+    totalCalls: number
+    totalFailures: number
+    totalPromptTokens: number
+    totalCompletionTokens: number
+    lastHour: { calls: number; totalTokens: number }
+    breakers: Record<string, { state: string; failures: number }>
+  }
 }
 
 interface SearchResult {
@@ -192,6 +202,17 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
           Žiadne chunky
         </Badge>
       )
+    if (stats.embeddingHealth?.degraded)
+      return (
+        <Badge
+          variant="outline"
+          className="text-xs text-destructive gap-1.5 py-0.5 px-2 font-normal"
+          title={`Lokálny model embeddingov zlyhal (${stats.embeddingHealth.fallbackCount}×): ${stats.embeddingHealth.lastError ?? "neznáma chyba"}. Časť vektorov je len hašovaná náhrada — sémantické vyhľadávanie dôkazov je nespoľahlivé. Preindexujte po oprave.`}
+        >
+          <AlertCircle className="h-3 w-3" />
+          Embeddingy degradované
+        </Badge>
+      )
     if (!stats.hnswIndexReady)
       return (
         <Badge variant="outline" className="text-xs text-amber-600 dark:text-amber-400 gap-1.5 py-0.5 px-2 font-normal">
@@ -229,6 +250,7 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
             {!expanded && stats && stats.totalChunks > 0 ? (
               <p className="text-[11px] text-muted-foreground truncate">
                 {stats.embeddingModel.split("/").pop()} · {stats.embeddingDimensions}D
+                {stats.reranker?.enabled ? ` · Reranker: ${stats.reranker.model.split("/").pop()}${stats.reranker.warmedUp ? "" : " (načítava sa)"}` : ""}
                 {stats.graphStats && stats.graphStats.nodeCount > 0
                   ? ` · Graf: ${stats.graphStats.nodeCount} ${pluralizeSk(stats.graphStats.nodeCount, "entita", "entity", "entít")}, ${stats.graphStats.edgeCount} ${pluralizeSk(stats.graphStats.edgeCount, "vzťah", "vzťahy", "vzťahov")}`
                   : ""}
@@ -332,6 +354,26 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
                   )
                 })}
               </div>
+            </div>
+          )}
+
+          {/* AI provider usage (in-process ledger since server start) */}
+          {stats?.aiUsage && stats.aiUsage.totalCalls > 0 && (
+            <div className="rounded-xl border bg-card p-3.5 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground">Spotreba AI (od štartu servera)</span>
+                {Object.values(stats.aiUsage.breakers).some((b) => b.state !== "closed") && (
+                  <Badge variant="outline" className="text-[10px] text-destructive gap-1 py-0 px-1.5 font-normal">
+                    <AlertCircle className="h-3 w-3" /> Poskytovateľ dočasne obídený
+                  </Badge>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground font-mono">
+                {stats.aiUsage.totalCalls} volaní · {stats.aiUsage.totalFailures} zlyhaní ·{" "}
+                {(stats.aiUsage.totalPromptTokens + stats.aiUsage.totalCompletionTokens).toLocaleString("sk-SK")} tokenov
+                {" · posledná hodina: "}
+                {stats.aiUsage.lastHour.calls} volaní / {stats.aiUsage.lastHour.totalTokens.toLocaleString("sk-SK")} tokenov
+              </p>
             </div>
           )}
 

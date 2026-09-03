@@ -1,7 +1,7 @@
 import type { EditorSlice, ProjectSlice } from "./types"
-import { sampleProjects } from "@/lib/mock-data"
+import { sampleProjects, isDemoProject } from "@/lib/mock-data"
 import { COLUMN_BUDGET, estimateHeight, generateLatexForCard, hasUnsafeLatex, levelFromMessages, validateCard } from "@/lib/latex"
-import type { Project, OutputConfig, BlockPattern, Card } from "@/lib/poster-types"
+import type { Project, OutputConfig, BlockPattern, Card, Figure } from "@/lib/poster-types"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { apiFetch } from "@/lib/api-fetch"
 import type { OutputType } from "@/lib/output-types"
@@ -18,6 +18,15 @@ function activeOutput(project: Project) {
 
 function syncActiveCards(project: Project) {
   return activeOutput(project)?.cards ?? []
+}
+
+/** Output-level fields mirrored through Yjs alongside cards (see use-yjs.tsx). */
+export const OUTPUT_META_KEYS = ["title", "authors", "venue", "logoUrl", "secondaryLogoUrl", "themeColor", "templateId"] as const
+export type OutputMetaKey = (typeof OUTPUT_META_KEYS)[number]
+export function pickOutputMeta(o: OutputConfig): Pick<OutputConfig, OutputMetaKey> {
+  const out: Record<string, unknown> = {}
+  for (const k of OUTPUT_META_KEYS) out[k] = o[k]
+  return out as Pick<OutputConfig, OutputMetaKey>
 }
 
 export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
@@ -42,6 +51,16 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
   switchProject: async (id) => {
     const { project, isSwitchingProject } = get()
     if (id === project.id || isSwitchingProject) return
+    // Never silently discard unsaved edits on in-app navigation.
+    if (get().isDirty && !isDemoProject(project.id) && typeof window !== "undefined") {
+      const save = window.confirm(`"${project.name}" has unsaved changes.\n\nPress OK to save them before switching, or Cancel to stay here.`)
+      if (!save) return
+      await get().saveProject()
+      if (get().isDirty) {
+        get().pushEvent({ kind: "info", status: "error", title: "Switch cancelled", detail: "Saving failed, so the workspace was not switched. Your edits are still here." })
+        return
+      }
+    }
     jobQueue.cancelAll()
     set((s) => { s.isSwitchingProject = true; s.selectedCardId = null })
     try {
@@ -110,6 +129,19 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     const output = activeOutput(s.project)
     if (output) output.themeColor = hex
     s.isDirty = true
+  }),
+
+  _setOutputMetaFromYjs: (outputId, meta) => set((s) => {
+    const output = s.project.outputs?.find((o) => o.id === outputId)
+    if (!output) return
+    let changed = false
+    for (const key of OUTPUT_META_KEYS) {
+      if (key in meta && (output as Record<string, unknown>)[key] !== (meta as Record<string, unknown>)[key]) {
+        ;(output as Record<string, unknown>)[key] = (meta as Record<string, unknown>)[key]
+        changed = true
+      }
+    }
+    if (changed) s.isDirty = true
   }),
 
   _setCardsFromYjs: (cards) => set((s) => {
@@ -386,7 +418,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     }, 800)
   },
 
-  autoFillCardAction: async (id) => {
+  autoFillCardAction: async (id, opts) => {
     const workspaceId = get().project.id
     const currOutput = activeOutput(get().project)
     const card = (currOutput?.cards ?? []).find((c) => c.id === id)
@@ -444,7 +476,9 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
 
       const res = await apiFetch(`/api/workspaces/${workspaceId}/cards/${id}/generate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        // Bulk runs use a dedicated, higher server-side limiter bucket so a
+        // 24-card poster does not hit 3× forced 60 s pauses on the app's own limit.
+        headers: { "Content-Type": "application/json", ...(opts?.bulk ? { "X-Bulk-Generate": "1" } : {}) },
         body: JSON.stringify({
           outputType,
           topic: card.title || "Introduction",
@@ -469,6 +503,9 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       }
 
       const data = await res.json()
+      let undoSnapshot: { cardId: string; title: string; content: string; figures: Figure[] } | undefined
+      let droppedAssets = 0
+      let droppedCites = 0
       set((s) => {
         // A job is scoped to the workspace that started it. Never apply a late
         // response to whichever workspace happens to be open now.
@@ -476,6 +513,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         s.generatingIds = s.generatingIds.filter(gid => gid !== id)
         const c = syncActiveCards(s.project).find((c) => c.id === id)
         if (c) {
+          undoSnapshot = { cardId: c.id, title: c.title, content: c.content, figures: JSON.parse(JSON.stringify(c.figures ?? [])) }
           // Update title if Gemini suggested one
           if (data.title) {
             c.title = data.title
@@ -485,7 +523,9 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
           // Update content as markdown bullets (or paragraphs for paper)
           // Filter hallucinated cite keys not in valid bibKeys
           if (data.bullets && Array.isArray(data.bullets)) {
+            const rawCites = (data.bullets.join(" ").match(/\\cite\{[^}]*\}/g) ?? []).length
             const sanitizedBullets = sanitizeCiteKeys(data.bullets, get().bibKeys || [])
+            droppedCites = Math.max(0, rawCites - (sanitizedBullets.join(" ").match(/\\cite\{[^}]*\}/g) ?? []).length)
             c.content = sanitizedBullets.map((b: string) => outputType === "paper" ? b : `* ${b}`).join("\n\n")
           }
           
@@ -498,6 +538,8 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
                 const asset = s.project.assets.find((a: Asset) => a.id === assetId)
                 if (asset) {
                   c.figures.push({ id: asset.id, url: asset.url || asset.thumbnailUrl || "", caption: asset.caption || "" })
+                } else {
+                  droppedAssets++
                 }
               }
             })
@@ -505,10 +547,15 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         }
       })
 
+      const notes: string[] = [`Filled ${data.bullets?.length || 0} bullets.`]
+      if (data.overBudget) notes.push("Content exceeds this card's character budget by >40% — expect overflow; use \"Shrink\" or edit before compiling.")
+      if (droppedAssets > 0) notes.push(`${droppedAssets} suggested figure${droppedAssets === 1 ? "" : "s"} referenced an unknown asset and ${droppedAssets === 1 ? "was" : "were"} skipped.`)
+      if (droppedCites > 0) notes.push(`${droppedCites} citation${droppedCites === 1 ? "" : "s"} not found in your .bib ${droppedCites === 1 ? "was" : "were"} removed.`)
       get().updateEvent(evId, {
-        status: "done",
+        status: data.overBudget || droppedAssets > 0 || droppedCites > 0 ? "warning" : "done",
         title: `Auto-fill complete — ${id}`,
-        detail: `Filled ${data.bullets?.length || 0} bullets.`,
+        detail: notes.join(" "),
+        undo: undoSnapshot,
       })
 
       // Optionally, automatically trigger LaTeX generation now that content is filled
@@ -564,7 +611,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         const maxAttempts = 3
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
           try {
-            await get().autoFillCardAction(cards[i].id)
+            await get().autoFillCardAction(cards[i].id, { bulk: true })
             cardSucceeded = true
             succeeded++
             break
@@ -840,9 +887,80 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
   },
 
   newProject: () => get().pushEvent({ kind: "info", status: "done", title: "New project", detail: "Create a new project from the top bar workspace selector." }),
-  duplicateProject: () => get().pushEvent({ kind: "info", status: "done", title: "Duplicate project", detail: `Duplicating "${get().project.name}" feature coming soon.` }),
+  duplicateProject: async () => {
+    const src = get().project
+    if (isDemoProject(src.id)) {
+      get().pushEvent({ kind: "info", status: "warning", title: "Cannot duplicate demo", detail: "Open or create a real workspace first." })
+      return
+    }
+    if (get().isDirty) {
+      await get().saveProject()
+      if (get().isDirty) {
+        get().pushEvent({ kind: "info", status: "error", title: "Duplicate cancelled", detail: "Unsaved changes could not be saved first." })
+        return
+      }
+    }
+    const suffix = Date.now().toString(36).slice(-4)
+    const newId = `${src.id}-copy-${suffix}`.slice(0, 64)
+    const newName = `${src.name} (copy)`
+    const evId = get().pushEvent({ kind: "info", status: "running", title: "Duplicating workspace", detail: `Creating "${newName}"…` })
+    try {
+      const activeOutput = src.outputs?.find((o) => o.id === src.activeOutputId) ?? src.outputs?.[0]
+      const createRes = await apiFetch("/api/workspaces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: newId, name: newName, outputType: activeOutput?.outputType ?? "poster", templateId: activeOutput?.templateId }),
+      })
+      if (!createRes.ok) throw new Error(`Create failed (HTTP ${createRes.status})`)
+      const created = await createRes.json() as { revision?: number }
+
+      // Re-mint child IDs: the server refuses output/card IDs owned by another workspace.
+      let activeOutputId: string | undefined
+      const outputs = (src.outputs ?? []).map((o, i) => {
+        const oid = `out_${o.outputType}_${suffix}_${i}`
+        if (o.id === src.activeOutputId) activeOutputId = oid
+        return {
+          ...o,
+          id: oid,
+          cards: (o.cards ?? []).map((c, j) => ({
+            ...c,
+            id: `card_${suffix}_${i}_${j}`,
+            // Figure files live in the source workspace's asset folder; do not carry dangling refs.
+            figures: [],
+          })),
+        }
+      })
+      const putRes = await apiFetch(`/api/workspaces/${newId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...src,
+          id: newId,
+          name: newName,
+          revision: created.revision ?? 0,
+          outputs,
+          activeOutputId: activeOutputId ?? outputs[0]?.id,
+          assets: [],
+          ingestFiles: [],
+          agentEvents: [],
+          chatMessages: [],
+        }),
+      })
+      if (!putRes.ok) throw new Error(`Copy failed (HTTP ${putRes.status})`)
+      get().updateEvent(evId, { status: "done", title: "Workspace duplicated", detail: `"${newName}" created. Text and layout were copied; uploaded PDFs and figures were not.` })
+      await get().switchProject(newId)
+    } catch (e) {
+      get().updateEvent(evId, { status: "error", title: "Duplicate failed", detail: e instanceof Error ? e.message : String(e) })
+    }
+  },
 
   saveProject: async () => {
+    if (isDemoProject(get().project.id)) {
+      // The demo project only exists in memory — do not hammer the API with 404s.
+      set((s) => { s.isDirty = false })
+      get().pushEvent({ kind: "info", status: "warning", title: "Demo project is read-only", detail: "Create or open a workspace (⌘K → Switch Workspace) to save your work." })
+      return
+    }
     if (get().isSaving) {
       scheduleRetry()
       return

@@ -73,6 +73,8 @@ export interface ThesisReviewRecord {
   reportingGuidelineChecks?: ReportingGuidelineCheck[]
   confidentialComments?: string | null
   phdEnrichment?: any | null // Or imported PhdEnrichmentData if possible, but let's just use any or import
+  /** Adversarial self-critique summary (present only when the critique pass ran). */
+  debateLog?: string | null
   status: "draft" | "final"
   language: ReviewLanguage
   diagnostics?: ReviewDiagnostics
@@ -175,6 +177,11 @@ export interface ThesisReviewState {
   isGeneratingPlan: boolean
   isGenerating: boolean
   isSaving: boolean
+  /** True when local edits (triage decisions, text) have not been persisted yet. */
+  isReviewDirty: boolean
+  /** Monotonic counter of local edits; used to detect edits during an in-flight save. */
+  editSeq: number
+  lastSavedAt: string | null
   isExporting: boolean
   regeneratingCriterionId: string | null
   generateError: string | null
@@ -303,6 +310,9 @@ function createThesisReviewStore(
       isGeneratingPlan: false,
       isGenerating: false,
       isSaving: false,
+      isReviewDirty: false,
+      editSeq: 0,
+      lastSavedAt: null,
       isExporting: false,
       regeneratingCriterionId: null,
       generateError: null,
@@ -420,7 +430,7 @@ function createThesisReviewStore(
         }
       },
 
-      setActiveReview: (review) => set((s) => { s.activeReview = review }),
+      setActiveReview: (review) => set((s) => { s.activeReview = review; s.isReviewDirty = false }),
       setSelectedEvidence: (ev) => set((s) => { s.selectedEvidence = ev }),
       setAnalysisPlan: (plan) => set((s) => { s.analysisPlan = plan }),
 
@@ -686,12 +696,14 @@ function createThesisReviewStore(
 
     updateReviewLocally: (updates) => {
       set((s) => {
+        s.isReviewDirty = true; s.editSeq++
         if (s.activeReview) Object.assign(s.activeReview, updates)
       })
     },
 
     updateCriterionLocally: (criterionId, updates) => {
       set((s) => {
+        s.isReviewDirty = true; s.editSeq++
         if (!s.activeReview) return
         const idx = s.activeReview.sections.findIndex(
           (sec) => sec.criterionId === criterionId || sec.sectionId === criterionId
@@ -712,6 +724,7 @@ function createThesisReviewStore(
 
     acceptFinding: (findingId) => {
       set((s) => {
+        s.isReviewDirty = true; s.editSeq++
         if (!s.activeReview?.findings) return
         const f = s.activeReview.findings.find((item) => item.id === findingId)
         if (f) f.status = "accepted"
@@ -720,6 +733,7 @@ function createThesisReviewStore(
 
     rejectFinding: (findingId) => {
       set((s) => {
+        s.isReviewDirty = true; s.editSeq++
         if (!s.activeReview?.findings) return
         const f = s.activeReview.findings.find((item) => item.id === findingId)
         if (f) {
@@ -731,6 +745,7 @@ function createThesisReviewStore(
 
     editFinding: (findingId, updates) => {
       set((s) => {
+        s.isReviewDirty = true; s.editSeq++
         if (!s.activeReview?.findings) return
         const f = s.activeReview.findings.find((item) => item.id === findingId)
         if (f) {
@@ -742,6 +757,7 @@ function createThesisReviewStore(
 
     addCustomFinding: (finding) => {
       set((s) => {
+        s.isReviewDirty = true; s.editSeq++
         if (!s.activeReview) return
         if (!s.activeReview.findings) s.activeReview.findings = []
         const newFinding: ReviewFinding = {
@@ -758,6 +774,7 @@ function createThesisReviewStore(
 
     toggleFindingExport: (findingId) => {
       set((s) => {
+        s.isReviewDirty = true; s.editSeq++
         if (!s.activeReview?.findings) return
         const f = s.activeReview.findings.find((item) => item.id === findingId)
         if (f) f.includeInExport = !f.includeInExport
@@ -766,6 +783,7 @@ function createThesisReviewStore(
 
     confirmFinalDecision: (grade, recommendation) => {
       set((s) => {
+        s.isReviewDirty = true; s.editSeq++
         if (s.activeReview) {
           s.activeReview.finalGrade = grade
           s.activeReview.grade = grade
@@ -780,6 +798,7 @@ function createThesisReviewStore(
       const { activeReview } = get()
       if (!activeReview || activeReview.id !== reviewId) return false
 
+      const seqAtStart = get().editSeq
       set((s) => { s.isSaving = true; s.saveError = null })
       try {
         const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review/${reviewId}`, {
@@ -817,7 +836,12 @@ function createThesisReviewStore(
           throw new Error(errData.error ?? `Save failed (HTTP ${res.status})`)
         }
 
-        set((s) => { s.isSaving = false })
+        set((s) => {
+          s.isSaving = false
+          s.lastSavedAt = new Date().toISOString()
+          // Only clear the flag if nothing changed while the request was in flight.
+          if (s.editSeq === seqAtStart) s.isReviewDirty = false
+        })
         return true
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Save failed"

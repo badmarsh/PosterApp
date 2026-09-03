@@ -14,6 +14,8 @@ export type IngestFile = {
   /** 0–100 */
   progress: number
   error?: string
+  /** Latest human-readable pipeline stage (transient, not persisted). */
+  stage?: string
   dismissed?: boolean
 }
 

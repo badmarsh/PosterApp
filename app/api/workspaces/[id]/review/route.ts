@@ -181,13 +181,14 @@ ${wrapUntrustedContext("Review Task", `Review the poster cards against the sourc
 For each issue found, output a JSON tip with:
 - severity: "error" | "warning" | "info"
 - category: "citation" | "typo" | "figure" | "layout" | "content" | "grounding"
+- cardId: the exact bracketed id of the card the issue is in (e.g. "card_abc123"), or omit if the issue is poster-wide
 - message: one actionable sentence (mention the card title or specific text)
 
 Use category "grounding" when a specific factual claim in a card cannot be
 verified against any provided source snippet.
 
 Return EXACTLY (no markdown wrappers):
-{"tips": [{"severity":"...", "category":"...", "message":"..."}]}`)}`
+{"tips": [{"severity":"...", "category":"...", "cardId":"...", "message":"..."}]}`)}`
 
     try {
       const modelOverrides = parseAiModelOverrides(req.headers)
@@ -200,8 +201,12 @@ Return EXACTLY (no markdown wrappers):
         signal: AbortSignal.timeout(AI_TIMEOUTS.review),
       })
 
+      const knownCardIds = new Set((cards as Card[]).map((c) => c.id))
+      const tips = (parsedData.tips ?? []).map((t) => (t.cardId && !knownCardIds.has(t.cardId) ? { ...t, cardId: undefined } : t))
+
       return NextResponse.json({
         ...parsedData,
+        tips,
         lintReport,
       })
     } catch (aiError) {

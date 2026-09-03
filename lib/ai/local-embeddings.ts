@@ -72,6 +72,36 @@ export function clearEmbeddingCache() {
  * @param text The text to embed
  * @returns number[384] — L2-normalized embedding vector
  */
+/**
+ * Process-wide health of the local embedder. When `fallbackCount > 0`, some
+ * vectors in the index are hash-based pseudo-embeddings and semantic retrieval
+ * quality is degraded — the UI surfaces this instead of silently returning
+ * nonsense matches.
+ */
+export const embeddingHealth = {
+  fallbackCount: 0,
+  lastError: null as string | null,
+  lastFallbackAt: null as string | null,
+  warmedUp: false,
+}
+
+/**
+ * Loads the WASM model ahead of the first real query (10–30 s cold start on
+ * first boot). Safe to call repeatedly; errors are recorded in `embeddingHealth`.
+ */
+export async function warmUpLocalEmbeddings(): Promise<boolean> {
+  if (embeddingHealth.warmedUp) return true
+  if (process.env.VITEST && !process.env.TEST_REAL_EMBEDDINGS) { embeddingHealth.warmedUp = true; return true }
+  try {
+    await PipelineSingleton.getInstance()
+    embeddingHealth.warmedUp = true
+    return true
+  } catch (err) {
+    embeddingHealth.lastError = err instanceof Error ? err.message : String(err)
+    return false
+  }
+}
+
 export async function generateLocalEmbedding(text: string): Promise<number[]> {
   const key = cacheKey(text)
   const cached = embeddingCache.get(key)
@@ -94,11 +124,17 @@ export async function generateLocalEmbedding(text: string): Promise<number[]> {
 
     try {
       const embedder = await PipelineSingleton.getInstance()
-      const output = await embedder(text, { pooling: "mean", normalize: true })
+      embeddingHealth.warmedUp = true
+      // Explicit 512-token window (model_max_length of MiniLM-L12) so a whole
+      // 1.2–1.5k-char chunk is embedded, not just its first ~128 tokens.
+      const output = await embedder(text, { pooling: "mean", normalize: true, truncation: true, max_length: 512 })
       const vec = Array.from(output.data) as number[]
       cachePut(key, vec)
       return vec
     } catch (err) {
+      embeddingHealth.fallbackCount++
+      embeddingHealth.lastError = err instanceof Error ? err.message : String(err)
+      embeddingHealth.lastFallbackAt = new Date().toISOString()
       console.warn("[local-embeddings] Embedding inference failed, using deterministic fallback vector:", err)
       // Return a deterministic fallback vector so the process never crashes
       const hash = createHash("sha256").update(text).digest()

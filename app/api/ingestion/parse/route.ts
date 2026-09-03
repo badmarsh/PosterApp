@@ -170,14 +170,37 @@ export async function POST(req: Request) {
       mineruForm.append("return_middle_json", "true")
 
       let mineruResponse: Response
+      // MinerU can take minutes on long theses. Emit a heartbeat so the client
+      // bar keeps moving and the user sees elapsed time instead of a frozen 20%.
+      const MINERU_TIMEOUT_MS = 300_000
+      const parseStartedAt = Date.now()
+      const heartbeat = setInterval(() => {
+        const elapsedS = Math.round((Date.now() - parseStartedAt) / 1000)
+        const pct = 20 + Math.min(28, Math.round((elapsedS / (MINERU_TIMEOUT_MS / 1000)) * 28 * 2))
+        void sendEvent({
+          type: "progress",
+          stage: `MinerU is analysing the layout… ${elapsedS}s elapsed (large PDFs can take 2–5 min, limit 5 min)`,
+          progress: pct,
+        })
+      }, 10_000)
       try {
         mineruResponse = await fetchMinerU("/file_parse", {
           method: "POST",
           body: mineruForm,
-          signal: AbortSignal.timeout(300_000), // 5 minute timeout for large PDFs
+          signal: AbortSignal.timeout(MINERU_TIMEOUT_MS), // 5 minute timeout for large PDFs
         })
       } catch (err) {
+        clearInterval(heartbeat)
         const message = err instanceof Error ? err.message : String(err)
+        const isTimeout = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")
+        if (isTimeout) {
+          await sendEvent({
+            type: "error",
+            error: "MinerU parsing timed out after 5 minutes",
+            detail: `${uploadedFile.name} is too large or complex for a single pass. Try splitting the PDF (e.g. one chapter at a time) or reducing scanned-image pages, then retry.`,
+          })
+          return
+        }
         const currentUrl = await resolveMinerUUrl().catch(() => "http://127.0.0.1:8001")
         await sendEvent({
           type: "error",
@@ -186,6 +209,7 @@ export async function POST(req: Request) {
         })
         return
       }
+      clearInterval(heartbeat)
 
       if (!mineruResponse.ok) {
         const body = await mineruResponse.text().catch(() => "")

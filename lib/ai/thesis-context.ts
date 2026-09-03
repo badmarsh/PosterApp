@@ -17,11 +17,26 @@ import { WORKSPACES_ROOT } from "@/lib/workspace-files"
 // ---------------------------------------------------------------------------
 
 export const THESIS_CONTEXT_BUDGETS = {
-  fullGeneration: 60_000,
+  /** Total manuscript context per review prompt. 120k chars ≈ 40–50k tokens —
+   *  comfortably inside modern 128k–1M context windows; override with
+   *  AI_CONTEXT_BUDGET_CHARS for smaller self-hosted models. */
+  fullGeneration: Number(process.env.AI_CONTEXT_BUDGET_CHARS) || 120_000,
   metadata: 2_000,
   citationAudit: 8_000,
-  perCriterion: 6_000,
+  perCriterion: 9_000,
   regeneration: 14_000,
+} as const
+
+/**
+ * How the `fullGeneration` budget is split between context sources. Reserved
+ * up-front so that vector- and graph-retrieved evidence are never starved by
+ * the keyword-routed excerpts (which previously consumed the whole budget and
+ * left the 6-stage RAG output sliced to ~0 chars).
+ */
+export const THESIS_CONTEXT_SHARES = {
+  routed: 0.5,
+  vector: 0.38,
+  graph: 0.12,
 } as const
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 import { prisma as db } from "../prisma"
 import { generateAIResponse } from "./client"
+import { AI_TIMEOUTS } from "./models"
 import { canonicalEntityName, canonicalKey, canonicalRelation, isPlaceholderEntity } from "./graph-rag"
 import { z } from "zod"
 
@@ -98,6 +99,7 @@ Respond strictly with a JSON object containing "nodes" and "edges" arrays.`,
       userPrompt: textChunk,
       schema: graphExtractionSchema,
       temperature: 0.1,
+      signal: AbortSignal.timeout(AI_TIMEOUTS.structure),
     })
 
     if (!result || !result.nodes || result.nodes.length === 0) return { nodes: 0, edges: 0 }

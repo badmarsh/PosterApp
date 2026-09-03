@@ -19,6 +19,7 @@ import {
   Wrench,
   XCircle,
   Camera,
+  Undo2,
 } from "lucide-react"
 import {
   AssistantRuntimeProvider,
@@ -159,6 +160,36 @@ const EventRow = memo(function EventRow({
           <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground whitespace-pre-line">
             {event.detail}
           </p>
+        )}
+        {event.undo && !event.undoApplied && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-1.5 h-6 gap-1 px-2 text-[11px]"
+            onClick={() => {
+              const snap = event.undo!
+              updateCard(snap.cardId, { title: snap.title, content: snap.content, figures: snap.figures })
+              updateEvent(event.id, { undoApplied: true, detail: `${event.detail ?? ""}\nReverted to the previous content.`.trim() })
+              selectCard(snap.cardId)
+            }}
+          >
+            <Undo2 className="size-3" />
+            Undo auto-fill
+          </Button>
+        )}
+        {event.undoMany && event.undoMany.length > 0 && !event.undoManyApplied && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-1.5 h-6 gap-1 px-2 text-[11px]"
+            onClick={() => {
+              event.undoMany!.forEach((snap) => updateCard(snap.cardId, { content: snap.content }))
+              updateEvent(event.id, { undoManyApplied: true, detail: `${event.detail ?? ""}\nAutofix patches reverted.`.trim() })
+            }}
+          >
+            <Undo2 className="size-3" />
+            Undo autofix ({event.undoMany.length})
+          </Button>
         )}
         {event.tips && event.tips.length > 0 && (
           <div className="mt-2 flex flex-col gap-2">
@@ -444,7 +475,7 @@ function AssistantMessageBubble() {
           AI
         </span>
         {isAiStreaming && (
-          <span className="inline-flex items-center gap-0.5 ml-0.5" title="AI rozmýšľa / odpovedá…">
+          <span className="inline-flex items-center gap-0.5 ml-0.5" title="AI is thinking…">
             <span className="size-1 rounded-full bg-primary/70 animate-bounce [animation-delay:-0.3s]" />
             <span className="size-1 rounded-full bg-primary/70 animate-bounce [animation-delay:-0.15s]" />
             <span className="size-1 rounded-full bg-primary/70 animate-bounce" />
@@ -475,16 +506,27 @@ function AssistantTextContent() {
   )
 
   const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
-  const selectedCard = activeOutput?.cards.find((c) => c.id === selectedCardId)
 
-  const fixRegex = /<fix>([\s\S]*?)<\/fix>/g
+  const fixRegex = /<fix(?:\s+card="([^"]*)")?>([\s\S]*?)<\/fix>/g
   let cleanText = text
   const fixes: string[] = []
+  const fixTargets: Array<string | undefined> = []
 
-  cleanText = text.replace(fixRegex, (fullMatch, content) => {
+  cleanText = text.replace(fixRegex, (fullMatch, cardAttr, content) => {
     fixes.push(content.trim())
+    fixTargets.push(cardAttr || undefined)
     return ""
   })
+  // A truncated completion may contain an unclosed <fix> — never offer to apply it.
+  const truncationMarker = "[response truncated — output limit reached]"
+  const wasTruncated = cleanText.includes(truncationMarker)
+  const hasUnclosedFix = /<fix(?:\s[^>]*)?>(?![\s\S]*<\/fix>)/.test(cleanText)
+  if (hasUnclosedFix) {
+    cleanText = cleanText.replace(/<fix(?:\s[^>]*)?>[\s\S]*$/, "")
+  }
+  if (wasTruncated) {
+    cleanText = cleanText.replace(truncationMarker, "").trimEnd() + "\n\n> ⚠️ Odpoveď bola skrátená (limit dĺžky výstupu). Skúste otázku zúžiť alebo pokračovať."
+  }
 
   const [localApplied, setLocalApplied] = useState<Set<number>>(new Set())
 
@@ -516,9 +558,15 @@ function AssistantTextContent() {
           localApplied.has(i) ||
           (typeof window !== "undefined" && localStorage.getItem(`fix_${hash}`) === "1")
 
+        // The fix is bound to the card that was selected when the answer was
+        // generated (server annotates <fix card="…">); fall back to the current
+        // selection only for legacy unbound fixes.
+        const targetCardId = fixTargets[i] ?? selectedCardId
+        const targetCard = activeOutput?.cards.find((c) => c.id === targetCardId)
+        const targetMissing = Boolean(fixTargets[i]) && !targetCard
         const unsafeLatexIssues = hasUnsafeLatex(fixContent)
-        const validationMsgs = selectedCard
-          ? validateCard({ ...selectedCard, content: fixContent })
+        const validationMsgs = targetCard
+          ? validateCard({ ...targetCard, content: fixContent })
           : []
         const hasValidationErrors =
           unsafeLatexIssues.length > 0 || validationMsgs.some((m) => m.level === "error")
@@ -528,7 +576,7 @@ function AssistantTextContent() {
             key={i}
             size="sm"
             variant={isApplied ? "ghost" : "outline"}
-            disabled={isApplied || !selectedCardId}
+            disabled={isApplied || !targetCardId || targetMissing}
             className={cn(
               "mt-2 w-full h-auto py-2 whitespace-normal text-left justify-start gap-2",
               isApplied
@@ -538,7 +586,7 @@ function AssistantTextContent() {
                 : "border-primary/50 bg-primary/5 text-primary hover:bg-primary/15"
             )}
             onClick={() => {
-              if (selectedCardId && !isApplied) {
+              if (targetCardId && targetCard && !isApplied) {
                 if (hasValidationErrors) {
                   const errorSummary = [
                     ...unsafeLatexIssues,
@@ -546,14 +594,14 @@ function AssistantTextContent() {
                   ].join("; ")
 
                   const applySingleFix = () => {
-                    updateCard(selectedCardId, { content: fixContent })
+                    updateCard(targetCardId, { content: fixContent })
                     pushEvent({
                       kind: hasValidationErrors ? "validate" : "info",
                       status: hasValidationErrors ? "warning" : "done",
-                      title: hasValidationErrors ? "Oprava aplikovaná s varovaním" : "Fix applied",
+                      title: hasValidationErrors ? "Fix applied with warnings" : "Fix applied",
                       detail: hasValidationErrors
-                        ? `Aplikované s upozorneniami: ${errorSummary}`
-                        : `Content updated for card ${selectedCard?.title}`,
+                        ? `Applied despite validation warnings: ${errorSummary}`
+                        : `Content updated for card ${targetCard?.title}`,
                     })
                   }
 
@@ -566,12 +614,12 @@ function AssistantTextContent() {
                     }
                   })
                 } else {
-                  updateCard(selectedCardId, { content: fixContent })
+                  updateCard(targetCardId, { content: fixContent })
                   pushEvent({
                     kind: "info",
                     status: "done",
                     title: "Fix applied",
-                    detail: `Content updated for card ${selectedCard?.title}`,
+                    detail: `Content updated for card ${targetCard?.title}`,
                   })
                 }
                 setLocalApplied(new Set(localApplied).add(i))
@@ -588,10 +636,12 @@ function AssistantTextContent() {
             )}
             <span>
               {isApplied
-                ? "Oprava aplikovaná"
+                ? "Fix applied"
+                : targetMissing
+                ? "Target card no longer exists"
                 : hasValidationErrors
-                ? "Aplikovať opravu (zistené varovania)"
-                : "Aplikovať opravu na vybranú kartu"}
+                ? `Apply fix to "${targetCard?.title ?? "card"}" (warnings detected)`
+                : `Apply fix to "${targetCard?.title ?? "selected card"}"`}
             </span>
           </Button>
         )
@@ -753,14 +803,14 @@ function AgentPanelInner({
           {isAiStreaming ? (
             <span className="size-1.5 rounded-full bg-primary animate-pulse" title="Generuje…" />
           ) : (
-            <span className="size-1.5 rounded-full bg-chart-3/80" title="Pripravený" />
+            <span className="size-1.5 rounded-full bg-chart-3/80" title="Ready" />
           )}
         </div>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon-xs"
-            title="Vyčistiť históriu (Clear history)"
+            title="Clear history"
             onClick={() => setConfirmClear(true)}
           >
             <XCircle className="size-3.5 text-muted-foreground/70" />

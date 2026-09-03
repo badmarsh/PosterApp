@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest"
 import {
   resolveAiModel,
   getVisionModelChain,
+  MAX_VISION_CHAIN,
   DEFAULT_AI_MODELS,
   AI_TIMEOUTS,
   parseAiModelOverrides,
@@ -71,16 +72,17 @@ describe("AI Models & Contracts", () => {
     expect(emptyResult.success).toBe(true)
   })
 
-  it("returns 10 fallback vision models in getVisionModelChain", () => {
+  it("caps the vision chain at MAX_VISION_CHAIN (default 3) models", () => {
     const chain = getVisionModelChain()
-    expect(chain.length).toBe(10)
+    expect(chain.length).toBe(MAX_VISION_CHAIN)
+    expect(chain.length).toBeLessThanOrEqual(3)
     expect(chain[0]).toBe(DEFAULT_AI_MODELS.vision)
   })
 
   it("prioritizes AI_VISION_MODEL as the first entry in getVisionModelChain", () => {
     process.env.AI_VISION_MODEL = "custom-omni-model"
     const chain = getVisionModelChain()
-    expect(chain.length).toBe(10)
+    expect(chain.length).toBe(MAX_VISION_CHAIN)
     expect(chain[0]).toBe("custom-omni-model")
   })
 })

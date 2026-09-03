@@ -389,7 +389,8 @@ export function UploadZone() {
                     <Button
                       size="icon-xs"
                       variant="ghost"
-                      aria-label={`Remove ${file.name}`}
+                      aria-label={file.status === "parsing" || file.status === "queued" ? `Cancel parsing ${file.name}` : `Remove ${file.name}`}
+                      title={file.status === "parsing" || file.status === "queued" ? "Cancel parsing" : "Remove file"}
                       className="text-muted-foreground hover:text-destructive"
                       onClick={() => removeFile(file.id)}
                     >
@@ -411,6 +412,9 @@ export function UploadZone() {
                       style={{ width: `${Math.max(8, file.progress)}%` }}
                     />
                   </div>
+                )}
+                {(file.status === "parsing" || file.status === "queued") && file.stage && (
+                  <p className="mt-1 text-[10px] text-muted-foreground truncate" aria-live="polite">{file.stage}</p>
                 )}
 
                 {file.status === "failed" && file.error && (

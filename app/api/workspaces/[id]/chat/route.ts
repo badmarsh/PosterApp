@@ -274,7 +274,14 @@ This will allow the user to apply the fix automatically with one click.`
     })
 
 
-    return NextResponse.json({ role: "assistant", content: assistantContent })
+    // Bind every <fix> block to the card that was selected when the answer was
+    // generated, so the client never applies it to whatever card is selected
+    // at click time.
+    const boundContent = selectedCardId
+      ? assistantContent.replace(/<fix>(?![^>]*card=)/g, `<fix card="${selectedCardId}">`)
+      : assistantContent
+
+    return NextResponse.json({ role: "assistant", content: boundContent })
   } catch (error: unknown) {
     if (error instanceof Response) return error
     console.error("Chat route error:", error)

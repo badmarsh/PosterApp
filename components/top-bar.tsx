@@ -19,6 +19,7 @@ import {
   Camera,
   FileArchive,
   Users,
+  Share2,
   Search,
   Settings as SettingsIcon,
 } from "lucide-react"
@@ -35,6 +36,7 @@ import { HelpModal } from "@/components/help-modal"
 import { HistoryPanel } from "@/components/history-panel"
 import { UserButton } from "@clerk/nextjs"
 import { ManageWorkspaces } from "@/components/manage-workspaces"
+import { ShareWorkspaceDialog } from "@/components/share-workspace-dialog"
 import {
   Tooltip,
   TooltipContent,
@@ -105,6 +107,7 @@ export function TopBar({
   )
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
   const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   const refreshWorkspaces = () => {
@@ -377,6 +380,17 @@ export function TopBar({
           <Users className={cn("size-3.5", collabEnabled ? "text-primary-foreground" : "")} />
           <span className="hidden md:inline">Live Collab</span>
         </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-1.5"
+          onClick={() => setShareOpen(true)}
+          aria-label="Share workspace / manage co-authors"
+          title="Share workspace"
+        >
+          <Share2 className="size-3.5" />
+          <span className="hidden lg:inline">Share</span>
+        </Button>
         
         {/* Accessible Collaborator Avatar Stack */}
         <div className="flex items-center -space-x-1.5 mr-1" role="group" aria-label="Active collaborators">
@@ -480,6 +494,7 @@ export function TopBar({
         </UserButton>
       </div>
       <HelpModal open={isHelpOpen} onOpenChange={setIsHelpOpen} />
+      <ShareWorkspaceDialog open={shareOpen} onOpenChange={setShareOpen} workspaceId={project.id} workspaceName={project.name} />
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent className="sm:max-w-3xl max-w-[calc(100vw-2rem)] w-[90vw] max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden bg-background">
           <div className="border-b border-border bg-muted/20 p-6 pb-4">

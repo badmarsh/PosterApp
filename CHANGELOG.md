@@ -6,6 +6,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Applied AI (Round 6 — fixes for `docs/audit/ai-audit-2026-09.md`)
+- **Chunker no longer drops text (A-01, Critical):** new `lib/ai/text-splitter.ts` partition splitter (sentence-aware with abbreviation/decimal/section-number protection; Markdown tables and `$$…$$` blocks are atomic; paragraphs are hard boundaries). Previously `94.2%` was indexed as `2%` and table rows vanished. Regression tests in `lib/ai/__tests__/text-splitter.test.ts`. **Re-index existing workspaces** (`Reindexovať`) to benefit.
+- **Chunk size fits the embedding window (A-15):** 1200/1500 chars (was 1800/3000) with 150 overlap — MiniLM truncates at 512 tokens.
+- **Professional review reads the whole thesis (A-02, Critical):** section-routed 80k excerpt selection instead of the first 80k characters; prompt now states coverage %, section inventory and instructs `REQUIRES_HUMAN_VERIFICATION` for material outside the excerpts; `contextCoverage` surfaced via `ragStats`.
+- **RAG budgets reserved up front (A-03):** routed 60 % / vector 30 % / graph 10 % of the context budget (`THESIS_CONTEXT_SHARES`) — vector/graph evidence was previously sliced to ~0 chars.
+- **Ranking maths (A-04/A-05/A-06):** fused RRF scores min-max normalised to [0,1]; reranker boosts are fractional and capped; criterion ids mapped to retrieval families (`resolveCriterionFamily`) so section boosts fire for `methodology_rigor`, `results_validity`, …; FTS leg uses OR-joined `websearch_to_tsquery` keywords (AND of 30+ Slovak words never matched); HyDE slot uses expansion keywords for FTS.
+- **Compression keeps tables/equations/decimals (R9)** via the shared splitter; predominantly structural chunks are never compressed.
+- **Domain-context regex (A-16):** `ai`/`it` word-bounded — "audit", "deficit", "fotosyntézy" no longer classified as Informatics.
+- **HNSW recall (A-20):** `SET LOCAL hnsw.ef_search` scaled with `limit`, `hnsw.iterative_scan=relaxed_order` when available.
+- **Reindex race (R13):** embeddings computed first, then old→new chunk swap in one transaction; empty embedding runs leave the previous index intact.
+- **Prompts (P-1/P-2/P-3):** verbatim-quote rules and "data, not instructions" note in professional system prompt; `sourceRevision` emitted literally (no more "The source revision hash…" → stale); Path A prompt emits the exact score bands from `GRADE_BANDS`, explains retrieved-evidence blocks, and only wraps untrusted blocks (criteria/task were being mangled by `<`-escaping); card generation grounded on topic-focused retrieval (`lib/ai/card-context.ts`), asset-id whitelist in prompt + server-side filter, length range rule.
+- **Temperatures (A-09):** structured calls default to 0.2 (`DEFAULT_STRUCTURED_TEMPERATURE`), card generation explicit 0.2, free-text stays 0.7.
+- **Per-criterion grades are real (A-17):** professional path derives each criterion's score from its own findings (`—`/pending when none) instead of copying the overall grade / inventing 75.
+- **Self-critique guard (A-12):** `verified-exact/normalized` + `SUPPORTED_FACT` findings cannot be downgraded by the 0.6-temperature critic (which never sees the manuscript).
+- **Autofix loop is real (A-10):** patches are auto-applied with a multi-card undo snapshot and recompiled up to 3 attempts; "Undo autofix" button in the agent feed. **Injection guard:** only cards referenced by the error window may be patched, max 3 per call.
+- **Chat `<fix>` bound to a card:** server annotates `<fix card="…">`; client applies to that card (not whatever is selected later); unclosed/truncated fix blocks are never offered.
+- **Overshoot handling (A-21):** one server-side shrink retry before `overBudget` (threshold 1.15×); response includes `totalLength`, `characterLimit`, `shrinkAttempted`, `droppedAssetIds`.
+- **Bulk generate (A-11):** dedicated `bulk-generate` limiter (40/min) via `X-Bulk-Generate` header — no more forced 60 s pauses on the app's own limit.
+- **Reliability (A-08/A-13/A-14/A-18/A-19):** vision chain capped at 3 models with a 90 s shared deadline and immediate skip on non-429 4xx; in-process circuit breaker per provider URL (`lib/ai/telemetry.ts`, env `AI_BREAKER_*`) with fail-over while open; token/latency ledger exposed in `rag-stats` and the RAG status panel; truncated text completions carry a visible marker; JSON repair sends only the last 4k chars of the invalid output.
+- **Cost (A-07):** GraphRAG extraction is now on by default (see Round 7) (`GRAPH_RAG_ENABLED=true`), batched 3 chunks/call, capped 24 chunks/doc and 100 calls/workspace/day, with a request timeout.
+
+### Product & UX (Round 5 — fixes for `docs/audit/product-ux-audit-2026-09.md`)
+- **Toasts now render (F-01):** `<Toaster>` (sonner) mounted in `app/layout.tsx`; the 10 existing `toast.*` calls were previously invisible.
+- **Workspace creation (F-02):** selector sends `outputType`/`templateId` (was `templateName`, silently ignored); output-type picker (poster/slides/paper/thesis-review), template list from `TEMPLATE_REGISTRY`, slug auto-generated from the name, onboarding empty state.
+- **Demo project (F-04):** stale `"prj_lattice"` check replaced by `DEMO_PROJECT_ID`; saving the in-memory demo no longer 404-loops — it shows a read-only notice.
+- **Unsaved-edit guards (F-03, F-15):** `switchProject` prompts to save when dirty; thesis review tracks `isReviewDirty`, auto-saves 2 s after triage edits, shows "Uložené hh:mm" / error state and warns on tab close.
+- **Destructive confirmations (F-05):** shared `ConfirmDialog`; output-tab delete and thesis-review delete now confirm.
+- **Ingestion progress (F-06):** SSE heartbeat every 10 s during the MinerU wait with elapsed time; timeout gets a distinct, actionable error; upload list shows the live stage; X button labelled "Cancel parsing" while running.
+- **AI auto-fill (F-07):** "Undo auto-fill" button on the event; `overBudget`, dropped unknown assets and removed unknown `\cite{}` keys are reported instead of swallowed.
+- **Self-critique (F-08, F-16):** `debateLog` is now rendered in the review workspace; toggle/help text describe what actually runs (second independent pass, not a 3-expert panel); the critic receives evidence quotes so "overstated vs. evidence" is checkable.
+- **Language (F-09):** Academic Search dialog localised (sk/cs/en) via `lib/i18n/academic-search.ts` following the Settings language; mixed SK/EN strings in the agent panel unified to English.
+- **Bounded state (F-10):** `agentEvents`/`chatMessages` capped at 200 in the store and on hydrate.
+- **Error boundaries (F-11):** per-card boundaries in poster/slides/paper canvases, per-finding boundary and a workspace-level boundary in thesis review.
+- **Actionable review tips (F-12):** `ReviewTipSchema` accepts `cardId`; prompt asks for it; server drops unknown ids; the existing "Jump to Card →" link now activates.
+- **Duplicate workspace (F-13):** implemented (was a "coming soon" stub reachable from 4 menus) — copies outputs/cards with re-minted ids; uploaded assets are not copied and the user is told so.
+- **Collaboration (F-14):** new `GET/POST/DELETE /api/workspaces/:id/members` (owner invites by Clerk e-mail, editor/viewer roles); "Share" dialog with member list and invite link (`/?workspace=<id>` deep link honoured on load); Yjs now syncs output metadata (title/authors/venue/logos/theme/template) alongside cards, and local→Yjs pushes are debounced (150 ms).
+- **Grade transparency (F-17):** ECTS badge opens a popover showing weighted criteria, finding deductions, thresholds and proposed range.
+- **PDF viewer (F-18):** pages render lazily via IntersectionObserver (±150 % viewport) with height-preserving placeholders.
+- **Embeddings (F-19):** `embeddingHealth` tracks fallback vectors; rag-stats exposes it and the RAG panel shows a red "Embeddingy degradované" badge; `instrumentation.ts` warms the WASM model at boot.
+- **LaTeX for SK/CZ (F-20):** `ensureEncodingPreamble` injects `fontenc[T1]`, `lmodern` and babel (language auto-detected from body text) into poster/slides/paper output.
+- **Shortcuts (F-22):** ⌘/Ctrl+S saves, ⌘/Ctrl+Enter compiles (outside text areas).
+
 ### Security (Hardening Round 4 — external audit of `f2930ad6`)
 - **SSRF (V-01):** `lib/latex/remote-assets.ts` now downloads figures/logos through a new server-only `safeFetch` (`lib/safe-fetch.ts`) that validates the URL, its DNS-resolved addresses, and every redirect hop against private/reserved ranges, follows redirects manually, requires an image/PDF content-type, and verifies magic bytes. `import-url` uses the same helper (gaining the DNS check). Export route is now rate-limited (10/min).
 - **Auth bypass gate (V-03):** E2E bypass moved to `lib/e2e-bypass.ts`; it requires the server-only `E2E_AUTH_BYPASS=1` **and** `NODE_ENV=development|test`. `NEXT_PUBLIC_E2E_TEST` is now client-only and an unset `NODE_ENV` fails closed.

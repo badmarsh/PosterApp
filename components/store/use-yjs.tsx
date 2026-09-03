@@ -6,7 +6,8 @@ import * as Y from "yjs"
 import { WebsocketProvider } from "y-websocket"
 import { useEditorStoreInstance, useEditor } from "@/components/editor-store"
 import { useThesisReviewStore, getThesisReviewStore, type ThesisReviewRecord } from "@/components/thesis-review/use-thesis-review-store"
-import type { Card } from "@/lib/poster-types"
+import type { Card, OutputConfig } from "@/lib/poster-types"
+import { OUTPUT_META_KEYS, pickOutputMeta } from "./project-slice"
 import type { Collaborator } from "./types"
 import { jobQueue } from "@/lib/job-queue"
 import {
@@ -46,6 +47,8 @@ export function useYjs(workspaceId: string) {
     let currentBoundOutputId = store.getState().project.activeOutputId
     let currentObserver: ((event: Y.YMapEvent<string>) => void) | null = null
     let currentYCards: Y.Map<string> | null = null
+    let currentYMeta: Y.Map<string> | null = null
+    let currentMetaObserver: ((event: Y.YMapEvent<string>) => void) | null = null
 
     ydoc = new Y.Doc()
     const wsUrl = typeof window !== "undefined"
@@ -77,8 +80,33 @@ export function useYjs(workspaceId: string) {
       if (currentYCards && currentObserver) {
         currentYCards.unobserve(currentObserver)
       }
+      if (currentYMeta && currentMetaObserver) {
+        currentYMeta.unobserve(currentMetaObserver)
+      }
       currentBoundOutputId = outputId
       if (!outputId || !ydoc) return
+
+      // Output metadata (title/authors/venue/logos/theme) — previously only cards
+      // were shared, so header edits silently diverged between co-authors.
+      const metaRoot = ydoc.getMap<Y.Map<string>>("outputMeta")
+      let meta = metaRoot.get(outputId)
+      if (!meta) {
+        meta = new Y.Map<string>()
+        metaRoot.set(outputId, meta)
+      }
+      currentYMeta = meta
+      currentMetaObserver = (event: Y.YMapEvent<string>) => {
+        if (event.transaction.local) return
+        const patch: Record<string, unknown> = {}
+        event.changes.keys.forEach((_c, key) => {
+          if ((OUTPUT_META_KEYS as readonly string[]).includes(key)) {
+            const raw = meta!.get(key)
+            try { patch[key] = raw === undefined ? undefined : JSON.parse(raw) } catch { /* ignore malformed */ }
+          }
+        })
+        if (Object.keys(patch).length > 0) store.getState()._setOutputMetaFromYjs(outputId, patch as Partial<OutputConfig>)
+      }
+      meta.observe(currentMetaObserver)
 
       const outputs = ydoc.getMap<Y.Map<string>>("outputs")
       let cards = outputs.get(outputId)
@@ -184,17 +212,20 @@ export function useYjs(workspaceId: string) {
     // Listen for local Zustand changes and update Yjs (gated on canWrite permission)
     let lastCards =
       store.getState().project.outputs?.find((o) => o.id === store.getState().project.activeOutputId)?.cards ?? []
-    unsubscribeZustand = store.subscribe((state) => {
+    let lastOutputRef = store.getState().project.outputs?.find((o) => o.id === store.getState().project.activeOutputId) ?? null
+    // Debounce local → Yjs pushes: every keystroke used to JSON.stringify every card.
+    let pushTimer: ReturnType<typeof setTimeout> | null = null
+    const flushToYjs = () => {
+      pushTimer = null
+      if (!canWrite || !ydoc || !currentYCards) return
+      const state = store.getState()
       const activeId = state.project.activeOutputId
-      if (activeId !== currentBoundOutputId) {
-        bindOutput(activeId)
-        rebindThesisStore()
-      }
-      if (!canWrite || !currentYCards || !activeId) return
-      const newCards = state.project.outputs?.find((o) => o.id === activeId)?.cards ?? []
-      if (newCards !== lastCards) {
-        lastCards = newCards
-        ydoc!.transact(() => {
+      const output = state.project.outputs?.find((o) => o.id === activeId)
+      if (!output) return
+      const newCards = output.cards ?? []
+      ydoc.transact(() => {
+        if (newCards !== lastCards) {
+          lastCards = newCards
           newCards.forEach((card) => {
             const currentStr = currentYCards!.get(card.id)
             const newStr = JSON.stringify(card)
@@ -204,7 +235,30 @@ export function useYjs(workspaceId: string) {
           Array.from(currentYCards!.keys()).forEach((key) => {
             if (!currentIds.has(key)) currentYCards!.delete(key)
           })
-        }, "local")
+        }
+        if (currentYMeta && output !== lastOutputRef) {
+          lastOutputRef = output
+          const meta = pickOutputMeta(output)
+          for (const key of OUTPUT_META_KEYS) {
+            const newStr = JSON.stringify(meta[key] ?? null)
+            if (currentYMeta.get(key) !== newStr) currentYMeta.set(key, newStr)
+          }
+        }
+      }, "local")
+    }
+    unsubscribeZustand = store.subscribe((state) => {
+      const activeId = state.project.activeOutputId
+      if (activeId !== currentBoundOutputId) {
+        bindOutput(activeId)
+        rebindThesisStore()
+        lastOutputRef = null
+      }
+      if (!canWrite || !currentYCards || !activeId) return
+      const output = state.project.outputs?.find((o) => o.id === activeId)
+      const newCards = output?.cards ?? []
+      if (newCards !== lastCards || output !== lastOutputRef) {
+        if (pushTimer) clearTimeout(pushTimer)
+        pushTimer = setTimeout(flushToYjs, 150)
       }
     })
 
@@ -311,8 +365,12 @@ export function useYjs(workspaceId: string) {
     return () => {
       isCancelled = true
       if (reconnectTimer) clearTimeout(reconnectTimer)
+      if (pushTimer) { clearTimeout(pushTimer); flushToYjs() }
       if (currentYCards && currentObserver) {
         currentYCards.unobserve(currentObserver)
+      }
+      if (currentYMeta && currentMetaObserver) {
+        currentYMeta.unobserve(currentMetaObserver)
       }
       thesisReviewsMap.unobserve(thesisObserver)
       unbindGranular?.()

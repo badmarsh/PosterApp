@@ -373,8 +373,8 @@ model GraphEdge {
 
                 {/* ── 9. Multi-Agent Debate (Hivemind Bias) ── */}
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-foreground text-sm border-b pb-1">9 · Prevencia Hivemind Bias (Multi-Agent Debate)</h4>
-                  <p className="text-xs">Umelá inteligencia má tendenciu skĺznuť k prvému nájdenému riešeniu (Hivemind bias / sycophancy). Keď je v UI zapnutá voľba <strong>Multi-Agent Debate</strong>, LLM v jednom behu asynchrónne simuluje panelovú diskusiu troch expertov (Pesimista, Optimista, Metodik), ich argumenty zaznamená do <code className="bg-muted px-1 rounded text-[10px]">debateLog</code> a až na základe ich konsenzu sformuluje finálne hodnotenie. Toto výrazne znižuje výskyt &quot;AI halucinácií&quot; a povrchného hodnotenia.</p>
+                  <h4 className="font-semibold text-foreground text-sm border-b pb-1">9 · Kritická sebarevízia (druhý AI prechod)</h4>
+                  <p className="text-xs">Umelá inteligencia má tendenciu skĺznuť k prvému nájdenému riešeniu (sycophancy / hivemind bias). Keď je zapnutá voľba <strong>Kritická sebarevízia</strong>, po primárnom posudku prebehne <strong>druhé, nezávislé volanie modelu</strong> s vyššou teplotou, ktoré dostane návrh zistení spolu s citovanými dôkazmi z práce a hľadá nadhodnotené závery, chýbajúce slabiny a nesprávne nastavenú závažnosť. Nadhodnotené zistenia sa znížia o jeden stupeň a označia na ľudskú kontrolu. Súhrn kritiky nájdete v posudku v sekcii <em>Kritická sebarevízia AI</em>. Voľba približne zdvojnásobí čas a cenu generovania.</p>
                 </div>
 
               </AccordionContent>

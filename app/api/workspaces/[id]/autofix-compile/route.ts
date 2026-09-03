@@ -127,12 +127,30 @@ Respond EXACTLY in this JSON format (no markdown wrappers):
     // Validate that the returned IDs actually exist in the provided cards,
     // and ensure the content does not introduce unsafe LaTeX
     const validCardIds = new Set(cards.map((c: Card) => c.id))
-    const validPatches = parsedData.patches.filter(
-      (patch) =>
-        validCardIds.has(patch.id) &&
-        patch.content.trim().length > 0 &&
-        hasUnsafeLatex(patch.content).length === 0
-    )
+    // Injection guard: the compiler log is attacker-influenceable (it echoes card
+    // content). Never let it steer the model into rewriting *unrelated* cards —
+    // a patch is accepted only if the card is mentioned in the error window or
+    // the error window echoes a distinctive fragment of that card, and at most
+    // 3 cards may be patched per call.
+    const errorWindow = trimmedLog.toLowerCase()
+    const cardMentioned = (c: Card) => {
+      if (errorWindow.includes(c.id.toLowerCase())) return true
+      const fragments = (c.content || "").split(/\s+/).filter((w) => w.length >= 6).slice(0, 200)
+      let hits = 0
+      for (const f of fragments) if (errorWindow.includes(f.toLowerCase())) { hits++; if (hits >= 2) return true }
+      return false
+    }
+    const suspectIds = new Set(cards.filter(cardMentioned).map((c: Card) => c.id))
+    const restrictToSuspects = suspectIds.size > 0
+    const validPatches = parsedData.patches
+      .filter(
+        (patch) =>
+          validCardIds.has(patch.id) &&
+          (!restrictToSuspects || suspectIds.has(patch.id)) &&
+          patch.content.trim().length > 0 &&
+          hasUnsafeLatex(patch.content).length === 0
+      )
+      .slice(0, 3)
 
     return NextResponse.json({
       explanation:

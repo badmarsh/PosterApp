@@ -3,6 +3,11 @@ import type { AgentEvent } from "@/lib/poster-types"
 import { apiFetch } from "@/lib/api-fetch"
 import { safeRandomUUID } from "@/lib/utils"
 
+/** Upper bounds so the event feed / chat history (persisted on every save) stay small. */
+const MAX_AGENT_EVENTS = 200
+const MAX_CHAT_MESSAGES = 200
+const tail = <T,>(arr: T[], n: number) => (arr.length > n ? arr.slice(arr.length - n) : arr)
+
 function makeEvent(e: Omit<AgentEvent, "id" | "ts" | "createdAt">): AgentEvent {
   return {
     ...e,
@@ -36,11 +41,11 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
   setIsAiStreaming: (v) => set({ isAiStreaming: v }),
 
   chatMessages: [],
-  setChatMessages: (messages) => set({ chatMessages: messages }),
+  setChatMessages: (messages) => set({ chatMessages: tail(messages, MAX_CHAT_MESSAGES) }),
 
   hydrateUi: (events, messages) => set({ 
-    agentEvents: events.length > 0 ? events : get().agentEvents, 
-    chatMessages: messages 
+    agentEvents: tail(events.length > 0 ? events : get().agentEvents, MAX_AGENT_EVENTS),
+    chatMessages: tail(messages, MAX_CHAT_MESSAGES),
   }),
 
   inspectorTab: "basics",
@@ -96,6 +101,10 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
     const ev = makeEvent(e)
     set((s) => {
       s.agentEvents.push(ev)
+      // Keep the feed (and the persisted payload) bounded.
+      if (s.agentEvents.length > MAX_AGENT_EVENTS) {
+        s.agentEvents.splice(0, s.agentEvents.length - MAX_AGENT_EVENTS)
+      }
     })
     return ev.id
   },
@@ -219,7 +228,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
           break; // Exit loop on success
         } else {
           if (attempts < MAX_ATTEMPTS) {
-            get().updateEvent(evId, { detail: `Attempt ${attempts} failed. Requesting LLM autofix...` })
+            get().updateEvent(evId, { detail: `Attempt ${attempts}/${MAX_ATTEMPTS} failed. Requesting LLM autofix...` })
             const autofixRes = await apiFetch(`/api/workspaces/${project.id}/autofix-compile?revision=${revision}`, {
                method: "POST",
                headers: { "Content-Type": "application/json" },
@@ -227,24 +236,40 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
             })
             if (!autofixRes.ok) throw new Error(`HTTP ${autofixRes.status}: ${await autofixRes.text().catch(() => "")}`)
             const autofixData = await autofixRes.json()
-            if (autofixData.fixes && Array.isArray(autofixData.fixes) && autofixData.fixes.length > 0) {
-               const explanation = autofixData.explanation
-                 ? `${autofixData.explanation} Click 'Apply Fixes' below.`
-                 : "The AI generated a fix for the compile error. Click 'Apply Fixes' below."
+            const fixes: Array<{ id: string; content: string }> = Array.isArray(autofixData.fixes) ? autofixData.fixes : []
+            if (fixes.length > 0) {
+               // Auto-apply the patches (they were already validated server-side for
+               // unsafe LaTeX and card-id membership), snapshot for undo, then loop
+               // back to recompile. This is what "3 attempts" always claimed to do.
+               const snapshot = fixes
+                 .map((f) => {
+                   const card = activeOutput.cards.find((c) => c.id === f.id)
+                   return card ? { cardId: card.id, content: card.content } : null
+                 })
+                 .filter((x): x is { cardId: string; content: string } => x !== null)
+               const alreadyIdentical = fixes.every((f) => activeOutput.cards.find((c) => c.id === f.id)?.content === f.content)
+               if (alreadyIdentical) {
+                 get().updateEvent(evId, { status: "error", title: "Compile failed", detail: "Autofix returned unchanged content — stopping." })
+                 get().setPendingAiPrompt(`The LaTeX compilation failed and the automatic fix did not change anything. Please analyze this error log and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
+                 break
+               }
+               fixes.forEach((f) => get().updateCard(f.id, { content: f.content }))
                get().updateEvent(evId, {
-                 status: "warning",
-                 title: "Compile failed — Autofix ready",
-                 detail: explanation,
-                 fixes: autofixData.fixes,
+                 status: "running",
+                 title: `Compile failed — applied ${fixes.length} autofix patch${fixes.length === 1 ? "" : "es"}, retrying`,
+                 detail: `${autofixData.explanation || "AI patched the Markdown that produced invalid LaTeX."} (attempt ${attempts}/${MAX_ATTEMPTS})`,
+                 fixes,
+                 fixesApplied: true,
+                 undoMany: snapshot,
                })
-               break;
+               continue
             } else {
                get().updateEvent(evId, { status: "error", title: "Compile failed", detail: "LLM autofix could not provide a fix." })
                get().setPendingAiPrompt(`The LaTeX compilation failed with the following error. Please analyze it, explain the issue, and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
                break;
             }
           } else {
-            get().updateEvent(evId, { status: "error", title: "Compile failed", detail: (data.log ?? "").slice(0, 200) })
+            get().updateEvent(evId, { status: "error", title: `Compile failed after ${MAX_ATTEMPTS} attempts`, detail: (data.log ?? "").slice(0, 200) })
             get().setPendingAiPrompt(`The LaTeX compilation failed after multiple attempts. Please analyze this error log, explain the issue, and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
           }
         }

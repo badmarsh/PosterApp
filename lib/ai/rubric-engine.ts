@@ -833,6 +833,20 @@ export function getApplicableCriteriaForThesisType(
 /**
  * Converts a numeric score (0-100) or score range to an ECTS grade.
  */
+/** Single source of truth for score → ECTS grade bands (also emitted into prompts). */
+export const GRADE_BANDS: ReadonlyArray<{ grade: "A" | "B" | "C" | "D" | "E" | "FX"; min: number; max: number }> = [
+  { grade: "A", min: 90, max: 100 },
+  { grade: "B", min: 80, max: 89 },
+  { grade: "C", min: 70, max: 79 },
+  { grade: "D", min: 60, max: 69 },
+  { grade: "E", min: 50, max: 59 },
+  { grade: "FX", min: 0, max: 49 },
+]
+
+export function formatGradeBandsText(): string {
+  return GRADE_BANDS.map((b) => `${b.grade} ${b.min}–${b.max}`).join(" · ")
+}
+
 export function calculateGradeRange(score: number): { grade: CriterionRating; range: string; minScore: number; maxScore: number } {
   const minScore = Math.max(0, score - 5)
   const maxScore = Math.min(100, score + 5)

@@ -31,17 +31,20 @@ export type CardGenerationResult = z.infer<typeof CardGenerationSchema>
 // 2. Review Tips
 export const ReviewTipSchema = z.preprocess((item: any) => {
   if (item && typeof item === "object") {
+    const cardId = item.cardId ?? item.card_id ?? item.card ?? undefined
     return {
       severity: item.severity || "info",
       category: item.category || "content",
-      message: item.message || item.tip || item.text || item.description || "Review tip"
+      message: item.message || item.tip || item.text || item.description || "Review tip",
+      ...(typeof cardId === "string" && cardId.trim() ? { cardId: cardId.trim() } : {}),
     }
   }
   return item
 }, z.object({
   severity: z.enum(["error", "warning", "info"]).catch("info"),
   category: z.enum(["citation", "typo", "figure", "layout", "content", "grounding"]).catch("content"),
-  message: z.string()
+  message: z.string(),
+  cardId: z.string().max(128).optional(),
 }))
 
 export const ReviewTipsSchema = z.preprocess((raw: any) => {

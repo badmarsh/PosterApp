@@ -56,6 +56,7 @@ export const IngestFileSchema = z.object({
   status: z.string().optional().default("done"),
   progress: z.number().optional().default(100),
   error: z.string().nullable().optional(),
+  stage: z.string().max(500).nullable().optional(),
   dismissed: z.boolean().optional(),
 })
 

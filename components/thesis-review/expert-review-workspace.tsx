@@ -13,6 +13,8 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import { useScopedThesisReviewStore } from "./thesis-review-provider"
 import { EvidenceViewer } from "./evidence-viewer"
 import { FindingCard } from "./finding-card"
+import { GradeDerivationPopover } from "./grade-derivation-popover"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { ReportingChecklistPanel } from "./reporting-checklist-panel"
 import { DefenseQuestionsPanel } from "./defense-questions-panel"
 import { CitationIssuesPanel } from "./citation-issues-panel"
@@ -61,6 +63,7 @@ import {
   HelpCircle,
   UserCheck,
   GraduationCap,
+  ShieldAlert,
 } from "lucide-react"
 import {
   formatReviewToMarkdown,
@@ -97,6 +100,9 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
     saveReview,
     exportReviewPdf,
     isSaving,
+    isReviewDirty,
+    lastSavedAt,
+    saveError,
     isExporting,
     setActiveReview,
   } = useScopedThesisReviewStore()
@@ -135,6 +141,21 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
 
   // Keep the decision modal inputs in sync with the active review when it
   // changes (e.g. switched via the list, or updated by Yjs collaboration).
+  // Auto-save triage edits 2 s after the last change, and guard tab close.
+  const activeReviewId = activeReview?.id
+  useEffect(() => {
+    if (!isReviewDirty || !activeReviewId || isSaving) return
+    const t = setTimeout(() => { void saveReview(workspaceId, activeReviewId) }, 2000)
+    return () => clearTimeout(t)
+  }, [isReviewDirty, activeReviewId, isSaving, saveReview, workspaceId])
+
+  useEffect(() => {
+    if (!isReviewDirty) return
+    const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = "" }
+    window.addEventListener("beforeunload", onBeforeUnload)
+    return () => window.removeEventListener("beforeunload", onBeforeUnload)
+  }, [isReviewDirty])
+
   useEffect(() => {
     setConfirmedGrade(activeReview?.finalGrade || activeReview?.grade || "B")
     setConfirmedRecommendation(
@@ -396,13 +417,14 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 {activeReview.reviewKind || activeReview.thesisType}
               </Badge>
               {activeReview.grade && (
-                <Badge
-                  variant={activeReview.confirmedAt ? "default" : "outline"}
-                  className="text-xs font-bold shrink-0 gap-1"
-                >
-                  {activeReview.confirmedAt && <CheckCircle2 className="h-3 w-3 text-green-400" />}
-                  ECTS: {activeReview.grade}
-                </Badge>
+                <GradeDerivationPopover
+                  grade={activeReview.grade}
+                  sections={activeReview.sections ?? []}
+                  findings={activeReview.findings ?? []}
+                  proposedGradeRange={activeReview.proposedGradeRange}
+                  confirmed={!!activeReview.confirmedAt}
+                  lang={lang}
+                />
               )}
             </div>
             <p className="text-[11px] text-muted-foreground truncate max-w-xs sm:max-w-md">
@@ -496,9 +518,18 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
             disabled={isSaving}
             className="text-xs h-8 px-3 gap-1.5 font-medium rounded-lg border-border/80 hover:bg-muted/80 shadow-2xs"
           >
-            <Save className="h-3.5 w-3.5 text-muted-foreground" />
-            {isSaving ? "Ukladám..." : "Uložiť"}
+            <Save className={cn("h-3.5 w-3.5", isReviewDirty ? "text-amber-600" : "text-muted-foreground")} />
+            {isSaving ? "Ukladám..." : isReviewDirty ? "Uložiť •" : "Uložené"}
           </Button>
+          <span className="hidden lg:inline text-[10px] text-muted-foreground" aria-live="polite">
+            {saveError
+              ? <span className="text-destructive">Uloženie zlyhalo: {saveError}</span>
+              : isReviewDirty
+                ? "Neuložené zmeny (auto-uloženie o chvíľu)"
+                : lastSavedAt
+                  ? `Uložené ${new Date(lastSavedAt).toLocaleTimeString("sk-SK", { hour: "2-digit", minute: "2-digit" })}`
+                  : ""}
+          </span>
 
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -635,6 +666,21 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               ))}
             </div>
           </div>
+
+          {/* Adversarial self-critique log (only present when the critique pass ran) */}
+          {activeReview.debateLog && (
+            <details className="rounded-xl border bg-card p-4 shadow-sm group">
+              <summary className="flex cursor-pointer items-center gap-2 text-sm font-bold select-none">
+                <ShieldAlert className="h-4 w-4 text-amber-600" />
+                Kritická sebarevízia AI (druhý nezávislý prechod)
+                <span className="ml-auto text-[10px] font-normal text-muted-foreground group-open:hidden">zobraziť</span>
+              </summary>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Druhý model s vyššou teplotou posúdil návrh zistení voči citovaným dôkazom. Zistenia, ktoré označil za nadhodnotené, boli znížené o jeden stupeň a označené na ľudskú kontrolu; jeho úpravy sú uvedené priamo v texte zistení ako <em>[Critique …]</em>.
+              </p>
+              <pre className="mt-2 whitespace-pre-wrap rounded-md bg-muted/40 p-3 text-xs leading-relaxed font-sans text-foreground/90">{activeReview.debateLog}</pre>
+            </details>
+          )}
 
           {/* Reporting Guidelines Compliance (CONSORT / PRISMA / STROBE / ML) */}
           {activeReview.reportingStandard && activeReview.reportingStandard !== "none" && (
@@ -922,8 +968,12 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
             {filteredFindings.length > 0 ? (
               <div className="space-y-3">
                 {filteredFindings.map((finding, idx) => (
-                  <FindingCard
+                  <ErrorBoundary
                     key={finding.id}
+                    name={`Zistenie „${finding.title}“`}
+                    fallback={<div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">Zistenie „{finding.title}“ sa nepodarilo zobraziť (poškodené dáta). Ostatné zistenia nie sú ovplyvnené.</div>}
+                  >
+                  <FindingCard
                     finding={finding}
                     lang={lang}
                     isSelected={idx === selectedFindingIndex}
@@ -933,6 +983,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                     onEdit={editFinding}
                     onToggleExport={toggleFindingExport}
                   />
+                  </ErrorBoundary>
                 ))}
               </div>
             ) : (

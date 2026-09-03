@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Cpu, LayoutGrid, PanelsTopLeft, SquarePen } from "lucide-react"
 import { useShallow } from "zustand/react/shallow"
-import { useEditor } from "@/components/editor-store"
+import { useEditor, useEditorStoreInstance } from "@/components/editor-store"
 import { TopBar } from "@/components/top-bar"
 import { ProjectSettingsSidebar } from "@/components/project-settings-sidebar"
 import { StructureSidebar } from "@/components/structure-sidebar"
@@ -25,6 +25,7 @@ import { AcademicSearchDialog } from "@/components/academic-search-dialog"
 
 import { CommandPalette } from "@/components/command-palette"
 import { ThesisReviewStoreProvider } from "@/components/thesis-review/thesis-review-provider"
+import { DEMO_PROJECT_ID } from "@/lib/mock-data"
 
 
 type MobilePane = "structure" | "preview" | "editor" | "agent"
@@ -33,17 +34,30 @@ function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: ()
   const [structureOpen, setStructureOpen] = useState(true)
   const [agentOpen, setAgentOpen] = useState(true)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const editorStore = useEditorStoreInstance()
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault()
         setPaletteOpen((v) => !v)
+        return
+      }
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "s") {
+        e.preventDefault()
+        void editorStore.getState().saveProject()
+        return
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        const target = e.target as HTMLElement | null
+        if (target && (target.tagName === "TEXTAREA" || target.isContentEditable)) return
+        e.preventDefault()
+        void editorStore.getState().compileProject()
       }
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [])
+  }, [editorStore])
 
   const isThesisReview = useEditor((s) => {
     const o = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
@@ -308,13 +322,18 @@ export function Shell() {
 
   useEffect(() => {
     if (!hasAutoLoaded) {
-      if (lastWorkspaceId && lastWorkspaceId !== "prj_lattice") {
+      // Deep link from a shared invite: /?workspace=<id> wins over the remembered workspace.
+      const linked = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("workspace") : null
+      if (linked && /^[A-Za-z0-9_-]{3,64}$/.test(linked)) {
+        switchProject(linked)
+        window.history.replaceState({}, "", window.location.pathname)
+      } else if (lastWorkspaceId && lastWorkspaceId !== DEMO_PROJECT_ID) {
         switchProject(lastWorkspaceId)
       } else {
         setShowSelector(true)
       }
       setHasAutoLoaded(true)
-    } else if (project.id === "prj_lattice" && !isSwitchingProject) {
+    } else if (project.id === DEMO_PROJECT_ID && !isSwitchingProject) {
       setShowSelector(true)
     }
   }, [project.id, lastWorkspaceId, hasAutoLoaded, isSwitchingProject, switchProject])

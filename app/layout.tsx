@@ -7,6 +7,7 @@ import { GeistMono } from 'geist/font/mono'
 import { ClerkProvider } from '@clerk/nextjs'
 import { ThemeProvider } from '@/components/theme-provider'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
 
@@ -63,6 +64,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <TooltipProvider delay={200}>{children}</TooltipProvider>
+            <Toaster />
           </ThemeProvider>
           {process.env.NODE_ENV === 'production' && <Analytics />}
         </body>

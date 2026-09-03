@@ -1,6 +1,7 @@
 import { generateAIResponse } from "@/lib/ai/client"
 import { VisionCaptionSchema } from "@/lib/ai/contracts"
-import { getVisionModelChain, resolveAiModel, AI_TIMEOUTS } from "@/lib/ai/models"
+import { getVisionModelChain, resolveAiModel, AI_TIMEOUTS, VISION_CHAIN_DEADLINE_MS } from "@/lib/ai/models"
+import { AIProviderError } from "@/lib/ai/errors"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 import { decodeHtmlEntities } from "@/lib/utils"
 
@@ -60,16 +61,21 @@ Respond STRICTLY with valid JSON.`
 
     const models = getVisionModelChain()
     let lastError: unknown = null
+    // One deadline for the whole chain — each model still gets its own per-request timeout.
+    const chainDeadline = AbortSignal.timeout(VISION_CHAIN_DEADLINE_MS)
 
     for (const model of models) {
+      if (chainDeadline.aborted) break
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
+          const perRequest = AbortSignal.timeout(AI_TIMEOUTS.vision)
+          const signal = typeof AbortSignal.any === "function" ? AbortSignal.any([perRequest, chainDeadline]) : perRequest
           const result = await generateAIResponse("vision-caption", {
             role: "vision",
             model,
             userPrompt,
             schema: VisionCaptionSchema,
-            signal: AbortSignal.timeout(AI_TIMEOUTS.vision),
+            signal,
           })
 
           const name = decodeHtmlEntities(cleanCaptionOrName(result.name))
@@ -87,6 +93,16 @@ Respond STRICTLY with valid JSON.`
         } catch (err) {
           lastError = err
           const errMsg = err instanceof Error ? err.message : String(err)
+          if (err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError") && chainDeadline.aborted) {
+            console.warn(`[Vision] Chain deadline (${VISION_CHAIN_DEADLINE_MS}ms) reached at model "${model}"`)
+            break
+          }
+          // 4xx other than 429 (model not found, bad request) — the *provider* is
+          // fine, so try the next model immediately without a second attempt.
+          if (err instanceof AIProviderError && err.status >= 400 && err.status < 500 && err.status !== 429) {
+            console.warn(`[Vision] Model "${model}" rejected (HTTP ${err.status}); skipping to next model`)
+            break
+          }
           const isRateLimit = errMsg.includes("429") || errMsg.includes("rate limit")
           if (isRateLimit && attempt === 1) {
             console.warn(`[Vision] Model "${model}" rate limited (429), retrying after 1000ms...`)

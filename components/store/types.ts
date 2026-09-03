@@ -41,6 +41,8 @@ export interface ProjectSlice {
   updateActiveOutput: (patch: Partial<OutputConfig>) => void
   updateActiveThemeColor: (hex: string) => void
   _setCardsFromYjs: (cards: Card[]) => void
+  /** Remote output metadata (title/authors/venue/logos/theme) from Yjs; never echoes back. */
+  _setOutputMetaFromYjs: (outputId: string, meta: Partial<OutputConfig>) => void
   updateCard: (id: string, patch: Partial<Card>) => void
   addCard: (column?: ColumnOrNull) => void
   addOutput: (outputType: OutputType, templateId: string) => void
@@ -50,12 +52,12 @@ export interface ProjectSlice {
   moveCard: (id: string, toColumn: ColumnOrNull, toIndex: number) => void
   validateCardAction: (id: string) => void
   generateLatexForCardAction: (id: string) => void
-  autoFillCardAction: (id: string) => Promise<void>
+  autoFillCardAction: (id: string, opts?: { bulk?: boolean }) => Promise<void>
   autoFillAllCardsAction: () => Promise<void>
   generateNewOutputStructure: (outputType: OutputType, count?: number) => Promise<void>
   aiReview: () => Promise<void>
   newProject: () => void
-  duplicateProject: () => void
+  duplicateProject: () => Promise<void>
   saveProject: () => Promise<void>
   convertOutputAction: (sourceOutputId: string, targetType: OutputType) => Promise<void>
 }

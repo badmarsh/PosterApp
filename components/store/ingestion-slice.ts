@@ -152,6 +152,10 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
                   if (event.type === "progress") {
                     if (event.stage && get().project.id === capturedWorkspaceId) {
                       get().pushLog("info", `[MinerU] ${event.stage}`)
+                      set((s) => {
+                        const ingestFile = s.project.ingestFiles.find((x) => x.id === id)
+                        if (ingestFile) ingestFile.stage = event.stage
+                      })
                     }
                     if (typeof event.progress === "number" && get().project.id === capturedWorkspaceId) {
                       set((s) => {

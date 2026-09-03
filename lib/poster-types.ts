@@ -128,6 +128,8 @@ export type ReviewTip = {
   severity: "error" | "warning" | "info"
   category: "citation" | "typo" | "figure" | "layout" | "content" | "grounding" | string
   message: string
+  /** Card the tip refers to, when the reviewer could attribute it. */
+  cardId?: string
 }
 
 export type EventFix = {
@@ -146,6 +148,12 @@ export type AgentEvent = {
   tips?: ReviewTip[]
   fixes?: EventFix[]
   fixesApplied?: boolean
+  /** Snapshot that lets the user revert an AI change (e.g. auto-fill) from the feed. */
+  undo?: { cardId: string; title: string; content: string; figures: Figure[] }
+  undoApplied?: boolean
+  /** Multi-card snapshot taken before autofix patches were applied automatically. */
+  undoMany?: Array<{ cardId: string; content: string }>
+  undoManyApplied?: boolean
 }
 
 export type Card = {

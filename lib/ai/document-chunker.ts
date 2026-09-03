@@ -12,10 +12,12 @@
  */
 
 import { prisma } from "@/lib/prisma"
+import { Prisma } from "@prisma/client"
 import { generateLocalEmbedding } from "@/lib/ai/local-embeddings"
 import { extractAndStoreGraphEntities } from "./graph-extractor"
 import { classifySectionKind, type SectionKind } from "@/lib/ai/thesis-context"
-import { resolveChunkSize } from "./chunking-config"
+import { resolveChunkSize, CHUNK_OVERLAP } from "./chunking-config"
+import { splitIntoSubchunks } from "./text-splitter"
 
 export type { SectionKind }
 
@@ -23,11 +25,39 @@ export type { SectionKind }
 // GraphRAG extraction guards
 // ---------------------------------------------------------------------------
 
+/**
+ * GraphRAG entity extraction is ON by default (set GRAPH_RAG_ENABLED=false to
+ * disable). It runs in the background, batched (3 chunks per LLM call), with a
+ * per-request timeout, a per-document cap and a per-workspace daily cap so cost
+ * stays bounded while cross-chapter (community) context is always available.
+ */
 const GRAPH_RAG_ENABLED = process.env.GRAPH_RAG_ENABLED !== "false"
 /** Chunks shorter than this rarely yield meaningful academic entities. */
 const GRAPH_EXTRACTION_MIN_CHARS = 400
 /** Hard cap per document — bounds LLM extraction cost on 200k+ char PhD dissertations. */
-const GRAPH_EXTRACTION_MAX_CHUNKS_PER_DOC = 60
+const GRAPH_EXTRACTION_MAX_CHUNKS_PER_DOC = Number(process.env.GRAPH_RAG_MAX_CHUNKS_PER_DOC) || 90
+/** Several adjacent chunks are merged into one extraction call (fewer, richer calls). */
+const GRAPH_EXTRACTION_BATCH_CHUNKS = 3
+/** Daily cap of extraction calls per workspace (in-process counter). */
+const GRAPH_EXTRACTION_DAILY_CAP_PER_WORKSPACE = Number(process.env.GRAPH_RAG_DAILY_CAP) || 400
+const graphDailyCounter = new Map<string, { day: string; count: number }>()
+
+function graphBudgetRemaining(workspaceId: string): number {
+  const day = new Date().toISOString().slice(0, 10)
+  const entry = graphDailyCounter.get(workspaceId)
+  if (!entry || entry.day !== day) {
+    graphDailyCounter.set(workspaceId, { day, count: 0 })
+    return GRAPH_EXTRACTION_DAILY_CAP_PER_WORKSPACE
+  }
+  return Math.max(0, GRAPH_EXTRACTION_DAILY_CAP_PER_WORKSPACE - entry.count)
+}
+
+function graphBudgetConsume(workspaceId: string, n: number): void {
+  const day = new Date().toISOString().slice(0, 10)
+  const entry = graphDailyCounter.get(workspaceId)
+  if (!entry || entry.day !== day) graphDailyCounter.set(workspaceId, { day, count: n })
+  else entry.count += n
+}
 /** Section kinds prioritized for entity extraction (thesis evaluation focus). */
 const GRAPH_EXTRACTION_PRIORITY_KINDS = new Set([
   "methodology",
@@ -47,85 +77,6 @@ export interface DocumentChunkInput {
   tokens: number
 }
 
-/**
- * Splits text that exceeds maxChars into overlapping subchunks while respecting
- * natural sentence (.!?) and paragraph boundaries where possible.
- */
-function splitIntoSubchunks(
-  text: string,
-  maxChars: number,
-  overlapChars: number
-): string[] {
-  if (text.length <= maxChars) return [text]
-
-  // First try splitting into logical paragraphs or sentences
-  const sentencePattern = /[^.!?\n]+(?:[.!?\n]+(?:\s+|$)|$)/g
-  const rawSentences = text.match(sentencePattern) || [text]
-  const sentences = rawSentences.map((s) => s.trim()).filter((s) => s.length > 0)
-
-  // Fallback for single giant token / unbroken block without punctuation
-  if (sentences.length <= 1) {
-    const subchunks: string[] = []
-    let pos = 0
-    while (pos < text.length) {
-      const slice = text.slice(pos, pos + maxChars)
-      subchunks.push(slice)
-      pos += Math.max(1, maxChars - overlapChars)
-      if (pos >= text.length) break
-    }
-    return subchunks
-  }
-
-  const subchunks: string[] = []
-  let currentBuffer: string[] = []
-  let currentLen = 0
-
-  for (const sentence of sentences) {
-    if (sentence.length > maxChars) {
-      if (currentBuffer.length > 0) {
-        subchunks.push(currentBuffer.join(" "))
-        currentBuffer = []
-        currentLen = 0
-      }
-      let pos = 0
-      while (pos < sentence.length) {
-        subchunks.push(sentence.slice(pos, pos + maxChars))
-        pos += Math.max(1, maxChars - overlapChars)
-      }
-      continue
-    }
-
-    if (currentLen + sentence.length + 1 > maxChars && currentBuffer.length > 0) {
-      subchunks.push(currentBuffer.join(" "))
-
-      // Calculate overlap sentences from the end of currentBuffer
-      const overlapBuffer: string[] = []
-      let overlapLen = 0
-      for (let i = currentBuffer.length - 1; i >= 0; i--) {
-        const prevSentence = currentBuffer[i]
-        if (overlapLen + prevSentence.length + 1 <= overlapChars) {
-          overlapBuffer.unshift(prevSentence)
-          overlapLen += prevSentence.length + 1
-        } else {
-          break
-        }
-      }
-
-      currentBuffer = [...overlapBuffer, sentence]
-      currentLen = currentBuffer.reduce((acc, s) => acc + s.length + 1, 0)
-    } else {
-      currentBuffer.push(sentence)
-      currentLen += sentence.length + 1
-    }
-  }
-
-  if (currentBuffer.length > 0) {
-    subchunks.push(currentBuffer.join(" "))
-  }
-
-  return subchunks
-}
-
 /** Split markdown text into semantic chunks based on heading hierarchy. */
 export function chunkMarkdown(
   rawMarkdown: string,
@@ -133,12 +84,12 @@ export function chunkMarkdown(
   opts: {
     maxChunkChars?: number   // target max characters per chunk (default 2000)
     minChunkChars?: number   // skip chunks smaller than this (default 1)
-    overlap?: number         // overlap between consecutive chunks in chars (default 200)
+    overlap?: number         // overlap between consecutive chunks in chars (default CHUNK_OVERLAP)
   } = {}
 ): Omit<DocumentChunkInput, "workspaceId">[] {
   const maxChunkChars = opts.maxChunkChars ?? 2000
   const minChunkChars = opts.minChunkChars ?? 1
-  const overlap = opts.overlap ?? 200
+  const overlap = opts.overlap ?? CHUNK_OVERLAP
   const markdown = rawMarkdown.replace(/\r\n/g, "\n")
 
   // Split on all heading lines (# / ## / ### etc.)
@@ -230,17 +181,27 @@ function runGraphExtractionQueue(
   candidates: Array<{ sectionKind: string; content: string }>
 ): void {
   ;(async () => {
+    // Merge adjacent chunks into batches → fewer, richer extraction calls.
+    const batches: string[] = []
+    for (let i = 0; i < candidates.length; i += GRAPH_EXTRACTION_BATCH_CHUNKS) {
+      batches.push(candidates.slice(i, i + GRAPH_EXTRACTION_BATCH_CHUNKS).map((c) => c.content).join("\n\n"))
+    }
+    const allowed = Math.min(batches.length, graphBudgetRemaining(workspaceId))
+    if (allowed < batches.length) {
+      console.warn(`[GraphRAG] Daily extraction cap reached for workspace ${workspaceId}: running ${allowed}/${batches.length} batches`)
+    }
+    graphBudgetConsume(workspaceId, allowed)
     let extracted = 0
-    for (const candidate of candidates) {
+    for (const batch of batches.slice(0, allowed)) {
       try {
-        const res = await extractAndStoreGraphEntities(workspaceId, documentId, candidate.content)
+        const res = await extractAndStoreGraphEntities(workspaceId, documentId, batch)
         if (res && (res.nodes > 0 || res.edges > 0)) extracted++
       } catch (err) {
         console.error("[GraphRAG] Background extraction failed:", err)
       }
     }
     if (extracted > 0) {
-      console.log(`[GraphRAG] Extracted entities from ${extracted}/${candidates.length} chunks (doc ${documentId})`)
+      console.log(`[GraphRAG] Extracted entities from ${extracted}/${allowed} batches (doc ${documentId})`)
     }
   })().catch(() => {})
 }
@@ -275,16 +236,16 @@ export async function ingestDocumentChunks(
     } catch { /* non-fatal */ }
   }
 
-  // Delete old chunks for this document (re-ingest is idempotent)
-  await prisma.documentChunk.deleteMany({ where: { workspaceId, documentId } })
-
   const rawChunks = chunkMarkdown(markdown, documentId, opts)
 
   let chunksCreated = 0
   let skipped = 0
   const graphCandidates: Array<{ sectionKind: string; content: string }> = []
+  const prepared: Array<{ heading: string | null; content: string; tokens: number; embeddingStr: string }> = []
 
-  // Process in batches to avoid memory pressure
+  // Phase 1 — embed everything first (WASM, slow). The old chunks stay in
+  // place meanwhile, so a review started during a reindex still retrieves
+  // from the previous index instead of an empty one.
   for (let i = 0; i < rawChunks.length; i += concurrency) {
     const batch = rawChunks.slice(i, i + concurrency)
     await Promise.all(
@@ -297,27 +258,12 @@ export async function ingestDocumentChunks(
               ? `${contextHeading}: ${chunk.content}`
               : chunk.content
           )
-
-          // Store as pgvector: '[0.1,0.2,...]'
-          const embeddingStr = `[${embedding.join(",")}]`
-
-          await prisma.$executeRaw`
-            INSERT INTO "DocumentChunk" (id, "workspaceId", "documentId", heading, content, tokens, embedding, "createdAt")
-            VALUES (
-              gen_random_uuid(),
-              ${workspaceId},
-              ${documentId},
-              ${chunk.heading},
-              ${chunk.content},
-              ${chunk.tokens},
-              ${embeddingStr}::vector,
-              NOW()
-            )
-          `
-          chunksCreated++
-
-          // Collect GraphRAG candidates — extraction runs detached after the
-          // embedding loop so it never delays the ingestion return path.
+          prepared.push({
+            heading: chunk.heading,
+            content: chunk.content,
+            tokens: chunk.tokens,
+            embeddingStr: `[${embedding.join(",")}]`,
+          })
           if (GRAPH_RAG_ENABLED && chunk.content.length >= GRAPH_EXTRACTION_MIN_CHARS) {
             graphCandidates.push({ sectionKind: chunk.sectionKind, content: chunk.content })
           }
@@ -327,6 +273,29 @@ export async function ingestDocumentChunks(
         }
       })
     )
+  }
+
+  // Phase 2 — atomic swap: delete old chunks and insert the new ones in one
+  // transaction (re-ingest is idempotent; readers see either old or new set).
+  if (prepared.length > 0) {
+    const INSERT_BATCH = 50
+    await prisma.$transaction(async (tx) => {
+      await tx.documentChunk.deleteMany({ where: { workspaceId, documentId } })
+      for (let i = 0; i < prepared.length; i += INSERT_BATCH) {
+        const slice = prepared.slice(i, i + INSERT_BATCH)
+        const values = slice.map(
+          (c) => Prisma.sql`(gen_random_uuid(), ${workspaceId}, ${documentId}, ${c.heading}, ${c.content}, ${c.tokens}, ${c.embeddingStr}::vector, NOW())`
+        )
+        await tx.$executeRaw`
+          INSERT INTO "DocumentChunk" (id, "workspaceId", "documentId", heading, content, tokens, embedding, "createdAt")
+          VALUES ${Prisma.join(values)}
+        `
+        chunksCreated += slice.length
+      }
+    }, { timeout: 120_000 })
+  } else {
+    // Nothing could be embedded — keep the previous index rather than wiping it.
+    console.warn(`[VectorRAG] No chunks embedded for ${workspaceId}/${documentId}; previous index left untouched`)
   }
 
   // Detached GraphRAG extraction: priority section kinds first, capped per doc

@@ -52,6 +52,7 @@ export interface DeserializedThesisReview {
   diagnostics: ReviewDiagnostics
   createdAt: Date | string
   updatedAt: Date | string
+  debateLog?: string | null
 }
 
 /**
@@ -317,6 +318,7 @@ export function deserializeThesisReview(dbRecord: any): DeserializedThesisReview
     reportingGuidelineChecks: normalizeGuidelineChecks(rawChecks),
     confidentialComments: dbRecord.confidentialComments ? String(dbRecord.confidentialComments) : null,
     phdEnrichment,
+    debateLog: dbRecord.debateLog ? String(dbRecord.debateLog) : null,
     confirmedAt: dbRecord.confirmedAt
       ? dbRecord.confirmedAt instanceof Date
         ? dbRecord.confirmedAt.toISOString()

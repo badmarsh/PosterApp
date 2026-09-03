@@ -28,5 +28,61 @@ export function getGenerator(outputType: OutputType, templateId: string): LatexG
  */
 export function generateFullTemplate(project: Project, outputConfig: OutputConfig, workspaceId = ""): string {
   const generator = getGenerator(outputConfig.outputType, outputConfig.templateId)
-  return generator.generateDocument(project, outputConfig, workspaceId)
+  const tex = generator.generateDocument(project, outputConfig, workspaceId)
+  // The thesis-review generator already emits its own babel/fontenc block.
+  if (outputConfig.outputType === "thesis-review") return tex
+  return ensureEncodingPreamble(tex, detectDocumentLanguage(tex))
+}
+
+/**
+ * Poster/slides/paper outputs carry no explicit language yet, so infer it from
+ * the generated body: Slovak/Czech text is reliably marked by characters that
+ * do not occur in English (ľ, ť, ď, ň, ô, ř, ě, ů, ...). Falls back to English.
+ */
+export function detectDocumentLanguage(tex: string): "sk" | "cs" | "en" {
+  const bodyStart = tex.indexOf("\\begin{document}")
+  const body = bodyStart >= 0 ? tex.slice(bodyStart) : tex
+  const cz = (body.match(/[řěůŘĚŮ]/g) ?? []).length
+  const sk = (body.match(/[ľĺŕôäĽĹŔÔÄ]/g) ?? []).length
+  const shared = (body.match(/[čšžťďňáéíóúýČŠŽŤĎŇÁÉÍÓÚÝ]/g) ?? []).length
+  if (cz + sk + shared < 3) return "en"
+  if (cz > sk) return "cs"
+  if (sk > cz) return "sk"
+  return "sk"
+}
+
+const BABEL_BY_LANG: Record<string, string> = {
+  sk: "slovak",
+  cs: "czech",
+  en: "english",
+  de: "german",
+  pl: "polish",
+  hu: "magyar",
+}
+
+/**
+ * pdflatex needs T1 font encoding + a matching babel option to typeset
+ * Slovak/Czech diacritics with proper hyphenation and vector glyphs. The
+ * built-in poster/slides/paper templates only declared `inputenc`, which
+ * produced bitmap-looking č/ď/ľ and English hyphenation for SK/CZ posters.
+ * Inserted once, right after \documentclass, and never duplicated.
+ */
+export function ensureEncodingPreamble(tex: string, language?: string | null): string {
+  const docclass = tex.match(/\\documentclass(\[[^\]]*\])?\{[^}]+\}[^\n]*\n/)
+  if (!docclass || docclass.index === undefined) return tex
+
+  const lang = (language || "en").toLowerCase().slice(0, 2)
+  const babelOpt = BABEL_BY_LANG[lang] ?? "english"
+  const lines: string[] = []
+  if (!/\\usepackage(\[[^\]]*\])?\{inputenc\}/.test(tex)) lines.push("\\usepackage[utf8]{inputenc}")
+  if (!/\\usepackage(\[[^\]]*\])?\{fontenc\}/.test(tex)) lines.push("\\usepackage[T1]{fontenc}")
+  if (!/\\usepackage\{lmodern\}/.test(tex)) lines.push("\\usepackage{lmodern}")
+  if (!/\\usepackage(\[[^\]]*\])?\{babel\}/.test(tex)) {
+    // Keep english as the fallback language so \selectlanguage works for mixed abstracts.
+    lines.push(babelOpt === "english" ? "\\usepackage[english]{babel}" : `\\usepackage[english,${babelOpt}]{babel}`)
+  }
+  if (lines.length === 0) return tex
+
+  const insertAt = docclass.index + docclass[0].length
+  return tex.slice(0, insertAt) + `% --- encoding & language (auto) ---\n${lines.join("\n")}\n` + tex.slice(insertAt)
 }

@@ -25,6 +25,8 @@ import { Badge } from "@/components/ui/badge"
 import { useEditor } from "@/components/editor-store"
 import { RubricTemplateModal } from "./rubric-template-modal"
 import { ReviewerCalibrationPanel } from "./reviewer-calibration-panel"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { ErrorBoundary } from "@/components/error-boundary"
 import {
   GraduationCap,
   Trash2,
@@ -72,6 +74,8 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
   // Real RAG index diagnostics, mirrored from RagIndexStatusPanel's own fetch
   const [ragStats, setRagStats] = useState<RagStats | null>(null)
   const [showRubricModal, setShowRubricModal] = useState(false)
+  const [pendingDeleteReviewId, setPendingDeleteReviewId] = useState<string | null>(null)
+  const pendingDeleteReview = reviews.find((r) => r.id === pendingDeleteReviewId)
   const [showCalibrationModal, setShowCalibrationModal] = useState(false)
   const [selectedTemplateId, setSelectedTemplateId] = useState("uk_prirodovedecka_stem")
   const [customCriteria, setCustomCriteria] = useState<any[] | undefined>(undefined)
@@ -158,10 +162,12 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
 
   if (activeReview) {
     return (
-      <ExpertReviewWorkspace
-        workspaceId={workspaceId}
-        sourceMarkdown={effectiveMarkdown}
-      />
+      <ErrorBoundary name="Expert Review Workspace">
+        <ExpertReviewWorkspace
+          workspaceId={workspaceId}
+          sourceMarkdown={effectiveMarkdown}
+        />
+      </ErrorBoundary>
     )
   }
 
@@ -306,7 +312,10 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                       className="mt-0.5 rounded accent-primary cursor-pointer shrink-0"
                     />
                     <span className="leading-tight text-[11px] select-none text-foreground/90">
-                      Multi-Agent Debate (Hivemind Bias prevencia)
+                      Kritická sebarevízia (druhý AI prechod)
+                      <span className="block text-[10px] text-muted-foreground font-normal mt-0.5">
+                        Nezávislý model preverí návrh zistení voči dôkazom a zníži nadhodnotené závery. Približne 2× dlhšie a drahšie; výstup sa zobrazí v posudku.
+                      </span>
                     </span>
                   </label>
 
@@ -528,7 +537,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                       className="opacity-0 group-hover:opacity-100 text-destructive hover:bg-destructive/10 h-8 w-8 shrink-0 transition-opacity"
                       onClick={(e) => {
                         e.stopPropagation()
-                        deleteReview(workspaceId, rev.id)
+                        setPendingDeleteReviewId(rev.id)
                       }}
                       title="Odstrániť posudok"
                     >
@@ -593,6 +602,15 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={!!pendingDeleteReviewId}
+        onOpenChange={(o) => { if (!o) setPendingDeleteReviewId(null) }}
+        title="Odstrániť posudok?"
+        description={<>Posudok {pendingDeleteReview?.thesisTitle ? <strong>„{pendingDeleteReview.thesisTitle}“</strong> : "vybranej práce"} vrátane všetkých zistení a rozhodnutí bude natrvalo odstránený. Túto akciu nie je možné vrátiť späť.</>}
+        confirmLabel="Odstrániť posudok"
+        cancelLabel="Zrušiť"
+        onConfirm={async () => { if (pendingDeleteReviewId) await deleteReview(workspaceId, pendingDeleteReviewId); setPendingDeleteReviewId(null) }}
+      />
     </div>
   )
 }

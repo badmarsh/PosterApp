@@ -1,0 +1,100 @@
+import type { ReviewLanguage } from "@/lib/ai/thesis-rubric"
+
+/**
+ * UI strings for the Academic Search dialog. This surface is shared between the
+ * (English) poster editor and the (Slovak/Czech) thesis reviewer, so it follows
+ * the user's interface language setting instead of being hardcoded in Slovak.
+ */
+const STRINGS = {
+  en: {
+    title: "Academic connector",
+    subtitle: "Search 250M+ scholarly works across OpenAlex, Crossref, Semantic Scholar and arXiv",
+    placeholder: "Enter a topic, keywords, a DOI (10.1103/...) or an arXiv ID…",
+    search: "Search",
+    domainAll: "All fields",
+    domainPhysics: "Physics & STEM",
+    domainCs: "Computer science / AI",
+    domainEngineering: "Engineering",
+    domainMedicine: "Medicine & Bio",
+    yearsAll: "All years",
+    years2: "Last 2 years",
+    years5: "Last 5 years",
+    searching: "Searching OpenAlex, Crossref, Semantic Scholar and arXiv…",
+    searchingSub: "Merging bibliographic metadata and looking for Open Access PDFs",
+    citations: (n: number) => `${n} citation${n === 1 ? "" : "s"}`,
+    collapseAbstract: "Collapse abstract",
+    expandAbstract: "Show full abstract",
+    copied: "Copied",
+    copy: "Copy",
+    noResults: "No scholarly works found",
+    noResultsHint: "Try different keywords, a broader field filter, searching in English, or paste a DOI directly.",
+    emptyTitle: "Enter a research topic, keywords or an identifier",
+    emptyHint: "The connector finds full texts and citations and generates BibTeX entries for your poster, paper or review.",
+    quickExamples: "Quick example searches:",
+    toastCopied: "Citation copied to clipboard",
+    toastAdded: (key: string) => `Added to .bib: @${key}`,
+  },
+  sk: {
+    title: "Akademický konektor",
+    subtitle: "Vyhľadávanie v 250M+ vedeckých prácach naprieč OpenAlex, Crossref, Semantic Scholar a arXiv",
+    placeholder: "Zadajte tému, kľúčové slová, DOI (10.1103/...) alebo arXiv ID…",
+    search: "Hľadať",
+    domainAll: "Všetky odbory",
+    domainPhysics: "Fyzika & STEM",
+    domainCs: "Informatika / AI",
+    domainEngineering: "Inžinierstvo",
+    domainMedicine: "Medicína & Bio",
+    yearsAll: "Všetky roky",
+    years2: "Posledné 2 roky",
+    years5: "Posledných 5 rokov",
+    searching: "Prehľadávam OpenAlex, Crossref, Semantic Scholar a arXiv…",
+    searchingSub: "Zjednocujem bibliografické metaúdaje a hľadám Open Access PDF",
+    citations: (n: number) => `${n} ${n === 1 ? "citácia" : n >= 2 && n <= 4 ? "citácie" : "citácií"}`,
+    collapseAbstract: "Zbaliť abstrakt",
+    expandAbstract: "Zobraziť celý abstrakt",
+    copied: "Skopírované",
+    copy: "Kopírovať",
+    noResults: "Nenašli sa žiadne vedecké práce",
+    noResultsHint: "Skúste upraviť kľúčové slová, zvoliť širší odborový filter, vyhľadať v angličtine alebo zadať priamo DOI identifikátor.",
+    emptyTitle: "Zadajte vedeckú tému, kľúčové slová alebo identifikátor",
+    emptyHint: "Konektor vyhľadáva plné texty, citácie a generuje BibTeX záznamy priamo pre váš poster, článok alebo posudok.",
+    quickExamples: "Rýchle ukážky vyhľadávania:",
+    toastCopied: "Citácia skopírovaná do schránky",
+    toastAdded: (key: string) => `Pridané do .bib: @${key}`,
+  },
+  cs: {
+    title: "Akademický konektor",
+    subtitle: "Vyhledávání v 250M+ vědeckých pracích napříč OpenAlex, Crossref, Semantic Scholar a arXiv",
+    placeholder: "Zadejte téma, klíčová slova, DOI (10.1103/...) nebo arXiv ID…",
+    search: "Hledat",
+    domainAll: "Všechny obory",
+    domainPhysics: "Fyzika & STEM",
+    domainCs: "Informatika / AI",
+    domainEngineering: "Inženýrství",
+    domainMedicine: "Medicína & Bio",
+    yearsAll: "Všechny roky",
+    years2: "Poslední 2 roky",
+    years5: "Posledních 5 let",
+    searching: "Prohledávám OpenAlex, Crossref, Semantic Scholar a arXiv…",
+    searchingSub: "Sjednocuji bibliografická metadata a hledám Open Access PDF",
+    citations: (n: number) => `${n} ${n === 1 ? "citace" : n >= 2 && n <= 4 ? "citace" : "citací"}`,
+    collapseAbstract: "Sbalit abstrakt",
+    expandAbstract: "Zobrazit celý abstrakt",
+    copied: "Zkopírováno",
+    copy: "Kopírovat",
+    noResults: "Nenalezeny žádné vědecké práce",
+    noResultsHint: "Zkuste upravit klíčová slova, zvolit širší oborový filtr, hledat anglicky nebo zadat přímo DOI.",
+    emptyTitle: "Zadejte vědecké téma, klíčová slova nebo identifikátor",
+    emptyHint: "Konektor vyhledává plné texty, citace a generuje BibTeX záznamy přímo pro váš poster, článek nebo posudek.",
+    quickExamples: "Rychlé ukázky vyhledávání:",
+    toastCopied: "Citace zkopírována do schránky",
+    toastAdded: (key: string) => `Přidáno do .bib: @${key}`,
+  },
+} as const
+
+export type AcademicSearchStrings = (typeof STRINGS)["en"]
+
+export function getAcademicSearchStrings(lang: ReviewLanguage | string | undefined): AcademicSearchStrings {
+  if (lang === "sk" || lang === "cs") return STRINGS[lang] as unknown as AcademicSearchStrings
+  return STRINGS.en
+}

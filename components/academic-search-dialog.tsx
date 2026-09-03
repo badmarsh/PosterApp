@@ -37,6 +37,8 @@ import {
   TrendingUp,
 } from "lucide-react"
 import { toast } from "sonner"
+import { useSettings } from "@/lib/settings-store"
+import { getAcademicSearchStrings } from "@/lib/i18n/academic-search"
 import type { AcademicPaperResult } from "@/lib/services/academic-connector"
 import { academicPaperToBibEntry } from "@/lib/bib-types"
 import { useEditorStoreInstance } from "@/components/editor-store"
@@ -46,12 +48,12 @@ interface Props {
   onOpenChange: (open: boolean) => void
 }
 
-const DOMAIN_PRESETS = [
-  { id: "all", label: "Všetky odbory" },
-  { id: "physics", label: "Fyzika & STEM", prefix: "physics " },
-  { id: "cs", label: "Informatika / AI", prefix: "computer science machine learning " },
-  { id: "engineering", label: "Inžinierstvo", prefix: "engineering " },
-  { id: "medicine", label: "Medicína & Bio", prefix: "biomedical clinical " },
+const DOMAIN_PRESETS: { id: string; labelKey: "domainAll" | "domainPhysics" | "domainCs" | "domainEngineering" | "domainMedicine"; prefix?: string }[] = [
+  { id: "all", labelKey: "domainAll" },
+  { id: "physics", labelKey: "domainPhysics", prefix: "physics " },
+  { id: "cs", labelKey: "domainCs", prefix: "computer science machine learning " },
+  { id: "engineering", labelKey: "domainEngineering", prefix: "engineering " },
+  { id: "medicine", labelKey: "domainMedicine", prefix: "biomedical clinical " },
 ]
 
 const QUICK_SUGGESTIONS = [
@@ -63,6 +65,8 @@ const QUICK_SUGGESTIONS = [
 ]
 
 export function AcademicSearchDialog({ open, onOpenChange }: Props) {
+  const uiLanguage = useSettings((s) => s.defaultReviewLanguage)
+  const t = getAcademicSearchStrings(uiLanguage)
   const [query, setQuery] = useState("")
   const [domain, setDomain] = useState("all")
   const [yearFilter, setYearFilter] = useState<string>("all")
@@ -124,7 +128,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
     const cit = `${authors} (${paper.year ?? "n.d."}). ${paper.title}.${paper.venue ? ` ${paper.venue}.` : ""}${paper.doi ? ` DOI: ${paper.doi}` : paper.url ? ` URL: ${paper.url}` : ""}`
     navigator.clipboard.writeText(cit)
     setCopiedId(String(idx))
-    toast.success("Citácia skopírovaná do schránky")
+    toast.success(t.toastCopied)
     setTimeout(() => setCopiedId(null), 2000)
   }
 
@@ -132,7 +136,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
     const entry = academicPaperToBibEntry(paper)
     await editorStore.getState().addBibEntry(entry)
     setImportedKeys((prev) => new Set([...prev, entry.key]))
-    toast.success(`Pridané do .bib: @${entry.key}`)
+    toast.success(t.toastAdded(entry.key))
   }
 
   const toggleAbstract = (id: string) => {
@@ -154,10 +158,10 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
             </div>
             <div>
               <DialogTitle className="text-base font-bold flex items-center gap-2">
-                Akademický konektor <span className="text-xs font-normal text-muted-foreground font-mono">(Perplexity Academic)</span>
+                {t.title} <span className="text-xs font-normal text-muted-foreground font-mono">(Perplexity Academic)</span>
               </DialogTitle>
               <p className="text-xs text-muted-foreground">
-                Vyhľadávanie v 250M+ vedeckých prácach naprieč OpenAlex, Crossref, Semantic Scholar a arXiv
+                {t.subtitle}
               </p>
             </div>
           </div>
@@ -170,7 +174,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
               <Search className="absolute left-3.5 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 className="pl-10 pr-9 h-10 text-sm rounded-lg bg-background shadow-2xs focus-visible:ring-1"
-                placeholder="Zadajte tému, kľúčové slová, DOI (10.1103/...) alebo arXiv ID…"
+                placeholder={t.placeholder}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -194,7 +198,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
               disabled={isSearching || query.trim().length < 2}
             >
               {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              Hľadať
+              {t.search}
             </Button>
           </div>
 
@@ -212,7 +216,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
                       : "bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/40"
                   }`}
                 >
-                  {d.label}
+                  {t[d.labelKey]}
                 </button>
               ))}
             </div>
@@ -224,9 +228,9 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
                 onChange={(e) => setYearFilter(e.target.value)}
                 className="h-7 text-[11px] font-medium rounded-md border bg-background px-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="all">Všetky roky</option>
-                <option value="2y">Posledné 2 roky</option>
-                <option value="5y">Posledných 5 rokov</option>
+                <option value="all">{t.yearsAll}</option>
+                <option value="2y">{t.years2}</option>
+                <option value="5y">{t.years5}</option>
               </select>
             </div>
           </div>
@@ -237,8 +241,8 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
           {isSearching ? (
             <div className="py-16 flex flex-col items-center justify-center space-y-3 text-muted-foreground">
               <Loader2 className="h-9 w-9 animate-spin text-primary" />
-              <p className="text-xs font-medium">Prehľadávam OpenAlex, Crossref, Semantic Scholar a arXiv…</p>
-              <p className="text-[11px] text-muted-foreground/80">Zjednocujem bibliografické metaúdaje a hľadám Open Access PDF</p>
+              <p className="text-xs font-medium">{t.searching}</p>
+              <p className="text-[11px] text-muted-foreground/80">{t.searchingSub}</p>
             </div>
           ) : results.length > 0 ? (
             results.map((paper, idx) => {
@@ -286,7 +290,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
                     <div className="flex items-center gap-1.5 shrink-0">
                       {paper.citationCount !== undefined && paper.citationCount > 0 && (
                         <Badge variant="secondary" className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 gap-1 border border-amber-500/20 bg-amber-500/10">
-                          ★ {paper.citationCount} {paper.citationCount === 1 ? "citácia" : paper.citationCount >= 2 && paper.citationCount <= 4 ? "citácie" : "citácií"}
+                          ★ {t.citations(paper.citationCount)}
                         </Badge>
                       )}
                       <Badge variant="outline" className="text-[9px] uppercase font-mono tracking-wider bg-muted/40">
@@ -314,7 +318,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
                           onClick={() => toggleAbstract(cardId)}
                           className="text-[10px] text-primary hover:underline font-semibold block pt-0.5"
                         >
-                          {isAbstractExpanded ? "Zbaliť abstrakt" : "Zobraziť celý abstrakt"}
+                          {isAbstractExpanded ? t.collapseAbstract : t.expandAbstract}
                         </button>
                       )}
                     </div>
@@ -371,12 +375,12 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
                         {copiedId === String(idx) ? (
                           <>
                             <Check className="h-3.5 w-3.5 text-emerald-500" />
-                            Skopírované
+                            {t.copied}
                           </>
                         ) : (
                           <>
                             <Copy className="h-3.5 w-3.5" />
-                            Kopírovať
+                            {t.copy}
                           </>
                         )}
                       </Button>
@@ -408,9 +412,9 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
           ) : hasSearched ? (
             <div className="py-16 text-center space-y-3 text-muted-foreground">
               <BookOpen className="h-9 w-9 mx-auto opacity-50 text-muted-foreground" />
-              <p className="text-sm font-semibold text-foreground">Nenašli sa žiadne vedecké práce</p>
+              <p className="text-sm font-semibold text-foreground">{t.noResults}</p>
               <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-                Skúste upraviť kľúčové slová, zvoliť širší odborový filter, vyhľadať v angličtine alebo zadať priamo DOI identifikátor.
+                {t.noResultsHint}
               </p>
             </div>
           ) : (
@@ -420,10 +424,10 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
                   <GraduationCap className="h-6 w-6" />
                 </div>
                 <h3 className="text-sm font-bold text-foreground">
-                  Zadajte vedeckú tému, kľúčové slová alebo identifikátor
+                  {t.emptyTitle}
                 </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Konektor vyhľadáva plné texty, citácie a generuje BibTeX záznamy priamo pre váš poster, článok alebo posudok.
+                  {t.emptyHint}
                 </p>
               </div>
 
@@ -431,7 +435,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
               <div className="space-y-2 text-left pt-2 border-t border-border/60">
                 <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
                   <TrendingUp className="h-3.5 w-3.5 text-primary" />
-                  Rýchle ukážky vyhľadávania:
+                  {t.quickExamples}
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {QUICK_SUGGESTIONS.map((s) => (

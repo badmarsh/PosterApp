@@ -20,7 +20,9 @@ import { rateLimitAsync } from "@/lib/rate-limit"
 import { prisma } from "@/lib/prisma"
 import { Prisma } from "@prisma/client"
 import { retrieveForCriterion } from "@/lib/ai/vector-rag"
-import { getEmbeddingCacheStats } from "@/lib/ai/local-embeddings"
+import { getEmbeddingCacheStats, embeddingHealth } from "@/lib/ai/local-embeddings"
+import { getAiUsageSummary } from "@/lib/ai/telemetry"
+import { rerankerHealth, RERANKER_MODEL, RERANKER_ENABLED } from "@/lib/ai/local-reranker"
 import { workspacePath } from "@/lib/workspace-files"
 
 // ---------------------------------------------------------------------------
@@ -186,8 +188,16 @@ export async function GET(
     embeddingModel: "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
     embeddingDimensions: 384,
     embeddingCacheStats: getEmbeddingCacheStats(),
+    embeddingHealth: {
+      warmedUp: embeddingHealth.warmedUp,
+      degraded: embeddingHealth.fallbackCount > 0,
+      fallbackCount: embeddingHealth.fallbackCount,
+      lastError: embeddingHealth.lastError,
+    },
     graphStats,
     documents,
+    aiUsage: getAiUsageSummary(),
+    reranker: { enabled: RERANKER_ENABLED, model: RERANKER_MODEL, ...rerankerHealth },
   })
 }
 

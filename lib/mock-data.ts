@@ -458,3 +458,7 @@ export const sampleProjects: Project[] = [
   ]
 }
 ]
+
+/** ID of the in-memory demo project shown before a workspace is selected. */
+export const DEMO_PROJECT_ID = sampleProjects[0].id
+export const isDemoProject = (id: string) => id === DEMO_PROJECT_ID

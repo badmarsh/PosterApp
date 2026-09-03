@@ -1,6 +1,13 @@
 import { ZodSchema } from "zod"
 import { AIProviderError, AIValidationError } from "./errors"
 import { parseAiJson } from "@/lib/ai-helpers"
+import {
+  recordAiUsage,
+  isCircuitOpen,
+  reportCircuitFailure,
+  reportCircuitSuccess,
+  AICircuitOpenError,
+} from "./telemetry"
 
 interface AIClientOptions<T> {
   model: string;
@@ -103,12 +110,20 @@ function buildMessages(options: AIRequestOptions, expandPromptMessages = false):
   return messages
 }
 
+/**
+ * Default sampling temperatures. Structured (JSON-schema) calls are grounded
+ * extraction/generation tasks and default to 0.2; free-text (chat) keeps 0.7.
+ * Every caller may still override explicitly.
+ */
+export const DEFAULT_STRUCTURED_TEMPERATURE = 0.2
+export const DEFAULT_TEXT_TEMPERATURE = 0.7
+
 function buildPayload(options: AIRequestOptions, messages: any[], requireJson: boolean) {
   return {
     model: options.model,
     messages,
     ...(requireJson ? { response_format: { type: "json_object" } } : {}),
-    temperature: options.temperature ?? 0.7,
+    temperature: options.temperature ?? (requireJson ? DEFAULT_STRUCTURED_TEMPERATURE : DEFAULT_TEXT_TEMPERATURE),
     max_tokens: options.maxTokens ?? DEFAULT_AI_MAX_TOKENS,
   }
 }
@@ -120,23 +135,53 @@ async function requestCompletion(
   apiKey: string,
   payload: Record<string, unknown>
 ): Promise<{ content: string; truncated: boolean }> {
+  if (isCircuitOpen(apiUrl)) {
+    throw new AICircuitOpenError(apiUrl)
+  }
+
   const startTime = Date.now()
-  const response = await fetchWithRetries(apiUrl, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  }, withDefaultTimeout(options.signal))
+  const providerSource: AIProviderSource = apiUrl === process.env.AI_API_URL_FALLBACK ? "fallback-provider" : "primary"
+  let response: Response
+  try {
+    response = await fetchWithRetries(apiUrl, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }, withDefaultTimeout(options.signal))
+  } catch (err) {
+    const durationMs = Date.now() - startTime
+    // Timeouts and network errors count toward the breaker; caller aborts don't.
+    if (!(err instanceof Error && err.name === "AbortError")) reportCircuitFailure(apiUrl)
+    recordAiUsage({ at: new Date().toISOString(), operation: operationName, model: options.model, provider: providerSource, apiUrl, promptTokens: null, completionTokens: null, totalTokens: null, durationMs, ok: false })
+    throw err
+  }
   const durationMs = Date.now() - startTime
 
   if (!response.ok) {
     console.error(`[AI ${operationName}] Provider failed: HTTP ${response.status} (${durationMs}ms)`)
+    if (response.status >= 500 || response.status === 429) reportCircuitFailure(apiUrl)
+    recordAiUsage({ at: new Date().toISOString(), operation: operationName, model: options.model, provider: providerSource, apiUrl, promptTokens: null, completionTokens: null, totalTokens: null, durationMs, ok: false, status: response.status })
     throw new AIProviderError(response.status, `AI API failed: HTTP ${response.status}`)
   }
 
   const data = await response.json()
+  reportCircuitSuccess(apiUrl)
+  recordAiUsage({
+    at: new Date().toISOString(),
+    operation: operationName,
+    model: options.model,
+    provider: providerSource,
+    apiUrl,
+    promptTokens: data.usage?.prompt_tokens ?? null,
+    completionTokens: data.usage?.completion_tokens ?? null,
+    totalTokens: data.usage?.total_tokens ?? null,
+    durationMs,
+    ok: true,
+    status: response.status,
+  })
   console.log(`[AI ${operationName}] Success. Model: ${options.model}, Duration: ${durationMs}ms, Tokens: ${data.usage?.total_tokens ?? "unknown"}`)
 
   if (!data.choices?.length) {
@@ -174,12 +219,20 @@ function buildRepairPayload(
     ...options,
     maxTokens: Math.ceil((options.maxTokens ?? DEFAULT_AI_MAX_TOKENS) * 1.5),
   }
+  // Only the tail of the invalid response is useful for a repair (that is
+  // where truncation / the broken token lives); sending the whole thing back
+  // on an 80k-char thesis prompt doubles the cost of the most expensive call.
+  const REPAIR_CONTENT_TAIL = 4_000
+  const trimmedContent = invalidContent.length > REPAIR_CONTENT_TAIL
+    ? `[…${invalidContent.length - REPAIR_CONTENT_TAIL} chars omitted…]${invalidContent.slice(-REPAIR_CONTENT_TAIL)}`
+    : invalidContent
+  const trimmedError = validationError.message.slice(0, 1_500)
   return buildPayload(repairOptions, [
     ...messages,
-    { role: "assistant", content: invalidContent },
+    { role: "assistant", content: trimmedContent },
     {
       role: "user",
-      content: `Your preceding response is invalid. Return only a corrected JSON object that satisfies the requested schema. Validation error: ${validationError.message}`,
+      content: `Your preceding response is invalid. Return only a corrected, COMPLETE JSON object that satisfies the requested schema (do not truncate). Validation error: ${trimmedError}`,
     },
   ], true)
 }
@@ -238,6 +291,7 @@ async function executeWithProviderFallback<R>(
     if (!fallback || isLocalFailure || primaryError instanceof AIValidationError) {
       throw primaryError
     }
+    // AICircuitOpenError on the primary is exactly the case failover is for — fall through.
 
     console.warn(
       `[AI ${operationName}] Primary provider (${primaryUrl}) failed: ${primaryError instanceof Error ? primaryError.message : String(primaryError)}. Attempting fallback provider (${fallback.apiUrl})...`
@@ -291,7 +345,7 @@ export async function generateAIResponse<T>(
       }
 
       if (!(error instanceof AIValidationError) || content === null) {
-        if (error instanceof AIProviderError) throw error
+        if (error instanceof AIProviderError || error instanceof AICircuitOpenError) throw error
         console.error(`[AI ${operationName}] Unhandled error:`, error instanceof Error ? error.message : String(error))
         throw new Error(`AI operation failed: ${error instanceof Error ? error.message : "Unknown error"}`)
       }
@@ -310,6 +364,9 @@ export async function generateAIResponse<T>(
   })
 }
 
+/** Appended to free-text completions cut off by max_tokens so UIs can warn / disable "apply". */
+export const TEXT_TRUNCATION_MARKER = "[response truncated — output limit reached]"
+
 export async function generateAITextResponse(
   operationName: string,
   options: Omit<AIClientOptions<any>, "schema">
@@ -322,6 +379,7 @@ export async function generateAITextResponse(
       const completion = await requestCompletion(operationName, options, apiUrl, apiKey, payload)
       if (completion.truncated) {
         console.warn(`[AI ${operationName}] Response truncated (finish_reason=length)`)
+        return `${completion.content}\n\n${TEXT_TRUNCATION_MARKER}`
       }
       return completion.content
     } catch (error) {
@@ -329,7 +387,7 @@ export async function generateAITextResponse(
         console.warn(`[AI ${operationName}] Request aborted`)
         throw error
       }
-      if (error instanceof AIProviderError) throw error
+      if (error instanceof AIProviderError || error instanceof AICircuitOpenError) throw error
       console.error(`[AI ${operationName}] Unhandled error:`, error instanceof Error ? error.message : String(error))
       throw new Error(`AI operation failed: ${error instanceof Error ? error.message : "Unknown error"}`)
     }

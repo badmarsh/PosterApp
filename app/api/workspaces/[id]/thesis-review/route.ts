@@ -21,6 +21,7 @@ import {
   buildThesisContextHeader,
   buildFullGenerationContext,
   THESIS_CONTEXT_BUDGETS,
+  THESIS_CONTEXT_SHARES,
 } from "@/lib/ai/thesis-context"
 import {
   THESIS_LEVEL_PROFILES,
@@ -32,6 +33,7 @@ import {
 import { auditThesisCitations } from "@/lib/services/academic-connector"
 import {
   retrieveForCriterion,
+  generateHypotheses,
   resolveThesisDomainContext,
   getThesisCriterionQueryExpansion,
 } from "@/lib/ai/vector-rag"
@@ -47,12 +49,13 @@ import {
   NO_FINDINGS_SYNTHESIS,
   getApplicableCriteriaForThesisType,
   SK_ACADEMIC_RUBRIC_V1,
+  calculateGradeRange,
 } from "@/lib/ai/rubric-engine"
 import {
   checkObjectiveAlignment,
   auditCitationConsistency,
 } from "@/lib/ai/academic-checks"
-import { buildPreGenerationGrounding } from "@/lib/ai/review-engine"
+import { buildPreGenerationGrounding, computeScoreFromFindings } from "@/lib/ai/review-engine"
 import { buildSystemPrompt, buildUserPrompt } from "@/lib/ai/prompts-thesis"
 import { z } from "zod"
 import { AUTO_APPLY_CONFIDENCE_THRESHOLD, shouldUseProfessionalMode, normalizeDefenseQuestions } from "@/lib/ai/thesis-review-policy"
@@ -258,10 +261,17 @@ export async function POST(
     }
 
     // 2. Build full generation context using criterion-routed excerpts
+    // Budget reservation: routed excerpts / vector RAG / graph RAG shares of the
+    // total context budget (see THESIS_CONTEXT_SHARES). Unused vector/graph
+    // budget is *not* handed back to routed context — it is small anyway and
+    // the model gets a more diverse evidence mix this way.
+    const routedBudget = Math.floor(THESIS_CONTEXT_BUDGETS.fullGeneration * THESIS_CONTEXT_SHARES.routed)
+    const vectorBudgetReserved = Math.floor(THESIS_CONTEXT_BUDGETS.fullGeneration * THESIS_CONTEXT_SHARES.vector)
+    const graphBudgetReserved = Math.floor(THESIS_CONTEXT_BUDGETS.fullGeneration * THESIS_CONTEXT_SHARES.graph)
     const { contextText: routedContext, selectedChars, truncated } = buildFullGenerationContext(
       ragContext,
       activeCriterionIds,
-      THESIS_CONTEXT_BUDGETS.fullGeneration
+      routedBudget
     )
 
     // 3. Academic citation audit (optional)
@@ -291,6 +301,12 @@ export async function POST(
       const domainContext = resolveThesisDomainContext(normalizedMetadata)
       const criterionVectorContextParts: string[] = []
 
+      // LLM-written HyDE hypotheses for all criteria in ONE call (falls back to templates).
+      const hypotheses = await generateHypotheses(
+        activeCriteria.map((c) => ({ id: c.id, label: c.labels[lang], guidance: c.guidance[lang] })),
+        { thesisTitle: normalizedMetadata.thesisTitle, domainContext, lang, model: resolveAiModelWithOverrides("thesis", parseAiModelOverrides(req.headers)) }
+      )
+
       const CRITERIA_BATCH_SIZE = 3
       for (let i = 0; i < activeCriteria.length; i += CRITERIA_BATCH_SIZE) {
         const batch = activeCriteria.slice(i, i + CRITERIA_BATCH_SIZE)
@@ -299,12 +315,14 @@ export async function POST(
             const expansion = getThesisCriterionQueryExpansion(c.id, lang)
             const query = `${c.labels[lang]} ${c.guidance[lang]}`.slice(0, 300)
             const { chunks, communityContext: localCommunityCtx } = await retrieveForCriterion(workspaceId, query, {
-              topK: 4,
+              topK: 8,
               lambda: 0.7,
               domainContext,
               criterionId: c.id,
               criterionExpansion: expansion,
               useHyDE: true,
+              hypothesis: hypotheses[c.id],
+              lang,
               compress: true,
               documentId: body.sourceFileId,
               includeCommunityContext: c === activeCriteria[0],
@@ -320,10 +338,8 @@ export async function POST(
       }
 
       if (criterionVectorContextParts.length > 0) {
-        // Budget: respect 60k char ceiling for the full prompt
-        const usedChars = routedContext.length + citationAuditSummary.length + 1000
-        const vectorBudget = Math.max(0, THESIS_CONTEXT_BUDGETS.fullGeneration - usedChars)
-        vectorAugmentation = criterionVectorContextParts.join("\n\n---\n\n").slice(0, vectorBudget)
+        // Reserved share of the total budget (never starved by routed context)
+        vectorAugmentation = criterionVectorContextParts.join("\n\n---\n\n").slice(0, vectorBudgetReserved)
       }
     } catch (vectorErr) {
       // pgvector not yet indexed or unavailable — continue with disk-only context
@@ -335,14 +351,7 @@ export async function POST(
     let graphWarning: string | null = null
     try {
       const { retrieveGraphContext } = await import("@/lib/ai/graph-rag")
-      const graphBudget = Math.max(
-        0,
-        THESIS_CONTEXT_BUDGETS.fullGeneration
-          - routedContext.length
-          - citationAuditSummary.length
-          - vectorAugmentation.length
-          - 500 // prompt scaffolding reserve
-      )
+      const graphBudget = graphBudgetReserved
       if (graphBudget > 200) {
         const graphQuery = [
           normalizedMetadata.thesisTitle,
@@ -451,13 +460,21 @@ export async function POST(
           ? matchingFindings.map((f: any) => `• ${f.title}: ${f.explanation}`).join("\n\n")
           : (NO_FINDINGS_SYNTHESIS[lang] || NO_FINDINGS_SYNTHESIS.sk)
 
+        // Per-criterion score derived from the findings mapped to this
+        // criterion (severity-weighted), NOT a copy of the overall grade.
+        // When no finding touches the criterion we report no score rather
+        // than inventing one.
+        const isSelf = thesisMetadata.reviewerRole === "self"
+        const criterionScore = matchingFindings.length > 0 ? computeScoreFromFindings(matchingFindings) : undefined
+        const criterionGrade = criterionScore !== undefined ? calculateGradeRange(criterionScore).grade : undefined
+
         return {
           id: c.id,
           sectionId: c.id,
           criterionId: c.id,
           text,
-          rating: thesisMetadata.reviewerRole === "self" ? ("pending" as const) : (professionalResult.grade || "B"),
-          numericScore: thesisMetadata.reviewerRole === "self" ? undefined : (professionalResult.derivedScore ?? 75),
+          rating: isSelf ? ("pending" as const) : (criterionGrade ?? "pending"),
+          numericScore: isSelf ? undefined : criterionScore,
           suggestions: matchingFindings.map((f: any) => f.recommendation).filter(Boolean),
         }
       })
@@ -600,8 +617,8 @@ export async function POST(
       graphWarning,
       ragStats: {
         totalChars: ragContext.totalChars,
-        selectedChars,
-        truncated,
+        selectedChars: professionalResult?.contextCoverage?.selectedChars ?? selectedChars,
+        truncated: professionalResult?.contextCoverage?.truncated ?? truncated,
         referencesFound: ragContext.referencesTitles.length,
         citationAuditRan: !skipCitationAudit && ragContext.referencesTitles.length > 0,
       },

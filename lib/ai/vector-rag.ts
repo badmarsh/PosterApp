@@ -35,8 +35,10 @@
  */
 
 import { prisma } from "@/lib/prisma"
+import { splitIntoAtomicUnits } from "./text-splitter"
 import { Prisma } from "@prisma/client"
 import { generateLocalEmbedding } from "./local-embeddings"
+import { crossEncoderScores } from "./local-reranker"
 import type { ReviewLanguage, ThesisMetadata } from "./thesis-rubric"
 import { generateAIResponse } from "./client"
 import { z } from "zod"
@@ -53,7 +55,7 @@ export function resolveThesisDomainContext(metadata?: Partial<ThesisMetadata>): 
   if (!metadata) return "STEM, Fyzika"
   const combined = `${metadata.department || ""} ${metadata.institution || ""} ${metadata.targetVenue || ""} ${metadata.thesisTitle || ""}`.toLowerCase()
 
-  if (/informatik|počítač|software|softvér|programov|ai|strojov|machine learning|neural|web|cloud|kybernet|databáz|algoritm|grafik|it\b/i.test(combined)) {
+  if (/informatik|počítač|software|softvér|programov|\b(ai|it|ml|ict|ikt)\b|strojov[eé]h?o? učen|machine learning|neural|\bweb|cloud|kybernet|databáz|algoritm|počítačov[áé] grafik/i.test(combined)) {
     return "Informatika, Softvérové inžinierstvo, AI a dátové vedy"
   }
   if (/fyzik|physics|matemat|optik|kvant|častic|astronom|jadrov|teoretick/i.test(combined)) {
@@ -78,7 +80,28 @@ export function resolveThesisDomainContext(metadata?: Partial<ThesisMetadata>): 
 /**
  * Generates expanded academic search terms for specific thesis evaluation criteria.
  */
+/**
+ * Maps any criterion id (thesis-rubric `goal_definition`, sk-academic-v1
+ * `methodology_rigor`, legacy `goals` …) onto a coarse retrieval family that the
+ * query-expansion table and the reranker section boosts understand.
+ */
+export type CriterionFamily = "goals" | "methodology" | "results" | "literature" | "formal" | "defense" | "citations"
+
+export function resolveCriterionFamily(criterionId?: string): CriterionFamily | undefined {
+  if (!criterionId) return undefined
+  const id = criterionId.toLowerCase()
+  if (/^(goals|goal_definition|objectives_clarity|problem_relevance)$/.test(id)) return "goals"
+  if (/^(methodology|methodology_rigor|analytical_execution)$/.test(id)) return "methodology"
+  if (/^(results|results_validity|results_interpretation|discussion_relation|originality|originality_contribution|limitations_future_work)$/.test(id)) return "results"
+  if (/^(literature|theoretical_background)$/.test(id)) return "literature"
+  if (/^(citations_bibliography|citations_quality)$/.test(id)) return "citations"
+  if (/^(formal|formal_structure|structure_coherence|language_quality|ethics_transparency)$/.test(id)) return "formal"
+  if (/^(defense|defense_questions)$/.test(id)) return "defense"
+  return undefined
+}
+
 export function getThesisCriterionQueryExpansion(criterionId: string, lang: ReviewLanguage = "sk"): string {
+  const family = resolveCriterionFamily(criterionId) ?? criterionId
   const expansions: Record<string, Record<ReviewLanguage, string>> = {
     goals: {
       sk: "formulácia cieľov výskumné otázky hypotézy splnenie zadania motivácia a prínos práce problem statement",
@@ -110,8 +133,13 @@ export function getThesisCriterionQueryExpansion(criterionId: string, lang: Revi
       cs: "otázky k obhajobě slabá místa limitace rizika metodiky diskuse náměty pro další výzkum",
       en: "defense questions limitations weaknesses methodological risks discussion future work",
     },
+    citations: {
+      sk: "zoznam použitej literatúry citácie bibliografia odkazy na zdroje citačná norma ISO 690",
+      cs: "seznam použité literatury citace bibliografie odkazy na zdroje citační norma",
+      en: "bibliography references citations reference list citation style",
+    },
   }
-  return expansions[criterionId]?.[lang] || expansions[criterionId]?.sk || ""
+  return expansions[family]?.[lang] || expansions[family]?.sk || ""
 }
 
 // ---------------------------------------------------------------------------
@@ -199,9 +227,59 @@ export async function generateHypotheticalDocument(
   return `Táto práca sa zameriava na analýzu a riešenie problematiky ${query} v rámci odboru ${domain}.`
 }
 
+/**
+ * LLM-backed HyDE: ONE structured call per review that writes a short
+ * hypothetical passage per criterion in the thesis language, in the style of
+ * the actual thesis (title + domain). Much closer to real chapter text than the
+ * static templates. Returns {} on any failure (callers fall back to templates).
+ */
+export async function generateHypotheses(
+  criteria: Array<{ id: string; label: string; guidance: string }>,
+  ctx: { thesisTitle?: string; domainContext: string; lang: ReviewLanguage; model: string }
+): Promise<Record<string, string>> {
+  if (process.env.AI_HYDE_LLM === "false" || criteria.length === 0) return {}
+  if (process.env.VITEST) return {}
+  const schema = z.object({ hypotheses: z.record(z.string(), z.string()) })
+  const langName = ctx.lang === "sk" ? "Slovak" : ctx.lang === "cs" ? "Czech" : "English"
+  try {
+    const res = await generateAIResponse<z.infer<typeof schema>>("hyde-hypotheses", {
+      model: ctx.model,
+      systemPrompt: `You write hypothetical thesis passages used only as retrieval queries (HyDE). For each criterion write 2–3 sentences in ${langName}, in the voice of the thesis itself (first-person plural academic style), using concrete domain vocabulary that such a passage would contain. Do NOT evaluate; do NOT mention criteria or reviewers. Respond as JSON: {"hypotheses": {"<criterionId>": "<passage>"}}.`,
+      userPrompt: `Thesis title: ${ctx.thesisTitle || "(unknown)"}\nDomain: ${ctx.domainContext}\n\nCriteria:\n${criteria.map((c) => `- ${c.id}: ${c.label} — ${c.guidance.slice(0, 200)}`).join("\n")}`,
+      schema,
+      temperature: 0.4,
+      maxTokens: 2048,
+      signal: AbortSignal.timeout(45_000),
+    })
+    return res.hypotheses ?? {}
+  } catch (err) {
+    console.warn("[vector-rag] LLM HyDE unavailable, using templates:", err instanceof Error ? err.message : err)
+    return {}
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Stage 3 — Hybrid RRF Retrieval (pgvector + FTS)
 // ---------------------------------------------------------------------------
+
+/**
+ * Builds a PostgreSQL `websearch_to_tsquery` string from free text: keeps the
+ * most informative tokens (length > 3, de-duplicated, max `maxTerms`) and
+ * OR-joins them. `plainto_tsquery` ANDs every term, which never matches for a
+ * 30–45-word criterion query — this makes the keyword leg of the hybrid
+ * search actually contribute.
+ */
+export function buildFtsQuery(text: string, maxTerms = 8): string {
+  const seen = new Set<string>()
+  const terms: string[] = []
+  for (const raw of text.toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
+    if (raw.length <= 3 || seen.has(raw)) continue
+    seen.add(raw)
+    terms.push(raw)
+    if (terms.length >= maxTerms) break
+  }
+  return terms.join(" OR ")
+}
 
 /**
  * Single-query hybrid retrieval using Reciprocal Rank Fusion (RRF, k=60).
@@ -218,14 +296,29 @@ async function retrieveSingleQuery(
   const docCondition = documentId
     ? Prisma.sql`AND "documentId" = ${documentId}`
     : Prisma.empty
+  const ftsQuery = buildFtsQuery(queryText) || queryText
 
-  return prisma.$queryRaw<Array<{
-    id: string
-    heading: string | null
-    content: string
-    tokens: number
-    similarity: number
-  }>>`
+  // HNSW evaluates the index *before* the workspaceId/documentId filter with
+  // ef_search=40 by default, so small workspaces in a large multi-tenant table
+  // can receive fewer than `limit` candidates (even zero). Raise ef_search for
+  // this query only (SET LOCAL is transaction-scoped). pgvector ≥ 0.8 additionally
+  // honours iterative scans; the SET is harmless on older versions.
+  const runQuery = async (client: any) => {
+    if (typeof client.$executeRawUnsafe === "function") {
+      await client.$executeRawUnsafe(`SET LOCAL hnsw.ef_search = ${Math.min(1000, Math.max(40, limit * 8))}`).catch(() => {})
+      // Guarded inside a DO block: an unknown GUC (pgvector < 0.8) would otherwise
+      // abort the whole transaction.
+      await client.$executeRawUnsafe(
+        `DO $$ BEGIN PERFORM set_config('hnsw.iterative_scan', 'relaxed_order', true); EXCEPTION WHEN OTHERS THEN NULL; END $$;`
+      ).catch(() => {})
+    }
+    return client.$queryRaw<Array<{
+      id: string
+      heading: string | null
+      content: string
+      tokens: number
+      similarity: number
+    }>>`
     WITH vector_search AS (
       SELECT
         id,
@@ -239,11 +332,11 @@ async function retrieveSingleQuery(
     fts_search AS (
       SELECT
         id,
-        ROW_NUMBER() OVER (ORDER BY ts_rank(to_tsvector('simple', content), plainto_tsquery('simple', ${queryText})) DESC) AS rank_fts
+        ROW_NUMBER() OVER (ORDER BY ts_rank(to_tsvector('simple', content), websearch_to_tsquery('simple', ${ftsQuery})) DESC) AS rank_fts
       FROM "DocumentChunk"
       WHERE "workspaceId" = ${workspaceId}
         ${docCondition}
-        AND to_tsvector('simple', content) @@ plainto_tsquery('simple', ${queryText})
+        AND to_tsvector('simple', content) @@ websearch_to_tsquery('simple', ${ftsQuery})
       LIMIT ${limit * 2}
     )
     SELECT
@@ -262,6 +355,12 @@ async function retrieveSingleQuery(
     ORDER BY similarity DESC
     LIMIT ${limit}
   `
+  }
+
+  const rows = typeof prisma.$transaction === "function"
+    ? await prisma.$transaction(async (tx) => runQuery(tx))
+    : await runQuery(prisma)
+  return rows
 }
 
 /**
@@ -283,6 +382,8 @@ export async function searchHybrid(
     criterionExpansion?: string
     useHyDE?: boolean
     lang?: ReviewLanguage
+    /** LLM-written hypothetical passage (see generateHypotheses); takes precedence over the template HyDE. */
+    hypothesis?: string
   }
 ): Promise<Array<{ id: string; heading: string | null; content: string; tokens: number; similarity: number }>> {
   const useHyDE = opts?.useHyDE ?? true
@@ -294,8 +395,11 @@ export async function searchHybrid(
   // Embed all variants + HyDE in parallel (cache makes repeated calls free)
   const embedInputs = queryVariants.map((q) => `${domainContext}: ${q}`)
   if (useHyDE) {
-    const hydeDoc = await generateHypotheticalDocument(query, domainContext, opts?.lang)
+    const hydeDoc = opts?.hypothesis?.trim() || await generateHypotheticalDocument(query, domainContext, opts?.lang)
     embedInputs.push(hydeDoc)
+    // With a real LLM hypothesis, also embed the template one — two different
+    // "shapes" of the answer widen recall at negligible cost.
+    if (opts?.hypothesis?.trim()) embedInputs.push(await generateHypotheticalDocument(query, domainContext, opts?.lang))
   }
 
   const embeddings = await Promise.all(embedInputs.map((text) => generateLocalEmbedding(text)))
@@ -304,8 +408,9 @@ export async function searchHybrid(
   const allResultSets = await Promise.all(
     embeddings.map((emb, i) => {
       const embStr = `[${emb.join(",")}]`
-      // Use the corresponding query text for FTS (not the HyDE doc)
-      const ftsQuery = i < queryVariants.length ? queryVariants[i] : query
+      // Use the corresponding query text for FTS (not the HyDE doc); the HyDE
+      // slot gets the criterion expansion keywords so it is not a 4th identical FTS query
+      const ftsQuery = i < queryVariants.length ? queryVariants[i] : (criterionExpansion || query)
       return retrieveSingleQuery(workspaceId, embStr, ftsQuery, limit, documentId)
     })
   )
@@ -330,10 +435,18 @@ export async function searchHybrid(
     }
   }
 
-  return Array.from(scoreMap.values())
-    .sort((a, b) => b.rrfScore - a.rrfScore)
-    .slice(0, limit)
-    .map(({ chunk, rrfScore }) => ({ ...chunk, similarity: rrfScore }))
+  // Min-max normalise the fused RRF scores to [0, 1]. Raw RRF sums live in
+  // ~[0.016, 0.065], which is not comparable with the Jaccard term in MMR
+  // (0–1) or the additive boosts in the reranker — without normalisation
+  // those terms completely dominate semantic relevance.
+  const fused = Array.from(scoreMap.values()).sort((a, b) => b.rrfScore - a.rrfScore).slice(0, limit)
+  const maxS = fused[0]?.rrfScore ?? 0
+  const minS = fused[fused.length - 1]?.rrfScore ?? 0
+  const span = maxS - minS
+  return fused.map(({ chunk, rrfScore }) => ({
+    ...chunk,
+    similarity: span > 0 ? (rrfScore - minS) / span : 1,
+  }))
 }
 
 // ---------------------------------------------------------------------------
@@ -351,6 +464,8 @@ export async function searchHybrid(
  * and character 4-gram Jaccard overlap (runs entirely in JS, <1ms for 20 chunks).
  *
  * λ=0.7 balances relevance and diversity; set λ=1.0 to disable MMR (pure relevance).
+ * Relevance MUST be on a [0,1] scale (searchHybrid normalises RRF scores) so that
+ * it is commensurable with the Jaccard penalty.
  */
 export function applyMMR(
   chunks: Array<{ id: string; content: string; heading: string | null; similarity?: number }>,
@@ -427,38 +542,45 @@ export function applyMMR(
 export async function rerankChunks(
   query: string,
   chunks: Array<{ id: string; content: string; heading: string | null; similarity?: number }>,
-  options?: { criterionId?: string }
-): Promise<Array<{ id: string; content: string; heading: string | null; similarity?: number; relevanceScore: number }>> {
+  options?: { criterionId?: string; rerankPool?: number; topN?: number }
+): Promise<Array<{ id: string; content: string; heading: string | null; similarity?: number; relevanceScore: number; crossEncoderScore?: number }>> {
   const queryTokens = new Set(
     query.toLowerCase().split(/\s+/).filter((t) => t.length > 3)
   )
 
-  const criterionId = options?.criterionId
+  const family = resolveCriterionFamily(options?.criterionId)
 
   const scored = chunks.map((c) => {
     const contentLower = c.content.toLowerCase()
     const headingLower = (c.heading ?? "").toLowerCase()
+    // `similarity` is normalised to [0,1] by searchHybrid; all boosts below are
+    // capped so that lexical signals can re-order but never swamp retrieval.
     let score = c.similarity ?? 0
 
-    // Boost for query term presence in heading (strong signal)
+    // Query-term overlap: fraction of query tokens present. A heading hit is a
+    // much stronger signal than a hit anywhere in ~1.5k chars of body text, so
+    // heading weight is 2× content weight (0.16 vs 0.08; max +0.24 total).
+    let headingHits = 0
+    let contentHits = 0
     for (const tok of queryTokens) {
-      if (headingLower.includes(tok)) score += 0.15
-      if (contentLower.includes(tok)) score += 0.05
+      if (headingLower.includes(tok)) headingHits++
+      if (contentLower.includes(tok)) contentHits++
     }
+    const denom = Math.max(1, queryTokens.size)
+    score += 0.16 * (headingHits / denom) + 0.08 * (contentHits / denom)
 
-    // Criterion-specific section heading alignment boost
-    if (criterionId) {
-      if (criterionId === "methodology" && /metod|architekt|implement|experiment|návrh|model|meran/i.test(headingLower)) {
-        score += 0.15
-      } else if (criterionId === "results" && /výsledk|diskus|evalu|graf|tabuľk|hodnoteni|porovnan/i.test(headingLower)) {
-        score += 0.15
-      } else if (criterionId === "literature" && /literat|stav|teoret|súvisiac|related|background|rešerš/i.test(headingLower)) {
-        score += 0.15
-      } else if (criterionId === "goals" && /úvod|cieľ|zadanie|hypotéz|motiv|abstrakt/i.test(headingLower)) {
-        score += 0.15
-      } else if (criterionId === "citations_bibliography" && /citáci|zoznam|bibliography|referenc/i.test(headingLower)) {
-        score += 0.15
+    // Criterion-family section heading alignment boost
+    if (family) {
+      const patterns: Record<string, RegExp> = {
+        methodology: /metod|architekt|implement|experiment|návrh|model|meran|postup/i,
+        results: /výsledk|diskus|evalu|graf|tabuľk|hodnoteni|porovnan|záver|conclusion|result/i,
+        literature: /literat|stav|teoret|súvisiac|related|background|rešerš|východisk/i,
+        goals: /úvod|cieľ|zadanie|hypotéz|motiv|abstrakt|introduction/i,
+        citations: /citáci|zoznam|bibliograph|referenc|literatúr/i,
+        formal: /úvod|záver|obsah|zoznam|prílo/i,
+        defense: /záver|diskus|limit|budúc|future/i,
       }
+      if (patterns[family]?.test(headingLower)) score += 0.15
     }
 
     // Length heuristic: penalise very short or suspiciously long chunks
@@ -469,7 +591,26 @@ export async function rerankChunks(
     return { ...c, relevanceScore: score }
   })
 
-  return scored.sort((a, b) => b.relevanceScore - a.relevanceScore).slice(0, 10)
+  const heuristic = scored.sort((a, b) => b.relevanceScore - a.relevanceScore)
+
+  // Stage 5b — cross-encoder rerank of the heuristic top-N. The cross-encoder
+  // reads (query, passage) jointly and decides the final order; the heuristic
+  // score is folded in as a small prior so ties/near-ties respect section
+  // alignment. Falls back to pure heuristic order if the model is unavailable.
+  const candidates = heuristic.slice(0, options?.rerankPool ?? 24)
+  const ce = await crossEncoderScores(query, candidates.map((c) => (c.heading ? `${c.heading}\n${c.content}` : c.content)))
+  if (!ce) return heuristic.slice(0, options?.topN ?? 10)
+
+  const ceMin = Math.min(...ce)
+  const ceMax = Math.max(...ce)
+  const span = ceMax - ceMin || 1
+  const merged = candidates
+    .map((c, i) => {
+      const ceNorm = (ce[i] - ceMin) / span // [0,1]
+      return { ...c, crossEncoderScore: ce[i], relevanceScore: 0.8 * ceNorm + 0.2 * Math.min(1, c.relevanceScore) }
+    })
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
+  return merged.slice(0, options?.topN ?? 10)
 }
 
 // ---------------------------------------------------------------------------
@@ -526,25 +667,22 @@ export function compressChunks(
 
   return chunks.map((chunk) => {
     if (chunk.content.length < MIN_COMPRESS_LEN) return chunk
+    // Never compress predominantly tabular / mathematical chunks
+    const structuralLines = chunk.content.split("\n").filter((l) => /^\s*\|/.test(l) || /\$\$/.test(l)).length
+    if (structuralLines >= 3) return chunk
 
-    // Protect common abbreviations from premature sentence splitting
-    const protectedContent = chunk.content
-      .replace(/\b(napr|t\.j|resp|atď|spol|č|obr|tab|e\.g|i\.e|et al|fig|tab|vs|approx|vol|no)\./gi, "$1@@DOT@@")
-
-    // Split on sentence-ending punctuation while keeping delimiter
-    const sentenceRegex = /[^.!?]*[.!?]+["']?/g
-    const sentences: { text: string; idx: number }[] = []
-    let m: RegExpExecArray | null
-    while ((m = sentenceRegex.exec(protectedContent)) !== null) {
-      const text = m[0].replace(/@@DOT@@/g, ".").trim()
-      if (text.length > 20) sentences.push({ text, idx: sentences.length })
-    }
+    // Sentence/table/equation-aware split (same partition splitter as the
+    // chunker) — decimals, abbreviations and table rows survive intact.
+    const sentences: { text: string; idx: number }[] = splitIntoAtomicUnits(chunk.content)
+      .filter((text) => text.length > 0)
+      .map((text, idx) => ({ text, idx }))
 
     if (sentences.length <= maxSentences) return chunk
 
     // Score and select top sentences above threshold, then sort by original idx
+    const isStructural = (t: string) => /^\s*\|/.test(t) || /^\s*\$\$/.test(t)
     const scored = sentences
-      .map((s) => ({ ...s, score: scoreSentence(s.text) }))
+      .map((s) => ({ ...s, score: isStructural(s.text) ? 1 : scoreSentence(s.text) }))
       .filter((s) => s.score >= RELEVANCE_THRESHOLD)
       .sort((a, b) => b.score - a.score)
       .slice(0, maxSentences)
@@ -597,6 +735,9 @@ export async function retrieveForCriterion(
     /** When true, fetches LightRAG-style community summaries alongside chunk retrieval.
      *  These answer cross-chapter questions that per-chunk retrieval misses. */
     includeCommunityContext?: boolean
+    /** LLM-generated hypothetical passage for this criterion (HyDE). */
+    hypothesis?: string
+    lang?: ReviewLanguage
   } = {}
 ): Promise<{
   chunks: Array<{ id: string; heading: string | null; content: string; tokens: number; relevanceScore: number }>
@@ -614,20 +755,23 @@ export async function retrieveForCriterion(
     : Promise.resolve("")
 
   // Stage 3: Hybrid retrieval with multi-query fan-out + HyDE
-  const rawChunks = await searchHybrid(workspaceId, query, topK * 4, domainContext, opts.documentId, {
+  // Wide candidate pool (×6) — the cross-encoder does the precise cut later.
+  const rawChunks = await searchHybrid(workspaceId, query, topK * 6, domainContext, opts.documentId, {
     criterionExpansion: opts.criterionExpansion,
     useHyDE: opts.useHyDE ?? true,
+    hypothesis: opts.hypothesis,
+    lang: opts.lang,
   })
 
   if (rawChunks.length === 0) {
     return { chunks: [], communityContext: await communityContextPromise }
   }
 
-  // Stage 4: MMR deduplication — select topK*2 diverse candidates
-  const mmrChunks = applyMMR(rawChunks, Math.min(topK * 2, rawChunks.length), lambda)
+  // Stage 4: MMR deduplication — select topK*3 diverse candidates
+  const mmrChunks = applyMMR(rawChunks, Math.min(topK * 3, rawChunks.length), lambda)
 
-  // Stage 5: Criterion-aware reranking
-  const reranked = await rerankChunks(query, mmrChunks, { criterionId: opts.criterionId })
+  // Stage 5: Criterion-aware heuristic rerank + cross-encoder final ordering
+  const reranked = await rerankChunks(query, mmrChunks, { criterionId: opts.criterionId, rerankPool: topK * 3, topN: topK })
 
   // Take final topK after reranking
   const topChunks = reranked.slice(0, topK)

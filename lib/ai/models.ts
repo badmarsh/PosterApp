@@ -47,15 +47,21 @@ export const DEFAULT_FALLBACK_VISION_MODELS: readonly string[] = [
   "qwen3-vl-flash-2026-01-22",
 ] as const
 
+/** Max models tried per image (override with AI_VISION_MAX_CHAIN). */
+export const MAX_VISION_CHAIN = Math.max(1, Number(process.env.AI_VISION_MAX_CHAIN) || 3)
+/** Shared wall-clock deadline for the whole vision fallback chain per image. */
+export const VISION_CHAIN_DEADLINE_MS = Number(process.env.AI_VISION_CHAIN_DEADLINE_MS) || 90_000
+
 export function getVisionModelChain(): string[] {
   const primary = process.env.AI_VISION_MODEL || DEFAULT_AI_MODELS.vision
   const envFallbacks = process.env.AI_VISION_FALLBACK_MODELS
     ? process.env.AI_VISION_FALLBACK_MODELS.split(",").map((s) => s.trim()).filter(Boolean)
     : DEFAULT_FALLBACK_VISION_MODELS
 
-  // Ensure unique ordered chain of Qwen vision models starting with primary, returning up to 10 models
+  // Unique ordered chain starting with primary. Capped at MAX_VISION_CHAIN so a
+  // dead provider cannot stall captioning for 10 models × attempts × timeout per image.
   const unique = Array.from(new Set([primary, ...envFallbacks]))
-  return unique.slice(0, 10)
+  return unique.slice(0, MAX_VISION_CHAIN)
 }
 
 /**

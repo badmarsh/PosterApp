@@ -16,15 +16,21 @@ export const ADAPTIVE_CHUNK_SIZE_THRESHOLD = 200_000
 
 /**
  * Chunk size for shorter documents (Bc/MSc/journal articles ≤ 200k chars).
- * 1800 chars ≈ 450 tokens — fits criterion-sized methodological paragraphs.
+ * 1200 chars ≈ 400–480 Slovak/Czech tokens — safely inside the 512-token
+ * window of paraphrase-multilingual-MiniLM-L12-v2 (input beyond 512 tokens is
+ * silently truncated by the tokenizer and never influences the vector).
  */
-export const CHUNK_SIZE_SHORT = 1800
+export const CHUNK_SIZE_SHORT = 1200
 
 /**
  * Chunk size for longer documents (PhD dissertations > 200k chars).
- * 3000 chars ≈ 750 tokens — preserves the flow of longer argumentative sections.
+ * 1500 chars ≈ 500–600 tokens — upper bound that still (mostly) fits the
+ * embedding window; heading-path prefix adds ~20–40 tokens on top.
  */
-export const CHUNK_SIZE_LONG = 3000
+export const CHUNK_SIZE_LONG = 1500
+
+/** Overlap between consecutive subchunks (chars). */
+export const CHUNK_OVERLAP = 150
 
 /**
  * Resolves the appropriate chunk size for a given markdown document length.

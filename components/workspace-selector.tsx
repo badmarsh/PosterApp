@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api-fetch"
+import { TEMPLATE_REGISTRY as TEMPLATES } from "@/lib/output-types"
 import { FolderOpen, Plus } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -38,7 +39,9 @@ export function WorkspaceSelector({
   const [isCreating, setIsCreating] = useState(false)
   const [newId, setNewId] = useState("")
   const [newName, setNewName] = useState("")
+  const [newOutputType, setNewOutputType] = useState<"poster" | "slides" | "paper" | "thesis-review">("poster")
   const [newTemplate, setNewTemplate] = useState("atlas")
+  const [idTouched, setIdTouched] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -79,6 +82,23 @@ export function WorkspaceSelector({
       })
   }, [])
 
+  const slugify = (v: string) =>
+    v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32)
+
+  const handleNameChange = (v: string) => {
+    setNewName(v)
+    if (!idTouched) setNewId(slugify(v))
+  }
+
+  const templateOptions = TEMPLATES.filter((t) => t.outputType === newOutputType)
+
+  useEffect(() => {
+    if (!templateOptions.some((t) => t.id === newTemplate)) {
+      setNewTemplate(templateOptions[0]?.id ?? "")
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newOutputType])
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreateError(null)
@@ -97,7 +117,7 @@ export function WorkspaceSelector({
       const res = await apiFetch("/api/workspaces", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: newId, name: newName, templateName: newTemplate }),
+        body: JSON.stringify({ id: newId, name: newName, outputType: newOutputType, templateId: newTemplate || undefined }),
       })
       const contentType = res.headers.get("content-type") || ""
       if (!res.ok) {
@@ -192,7 +212,11 @@ export function WorkspaceSelector({
               </button>
             ))}
             {workspaces.length === 0 && !error && (
-              <p className="text-sm text-muted-foreground text-center py-4">No workspaces yet.</p>
+              <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-6 text-center">
+                <p className="text-sm font-medium">No workspaces yet</p>
+                <p className="text-xs text-muted-foreground max-w-xs">Create a workspace to build a poster, slides or paper from a PDF, or to review a thesis.</p>
+                <Button size="sm" className="mt-1 gap-1.5" onClick={() => setIsCreating(true)}><Plus className="size-3.5" />Create your first workspace</Button>
+              </div>
             )}
           </div>
         ) : null}
@@ -203,23 +227,38 @@ export function WorkspaceSelector({
               <p className="text-sm font-medium">New Workspace</p>
               {createError && <p className="text-xs text-destructive">{createError}</p>}
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="ws-id">Workspace ID (slug)</Label>
-                <Input id="ws-id" value={newId} onChange={(e) => setNewId(e.target.value)} placeholder="my-cool-project" disabled={isSubmitting} />
-              </div>
-              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="ws-name">Project Name</Label>
-                <Input id="ws-name" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="My Cool Project" disabled={isSubmitting} />
+                <Input id="ws-name" autoFocus value={newName} onChange={(e) => handleNameChange(e.target.value)} placeholder="My Cool Project" disabled={isSubmitting} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="ws-template">Template</Label>
-                <Select value={newTemplate} onValueChange={(val) => val && setNewTemplate(val)} disabled={isSubmitting}>
-                  <SelectTrigger id="ws-template" className="w-full"><SelectValue /></SelectTrigger>
+                <Label htmlFor="ws-id" className="text-xs text-muted-foreground">Workspace ID (auto-generated, editable)</Label>
+                <Input id="ws-id" value={newId} onChange={(e) => { setIdTouched(true); setNewId(e.target.value) }} placeholder="my-cool-project" disabled={isSubmitting} className="font-mono text-xs" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="ws-output">Output type</Label>
+                <Select value={newOutputType} onValueChange={(val) => val && setNewOutputType(val as typeof newOutputType)} disabled={isSubmitting}>
+                  <SelectTrigger id="ws-output" className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="atlas">Atlas</SelectItem>
-                    <SelectItem value="minimal">Minimal</SelectItem>
+                    <SelectItem value="poster">Poster</SelectItem>
+                    <SelectItem value="slides">Slides</SelectItem>
+                    <SelectItem value="paper">Paper</SelectItem>
+                    <SelectItem value="thesis-review">Thesis review</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              {templateOptions.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="ws-template">Template</Label>
+                  <Select value={newTemplate} onValueChange={(val) => val && setNewTemplate(val)} disabled={isSubmitting}>
+                    <SelectTrigger id="ws-template" className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {templateOptions.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="flex justify-end gap-2 pt-1">
                 <Button type="button" variant="outline" size="sm" onClick={() => setIsCreating(false)} disabled={isSubmitting}>Cancel</Button>
                 <Button type="submit" size="sm" disabled={isSubmitting}>{isSubmitting ? "Creating..." : "Create"}</Button>

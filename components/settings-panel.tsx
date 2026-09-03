@@ -239,8 +239,8 @@ function LanguageSettings({
     <div>
       <SectionHeader
         icon={Languages}
-        title="Default Review Language"
-        description="Language used for new thesis reviews."
+        title="Language"
+        description="Used for new thesis reviews, the academic search dialog and generated review documents. The poster editor itself is currently English-only."
       />
       <Select value={currentLanguage} onValueChange={(val) => val && onLanguageChange(val as ReviewLanguage)}>
         <SelectTrigger className="w-full">

@@ -30,9 +30,11 @@ export function PdfViewer({
   const containerRef = useRef<HTMLDivElement>(null)
   const [numPages, setNumPages] = useState(0)
   const [containerWidth, setContainerWidth] = useState<number>(0)
+  const [scrollRoot, setScrollRoot] = useState<HTMLDivElement | null>(null)
 
   useEffect(() => {
     const el = containerRef.current
+    setScrollRoot(el)
     if (!el) return
     const observer = new ResizeObserver((entries) => {
       if (entries[0]) {
@@ -101,21 +103,84 @@ export function PdfViewer({
         {Array.from({ length: numPages }, (_, i) => {
           const page = i + 1
           return (
-            <Page
+            <LazyPage
               key={`page-${page}`}
+              root={scrollRoot}
               pageNumber={page}
               scale={scale === "auto" ? undefined : scale}
               width={scale === "auto" && containerWidth ? containerWidth : undefined}
-              className="mb-4 shadow-lg shrink-0"
-              loading={
-                <div className="flex h-32 items-center justify-center">
-                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                </div>
-              }
             />
           )
         })}
       </Document>
+    </div>
+  )
+}
+
+/**
+ * Renders a react-pdf <Page> only when it is near the viewport. A 60-page thesis
+ * otherwise mounts 60 canvases + text layers at once, which stalls scrolling and
+ * balloons memory. Pages keep their last measured height when unmounted so the
+ * scrollbar does not jump.
+ */
+function LazyPage({
+  root,
+  pageNumber,
+  scale,
+  width,
+}: {
+  root: HTMLDivElement | null
+  pageNumber: number
+  scale?: number
+  width?: number
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(pageNumber <= 2)
+  const [height, setHeight] = useState<number | undefined>(undefined)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setVisible(true)
+          } else if (entry.target === el) {
+            const h = el.getBoundingClientRect().height
+            if (h > 0) setHeight(h)
+            setVisible(false)
+          }
+        }
+      },
+      { root, rootMargin: "150% 0px" },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [root])
+
+  // Width/scale changes invalidate the cached placeholder height.
+  useEffect(() => { setHeight(undefined) }, [scale, width])
+
+  return (
+    <div ref={ref} className="mb-4 shrink-0" style={!visible && height ? { height, width } : undefined}>
+      {visible ? (
+        <Page
+          pageNumber={pageNumber}
+          scale={scale}
+          width={width}
+          className="shadow-lg"
+          loading={
+            <div className="flex h-32 items-center justify-center" style={height ? { height } : undefined}>
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            </div>
+          }
+        />
+      ) : (
+        <div className="flex items-center justify-center rounded bg-muted/30 text-[10px] text-muted-foreground" style={{ height: height ?? 320, width }}>
+          {pageNumber}
+        </div>
+      )}
     </div>
   )
 }
