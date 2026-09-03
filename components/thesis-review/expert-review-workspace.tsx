@@ -610,8 +610,8 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 <h3 className="text-sm font-bold tracking-tight flex items-center gap-2">
                   <span>Štruktúrované pripomienky ({findings.length})</span>
                   {openMajorBlockers > 0 && (
-                    <Badge variant="destructive" className="text-[10px] py-0 px-1.5">
-                      {openMajorBlockers} otvorených zásadných
+                    <Badge variant="secondary" className="text-[10px] py-0 px-1.5 font-normal">
+                      Zásadných: {openMajorBlockers}
                     </Badge>
                   )}
                 </h3>
@@ -646,7 +646,20 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
 
               <Select value={selectedCategory} onValueChange={(val) => setSelectedCategory(val || "all")}>
                 <SelectTrigger className="h-7 text-xs w-32">
-                  <SelectValue placeholder="Kategória" />
+                  <SelectValue placeholder="Kategória">
+                    {(val) => {
+                      const labels: Record<string, string> = {
+                        all: "Všetky kategórie",
+                        methodology: "Metodológia",
+                        results: "Výsledky",
+                        statistics: "Štatistika",
+                        literature: "Literatúra",
+                        reproducibility: "Reprodukovateľnosť",
+                        formal: "Formálna úprava",
+                      }
+                      return labels[val] || val || "Kategória"
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" className="text-xs">Všetky kategórie</SelectItem>
@@ -661,7 +674,16 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
 
               <Select value={selectedAudience} onValueChange={(val) => setSelectedAudience(val || "all")}>
                 <SelectTrigger className="h-7 text-xs w-28">
-                  <SelectValue placeholder="Príjemca" />
+                  <SelectValue placeholder="Príjemca">
+                    {(val) => {
+                      const labels: Record<string, string> = {
+                        all: "Všetci",
+                        author: "Pre autora",
+                        editor: "Dôverné",
+                      }
+                      return labels[val] || val || "Príjemca"
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" className="text-xs">Všetci</SelectItem>
@@ -798,8 +820,10 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                   </span>
                   <div className="flex items-center gap-2">
                     <Select value={newSeverity} onValueChange={(v) => setNewSeverity(v as ReviewSeverity)}>
-                      <SelectTrigger className="h-6 text-[11px] w-36">
-                        <SelectValue />
+                      <SelectTrigger size="xs" className="h-6 text-[11px] w-36 font-semibold">
+                        <SelectValue>
+                          {newSeverity === "critical" ? "Kritická (Critical)" : newSeverity === "major" ? "Zásadná (Major)" : newSeverity === "minor" ? "Drobná (Minor)" : "Návrh (Suggestion)"}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="critical" className="text-xs font-bold text-destructive">Kritická (Critical)</SelectItem>

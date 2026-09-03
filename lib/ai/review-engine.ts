@@ -389,7 +389,7 @@ Respond with this JSON structure:
           id: `critique-missed-${i + 1}`,
           criterionKey: "general",
           criterionId: "general",
-          title: `[Critique] ${weakness.slice(0, 80)}`,
+          title: weakness.slice(0, 80),
           findingType: "weakness" as const,
           epistemicStatus: "REVIEWER_JUDGMENT" as const,
           explanation: weakness,

@@ -76,7 +76,10 @@ const EVIDENCE_ICONS: Record<EvidenceState, any> = {
 
 type FindingCardLabels = {
   severityOptions: Record<"critical" | "major" | "minor" | "suggestion", string>
+  severityShort: Record<"critical" | "major" | "minor" | "suggestion", string>
   audienceOptions: Record<FindingAudience, string>
+  audienceShort: Record<FindingAudience, string>
+  categoryLabels: Record<string, string>
   originAi: string
   originReviewer: string
   statusLabels: Record<FindingStatus, string>
@@ -110,7 +113,26 @@ const LABELS: Record<ReviewLanguage, FindingCardLabels> = {
       minor: "Drobná pripomienka (Minor)",
       suggestion: "Návrh / Odporúčanie (Suggestion)",
     },
+    severityShort: {
+      critical: "Kritická",
+      major: "Zásadná",
+      minor: "Drobná",
+      suggestion: "Návrh",
+    },
     audienceOptions: { author: "Pre autora", editor: "Dôverné (Editor)", committee: "Pre komisiu", private: "Súkromné" },
+    audienceShort: { author: "Pre autora", editor: "Dôverné", committee: "Komisia", private: "Súkromné" },
+    categoryLabels: {
+      methodology: "Metodológia",
+      results: "Výsledky",
+      statistics: "Štatistika",
+      literature: "Literatúra",
+      reproducibility: "Reprodukovateľnosť",
+      formal: "Formálna úprava",
+      general: "Všeobecné",
+      discussion: "Diskusia",
+      theory: "Teória",
+      objectives: "Ciele",
+    },
     originAi: "AI",
     originReviewer: "Recenzent",
     statusLabels: {
@@ -163,7 +185,26 @@ const LABELS: Record<ReviewLanguage, FindingCardLabels> = {
       minor: "Drobná připomínka (Minor)",
       suggestion: "Návrh / Doporučení (Suggestion)",
     },
+    severityShort: {
+      critical: "Kritická",
+      major: "Zásadní",
+      minor: "Drobná",
+      suggestion: "Návrh",
+    },
     audienceOptions: { author: "Pro autora", editor: "Důvěrné (Editor)", committee: "Pro komisi", private: "Soukromé" },
+    audienceShort: { author: "Pro autora", editor: "Důvěrné", committee: "Komise", private: "Soukromé" },
+    categoryLabels: {
+      methodology: "Metodologie",
+      results: "Výsledky",
+      statistics: "Statistika",
+      literature: "Literatura",
+      reproducibility: "Reprodukovatelnost",
+      formal: "Formální úprava",
+      general: "Obecné",
+      discussion: "Diskuze",
+      theory: "Teorie",
+      objectives: "Cíle",
+    },
     originAi: "AI",
     originReviewer: "Recenzent",
     statusLabels: {
@@ -216,7 +257,26 @@ const LABELS: Record<ReviewLanguage, FindingCardLabels> = {
       minor: "Minor comment (Minor)",
       suggestion: "Suggestion / Recommendation",
     },
+    severityShort: {
+      critical: "Critical",
+      major: "Major",
+      minor: "Minor",
+      suggestion: "Suggestion",
+    },
     audienceOptions: { author: "For author", editor: "Confidential (Editor)", committee: "For committee", private: "Private" },
+    audienceShort: { author: "Author", editor: "Confidential", committee: "Committee", private: "Private" },
+    categoryLabels: {
+      methodology: "Methodology",
+      results: "Results",
+      statistics: "Statistics",
+      literature: "Literature",
+      reproducibility: "Reproducibility",
+      formal: "Formal",
+      general: "General",
+      discussion: "Discussion",
+      theory: "Theory",
+      objectives: "Objectives",
+    },
     originAi: "AI",
     originReviewer: "Reviewer",
     statusLabels: {
@@ -275,8 +335,9 @@ export function FindingCard({
   onToggleExport,
 }: Props) {
   const L = LABELS[lang]
+  const cleanTitle = finding.title.replace(/^\[Critique\]\s*/i, "")
   const [isEditing, setIsEditing] = useState(false)
-  const [title, setTitle] = useState(finding.title)
+  const [title, setTitle] = useState(cleanTitle)
   const [explanation, setExplanation] = useState(finding.explanation)
   const [recommendation, setRecommendation] = useState(finding.recommendation)
   const [reviewerNotes, setReviewerNotes] = useState(finding.reviewerNotes || "")
@@ -320,16 +381,19 @@ export function FindingCard({
     >
       {/* Card Header: Category, Severity, Status & Creator */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2.5">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {/* Severity selector */}
           <Select
             value={finding.severity}
             onValueChange={(val) => onEdit(finding.id, { severity: val as ReviewSeverity })}
           >
             <SelectTrigger
-              className={`h-6 text-[11px] font-bold px-2 py-0 border rounded-md ${SEVERITY_CLASSES[finding.severity]}`}
+              size="xs"
+              className={`h-6 text-[11px] font-bold px-2 py-0 border rounded-md w-auto shrink-0 ${SEVERITY_CLASSES[finding.severity]}`}
             >
-              <SelectValue />
+              <SelectValue>
+                {L.severityShort[finding.severity] || finding.severity}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="critical" className="text-xs font-bold text-destructive">
@@ -348,8 +412,11 @@ export function FindingCard({
           </Select>
 
           {/* Category tag */}
-          <Badge variant="outline" className="text-[10px] uppercase font-mono tracking-wider">
-            {finding.category}
+          <Badge
+            variant="outline"
+            className="h-6 text-[10px] font-medium tracking-normal px-2 py-0 inline-flex items-center rounded-md shrink-0"
+          >
+            {L.categoryLabels[finding.category] || finding.category}
           </Badge>
 
           {/* Epistemic Status badge */}
@@ -358,6 +425,7 @@ export function FindingCard({
               size="md"
               variant={EPISTEMIC_CLASSES[finding.epistemicStatus]}
               title={L.epistemic[finding.epistemicStatus].title}
+              className="h-6 py-0 px-2 inline-flex items-center rounded-md shrink-0"
             >
               {L.epistemic[finding.epistemicStatus].label}
             </StatusBadge>
@@ -368,8 +436,13 @@ export function FindingCard({
             value={finding.audience || "author"}
             onValueChange={(val) => onEdit(finding.id, { audience: val as FindingAudience })}
           >
-            <SelectTrigger className="h-6 text-[10px] px-1.5 py-0 border rounded-md w-28">
-              <SelectValue />
+            <SelectTrigger
+              size="xs"
+              className="h-6 text-[10px] font-medium px-2 py-0 border rounded-md w-auto shrink-0 text-muted-foreground"
+            >
+              <SelectValue>
+                {L.audienceShort[finding.audience || "author"] || finding.audience}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="author" className="text-xs">{L.audienceOptions.author}</SelectItem>
@@ -382,14 +455,14 @@ export function FindingCard({
           {finding.createdBy === "ai" ? (
             <Badge
               variant="outline"
-              className="text-[10px] font-mono gap-1 text-muted-foreground border-muted-foreground/30"
+              className="h-6 text-[10px] font-mono gap-1 text-muted-foreground border-muted-foreground/30 px-2 py-0 inline-flex items-center rounded-md shrink-0"
             >
               <Sparkles className="h-3 w-3 text-primary/70" /> {L.originAi}
             </Badge>
           ) : (
             <Badge
               variant="outline"
-              className="text-[10px] font-mono font-bold gap-1 text-primary border-primary/30 bg-primary/5"
+              className="h-6 text-[10px] font-mono font-bold gap-1 text-primary border-primary/30 bg-primary/5 px-2 py-0 inline-flex items-center rounded-md shrink-0"
             >
               <User className="h-3 w-3" /> {L.originReviewer}
             </Badge>
@@ -397,10 +470,10 @@ export function FindingCard({
         </div>
 
         {/* Status indicator */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           <Badge
             variant="secondary"
-            className={`text-[10px] font-semibold gap-1 ${
+            className={`h-6 text-[10px] font-semibold gap-1 px-2 py-0 inline-flex items-center rounded-md shrink-0 ${
               finding.status === "accepted"
                 ? "text-success bg-success/10"
                 : finding.status === "rejected"
@@ -415,7 +488,7 @@ export function FindingCard({
           <Button
             size="icon"
             variant="ghost"
-            className="h-6 w-6 text-muted-foreground"
+            className="h-6 w-6 text-muted-foreground shrink-0"
             title={finding.includeInExport ? L.toggleExportOn : L.toggleExportOff}
             onClick={() => onToggleExport(finding.id)}
           >
@@ -462,7 +535,7 @@ export function FindingCard({
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-2">
             <h4 className="text-sm font-semibold text-foreground tracking-tight leading-snug">
-              {finding.title}
+              {cleanTitle}
             </h4>
             {finding.audience === "editor" && (
               <Badge variant="outline" className="text-[9px] text-warning border-warning/40 gap-1 shrink-0">
