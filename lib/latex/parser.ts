@@ -138,6 +138,24 @@ export function escapeLatex(input: string): string {
     .replace(/~/g, "\\textasciitilde{}")
     .replace(/\^/g, "\\textasciicircum{}")
 
+  return mapUnicodeToLatex(text)
+}
+
+/**
+ * Unicode -> LaTeX-safe replacements. Single source of truth for the whole
+ * pipeline.
+ *
+ * Under `inputenc[utf8]` + `fontenc[T1]` with no `newunicodechar` — which is
+ * what every template in this repo emits — an unmapped character here is a
+ * hard `Package inputenc Error: Unicode character ... not set up` compile
+ * failure, not a cosmetic degradation. The thesis-review generator therefore
+ * shares this exact function instead of keeping a second table that can drift.
+ *
+ * Must run *after* the special-character escape, so the `$...$` wrappers it
+ * introduces are not themselves escaped.
+ */
+export function mapUnicodeToLatex(input: string): string {
+  let text = input
   const unicodeMap: Record<string, string> = {
     "⁰": "$^0$", "¹": "$^1$", "²": "$^2$", "³": "$^3$", "⁴": "$^4$",
     "⁵": "$^5$", "⁶": "$^6$", "⁷": "$^7$", "⁸": "$^8$", "⁹": "$^9$",
