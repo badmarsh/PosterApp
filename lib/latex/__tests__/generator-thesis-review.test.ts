@@ -154,3 +154,93 @@ describe("Thesis Review LaTeX Generator", () => {
   })
 })
 
+describe("Thesis review Unicode & markdown handling (A-01)", () => {
+  const base = {
+    studentName: "Ján Novák",
+    thesisTitle: "Záverečná práca",
+    thesisType: "master" as const,
+    reviewerRole: "opponent" as const,
+    sections: [],
+    defenseQuestions: [],
+    citationIssues: [],
+    language: "sk" as const,
+    template: "posudok-sk" as const,
+  }
+
+  it("maps Greek letters and superscripts in section text to LaTeX math", () => {
+    const tex = generateThesisReviewLatex({
+      ...base,
+      sections: [
+        {
+          id: "s1",
+          sectionId: "methodology",
+          criterionId: "methodology",
+          text: "Testovanie χ² pri α=0.05 dalo p≤0.01.",
+          rating: "A",
+          suggestions: [],
+        },
+      ],
+    })
+    expect(tex).not.toContain("χ")
+    expect(tex).not.toContain("α")
+    expect(tex).not.toContain("≤")
+    expect(tex).toContain("$\\chi$")
+    expect(tex).toContain("$\\alpha$")
+    expect(tex).toContain("$\\le$")
+  })
+
+  it("maps em dashes and smart quotes in suggestions", () => {
+    const tex = generateThesisReviewLatex({
+      ...base,
+      sections: [
+        {
+          id: "s1",
+          sectionId: "methodology",
+          criterionId: "methodology",
+          text: "Text.",
+          rating: "A",
+          suggestions: ["Doplniť graf — najmä “konvergenciu”"],
+        },
+      ],
+    })
+    expect(tex).not.toContain("—")
+    expect(tex).not.toContain("“")
+    expect(tex).toContain("Doplniť graf --- najmä ``konvergenciu''")
+  })
+
+  it("renders markdown emphasis in confidential comments instead of literal asterisks", () => {
+    const tex = generateThesisReviewLatex({
+      ...base,
+      confidentialComments: "Študent pracoval **mimoriadne** samostatne.",
+      includeConfidential: true,
+    })
+    expect(tex).toContain("\\textbf{mimoriadne}")
+    expect(tex).not.toContain("**mimoriadne**")
+  })
+
+  it("preserves inline math in defense questions instead of escaping it", () => {
+    const tex = generateThesisReviewLatex({
+      ...base,
+      defenseQuestions: ["Ako ste odvodili $x^2 + y^2$?"],
+    })
+    expect(tex).toContain("$x^2 + y^2$")
+    expect(tex).not.toContain("\\textasciicircum{}2")
+  })
+
+  it("maps Unicode in structural fields without turning them into markdown blocks", () => {
+    const tex = generateThesisReviewLatex({
+      ...base,
+      thesisTitle: "Analýza α-rozpadu *in vivo*",
+    })
+    expect(tex).toContain("$\\alpha$-rozpadu")
+    expect(tex).not.toContain("\\textit{in vivo}")
+    expect(tex).toContain("*in vivo*")
+  })
+
+  it("maps Unicode in citation issues", () => {
+    const tex = generateThesisReviewLatex({ ...base, citationIssues: ["Chýba DOI — položka ≥3"] })
+    expect(tex).toContain("---")
+    expect(tex).toContain("$\\ge$")
+  })
+})
+

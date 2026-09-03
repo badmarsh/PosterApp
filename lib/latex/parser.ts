@@ -93,6 +93,38 @@ function restoreCitations(text: string, slots: Slot[]): string {
   return result
 }
 
+/**
+ * Markdown links must be pulled out *before* escapeLatex runs, exactly like
+ * math and citations. `\href`'s first argument is a URL, not text: a `_`, `&`,
+ * `%` or `#` in a query string or anchor must reach the PDF verbatim, and an
+ * escaped `\_` there produces a dead or wrong link rather than a typeset
+ * underscore. The link *text* is a separate concern and is escaped normally,
+ * so the raw title is stashed and re-parsed on restore.
+ */
+function extractLinks(input: string): { text: string; slots: Slot[] } {
+  if (typeof input !== "string") return { text: "", slots: [] }
+  const slots: Slot[] = []
+  let idx = 0
+  const text = input.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, (match, _title: string, url: string) => {
+    if (!/^https?:\/\//i.test(url)) return match
+    const placeholder = `\x00LINK${idx++}\x00`
+    slots.push({ placeholder, original: match })
+    return placeholder
+  })
+  return { text, slots }
+}
+
+function restoreLinks(text: string, slots: Slot[]): string {
+  let result = text
+  for (const { placeholder, original } of slots) {
+    const parsed = original.replace(/^\[([^\]\n]+)\]\(([^)\s]+)\)$/, (_m, title: string, url: string) =>
+      `\\href{${url}}{${escapeLatex(title)}}`
+    )
+    result = result.split(placeholder).join(parsed)
+  }
+  return result
+}
+
 export function escapeLatex(input: string): string {
   const decoded = decodeHtmlEntities(input)
   let text = decoded
@@ -106,6 +138,24 @@ export function escapeLatex(input: string): string {
     .replace(/~/g, "\\textasciitilde{}")
     .replace(/\^/g, "\\textasciicircum{}")
 
+  return mapUnicodeToLatex(text)
+}
+
+/**
+ * Unicode -> LaTeX-safe replacements. Single source of truth for the whole
+ * pipeline.
+ *
+ * Under `inputenc[utf8]` + `fontenc[T1]` with no `newunicodechar` — which is
+ * what every template in this repo emits — an unmapped character here is a
+ * hard `Package inputenc Error: Unicode character ... not set up` compile
+ * failure, not a cosmetic degradation. The thesis-review generator therefore
+ * shares this exact function instead of keeping a second table that can drift.
+ *
+ * Must run *after* the special-character escape, so the `$...$` wrappers it
+ * introduces are not themselves escaped.
+ */
+export function mapUnicodeToLatex(input: string): string {
+  let text = input
   const unicodeMap: Record<string, string> = {
     "⁰": "$^0$", "¹": "$^1$", "²": "$^2$", "³": "$^3$", "⁴": "$^4$",
     "⁵": "$^5$", "⁶": "$^6$", "⁷": "$^7$", "⁸": "$^8$", "⁹": "$^9$",
@@ -130,17 +180,15 @@ export function escapeLatex(input: string): string {
 export function parseMarkdownToLatex(input: string): string {
   const { text: afterMath, slots: mathSlots } = extractMath(input)
   const { text: afterCites, slots: citeSlots } = extractCitations(afterMath)
-  let text = escapeLatex(afterCites)
+  const { text: afterLinks, slots: linkSlots } = extractLinks(afterCites)
+  let text = escapeLatex(afterLinks)
 
   text = text.replace(/\*\*([^*\n]+)\*\*/g, "\\textbf{$1}")
   text = text.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "\\textit{$1}")
   text = text.replace(/`([^`\n]+)`/g, "\\texttt{$1}")
-  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, title, url) => {
-    if (/^https?:\/\//i.test(url)) {
-      return `\\href{${url}}{${title}}`
-    }
-    return title
-  })
+  // http(s) links were placeheld before escaping (see extractLinks); anything
+  // still bracketed here has a non-web target, so keep the text and drop it.
+  text = text.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, (_match, title: string) => title)
 
   const lines = text.split("\n")
   const outLines: string[] = []
@@ -165,6 +213,7 @@ export function parseMarkdownToLatex(input: string): string {
   if (inList) outLines.push("\\end{itemize}")
 
   text = outLines.join("\n")
+  text = restoreLinks(text, linkSlots)
   text = restoreCitations(text, citeSlots)
   text = restoreMath(text, mathSlots)
 
