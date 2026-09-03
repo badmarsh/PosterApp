@@ -30,6 +30,7 @@ export interface ReviewJobSnapshot {
 
 const STAGE_META: Record<string, { icon: typeof FileSearch; sk: string; en: string; cs: string }> = {
   queued: { icon: Loader2, sk: "V poradí", cs: "Ve frontě", en: "Queued" },
+  starting: { icon: Loader2, sk: "Spúšťam posudok…", cs: "Spouštím posudek…", en: "Starting review…" },
   loading_context: { icon: FileSearch, sk: "Načítam dokument", cs: "Načítám dokument", en: "Loading manuscript" },
   retrieval: { icon: FileSearch, sk: "Vyhľadávam dôkazy (RAG)", cs: "Vyhledávám důkazy (RAG)", en: "Retrieving evidence" },
   criterion_reviews: { icon: ListChecks, sk: "Hodnotím kritériá po jednom", cs: "Hodnotím kritéria", en: "Reviewing criteria" },
@@ -57,9 +58,13 @@ interface Props {
 }
 
 export function ReviewGenerationProgress({ job, language = "sk", onCancel }: Props) {
-  const meta = STAGE_META[job.stage] ?? STAGE_META.queued
+  // The transient "starting" placeholder (before the server returns a jobId)
+  // renders as a dedicated first state.
+  const stageKey = job.detail === "starting" ? "starting" : job.stage
+  const meta = STAGE_META[stageKey] ?? STAGE_META.queued
   const Icon = meta.icon
   const label = language === "en" ? meta.en : language === "cs" ? meta.cs : meta.sk
+  const isStarting = stageKey === "starting" || stageKey === "queued"
 
   const stageIndex = STAGE_ORDER.indexOf(job.stage)
   const steps = useMemo(() => {
@@ -74,9 +79,19 @@ export function ReviewGenerationProgress({ job, language = "sk", onCancel }: Pro
       "persisting",
     ]
   }, [job.stage])
-  const activeIdx = stageIndex < 0 ? steps.length - 1 : Math.min(stageIndex, steps.length - 1)
+  // Before the first real stage, no stepper node is active.
+  const activeIdx = isStarting ? -1 : stageIndex < 0 ? steps.length - 1 : Math.min(stageIndex, steps.length - 1)
 
-  const progress = Math.max(2, Math.min(99, Math.round(job.progress ?? 0)))
+  const progress = isStarting ? 2 : Math.max(2, Math.min(99, Math.round(job.progress ?? 0)))
+  const detailText = isStarting
+    ? language === "en"
+      ? "Starting the review job…"
+      : language === "cs"
+      ? "Spouštím úlohu posudku…"
+      : "Spúšťam úlohu posudku…"
+    : job.detail && job.detail !== job.stage
+    ? job.detail
+    : label
 
   return (
     <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
@@ -89,8 +104,8 @@ export function ReviewGenerationProgress({ job, language = "sk", onCancel }: Pro
             <p className="text-sm font-semibold text-foreground flex items-center gap-2">
               {label}
             </p>
-            <p className="text-xs text-muted-foreground truncate" title={job.detail}>
-              {job.detail && job.detail !== job.stage ? job.detail : label}
+            <p className="text-xs text-muted-foreground truncate" title={detailText}>
+              {detailText}
             </p>
           </div>
         </div>
