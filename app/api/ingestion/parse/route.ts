@@ -267,7 +267,7 @@ export async function POST(req: Request) {
             pageNum++
           }
         } catch (e: unknown) {
-          console.error("Failed to parse middle_json for tables and pages:", e?.message || e)
+          console.error("Failed to parse middle_json for tables and pages:", e instanceof Error ? e.message : String(e))
         }
       }
 
@@ -549,7 +549,7 @@ export async function POST(req: Request) {
           pageNum++
         }
       } catch (e: unknown) {
-        console.error("Failed to parse middle_json for equations:", e?.message || e)
+        console.error("Failed to parse middle_json for equations:", e instanceof Error ? e.message : String(e))
       }
     }
 

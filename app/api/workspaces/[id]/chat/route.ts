@@ -6,7 +6,7 @@ import { loadSourceContext } from "@/lib/ai/context"
 import { validateCard } from "@/lib/latex/validation"
 import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
 import { buildCitationInstruction, wrapUntrustedContext } from "@/lib/ai/prompts"
-import type { Card as DbCard } from "@prisma/client"
+import type { Card } from "@/lib/poster-types"
 
 const MAX_SOURCE_CHARS = 40_000
 const MAX_HISTORY_MESSAGES = 20
@@ -17,18 +17,6 @@ type ChatMessage = {
   content: string | unknown[]
   images?: string[]
 }
-
-type FrontendCard = ReturnType<typeof validateCard> extends { field: string } ? {
-  id: string
-  title: string
-  column?: number | null
-  order: number
-  pattern: string
-  content?: string | null
-  heightBudget?: number | null
-  figures: unknown[]
-  table: { rows: unknown[] }
-} : never
 
 export async function POST(
   req: NextRequest,
@@ -99,10 +87,20 @@ export async function POST(
     if (selectedCardId) {
       const card = cards.find((c) => c.id === selectedCardId)
       if (card) {
-        const frontendCard = {
-          ...card,
-          figures: card.figures ?? [],
-          table: card.table ?? { rows: [] },
+        const col = card.column === 1 || card.column === 2 || card.column === 3 ? card.column : null
+        const frontendCard: Card = {
+          id: card.id,
+          title: card.title,
+          column: col,
+          order: card.order,
+          pattern: card.pattern as Card["pattern"],
+          content: card.content || "",
+          table: (card.table && typeof card.table === "object" ? card.table : { rows: [] }) as Card["table"],
+          figures: (Array.isArray(card.figures) ? card.figures : []) as Card["figures"],
+          figureLayout: (card.figureLayout || "single") as Card["figureLayout"],
+          validation: (card.validation || "valid") as Card["validation"],
+          heightBudget: card.heightBudget,
+          slideNotes: card.slideNotes || undefined,
         }
 
         const validationMessages = validateCard(frontendCard)
@@ -130,10 +128,13 @@ Height budget: ${card.heightBudget ?? "N/A"}${validationText}`
     // 4. Bibliography & citations context
     let bibKeys: string[] = []
     if (Array.isArray(workspace.bibKeys)) {
-      bibKeys = workspace.bibKeys
+      bibKeys = (workspace.bibKeys as unknown[]).filter((k): k is string => typeof k === "string")
     } else if (typeof workspace.bibKeys === "string") {
       try {
-        bibKeys = JSON.parse(workspace.bibKeys)
+        const parsed = JSON.parse(workspace.bibKeys)
+        if (Array.isArray(parsed)) {
+          bibKeys = parsed.filter((k): k is string => typeof k === "string")
+        }
       } catch {}
     }
     const bibSummary = workspace.bibContent ? workspace.bibContent.slice(0, 10_000) : ""
@@ -215,7 +216,7 @@ This will allow the user to apply the fix automatically with one click.`
           role: msg.role,
           content: [
             { type: "text", text: textContent },
-            ...msg.images.map((img) => ({
+            ...msg.images.map((img: string) => ({
               type: "image_url",
               image_url: { url: img.startsWith("data:") ? img : `data:image/jpeg;base64,${img}` },
             })),

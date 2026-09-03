@@ -30,7 +30,7 @@ async function canAccessWorkspace(workspaceId: string, userId: string) {
     where: { id: workspaceId },
     include: { members: { where: { userId }, select: { role: true } } },
   })
-  return Boolean(workspace && (workspace.userId === userId || workspace.members.some((member) => ["owner", "editor", "viewer"].includes(member.role))))
+  return Boolean(workspace && (workspace.userId === userId || workspace.members.some((member: { role: string }) => ["owner", "editor", "viewer"].includes(member.role))))
 }
 
 app.prepare().then(() => {

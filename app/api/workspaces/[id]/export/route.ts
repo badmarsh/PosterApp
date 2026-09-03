@@ -5,7 +5,8 @@ import JSZip from "jszip"
 import fs from "node:fs/promises"
 import path from "node:path"
 import { safeJsonParse } from "@/lib/db-helpers"
-import { type Project, type OutputConfig, resolveOutputMetadata } from "@/lib/poster-types"
+import { type Project, type OutputConfig, type Card, resolveOutputMetadata } from "@/lib/poster-types"
+import type { ExtractedAsset } from "@/lib/ingestion"
 import { generateFullTemplate } from "@/lib/latex"
 import { resolveBibSource } from "@/lib/latex/bib-source"
 import { materializeRemoteFigures, rewriteTexRemoteUrls } from "@/lib/latex/remote-assets"
@@ -70,11 +71,10 @@ export async function GET(
         url: a.url || "",
         thumbnailUrl: a.thumbnailUrl || a.url || "",
         caption: a.caption || "",
-        type: a.type || "figure",
         fileId: a.fileId || "",
-        kind: a.type || "figure",
+        kind: (a.kind || "figure") as ExtractedAsset["kind"],
         page: a.page || 1,
-        confidence: a.confidence || 1.0,
+        confidence: (a.confidence || "high") as ExtractedAsset["confidence"],
       })),
       ingestFiles: [],
       outputs: workspace.outputs.map((out) => ({
@@ -87,7 +87,7 @@ export async function GET(
         logoUrl: out.logoUrl,
         secondaryLogoUrl: out.secondaryLogoUrl,
         themeColor: out.themeColor,
-        cards: out.cards.map(parseDbCard),
+        cards: out.cards.map((c) => parseDbCard(c) as unknown as Card),
       })),
     }
 

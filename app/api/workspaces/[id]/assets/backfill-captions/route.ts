@@ -125,7 +125,7 @@ export async function POST(
                 snippet: formula,
               },
             })
-            updatedAssets.push(updated)
+            updatedAssets.push({ id: updated.id, caption: updated.caption ?? "" })
             updatedCount++
           }
         }
@@ -147,7 +147,7 @@ export async function POST(
                 snippet: newSnippet,
               },
             })
-            updatedAssets.push(updated)
+            updatedAssets.push({ id: updated.id, caption: updated.caption ?? "" })
             updatedCount++
           }
         }

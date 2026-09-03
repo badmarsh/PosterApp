@@ -2,6 +2,7 @@ export type ColumnIndex = 1 | 2 | 3
 
 import type { ExtractedAsset, IngestFile } from "./ingestion"
 import type { OutputType } from "./output-types"
+export type { OutputType }
 
 export type BibEntry = {
   id: string

@@ -114,7 +114,7 @@ function BasicsTab({ card }: { card: Card }) {
   const titleInvalid = card.title.trim().length === 0
   const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
   const cards = activeOutput?.cards || []
-  const outputType = activeOutput?.outputType ?? "poster"
+  const outputType = (activeOutput?.outputType ?? "poster") as OutputType
   const isPosters = outputType === "poster"
 
   const orderInCol =
@@ -126,7 +126,7 @@ function BasicsTab({ card }: { card: Card }) {
 
   // Patterns valid for the current output type
   const patternsForOutput = BLOCK_PATTERNS.filter((p) =>
-    PATTERNS_FOR_TYPE[outputType]?.some((q) => q.id === p.id)
+    PATTERNS_FOR_TYPE[outputType]?.some((q: { id: string }) => q.id === p.id)
   )
 
   return (

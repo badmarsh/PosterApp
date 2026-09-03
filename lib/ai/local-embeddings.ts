@@ -68,6 +68,15 @@ export async function generateLocalEmbedding(text: string): Promise<number[]> {
   const cached = embeddingCache.get(key)
   if (cached) return cached
 
+  if (process.env.VITEST && !process.env.TEST_REAL_EMBEDDINGS) {
+    const hash = createHash("sha256").update(text).digest()
+    const vec = new Array(384).fill(0).map((_, i) => (hash[i % hash.length] - 128) / 128)
+    const norm = Math.hypot(...vec) || 1
+    const normalized = vec.map((v) => v / norm)
+    cachePut(key, normalized)
+    return normalized
+  }
+
   const embedder = await PipelineSingleton.getInstance()
   const output = await embedder(text, { pooling: "mean", normalize: true })
 

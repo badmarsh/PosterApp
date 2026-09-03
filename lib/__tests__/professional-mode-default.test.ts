@@ -45,13 +45,13 @@ describe("Task 11: shouldUseProfessionalMode and Path A defaults", () => {
     const sections = [
       {
         id: "sec-1",
-        heading: "Formalna struktura",
-        content: "Uvod jadro zaver zoznam literatury typograficka uprava cislovanie stran tabuliek obrazkov struktura prace.",
+        heading: "Formálna štruktúra",
+        content: "Formálna štruktúra práce zahŕňa úvod, jadro, záver a zoznam literatúry. Typografická úprava a číslovanie strán, tabuliek a obrázkov.",
       },
       {
         id: "sec-2",
-        heading: "Metodologia",
-        content: "Metodologia postup riesenia metody aplikacia logicka nadvaznst krokov odborne zdroje vysledky interpretacia.",
+        heading: "Metodológia",
+        content: "Metodológia a postup riešenia, použité metódy a ich aplikácia, logická nadväznosť krokov a odborné zdroje.",
       },
     ]
     const preGroundingText = await buildPreGenerationGrounding(sections, "sk")

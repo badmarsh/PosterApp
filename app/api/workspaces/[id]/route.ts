@@ -157,7 +157,7 @@ export async function PUT(
       )
     }
     const body = parsed.data
-    const pendingSnapshotRef: { current: { snapId: string; diff: unknown[] } | null } = { current: null }
+    const pendingSnapshotRef: { current: { snapId: string; diff: string[] } | null } = { current: null }
 
     // Use a transaction to safely replace outputs, cards, assets, and ingest files
     await prisma.$transaction(async (tx) => {

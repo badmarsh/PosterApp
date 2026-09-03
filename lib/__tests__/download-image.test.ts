@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from "vitest"
 import fs from "fs/promises"
 import path from "path"
 import os from "os"
@@ -9,9 +9,13 @@ vi.mock("@/lib/workspace-files", () => ({
   WORKSPACES_ROOT: tempRoot,
 }))
 
-const { downloadRemoteImage } = await import("../download-image")
+let downloadRemoteImage: typeof import("../download-image").downloadRemoteImage
 
 describe("downloadRemoteImage", () => {
+  beforeAll(async () => {
+    const mod = await import("../download-image")
+    downloadRemoteImage = mod.downloadRemoteImage
+  })
   beforeEach(async () => {
     await fs.mkdir(tempRoot, { recursive: true })
   })

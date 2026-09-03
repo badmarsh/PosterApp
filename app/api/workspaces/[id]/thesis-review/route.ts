@@ -484,8 +484,8 @@ export async function POST(
       thesisMetadata.reviewKind,
       effectiveReportingStandard
     )
-    let result: Record<string, unknown>
-    let professionalResult: Record<string, unknown> | null = null
+    let result: any
+    let professionalResult: any = null
     let calibratedDefenseQuestions: string[] | null = null
 
     // Parse AI model overrides from request headers
@@ -513,7 +513,7 @@ export async function POST(
       calibratedDefenseQuestions = normalizeDefenseQuestions(professionalResult.defenseQuestions)
 
       const sections = activeCriteria.map((c) => {
-        const matchingFindings = professionalResult.anchoredFindings.filter((f) => {
+        const matchingFindings = (professionalResult.anchoredFindings || []).filter((f: any) => {
           // Direct or mapped criterion matching
           if (f.criterionId && (RUBRIC_CRITERIA_MAP[f.criterionId] === c.id || f.criterionId === c.id)) return true
           if (f.criterionKey && (RUBRIC_CRITERIA_MAP[f.criterionKey] === c.id || f.criterionKey === c.id)) return true
@@ -529,7 +529,7 @@ export async function POST(
         })
 
         const text = matchingFindings.length > 0
-          ? matchingFindings.map((f) => `• ${f.title}: ${f.explanation}`).join("\n\n")
+          ? matchingFindings.map((f: any) => `• ${f.title}: ${f.explanation}`).join("\n\n")
           : (NO_FINDINGS_SYNTHESIS[lang] || NO_FINDINGS_SYNTHESIS.sk)
 
         return {
@@ -539,7 +539,7 @@ export async function POST(
           text,
           rating: professionalResult.grade || "B",
           numericScore: professionalResult.derivedScore ?? 75,
-          suggestions: matchingFindings.map((f) => f.recommendation).filter(Boolean),
+          suggestions: matchingFindings.map((f: any) => f.recommendation).filter(Boolean),
         }
       })
 
@@ -581,7 +581,7 @@ export async function POST(
       for (const f of alignmentResult.findings) {
         const targetId = (f.criterionId && RUBRIC_CRITERIA_MAP[f.criterionId]) || f.criterionId || "goal_definition"
         const targetSec = result.sections.find(
-          (s) => s.id === targetId || s.sectionId === targetId || s.criterionId === targetId
+          (s: any) => s.id === targetId || s.sectionId === targetId || s.criterionId === targetId
         )
         if (targetSec && f.recommendation) {
           targetSec.suggestions = Array.from(
