@@ -314,7 +314,8 @@ function createThesisReviewStore(
   /**
    * Attaches to an existing SSE job stream and resolves with the saved review
    * payload on `done`, or rejects on error/cancel/drop. Shared by fresh starts
-   * and resume-after-refresh.
+   * and resume-after-refresh. If SSE is blocked/stalled by a proxy, falls back
+   * to polling the one-shot GET status endpoint so the UI can never hang.
    */
   function attachToJobStream(
     wsId: string,
@@ -322,7 +323,39 @@ function createThesisReviewStore(
     onStage: (p: { stage: string; detail: string; progress: number }) => void
   ): Promise<any> {
     return new Promise((resolve, reject) => {
+      let settled = false
       let es: EventSource | null = null
+      let lastFrameAt = Date.now()
+      let pollTimer: ReturnType<typeof setInterval> | null = null
+      const finish = (fn: () => void) => {
+        if (settled) return
+        settled = true
+        if (pollTimer) clearInterval(pollTimer)
+        es?.close()
+        fn()
+      }
+
+      const pollStatus = async () => {
+        // If frames keep arriving, no need to poll.
+        if (Date.now() - lastFrameAt < 20_000) return
+        try {
+          const res = await fetch(`/api/workspaces/${wsId}/thesis-review/jobs/${jobId}`)
+          if (!res.ok) return
+          const s = await res.json()
+          if (s.status === "done") {
+            finish(() => resolve(s.result ?? s))
+          } else if (s.status === "error") {
+            finish(() => reject(new Error(s.error ?? "Review generation failed")))
+          } else if (s.status === "cancelled") {
+            finish(() => reject(new Error("Review generation was cancelled.")))
+          } else if (s.stage) {
+            onStage({ stage: s.stage, detail: s.detail ?? s.stage, progress: s.progress ?? 0 })
+          }
+        } catch {
+          /* transient — keep waiting; EventSource or next poll may recover */
+        }
+      }
+
       try {
         es = new EventSource(`/api/workspaces/${wsId}/thesis-review/jobs/${jobId}/stream`)
       } catch (err) {
@@ -330,36 +363,44 @@ function createThesisReviewStore(
         return
       }
       es.addEventListener("stage", (ev) => {
+        lastFrameAt = Date.now()
         try {
           const p = JSON.parse((ev as MessageEvent).data)
           onStage(p)
         } catch { /* malformed frame ignored */ }
       })
       es.addEventListener("done", (ev) => {
-        es?.close()
-        resolve(JSON.parse((ev as MessageEvent).data))
+        finish(() => resolve(JSON.parse((ev as MessageEvent).data)))
       })
       es.addEventListener("error", (ev) => {
         const payload = (ev as MessageEvent).data
         if (payload) {
-          es?.close()
-          try {
-            const p = JSON.parse(payload)
-            reject(new Error(p.error ?? "Review generation failed"))
-          } catch {
-            reject(new Error("Review generation failed"))
-          }
+          finish(() => {
+            try {
+              const p = JSON.parse(payload)
+              reject(new Error(p.error ?? "Review generation failed"))
+            } catch {
+              reject(new Error("Review generation failed"))
+            }
+          })
         } else if (es && es.readyState === EventSource.CLOSED) {
-          es.close()
-          reject(new Error("Spojenie s posudkom sa prerušilo. Skúste to znova."))
+          finish(() => reject(new Error("Spojenie s posudkom sa prerušilo. Skúste to znova.")))
         }
+        // readyState === CONNECTING: EventSource auto-retries; the poll
+        // watchdog below resolves terminal states even if frames never come.
       })
       es.addEventListener("cancelled", () => {
-        es?.close()
-        reject(new Error("Review generation was cancelled."))
+        finish(() => reject(new Error("Review generation was cancelled.")))
       })
+
+      // Watchdog: poll status when no SSE frame has arrived for 20s.
+      pollTimer = setInterval(pollStatus, 10_000)
     })
   }
+
+  // Abort controller for the in-flight "start job" request, so Cancel works
+  // even before the SSE stream exists.
+  let startAbort: AbortController | null = null
 
   return create<ThesisReviewState>()(
     immer((set, get) => ({
@@ -663,12 +704,15 @@ function createThesisReviewStore(
     },
 
     cancelGeneration: async (workspaceId) => {
+      startAbort?.abort()
+      startAbort = null
       const job = get().generationJob
-      if (!job) return
-      try {
-        await fetch(`/api/workspaces/${workspaceId}/thesis-review/jobs/${job.jobId}`, { method: "DELETE" })
-      } catch {
-        /* non-fatal — the SSE stream will also close on cancellation */
+      if (job && !job.jobId.startsWith("starting_")) {
+        try {
+          await fetch(`/api/workspaces/${workspaceId}/thesis-review/jobs/${job.jobId}`, { method: "DELETE" })
+        } catch {
+          /* non-fatal — the SSE stream will also close on cancellation */
+        }
       }
       set((s) => {
         s.generationJob = null
@@ -677,7 +721,21 @@ function createThesisReviewStore(
     },
 
     generateReview: async (opts) => {
-      set((s) => { s.isGenerating = true; s.generateError = null; s.generationJob = null })
+      set((s) => {
+        s.isGenerating = true
+        s.generateError = null
+        // Show the progress card immediately ("Spúšťam…") so the UI never sits
+        // on a dead spinner while the start request or first stage is in flight.
+        s.generationJob = {
+          jobId: `starting_${Date.now()}`,
+          stage: "queued",
+          detail: "starting",
+          progress: 1,
+          status: "running",
+        }
+      })
+      startAbort?.abort()
+      startAbort = new AbortController()
       const fileId = opts.sourceFileId || get().selectedFileId || undefined
       // Ensure source document is fetched
       void get().loadSourceDocument(opts.workspaceId, fileId)
@@ -746,6 +804,7 @@ function createThesisReviewStore(
           method: "POST",
           headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
           body: JSON.stringify({ ...requestBody, stream: true }),
+          signal: startAbort?.signal,
         })
         if (!startRes.ok) {
           const errData = await startRes.json().catch(() => ({}))
@@ -771,11 +830,19 @@ function createThesisReviewStore(
           s.isGenerating = false
           s.generationJob = null
         })
+        startAbort = null
         await get().loadReviews(opts.workspaceId)
         return newReview
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Generation failed"
-        set((s) => { s.isGenerating = false; s.generationJob = null; s.generateError = msg })
+        startAbort = null
+        const cancelled = (err instanceof Error && err.name === "AbortError") || get().generationJob === null
+        set((s) => {
+          s.isGenerating = false
+          s.generationJob = null
+          if (!cancelled) {
+            s.generateError = err instanceof Error ? err.message : "Generation failed"
+          }
+        })
         return null
       }
     },

@@ -11,6 +11,71 @@ export interface StructuralSegment {
   text: string
 }
 
+/**
+ * Convert MinerU-style HTML tables (`<table>…<tr><td>…</td></tr>…</table>`)
+ * to markdown pipe tables, so they go through the table chunking/embedding
+ * path instead of being ingested as prose. Cell contents keep inline text;
+ * tags other than <br> are stripped.
+ */
+function htmlTableToMarkdown(html: string): string {
+  const decodeEntities = (s: string) =>
+    s
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;|&apos;/g, "'")
+      .replace(/<br\s*\/?>/gi, " ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s*\n\s*/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+
+  const cell = (trHtml: string, tag: string): string[] =>
+    [...trHtml.matchAll(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "gi"))].map((m) =>
+      decodeEntities(m[1] || "").replace(/\|/g, "\\|")
+    )
+
+  const rows: string[][] = []
+  for (const trMatch of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
+    const trHtml = trMatch[1]
+    const thCells = cell(trHtml, "th")
+    const tdCells = cell(trHtml, "td")
+    const cells = thCells.length > 0 ? thCells : tdCells
+    if (cells.length > 0) rows.push(cells)
+  }
+  if (rows.length === 0) return ""
+  const width = Math.max(...rows.map((r) => r.length))
+  const norm = rows.map((r) => {
+    const padded = [...r]
+    while (padded.length < width) padded.push("")
+    return padded
+  })
+  const [head, ...rest] = norm
+  const lines = [
+    `| ${head.join(" | ")} |`,
+    `| ${Array(width).fill("---").join(" | ")} |`,
+    ...rest.map((r) => `| ${r.join(" | ")} |`),
+  ]
+  return lines.join("\n")
+}
+
+/**
+ * Normalize non-markdown table markup (MinerU HTML tables) into pipe tables
+ * before structural splitting. Tables are wrapped in blank lines so they form
+ * their own paragraph.
+ */
+export function normalizeTablesToMarkdown(text: string): string {
+  if (!/<table\b/i.test(text)) return text
+  let out = text
+  out = out.replace(/<table\b[^>]*>([\s\S]*?)<\/table>/gi, (whole, inner: string) => {
+    const md = htmlTableToMarkdown(whole)
+    return md ? `\n\n${md}\n\n` : inner
+  })
+  return out
+}
+
 /** A pipe row looks like a markdown table row: starts with `|` and contains another `|`. */
 function isTableLine(line: string): boolean {
   return /^\s*\|.*\|\s*$/.test(line)
@@ -41,7 +106,8 @@ function isDisplayMathEnd(line: string): boolean {
  * Unlike the previous regex-match approach, this is a *partition*: joining
  * the returned units reproduces the input text (minus surrounding whitespace).
  */
-export function splitIntoAtomicUnits(text: string): string[] {
+export function splitIntoAtomicUnits(rawText: string): string[] {
+  const text = normalizeTablesToMarkdown(rawText)
   const units: string[] = []
   const paragraphs = text.split(/\n{2,}/)
   for (const para of paragraphs) {
@@ -219,7 +285,10 @@ export function splitIntoSubchunks(
  * The segments are a partition of the *non-empty* input: joining segments in
  * order with single "\n" reproduces the original (whitespace-trimmed) text.
  */
-export function splitIntoStructuralSegments(text: string): StructuralSegment[] {
+export function splitIntoStructuralSegments(rawText: string): StructuralSegment[] {
+  // MinerU emits HTML tables for PDFs; convert them to pipe tables first so
+  // they are classified as table segments and never split mid-structure.
+  const text = normalizeTablesToMarkdown(rawText)
   const segments: StructuralSegment[] = []
   const lines = text.replace(/\r\n/g, "\n").split("\n")
   let prose: string[] = []

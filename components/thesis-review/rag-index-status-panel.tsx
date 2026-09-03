@@ -359,35 +359,6 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
             </div>
           )}
 
-          {/* Daily AI budget (Part 7) */}
-          {stats?.aiBudget && (
-            <div className="rounded-xl border bg-card p-3.5 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-foreground">Denný AI rozpočet · {stats.aiBudget.day}</span>
-                <span className={`text-xs font-semibold tabular-nums ${stats.aiBudget.overBudget ? "text-destructive" : "text-foreground"}`}>
-                  ${stats.aiBudget.spentUsd.toFixed(3)} / ${stats.aiBudget.budgetUsd.toFixed(2)}
-                </span>
-              </div>
-              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${stats.aiBudget.overBudget ? "bg-destructive" : stats.aiBudget.utilization > 0.7 ? "bg-amber-500" : "bg-primary"}`}
-                  style={{ width: `${Math.min(100, Math.round(stats.aiBudget.utilization * 100))}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>
-                  {stats.aiBudget.calls.toLocaleString("sk-SK")} volaní ·{" "}
-                  {Math.round((stats.aiBudget.promptTokens + stats.aiBudget.completionTokens) / 1000)}k tokenov
-                </span>
-                {stats.aiBudget.overBudget ? (
-                  <span className="text-destructive font-medium">Mäkký stop — voliteľné volania pozastavené</span>
-                ) : (
-                  <span>Zostáva ${stats.aiBudget.remainingUsd.toFixed(2)}</span>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Active indexed documents overview */}
           {stats && stats.documents.length > 0 && (
             <div className="rounded-xl border bg-card p-3.5 space-y-3">
@@ -422,8 +393,11 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
                     <div key={doc.documentId} className="rounded-lg bg-muted/20 p-2.5 space-y-1.5 border border-border/70">
                       <div className="flex items-center justify-between text-xs gap-2">
                         <div className="min-w-0 flex-1">
-                          <span className="font-medium text-xs text-foreground truncate block" title={doc.detectedTopic || doc.name}>
-                            {formatDocumentDisplayName(doc.name, doc.detectedTopic)}
+                          <span
+                            className="font-medium text-xs text-foreground truncate block"
+                            title={doc.detectedTopic ? `${doc.name} — ${doc.detectedTopic}` : doc.name}
+                          >
+                            {doc.name.replace(/\.(pdf|md|docx|tex|txt)$/i, "")}
                           </span>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">

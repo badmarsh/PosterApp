@@ -68,6 +68,29 @@ Bratislava, máj 2026`
     expect(extracted.reviewerName).toContain("Peter Kováč")
   })
 
+  it("never picks section labels like Contents/Abstract as the thesis title", () => {
+    // English MinerU output: first ATX heading is the TOC page "Contents".
+    const enText = [
+      "# Contents",
+      "",
+      "1 Introduction 1",
+      "2 Methods 5",
+      "",
+      "# The distribution function of bosons momentum in a moving system",
+      "",
+      "## Abstract",
+      "We study two identical bosons…",
+    ].join("\n")
+    const en = extractSmartThesisMetadata(enText, "Contents.pdf")
+    expect(en.title).not.toMatch(/^contents$/i)
+    expect(en.title).toContain("distribution function of bosons")
+
+    // Junk filename + junk heading must not yield a junk title.
+    const sk = extractSmartThesisMetadata("# Obsah\n\nÚvod … 1\n", "Contents.pdf")
+    expect(sk.title).not.toMatch(/^obsah$/i)
+    expect(sk.title).not.toMatch(/^contents$/i)
+  })
+
   it("manages generation options independently from thesis metadata", () => {
     const store = useThesisReviewStore.getState()
     expect(store.skipCitationAudit).toBe(false)

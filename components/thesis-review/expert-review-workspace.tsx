@@ -13,6 +13,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import { useScopedThesisReviewStore } from "./thesis-review-provider"
 import { EvidenceViewer } from "./evidence-viewer"
 import { FindingCard } from "./finding-card"
+import { ReviewRoleBanner, ReviewRoleBadge } from "./review-role-badge"
 import { GradeDerivationPopover } from "./grade-derivation-popover"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { ReportingChecklistPanel } from "./reporting-checklist-panel"
@@ -413,9 +414,12 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-bold text-xs sm:text-sm truncate">{activeReview.studentName}</span>
-              <Badge variant="secondary" className="text-[10px] uppercase font-mono shrink-0">
-                {activeReview.reviewKind || activeReview.thesisType}
-              </Badge>
+              <ReviewRoleBadge role={activeReview.reviewerRole} lang={lang} size="sm" />
+              {activeReview.reviewKind === "paper" && (
+                <Badge variant="outline" className="text-[10px] uppercase font-mono shrink-0 border-violet-300 text-violet-700 dark:text-violet-300">
+                  Article
+                </Badge>
+              )}
               {activeReview.grade && (
                 <GradeDerivationPopover
                   grade={activeReview.grade}
@@ -632,6 +636,13 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
             mobileView === "review" ? "flex" : "hidden lg:flex"
           }`}
         >
+          {/* Review type banner — unmistakable per-role identity */}
+          <ReviewRoleBanner
+            role={activeReview.reviewerRole}
+            reviewerName={activeReview.reviewerName}
+            lang={lang}
+          />
+
           {/* Executive Overview Card */}
           <div className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b pb-3">

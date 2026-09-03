@@ -21,6 +21,7 @@ import { AnalysisPlanPanel } from "./analysis-plan-panel"
 import { RagIndexStatusPanel, type RagStats } from "./rag-index-status-panel"
 import { ThesisWorkflowStepper } from "./thesis-workflow-stepper"
 import { ReviewGenerationProgress } from "./review-generation-progress"
+import { ReviewRoleBadge } from "./review-role-badge"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useEditor } from "@/components/editor-store"
@@ -508,9 +509,16 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                             {rev.finalGrade || rev.grade}
                           </Badge>
                         )}
-                        <Badge variant="secondary" className="text-[10px] uppercase font-mono px-2 py-0">
-                          {rev.reviewKind === "paper" ? "PAPER" : rev.thesisType?.toUpperCase() || "MASTER"}
-                        </Badge>
+                        <ReviewRoleBadge role={rev.reviewerRole} lang={formMetadata.language} size="sm" />
+                        {rev.reviewKind === "paper" ? (
+                          <Badge variant="outline" className="text-[10px] uppercase font-mono px-2 py-0 border-violet-300 text-violet-700 dark:text-violet-300">
+                            Article
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px] uppercase font-mono px-2 py-0">
+                            {rev.thesisType?.toUpperCase() || "MASTER"}
+                          </Badge>
+                        )}
                         {rev.status === "final" || rev.confirmedAt ? (
                           <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600 bg-emerald-500/10 dark:text-emerald-400 px-2 py-0">
                             Potvrdený

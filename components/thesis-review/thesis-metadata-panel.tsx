@@ -56,6 +56,10 @@ const THESIS_TYPES = [
   { value: "master", sk: "Diplomová práca (Ing./Mgr.)", cs: "Diplomová práce", en: "Master's thesis" },
   { value: "bachelor", sk: "Bakalárska práca (Bc.)", cs: "Bakalářská práce", en: "Bachelor's thesis" },
   { value: "phd", sk: "Dizertačná práca (PhD.)", cs: "Dizertační práce", en: "PhD dissertation" },
+  // Articles route to reviewKind="paper" (peer-review flow); thesisType is
+  // retained for DB compatibility but the level selector shows all four
+  // document types in one place.
+  { value: "article", sk: "Vedecký článok / Peer Review", cs: "Vědecký článek", en: "Journal article (peer review)" },
 ]
 
 const REVIEWER_ROLES = [
@@ -64,6 +68,15 @@ const REVIEWER_ROLES = [
   { value: "self", sk: "Predkonzultačný rozbor", cs: "Předkonzultační rozbor", en: "Pre-consultation triage" },
   { value: "reviewer", sk: "Recenzent / Peer Reviewer", cs: "Recenzent", en: "Reviewer" },
 ]
+
+/**
+ * Front-matter headings that are section labels, never titles, in all three
+ * supported languages. Matched as whole-words (case-insensitive) so e.g.
+ * "Contents of the dataset" (rare) would still pass but "Contents" / "Table of
+ * contents" do not.
+ */
+const JUNK_HEADING_RE =
+  /^(?:table of contents|contents|content|obsah|abstrakt|abstract|úvod|introduction|zadanie|zadání|assignment|čestné vyhlásenie|čestné prohlášení|declaration|predhovor|foreword|poďakovanie|poďakování|acknowledg[e]?ments?|referencie|references|bibliografia|bibliography|obsah práce|list of (?:figures|tables|abbreviations))\b[\s:.\-–—]*$/i
 
 export function formatCleanThesisTitle(raw: string): string {
   const trimmed = raw.replace(/[*_#`]/g, "").trim()
@@ -108,16 +121,22 @@ export function extractSmartThesisMetadata(text: string, filename?: string) {
   } else {
     const headings = [...frontMatter.matchAll(/^#+\s+(.+)$/gm)].map((m) => m[1].replace(/[*_#`]/g, "").trim())
     for (const h of headings) {
-      if (/univerzita|fakulta|vysoká škola|zadanie|obsah|úvod|abstrakt|abstract|čestné vyhlásenie/i.test(h)) continue
+      // Skip section labels (Contents/obsah/Abstract…), university/faculty
+      // lines, and anything too short to be a real title.
+      if (JUNK_HEADING_RE.test(h)) continue
+      if (/univerzita|univerzit[aě]|fakulta|fakult[aě]|vysoká škola|vysok[áé] škola|university|faculty|institute of technology/i.test(h)) continue
       let cleanH = h.replace(/^(?:Bc\.|Ing\.|Mgr\.)\s+[A-ZÁČĎÉÍĽĹŇÓÔŘŠŤÚÝŽ][a-záčďéíľĺňóôŕřšťúýž]+\s+[A-ZÁČĎÉÍĽĹŇÓÔŘŠŤÚÝŽ][a-záčďéíľĺňóôŕřšťúýž]+\s+/i, "")
-      cleanH = cleanH.replace(/\s+(?:Diplomová práca|Bakalárska práca|Dizertačná práca|Záverečná práca)$/i, "")
-      if (cleanH.length > 5) {
+      cleanH = cleanH.replace(/\s+(?:Diplomová práca|Diplomová|Bakalárska práca|Bakalářská práce|Dizertačná práca|Dizertační práce|Záverečná práca|Master'?s? thesis|Bachelor'?s? thesis|Doctoral (?:thesis|dissertation)|PhD\.?\s*thesis)$/i, "")
+      // A real title is a substantive phrase; skip 1–2 word all-caps labels.
+      if (cleanH.length > 8 && cleanH.split(/\s+/).length >= 3) {
         title = formatCleanThesisTitle(cleanH)
         break
       }
     }
     if (!title && filename) {
-      title = formatCleanThesisTitle(filename.replace(/\.(pdf|md|docx|tex)$/i, "").replace(/[-_]/g, " "))
+      const fromName = formatCleanThesisTitle(filename.replace(/\.(pdf|md|docx|tex)$/i, "").replace(/[-_]/g, " "))
+      // Never accept junk upload names like "Contents.pdf" as the title.
+      if (fromName && !JUNK_HEADING_RE.test(fromName)) title = fromName
     }
   }
 
@@ -362,22 +381,19 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
               >
                 <SelectTrigger className="h-8.5 text-xs w-full bg-card border-border/80 shadow-2xs font-medium rounded-lg px-3 hover:border-border transition-colors">
                   <SelectValue placeholder="Vyberte prácu...">
-                    {formatDocumentDisplayName(activeFile?.name, formMetadata.thesisTitle)}
+                    {formatDocumentDisplayName(activeFile?.name)}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {ingestFiles.map((f) => {
-                    const isBednar = /bednar|grant/i.test(f.name) || f.id.includes("mtfrbmoo")
                     return (
                       <SelectItem key={f.id} value={f.id} className="text-xs py-2">
                         <div className="flex flex-col text-left">
                           <span className="font-semibold text-foreground">
-                            {isBednar
-                              ? "Bc. Maroš Bednár — Systém na granty"
-                              : formatDocumentDisplayName(f.name)}
+                            {formatDocumentDisplayName(f.name)}
                           </span>
                           <span className="text-[10px] text-muted-foreground font-mono">
-                            {f.name} • {formatBytes(f.size)}
+                            {formatBytes(f.size)}
                           </span>
                         </div>
                       </SelectItem>
@@ -390,8 +406,8 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                 <div className="flex items-center gap-2.5 min-w-0">
                   <FileText className="size-4 text-primary shrink-0" />
                   <div className="min-w-0 truncate">
-                    <p className="font-medium text-foreground truncate">{formatDocumentDisplayName(activeFile?.name, formMetadata.thesisTitle)}</p>
-                    <p className="text-[10px] text-muted-foreground font-mono truncate">{activeFile?.name} • {formatBytes(activeFile?.size || 0)}</p>
+                    <p className="font-medium text-foreground truncate">{formatDocumentDisplayName(activeFile?.name)}</p>
+                    <p className="text-[10px] text-muted-foreground font-mono truncate">{formatBytes(activeFile?.size || 0)}</p>
                   </div>
                 </div>
               </div>
@@ -495,11 +511,15 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
           {/* Thesis Title */}
           <div className="space-y-1">
             <Label className="text-[11px] font-medium text-muted-foreground">
-              Názov práce *
+              {formMetadata.reviewKind === "paper" ? "Názov článku *" : "Názov práce *"}
             </Label>
             <Input
               className="h-8 text-xs bg-card rounded-lg border-border/80"
-              placeholder="Napr. Systém na automatizované vyhľadávanie a asistenciu pri príprave grantov"
+              placeholder={
+                formMetadata.reviewKind === "paper"
+                  ? "Napr. Bose-Einstein correlations in pp collisions at 13 TeV"
+                  : "Napr. Systém na automatizované vyhľadávanie a asistenciu pri príprave grantov"
+              }
               value={formMetadata.thesisTitle}
               onChange={(e) => updateFormMetadata({ thesisTitle: e.target.value })}
             />
@@ -508,11 +528,15 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
           {/* Student Name */}
           <div className="space-y-1">
             <Label className="text-[11px] font-medium text-muted-foreground">
-              Meno autora/autorky *
+              {formMetadata.reviewKind === "paper" ? "Autori článku *" : "Meno autora/autorky *"}
             </Label>
             <Input
               className="h-8 text-xs bg-card rounded-lg border-border/80"
-              placeholder="Napr. Bc. Maroš Bednár"
+              placeholder={
+                formMetadata.reviewKind === "paper"
+                  ? "Napr. R. Aštaloš, J. Novák, M. Kováč"
+                  : "Napr. Bc. Maroš Bednár"
+              }
               value={formMetadata.studentName}
               onChange={(e) => updateFormMetadata({ studentName: e.target.value })}
             />
@@ -521,10 +545,17 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
           {/* Degree & Language */}
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label className="text-[11px] font-medium text-muted-foreground">Úroveň práce</Label>
+              <Label className="text-[11px] font-medium text-muted-foreground">Typ dokumentu</Label>
               <Select
-                value={formMetadata.thesisType}
-                onValueChange={(v) => { if (v) updateFormMetadata({ thesisType: v as any }) }}
+                value={formMetadata.reviewKind === "paper" ? "article" : formMetadata.thesisType}
+                onValueChange={(v) => {
+                  if (!v) return
+                  if (v === "article") {
+                    updateFormMetadata({ reviewKind: "paper" as ReviewKind })
+                  } else {
+                    updateFormMetadata({ thesisType: v as any, reviewKind: "thesis" as ReviewKind })
+                  }
+                }}
               >
                 <SelectTrigger className="h-8 text-xs bg-card rounded-lg border-border/80">
                   <SelectValue>{THESIS_TYPES.find((t) => t.value === formMetadata.thesisType)?.[lang] || "Diplomová práca"}</SelectValue>
