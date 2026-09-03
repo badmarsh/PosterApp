@@ -58,6 +58,18 @@ export type TemplateDef = {
   detailFeatures: string[]
   latexClass: string
   colorSystem: string
+  /**
+   * TeX classes/packages this template needs that are NOT part of a base
+   * TeX Live install and are NOT vendored in `public/latex-styles/`.
+   *
+   * Compilation copies `public/latex-styles/**` and any workspace-root
+   * `.sty`/`.cls`/`.bst` into the staging dir (see
+   * `app/api/workspaces/[id]/compile/route.ts`), so anything listed here must
+   * come from the compiler image itself. The UI surfaces it as an up-front
+   * warning: a missing class is otherwise only discovered as a failed compile
+   * with an opaque log.
+   */
+  requiresClass?: string[]
 }
 
 export const TEMPLATE_REGISTRY: TemplateDef[] = [
@@ -115,6 +127,38 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
   { id: "pos-proceedings",   outputType: "paper", label: "PoS Proceedings",     description: "SISSA Proceedings of Science format using pos package.", category: "institutional",
     colors: [{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
     detailFeatures: ["Complies with SISSA Proceedings of Science format", "Uses pos package and linenumbers", "Single-column proceedings layout"], latexClass: "article + pos", colorSystem: "None" },
+  // Physics / HEP venues
+  { id: "elsarticle",   outputType: "paper", label: "Elsevier (elsarticle)",  description: "Elsevier journals (NIM A, Physics Letters B). Single-column preprint form.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"orange",name:"Elsevier Orange",hex:"#E9711C"}], layoutPreview: "paper-single",
+    detailFeatures: ["Elsevier elsarticle class (ships with TeX Live)", "Single-column preprint layout", "frontmatter block with journal line", "Standard figure/table floats"], latexClass: "elsarticle [preprint]", colorSystem: "None" },
+  { id: "revtex-aps",   outputType: "paper", label: "APS REVTeX (PRD/PRL)",   description: "American Physical Society two-column journal format.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"APS Blue",hex:"#00629B"}], layoutPreview: "paper-twocol",
+    detailFeatures: ["REVTeX 4.2, aps/prd options", "Two-column reprint layout", "Figures span columns via figure*", "Ships with TeX Live"], latexClass: "revtex4-2 [reprint,aps,prd]", colorSystem: "None" },
+  { id: "epj-woc",      outputType: "paper", label: "EPJ Web of Conferences", description: "Standard HEP conference proceedings (CHEP, Quark Matter).", category: "institutional",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"EPJ Blue",hex:"#1F4E79"}], layoutPreview: "paper-single",
+    detailFeatures: ["EPJ Web of Conferences proceedings format", "Single-column layout", "Author/institute blocks with email", "Requires the 'webofc' class"], latexClass: "webofc", colorSystem: "None", requiresClass: ["webofc"] },
+  { id: "iopart",       outputType: "paper", label: "IOP (iopart)",           description: "IOP Publishing journals (J. Phys. series, Meas. Sci. Technol.).", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"green",name:"IOP Green",hex:"#00847C"}], layoutPreview: "paper-single",
+    detailFeatures: ["IOP Publishing journal format", "Single-column layout", "\\address block for affiliations", "Requires the 'iopart' class"], latexClass: "iopart", colorSystem: "None", requiresClass: ["iopart"] },
+  // ML / CS conferences
+  { id: "neurips",      outputType: "paper", label: "NeurIPS",                description: "NeurIPS single-column camera-ready format.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"purple",name:"NeurIPS Purple",hex:"#6B4FA0"}], layoutPreview: "paper-single",
+    detailFeatures: ["NeurIPS single-column layout", "'final' option prints author names", "Do not use figure* — single column", "Requires 'neurips_2026.sty'"], latexClass: "article + neurips_2026", colorSystem: "None", requiresClass: ["neurips_2026.sty"] },
+  { id: "icml",         outputType: "paper", label: "ICML",                   description: "ICML two-column format with icmlauthorlist front matter.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"ICML Blue",hex:"#1B6CA8"}], layoutPreview: "paper-twocol",
+    detailFeatures: ["ICML two-column layout", "'accepted' option de-anonymises", "Figures span columns via figure*", "Requires 'icml2026.sty'"], latexClass: "article + icml2026", colorSystem: "None", requiresClass: ["icml2026.sty"] },
+  { id: "iclr",         outputType: "paper", label: "ICLR",                   description: "ICLR single-column conference format.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"red",name:"ICLR Red",hex:"#C0392B"}], layoutPreview: "paper-single",
+    detailFeatures: ["ICLR single-column layout", "Times body font", "Do not use figure* — single column", "Requires 'iclr2026_conference.sty'"], latexClass: "article + iclr2026_conference", colorSystem: "None", requiresClass: ["iclr2026_conference.sty"] },
+  { id: "acl",          outputType: "paper", label: "ACL / EMNLP / NAACL",    description: "ACL Rolling Review two-column NLP format.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"red",name:"ACL Red",hex:"#B31B1B"}], layoutPreview: "paper-twocol",
+    detailFeatures: ["Shared ACL/EMNLP/NAACL style", "Two-column layout with microtype", "Figures span columns via figure*", "Requires 'acl.sty'"], latexClass: "article + acl", colorSystem: "None", requiresClass: ["acl.sty"] },
+  { id: "cvpr",         outputType: "paper", label: "CVPR / ICCV",            description: "CVPR two-column camera-ready format.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"teal",name:"CVPR Teal",hex:"#00838F"}], layoutPreview: "paper-twocol",
+    detailFeatures: ["CVPR/ICCV two-column layout", "'final' camera-ready (no line numbers)", "Figures span columns via figure*", "Requires 'cvpr.sty'"], latexClass: "article + cvpr", colorSystem: "None", requiresClass: ["cvpr.sty"] },
+  { id: "aaai",         outputType: "paper", label: "AAAI",                   description: "AAAI two-column format. Forbids hyperref/geometry/fancyhdr.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"AAAI Blue",hex:"#003A70"}], layoutPreview: "paper-twocol",
+    detailFeatures: ["AAAI two-column layout", "Style forbids hyperref/geometry/fancyhdr", "Figures span columns via figure*", "Requires 'aaai2026.sty'"], latexClass: "article + aaai2026", colorSystem: "None", requiresClass: ["aaai2026.sty"] },
   // Thesis Reviews (Posudky)
   { id: "posudok-sk", outputType: "thesis-review", label: "Slovenský posudok (STU/UK)", description: "Štandardný posudok záverečnej práce podľa slovenských vysokoškolských noriem.", category: "institutional",
     colors: [{id:"blue",name:"Navy",hex:"#003366"},{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",

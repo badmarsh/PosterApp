@@ -608,3 +608,306 @@ ${FITMATH_MACRO}
 \\maketitle
 `
 }
+
+// ---------------------------------------------------------------------------
+// Physics / HEP venue templates
+// ---------------------------------------------------------------------------
+
+/**
+ * Elsevier journals (Nucl. Instrum. Methods, Physics Letters B, ...).
+ * `elsarticle` ships with TeX Live. `review` gives double spacing for
+ * submission; we use the default single-column preprint form.
+ */
+export function getElsarticleTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an Elsevier elsarticle document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% Figures use \\\\begin{figure}[htbp]; this is a single-column layout.
+\\\\documentclass[preprint,12pt]{elsarticle}
+\\\\usepackage[utf8]{inputenc}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{amssymb}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\journal{${venue || "Preprint submitted to Elsevier"}}
+
+\\\\begin{document}
+
+\\\\begin{frontmatter}
+\\\\title{${title}}
+\\\\author{${authors}}
+\\\\end{frontmatter}
+`
+}
+
+/**
+ * APS REVTeX 4.2 — Physical Review A-E / PRL.
+ * `reprint` produces the two-column journal look.
+ */
+export function getRevtexTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an APS REVTeX 4.2 two-column document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% For wide figures spanning both columns use \\\\begin{figure*} ... \\\\end{figure*}.
+\\\\documentclass[reprint,amsmath,amssymb,aps,prd]{revtex4-2}
+\\\\usepackage{graphicx}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\begin{document}
+
+\\\\title{${title}}
+\\\\author{${authors}}
+\\\\affiliation{${venue}}
+
+\\\\maketitle
+`
+}
+
+/**
+ * EPJ Web of Conferences — the standard proceedings format for many
+ * HEP conferences (CHEP, Quark Matter, ...). Requires the `webofc` class.
+ */
+export function getEpjWocTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an EPJ Web of Conferences document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+\\\\documentclass[option]{webofc}
+\\\\usepackage[varg]{txfonts}
+\\\\usepackage{graphicx}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\begin{document}
+
+\\\\title{${title}}
+\\\\author{\\\\firstname{} \\\\lastname{${authors}}\\\\inst{1}\\\\fnsep\\\\thanks{\\\\email{}}}
+\\\\institute{${venue}}
+
+\\\\abstract{%
+}
+\\\\maketitle
+`
+}
+
+/**
+ * IOP Publishing journals (J. Phys. series, Meas. Sci. Technol.).
+ * Requires the `iopart` class.
+ */
+export function getIopartTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an IOP iopart document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+\\\\documentclass[12pt]{iopart}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\begin{document}
+
+\\\\title{${title}}
+\\\\author{${authors}}
+\\\\address{${venue}}
+
+\\\\maketitle
+`
+}
+
+// ---------------------------------------------------------------------------
+// ML / CS conference templates
+// ---------------------------------------------------------------------------
+
+/**
+ * NeurIPS — single-column, `neurips_2026.sty`.
+ * `final` prints author names (the default is anonymised for submission).
+ */
+export function getNeurIPSTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside a NeurIPS document (single column).
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% Figures use \\\\begin{figure}[htbp]; do NOT use figure* (single-column layout).
+\\\\documentclass{article}
+\\\\usepackage[final]{neurips_2026}
+\\\\usepackage[utf8]{inputenc}
+\\\\usepackage[T1]{fontenc}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{amssymb}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\title{${title}}
+\\\\author{${authors}\\\\\\\\ ${venue}}
+
+\\\\begin{document}
+\\\\maketitle
+`
+}
+
+/**
+ * ICML — two-column, `icml2026.sty`. `accepted` de-anonymises.
+ */
+export function getICMLTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an ICML two-column document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% For wide figures spanning both columns use \\\\begin{figure*} ... \\\\end{figure*}.
+\\\\documentclass{article}
+\\\\usepackage[accepted]{icml2026}
+\\\\usepackage[utf8]{inputenc}
+\\\\usepackage[T1]{fontenc}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{amssymb}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\icmltitlerunning{${title}}
+
+\\\\begin{document}
+
+\\\\twocolumn[
+\\\\icmltitle{${title}}
+\\\\icmlsetsymbol{equal}{*}
+\\\\begin{icmlauthorlist}
+\\\\icmlauthor{${authors}}{inst1}
+\\\\end{icmlauthorlist}
+\\\\icmlaffiliation{inst1}{${venue}}
+\\\\vskip 0.3in
+]
+`
+}
+
+/**
+ * ICLR — single-column, `iclr2026_conference.sty`.
+ */
+export function getICLRTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an ICLR document (single column).
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% Figures use \\\\begin{figure}[htbp]; do NOT use figure* (single-column layout).
+\\\\documentclass{article}
+\\\\usepackage{iclr2026_conference,times}
+\\\\usepackage[utf8]{inputenc}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{amssymb}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\title{${title}}
+\\\\author{${authors}\\\\\\\\ ${venue}}
+
+\\\\begin{document}
+\\\\maketitle
+`
+}
+
+/**
+ * ACL / EMNLP / NAACL — two-column, `acl.sty` from the ACL style repo.
+ */
+export function getACLTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an ACL two-column document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% For wide figures spanning both columns use \\\\begin{figure*} ... \\\\end{figure*}.
+\\\\documentclass[11pt]{article}
+\\\\usepackage[final]{acl}
+\\\\usepackage[T1]{fontenc}
+\\\\usepackage[utf8]{inputenc}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{booktabs}
+\\\\usepackage{microtype}
+
+${FITMATH_MACRO}
+
+\\\\title{${title}}
+\\\\author{${authors} \\\\\\\\ ${venue}}
+
+\\\\begin{document}
+\\\\maketitle
+`
+}
+
+/**
+ * CVPR / ICCV — two-column, `cvpr.sty`. `review` adds line numbers;
+ * `final` is the camera-ready form used here.
+ */
+export function getCVPRTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside a CVPR two-column document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% For wide figures spanning both columns use \\\\begin{figure*} ... \\\\end{figure*}.
+\\\\documentclass[10pt,twocolumn,letterpaper]{article}
+\\\\usepackage[final]{cvpr}
+\\\\usepackage[utf8]{inputenc}
+\\\\usepackage[T1]{fontenc}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{amssymb}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\title{${title}}
+\\\\author{${authors}\\\\\\\\ ${venue}}
+
+\\\\begin{document}
+\\\\maketitle
+`
+}
+
+/**
+ * AAAI — two-column, `aaai2026.sty`. AAAI forbids several packages
+ * (hyperref, geometry, fancyhdr); keep the preamble minimal.
+ */
+export function getAAAITemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an AAAI two-column document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% For wide figures spanning both columns use \\\\begin{figure*} ... \\\\end{figure*}.
+% NOTE: AAAI style forbids hyperref/geometry/fancyhdr — do not add them.
+\\\\documentclass[letterpaper]{article}
+\\\\usepackage{aaai2026}
+\\\\usepackage{times}
+\\\\usepackage{helvet}
+\\\\usepackage{courier}
+\\\\usepackage[hyphens]{url}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{booktabs}
+\\\\urlstyle{rm}
+\\\\frenchspacing
+\\\\setlength{\\\\pdfpagewidth}{8.5in}
+\\\\setlength{\\\\pdfpageheight}{11in}
+
+${FITMATH_MACRO}
+
+\\\\title{${title}}
+\\\\author{${authors}\\\\\\\\ ${venue}}
+
+\\\\begin{document}
+\\\\maketitle
+`
+}

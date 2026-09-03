@@ -489,6 +489,24 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
                   </p>
                 </div>
 
+                {/* Missing-class warning: surfaced before a wasted compile */}
+                {activeTmpl.requiresClass && activeTmpl.requiresClass.length > 0 && (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 dark:border-amber-900/60 dark:bg-amber-950/30">
+                    <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+                      <span className="font-semibold">Requires{" "}
+                        {activeTmpl.requiresClass.map((c, i) => (
+                          <span key={c}>
+                            {i > 0 && ", "}
+                            <code className="font-mono">{c}</code>
+                          </span>
+                        ))}
+                      </span>{" "}
+                      — not bundled with PosterApp. If your compiler image lacks it, the build
+                      will fail. Upload the file to the workspace root to vendor it.
+                    </p>
+                  </div>
+                )}
+
                 {/* Feature bullets */}
                 <div className="flex flex-col gap-2">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
