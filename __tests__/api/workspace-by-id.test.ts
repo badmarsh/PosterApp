@@ -8,6 +8,8 @@ vi.mock('@/lib/prisma', () => ({
   prisma: {
     workspace: {
       findUnique: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
     },
@@ -236,5 +238,97 @@ describe('PUT /api/workspaces/[id]', () => {
     })
     const res = await PUT(req, makeParams('ws-1'))
     expect(res.status).toBe(400)
+  })
+
+  it('returns 413 for oversized payload (content-length > 10MB)', async () => {
+    ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValue({ id: 'ws-1', userId: 'user_123', revision: 1, members: [] } as any)
+
+    const req = new Request('http://localhost/api/workspaces/ws-1', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': String(11 * 1024 * 1024), // 11MB
+      },
+      body: JSON.stringify({ name: 'test' }),
+    })
+    const res = await PUT(req, makeParams('ws-1'))
+    const json = await res.json()
+
+    expect(res.status).toBe(413)
+    expect(json.error).toBe('Payload too large')
+  })
+
+  it('successfully saves workspace and creates snapshot', async () => {
+    ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValue({
+      id: 'ws-1',
+      userId: 'user_123',
+      revision: 1,
+      members: [],
+    } as any)
+    ;(mockPrisma.workspaceSnapshot.findFirst as any).mockResolvedValueOnce(null)
+    ;(prismaMockTx.workspace.updateMany as any).mockResolvedValueOnce({ count: 1 })
+    ;(prismaMockTx.output.findMany as any).mockResolvedValueOnce([])
+    ;(prismaMockTx.asset.findMany as any).mockResolvedValueOnce([])
+
+    const req = new Request('http://localhost/api/workspaces/ws-1', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Updated Workspace',
+        revision: 1,
+        outputs: [
+          {
+            id: 'out_1',
+            outputType: 'poster',
+            templateId: 'atlas',
+            title: 'Test Output',
+            isActive: true,
+            cards: [],
+          },
+        ],
+        activeOutputId: 'out_1',
+      }),
+    })
+    const res = await PUT(req, makeParams('ws-1'))
+
+    expect(res.status).toBe(200)
+    expect(prismaMockTx.workspace.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'ws-1', revision: 1 },
+        data: expect.objectContaining({
+          name: 'Updated Workspace',
+          revision: { increment: 1 },
+        }),
+      })
+    )
+  })
+
+  it('returns 409 conflict when revision mismatch (stale tab)', async () => {
+    ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValue({
+      id: 'ws-1',
+      userId: 'user_123',
+      revision: 5, // Current revision is 5
+      members: [],
+    } as any)
+    ;(mockPrisma.workspaceSnapshot.findFirst as any).mockResolvedValueOnce(null)
+    ;(prismaMockTx.workspace.updateMany as any).mockResolvedValueOnce({ count: 0 }) // No rows updated = conflict
+
+    const req = new Request('http://localhost/api/workspaces/ws-1', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Stale Update',
+        revision: 3, // Client thinks revision is 3
+        outputs: [],
+      }),
+    })
+    const res = await PUT(req, makeParams('ws-1'))
+    const json = await res.json()
+
+    expect(res.status).toBe(409)
+    expect(json.error).toContain('changed in another session')
   })
 })

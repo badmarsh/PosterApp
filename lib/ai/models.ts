@@ -64,34 +64,49 @@ export function getVisionModelChain(): string[] {
  */
 export const AI_MODEL_OVERRIDE_HEADER = "X-AI-Model-Override"
 
+/** Only roles that exist in DEFAULT_AI_MODELS are valid override targets. */
+const VALID_AI_ROLES = Object.keys(DEFAULT_AI_MODELS) as AiModelRole[]
+
+/** Model names must be ASCII, start with a letter/digit, and be ≤ 128 chars. */
+const AI_MODEL_OVERRIDE_VALUE_RE = /^[A-Za-z0-9][A-Za-z0-9._:\-]{0,127}$/
+
 /**
- * Parse AI model overrides from request headers.
- * Returns empty object if header is missing or invalid.
+ * Parse and validate AI model overrides from request headers.
+ * - Unknown roles are silently dropped.
+ * - Non-string values (e.g. `{"chat": 123}`) are dropped.
+ * - Values that fail the model-name format check are dropped.
+ * Returns empty object if header is missing or entirely invalid.
  */
 export function parseAiModelOverrides(headers: Headers): Partial<Record<AiModelRole, string>> {
   const headerValue = headers.get(AI_MODEL_OVERRIDE_HEADER)
   if (!headerValue) return {}
   try {
-    const parsed = JSON.parse(headerValue)
-    if (parsed && typeof parsed === "object") {
-      return parsed as Partial<Record<AiModelRole, string>>
+    const parsed: unknown = JSON.parse(headerValue)
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {}
+    const result: Partial<Record<AiModelRole, string>> = {}
+    for (const role of VALID_AI_ROLES) {
+      const value = (parsed as Record<string, unknown>)[role]
+      if (typeof value === "string" && AI_MODEL_OVERRIDE_VALUE_RE.test(value)) {
+        result[role] = value
+      }
     }
+    return result
   } catch {
-    // Invalid JSON, ignore
+    return {}
   }
-  return {}
 }
 
 /**
  * Resolve AI model for a given role, checking for user overrides first.
  * If overrides are provided, they take precedence over env vars.
+ * Non-string override values are safely ignored.
  */
 export function resolveAiModelWithOverrides(
   role: AiModelRole,
   overrides: Partial<Record<AiModelRole, string>>
 ): string {
   const override = overrides[role]
-  if (override) return override
+  if (typeof override === "string" && override) return override
   return resolveAiModel(role)
 }
 

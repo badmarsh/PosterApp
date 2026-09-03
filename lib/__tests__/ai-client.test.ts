@@ -42,4 +42,26 @@ describe("AI client resilience", () => {
     const repairPayload = JSON.parse(fetchMock.mock.calls[1][1].body)
     expect(repairPayload.messages.at(-1).content).toContain("Validation error")
   })
+
+  it("repairs truncated responses (finish_reason=length) with a 1.5x token budget", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        choices: [{ message: { content: '{"answer":"trunc' }, finish_reason: "length" }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        choices: [{ message: { content: '{"answer":"complete"}' } }],
+      }), { status: 200 }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(generateAIResponse("trunc-test", {
+      model: "test-model",
+      userPrompt: "Return JSON",
+      schema: z.object({ answer: z.string() }),
+    })).resolves.toEqual({ answer: "complete" })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const repairPayload = JSON.parse(fetchMock.mock.calls[1][1].body)
+    expect(repairPayload.max_tokens).toBe(Math.ceil(DEFAULT_AI_MAX_TOKENS * 1.5))
+    expect(repairPayload.messages.at(-1).content).toContain("truncated")
+  })
 })

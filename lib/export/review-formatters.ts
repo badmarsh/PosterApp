@@ -11,7 +11,7 @@ import type { ReviewFinding } from "@/lib/ai/review-types"
 export interface FormatOptions {
   anonymize?: boolean
   includeConfidential?: boolean
-  onlyAcceptedFindings?: boolean
+  excludeRejected?: boolean
 }
 
 /**
@@ -54,7 +54,7 @@ export function formatReviewToMarkdown(
 
   // Filtered Findings (Major vs Minor)
   const allFindings = review.findings || []
-  const activeFindings = options.onlyAcceptedFindings
+  const activeFindings = options.excludeRejected
     ? allFindings.filter((f) => f.includeInExport && f.status !== "rejected")
     : allFindings.filter((f) => f.includeInExport)
 

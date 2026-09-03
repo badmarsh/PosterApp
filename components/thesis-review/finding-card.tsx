@@ -5,7 +5,7 @@
  * severity triage (Major vs. Minor), audience routing, and reviewer annotation.
  */
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -75,8 +75,8 @@ const EVIDENCE_ICONS: Record<EvidenceState, any> = {
 }
 
 type FindingCardLabels = {
-  severityOptions: Record<"critical" | "major" | "minor" | "suggestion", string>
-  severityShort: Record<"critical" | "major" | "minor" | "suggestion", string>
+  severityOptions: Record<ReviewSeverity, string>
+  severityShort: Record<ReviewSeverity, string>
   audienceOptions: Record<FindingAudience, string>
   audienceShort: Record<FindingAudience, string>
   categoryLabels: Record<string, string>
@@ -112,12 +112,14 @@ const LABELS: Record<ReviewLanguage, FindingCardLabels> = {
       major: "Zásadná pripomienka (Major)",
       minor: "Drobná pripomienka (Minor)",
       suggestion: "Návrh / Odporúčanie (Suggestion)",
+      info: "Informačná poznámka (Info)",
     },
     severityShort: {
       critical: "Kritická",
       major: "Zásadná",
       minor: "Drobná",
       suggestion: "Návrh",
+      info: "Info",
     },
     audienceOptions: { author: "Pre autora", editor: "Dôverné (Editor)", committee: "Pre komisiu", private: "Súkromné" },
     audienceShort: { author: "Pre autora", editor: "Dôverné", committee: "Komisia", private: "Súkromné" },
@@ -184,12 +186,14 @@ const LABELS: Record<ReviewLanguage, FindingCardLabels> = {
       major: "Zásadní připomínka (Major)",
       minor: "Drobná připomínka (Minor)",
       suggestion: "Návrh / Doporučení (Suggestion)",
+      info: "Informační poznámka (Info)",
     },
     severityShort: {
       critical: "Kritická",
       major: "Zásadní",
       minor: "Drobná",
       suggestion: "Návrh",
+      info: "Info",
     },
     audienceOptions: { author: "Pro autora", editor: "Důvěrné (Editor)", committee: "Pro komisi", private: "Soukromé" },
     audienceShort: { author: "Pro autora", editor: "Důvěrné", committee: "Komise", private: "Soukromé" },
@@ -256,12 +260,14 @@ const LABELS: Record<ReviewLanguage, FindingCardLabels> = {
       major: "Major comment (Major)",
       minor: "Minor comment (Minor)",
       suggestion: "Suggestion / Recommendation",
+      info: "Informational note (Info)",
     },
     severityShort: {
       critical: "Critical",
       major: "Major",
       minor: "Minor",
       suggestion: "Suggestion",
+      info: "Info",
     },
     audienceOptions: { author: "For author", editor: "Confidential (Editor)", committee: "For committee", private: "Private" },
     audienceShort: { author: "Author", editor: "Confidential", committee: "Committee", private: "Private" },
@@ -343,6 +349,16 @@ export function FindingCard({
   const [reviewerNotes, setReviewerNotes] = useState(finding.reviewerNotes || "")
   const [isNotesOpen, setIsNotesOpen] = useState(Boolean(finding.reviewerNotes))
 
+  // Sync local edit state when the finding prop changes externally (e.g. Yjs
+  // collaboration) — but never clobber fields the reviewer is actively editing.
+  useEffect(() => {
+    if (isEditing) return
+    setTitle(cleanTitle)
+    setExplanation(finding.explanation)
+    setRecommendation(finding.recommendation)
+    setReviewerNotes(finding.reviewerNotes || "")
+  }, [cleanTitle, finding.explanation, finding.recommendation, finding.reviewerNotes, isEditing])
+
   const handleSaveEdit = () => {
     onEdit(finding.id, {
       title,
@@ -408,6 +424,9 @@ export function FindingCard({
               <SelectItem value="suggestion" className="text-xs text-muted-foreground">
                 {L.severityOptions.suggestion}
               </SelectItem>
+              <SelectItem value="info" className="text-xs text-muted-foreground">
+                {L.severityOptions.info}
+              </SelectItem>
             </SelectContent>
           </Select>
 
@@ -448,6 +467,7 @@ export function FindingCard({
               <SelectItem value="author" className="text-xs">{L.audienceOptions.author}</SelectItem>
               <SelectItem value="editor" className="text-xs font-bold text-warning">{L.audienceOptions.editor}</SelectItem>
               <SelectItem value="committee" className="text-xs font-bold text-status-info">{L.audienceOptions.committee}</SelectItem>
+              <SelectItem value="private" className="text-xs font-bold text-muted-foreground">{L.audienceOptions.private}</SelectItem>
             </SelectContent>
           </Select>
 

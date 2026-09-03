@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useRef, useState, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useRef, type ReactNode } from "react"
 import { createStore, useStore } from "zustand"
 import { immer } from "zustand/middleware/immer"
 import { persist } from "zustand/middleware"
@@ -16,7 +16,7 @@ import { createUiSlice } from "./store/ui-slice"
 import { jobQueue } from "@/lib/job-queue"
 
 export function createEditorStore() {
-  const store = createStore<EditorState>()(
+  return createStore<EditorState>()(
     persist(
       immer((set, get, store) => ({
         ...createProjectSlice(set, get, store),
@@ -28,6 +28,7 @@ export function createEditorStore() {
       {
         name: "posterapp-editor-storage",
         version: 1,
+        migrate: (state) => state,
         partialize: (state) => ({
           selectedCardId: state.selectedCardId,
           lastWorkspaceId: state.lastWorkspaceId,
@@ -37,34 +38,26 @@ export function createEditorStore() {
       }
     )
   )
-
-  if (typeof window !== "undefined") {
-    if (jobQueue?.subscribe) {
-      jobQueue.subscribe((jobs) => {
-        store.setState({ jobs })
-      })
-    } else {
-      // Fallback in case Turbopack hoists imports strangely and jobQueue is undefined
-      import("@/lib/job-queue").then((m) => {
-        if (m && m.jobQueue?.subscribe) {
-          m.jobQueue.subscribe((jobs) => {
-            store.setState({ jobs })
-          })
-        }
-      })
-    }
-  }
-
-  return store
 }
 
 type EditorStore = ReturnType<typeof createEditorStore>
 const EditorStoreContext = createContext<EditorStore | null>(null)
 
 export function EditorProvider({ children }: { children: ReactNode }) {
-  const [store] = useState(() => createEditorStore())
+  const storeRef = useRef<EditorStore | null>(null)
+  if (storeRef.current === null) storeRef.current = createEditorStore()
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && jobQueue?.subscribe) {
+      const unsub = jobQueue.subscribe((jobs) => {
+        storeRef.current!.setState({ jobs })
+      })
+      return unsub
+    }
+  }, [])
+
   return (
-    <EditorStoreContext.Provider value={store}>
+    <EditorStoreContext.Provider value={storeRef.current}>
       {children}
     </EditorStoreContext.Provider>
   )

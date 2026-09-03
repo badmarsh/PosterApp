@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { requireWorkspaceEditor } from "@/lib/auth"
-import { generateAIResponse, getLastServedProvider } from "@/lib/ai/client"
+import { generateAIResponse, getLastServedProvider, type AIProviderSource } from "@/lib/ai/client"
 import { ThesisReviewGenerationSchema, validateGeneratedSections } from "@/lib/ai/contracts"
 import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
@@ -426,6 +426,10 @@ export async function POST(
     // Parse AI model overrides from request headers
     const modelOverrides = parseAiModelOverrides(req.headers)
 
+    // Mutable provenance bag filled in by generateAIResponse; avoids the
+    // race condition of the module-level getLastServedProvider singleton.
+    const reviewProvenance: { source?: AIProviderSource } = {}
+
     if (useProfessionalMode) {
       const { generateProfessionalReview } = await import("@/lib/ai/review-engine")
       professionalResult = await generateProfessionalReview({
@@ -497,6 +501,7 @@ export async function POST(
         schema: ThesisReviewGenerationSchema,
         temperature: 0.15,
         signal: AbortSignal.timeout(AI_TIMEOUTS.thesis),
+        provenance: reviewProvenance,
       })
 
       // Post-generation validation
@@ -542,7 +547,7 @@ export async function POST(
     }
 
     // 8. Record provider provenance (Task 13) in saved review and API response
-    const providerProvenance = getLastServedProvider()
+    const providerProvenance = reviewProvenance.source ?? getLastServedProvider()
     let finalDebateLog = professionalResult?.debateLog ?? null
     if (providerProvenance === "fallback-provider") {
       const fallbackNote = `[Provider Fallback] Review generated via fallback provider.`

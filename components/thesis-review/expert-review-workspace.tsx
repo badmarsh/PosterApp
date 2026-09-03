@@ -129,7 +129,18 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
 
   const [copiedNotification, setCopiedNotification] = useState(false)
   const [isExportingDocx, setIsExportingDocx] = useState(false)
+  const [localExportError, setLocalExportError] = useState<string | null>(null)
+  const [auditError, setAuditError] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Keep the decision modal inputs in sync with the active review when it
+  // changes (e.g. switched via the list, or updated by Yjs collaboration).
+  useEffect(() => {
+    setConfirmedGrade(activeReview?.finalGrade || activeReview?.grade || "B")
+    setConfirmedRecommendation(
+      activeReview?.finalRecommendation || activeReview?.recommendation || "Prácu odporúčam na obhajobu."
+    )
+  }, [activeReview?.id, activeReview?.finalGrade, activeReview?.grade, activeReview?.finalRecommendation, activeReview?.recommendation])
 
   const effectiveSourceMarkdown = storeSourceMarkdown || sourceMarkdown
   const lang: ReviewLanguage = activeReview?.language || "sk"
@@ -287,14 +298,14 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
   }
 
   const handleCopyClipboard = async () => {
-    const text = formatReviewToPlainText(activeReview, { onlyAcceptedFindings: true })
+    const text = formatReviewToPlainText(activeReview, { excludeRejected: true })
     await navigator.clipboard.writeText(text)
     setCopiedNotification(true)
     setTimeout(() => setCopiedNotification(false), 2500)
   }
 
   const handleDownloadMarkdown = () => {
-    const md = formatReviewToMarkdown(activeReview, { onlyAcceptedFindings: true })
+    const md = formatReviewToMarkdown(activeReview, { excludeRejected: true })
     const blob = new Blob([md], { type: "text/markdown;charset=utf-8" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -317,6 +328,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
       URL.revokeObjectURL(url)
     } catch (err) {
       console.error("DOCX generation failed:", err)
+      setLocalExportError("Generovanie Word dokumentu zlyhalo. Skúste to znova alebo použite iný formát.")
     } finally {
       setIsExportingDocx(false)
     }
@@ -336,6 +348,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
       URL.revokeObjectURL(url)
     } catch (err) {
       console.error("TeX export failed:", err)
+      setLocalExportError("Export LaTeX zdrojového kódu zlyhal.")
     }
   }
 
@@ -350,7 +363,13 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
         { confirmedGrade, confirmedRecommendation, timestamp: new Date().toISOString() }
       )
       setLatestAuditHash(entry.entryHash)
-    } catch {}
+      setAuditError(false)
+    } catch {
+      // Audit trail is best-effort; never claim cryptographic integrity we
+      // could not actually establish.
+      setAuditError(true)
+      setLatestAuditHash(null)
+    }
     setShowFinalDecisionModal(false)
     void saveReview(workspaceId, activeReview.id)
   }
@@ -435,7 +454,16 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
             <span className="hidden md:inline">Stanovisko školiteľa</span>
           </Button>
 
-          {(activeReview.confirmedAt || latestAuditHash) && (
+          {auditError ? (
+            <Badge
+              variant="outline"
+              className="text-[10px] font-mono border-amber-500/40 text-amber-700 dark:text-amber-300 hidden xl:inline-flex gap-1 items-center bg-amber-500/5 py-1 px-2"
+              title="Záznam kryptografického auditu sa nepodarilo vytvoriť. Rozhodnutie bolo uložené, ale bez overenia integrity."
+            >
+              <AlertCircle className="h-3 w-3 text-amber-500" />
+              Audit: nedostupný
+            </Badge>
+          ) : (activeReview.confirmedAt || latestAuditHash) && (
             <Badge
               variant="outline"
               className="text-[10px] font-mono border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hidden xl:inline-flex gap-1 items-center bg-emerald-500/5 py-1 px-2"
@@ -519,6 +547,19 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Local export error banner (DOCX / TeX generation failures) */}
+      {localExportError && (
+        <div className="bg-destructive/10 border-b border-destructive/30 px-4 py-2 text-xs flex items-center justify-between text-destructive">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>{localExportError}</span>
+          </div>
+          <Button size="sm" variant="ghost" className="h-6 text-xs text-destructive hover:bg-destructive/10" onClick={() => setLocalExportError(null)}>
+            Zavrieť
+          </Button>
+        </div>
+      )}
 
       {/* Diagnostics Alert Banner if recovery fallbacks were applied */}
       {activeReview.diagnostics && activeReview.diagnostics.corruptedFields.length > 0 && (
@@ -673,13 +714,15 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               </Select>
 
               <Select value={selectedAudience} onValueChange={(val) => setSelectedAudience(val || "all")}>
-                <SelectTrigger className="h-7 text-xs w-28">
+                <SelectTrigger className="h-7 text-xs w-32">
                   <SelectValue placeholder="Príjemca">
                     {(val) => {
                       const labels: Record<string, string> = {
                         all: "Všetci",
                         author: "Pre autora",
                         editor: "Dôverné",
+                        committee: "Komisia",
+                        private: "Súkromné",
                       }
                       return labels[val] || val || "Príjemca"
                     }}
@@ -689,6 +732,8 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                   <SelectItem value="all" className="text-xs">Všetci</SelectItem>
                   <SelectItem value="author" className="text-xs">Pre autora</SelectItem>
                   <SelectItem value="editor" className="text-xs">Dôverné</SelectItem>
+                  <SelectItem value="committee" className="text-xs">Komisia</SelectItem>
+                  <SelectItem value="private" className="text-xs">Súkromné</SelectItem>
                 </SelectContent>
               </Select>
             </div>

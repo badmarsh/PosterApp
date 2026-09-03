@@ -141,6 +141,12 @@ export async function PUT(
       )
     }
 
+    // Guard against oversized payloads — Next.js route handlers have no built-in body limit.
+    const contentLength = Number(req.headers.get("content-length") ?? 0)
+    if (contentLength > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: "Payload too large" }, { status: 413 })
+    }
+
     const prevSnapshot = await prisma.workspaceSnapshot.findFirst({
       where: { workspaceId: id },
       orderBy: { savedAt: "desc" }
@@ -521,14 +527,18 @@ export async function PUT(
         }
       }
 
-      // ── Auto-snapshot on every save ──────────────────────────────────────
-      // Re-fetch the updated workspace so the snapshot is up-to-date.
-      const updatedWorkspace = await tx.workspace.findUnique({
+      }, { timeout: 20_000, maxWait: 10_000 })
+
+    // ── Auto-snapshot (post-commit) ────────────────────────────────────────
+    // Snapshotting is non-critical bookkeeping; it runs after the save so a
+    // failure here does not roll back the user's changes.
+    try {
+      const updatedWorkspace = await prisma.workspace.findUnique({
         where: { id },
         include: { outputs: { include: { cards: true } }, assets: true, ingestFiles: true },
       })
       if (updatedWorkspace) {
-        const newSnap = await tx.workspaceSnapshot.create({
+        const newSnap = await prisma.workspaceSnapshot.create({
           data: {
             workspaceId: id,
             revision: nextRevision ?? 0,
@@ -548,17 +558,19 @@ export async function PUT(
         }
 
         // Prune oldest snapshots beyond 50
-        const old = await tx.workspaceSnapshot.findMany({
+        const old = await prisma.workspaceSnapshot.findMany({
           where: { workspaceId: id },
           orderBy: { savedAt: "desc" },
           skip: 50,
           select: { id: true },
         })
         if (old.length > 0) {
-          await tx.workspaceSnapshot.deleteMany({ where: { id: { in: old.map((s) => s.id) } } })
+          await prisma.workspaceSnapshot.deleteMany({ where: { id: { in: old.map((s) => s.id) } } })
         }
       }
-    }, { timeout: 20_000, maxWait: 10_000 })
+    } catch (e) {
+      console.error("[Workspace PUT] Snapshot bookkeeping failed after successful save:", e)
+    }
 
     // Fire and forget AI snapshot labeler outside transaction
     if (pendingSnapshotRef.current) {

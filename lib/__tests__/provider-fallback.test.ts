@@ -99,6 +99,34 @@ describe("Task 13: Provider-level fallback in AI client", () => {
     )
   })
 
+  it("does NOT attempt fallback for AIValidationError (schema mismatch)", async () => {
+    vi.stubEnv("AI_API_URL_FALLBACK", "https://fallback.example/v1/chat/completions")
+    vi.stubEnv("AI_API_KEY_FALLBACK", "fallback-key")
+
+    // Fresh Response per call — a shared Response can only be read once.
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ choices: [{ message: { content: '{"status":"wrong-shape"}' } }] }), { status: 200 })
+      )
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(
+      generateAIResponse("test-validation-no-fallback", {
+        model: "test-model",
+        userPrompt: "test",
+        schema: z.object({ answer: z.string() }),
+      })
+    ).rejects.toThrow("does not match the expected schema")
+
+    // Primary called twice (initial + one repair attempt), fallback never called
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "https://fallback.example/v1/chat/completions",
+      expect.anything()
+    )
+  })
+
   it("throws primary error when fallback provider is not configured", async () => {
     vi.stubEnv("AI_API_URL_FALLBACK", "")
 

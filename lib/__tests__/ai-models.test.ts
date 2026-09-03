@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach } from "vitest"
-import { resolveAiModel, getVisionModelChain, DEFAULT_AI_MODELS, AI_TIMEOUTS } from "../ai/models"
+import {
+  resolveAiModel,
+  getVisionModelChain,
+  DEFAULT_AI_MODELS,
+  AI_TIMEOUTS,
+  parseAiModelOverrides,
+  resolveAiModelWithOverrides,
+  AI_MODEL_OVERRIDE_HEADER,
+} from "../ai/models"
 import { VisionCaptionSchema } from "../ai/contracts"
 
 describe("AI Models & Contracts", () => {
@@ -74,5 +82,72 @@ describe("AI Models & Contracts", () => {
     const chain = getVisionModelChain()
     expect(chain.length).toBe(10)
     expect(chain[0]).toBe("custom-omni-model")
+  })
+})
+
+type OverrideMap = Partial<Record<keyof typeof DEFAULT_AI_MODELS, string>>
+
+describe("parseAiModelOverrides (X-AI-Model-Override header validation)", () => {
+  it("accepts valid overrides for known roles", () => {
+    const headers = new Headers({
+      [AI_MODEL_OVERRIDE_HEADER]: JSON.stringify({
+        chat: "qwen3-64b-instruct",
+        review: "deepseek-r1",
+      }),
+    })
+    expect(parseAiModelOverrides(headers)).toEqual({
+      chat: "qwen3-64b-instruct",
+      review: "deepseek-r1",
+    })
+  })
+
+  it("drops non-string values (numbers and nested objects)", () => {
+    const headers = new Headers({
+      [AI_MODEL_OVERRIDE_HEADER]: JSON.stringify({ chat: 123, review: { nested: true } }),
+    })
+    expect(parseAiModelOverrides(headers)).toEqual({})
+  })
+
+  it("drops unknown roles but keeps known ones", () => {
+    const headers = new Headers({
+      [AI_MODEL_OVERRIDE_HEADER]: JSON.stringify({ "not-a-role": "x", chat: "valid-model" }),
+    })
+    expect(parseAiModelOverrides(headers)).toEqual({ chat: "valid-model" })
+  })
+
+  it("drops values failing the model-name format check", () => {
+    const headers = new Headers({
+      [AI_MODEL_OVERRIDE_HEADER]: JSON.stringify({ chat: "model with spaces <script>" }),
+    })
+    expect(parseAiModelOverrides(headers)).toEqual({})
+  })
+
+  it("returns {} for malformed JSON, arrays, and missing headers", () => {
+    expect(parseAiModelOverrides(new Headers({ [AI_MODEL_OVERRIDE_HEADER]: "{not json" }))).toEqual({})
+    expect(parseAiModelOverrides(new Headers({ [AI_MODEL_OVERRIDE_HEADER]: "[1,2,3]" }))).toEqual({})
+    expect(parseAiModelOverrides(new Headers())).toEqual({})
+  })
+})
+
+describe("resolveAiModelWithOverrides", () => {
+  beforeEach(() => {
+    delete process.env.AI_MODEL
+    delete process.env.AI_CHAT_MODEL
+  })
+
+  it("uses a valid override when provided", () => {
+    const overrides: OverrideMap = { chat: "override-model" }
+    expect(resolveAiModelWithOverrides("chat", overrides)).toBe("override-model")
+  })
+
+  it("ignores non-string overrides and falls back to env vars", () => {
+    process.env.AI_CHAT_MODEL = "env-chat-model"
+    const overrides: OverrideMap = { chat: 123 as unknown as string }
+    expect(resolveAiModelWithOverrides("chat", overrides)).toBe("env-chat-model")
+  })
+
+  it("falls back to DEFAULT_AI_MODELS when nothing is set", () => {
+    const overrides: OverrideMap = {}
+    expect(resolveAiModelWithOverrides("chat", overrides)).toBe(DEFAULT_AI_MODELS.chat)
   })
 })

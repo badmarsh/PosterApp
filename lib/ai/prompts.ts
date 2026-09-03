@@ -39,37 +39,39 @@ export function sanitizeCiteKeys(
  * Wraps untrusted text (such as extracted PDF context) in delimited XML tags,
  * escaping any literal closing tags and known prompt-structural tags within
  * the content to prevent prompt injection breakouts.
+ *
+ * Sanitisation strategy (single linear pass):
+ * 1. Strip control characters and Unicode bidi overrides — invisible prompt
+ *    manipulation vectors that tag escaping cannot reach.
+ * 2. Break CDATA terminator `]]>` so content cannot close a CDATA section
+ *    opened by surrounding system prompts.
+ * 3. Break `?>` so processing instructions cannot be terminated.
+ * 4. Break every `<` that is followed by a non-whitespace character. This
+ *    invalidates opening tags, closing tags, CDATA starts, DOCTYPE
+ *    declarations, and processing instructions in one pass, while leaving
+ *    prose comparisons like `x < y` untouched (a space already follows `<`).
  */
 export function wrapUntrustedContext(tag: string, content: string): string {
   if (!content) return `<${tag}>\n</${tag}>`
-  
+
   let sanitized = content
-  
-  // 1. Neutralize CDATA sections first (before tag processing)
-  sanitized = sanitized.replace(/<!\[CDATA\[/gi, '<![ CDATA[')
-  sanitized = sanitized.replace(/\]\]>/g, ']] >')
-  
-  // 2. Neutralize XML processing instructions
-  sanitized = sanitized.replace(/<\?/g, '< ?')
-  sanitized = sanitized.replace(/\?>/g, '? >')
-  
-  // 3. Neutralize DOCTYPE declarations
-  sanitized = sanitized.replace(/<!DOCTYPE\b/gi, '<! DOCTYPE')
-  
-  // 4. Neutralize ALL opening tags (not just known ones)
-  // This prevents injection of <script>, <img>, <instructions>, <=== TAG ===>, etc.
-  // Match: < followed by any non-whitespace char (tag name start), then everything up to > or />
-  sanitized = sanitized.replace(/<([^\s>\/][^>\/]*?)(\s[^>]*)?\/?>/g, (_match, tagName: string, attrs: string) => {
-    return `<${tagName}${attrs ? ' ' + attrs.trim() : ''} >`
-  })
-  
-  // 5. Neutralize ALL closing tags (including non-standard like </=== TAG ===>)
-  // First pass: well-formed closing tags </TAG>
-  sanitized = sanitized.replace(/<\/\s*([a-zA-Z0-9_\s/=-]+?)\s*>/g, (_match, tagName: string) => `< /${tagName}>`)
-  // Second pass: unclosed </ at start or preceded by something other than space
-  // Handles edge cases like "</content<..." where </ appears but isn't properly closed
-  sanitized = sanitized.replace(/<(\/[a-zA-Z0-9_\s/=-]+?)(?![^<>]*>)/g, '< $1')
-  
+
+  // 1. Strip control characters and Unicode directionality overrides.
+  sanitized = sanitized
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
+    .replace(/[\u202A-\u202E\u2066-\u2069]/g, "")
+
+  // 2. Neutralize CDATA terminators.
+  sanitized = sanitized.replace(/\]\]>/g, "]] >")
+
+  // 3. Neutralize XML processing instruction terminators.
+  sanitized = sanitized.replace(/\?>/g, "? >")
+
+  // 4. Neutralize every `<` that starts a tag-like token.
+  //    `(?=\S)` ensures we only break `<` followed by a non-space character,
+  //    preserving mathematical comparisons like `x < y`.
+  sanitized = sanitized.replace(/<(?=\S)/g, "< ")
+
   return `<${tag}>\n${sanitized}\n</${tag}>`
 }
 

@@ -13,6 +13,8 @@ interface AIClientOptions<T> {
   signal?: AbortSignal;
   temperature?: number;
   maxTokens?: number;
+  /** Mutable bag that is filled in with the provider source after the operation completes. */
+  provenance?: { source?: AIProviderSource };
 }
 
 const MAX_AI_FETCH_ATTEMPTS = 3
@@ -37,7 +39,8 @@ function resolveProvider(options: Pick<AIRequestOptions, "role" | "model" | "api
 function retryDelayMs(response: Response | null, attempt: number): number {
   if (response?.status === 429) {
     const retryAfter = Number.parseInt(response.headers.get("retry-after") ?? "", 10)
-    const baseDelay = Number.isNaN(retryAfter) ? 1500 * attempt : retryAfter * 1000
+    // Cap Retry-After to 30 seconds — a hostile upstream cannot stall the client.
+    const baseDelay = Number.isNaN(retryAfter) ? 1500 * attempt : Math.min(retryAfter, 30) * 1000
     return baseDelay + Math.random() * 300
   }
 
@@ -106,7 +109,7 @@ async function requestCompletion(
   apiUrl: string,
   apiKey: string,
   payload: Record<string, unknown>
-): Promise<string> {
+): Promise<{ content: string; truncated: boolean }> {
   const startTime = Date.now()
   const response = await fetchWithRetries(apiUrl, {
     method: "POST",
@@ -132,7 +135,9 @@ async function requestCompletion(
 
   const content = data.choices[0].message?.content
   if (!content) throw new Error("Empty response from AI")
-  return content
+  // Return the content together with the truncation flag — callers need the
+  // content itself to decide on a repair, so we must not throw here.
+  return { content, truncated: data.choices[0].finish_reason === "length" }
 }
 
 function validateStructuredContent<T>(content: string, schema: ZodSchema<T>): T {
@@ -154,7 +159,12 @@ function buildRepairPayload(
   invalidContent: string,
   validationError: AIValidationError
 ) {
-  return buildPayload(options, [
+  // Bump max_tokens by 1.5× for the repair attempt — truncation is often the root cause.
+  const repairOptions = {
+    ...options,
+    maxTokens: Math.ceil((options.maxTokens ?? DEFAULT_AI_MAX_TOKENS) * 1.5),
+  }
+  return buildPayload(repairOptions, [
     ...messages,
     { role: "assistant", content: invalidContent },
     {
@@ -181,6 +191,14 @@ function resolveFallbackProvider(): { apiUrl: string; apiKey: string } | null {
   return { apiUrl, apiKey }
 }
 
+function recordProviderSource(
+  options: AIRequestOptions,
+  source: AIProviderSource
+): void {
+  lastServedProvider = source
+  if (options.provenance) options.provenance.source = source
+}
+
 async function executeWithProviderFallback<R>(
   operationName: string,
   options: AIRequestOptions,
@@ -191,21 +209,23 @@ async function executeWithProviderFallback<R>(
 
   try {
     const result = await operationFn(primaryUrl, primaryKey)
-    lastServedProvider = "primary"
+    recordProviderSource(options, "primary")
     return result
   } catch (primaryError) {
     if (primaryError instanceof Error && primaryError.name === "AbortError") {
       throw primaryError
     }
 
-    // Do NOT retry 4xx client errors (400, 401, 403, 404, 422) on fallback, except 429
-    const is4xxClientError =
+    // Do NOT retry 4xx client errors (400, 401, 403, 404, 422) on fallback, except 429.
+    // Also do NOT retry validation errors — the schema/prompt is the issue, not the provider.
+    const isLocalFailure =
       primaryError instanceof AIProviderError &&
       primaryError.status >= 400 &&
       primaryError.status < 500 &&
       primaryError.status !== 429
 
-    if (!fallback || is4xxClientError) {
+    // AIValidationError: schema mismatch or truncated response — same problem on any provider.
+    if (!fallback || isLocalFailure || primaryError instanceof AIValidationError) {
       throw primaryError
     }
 
@@ -215,7 +235,7 @@ async function executeWithProviderFallback<R>(
 
     try {
       const result = await operationFn(fallback.apiUrl, fallback.apiKey)
-      lastServedProvider = "fallback-provider"
+      recordProviderSource(options, "fallback-provider")
       console.warn(`[AI client] Primary provider failed; succeeded via fallback provider ${fallback.apiUrl}`)
       return result
     } catch (fallbackError) {
@@ -225,7 +245,10 @@ async function executeWithProviderFallback<R>(
       console.error(
         `[AI ${operationName}] Fallback provider (${fallback.apiUrl}) also failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`
       )
-      throw primaryError
+      throw new AggregateError(
+        [primaryError, fallbackError],
+        `AI operation failed on both providers. Primary: ${primaryError instanceof Error ? primaryError.message : String(primaryError)}. Fallback: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`
+      )
     }
   }
 }
@@ -245,7 +268,11 @@ export async function generateAIResponse<T>(
     let content: string | null = null
 
     try {
-      content = await requestCompletion(operationName, options, apiUrl, apiKey, payload)
+      const completion = await requestCompletion(operationName, options, apiUrl, apiKey, payload)
+      content = completion.content
+      if (completion.truncated) {
+        throw new AIValidationError("AI response was truncated (finish_reason=length); returned JSON is likely incomplete")
+      }
       return validateStructuredContent(content, options.schema)
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
@@ -261,8 +288,9 @@ export async function generateAIResponse<T>(
 
       try {
         const repairPayload = buildRepairPayload(options, messages, content, error)
-        const repairedContent = await requestCompletion(operationName, options, apiUrl, apiKey, repairPayload)
-        return validateStructuredContent(repairedContent, options.schema)
+        const repaired = await requestCompletion(operationName, options, apiUrl, apiKey, repairPayload)
+        if (repaired.truncated) throw new AIValidationError("AI response was truncated (finish_reason=length); returned JSON is likely incomplete")
+        return validateStructuredContent(repaired.content, options.schema)
       } catch (repairError) {
         if (repairError instanceof Error && repairError.name === "AbortError") throw repairError
         if (repairError instanceof AIProviderError || repairError instanceof AIValidationError) throw repairError
@@ -281,7 +309,11 @@ export async function generateAITextResponse(
 
   return executeWithProviderFallback(operationName, options, async (apiUrl, apiKey) => {
     try {
-      return await requestCompletion(operationName, options, apiUrl, apiKey, payload)
+      const completion = await requestCompletion(operationName, options, apiUrl, apiKey, payload)
+      if (completion.truncated) {
+        console.warn(`[AI ${operationName}] Response truncated (finish_reason=length)`)
+      }
+      return completion.content
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         console.warn(`[AI ${operationName}] Request aborted`)

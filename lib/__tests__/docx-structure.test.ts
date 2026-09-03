@@ -142,8 +142,8 @@ describe("OpenXML DOCX Structure & Plain Text / Markdown Deep Verification", () 
   })
 
   it("plain text and markdown formatters produce clean UTF-8 for editorial platforms", () => {
-    const md = formatReviewToMarkdown(completeReview, { onlyAcceptedFindings: true })
-    const txt = formatReviewToPlainText(completeReview, { onlyAcceptedFindings: true })
+    const md = formatReviewToMarkdown(completeReview, { excludeRejected: true })
+    const txt = formatReviewToPlainText(completeReview, { excludeRejected: true })
 
     // Check diacritics
     expect(md).toContain("Mária Červenáková")

@@ -22,6 +22,7 @@ import {
   Award,
   ArrowRight,
   Info,
+  BookOpen,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -98,25 +99,29 @@ export function ReviewerCalibrationPanel({ workspaceId, reviews }: Props) {
     return list
   }, [reviews, workspaceStores, sharedThesis])
 
-  const supervisorReview = combinedReviews.find((r) => r.reviewerRole === "supervisor") || combinedReviews[0] || {
-    id: "rev-sup",
-    studentName: sharedThesis?.studentName || "Ján Novák",
-    thesisTitle: sharedThesis?.thesisTitle || "Neurónové siete pre fyzikálne simulácie",
-    reviewerRole: "supervisor",
-    reviewerName: "prof. RNDr. Peter Varga, DrSc.",
-    grade: "A",
-    recommendation: "Odporúčam na obhajobu.",
-  }
+  const supervisorReview = useMemo(() => {
+    return combinedReviews.find((r) => r.reviewerRole === "supervisor") || combinedReviews[0] || {
+      id: "rev-sup",
+      studentName: sharedThesis?.studentName || "Ján Novák",
+      thesisTitle: sharedThesis?.thesisTitle || "Neurónové siete pre fyzikálne simulácie",
+      reviewerRole: "supervisor",
+      reviewerName: "prof. RNDr. Peter Varga, DrSc.",
+      grade: "A",
+      recommendation: "Odporúčam na obhajobu.",
+    }
+  }, [combinedReviews, sharedThesis])
 
-  const opponentReview = combinedReviews.find((r) => r.reviewerRole === "opponent" && r.id !== supervisorReview.id) || combinedReviews[1] || {
-    id: "rev-opp",
-    studentName: sharedThesis?.studentName || supervisorReview.studentName || "Ján Novák",
-    thesisTitle: sharedThesis?.thesisTitle || supervisorReview.thesisTitle || "Neurónové siete pre fyzikálne simulácie",
-    reviewerRole: "opponent",
-    reviewerName: "doc. Ing. Elena Horváthová, PhD.",
-    grade: "B",
-    recommendation: "Odporúčam na obhajobu.",
-  }
+  const opponentReview = useMemo(() => {
+    return combinedReviews.find((r) => r.reviewerRole === "opponent" && r.id !== supervisorReview.id) || combinedReviews[1] || {
+      id: "rev-opp",
+      studentName: sharedThesis?.studentName || supervisorReview.studentName || "Ján Novák",
+      thesisTitle: sharedThesis?.thesisTitle || supervisorReview.thesisTitle || "Neurónové siete pre fyzikálne simulácie",
+      reviewerRole: "opponent",
+      reviewerName: "doc. Ing. Elena Horváthová, PhD.",
+      grade: "B",
+      recommendation: "Odporúčam na obhajobu.",
+    }
+  }, [combinedReviews, supervisorReview, sharedThesis])
 
   const supGrade = supervisorReview?.finalGrade || supervisorReview?.grade || "A"
   const oppGrade = opponentReview?.finalGrade || opponentReview?.grade || "B"
@@ -158,49 +163,9 @@ export function ReviewerCalibrationPanel({ workspaceId, reviews }: Props) {
       })
     }
 
-    // Default fallback rubric criteria diffs
-    return [
-      {
-        criterionId: "methodology",
-        criterionLabel: "Metodológia a postup riešenia",
-        supervisorGrade: supGrade,
-        supervisorScore: supGrade === "A" ? 95 : 85,
-        opponentGrade: oppGrade,
-        opponentScore: oppGrade === "A" ? 95 : oppGrade === "B" ? 82 : 72,
-        delta: Math.abs((supGrade === "A" ? 95 : 85) - (oppGrade === "A" ? 95 : oppGrade === "B" ? 82 : 72)),
-        isDivergent: gradeDelta >= 2,
-      },
-      {
-        criterionId: "results",
-        criterionLabel: "Výsledky a ich vyhodnotenie",
-        supervisorGrade: supGrade,
-        supervisorScore: 92,
-        opponentGrade: oppGrade,
-        opponentScore: 78,
-        delta: 14,
-        isDivergent: gradeDelta >= 2,
-      },
-      {
-        criterionId: "originality",
-        criterionLabel: "Originalita a vlastný prínos",
-        supervisorGrade: supGrade,
-        supervisorScore: 90,
-        opponentGrade: oppGrade,
-        opponentScore: 85,
-        delta: 5,
-        isDivergent: false,
-      },
-      {
-        criterionId: "citations_bibliography",
-        criterionLabel: "Práca s literatúrou a citáciami",
-        supervisorGrade: supGrade,
-        supervisorScore: 85,
-        opponentGrade: oppGrade,
-        opponentScore: 80,
-        delta: 5,
-        isDivergent: false,
-      },
-    ]
+    // No real criterion-level data available — return empty so the UI can
+    // show a clear placeholder instead of fabricated numbers.
+    return []
   }, [supervisorReview, opponentReview, supGrade, oppGrade, gradeDelta])
 
   const recommendationText = useMemo(() => {
@@ -302,7 +267,7 @@ export function ReviewerCalibrationPanel({ workspaceId, reviews }: Props) {
             </h4>
 
             <div className="space-y-2.5">
-              {criterionDiffs.map((diff) => (
+              {criterionDiffs.length > 0 ? criterionDiffs.map((diff) => (
                 <div
                   key={diff.criterionId}
                   className={cn(
@@ -338,7 +303,13 @@ export function ReviewerCalibrationPanel({ workspaceId, reviews }: Props) {
                     </div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
+                  <BookOpen className="size-5 mx-auto mb-2 text-muted-foreground/50" />
+                  <p className="font-medium">Kriteriálne hodnotenie nie je k dispozícii</p>
+                  <p className="text-[11px] mt-1">Vygenerujte aspoň jeden posudok s vyplnenými sekciami pre porovnanie na úrovni kritérií.</p>
+                </div>
+              )}
             </div>
           </div>
 
