@@ -45,18 +45,36 @@ export function WorkspaceSelector({
   useEffect(() => {
     apiFetch("/api/workspaces")
       .then(async (r) => {
+        const contentType = r.headers.get("content-type") || ""
         if (!r.ok) {
-          const errData = await r.json().catch(() => ({}))
-          throw new Error(errData.error || `HTTP ${r.status}`)
+          if (contentType.includes("application/json")) {
+            const errData = await r.json().catch(() => ({}))
+            throw new Error(errData.error || errData.message || `HTTP ${r.status}`)
+          }
+          const text = await r.text().catch(() => "")
+          if (r.status === 401 || text.includes("sign-in") || text.includes("Unauthorized")) {
+            throw new Error("Unauthorized: Sign in required")
+          }
+          throw new Error(`HTTP ${r.status}`)
+        }
+        if (!contentType.includes("application/json")) {
+          const text = await r.text().catch(() => "")
+          if (text.includes("sign-in") || text.includes("<!DOCTYPE") || text.includes("<html")) {
+            throw new Error("Unauthorized: Sign in required")
+          }
+          throw new Error("Invalid response format (expected JSON)")
         }
         return r.json()
       })
       .then((data) => {
+        if (!Array.isArray(data)) {
+          throw new Error("Invalid workspaces data received")
+        }
         setWorkspaces(data)
         setLoading(false)
       })
       .catch((err) => {
-        setError(String(err))
+        setError(err instanceof Error ? err.message : String(err))
         setLoading(false)
       })
   }, [])
@@ -81,18 +99,30 @@ export function WorkspaceSelector({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: newId, name: newName, templateName: newTemplate }),
       })
+      const contentType = res.headers.get("content-type") || ""
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || `HTTP ${res.status}`)
+        if (contentType.includes("application/json")) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error || err.message || `HTTP ${res.status}`)
+        }
+        const text = await res.text().catch(() => "")
+        if (res.status === 401 || text.includes("sign-in")) {
+          throw new Error("Unauthorized: Sign in required")
+        }
+        throw new Error(`HTTP ${res.status}`)
+      }
+      if (!contentType.includes("application/json")) {
+        throw new Error("Invalid response format from server")
       }
       onSelect(newId)
     } catch (err) {
-      setCreateError(String(err))
+      setCreateError(err instanceof Error ? err.message : String(err))
       setIsSubmitting(false)
     }
   }
 
   const isDbDown = error?.includes("Database offline")
+  const isAuthRequired = error?.includes("Unauthorized") || error?.includes("Sign in required")
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
@@ -109,7 +139,28 @@ export function WorkspaceSelector({
           </div>
         )}
         {error && !isDbDown && (
-          <p className="text-sm text-destructive">Failed to load workspaces: {error}</p>
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-medium text-destructive">
+                {isAuthRequired ? "Authentication Required" : "Failed to load workspaces"}
+              </p>
+              {isAuthRequired && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-[11px] px-2.5 border-destructive/40 text-destructive hover:bg-destructive/10 cursor-pointer"
+                  onClick={() => { window.location.href = "/sign-in" }}
+                >
+                  Sign In
+                </Button>
+              )}
+            </div>
+            <p className="text-destructive/80 text-xs">
+              {isAuthRequired
+                ? "Your session has expired or you are not signed in. Please sign in to access your projects."
+                : error}
+            </p>
+          </div>
         )}
 
         {loading ? (

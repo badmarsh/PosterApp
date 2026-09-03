@@ -150,6 +150,15 @@ ${issues.map((i) => `  \\item ${escapeLatex(i)}`).join("\n")}
 \\end{itemize}`
 }
 
+function buildConfidentialNotes(labels: ThesisReviewLabels, comments: string): string {
+  if (!comments || !comments.trim()) return ""
+  return `\\Needspace{8\\baselineskip}
+\\section{${escapeLatex(labels.confidentialLabel)}}
+{\\small
+${escapeLatex(nl2par(comments))}
+}`
+}
+
 function buildSummaryBlock(
   labels: ThesisReviewLabels,
   grade: string | null | undefined,
@@ -194,6 +203,8 @@ export interface ThesisReviewGeneratorInput {
   citationIssues: string[]
   language: ReviewLanguage
   template: ThesisReviewTemplate
+  confidentialComments?: string | null
+  includeConfidential?: boolean
 }
 
 /**
@@ -216,6 +227,10 @@ export function generateThesisReviewLatex(input: ThesisReviewGeneratorInput): st
 
   const defenseBlock = buildDefenseQuestions(labels, allDefenseQuestions)
   const citationBlock = buildCitationNotes(labels, input.citationIssues)
+  const confidentialBlock =
+    input.includeConfidential && input.confidentialComments?.trim()
+      ? buildConfidentialNotes(labels, input.confidentialComments)
+      : ""
   const summaryBlock = buildSummaryBlock(labels, input.grade, input.recommendation)
 
   return `${preamble}
@@ -243,6 +258,8 @@ ${criteriaBlock}
 ${defenseBlock}
 
 ${citationBlock}
+
+${confidentialBlock}
 
 ${summaryBlock}
 

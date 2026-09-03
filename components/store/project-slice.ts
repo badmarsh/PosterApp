@@ -8,7 +8,7 @@ import type { OutputType } from "@/lib/output-types"
 import { getDefaultTemplateId, DEFAULT_STRUCTURES, getTemplateDef, buildDefaultStructure } from "@/lib/output-types"
 import { jobQueue } from "@/lib/job-queue"
 import { sanitizeCiteKeys } from "@/lib/ai/prompts"
-import { destroyThesisReviewStore, clearThesisReviewStoreRegistry } from "@/components/thesis-review/use-thesis-review-store"
+import { destroyThesisReviewStore, clearThesisReviewStoreRegistry, getExistingThesisReviewStore } from "@/components/thesis-review/use-thesis-review-store"
 
 
 /** outputs[].cards is the persisted source of truth. `project.cards` only mirrors the active output for legacy consumers. */
@@ -218,11 +218,26 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       validation: "warning" as const,
     }))
 
+    let outputTitle = s.project.name
+    if (outputType === "thesis-review") {
+      const existingThesisOutputs = (s.project.outputs || []).filter(
+        (o) => o.outputType === "thesis-review"
+      )
+      if (existingThesisOutputs.length === 0) {
+        outputTitle = "Posudok školiteľa"
+      } else {
+        const firstKey = `${s.project.id}:${existingThesisOutputs[0].id}`
+        const firstStore = getExistingThesisReviewStore(firstKey)
+        const firstRole = firstStore?.getState().formMetadata.reviewerRole
+        outputTitle = firstRole === "supervisor" ? "Posudok oponenta" : "Posudok školiteľa"
+      }
+    }
+
     const newOutput: OutputConfig = {
       id,
       outputType,
       templateId: resolvedTemplate,
-      title: s.project.name,
+      title: outputTitle,
       themeColor: getTemplateDef(resolvedTemplate)?.colors[0]?.hex ?? null,
       cards: newCards,
     }

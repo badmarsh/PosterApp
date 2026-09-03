@@ -9,7 +9,7 @@
  */
 import { getAiModelOverrideHeaders } from "@/lib/settings-store"
 
-export function apiFetch(
+export async function apiFetch(
   url: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
@@ -24,5 +24,27 @@ export function apiFetch(
       ...overrideHeaders,
     }
   }
-  return fetch(url, init)
+
+  const res = await fetch(url, init)
+
+  // Guard against HTML redirects (e.g. Clerk dev-browser handshake or /sign-in redirect)
+  // for API routes that expect JSON. This prevents `SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON`.
+  const urlStr = typeof url === "string" ? url : url instanceof URL ? url.pathname : (url as Request).url
+  if (urlStr && urlStr.includes("/api/") && !urlStr.includes("/assets/")) {
+    const contentType = res.headers.get("content-type") || ""
+    if (res.redirected && res.url && res.url.includes("/sign-in")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized", message: "Authentication required" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      )
+    }
+    if (contentType.includes("text/html") && (res.status === 200 || res.status === 307)) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized", message: "Authentication required" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      )
+    }
+  }
+
+  return res
 }

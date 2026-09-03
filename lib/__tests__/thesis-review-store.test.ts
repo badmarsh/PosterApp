@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { useThesisReviewStore, type ThesisReviewRecord } from "@/components/thesis-review/use-thesis-review-store"
+import {
+  useThesisReviewStore,
+  getThesisReviewStore,
+  clearThesisReviewStoreRegistry,
+  getWorkspaceSharedThesis,
+  type ThesisReviewRecord,
+} from "@/components/thesis-review/use-thesis-review-store"
 
 describe("Thesis Review Store State & Error Handling", () => {
   beforeEach(() => {
@@ -242,3 +248,104 @@ describe("Thesis Review Store State & Error Handling", () => {
     expect(state.reviews[0].id).toBe("rev-2")
   })
 })
+
+describe("Shared Thesis Context & Multi-Tab Isolation", () => {
+  beforeEach(() => {
+    clearThesisReviewStoreRegistry()
+  })
+
+  it("defaults Tab 1 to supervisor role and Tab 2 to opponent role", () => {
+    const store1 = getThesisReviewStore("ws-test-1:out-1")
+    expect(store1.getState().formMetadata.reviewerRole).toBe("supervisor")
+
+    const store2 = getThesisReviewStore("ws-test-1:out-2")
+    expect(store2.getState().formMetadata.reviewerRole).toBe("opponent")
+  })
+
+  it("inherits shared thesis metadata from Tab 1 into newly created Tab 2", () => {
+    const store1 = getThesisReviewStore("ws-test-2:out-1")
+    store1.getState().updateFormMetadata({
+      studentName: "Ján Novák",
+      thesisTitle: "Neurónové siete pre fyziku",
+      thesisType: "master",
+      institution: "STU Bratislava",
+      department: "FIIT",
+      academicYear: "2025/2026",
+    })
+
+    const store2 = getThesisReviewStore("ws-test-2:out-2")
+    const meta2 = store2.getState().formMetadata
+
+    expect(meta2.studentName).toBe("Ján Novák")
+    expect(meta2.thesisTitle).toBe("Neurónové siete pre fyziku")
+    expect(meta2.thesisType).toBe("master")
+    expect(meta2.institution).toBe("STU Bratislava")
+    expect(meta2.department).toBe("FIIT")
+    expect(meta2.academicYear).toBe("2025/2026")
+    // reviewerName must be independent and blank
+    expect(meta2.reviewerName).toBe("")
+    expect(meta2.reviewerRole).toBe("opponent")
+  })
+
+  it("synchronizes shared fields across existing tabs when updated in any tab", () => {
+    const store1 = getThesisReviewStore("ws-test-3:out-1")
+    const store2 = getThesisReviewStore("ws-test-3:out-2")
+
+    store1.getState().updateFormMetadata({
+      studentName: "Marek Kováč",
+      thesisTitle: "Pôvodný názov",
+    })
+
+    expect(store2.getState().formMetadata.studentName).toBe("Marek Kováč")
+    expect(store2.getState().formMetadata.thesisTitle).toBe("Pôvodný názov")
+
+    // Update thesisTitle from Tab 2
+    store2.getState().updateFormMetadata({
+      thesisTitle: "Aktualizovaný spoločný názov práce",
+    })
+
+    expect(store1.getState().formMetadata.thesisTitle).toBe("Aktualizovaný spoločný názov práce")
+    expect(getWorkspaceSharedThesis("ws-test-3")?.thesisTitle).toBe("Aktualizovaný spoločný názov práce")
+  })
+
+  it("keeps reviewer-specific fields strictly isolated between tabs", () => {
+    const store1 = getThesisReviewStore("ws-test-4:out-1")
+    const store2 = getThesisReviewStore("ws-test-4:out-2")
+
+    store1.getState().updateFormMetadata({
+      studentName: "Ján Novák",
+      thesisTitle: "Diplomovka",
+      reviewerName: "prof. RNDr. Peter Varga, DrSc.",
+    })
+
+    store2.getState().updateFormMetadata({
+      reviewerName: "doc. Ing. Elena Horváthová, PhD.",
+    })
+
+    expect(store1.getState().formMetadata.reviewerName).toBe("prof. RNDr. Peter Varga, DrSc.")
+    expect(store2.getState().formMetadata.reviewerName).toBe("doc. Ing. Elena Horváthová, PhD.")
+
+    // Independent activeReview
+    store2.getState().setActiveReview({
+      id: "rev-tab2",
+      studentName: "Ján Novák",
+      thesisTitle: "Diplomovka",
+      thesisType: "master",
+      reviewerRole: "opponent",
+      grade: "B",
+      recommendation: "Odporúčam",
+      sections: [],
+      defenseQuestions: [],
+      citationIssues: [],
+      status: "draft",
+      language: "sk",
+      createdAt: "",
+      updatedAt: "",
+    })
+
+    expect(store1.getState().activeReview).toBeNull()
+    expect(store2.getState().activeReview?.id).toBe("rev-tab2")
+    expect(store2.getState().activeReview?.grade).toBe("B")
+  })
+})
+

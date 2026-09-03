@@ -63,10 +63,14 @@ export async function POST(
     return NextResponse.json({ error: "Review not found" }, { status: 404 })
   }
 
-  // Parse body for optional template override
+  // Parse body for optional template override and audience / confidentiality flags
   let template: ThesisReviewTemplate = "posudok-sk"
+  let includeConfidential = false
   try {
     const body = await req.json().catch(() => ({}))
+    if (body.includeConfidential === true || body.audience === "committee" || body.audience === "supervisor") {
+      includeConfidential = true
+    }
     if (body.template) template = body.template as ThesisReviewTemplate
     else if (review.language === "en") template = "posudok-en"
     else if (review.language === "cs") template = "posudok-cs"
@@ -95,6 +99,8 @@ export async function POST(
       citationIssues,
       language: review.language as ReviewLanguage,
       template,
+      confidentialComments: review.confidentialComments,
+      includeConfidential,
     })
 
     // Create temp directory
@@ -220,9 +226,11 @@ export async function GET(
       citationIssues,
       language: review.language as ReviewLanguage,
       template,
+      confidentialComments: review.confidentialComments,
+      includeConfidential,
     })
 
-    const texFilename = `posudok-${sanitizeFilename(review.studentName, "student")}.tex`
+    const texFilename = `posudok-${sanitizeFilename(review.studentName, "student")}${includeConfidential ? "-confidential" : ""}.tex`
     return new Response(tex, {
       status: 200,
       headers: {

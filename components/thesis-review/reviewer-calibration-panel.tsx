@@ -24,7 +24,11 @@ import {
   Info,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { ThesisReviewListItem } from "./use-thesis-review-store"
+import {
+  type ThesisReviewListItem,
+  getAllThesisStoresForWorkspace,
+  getWorkspaceSharedThesis,
+} from "./use-thesis-review-store"
 
 const ECTS_GRADE_VALUES: Record<string, number> = {
   A: 1,
@@ -33,6 +37,15 @@ const ECTS_GRADE_VALUES: Record<string, number> = {
   D: 4,
   E: 5,
   FX: 6,
+}
+
+const ECTS_SCORE_MAP: Record<string, number> = {
+  A: 95,
+  B: 83,
+  C: 73,
+  D: 63,
+  E: 53,
+  FX: 30,
 }
 
 export interface CriterionDiffItem {
@@ -52,21 +65,53 @@ interface Props {
 }
 
 export function ReviewerCalibrationPanel({ workspaceId, reviews }: Props) {
-  // If fewer than 2 reviews exist, create simulated second reviewer for demonstration
-  const supervisorReview = reviews.find((r) => r.reviewerRole === "supervisor") || reviews[0] || {
+  const workspaceStores = useMemo(() => getAllThesisStoresForWorkspace(workspaceId), [workspaceId])
+  const sharedThesis = useMemo(() => getWorkspaceSharedThesis(workspaceId), [workspaceId])
+
+  const combinedReviews = useMemo(() => {
+    const list: any[] = [...reviews]
+    for (const { outputId, store } of workspaceStores) {
+      const state = store.getState()
+      if (state.activeReview) {
+        const idx = list.findIndex((r) => r.id === state.activeReview!.id)
+        if (idx >= 0) {
+          list[idx] = { ...list[idx], ...state.activeReview }
+        } else {
+          list.unshift(state.activeReview)
+        }
+      } else if (state.formMetadata.studentName || state.formMetadata.thesisTitle) {
+        const draftId = `draft-${outputId}`
+        if (!list.some((r) => r.id === draftId)) {
+          list.push({
+            id: draftId,
+            studentName: state.formMetadata.studentName || sharedThesis?.studentName || "Študent",
+            thesisTitle: state.formMetadata.thesisTitle || sharedThesis?.thesisTitle || "Záverečná práca",
+            reviewerRole: state.formMetadata.reviewerRole,
+            reviewerName: state.formMetadata.reviewerName || (state.formMetadata.reviewerRole === "supervisor" ? "Školiteľ" : "Oponent"),
+            grade: null,
+            recommendation: null,
+            sections: [],
+          })
+        }
+      }
+    }
+    return list
+  }, [reviews, workspaceStores, sharedThesis])
+
+  const supervisorReview = combinedReviews.find((r) => r.reviewerRole === "supervisor") || combinedReviews[0] || {
     id: "rev-sup",
-    studentName: "Ján Novák",
-    thesisTitle: "Neurónové siete pre fyzikálne simulácie",
+    studentName: sharedThesis?.studentName || "Ján Novák",
+    thesisTitle: sharedThesis?.thesisTitle || "Neurónové siete pre fyzikálne simulácie",
     reviewerRole: "supervisor",
     reviewerName: "prof. RNDr. Peter Varga, DrSc.",
     grade: "A",
     recommendation: "Odporúčam na obhajobu.",
   }
 
-  const opponentReview = reviews.find((r) => r.reviewerRole === "opponent" && r.id !== supervisorReview.id) || reviews[1] || {
+  const opponentReview = combinedReviews.find((r) => r.reviewerRole === "opponent" && r.id !== supervisorReview.id) || combinedReviews[1] || {
     id: "rev-opp",
-    studentName: "Ján Novák",
-    thesisTitle: "Neurónové siete pre fyzikálne simulácie",
+    studentName: sharedThesis?.studentName || supervisorReview.studentName || "Ján Novák",
+    thesisTitle: sharedThesis?.thesisTitle || supervisorReview.thesisTitle || "Neurónové siete pre fyzikálne simulácie",
     reviewerRole: "opponent",
     reviewerName: "doc. Ing. Elena Horváthová, PhD.",
     grade: "B",
@@ -81,48 +126,92 @@ export function ReviewerCalibrationPanel({ workspaceId, reviews }: Props) {
   const gradeDelta = Math.abs(supVal - oppVal)
   const isGradeDivergent = gradeDelta >= 2
 
-  const criterionDiffs: CriterionDiffItem[] = [
-    {
-      criterionId: "methodology",
-      criterionLabel: "Metodológia a postup riešenia",
-      supervisorGrade: "A",
-      supervisorScore: 95,
-      opponentGrade: "B",
-      opponentScore: 82,
-      delta: 13,
-      isDivergent: false,
-    },
-    {
-      criterionId: "results",
-      criterionLabel: "Výsledky a ich vyhodnotenie",
-      supervisorGrade: "A",
-      supervisorScore: 92,
-      opponentGrade: "C",
-      opponentScore: 74,
-      delta: 18,
-      isDivergent: true, // Divergence flagged
-    },
-    {
-      criterionId: "originality",
-      criterionLabel: "Originalita a vlastný prínos",
-      supervisorGrade: "A",
-      supervisorScore: 90,
-      opponentGrade: "B",
-      opponentScore: 85,
-      delta: 5,
-      isDivergent: false,
-    },
-    {
-      criterionId: "citations_bibliography",
-      criterionLabel: "Práca s literatúrou a citáciami",
-      supervisorGrade: "B",
-      supervisorScore: 85,
-      opponentGrade: "B",
-      opponentScore: 80,
-      delta: 5,
-      isDivergent: false,
-    },
-  ]
+  const criterionDiffs = useMemo<CriterionDiffItem[]>(() => {
+    const sSections = supervisorReview?.sections || []
+    const oSections = opponentReview?.sections || []
+
+    if (sSections.length > 0 && oSections.length > 0) {
+      return sSections.map((sSec: any) => {
+        const critId = sSec.criterionId || sSec.sectionId || sSec.id
+        const oSec = oSections.find((o: any) => (o.criterionId || o.sectionId || o.id) === critId)
+
+        const sScore = sSec.numericScore ?? (sSec.rating ? ECTS_SCORE_MAP[sSec.rating] ?? 80 : 80)
+        const oScore = oSec?.numericScore ?? (oSec?.rating ? ECTS_SCORE_MAP[oSec.rating] ?? 75 : 75)
+        const sGrade = sSec.rating || "B"
+        const oGrade = oSec?.rating || "C"
+
+        const delta = Math.abs(sScore - oScore)
+        const sVal = ECTS_GRADE_VALUES[sGrade] || 2
+        const oVal = ECTS_GRADE_VALUES[oGrade] || 3
+        const isDivergent = delta >= 15 || Math.abs(sVal - oVal) >= 2
+
+        return {
+          criterionId: critId,
+          criterionLabel: sSec.title || critId,
+          supervisorGrade: sGrade,
+          supervisorScore: sScore,
+          opponentGrade: oGrade,
+          opponentScore: oScore,
+          delta,
+          isDivergent,
+        }
+      })
+    }
+
+    // Default fallback rubric criteria diffs
+    return [
+      {
+        criterionId: "methodology",
+        criterionLabel: "Metodológia a postup riešenia",
+        supervisorGrade: supGrade,
+        supervisorScore: supGrade === "A" ? 95 : 85,
+        opponentGrade: oppGrade,
+        opponentScore: oppGrade === "A" ? 95 : oppGrade === "B" ? 82 : 72,
+        delta: Math.abs((supGrade === "A" ? 95 : 85) - (oppGrade === "A" ? 95 : oppGrade === "B" ? 82 : 72)),
+        isDivergent: gradeDelta >= 2,
+      },
+      {
+        criterionId: "results",
+        criterionLabel: "Výsledky a ich vyhodnotenie",
+        supervisorGrade: supGrade,
+        supervisorScore: 92,
+        opponentGrade: oppGrade,
+        opponentScore: 78,
+        delta: 14,
+        isDivergent: gradeDelta >= 2,
+      },
+      {
+        criterionId: "originality",
+        criterionLabel: "Originalita a vlastný prínos",
+        supervisorGrade: supGrade,
+        supervisorScore: 90,
+        opponentGrade: oppGrade,
+        opponentScore: 85,
+        delta: 5,
+        isDivergent: false,
+      },
+      {
+        criterionId: "citations_bibliography",
+        criterionLabel: "Práca s literatúrou a citáciami",
+        supervisorGrade: supGrade,
+        supervisorScore: 85,
+        opponentGrade: oppGrade,
+        opponentScore: 80,
+        delta: 5,
+        isDivergent: false,
+      },
+    ]
+  }, [supervisorReview, opponentReview, supGrade, oppGrade, gradeDelta])
+
+  const recommendationText = useMemo(() => {
+    if (isGradeDivergent) {
+      return `Vzhľadom na výrazný rozdiel medzi hodnotením školiteľa (${supGrade}) a oponenta (${oppGrade}) odporúčame štátnicovej komisii dôkladne preskúmať sporné kritériá a položiť študentovi doplňujúce otázky pri obhajobe.`
+    }
+    if (supGrade === oppGrade) {
+      return `Medzi školiteľom a oponentom panuje plná zhoda na výslednej známke ${supGrade}. Obhajoba môže prebehnúť štandardným spôsobom.`
+    }
+    return `Medzi školiteľom (${supGrade}) a oponentom (${oppGrade}) je mierny rozdiel jedného klasifikačného stupňa (Δ = ${gradeDelta}). Odporúčame komisii zamerať diskusiu na kvalitu dosiahnutých výsledkov.`
+  }, [isGradeDivergent, supGrade, oppGrade, gradeDelta])
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto p-4 lg:p-6">
@@ -150,8 +239,13 @@ export function ReviewerCalibrationPanel({ workspaceId, reviews }: Props) {
                 <GitCompare className="size-5 text-primary" />
                 Diferenčná analýza: Školiteľ vs. Oponent
               </CardTitle>
-              <CardDescription>
-                Porovnanie hodnotení dvoch nezávislých posudzovateľov na identifikáciu sporných bodov pred zasadnutím komisie.
+              <CardDescription className="flex flex-col gap-0.5">
+                <span>Porovnanie hodnotení dvoch nezávislých posudzovateľov na identifikáciu sporných bodov pred zasadnutím komisie.</span>
+                {(supervisorReview.studentName || supervisorReview.thesisTitle) && (
+                  <span className="text-xs font-medium text-foreground pt-0.5">
+                    {supervisorReview.studentName} — <span className="italic">{supervisorReview.thesisTitle}</span>
+                  </span>
+                )}
               </CardDescription>
             </div>
           </div>
@@ -255,7 +349,7 @@ export function ReviewerCalibrationPanel({ workspaceId, reviews }: Props) {
               Odporúčanie pre predsedu skúšobnej komisie
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Vzhľadom na rozdiel medzi školiteľom (A) a oponentom (B) v kritériu <em>Výsledky a ich vyhodnotenie</em> odporúčame komisii zamerať úvodnú diskusiu na porovnanie dosiahnutých metrík voči baseline modelom.
+              {recommendationText}
             </p>
           </div>
         </CardContent>

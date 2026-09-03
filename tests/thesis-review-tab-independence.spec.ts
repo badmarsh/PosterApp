@@ -28,6 +28,8 @@ const BENIGN =
 const NAME_PLACEHOLDER = 'input[placeholder*="Maroš Bednár"]';
 const TITLE_PLACEHOLDER = 'input[placeholder*="automatizované vyhľadávanie"]';
 
+const REVIEWER_PLACEHOLDER = 'input[placeholder*="Richard Marko"]';
+
 interface ErrorSink {
   console: string[];
   page: string[];
@@ -92,20 +94,21 @@ async function bootstrapThesisWorkspace(page: Page): Promise<string> {
   return wsId;
 }
 
-test.describe('Thesis review tab independence (scoped store)', () => {
+test.describe('Thesis review tab independence & shared thesis context', () => {
   test.beforeEach(async ({ page }) => {
     await setupClerkTestingToken({ page });
   });
 
-  test('two thesis-review tabs keep independent form state without render loops', async ({
+  test('two thesis-review tabs share thesis identity while keeping reviewer-specific state isolated', async ({
     page,
   }) => {
     const errors = collectErrors(page);
 
     const nameInput = page.locator(NAME_PLACEHOLDER);
     const titleInput = page.locator(TITLE_PLACEHOLDER);
+    const reviewerNameInput = page.locator(REVIEWER_PLACEHOLDER);
     const tabBar = page.locator('button[aria-label="Add output"]').locator('..');
-    const thesisTabs = tabBar.getByRole('button', { name: /Thesis Review \(Posudok\)/ });
+    const thesisTabs = tabBar.getByRole('button', { name: /Posudok/ });
 
     await bootstrapThesisWorkspace(page);
 
@@ -118,11 +121,13 @@ test.describe('Thesis review tab independence (scoped store)', () => {
       await expect(titleInput).toHaveValue('');
     });
 
-    await test.step('tab 1 accepts author + title values', async () => {
+    await test.step('tab 1 accepts author, title, and reviewer values', async () => {
       await nameInput.fill('Ján Novák');
       await titleInput.fill('Tab One Thesis');
+      await reviewerNameInput.fill('prof. RNDr. Peter Varga, DrSc.');
       await expect(nameInput).toHaveValue('Ján Novák');
       await expect(titleInput).toHaveValue('Tab One Thesis');
+      await expect(reviewerNameInput).toHaveValue('prof. RNDr. Peter Varga, DrSc.');
     });
 
     // ---- Add a second thesis-review output via the dialog -----------------
@@ -131,41 +136,46 @@ test.describe('Thesis review tab independence (scoped store)', () => {
       const dialog = page.locator('[role="dialog"]');
       await expect(dialog).toBeVisible();
 
-      // Dialog defaults to "Slides" — select the thesis-review pill (scoped to
-      // the dialog because the tab bar behind it carries the same label).
+      // Dialog defaults to "Slides" — select the thesis-review pill
       await dialog.getByRole('button', { name: /Thesis Review \(Posudok\)/ }).click();
       await dialog.getByRole('button', { name: 'Create Output' }).click();
       await expect(dialog).toBeHidden();
 
-      // App auto-switches to the newly created tab → two thesis tabs exist.
+      // App auto-switches to the newly created tab → two thesis tabs exist ("Posudok školiteľa" & "Posudok oponenta")
       await expect(thesisTabs).toHaveCount(2);
     });
 
-    // ---- CORE INDEPENDENCE CHECK ------------------------------------------
-    await test.step('tab 2 starts blank (does not mirror tab 1)', async () => {
-      // Pre-fix behavior: these inputs would show tab 1's values.
-      await expect(nameInput).toHaveValue('', { timeout: 10000 });
-      await expect(titleInput).toHaveValue('');
-      await expect(page.getByText('Nový posudok')).toBeVisible();
-
-      const generateBtn = page.getByRole('button', {
-        name: /Vygenerovať.*posudok|Generate review/i,
-      });
-      await expect(generateBtn).toBeDisabled();
+    // ---- INHERITED METADATA & DOCUMENT BINDING CHECK ----------------------
+    await test.step('tab 2 inherits student name and thesis title from tab 1', async () => {
+      await expect(nameInput).toHaveValue('Ján Novák', { timeout: 10000 });
+      await expect(titleInput).toHaveValue('Tab One Thesis');
+      // Reviewer-specific field is independent and blank on tab 2
+      await expect(reviewerNameInput).toHaveValue('');
     });
 
-    await test.step('tab 2 accepts its own values', async () => {
-      await nameInput.fill('Zuzana Kováčová');
-      await titleInput.fill('Tab Two Thesis');
-      await expect(nameInput).toHaveValue('Zuzana Kováčová');
-      await expect(titleInput).toHaveValue('Tab Two Thesis');
+    // ---- INDEPENDENT REVIEWER STATE CHECK ---------------------------------
+    await test.step('tab 2 accepts reviewer-specific values without modifying tab 1', async () => {
+      await reviewerNameInput.fill('doc. Ing. Elena Horváthová, PhD.');
+      await expect(reviewerNameInput).toHaveValue('doc. Ing. Elena Horváthová, PhD.');
     });
 
-    // ---- Switch back to tab 1: state must be intact -----------------------
-    await test.step('switching back to tab 1 restores tab 1 state', async () => {
+    // ---- Switch back to tab 1: tab 1 reviewerName is intact --------------
+    await test.step('switching back to tab 1 retains tab 1 reviewer-specific state', async () => {
       await thesisTabs.first().click();
       await expect(nameInput).toHaveValue('Ján Novák', { timeout: 10000 });
       await expect(titleInput).toHaveValue('Tab One Thesis');
+      await expect(reviewerNameInput).toHaveValue('prof. RNDr. Peter Varga, DrSc.');
+    });
+
+    // ---- Check updating shared thesis title in tab 1 updates tab 2 -------
+    await test.step('updating thesis title in tab 1 updates shared metadata in tab 2', async () => {
+      await titleInput.fill('Updated Joint Thesis Title');
+      await expect(titleInput).toHaveValue('Updated Joint Thesis Title');
+
+      await thesisTabs.nth(1).click();
+      await expect(titleInput).toHaveValue('Updated Joint Thesis Title', { timeout: 10000 });
+      await expect(nameInput).toHaveValue('Ján Novák');
+      await expect(reviewerNameInput).toHaveValue('doc. Ing. Elena Horváthová, PhD.');
     });
 
     // ---- Switch away to a non-thesis output, then back --------------------
@@ -184,15 +194,17 @@ test.describe('Thesis review tab independence (scoped store)', () => {
       await expect(page.getByText('Structure', { exact: true })).toBeVisible();
     });
 
-    await test.step('returning to tab 1 still shows tab 1 state', async () => {
+    await test.step('returning to tab 1 still shows tab 1 state and updated title', async () => {
       await thesisTabs.first().click();
       await expect(nameInput).toHaveValue('Ján Novák', { timeout: 10000 });
-      await expect(titleInput).toHaveValue('Tab One Thesis');
+      await expect(titleInput).toHaveValue('Updated Joint Thesis Title');
+      await expect(reviewerNameInput).toHaveValue('prof. RNDr. Peter Varga, DrSc.');
 
-      // And tab 2 is still independent after the round trip.
+      // And tab 2 still has its own reviewerName and the shared title
       await thesisTabs.nth(1).click();
-      await expect(nameInput).toHaveValue('Zuzana Kováčová', { timeout: 10000 });
-      await expect(titleInput).toHaveValue('Tab Two Thesis');
+      await expect(nameInput).toHaveValue('Ján Novák', { timeout: 10000 });
+      await expect(titleInput).toHaveValue('Updated Joint Thesis Title');
+      await expect(reviewerNameInput).toHaveValue('doc. Ing. Elena Horváthová, PhD.');
     });
 
     // ---- Render-loop guard -------------------------------------------------

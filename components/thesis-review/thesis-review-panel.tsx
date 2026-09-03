@@ -97,6 +97,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
 
   const effectiveMarkdown = storeSourceMarkdown || assetSourceMarkdown
   const ingestFiles = project?.ingestFiles ?? []
+  const thesisOutputs = (project?.outputs || []).filter((o) => o.outputType === "thesis-review")
   const effectiveFileId = selectedFileId || ingestFiles[0]?.id || undefined
   const hasDocument = ingestFiles.length > 0 || !!effectiveMarkdown
   const isParsing = ingestFiles.some((f: any) => f.status === "parsing" || f.status === "queued")
@@ -382,6 +383,18 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                     <Sparkles className="size-3.5 mr-1.5 text-primary" />
                     Predanalýza (Pre-flight)
                   </Button>
+
+                  {(thesisOutputs.length >= 2 || reviews.length >= 1) && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowCalibrationModal(true)}
+                      className="h-10 text-xs border-primary/40 text-primary hover:bg-primary/10 font-medium cursor-pointer shrink-0 rounded-lg gap-1.5"
+                      title="Porovnanie hodnotení recenzentov a návrh konsenzu pre štátnice"
+                    >
+                      <Scale className="size-3.5" />
+                      <span>Kalibrácia (Školiteľ vs. Oponent)</span>
+                    </Button>
+                  )}
                 </div>
               </>
             )}
@@ -398,7 +411,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Uložené posudky v tomto projekte ({reviews.length})
               </h3>
-              {reviews.length >= 1 && (
+              {(reviews.length >= 1 || thesisOutputs.length >= 2) && (
                 <Button
                   size="sm"
                   variant="outline"
