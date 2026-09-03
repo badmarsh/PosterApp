@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import fs from "node:fs/promises"
 import { workspacePath } from "@/lib/workspace-files"
-import { prisma } from "@/lib/prisma"
+import { prisma, type Prisma } from "@/lib/prisma"
 import { safeJsonParse, jsonStringify } from "@/lib/db-helpers"
 import { auth, requireWorkspaceAccess, requireWorkspaceEditor, requireWorkspaceOwner } from "@/lib/auth"
 import { safeApiError, readJsonBodyCapped, PayloadTooLargeError } from "@/lib/security"
@@ -187,8 +187,10 @@ export async function PUT(
           venue: body.venue || "",
           logoUrl: body.logoUrl !== undefined ? body.logoUrl : undefined,
           secondaryLogoUrl: body.secondaryLogoUrl !== undefined ? body.secondaryLogoUrl : undefined,
-          agentEvents: body.agentEvents ?? undefined,
-          chatMessages: body.chatMessages ?? undefined,
+          // Zod passthrough objects are structurally JSON but not assignable to
+          // Prisma's InputJsonValue; they were validated/bounded above.
+          agentEvents: body.agentEvents ? (body.agentEvents as unknown as Prisma.InputJsonValue) : undefined,
+          chatMessages: body.chatMessages ? (body.chatMessages as unknown as Prisma.InputJsonValue) : undefined,
           revision: { increment: 1 },
         }
       })
