@@ -53,7 +53,7 @@ import {
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { StatusIcon } from "@/components/status"
-import { COLUMN_BUDGET, estimateHeight, generateFullTemplate } from "@/lib/latex"
+import { columnBudgetFor, estimateHeight, generateFullTemplate } from "@/lib/latex"
 import type { Card, ColumnIndex, OutputConfig, Project } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 import { apiFetch } from "@/lib/api-fetch"
@@ -694,7 +694,8 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
   const active = card.id === selectedCardId
   const status = getStatus(card)
   const height = estimateHeight(card)
-  const pct = Math.min(100, Math.round((height / COLUMN_BUDGET) * 100))
+  const budget = columnBudgetFor(project.outputs?.find((o) => o.id === project.activeOutputId)?.templateId)
+  const pct = Math.min(100, Math.round((height / budget) * 100))
   const figs = card.figures.filter((f) => f.url.trim()).length
   const hasBullets =
     card.pattern !== "image-focused" && card.content.trim().length > 0
@@ -870,7 +871,7 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
                   }
                 />
                 <TooltipContent>
-                  Estimated fill: {pct}% ({height}u / {COLUMN_BUDGET}u budget)
+                  Estimated fill: {pct}% ({height}u / {budget}u budget)
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -924,11 +925,12 @@ function PosterColumn({ column }: { column: ColumnIndex }) {
       addCard: s.addCard,
     }))
   )
-  const cards = (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])
+  const activeOut = project.outputs?.find(o => o.id === project.activeOutputId)
+  const cards = (activeOut?.cards ?? [])
     .filter((c) => c.column === column)
     .sort((a, b) => a.order - b.order)
   const total = cards.reduce((s, c) => s + estimateHeight(c), 0)
-  const pct = Math.round((total / COLUMN_BUDGET) * 100)
+  const pct = Math.round((total / columnBudgetFor(activeOut?.templateId)) * 100)
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">

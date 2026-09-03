@@ -89,6 +89,12 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
   { id: "a0poster",   outputType: "poster", label: "A0 Poster",              description: "Classic A0 layout. Raw LaTeX sections (no blocks). Color override ignored.",                    category: "core",
     colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"Blue",hex:"#1E40AF"}], layoutPreview: "poster-3col",
     detailFeatures: ["Raw LaTeX sections (no tikzposter blocks)", "Uses standard \\begin{multicols}{3}", "Minimal styling, very close to a raw document", "Note: Color overrides are ignored"], latexClass: "a0poster", colorSystem: "None" },
+  { id: "landscape",  outputType: "poster", label: "A0 Landscape",          description: "Landscape A0, 3 equal columns. For conferences that mandate landscape boards.", category: "core",
+    colors: [{id:"blue",name:"Cobalt",hex:"#2563EB"},{id:"teal",name:"Teal",hex:"#0D9488"},{id:"slate",name:"Slate",hex:"#334155"}], layoutPreview: "poster-3col",
+    detailFeatures: ["A0 LANDSCAPE (1189x841mm) — all other posters are portrait", "3 equal columns, wider and shorter than portrait", "Prefers wide tables and side-by-side figures", "Lower column budget (700u) reflects the shorter board"], latexClass: "tikzposter [landscape]", colorSystem: "Custom \\definecolorstyle" },
+  { id: "betterposter", outputType: "poster", label: "Better Poster (Morrison)", description: "Landscape with a dominant centre column for one big finding, narrow detail sidebars.", category: "poster",
+    colors: [{id:"slate",name:"Slate",hex:"#1F2937"},{id:"amber",name:"Amber",hex:"#D97706"},{id:"blue",name:"Blue",hex:"#2563EB"}], layoutPreview: "poster-3col",
+    detailFeatures: ["Morrison 'big finding' layout, landscape A0", "Centre column 46% — one plain-language sentence", "Narrow 24% sidebars for methods and references", "Tightest column budget (520u) — brevity is the point"], latexClass: "tikzposter [landscape]", colorSystem: "Custom \\definecolorstyle" },
   // Slides
   { id: "beamer-metropolis", outputType: "slides", label: "Metropolis",    description: "Modern minimal theme with progress bar. (Requires 'metropolis' package).",             category: "core",
     colors: [{id:"charcoal",name:"Charcoal",hex:"#2D3748"},{id:"blue",name:"Blue",hex:"#3B82F6"},{id:"green",name:"Green",hex:"#10B981"}], layoutPreview: "slides-wide",

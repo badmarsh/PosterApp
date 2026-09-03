@@ -911,3 +911,128 @@ ${FITMATH_MACRO}
 \\\\maketitle
 `
 }
+
+// ---------------------------------------------------------------------------
+// Landscape poster templates
+// ---------------------------------------------------------------------------
+
+/**
+ * A0 landscape, 3 equal columns. Many conferences mandate landscape boards;
+ * every other poster template in this file is hard-coded portrait.
+ *
+ * Landscape A0 is 1189mm wide x 841mm tall, so a column is ~40% wider and
+ * ~29% shorter than its portrait equivalent — see COLUMN_BUDGET_BY_TEMPLATE
+ * in layout.ts, which is why the overflow budget is template-aware.
+ */
+export function getLandscapeTemplate(project: Project, themeColor?: string): string {
+  const override = posterThemeOverride(themeColor)
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside a LANDSCAPE tikzposter poster template.
+% Use \\\\block{Title}{Content} for each card section.
+% Enclose blocks within \\\\column{width} commands (e.g. \\\\column{0.33}).
+% Columns are WIDER and SHORTER than portrait: prefer wide tables and
+% side-by-side figures; avoid very long single-column bullet runs.
+\\\\documentclass[a0paper,landscape, blockverticalspace=2em, colspace=2em]{tikzposter}
+\\\\tikzposterlatexaffectionproofoff
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{amssymb}
+\\\\usepackage{multicol}
+\\\\usetikzlibrary{calc}
+
+${FITMATH_MACRO}
+
+\\\\newcommand{\\\\looseitems}{\\\\begin{itemize}\\\\setlength{\\\\itemsep}{0.3em}}
+\\\\newcommand{\\\\tightitems}{\\\\begin{itemize}\\\\setlength{\\\\itemsep}{0.15em}}
+\\\\newcommand{\\\\captiontext}[1]{#1}
+
+\\\\usetheme{Default}
+
+\\\\definecolor{maincolor}{HTML}{2B4B9E}
+\\\\definecolor{secondarycolor}{RGB}{43, 75, 158}
+\\\\definecolor{lightblue}{RGB}{199, 215, 237}
+${override}
+\\\\definecolorstyle{landscapecolors}{
+    \\\\colorlet{backgroundcolor}{white}
+    \\\\colorlet{titlefgcolor}{white}
+    \\\\colorlet{titlebgcolor}{maincolor}
+    \\\\colorlet{blocktitlefgcolor}{white}
+    \\\\colorlet{blocktitlebgcolor}{maincolor}
+    \\\\colorlet{blockbodyfgcolor}{black}
+    \\\\colorlet{blockbodybgcolor}{lightblue!25}
+}{}
+\\\\usecolorstyle{landscapecolors}
+
+\\\\title{\\\\parbox{0.82\\\\linewidth}{\\\\centering\\\\huge
+    ${title}\\\\\\\\[1mm]
+    }}
+\\\\author{\\\\Large ${authors}}
+\\\\institute{\\\\normalsize ${venue}}
+\\\\date{}
+
+\\\\begin{document}
+\\\\maketitle
+`
+}
+
+/**
+ * "Better Poster" (Mike Morrison) — landscape, with a dominant centre column
+ * carrying the single main finding in very large type, flanked by narrow
+ * detail columns.
+ *
+ * Column geometry is 0.24 / 0.46 / 0.24 rather than three equal thirds, so
+ * the centre column holds far less text per unit height than a normal column
+ * — the takeaway is supposed to be one sentence, not a section.
+ */
+export function getBetterPosterTemplate(project: Project, themeColor?: string): string {
+  const override = posterThemeOverride(themeColor)
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside a BETTER POSTER (Morrison) landscape template.
+% Column 2 (the centre) is the BIG FINDING: one short, plain-language
+% sentence in very large type. Keep it under ~140 characters.
+% Columns 1 and 3 are narrow supporting detail (methods, data, references)
+% and should use short bullets, not paragraphs.
+\\\\documentclass[a0paper,landscape, blockverticalspace=2em, colspace=1.5em]{tikzposter}
+\\\\tikzposterlatexaffectionproofoff
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{amssymb}
+\\\\usepackage{multicol}
+\\\\usetikzlibrary{calc}
+
+${FITMATH_MACRO}
+
+\\\\newcommand{\\\\looseitems}{\\\\begin{itemize}\\\\setlength{\\\\itemsep}{0.3em}}
+\\\\newcommand{\\\\tightitems}{\\\\begin{itemize}\\\\setlength{\\\\itemsep}{0.15em}}
+\\\\newcommand{\\\\captiontext}[1]{#1}
+
+\\\\usetheme{Default}
+
+\\\\definecolor{maincolor}{HTML}{1F2937}
+\\\\definecolor{secondarycolor}{RGB}{31, 41, 55}
+\\\\definecolor{lightblue}{RGB}{243, 244, 246}
+${override}
+\\\\definecolorstyle{bettercolors}{
+    \\\\colorlet{backgroundcolor}{white}
+    \\\\colorlet{titlefgcolor}{white}
+    \\\\colorlet{titlebgcolor}{maincolor}
+    \\\\colorlet{blocktitlefgcolor}{maincolor}
+    \\\\colorlet{blocktitlebgcolor}{white}
+    \\\\colorlet{blockbodyfgcolor}{black}
+    \\\\colorlet{blockbodybgcolor}{lightblue}
+}{}
+\\\\usecolorstyle{bettercolors}
+
+\\\\title{\\\\parbox{0.82\\\\linewidth}{\\\\centering\\\\huge
+    ${title}\\\\\\\\[1mm]
+    }}
+\\\\author{\\\\Large ${authors}}
+\\\\institute{\\\\normalsize ${venue}}
+\\\\date{}
+
+\\\\begin{document}
+\\\\maketitle
+`
+}

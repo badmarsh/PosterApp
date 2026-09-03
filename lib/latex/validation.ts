@@ -1,5 +1,5 @@
 import type { Card, ValidationMessage } from "@/lib/poster-types"
-import { COLUMN_BUDGET, estimateHeight } from "./layout"
+import { columnBudgetFor, estimateHeight, suggestReductions } from "./layout"
 
 const DANGEROUS_LATEX_COMMANDS = [
   "\\write",
@@ -81,7 +81,12 @@ export function hasUnsafeLatex(input: string): string[] {
   return [...found]
 }
 
-export function validateCard(card: Card): ValidationMessage[] {
+/**
+ * @param templateId Active template. Column geometry differs per template
+ *   (portrait vs landscape vs Better Poster), so the overflow budget does
+ *   too. Omitted -> the portrait default, matching previous behaviour.
+ */
+export function validateCard(card: Card, templateId?: string | null): ValidationMessage[] {
   const msgs: ValidationMessage[] = []
 
   if (!card.title.trim()) {
@@ -143,18 +148,23 @@ export function validateCard(card: Card): ValidationMessage[] {
     })
   }
 
+  const budget = columnBudgetFor(templateId)
   const height = estimateHeight(card)
-  if (height > COLUMN_BUDGET) {
+  if (height > budget) {
+    // Name the concrete edits that close the gap rather than leaving the
+    // user to guess which part of the card is expensive.
+    const fixes = suggestReductions(card, budget)
+    const advice = fixes.length ? ` Options: ${fixes.join(", ")}.` : ""
     msgs.push({
       level: "warning",
       field: "content",
-      message: `Estimated height ${height}u exceeds column budget ${COLUMN_BUDGET}u — likely overflow.`,
+      message: `Estimated height ${height}u exceeds column budget ${budget}u by ${height - budget}u — likely overflow.${advice}`,
     })
-  } else if (height > COLUMN_BUDGET * 0.85) {
+  } else if (height > budget * 0.85) {
     msgs.push({
       level: "info",
       field: "content",
-      message: `Estimated height ${height}u is close to the column budget.`,
+      message: `Estimated height ${height}u is close to the column budget (${budget}u).`,
     })
   }
 

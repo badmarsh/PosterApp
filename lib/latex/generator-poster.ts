@@ -1,7 +1,7 @@
 import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
-import { getAtlasTemplate, getMinimalTemplate, getGeminiTemplate, getTikzposterTemplate, getA0PosterTemplate } from "./templates"
+import { getAtlasTemplate, getMinimalTemplate, getGeminiTemplate, getTikzposterTemplate, getA0PosterTemplate, getLandscapeTemplate, getBetterPosterTemplate } from "./templates"
 import type { LatexGenerator } from "./types"
 import { indent, assetUrlToLatexPath, normalizeLatexPath, cleanCaption } from "./helpers"
 
@@ -124,6 +124,11 @@ export class TikzPosterGenerator implements LatexGenerator {
           // a0poster uses \begin{multicols}{3} — no \column{} wrappers needed
           return `% ===== Column ${col} =====\n${blocks}`
         }
+        // Better Poster: narrow / dominant centre / narrow.
+        if (this.templateId === "betterposter") {
+          const width = col === 2 ? "0.46" : "0.24"
+          return `% ===== Column ${col} =====\n\\column{${width}}\n\n${blocks}`
+        }
         return `% ===== Column ${col} =====\n\\column{0.333}\n\n${blocks}`
       })
       .join("\n\n")
@@ -150,6 +155,12 @@ export class TikzPosterGenerator implements LatexGenerator {
         templateContent = getA0PosterTemplate(project, themeColor);
         beginColumns = "\\begin{multicols}{3}";
         endColumns = "\\end{multicols}";
+        break;
+      case "landscape":
+        templateContent = getLandscapeTemplate(project, themeColor);
+        break;
+      case "betterposter":
+        templateContent = getBetterPosterTemplate(project, themeColor);
         break;
       case "atlas":
       default:
