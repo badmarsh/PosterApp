@@ -69,7 +69,7 @@ function buildMetadataBlock(
     studentName: string
     thesisTitle: string
     thesisType: "bachelor" | "master" | "phd"
-    reviewerRole: "supervisor" | "opponent"
+    reviewerRole: "supervisor" | "opponent" | "self" | "reviewer" | string
     reviewerName?: string | null
     institution?: string | null
     department?: string | null
@@ -85,7 +85,7 @@ function buildMetadataBlock(
   if (meta.reviewerName) {
     rows.push(`  \\textbf{${escapeLatex(labels.reviewerLabel)}:} & ${escapeLatex(meta.reviewerName)} \\\\`)
   }
-  rows.push(`  \\textbf{${escapeLatex(labels.roleLabel)}:} & ${escapeLatex(labels.roles[meta.reviewerRole] ?? meta.reviewerRole)} \\\\`)
+  rows.push(`  \\textbf{${escapeLatex(labels.roleLabel)}:} & ${escapeLatex((labels.roles as Record<string, string | undefined>)[meta.reviewerRole] ?? meta.reviewerRole)} \\\\`)
 
   if (meta.institution) {
     rows.push(`  \\textbf{${escapeLatex(labels.institutionLabel)}:} & ${escapeLatex(meta.institution)} \\\\`)
@@ -191,7 +191,7 @@ export interface ThesisReviewGeneratorInput {
   studentName: string
   thesisTitle: string
   thesisType: "bachelor" | "master" | "phd"
-  reviewerRole: "supervisor" | "opponent"
+  reviewerRole: "supervisor" | "opponent" | "self" | "reviewer" | string
   reviewerName?: string | null
   institution?: string | null
   department?: string | null

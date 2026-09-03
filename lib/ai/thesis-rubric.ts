@@ -10,7 +10,8 @@
 // ---------------------------------------------------------------------------
 
 export type ThesisType = "bachelor" | "master" | "phd"
-export type ReviewerRole = "supervisor" | "opponent"
+export type ReviewerRole = "supervisor" | "opponent" | "self" | "reviewer"
+export type ReviewTone = "formal" | "constructive"
 export type ReviewLanguage = "sk" | "cs" | "en"
 export type CriterionRating = "A" | "B" | "C" | "D" | "E" | "FX" | "pending"
 
@@ -121,6 +122,10 @@ export const THESIS_LEVEL_PROFILES: Record<ThesisType, ThesisLevelProfile> = {
 // Rubric definitions
 // ---------------------------------------------------------------------------
 
+/**
+ * @deprecated Deprecated in favor of SK_ACADEMIC_RUBRIC_V1 (12 criteria in rubric-engine.ts).
+ * Retained for backward-compatibility with deserialization of legacy review records.
+ */
 export const THESIS_CRITERIA: ThesisCriterion[] = [
   // --- Formal ---
   {

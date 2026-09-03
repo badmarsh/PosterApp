@@ -32,7 +32,7 @@ import type {
   EpistemicStatus,
   ReviewDefenseQuestion,
 } from "./review-types"
-import { THESIS_LEVEL_PROFILES, formatGradeAnchorsText, type ReviewLanguage, type ThesisType } from "./thesis-rubric"
+import { THESIS_LEVEL_PROFILES, formatGradeAnchorsText, type ReviewLanguage, type ThesisType, type ReviewTone } from "./thesis-rubric"
 import { sortFindingsByPriority } from "./review-priorities"
 import {
   extractDocumentStructure,
@@ -77,6 +77,7 @@ export interface GenerateProfessionalReviewOptions {
   reviewerRole?: string
   targetVenue?: string
   language: ReviewLanguage
+  reviewTone?: ReviewTone
   reportingStandard?: ReportingStandard
   focusAreas?: string[]
   skipCitationAudit?: boolean
@@ -589,7 +590,37 @@ ${formatGradeAnchorsText(profile, options.language)}
   const rubricGuidanceText = buildRubricGuidanceText(effectiveThesisType, options.language)
   const preGroundingText = await buildPreGenerationGrounding(rag.sections, options.language)
 
-  const systemPrompt = `You are a distinguished senior peer reviewer and academic expert performing a highly critical, rigorous, evidence-grounded review of a manuscript following COPE Ethical Guidelines and Nature/PLOS standards.
+  const effectiveReviewTone: ReviewTone = options.reviewTone ?? (options.reviewerRole === "supervisor" || options.reviewerRole === "self" ? "constructive" : "formal")
+
+  const systemPrompt = effectiveReviewTone === "constructive"
+    ? `You are an experienced academic supervisor and mentor performing a rigorous, evidence-grounded assessment of a student manuscript.
+
+CRITICAL INSTRUCTIONS ON TONE AND FRAMING:
+1. Do not write this as a final judgment. Write this as constructive guidance for the student. Frame weaknesses as areas for improvement before submission.
+2. Ground every finding in direct evidence from the manuscript. Quote specific sentences or passages in the "evidence" field.
+3. Be constructive, pedagogical, and actionable. Identify what needs strengthening, missing elements, and methodological gaps. Frame weaknesses as concrete areas for improvement before submission. State what the issue is, why it matters, and how the student can fix or improve it.
+4. Tag every finding with an explicit "epistemicStatus":
+   - "SUPPORTED_FACT": Directly demonstrated fact citing exact quotation.
+   - "SUPPORTED_INTERPRETATION": Logical inference grounded in stated evidence.
+   - "REVIEWER_JUDGMENT": Evaluative appraisal of quality or style.
+   - "MISSING_EVIDENCE": Required information that could not be verified in the supplied text.
+   - "POSSIBLE_RISK": Potential risk or limitation framed conditionally.
+   - "REQUIRES_HUMAN_VERIFICATION": Area requiring verification in original complete PDF.
+5. Differentiate strictly between severity levels:
+   - "critical": Fatal ethical or methodological errors precluding publication/pass.
+   - "major": Core methodological flaws, inadequate baselines, missing controls, or unsubstantiated claims.
+   - "minor": Unclear formulations, minor typographical errors, formatting, or secondary references.
+   - "suggestion": Constructive non-binding recommendations for future work.
+6. If checking reporting guidelines (${standard}), evaluate whether each key requirement is compliant, partial, or missing.
+7. All assessment text MUST be written in the specified language: "${options.language}".
+8. Output MUST strictly match the requested JSON schema.
+9. WARNING: Do not invent causal or logical relationships between separate quotes. If you cite two separate passages in one finding, the relationship between them must also be explicitly supported by the text.
+  ${options.multiAgentDebate ? `
+10. CRITICAL RIGOUR PASS: Before finalising the JSON, review your draft findings for:
+   - Any finding where the stated severity is higher than the evidence actually supports → downgrade it.
+   - Any methodological gap you may have missed on first pass → add it.
+   The final output must represent your most calibrated, evidence-grounded judgment.` : ""}`
+    : `You are a distinguished senior peer reviewer and academic expert performing a highly critical, rigorous, evidence-grounded review of a manuscript following COPE Ethical Guidelines and Nature/PLOS standards.
 
 CRITICAL INSTRUCTIONS:
 1. Ground every finding in direct evidence from the manuscript. Quote specific sentences or passages in the "evidence" field.
@@ -744,13 +775,19 @@ Respond with a valid JSON object matching this structure:
   // 5. Calculate proposed grade range — derived from actual finding severity, NOT hardcoded.
   // Uses severity-weighted deduction: critical=−20, major=−8, minor=−2, suggestion=−0.5
   // Clamped to [10, 100] so FX is the floor.
+  // When reviewerRole === "self", skip ECTS grading derivation (Task 4)
+  const isSelfTriage = options.reviewerRole === "self"
   const derivedScore = computeScoreFromFindings(finalFindings)
-  const gradeRangeInfo = calculateGradeRange(derivedScore)
-  const { grade: reconciledGrade, note: gradeReconciliationNote } = reconcileGrade(
-    validated.grade,
-    derivedScore,
-    gradeRangeInfo.grade
-  )
+  const gradeRangeInfo = isSelfTriage
+    ? { grade: undefined as any, range: "", minScore: derivedScore, maxScore: derivedScore }
+    : calculateGradeRange(derivedScore)
+  const { grade: reconciledGrade, note: gradeReconciliationNote } = isSelfTriage
+    ? { grade: undefined as any, note: undefined }
+    : reconcileGrade(
+        validated.grade,
+        derivedScore,
+        gradeRangeInfo.grade
+      )
 
   // 6. PhD Opponent Enrichment
   let phdEnrichment: any = null

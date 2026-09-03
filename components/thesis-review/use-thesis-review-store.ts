@@ -23,6 +23,7 @@ import {
   type ReviewLanguage,
   type ThesisType,
   type ReviewerRole,
+  type ReviewTone,
 } from "@/lib/ai/thesis-rubric"
 import type {
   ReviewKind,
@@ -123,6 +124,7 @@ export interface ThesisReviewGenerateOptions {
   focusCriteria?: string[]
   skipCitationAudit?: boolean
   professionalMode?: boolean
+  reviewTone?: ReviewTone
   rubricTemplateId?: string
   customWeights?: Record<string, number>
 }
@@ -288,7 +290,7 @@ function createThesisReviewStore(
 
   const studentName = initialShared?.studentName ?? ""
   const thesisTitle = initialShared?.thesisTitle ?? ""
-  const isInitialValid = Boolean(studentName.trim()) && Boolean(thesisTitle.trim())
+  const isInitialValid = (initialRole === "self" || Boolean(studentName.trim())) && Boolean(thesisTitle.trim())
 
   return create<ThesisReviewState>()(
     immer((set, get) => ({
@@ -335,7 +337,7 @@ function createThesisReviewStore(
         set((s) => {
           Object.assign(s.formMetadata, updates)
           const valid =
-            Boolean(s.formMetadata.studentName?.trim()) &&
+            (s.formMetadata.reviewerRole === "self" || Boolean(s.formMetadata.studentName?.trim())) &&
             Boolean(s.formMetadata.thesisTitle?.trim()) &&
             s.confidentialityAgreed
           s.isMetadataValid = valid
@@ -384,7 +386,7 @@ function createThesisReviewStore(
                     }
                     if (changed) {
                       otherState.isMetadataValid =
-                        Boolean(otherState.formMetadata.studentName?.trim()) &&
+                        (otherState.formMetadata.reviewerRole === "self" || Boolean(otherState.formMetadata.studentName?.trim())) &&
                         Boolean(otherState.formMetadata.thesisTitle?.trim()) &&
                         otherState.confidentialityAgreed
                     }
@@ -397,7 +399,10 @@ function createThesisReviewStore(
       setConfidentialityAgreed: (agreed) =>
         set((s) => {
           s.confidentialityAgreed = agreed
-          s.isMetadataValid = Boolean(s.formMetadata.studentName?.trim()) && Boolean(s.formMetadata.thesisTitle?.trim()) && agreed
+          s.isMetadataValid =
+            (s.formMetadata.reviewerRole === "self" || Boolean(s.formMetadata.studentName?.trim())) &&
+            Boolean(s.formMetadata.thesisTitle?.trim()) &&
+            agreed
         }),
       setSkipCitationAudit: (skip) => set((s) => { s.skipCitationAudit = skip }),
       setMultiAgentDebate: (debate) => set((s) => { s.multiAgentDebate = debate }),
@@ -569,6 +574,7 @@ function createThesisReviewStore(
             skipCitationAudit: opts.skipCitationAudit ?? false,
             multiAgentDebate: get().multiAgentDebate,
             professionalMode: opts.professionalMode ?? get().professionalModeOverride,
+            reviewTone: opts.reviewTone,
             rubricTemplateId: opts.rubricTemplateId,
             customWeights: opts.customWeights,
           }),

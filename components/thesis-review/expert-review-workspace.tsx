@@ -299,7 +299,8 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `posudok-${activeReview.studentName.replace(/\s+/g, "-")}.md`
+    const prefix = activeReview.reviewerRole === "self" ? "predkonzultacny-rozbor" : "posudok"
+    a.download = `${prefix}-${(activeReview.studentName || "rozbor").replace(/\s+/g, "-")}.md`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -476,11 +477,11 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               render={
                 <Button size="sm" className="text-xs h-8 px-3.5 gap-1.5 font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-xs transition-all cursor-pointer">
                   <FileDown className="h-3.5 w-3.5" />
-                  Exportovať posudok
+                  {activeReview.reviewerRole === "self" ? "Exportovať rozbor" : "Exportovať posudok"}
                 </Button>
               }
             />
-            <DropdownMenuContent align="end" className="w-56 text-xs">
+            <DropdownMenuContent align="end" className="w-60 text-xs">
               <DropdownMenuItem onClick={() => setShowNarrativeModal(true)}>
                 <FileText className="h-4 w-4 mr-2 text-primary" />
                 Náhľad uceleného posudku (12 sekcií)
@@ -494,18 +495,25 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 <FileText className="h-4 w-4 mr-2 text-primary" />
                 Stiahnuť zdrojový LaTeX (.TEX)
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDownloadDocx} disabled={isExportingDocx}>
-                <FileText className="h-4 w-4 mr-2 text-blue-600" />
-                {isExportingDocx ? "Generujem Word..." : "Stiahnuť Word (.DOCX)"}
-              </DropdownMenuItem>
+              {activeReview.reviewerRole === "self" ? (
+                <DropdownMenuItem disabled className="text-muted-foreground/60 cursor-not-allowed">
+                  <FileText className="h-4 w-4 mr-2 text-muted-foreground/40" />
+                  Stiahnuť Word (iba pre formálne posudky)
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={handleDownloadDocx} disabled={isExportingDocx}>
+                  <FileText className="h-4 w-4 mr-2 text-blue-600" />
+                  {isExportingDocx ? "Generujem Word..." : "Stiahnuť Word (.DOCX)"}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleCopyClipboard}>
                 <Copy className="h-4 w-4 mr-2 text-muted-foreground" />
                 {copiedNotification ? "Skopírované! ✓" : "Kopírovať text do schránky"}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleDownloadMarkdown}>
-                <FileDown className="h-4 w-4 mr-2 text-muted-foreground" />
-                Stiahnuť Markdown (.MD)
+                <FileDown className="h-4 w-4 mr-2 text-emerald-600" />
+                {activeReview.reviewerRole === "self" ? "Stiahnuť štruktúrovaný rozbor (.MD)" : "Stiahnuť Markdown (.MD)"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

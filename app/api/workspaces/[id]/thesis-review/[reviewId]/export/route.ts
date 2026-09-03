@@ -88,7 +88,7 @@ export async function POST(
       studentName: review.studentName,
       thesisTitle: review.thesisTitle,
       thesisType: review.thesisType as "bachelor" | "master" | "phd",
-      reviewerRole: review.reviewerRole as "supervisor" | "opponent",
+      reviewerRole: review.reviewerRole,
       reviewerName: review.reviewerName,
       institution: review.institution,
       department: review.department,
@@ -173,6 +173,15 @@ export async function GET(
   const includeConfidential = req.nextUrl.searchParams.get("confidential") === "true"
 
   if (format === "docx") {
+    if (review.reviewerRole === "self") {
+      return NextResponse.json(
+        {
+          error: "DOCX_UNAVAILABLE_FOR_SELF_TRIAGE",
+          message: "Pre-consultation triage reviews should be exported as structured Markdown, not a signed formal DOCX posudok.",
+        },
+        { status: 400 }
+      )
+    }
     const { generateThesisReviewDocx } = await import("@/lib/docx/generator-review")
     const deserialized = deserializeThesisReview(review)
     const blob = await generateThesisReviewDocx(deserialized as any, { includeConfidential })
@@ -191,7 +200,8 @@ export async function GET(
     const { composeFullReviewNarrative } = await import("@/lib/ai/review-composer")
     const deserialized = deserializeThesisReview(review)
     const composed = composeFullReviewNarrative(deserialized as any, includeConfidential ? "editor" : "author", review.language as any)
-    const mdFilename = `posudok-${sanitizeFilename(review.studentName, "student")}.md`
+    const prefix = review.reviewerRole === "self" ? "predkonzultacny-rozbor" : "posudok"
+    const mdFilename = `${prefix}-${sanitizeFilename(review.studentName, "student")}.md`
     return new Response(composed.markdownText, {
       status: 200,
       headers: {
@@ -215,7 +225,7 @@ export async function GET(
       studentName: review.studentName,
       thesisTitle: review.thesisTitle,
       thesisType: review.thesisType as "bachelor" | "master" | "phd",
-      reviewerRole: review.reviewerRole as "supervisor" | "opponent",
+      reviewerRole: review.reviewerRole,
       reviewerName: review.reviewerName,
       institution: review.institution,
       department: review.department,

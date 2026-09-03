@@ -84,7 +84,7 @@ export interface ThesisReviewLabels {
   signatureLabel: string
   dateLabel: string
   thesisTypes: { bachelor: string; master: string; phd: string }
-  roles: { supervisor: string; opponent: string }
+  roles: { supervisor: string; opponent: string; self?: string; reviewer?: string; [key: string]: string | undefined }
 }
 
 export const THESIS_REVIEW_LABELS: Record<
@@ -113,7 +113,7 @@ export const THESIS_REVIEW_LABELS: Record<
     signatureLabel: "Podpis hodnotiteľa/ky",
     dateLabel: "Dátum",
     thesisTypes: { bachelor: "Bakalárska práca", master: "Diplomová práca", phd: "Dizertačná práca" },
-    roles: { supervisor: "Vedúci/a práce", opponent: "Oponent/ka" },
+    roles: { supervisor: "Vedúci/a práce", opponent: "Oponent/ka", self: "Predkonzultačný rozbor", reviewer: "Recenzent" },
   },
   cs: {
     title: "POSUDEK ZÁVĚREČNÉ PRÁCE",
@@ -137,7 +137,7 @@ export const THESIS_REVIEW_LABELS: Record<
     signatureLabel: "Podpis hodnotitele/ky",
     dateLabel: "Datum",
     thesisTypes: { bachelor: "Bakalářská práce", master: "Diplomová práce", phd: "Dizertační práce" },
-    roles: { supervisor: "Vedoucí práce", opponent: "Oponent/ka" },
+    roles: { supervisor: "Vedoucí práce", opponent: "Oponent/ka", self: "Předkonzultační rozbor", reviewer: "Recenzent" },
   },
   en: {
     title: "THESIS ASSESSMENT REPORT",
@@ -161,6 +161,6 @@ export const THESIS_REVIEW_LABELS: Record<
     signatureLabel: "Reviewer's signature",
     dateLabel: "Date",
     thesisTypes: { bachelor: "Bachelor's thesis", master: "Master's thesis", phd: "PhD dissertation" },
-    roles: { supervisor: "Supervisor", opponent: "Opponent" },
+    roles: { supervisor: "Supervisor", opponent: "Opponent", self: "Pre-consultation triage", reviewer: "Reviewer" },
   },
 }

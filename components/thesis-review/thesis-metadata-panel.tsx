@@ -60,7 +60,8 @@ const THESIS_TYPES = [
 
 const REVIEWER_ROLES = [
   { value: "opponent", sk: "Oponent/ka práce", cs: "Oponent/ka", en: "Opponent" },
-  { value: "supervisor", sk: "Vedúci/a práce", cs: "Vedoucí práce", en: "Supervisor" },
+  { value: "supervisor", sk: "Vedúci/a práce (Školiteľ)", cs: "Vedoucí práce (Školitel)", en: "Supervisor" },
+  { value: "self", sk: "Predkonzultačný rozbor", cs: "Předkonzultační rozbor", en: "Pre-consultation triage" },
   { value: "reviewer", sk: "Recenzent / Peer Reviewer", cs: "Recenzent", en: "Reviewer" },
 ]
 
@@ -293,7 +294,9 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
   }
 
   const lang = formMetadata.language || "sk"
-  const isComplete = Boolean(formMetadata.studentName?.trim()) && Boolean(formMetadata.thesisTitle?.trim())
+  const isComplete = formMetadata.reviewerRole === "self"
+    ? Boolean(formMetadata.thesisTitle?.trim())
+    : Boolean(formMetadata.studentName?.trim()) && Boolean(formMetadata.thesisTitle?.trim())
 
   return (
     <div className="flex flex-col gap-4 p-4 h-full overflow-y-auto no-scrollbar bg-background">
@@ -558,7 +561,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                   if (v) {
                     updateFormMetadata({ reviewerRole: v as ReviewerRole })
                     updateActiveOutput({
-                      title: v === "supervisor" ? "Posudok školiteľa" : v === "opponent" ? "Posudok oponenta" : "Posudok recenzenta",
+                      title: v === "supervisor" ? "Posudok školiteľa" : v === "self" ? "Predkonzultačný rozbor" : v === "opponent" ? "Posudok oponenta" : "Posudok recenzenta",
                     })
                   }
                 }}

@@ -118,6 +118,14 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
 
   const isReadyToGenerate = Boolean(hasDocument && !isParsing && isMetadataValid)
 
+  const isAutoElevated =
+    formMetadata.reviewerRole === "self" ||
+    formMetadata.reviewKind === "paper" ||
+    (formMetadata.reportingStandard !== undefined && formMetadata.reportingStandard !== "none") ||
+    (formMetadata.reviewKind === "thesis" && (formMetadata.thesisType === "master" || formMetadata.thesisType === "phd"))
+
+  const effectiveProfessionalMode = Boolean(professionalModeOverride) || isAutoElevated
+
   useEffect(() => {
     loadReviews(workspaceId)
     loadSourceDocument(workspaceId, effectiveFileId)
@@ -126,12 +134,14 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
   const handleGenerate = async () => {
     clearErrors()
     const weightsMap = customCriteria ? Object.fromEntries(customCriteria.map((c) => [c.id, c.weight])) : undefined
+    const reviewTone = formMetadata.reviewerRole === "supervisor" || formMetadata.reviewerRole === "self" ? "constructive" : "formal"
     await generateReview({
       workspaceId,
       sourceFileId: effectiveFileId,
       metadata: normalizeFormMetadataToThesisMetadata(formMetadata),
       skipCitationAudit,
-      professionalMode: professionalModeOverride || formMetadata.reviewKind === "paper" || formMetadata.reportingStandard !== "none",
+      professionalMode: effectiveProfessionalMode,
+      reviewTone,
       rubricTemplateId: selectedTemplateId,
       customWeights: weightsMap,
     })
@@ -302,18 +312,32 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
 
                   <label
                     htmlFor="active-professional-mode"
-                    className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/20 hover:bg-muted/30 p-2.5 rounded-lg border cursor-pointer transition-colors"
+                    className={`flex items-start gap-2 text-xs text-muted-foreground bg-muted/20 hover:bg-muted/30 p-2.5 rounded-lg border transition-colors ${
+                      isAutoElevated ? "cursor-default" : "cursor-pointer"
+                    }`}
                   >
                     <input
                       type="checkbox"
                       id="active-professional-mode"
-                      checked={professionalModeOverride}
+                      checked={effectiveProfessionalMode}
+                      disabled={isAutoElevated}
                       onChange={(e) => setProfessionalModeOverride(e.target.checked)}
-                      className="mt-0.5 rounded accent-primary cursor-pointer shrink-0"
+                      className="mt-0.5 rounded accent-primary shrink-0"
                     />
-                    <span className="leading-tight text-[11px] select-none text-foreground/90">
-                      Odborný režim (rozšírené hodnotenie a overovanie dôkazov)
-                    </span>
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <span className="leading-tight text-[11px] select-none text-foreground/90">
+                        Odborný režim (rozšírené hodnotenie a overovanie dôkazov)
+                      </span>
+                      {isAutoElevated && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {formMetadata.reviewerRole === "self"
+                            ? "Profesionálny režim: zapnutý automaticky (Predkonzultačný rozbor)."
+                            : formMetadata.reviewKind === "thesis" && (formMetadata.thesisType === "master" || formMetadata.thesisType === "phd")
+                            ? "Profesionálny režim: zapnutý automaticky (PhD/Mgr posudok)."
+                            : "Profesionálny režim: zapnutý automaticky (Článok / Metodický štandard)."}
+                        </span>
+                      )}
+                    </div>
                   </label>
 
                   <label

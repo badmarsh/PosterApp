@@ -29,6 +29,22 @@ describe("Task 11: shouldUseProfessionalMode and Path A defaults", () => {
     it("returns false when reportingStandard is undefined", () => {
       expect(shouldUseProfessionalMode(false, "thesis", undefined)).toBe(false)
     })
+    it("auto-elevates when thesisType is master for thesis reviews", () => {
+      expect(shouldUseProfessionalMode(false, "thesis", "none", "master")).toBe(true)
+      expect(shouldUseProfessionalMode(undefined, "thesis", "none", "master")).toBe(true)
+    })
+    it("auto-elevates when thesisType is phd for thesis reviews", () => {
+      expect(shouldUseProfessionalMode(false, "thesis", "none", "phd")).toBe(true)
+      expect(shouldUseProfessionalMode(undefined, "thesis", "none", "phd")).toBe(true)
+    })
+    it("does not auto-elevate for bachelor when professionalMode is false and no reporting standard", () => {
+      expect(shouldUseProfessionalMode(false, "thesis", "none", "bachelor")).toBe(false)
+      expect(shouldUseProfessionalMode(undefined, "thesis", "none", "bachelor")).toBe(false)
+    })
+    it("forces professionalMode to true when reviewerRole is self", () => {
+      expect(shouldUseProfessionalMode(false, "thesis", "none", "bachelor", "self")).toBe(true)
+      expect(shouldUseProfessionalMode(undefined, undefined, undefined, undefined, "self")).toBe(true)
+    })
   })
 
   it("resolves Path A as default when professionalMode is undefined", () => {
