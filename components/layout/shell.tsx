@@ -31,10 +31,11 @@ import { DEMO_PROJECT_ID } from "@/lib/mock-data"
 type MobilePane = "structure" | "preview" | "editor" | "agent"
 
 function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () => void }) {
-  const [structureOpen, setStructureOpen] = useState(true)
-  const [agentOpen, setAgentOpen] = useState(true)
-  const [paletteOpen, setPaletteOpen] = useState(false)
   const editorStore = useEditorStoreInstance()
+  // Panel visibility on load is a user preference (Settings → Editor).
+  const [structureOpen, setStructureOpen] = useState(() => editorStore.getState().structurePanelOpenOnLoad)
+  const [agentOpen, setAgentOpen] = useState(() => editorStore.getState().agentPanelOpenOnLoad)
+  const [paletteOpen, setPaletteOpen] = useState(false)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -49,6 +50,7 @@ function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: ()
         return
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        if (!editorStore.getState().compileOnCmdEnter) return
         const target = e.target as HTMLElement | null
         if (target && (target.tagName === "TEXTAREA" || target.isContentEditable)) return
         e.preventDefault()

@@ -1,14 +1,30 @@
 import { test, expect, type Page } from '@playwright/test';
 import { setupClerkTestingToken } from '@clerk/testing/playwright';
 
-const THEME_CLASSES = ['light', 'dark', 'vercel', 'vercel-dark', 'midnight'] as const;
+const THEME_CLASSES = [
+  'light',
+  'forest',
+  'ocean',
+  'plum',
+  'dark',
+  'ember',
+  'sage',
+  'midnight',
+  'vercel',
+  'vercel-dark',
+] as const;
 
 const EXPECTED_THEMES = [
   { name: 'Light', cls: 'light' },
+  { name: 'Forest', cls: 'forest' },
+  { name: 'Ocean', cls: 'ocean' },
+  { name: 'Plum', cls: 'plum' },
   { name: 'Dark', cls: 'dark' },
+  { name: 'Ember', cls: 'ember' },
+  { name: 'Sage', cls: 'sage' },
+  { name: 'Midnight', cls: 'midnight' },
   { name: 'Vercel', cls: 'vercel' },
   { name: 'Vercel Dark', cls: 'vercel-dark' },
-  { name: 'Midnight', cls: 'midnight' },
 ] as const;
 
 const clsRegex = (cls: string) => new RegExp(`(?:^|\\s)${cls}(?:\\s|$)`);
@@ -60,7 +76,7 @@ test.describe('Theme Picker', () => {
     }
   }
 
-  test('dropdown lists all five themes with the default one active', async ({ page }) => {
+  test('dropdown lists all ten themes with the default one active', async ({ page }) => {
     await seedWorkspace(page);
 
     await page.getByRole('button', { name: 'Theme' }).click();

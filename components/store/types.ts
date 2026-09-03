@@ -130,6 +130,23 @@ export interface UiSlice {
   setCompactMode: (v: boolean) => void
   lastCompileFormat: OutputType
   setLastCompileFormat: (format: OutputType) => void
+  /** Run the background VLM layout inspection after a successful compile. */
+  layoutCheckEnabled: boolean
+  setLayoutCheckEnabled: (v: boolean) => void
+  /** Let the LLM patch broken LaTeX and retry when a compile fails. */
+  compileAutoFixEnabled: boolean
+  setCompileAutoFixEnabled: (v: boolean) => void
+  /** Bind ⌘⏎ / Ctrl+Enter to compile. */
+  compileOnCmdEnter: boolean
+  setCompileOnCmdEnter: (v: boolean) => void
+  /** Panel visibility on app load (desktop shell). */
+  agentPanelOpenOnLoad: boolean
+  setAgentPanelOpenOnLoad: (v: boolean) => void
+  structurePanelOpenOnLoad: boolean
+  setStructurePanelOpenOnLoad: (v: boolean) => void
+  /** Which right-sidebar tab is shown when the inspector first opens. */
+  inspectorDefaultTab: "editor" | "pdf"
+  setInspectorDefaultTab: (tab: "editor" | "pdf") => void
   layoutWarnings: { cardId?: string; cardTitle: string; issue: string; recommendation: string; estimatedOverflowCharacters?: number; compiledRevision?: number }[]
   lastReviewedRevision: number | null
   setLastReviewedRevision: (r: number | null) => void

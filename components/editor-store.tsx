@@ -34,6 +34,12 @@ export function createEditorStore() {
           lastWorkspaceId: state.lastWorkspaceId,
           autoCompile: state.autoCompile,
           compactMode: state.compactMode,
+          layoutCheckEnabled: state.layoutCheckEnabled,
+          compileAutoFixEnabled: state.compileAutoFixEnabled,
+          compileOnCmdEnter: state.compileOnCmdEnter,
+          agentPanelOpenOnLoad: state.agentPanelOpenOnLoad,
+          structurePanelOpenOnLoad: state.structurePanelOpenOnLoad,
+          inspectorDefaultTab: state.inspectorDefaultTab,
         }),
       }
     )
