@@ -138,8 +138,15 @@ export function TopBar({
     pushEvent({ kind: "info", status: "done", title: `Exported ${activeOutput.outputType}.tex`, detail: "LaTeX source file downloaded." })
   }
 
+  const compactMode = useEditor((s) => s.compactMode)
+
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2.5 border-b border-border bg-card px-3">
+    <header
+      className={cn(
+        "flex shrink-0 items-center gap-2.5 border-b border-border bg-card px-3",
+        compactMode ? "h-10" : "h-12"
+      )}
+    >
       {/* Zone 1: View Toggles — structure panel (left) and LaTeX source */}
       <div className="flex items-center gap-1">
         <Tooltip>
@@ -504,7 +511,8 @@ export function TopBar({
                 Settings
               </DialogTitle>
               <DialogDescription className="text-sm">
-                Workspace appearance, review language, AI models and display preferences.
+                Theme, appearance, editor behavior, language, AI models,
+                shortcuts and data.
               </DialogDescription>
             </DialogHeader>
           </div>

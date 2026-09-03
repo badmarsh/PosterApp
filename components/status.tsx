@@ -21,9 +21,9 @@ export function StatusIcon({
   const base = cn("size-3.5 shrink-0", className)
   switch (level) {
     case "valid":
-      return <CheckCircle2 className={cn(base, "text-chart-3")} />
+      return <CheckCircle2 className={cn(base, "text-success")} />
     case "warning":
-      return <AlertTriangle className={cn(base, "text-chart-4")} />
+      return <AlertTriangle className={cn(base, "text-warning")} />
     case "invalid":
       return <XCircle className={cn(base, "text-destructive")} />
     case "generating":
@@ -40,8 +40,8 @@ const STATUS_LABEL: Record<ValidationLevel, string> = {
 
 export function StatusBadge({ level }: { level: ValidationLevel }) {
   const styles: Record<ValidationLevel, string> = {
-    valid: "border-chart-3/30 bg-chart-3/10 text-chart-3",
-    warning: "border-chart-4/30 bg-chart-4/10 text-chart-4",
+    valid: "border-success/30 bg-success/10 text-success",
+    warning: "border-warning/30 bg-warning/10 text-warning",
     invalid: "border-destructive/30 bg-destructive/10 text-destructive",
     generating: "border-primary/30 bg-primary/10 text-primary",
   }

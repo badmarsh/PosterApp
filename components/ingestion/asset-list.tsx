@@ -574,7 +574,7 @@ export function AssetList() {
         </div>
 
         {/* 2. Interactive Modality Filter Tabs (Figures, Tables, Equations, Citations, Text, All) */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-thin">
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
           {tabOptions.map((tab) => {
             const isActive = activeTab === tab.id
             return (
@@ -736,7 +736,7 @@ export function AssetList() {
                 {isOpen && (
                   <div className="border-t border-border p-2">
                     {/* Per-document filter tabs */}
-                    <div className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-none">
+                    <div className="flex items-center gap-1 overflow-x-auto pb-2 no-scrollbar">
                       {(["all", "figure", "table", "equation"] as const).map((k) => {
                         const isActive = currentFilter === k
                         const count =
@@ -824,7 +824,7 @@ export function AssetList() {
               </div>
               {openSection === "legacy" && (
                 <div className="border-t border-border p-2">
-                  <div className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-none">
+                  <div className="flex items-center gap-1 overflow-x-auto pb-2 no-scrollbar">
                     {(["all", "figure", "table", "equation"] as const).map((k) => {
                       const isActive = legacyFilter === k
                       return (
