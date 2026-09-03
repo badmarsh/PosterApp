@@ -17,6 +17,91 @@ import type {
 } from "./review-types"
 import type { ThesisRAGContext } from "./thesis-context"
 
+/**
+ * A cited chunk, as returned by retrieveForCriterion / fetchChunksByIds.
+ * When evidence carries a `chunkId`, verification becomes an *exact lookup*:
+ * the chunk must exist in the retrieved set and contain the quoted sentence.
+ */
+export interface CitedChunk {
+  id: string
+  heading?: string | null
+  content: string
+  kind?: string
+  documentId?: string
+}
+
+function normalize(s: string): string {
+  return s.replace(/\s+/g, " ").trim().toLowerCase()
+}
+
+/**
+ * Verifies an evidence reference by its chunk anchor ([c17]-style citation).
+ * Exact lookup, not substring search:
+ *   1. The cited chunk must exist in the retrieved chunk map.
+ *   2. The quote (or a ≥60-char prefix of it) must be present in that chunk
+ *      after whitespace normalization.
+ * Returns null when the reference carries no usable chunkId.
+ */
+export function verifyEvidenceByChunkId(
+  evidence: EvidenceReference,
+  chunksById: Map<string, CitedChunk>
+): EvidenceReference | null {
+  const chunkId = evidence.chunkId ? evidence.chunkId : undefined
+  if (!chunkId) return null
+  const chunk = chunksById.get(chunkId)
+  if (!chunk) {
+    return {
+      ...evidence,
+      verified: false,
+      state: "unverified",
+      confidence: 0.1,
+      verificationMethod: "exact",
+      quote: evidence.quote || evidence.exactQuote || "",
+      staleAt: new Date().toISOString(),
+    }
+  }
+
+  const quote = (evidence.quote || evidence.exactQuote || "").trim()
+  const normChunk = normalize(chunk.content)
+  const normQuote = normalize(quote)
+
+  let matched = false
+  if (quote && normQuote.length >= 12) {
+    matched = normChunk.includes(normQuote)
+    if (!matched && normQuote.length > 60) {
+      matched = normChunk.includes(normQuote.slice(0, 60))
+    }
+  } else {
+    // No quote — the chunk itself is the evidence; structural anchors are accepted.
+    matched = true
+  }
+
+  if (matched) {
+    return {
+      ...evidence,
+      sourceDocumentId: evidence.sourceDocumentId ?? chunk.documentId,
+      sectionHeading: evidence.sectionHeading ?? chunk.heading ?? undefined,
+      sectionTitle: evidence.sectionTitle ?? chunk.heading ?? undefined,
+      exactQuote: evidence.exactQuote ?? (quote || undefined),
+      verified: true,
+      state: "verified-exact",
+      confidence: 1.0,
+      verificationMethod: "exact",
+      page: undefined,
+      pageNumber: undefined,
+    }
+  }
+
+  // Cited chunk exists but does NOT contain the quote → fabrication signal.
+  return {
+    ...evidence,
+    verified: false,
+    state: "unverified",
+    confidence: 0.05,
+    verificationMethod: "exact",
+  }
+}
+
 export interface EvidenceValidationResult {
   isValid: boolean
   verifiedCount: number
@@ -166,16 +251,27 @@ export function verifyEvidenceQuote(
 
 /**
  * Validates and calibrates an array of findings according to their epistemic status.
+ *
+ * When `citedChunks` is provided (the chunks actually retrieved for the
+ * review), evidence carrying a `chunkId` is verified by *exact lookup* into
+ * that map first — no substring search across the manuscript. Evidence
+ * without a chunk anchor falls back to the verbatim/approximate quote path.
  */
 export function validateAndCalibrateFindings(
   findings: ReviewFinding[],
   sourceText: string,
   sectionsOrRevision?: Array<{ id?: string; heading: string; content: string }> | string,
-  currentRevision?: string
+  currentRevision?: string,
+  citedChunks?: CitedChunk[]
 ): EvidenceValidationResult {
   const sections: Array<{ id?: string; heading: string; content: string }> =
     Array.isArray(sectionsOrRevision) ? sectionsOrRevision : []
   const revision = typeof sectionsOrRevision === "string" ? sectionsOrRevision : currentRevision
+
+  const chunksById = new Map<string, CitedChunk>()
+  if (citedChunks) {
+    for (const c of citedChunks) chunksById.set(c.id, c)
+  }
 
   let verifiedCount = 0
   let unverifiedCount = 0
@@ -184,9 +280,16 @@ export function validateAndCalibrateFindings(
   const diagnostics: string[] = []
 
   const validatedFindings: ReviewFinding[] = findings.map((finding) => {
-    // 1. Verify all evidence links
+    // 1. Verify all evidence links — chunk-anchored exact lookup first,
+    //    then the verbatim/normalized/approximate manuscript path.
     const verifiedEvidenceList = (finding.evidence || []).map((ev) => {
-      const verifiedEv = verifyEvidenceQuote(ev, sourceText, sections, revision)
+      let verifiedEv: EvidenceReference | null = null
+      if (chunksById.size > 0 && ev.chunkId) {
+        verifiedEv = verifyEvidenceByChunkId(ev, chunksById)
+      }
+      if (!verifiedEv) {
+        verifiedEv = verifyEvidenceQuote(ev, sourceText, sections, revision)
+      }
       if (verifiedEv.verified) {
         verifiedCount++
       } else if (verifiedEv.state === "stale") {

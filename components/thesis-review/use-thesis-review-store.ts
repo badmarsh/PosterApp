@@ -167,6 +167,14 @@ export function normalizeFormMetadataToThesisMetadata(meta: ThesisReviewFormMeta
   }
 }
 
+export interface ReviewJobProgress {
+  jobId: string
+  stage: string
+  detail: string
+  progress: number
+  status: "running" | "done" | "error" | "cancelled"
+}
+
 export interface ThesisReviewState {
   reviews: ThesisReviewListItem[]
   activeReview: ThesisReviewRecord | null
@@ -176,6 +184,8 @@ export interface ThesisReviewState {
   analysisPlan: ReviewAnalysisPlan | null
   isGeneratingPlan: boolean
   isGenerating: boolean
+  /** Live stage progress for a streaming (SSE) review-generation job. */
+  generationJob: ReviewJobProgress | null
   isSaving: boolean
   /** True when local edits (triage decisions, text) have not been persisted yet. */
   isReviewDirty: boolean
@@ -214,6 +224,8 @@ export interface ThesisReviewState {
   loadReviews: (workspaceId: string) => Promise<void>
   loadReview: (workspaceId: string, reviewId: string) => Promise<void>
   generateReview: (opts: ThesisReviewGenerateOptions) => Promise<ThesisReviewRecord | null>
+  /** Cancel the in-flight streaming review job. */
+  cancelGeneration: (workspaceId: string) => Promise<void>
   regenerateCriterion: (
     workspaceId: string,
     reviewId: string,
@@ -299,6 +311,56 @@ function createThesisReviewStore(
   const thesisTitle = initialShared?.thesisTitle ?? ""
   const isInitialValid = (initialRole === "self" || Boolean(studentName.trim())) && Boolean(thesisTitle.trim())
 
+  /**
+   * Attaches to an existing SSE job stream and resolves with the saved review
+   * payload on `done`, or rejects on error/cancel/drop. Shared by fresh starts
+   * and resume-after-refresh.
+   */
+  function attachToJobStream(
+    wsId: string,
+    jobId: string,
+    onStage: (p: { stage: string; detail: string; progress: number }) => void
+  ): Promise<any> {
+    return new Promise((resolve, reject) => {
+      let es: EventSource | null = null
+      try {
+        es = new EventSource(`/api/workspaces/${wsId}/thesis-review/jobs/${jobId}/stream`)
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error("Failed to open review progress stream"))
+        return
+      }
+      es.addEventListener("stage", (ev) => {
+        try {
+          const p = JSON.parse((ev as MessageEvent).data)
+          onStage(p)
+        } catch { /* malformed frame ignored */ }
+      })
+      es.addEventListener("done", (ev) => {
+        es?.close()
+        resolve(JSON.parse((ev as MessageEvent).data))
+      })
+      es.addEventListener("error", (ev) => {
+        const payload = (ev as MessageEvent).data
+        if (payload) {
+          es?.close()
+          try {
+            const p = JSON.parse(payload)
+            reject(new Error(p.error ?? "Review generation failed"))
+          } catch {
+            reject(new Error("Review generation failed"))
+          }
+        } else if (es && es.readyState === EventSource.CLOSED) {
+          es.close()
+          reject(new Error("Spojenie s posudkom sa prerušilo. Skúste to znova."))
+        }
+      })
+      es.addEventListener("cancelled", () => {
+        es?.close()
+        reject(new Error("Review generation was cancelled."))
+      })
+    })
+  }
+
   return create<ThesisReviewState>()(
     immer((set, get) => ({
       reviews: [],
@@ -309,6 +371,7 @@ function createThesisReviewStore(
       analysisPlan: null,
       isGeneratingPlan: false,
       isGenerating: false,
+      generationJob: null,
       isSaving: false,
       isReviewDirty: false,
       editSeq: 0,
@@ -532,6 +595,39 @@ function createThesisReviewStore(
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
         set((s) => { s.reviews = data.reviews ?? [] })
+
+        // Resume progress tracking for a job still running (e.g. after refresh).
+        const running = Array.isArray(data.activeJobs) ? data.activeJobs : []
+        if (running.length > 0 && !get().generationJob) {
+          const job = running[0]
+          set((s) => {
+            s.generationJob = {
+              jobId: job.jobId,
+              stage: job.stage ?? "retrieval",
+              detail: job.detail ?? "",
+              progress: job.progress ?? 0,
+              status: "running",
+            }
+            s.isGenerating = true
+          })
+          attachToJobStream(workspaceId, job.jobId, (p) =>
+            set((s) => {
+              if (s.generationJob) {
+                s.generationJob.stage = p.stage
+                s.generationJob.detail = p.detail ?? p.stage
+                s.generationJob.progress = p.progress ?? s.generationJob.progress
+              }
+            })
+          )
+            .then(() => {
+              set((s) => { s.generationJob = null; s.isGenerating = false })
+              void get().loadReviews(workspaceId)
+            })
+            .catch((err) => {
+              const msg = err instanceof Error ? err.message : "Generation failed"
+              set((s) => { s.generationJob = null; s.isGenerating = false; s.generateError = msg })
+            })
+        }
       } catch (err) {
         console.error("[ThesisReviewStore] loadReviews failed:", err)
       }
@@ -566,39 +662,42 @@ function createThesisReviewStore(
       }
     },
 
-    generateReview: async (opts) => {
-      set((s) => { s.isGenerating = true; s.generateError = null })
+    cancelGeneration: async (workspaceId) => {
+      const job = get().generationJob
+      if (!job) return
       try {
-        const fileId = opts.sourceFileId || get().selectedFileId || undefined
-        // Ensure source document is fetched
-        void get().loadSourceDocument(opts.workspaceId, fileId)
+        await fetch(`/api/workspaces/${workspaceId}/thesis-review/jobs/${job.jobId}`, { method: "DELETE" })
+      } catch {
+        /* non-fatal — the SSE stream will also close on cancellation */
+      }
+      set((s) => {
+        s.generationJob = null
+        s.isGenerating = false
+      })
+    },
 
-        const res = await fetch(`/api/workspaces/${opts.workspaceId}/thesis-review`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            thesisMetadata: opts.metadata,
-            sourceFileId: fileId,
-            focusCriteria: opts.focusCriteria,
-            skipCitationAudit: opts.skipCitationAudit ?? false,
-            multiAgentDebate: get().multiAgentDebate,
-            professionalMode: opts.professionalMode ?? get().professionalModeOverride,
-            reviewTone: opts.reviewTone,
-            rubricTemplateId: opts.rubricTemplateId,
-            customWeights: opts.customWeights,
-          }),
-        })
+    generateReview: async (opts) => {
+      set((s) => { s.isGenerating = true; s.generateError = null; s.generationJob = null })
+      const fileId = opts.sourceFileId || get().selectedFileId || undefined
+      // Ensure source document is fetched
+      void get().loadSourceDocument(opts.workspaceId, fileId)
 
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.message ?? errData.error ?? `HTTP ${res.status}`)
-        }
+      const requestBody = {
+        thesisMetadata: opts.metadata,
+        sourceFileId: fileId,
+        focusCriteria: opts.focusCriteria,
+        skipCitationAudit: opts.skipCitationAudit ?? false,
+        multiAgentDebate: get().multiAgentDebate,
+        professionalMode: opts.professionalMode ?? get().professionalModeOverride,
+        reviewTone: opts.reviewTone,
+        rubricTemplateId: opts.rubricTemplateId,
+        customWeights: opts.customWeights,
+      }
 
-        const data = await res.json()
+      const buildRecord = (data: any): ThesisReviewRecord => {
         const initialGrade = data.overallGrade ?? data.grade ?? null
         const initialRec = data.recommendation ?? null
-
-        const newReview: ThesisReviewRecord = {
+        return {
           id: data.id,
           studentName: opts.metadata.studentName,
           thesisTitle: opts.metadata.thesisTitle,
@@ -637,18 +736,46 @@ function createThesisReviewStore(
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }
+      }
 
+      try {
+        // Start a detached streaming job so 5–20-min professional reviews
+        // report live stage progress ("retrieval 13/13 · primary review · self-critique")
+        // and can be cancelled.
+        const startRes = await fetch(`/api/workspaces/${opts.workspaceId}/thesis-review`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
+          body: JSON.stringify({ ...requestBody, stream: true }),
+        })
+        if (!startRes.ok) {
+          const errData = await startRes.json().catch(() => ({}))
+          throw new Error(errData.message ?? errData.error ?? `HTTP ${startRes.status}`)
+        }
+        const { jobId } = await startRes.json()
+        set((s) => {
+          s.generationJob = { jobId, stage: "queued", detail: "queued", progress: 0, status: "running" }
+        })
+
+        const data: any = await attachToJobStream(opts.workspaceId, jobId, (p) =>
+          set((s) => {
+            if (s.generationJob) {
+              s.generationJob.stage = p.stage
+              s.generationJob.detail = p.detail ?? p.stage
+              s.generationJob.progress = p.progress ?? s.generationJob.progress
+            }
+          })
+        )
+        const newReview = buildRecord(data)
         set((s) => {
           s.activeReview = newReview
           s.isGenerating = false
+          s.generationJob = null
         })
-
-        // Refresh list
         await get().loadReviews(opts.workspaceId)
         return newReview
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Generation failed"
-        set((s) => { s.isGenerating = false; s.generateError = msg })
+        set((s) => { s.isGenerating = false; s.generationJob = null; s.generateError = msg })
         return null
       }
     },

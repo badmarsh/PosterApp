@@ -8,6 +8,7 @@ import {
   reportCircuitSuccess,
   AICircuitOpenError,
 } from "./telemetry"
+import { recordAiSpend, checkAiBudget } from "./cost-ledger"
 
 interface AIClientOptions<T> {
   model: string;
@@ -22,6 +23,23 @@ interface AIClientOptions<T> {
   maxTokens?: number;
   /** Mutable bag that is filled in with the provider source after the operation completes. */
   provenance?: { source?: AIProviderSource };
+  /** Workspace that should be billed for this call (daily soft budget + cost ledger). */
+  workspaceId?: string;
+  /**
+   * Mark non-essential calls (HyDE LLM, enrichment, extra fan-out). When the
+   * workspace's daily soft budget is already exceeded these are skipped with
+   * AIBudgetExceededError instead of being sent. Essential calls (the review
+   * generation itself) always proceed so a near-budget review never fails.
+   */
+  optional?: boolean;
+}
+
+/** Thrown when a non-essential AI call is skipped because the daily soft budget is exhausted. */
+export class AIBudgetExceededError extends Error {
+  constructor(public readonly status: ReturnType<typeof checkAiBudget>["status"]) {
+    super(`Daily AI soft budget exceeded (${status.spentUsd.toFixed(2)}/${status.budgetUsd.toFixed(2)} USD); optional call skipped`)
+    this.name = "AIBudgetExceededError"
+  }
 }
 
 const MAX_AI_FETCH_ATTEMPTS = 3
@@ -139,6 +157,18 @@ async function requestCompletion(
     throw new AICircuitOpenError(apiUrl)
   }
 
+  // Per-workspace daily soft budget. Optional calls (HyDE, enrichment) are
+  // skipped once the budget is spent; essential calls proceed and the
+  // overspend is surfaced through the RAG status panel.
+  const gate = checkAiBudget(options.workspaceId, { essential: !options.optional })
+  if (!gate.proceed) {
+    console.warn(`[AI ${operationName}] ${gate.reason}`)
+    throw new AIBudgetExceededError(gate.status)
+  }
+  if (gate.reason) {
+    console.warn(`[AI ${operationName}] ${gate.reason}`)
+  }
+
   const startTime = Date.now()
   const providerSource: AIProviderSource = apiUrl === process.env.AI_API_URL_FALLBACK ? "fallback-provider" : "primary"
   let response: Response
@@ -181,6 +211,12 @@ async function requestCompletion(
     durationMs,
     ok: true,
     status: response.status,
+    workspaceId: options.workspaceId,
+    costUsd: recordAiSpend(options.workspaceId, options.model, {
+      promptTokens: data.usage?.prompt_tokens ?? null,
+      completionTokens: data.usage?.completion_tokens ?? null,
+      totalTokens: data.usage?.total_tokens ?? null,
+    }),
   })
   console.log(`[AI ${operationName}] Success. Model: ${options.model}, Duration: ${durationMs}ms, Tokens: ${data.usage?.total_tokens ?? "unknown"}`)
 

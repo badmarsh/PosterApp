@@ -61,6 +61,9 @@ export async function GET(
       avgTokens: number
       lastCreated: Date
       embeddedCount: bigint
+      tableChunks: bigint
+      equationChunks: bigint
+      captionChunks: bigint
     }>
   >`
     SELECT
@@ -68,7 +71,10 @@ export async function GET(
       COUNT(*)                                            AS "chunkCount",
       ROUND(AVG(tokens))::int                             AS "avgTokens",
       MAX("createdAt")                                    AS "lastCreated",
-      COUNT(*) FILTER (WHERE embedding IS NOT NULL)       AS "embeddedCount"
+      COUNT(*) FILTER (WHERE embedding IS NOT NULL)       AS "embeddedCount",
+      COUNT(*) FILTER (WHERE kind = 'table')              AS "tableChunks",
+      COUNT(*) FILTER (WHERE kind = 'equation')           AS "equationChunks",
+      COUNT(*) FILTER (WHERE kind = 'figure_caption')     AS "captionChunks"
     FROM "DocumentChunk"
     WHERE "workspaceId" = ${workspaceId}
       AND "documentId" IN (${Prisma.join(activeDocIds)})
@@ -78,6 +84,12 @@ export async function GET(
 
   const totalChunks = rows.reduce((s, r) => s + Number(r.chunkCount), 0)
   const totalEmbedded = rows.reduce((s, r) => s + Number(r.embeddedCount), 0)
+  const chunkKindCounts = {
+    prose: totalChunks - rows.reduce((s, r) => s + Number(r.tableChunks) + Number(r.equationChunks) + Number(r.captionChunks), 0),
+    table: rows.reduce((s, r) => s + Number(r.tableChunks), 0),
+    equation: rows.reduce((s, r) => s + Number(r.equationChunks), 0),
+    figure_caption: rows.reduce((s, r) => s + Number(r.captionChunks), 0),
+  }
   // Weighted by each document's chunk count. Averaging the per-document
   // averages directly (as before) skews the result toward documents with
   // fewer chunks whenever chunk counts differ significantly across documents
@@ -175,8 +187,15 @@ export async function GET(
     chunkCount: Number(r.chunkCount),
     embeddedCount: Number(r.embeddedCount),
     avgTokens: r.avgTokens,
+    kindCounts: {
+      table: Number(r.tableChunks),
+      equation: Number(r.equationChunks),
+      figure_caption: Number(r.captionChunks),
+    },
     lastIngestedAt: r.lastCreated,
   }))
+
+  const { getAiBudgetStatus } = await import("@/lib/ai/cost-ledger")
 
   return NextResponse.json({
     workspaceId,
@@ -184,6 +203,7 @@ export async function GET(
     totalEmbedded,
     totalDocuments: rows.length,
     avgTokensPerChunk: avgTokens,
+    chunkKindCounts,
     hnswIndexReady: hnswReady,
     embeddingModel: "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
     embeddingDimensions: 384,
@@ -197,6 +217,7 @@ export async function GET(
     graphStats,
     documents,
     aiUsage: getAiUsageSummary(),
+    aiBudget: getAiBudgetStatus(workspaceId),
     reranker: { enabled: RERANKER_ENABLED, model: RERANKER_MODEL, ...rerankerHealth },
   })
 }
@@ -253,6 +274,7 @@ export async function POST(
     id: c.id,
     heading: c.heading,
     snippet: c.content.slice(0, 300),
+    kind: c.kind ?? "prose",
     similarity: Math.round((c.relevanceScore ?? 0) * 1000) / 1000,
     tokens: c.tokens ?? null,
   }))

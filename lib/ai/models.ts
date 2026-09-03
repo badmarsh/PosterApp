@@ -2,6 +2,8 @@
  * Centralized model defaults and timeout configuration for all AI operations.
  */
 
+import { rankModelsByHealth } from "./telemetry"
+
 export const DEFAULT_AI_MODELS = {
   default: "gemini-3.7-flash",
   generation: "gemini-3.7-flash",
@@ -60,8 +62,17 @@ export function getVisionModelChain(): string[] {
 
   // Unique ordered chain starting with primary. Capped at MAX_VISION_CHAIN so a
   // dead provider cannot stall captioning for 10 models × attempts × timeout per image.
-  const unique = Array.from(new Set([primary, ...envFallbacks]))
-  return unique.slice(0, MAX_VISION_CHAIN)
+  const unique = Array.from(new Set([primary, ...envFallbacks])).slice(0, MAX_VISION_CHAIN)
+
+  // Provider health model: re-order the chain by observed failure rate /
+  // latency (breaker + ledger). Unobserved models stay in configured order.
+  // Disable with AI_MODEL_HEALTH_ROUTING=false.
+  if (process.env.AI_MODEL_HEALTH_ROUTING === "false") return unique
+  try {
+    return rankModelsByHealth(unique)
+  } catch {
+    return unique
+  }
 }
 
 /**

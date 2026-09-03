@@ -56,6 +56,7 @@ import {
   groundClaimInChunks,
   formatGroundedEvidenceBlock,
   verifyEvidenceQuote,
+  type CitedChunk,
 } from "./evidence-validator"
 import {
   calculateGradeRange,
@@ -97,6 +98,17 @@ export interface GenerateProfessionalReviewOptions {
   institution?: string
   graphAugmentation?: string
   vectorAugmentation?: string
+  /**
+   * Chunks actually retrieved for this review (with stable [cN] anchors).
+   * When provided, the LLM is instructed to cite each quote with its chunk
+   * anchor (`chunkId: "c17"`), and verification is an exact chunk lookup
+   * instead of a manuscript-wide substring search.
+   */
+  evidenceChunks?: Array<CitedChunk & { anchor: string }>
+  /** Stage-progress callback (SSE job streaming). */
+  onProgress?: (stage: string, detail?: string) => void
+  /** Cancellation signal from the review job manager. */
+  signal?: AbortSignal
 }
 
 /**
@@ -294,7 +306,8 @@ async function generateSelfCritique(
   primaryFindings: ReviewFinding[],
   documentTitle: string,
   language: ReviewLanguage,
-  model: string
+  model: string,
+  tools?: { workspaceId?: string; signal?: AbortSignal }
 ): Promise<{ adjustedFindings: ReviewFinding[]; critiqueLog: string }> {
   // Give the critic the same evidence the primary pass anchored on, so it can
   // judge "overstated relative to the evidence" against actual quotes rather
@@ -311,26 +324,67 @@ async function generateSelfCritique(
     })
     .join("\n\n")
 
+  // TOOL ACCESS: when retrieval is available, the critic may issue a small
+  // number of targeted searches into the thesis ("find text supporting /
+  // contradicting finding N") instead of judging only the ≤300-char quotes
+  // the primary pass happened to cite. This makes downgrades and
+  // "missed weaknesses" calls evidence-based.
+  let retrievedEvidence: string[] = []
+  if (tools?.workspaceId && !tools.signal?.aborted) {
+    try {
+      const { searchHybrid } = await import("./vector-rag")
+      const sevRank = { critical: 0, major: 1, minor: 2, suggestion: 3, info: 4 }
+      const ordered = primaryFindings
+        .map((f, i) => ({ f, i }))
+        .sort((a, b) => (sevRank[a.f.severity as keyof typeof sevRank] ?? 5) - (sevRank[b.f.severity as keyof typeof sevRank] ?? 5))
+      const SEARCH_BUDGET = 4
+      let searchesUsed = 0
+      for (const { f, i } of ordered.slice(0, 2)) {
+        for (const kind of ["support", "contradict"] as const) {
+          if (searchesUsed >= SEARCH_BUDGET || tools.signal?.aborted) break
+          const base = `${f.title} ${(f.explanation ?? "").slice(0, 200)}`
+          const query = (kind === "contradict"
+            ? `text contradicting or qualifying the claim that: ${base}`
+            : `text supporting the claim that: ${base}`).slice(0, 300)
+          const hits = await searchHybrid(tools.workspaceId, query, 3, "Academic thesis review")
+          const text = hits
+            .map((h) => (h.heading ? `${h.heading}: ${h.content.slice(0, 500)}` : h.content.slice(0, 500)))
+            .join("\n---\n")
+          if (text.trim()) {
+            retrievedEvidence.push(`[Critic search — ${kind} for finding ${i + 1}]\n${text}`)
+          }
+          searchesUsed++
+        }
+      }
+    } catch (err) {
+      console.warn("[self-critique] critic search tool unavailable:", err instanceof Error ? err.message : err)
+    }
+  }
+  const toolBlock = retrievedEvidence.length > 0
+    ? `\n\n--- INDEPENDENTLY RETRIEVED THESIS PASSAGES (critic tool access) ---\nBase downgrades and missed-weakness calls on these passages where they bear on a finding:\n${retrievedEvidence.join("\n\n")}`
+    : ""
+
   const critiqueSysPrompt = `You are a rigorous adversarial reviewer performing a structured critique of a peer review draft. Your job is NOT to soften the review, but to:
-1. Identify findings that are OVERSTATED relative to what the quoted evidence supports. A finding whose quotes do not actually demonstrate the claimed problem, or that has no evidence quotes at all while asserting a critical/major flaw, is overstated.
-2. Identify significant weaknesses that were MISSED entirely.
+1. Identify findings that are OVERSTATED relative to what the quoted evidence — and, when provided, the independently retrieved thesis passages — actually support. A finding whose quotes do not demonstrate the claimed problem, or which the retrieved passages contradict, is overstated.
+2. Identify significant weaknesses that were MISSED entirely (use the retrieved passages to spot these).
 3. Flag any findings where severity is miscalibrated (too harsh or too lenient).
 4. Confirm findings that are accurately stated and well-evidenced.
+Never downgrade a finding whose quoted text was verified character-for-character and tagged SUPPORTED_FACT unless the retrieved passages contradict it.
 
 Respond strictly as JSON.`
 
   const critiqueUserPrompt = `Document under review: "${documentTitle}"
 
 Draft findings from primary review:
-${findingsSummary}
+${findingsSummary}${toolBlock}
 
 Respond with this JSON structure:
 {
   "critiqueLog": "<2-4 sentence adversarial critique summary in ${language}>",
   "overstatedIds": [1, 3],
-  "missedWeaknesses": ["<brief description of missed issue 1>", "<brief description of missed issue 2>"],
+  "missedWeaknesses": ["<brief description of missed issue 1, referencing the retrieved passage it came from>", "<brief description of missed issue 2>"],
   "severityAdjustments": [
-    { "id": 2, "newSeverity": "minor", "reason": "<brief reason>" }
+    { "id": 2, "newSeverity": "minor", "reason": "<brief reason grounded in the evidence>" }
   ]
 }`
 
@@ -345,6 +399,7 @@ Respond with this JSON structure:
       schema: SelfCritiqueSchema,
       // Higher temperature: we WANT divergence from the primary review
       temperature: 0.6,
+      signal: tools?.signal,
     })
 
     critiqueLog = critiqueResult.critiqueLog || ""
@@ -622,6 +677,37 @@ ${formatGradeAnchorsText(profile, options.language)}
 
   const effectiveReviewTone: ReviewTone = options.reviewTone ?? (options.reviewerRole === "supervisor" || options.reviewerRole === "self" ? "constructive" : "formal")
 
+  // Citation-anchored evidence: chunks actually retrieved for this review,
+  // labelled with stable [cN] anchors. The model MUST copy chunkId into each
+  // evidence item, which makes verification an exact lookup (see
+  // verifyEvidenceByChunkId) and lets the UI jump straight to the passage.
+  options.onProgress?.("retrieval", "evidence anchors prepared")
+  let anchoredVectorAugmentation = options.vectorAugmentation ?? ""
+  if (options.evidenceChunks && options.evidenceChunks.length > 0) {
+    const anchorLines = options.evidenceChunks
+      .slice(0, 40)
+      .map((c) => {
+        const kindLabel = c.kind && c.kind !== "prose" ? ` (${c.kind})` : ""
+        return `[${c.anchor}]${c.heading ? ` ${c.heading}` : ""}${kindLabel}\n${c.content}`
+      })
+      .join("\n\n")
+    anchoredVectorAugmentation =
+      `The following evidence passages were RETRIEVED FROM THE THESIS for this review. ` +
+      `Each has a stable anchor ([c1], [c2] …). For EVERY finding's evidence item you MUST:\n` +
+      `- copy the quote character-for-character from the referenced passage, and\n` +
+      `- set "chunkId" to the anchor of the passage you quoted (e.g. "c17").\n` +
+      `Never cite an anchor for a quote that does not appear in that passage.\n\n` +
+      anchorLines
+  }
+  const abortError = () => {
+    const err = new Error("Review generation cancelled")
+    err.name = "AbortError"
+    return err
+  }
+  const throwIfCancelled = () => {
+    if (options.signal?.aborted) throw abortError()
+  }
+
   // Section-routed manuscript excerpts (80k budget spread across all rubric
   // criteria) instead of the first 80k characters of the file.
   const PROFESSIONAL_CONTEXT_BUDGET = 80_000
@@ -719,7 +805,7 @@ ${levelExpectationsText}
 ${rubricGuidanceText ? `--- RUBRIC ANTI-OVER-PENALIZATION GUIDANCE (sk-academic-v1) ---\n${rubricGuidanceText}\n` : ""}
 
 ${options.graphAugmentation ? `--- KNOWLEDGE GRAPH (MULTI-HOP REASONING) ---\n${options.graphAugmentation}\n` : ""}
-${options.vectorAugmentation ? `--- RELEVANT EXTRACTED CONTEXT (VECTOR RAG) ---\n${options.vectorAugmentation}\n` : ""}
+${anchoredVectorAugmentation ? `--- RELEVANT EXTRACTED CONTEXT (VECTOR RAG, CITATION-ANCHORED) ---\n${anchoredVectorAugmentation}\n` : ""}
 ${preGroundingText}
 
 --- MANUSCRIPT EXCERPTS (${contextCoverage.truncated ? "PARTIAL" : "COMPLETE"}) ---
@@ -775,16 +861,34 @@ Respond with a valid JSON object matching this structure:
 }`
 
   const model = resolveAiModel("thesis")
+  options.onProgress?.("primary_review", "primary review generation")
+  throwIfCancelled()
   const validated = await generateAIResponse<ProfessionalReviewGenerationResult>("peer-review", {
     model,
     systemPrompt,
     userPrompt,
     schema: ProfessionalReviewGenerationSchema,
     temperature: 0.15, // slightly tighter than before for primary review
+    workspaceId: options.workspaceId,
+    signal: options.signal,
   })
+  throwIfCancelled()
 
-  // 1. Initial quote anchoring
+  // 1. Initial quote anchoring (chunk-anchored evidence is verified by exact
+  //    lookup inside validateAndCalibrateFindings; anchorEvidenceQuotes maps the
+  //    [cN] anchors back to real chunk ids and fills section headings).
   const anchored = anchorEvidenceQuotes(validated.findings, rag, sourceRevision)
+  // Map model-emitted chunk anchors ("c17") to the real DB chunk ids.
+  if (options.evidenceChunks) {
+    const anchorToId = new Map(options.evidenceChunks.map((c) => [c.anchor, c.id]))
+    for (const f of anchored) {
+      for (const ev of f.evidence || []) {
+        if (ev.chunkId && anchorToId.has(ev.chunkId)) {
+          ev.chunkId = anchorToId.get(ev.chunkId)
+        }
+      }
+    }
+  }
 
   // 2. Deterministic alignment and citation checks
   const alignCheck = checkObjectiveAlignment(structure, rag, options.language)
@@ -792,26 +896,48 @@ Respond with a valid JSON object matching this structure:
 
   const mergedFindings = [...anchored, ...alignCheck.findings, ...citeCheck.findings]
 
-  // 3. Epistemic validation & calibration
-  const validationResult = validateAndCalibrateFindings(mergedFindings, rag.fullText, rag.sections, sourceRevision)
+  // 3. Epistemic validation & calibration (chunk-anchored → exact lookup).
+  const validationResult = validateAndCalibrateFindings(
+    mergedFindings,
+    rag.fullText,
+    rag.sections,
+    sourceRevision,
+    options.evidenceChunks
+      ? options.evidenceChunks.map((c) => ({ id: c.id, heading: c.heading, content: c.content, kind: c.kind, documentId: c.documentId }))
+      : undefined
+  )
   let finalFindings = sortFindingsByPriority(validationResult.validatedFindings, options.language)
 
   // 3b. Structured self-critique — second AI call at higher temperature.
-  // Only runs when multiAgentDebate=true. 2× LLM cost, genuine divergence.
+  // With evidenceChunks the critic gets TOOL access (searchHybrid) so
+  // downgrades/"missed weaknesses" are evidence-based, not limited to the
+  // primary pass's ≤300-char quotes. Only runs when multiAgentDebate=true.
   let critiqueLog: string | undefined
   if (options.multiAgentDebate && finalFindings.length > 0) {
+    options.onProgress?.("self_critique", "adversarial critique")
+    throwIfCancelled()
     const critiqueResult = await generateSelfCritique(
       finalFindings,
       options.documentTitle,
       options.language,
-      model
+      model,
+      options.evidenceChunks
+        ? {
+            workspaceId: options.workspaceId,
+            signal: options.signal,
+          }
+        : undefined
     )
+    throwIfCancelled()
     // Re-validate the critique-adjusted findings before using them
     const critiqueValidation = validateAndCalibrateFindings(
       critiqueResult.adjustedFindings,
       rag.fullText,
       rag.sections,
-      sourceRevision
+      sourceRevision,
+      options.evidenceChunks
+        ? options.evidenceChunks.map((c) => ({ id: c.id, heading: c.heading, content: c.content, kind: c.kind, documentId: c.documentId }))
+        : undefined
     )
     finalFindings = sortFindingsByPriority(critiqueValidation.validatedFindings, options.language)
     critiqueLog = critiqueResult.critiqueLog || undefined
