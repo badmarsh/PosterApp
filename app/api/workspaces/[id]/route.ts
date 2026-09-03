@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server"
+import fs from "node:fs/promises"
+import { workspacePath } from "@/lib/workspace-files"
 import { prisma } from "@/lib/prisma"
 import { safeJsonParse, jsonStringify } from "@/lib/db-helpers"
 import { auth, requireWorkspaceAccess, requireWorkspaceEditor, requireWorkspaceOwner } from "@/lib/auth"
-import { safeApiError } from "@/lib/security"
+import { safeApiError, readJsonBodyCapped, PayloadTooLargeError } from "@/lib/security"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { WorkspaceSchema } from "@/lib/validations/workspace"
 import { computeWorkspaceDiff } from "@/lib/snapshot-diff"
 import { generateSnapshotLabelAsync } from "@/lib/ai-labeler"
+
+const MAX_WORKSPACE_BODY_BYTES = 10 * 1024 * 1024
 
 class ForeignChildIdError extends Error {
   constructor() {
@@ -141,10 +145,16 @@ export async function PUT(
       )
     }
 
-    // Guard against oversized payloads — Next.js route handlers have no built-in body limit.
-    const contentLength = Number(req.headers.get("content-length") ?? 0)
-    if (contentLength > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: "Payload too large" }, { status: 413 })
+    // Guard against oversized payloads — Next.js route handlers have no built-in
+    // body limit and Content-Length alone can be omitted by chunked clients.
+    let rawBody: unknown
+    try {
+      rawBody = await readJsonBodyCapped(req, MAX_WORKSPACE_BODY_BYTES)
+    } catch (bodyErr) {
+      if (bodyErr instanceof PayloadTooLargeError) {
+        return NextResponse.json({ error: "Payload too large" }, { status: 413 })
+      }
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
     }
 
     const prevSnapshot = await prisma.workspaceSnapshot.findFirst({
@@ -152,7 +162,6 @@ export async function PUT(
       orderBy: { savedAt: "desc" }
     })
 
-    const rawBody = await req.json()
     const parsed = WorkspaceSchema.safeParse(rawBody)
     
     if (!parsed.success) {
@@ -605,6 +614,14 @@ export async function DELETE(
     // Owner-only: editors must not be able to destroy a workspace (MED-02 fix)
     await requireWorkspaceOwner(id)
     await prisma.workspace.delete({ where: { id } })
+    // Remove on-disk artefacts (uploads, compiled PDFs, staged sources) so
+    // user data does not outlive the workspace record. workspacePath() guards
+    // against traversal; the id regex above guarantees a single path segment.
+    try {
+      await fs.rm(workspacePath(id), { recursive: true, force: true })
+    } catch (fsErr) {
+      console.error(`[Workspace DELETE] Failed to remove files for ${id}:`, fsErr)
+    }
     return NextResponse.json({ ok: true })
   } catch (err) {
     if (err instanceof Response) return err

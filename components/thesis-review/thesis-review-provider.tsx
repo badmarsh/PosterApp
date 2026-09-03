@@ -56,5 +56,8 @@ export function useScopedThesisReviewStore<T>(
   selector?: (state: ThesisReviewState) => T
 ): unknown {
   const store = useContext(ThesisReviewStoreContext) ?? useThesisReviewStore
-  return selector ? useStore(store, selector) : useStore(store)
+  // Always call useStore unconditionally with a stable selector so hook order
+  // never changes between renders (react-hooks/rules-of-hooks).
+  const identity = (state: ThesisReviewState) => state as unknown as T
+  return useStore(store, selector ?? identity)
 }

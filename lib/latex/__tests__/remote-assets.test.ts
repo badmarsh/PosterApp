@@ -6,9 +6,17 @@ import {
   isRemoteUrl,
   collectRemoteFigureUrls,
   rewriteTexRemoteUrls,
-  materializeRemoteFigures
+  materializeRemoteFigures,
+  downloadRemoteImage
 } from "../remote-assets"
 import type { Project } from "@/lib/poster-types"
+
+vi.mock("node:dns/promises", () => ({
+  lookup: vi.fn(async (host: string) => {
+    if (host === "internal.example.test") return [{ address: "10.0.0.5", family: 4 }]
+    return [{ address: "93.184.216.34", family: 4 }]
+  }),
+}))
 
 describe("Remote Assets", () => {
   describe("isRemoteUrl", () => {
@@ -125,7 +133,7 @@ describe("Remote Assets", () => {
     })
 
     it("writes downloads under the stage dir and maps them to forward-slash LaTeX paths", async () => {
-      const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
+      const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0])
       vi.stubGlobal(
         "fetch",
         vi.fn(async () =>
@@ -179,5 +187,65 @@ describe("Remote Assets", () => {
         await fs.rm(stage, { recursive: true, force: true })
       }
     })
+  })
+})
+describe("downloadRemoteImage SSRF & content guards", () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0])
+  const okImage = () => new Response(png, { status: 200, headers: { "content-type": "image/png" } })
+
+  it.each([
+    "http://127.0.0.1/x.png",
+    "http://localhost/x.png",
+    "http://169.254.169.254/latest/meta-data/",
+    "http://10.1.2.3/x.png",
+    "http://192.168.0.1/x.png",
+    "http://[::1]/x.png",
+    "http://metadata.google.internal/x.png",
+    "ftp://example.com/x.png",
+    "file:///etc/passwd",
+  ])("rejects %s without fetching", async (url) => {
+    const fetchMock = vi.fn(async () => okImage())
+    vi.stubGlobal("fetch", fetchMock)
+    expect(await downloadRemoteImage(url)).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it("rejects a public hostname that resolves to a private address", async () => {
+    const fetchMock = vi.fn(async () => okImage())
+    vi.stubGlobal("fetch", fetchMock)
+    expect(await downloadRemoteImage("https://internal.example.test/x.png")).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it("rejects a redirect into a private network", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(null, { status: 302, headers: { location: "http://169.254.169.254/latest/" } })
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    expect(await downloadRemoteImage("https://example.com/x.png")).toBeNull()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("follows a safe redirect and returns the image", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async () => new Response(null, { status: 301, headers: { location: "https://cdn.example.com/y.png" } }))
+      .mockImplementationOnce(async () => okImage())
+    vi.stubGlobal("fetch", fetchMock)
+    const result = await downloadRemoteImage("https://example.com/x.png")
+    expect(result?.ext).toBe(".png")
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it("rejects non-image bodies even with an image content-type", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("<html>secret</html>", { status: 200, headers: { "content-type": "image/png" } })))
+    expect(await downloadRemoteImage("https://example.com/x.png")).toBeNull()
+  })
+
+  it("rejects non-image content types", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 200, headers: { "content-type": "application/json" } })))
+    expect(await downloadRemoteImage("https://example.com/x")).toBeNull()
   })
 })

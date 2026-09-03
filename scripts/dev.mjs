@@ -52,18 +52,18 @@ function checkTcpPort(host, port, timeoutMs = 1000) {
 function killPort(port) {
   try {
     if (isWin) {
-      const lines = execSync(`netstat -ano | findstr :${port}`).toString().split('\n')
+      const lines = execSync(`netstat -ano | findstr :${Number(port)}`).toString().split('\n')
       for (const line of lines) {
         const parts = line.trim().split(/\s+/)
         if (parts.length > 4) {
           const pid = parts[parts.length - 1]
-          if (pid && pid !== '0') {
+          if (pid && pid !== '0' && /^\d+$/.test(pid)) {
             try { execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' }) } catch {}
           }
         }
       }
     } else {
-      execSync(`fuser -k ${port}/tcp`, { stdio: 'ignore' })
+      execSync(`fuser -k ${Number(port)}/tcp`, { stdio: 'ignore' })
     }
   } catch {}
 }

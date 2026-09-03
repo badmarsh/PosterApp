@@ -4,7 +4,7 @@ import { rateLimitAsync } from "@/lib/rate-limit"
 import { resolvePdfUrl, fetchArxivMetadata } from "@/lib/services/arxiv-service"
 import { prisma } from "@/lib/prisma"
 import { parseBibEntries, formatBibEntry, slugifyCiteKey } from "@/lib/bib-types"
-import { assertSafeExternalUrl } from "@/lib/security"
+import { safeFetch } from "@/lib/safe-fetch"
 
 const MAX_PDF_BYTES = 50 * 1024 * 1024 // 50 MB
 
@@ -43,36 +43,18 @@ export async function POST(req: NextRequest) {
 
     const { pdfUrl, arxivId, filename } = resolvePdfUrl(url)
 
-    // Validate initial URL for SSRF protection
-    assertSafeExternalUrl(pdfUrl)
-
-    // Safe fetch with manual redirect validation loop (max 5 hops)
-    let currentUrl = pdfUrl
+    // SSRF-safe fetch: validates the URL, its DNS resolution, and every
+    // redirect hop against reserved/private ranges (max 5 hops).
     let pdfResponse: Response | null = null
-    const MAX_REDIRECTS = 5
-
-    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-      assertSafeExternalUrl(currentUrl)
-
-      const res = await fetch(currentUrl, {
-        headers: {
-          "User-Agent": "PosterApp-Paper-Downloader/1.0 (academic research tool)",
-        },
-        redirect: "manual",
-        signal: AbortSignal.timeout(60_000), // 1 minute download timeout
+    try {
+      pdfResponse = await safeFetch(pdfUrl, {
+        headers: { "User-Agent": "PosterApp-Paper-Downloader/1.0 (academic research tool)" },
+        timeoutMs: 60_000,
       })
-
-      if ([301, 302, 303, 307, 308].includes(res.status)) {
-        const location = res.headers.get("location")
-        if (!location) {
-          return NextResponse.json({ error: "Redirect location header missing" }, { status: 502 })
-        }
-        currentUrl = new URL(location, currentUrl).toString()
-        continue
-      }
-
-      pdfResponse = res
-      break
+    } catch (fetchErr) {
+      const msg = fetchErr instanceof Error ? fetchErr.message : "Fetch failed"
+      const status = /SSRF|reserved|internal|resolved/.test(msg) ? 400 : 502
+      return NextResponse.json({ error: msg }, { status })
     }
 
     if (!pdfResponse || !pdfResponse.ok) {

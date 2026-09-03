@@ -9,7 +9,7 @@ export const FigureSchema = z.object({
 export const CardTableSchema = z.object({
   hasHeader: z.boolean().optional(),
   caption: z.string().nullable().optional(),
-  rows: z.array(z.array(z.any())).optional(),
+  rows: z.array(z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])).max(64)).max(500).optional(),
 })
 
 export const CardSchema = z.object({
@@ -43,7 +43,7 @@ export const AssetSchema = z.object({
   snippet: z.string().nullable().optional(),
   thumbnailUrl: z.string().nullable().optional(),
   caption: z.string().nullable().optional(),
-  tableRows: z.any().nullable().optional(),
+  tableRows: z.array(z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])).max(64)).max(500).nullable().optional(),
   assignedCardId: z.string().nullable().optional(),
   assignedSlot: z.string().nullable().optional(),
 })
@@ -74,6 +74,27 @@ export const OutputSchema = z.object({
   cards: z.array(CardSchema).optional(),
 })
 
+/** Loosely-typed but bounded: agent events are UI history, not executable data. */
+export const AgentEventSchema = z
+  .object({
+    id: z.string().max(128),
+    ts: z.string().max(64),
+    kind: z.string().max(32),
+    status: z.string().max(32),
+    title: z.string().max(512),
+    detail: z.string().max(20_000).nullable().optional(),
+  })
+  .passthrough()
+
+/** assistant-ui ThreadMessage: content is an array of typed parts. Bound size only. */
+export const ChatMessageSchema = z
+  .object({
+    id: z.string().max(128),
+    role: z.string().max(32),
+  })
+  .passthrough()
+  .refine((m) => JSON.stringify(m).length <= 200_000, { message: "Chat message too large" })
+
 /**
  * Schema for updating a workspace via PUT.
  * Accepts both legacy flat format (posterTitle, templateName, cards)
@@ -96,8 +117,8 @@ export const WorkspaceSchema = z.object({
   // Shared workspace data
   assets: z.array(AssetSchema).optional(),
   ingestFiles: z.array(IngestFileSchema).optional(),
-  agentEvents: z.any().nullable().optional(),
-  chatMessages: z.any().nullable().optional(),
+  agentEvents: z.array(AgentEventSchema).max(500).nullable().optional(),
+  chatMessages: z.array(ChatMessageSchema).max(500).nullable().optional(),
 })
 
 export const WorkspaceCreateSchema = z.object({

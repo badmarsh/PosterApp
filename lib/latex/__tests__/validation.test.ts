@@ -69,3 +69,18 @@ describe("LaTeX Validation", () => {
     expect(levelFromMessages(msgs)).toBe("invalid")
   })
 })
+
+describe("hasUnsafeLatex — bypass vectors", () => {
+  it("rejects makeatletter/@@input file reads (including inside math)", () => {
+    expect(hasUnsafeLatex("x $\\makeatletter\\@@input{/etc/hostname}\\makeatother$")).not.toEqual([])
+  })
+  it("rejects scantokens, pdffiledump, directlua and caret notation", () => {
+    expect(hasUnsafeLatex("\\scantokens{}")).not.toEqual([])
+    expect(hasUnsafeLatex("\\pdffiledump offset 0 length 10 {main.tex}")).not.toEqual([])
+    expect(hasUnsafeLatex("\\directlua{os.execute('id')}")).not.toEqual([])
+    expect(hasUnsafeLatex("\\^^49nput{x}")).not.toEqual([])
+  })
+  it("allows ordinary prose and math", () => {
+    expect(hasUnsafeLatex("Energy $E = mc^2$ and \\textbf{bold} 50\\% done")).toEqual([])
+  })
+})

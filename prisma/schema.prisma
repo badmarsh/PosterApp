@@ -22,6 +22,7 @@ model DocumentChunk {
   workspace   Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+  @@index([workspaceId, documentId])
   @@index([embedding], map: "document_chunk_embedding_hnsw")
 }
 
@@ -30,7 +31,9 @@ model Workspace {
   name             String
   authors          String
   venue            String
-  userId           String                @default("unauthenticated")
+  /// Clerk user id of the owner. No default: a workspace must never be created
+  /// without an owner (a previous default of "unauthenticated" hid such bugs).
+  userId           String
   bibContent       String?
   revision         Int                   @default(0)
   bibKeys          Json?
@@ -49,6 +52,8 @@ model Workspace {
   thesisReviews    ThesisReview[]
   members          WorkspaceMember[]
   snapshots        WorkspaceSnapshot[]
+
+  @@index([userId])
 }
 
 /// Access is deliberately modelled separately from Clerk.  The userId field above
@@ -57,6 +62,8 @@ model WorkspaceMember {
   id          String    @id @default(cuid())
   workspaceId String
   userId      String
+  /// "owner" | "editor" | "viewer" — enforced by a CHECK constraint in the DB
+  /// (see migration 20260903120000_indexes_and_integrity).
   role        String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -94,6 +101,8 @@ model Output {
   secondaryLogoUrl String?
   cards            Card[]
   workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 model Card {
@@ -114,6 +123,8 @@ model Card {
   sourceIds      Json?
   assignedAssets Asset[]
   output         Output  @relation(fields: [outputId], references: [id], onDelete: Cascade)
+
+  @@index([outputId])
 }
 
 model Asset {
@@ -138,6 +149,8 @@ model Asset {
   workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, filename])
+  @@index([workspaceId])
+  @@index([assignedCardId])
 }
 
 model IngestFile {
@@ -161,6 +174,8 @@ model IngestFile {
   /// "error"    — embedding failed; see server logs
   vectorStatus    String    @default("pending")
   workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 model WorkspaceSnapshot {
@@ -272,6 +287,7 @@ model GraphNode {
 
   @@unique([workspaceId, label, name])
   @@index([workspaceId])
+  @@index([workspaceId, documentId])
 }
 
 model GraphEdge {

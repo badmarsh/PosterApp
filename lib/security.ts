@@ -206,3 +206,38 @@ export function safeApiError(
   )
 }
 
+
+/** Thrown by readJsonBodyCapped when the body exceeds the limit. */
+export class PayloadTooLargeError extends Error {
+  constructor(public readonly limit: number) {
+    super(`Payload exceeds ${limit} bytes`)
+    this.name = "PayloadTooLargeError"
+  }
+}
+
+/**
+ * Reads and JSON-parses a request body while enforcing a hard byte cap on the
+ * actual stream (not just the Content-Length header, which chunked or
+ * malicious clients can omit or lie about).
+ */
+export async function readJsonBodyCapped<T = unknown>(req: Request, maxBytes: number): Promise<T> {
+  const declared = Number(req.headers.get("content-length") ?? 0)
+  if (Number.isFinite(declared) && declared > maxBytes) throw new PayloadTooLargeError(maxBytes)
+  if (!req.body) throw new SyntaxError("Empty body")
+
+  const reader = req.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => {})
+      throw new PayloadTooLargeError(maxBytes)
+    }
+    chunks.push(value)
+  }
+  const text = Buffer.concat(chunks).toString("utf8")
+  return JSON.parse(text) as T
+}

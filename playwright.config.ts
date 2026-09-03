@@ -18,7 +18,11 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
-      NEXT_PUBLIC_E2E_TEST: '1'
+      // Client-only flag: skips the sign-in redirect in the UI.
+      NEXT_PUBLIC_E2E_TEST: '1',
+      // Server-only flag: enables the auth bypass (requires NODE_ENV=development|test).
+      E2E_AUTH_BYPASS: '1',
+      NODE_ENV: 'development',
     }
   },
 })

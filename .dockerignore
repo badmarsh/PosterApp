@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.github
+workspaces
+tests
+__tests__
+playwright-report
+test-results
+*.md
+!README.md
+brochure_pdf.html
+.env*
+docs
+scratch
+output

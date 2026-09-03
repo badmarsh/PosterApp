@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+import { readJsonBodyCapped, PayloadTooLargeError } from "@/lib/security"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { generateAITextResponse } from "@/lib/ai/client"
@@ -12,11 +14,30 @@ const MAX_SOURCE_CHARS = 40_000
 const MAX_HISTORY_MESSAGES = 20
 const MAX_HISTORY_CHARS = 40_000
 
-type ChatMessage = {
-  role: "user" | "assistant" | "system"
-  content: string | unknown[]
-  images?: string[]
-}
+const MAX_CHAT_BODY_BYTES = 12 * 1024 * 1024 // covers a few images at 3 MB each
+const MAX_IMAGES_PER_MESSAGE = 4
+const MAX_IMAGE_CHARS = 4 * 1024 * 1024 // ~3 MB binary, base64-encoded
+
+const ChatMessageSchema = z.object({
+  role: z.enum(["user", "assistant", "system"]),
+  content: z.union([z.string().max(200_000), z.array(z.unknown()).max(50)]),
+  images: z
+    .array(
+      z
+        .string()
+        .max(MAX_IMAGE_CHARS)
+        .refine((v) => v.startsWith("data:image/") || /^[A-Za-z0-9+/=\s]+$/.test(v), {
+          message: "images must be data:image/* URLs or base64",
+        })
+    )
+    .max(MAX_IMAGES_PER_MESSAGE)
+    .optional(),
+})
+const ChatBodySchema = z.object({
+  messages: z.array(ChatMessageSchema).min(1).max(100),
+  selectedCardId: z.string().max(128).optional(),
+})
+type ChatMessage = z.infer<typeof ChatMessageSchema>
 
 export async function POST(
   req: NextRequest,
@@ -52,18 +73,23 @@ export async function POST(
 
 
   try {
-    const body = await req.json()
-    const {
-      messages,
-      selectedCardId,
-    }: { messages: ChatMessage[]; selectedCardId?: string } = body
-
-    if (!Array.isArray(messages) || messages.length === 0) {
+    let rawBody: unknown
+    try {
+      rawBody = await readJsonBodyCapped(req, MAX_CHAT_BODY_BYTES)
+    } catch (bodyErr) {
+      if (bodyErr instanceof PayloadTooLargeError) {
+        return NextResponse.json({ error: "Payload too large" }, { status: 413 })
+      }
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+    }
+    const parsedBody = ChatBodySchema.safeParse(rawBody)
+    if (!parsedBody.success) {
       return NextResponse.json(
-        { error: "messages array is required" },
+        { error: "Validation failed", details: parsedBody.error.format() },
         { status: 400 }
       )
     }
+    const { messages, selectedCardId }: { messages: ChatMessage[]; selectedCardId?: string } = parsedBody.data
 
     // Fetch full active output
     const full = await (await import("@/lib/prisma")).prisma.workspace.findUnique({

@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
+import { isE2eAuthBypassEnabled } from '@/lib/e2e-bypass'
 
 // Protect every API route. Asset bytes are workspace-private too.
 const isApiRoute = createRouteMatcher(['/api(.*)'])
@@ -18,7 +19,7 @@ const handler = clerkMiddleware(async (auth, req) => {
 })
 
 export default async function proxy(req: any, ev: any) {
-  if (process.env.NEXT_PUBLIC_E2E_TEST === '1' && process.env.NODE_ENV !== 'production') {
+  if (isE2eAuthBypassEnabled()) {
     return NextResponse.next()
   }
 

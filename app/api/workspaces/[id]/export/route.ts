@@ -13,6 +13,7 @@ import { materializeRemoteFigures, rewriteTexRemoteUrls } from "@/lib/latex/remo
 import os from "node:os"
 import { WORKSPACES_ROOT } from "@/lib/workspace-files"
 import { safeContentDisposition, sanitizeFilename } from "@/lib/security"
+import { rateLimitAsync } from "@/lib/rate-limit"
 
 function parseDbCard(c: { table?: unknown; figures?: unknown; sourceIds?: unknown } & Record<string, unknown>) {
   const defaultTable = { hasHeader: true, caption: "", rows: [] }
@@ -35,7 +36,16 @@ export async function GET(
   }
 
   try {
-    await requireWorkspaceAccess(workspaceId)
+    const { userId } = await requireWorkspaceAccess(workspaceId)
+
+    // Export downloads remote figures and bundles assets — bound the cost.
+    const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:${workspaceId}:export`, 10, 60_000)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many export requests", retryAfterMs },
+        { status: 429, headers: { "Retry-After": Math.ceil(retryAfterMs / 1000).toString() } }
+      )
+    }
 
     const workspace = await prisma.workspace.findUnique({
       where: { id: workspaceId },

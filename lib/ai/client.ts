@@ -21,6 +21,16 @@ const MAX_AI_FETCH_ATTEMPTS = 3
 const RETRYABLE_STATUS_CODES = new Set([429, 502, 503, 504])
 // Starting value; needs empirical tuning against the largest thesis-review payloads.
 export const DEFAULT_AI_MAX_TOKENS = 8192
+/** Upper bound on a single provider round-trip so hung upstreams never pin a worker. */
+export const DEFAULT_AI_TIMEOUT_MS = Number(process.env.AI_REQUEST_TIMEOUT_MS) || 180_000
+
+/** Combine the caller's signal (if any) with a hard per-request timeout. */
+function withDefaultTimeout(signal?: AbortSignal): AbortSignal {
+  const timeoutSignal = AbortSignal.timeout(DEFAULT_AI_TIMEOUT_MS)
+  if (!signal) return timeoutSignal
+  if (typeof AbortSignal.any === "function") return AbortSignal.any([signal, timeoutSignal])
+  return signal
+}
 
 type AIRequestOptions = Omit<AIClientOptions<any>, "schema">
 
@@ -68,7 +78,7 @@ async function fetchWithRetries(
 
       await wait(retryDelayMs(response, attempt))
     } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") throw error
+      if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) throw error
       lastNetworkError = error
 
       if (attempt < MAX_AI_FETCH_ATTEMPTS) {
@@ -118,7 +128,7 @@ async function requestCompletion(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
-  }, options.signal)
+  }, withDefaultTimeout(options.signal))
   const durationMs = Date.now() - startTime
 
   if (!response.ok) {

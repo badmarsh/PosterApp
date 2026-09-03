@@ -1,7 +1,15 @@
 /**
  * Custom Next.js server — runs Next.js + Yjs WebSocket on the same port.
  *
- * Usage: `tsx server.ts` (replaces `next dev --port 3333`)
+ * Usage:
+ *   dev : `tsx server.ts` (via scripts/dev.mjs)
+ *   prod: `pnpm build && pnpm start` (runs `tsx server.ts` with NODE_ENV=production)
+ *
+ * NOTE: plain `next start` does NOT host the Yjs WebSocket — collaboration
+ * silently degrades to reconnect loops. Always start via this file.
+ *
+ * Yjs documents are held in memory by y-websocket. Set YPERSISTENCE=<dir>
+ * to enable y-leveldb persistence so unsaved CRDT state survives restarts.
  *
  * WebSocket path: /api/yjs?workspaceId=<id>; authentication is a short-lived
  * one-time ticket in Sec-WebSocket-Protocol, never a URL query parameter.
@@ -19,7 +27,9 @@ const { setupWSConnection } = require("y-websocket/bin/utils")
 const dev = process.env.NODE_ENV !== "production"
 const port = parseInt(process.env.PORT || "3333", 10)
 
-const app = next({ dev, port, turbopack: true })
+// Turbopack is a dev-only bundler flag; in production Next serves the
+// prebuilt .next output and the option must be off.
+const app = next({ dev, port, turbopack: dev })
 const handle = app.getRequestHandler()
 
 const WORKSPACE_ID = /^[A-Za-z0-9_-]{3,64}$/
@@ -36,6 +46,13 @@ async function canAccessWorkspace(workspaceId: string, userId: string) {
 app.prepare().then(() => {
   const server = createServer((req, res) => {
     const parsedUrl = parse(req.url!, true)
+    // Liveness probe for load balancers / container orchestrators. Kept out of
+    // Next routing (and Clerk middleware) so it is cheap and unauthenticated.
+    if (parsedUrl.pathname === "/healthz") {
+      res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" })
+      res.end(JSON.stringify({ ok: true, uptime: Math.round(process.uptime()) }))
+      return
+    }
     handle(req, res, parsedUrl)
   })
 
@@ -102,6 +119,9 @@ app.prepare().then(() => {
   })
 
   const host = process.env.HOST || "0.0.0.0"
+  if (!dev && !process.env.YPERSISTENCE) {
+    console.warn("  [Yjs] YPERSISTENCE is not set — collaborative documents are in-memory only and will be lost on restart.")
+  }
   const httpServer = server.listen(port, host, () => {
     console.log(`\n  ▲ Next.js (custom server) ready on http://localhost:${port} and http://${host}:${port}`)
     console.log(`  ⚡ Yjs WebSocket ready on ws://localhost:${port}/api/yjs\n`)

@@ -1,6 +1,7 @@
 import { auth as clerkAuth } from "@clerk/nextjs/server"
 import { NextResponse } from "next/server"
 import { prisma, type Prisma } from "@/lib/prisma"
+import { isE2eAuthBypassEnabled, E2E_TEST_USER_ID } from "@/lib/e2e-bypass"
 
 export const WORKSPACE_ROLES = ["owner", "editor", "viewer"] as const
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number]
@@ -12,8 +13,8 @@ export type WorkspaceWithMembers = Prisma.WorkspaceGetPayload<{
 }>
 
 export async function auth() {
-  if (process.env.NEXT_PUBLIC_E2E_TEST === "1" && process.env.NODE_ENV !== "production" && !process.env.VITEST) {
-    return { userId: "test-user-id" }
+  if (isE2eAuthBypassEnabled()) {
+    return { userId: E2E_TEST_USER_ID }
   }
   return clerkAuth()
 }

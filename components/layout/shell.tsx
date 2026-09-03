@@ -293,6 +293,19 @@ export function Shell() {
   const [showSelector, setShowSelector] = useState(false)
   const [hasAutoLoaded, setHasAutoLoaded] = useState(false)
 
+  // Autosave is off by design; warn before the tab closes with unsaved edits.
+  const isDirty = useEditor((s) => s.isDirty)
+  const isSaving = useEditor((s) => s.isSaving)
+  useEffect(() => {
+    if (!isDirty && !isSaving) return
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ""
+    }
+    window.addEventListener("beforeunload", onBeforeUnload)
+    return () => window.removeEventListener("beforeunload", onBeforeUnload)
+  }, [isDirty, isSaving])
+
   useEffect(() => {
     if (!hasAutoLoaded) {
       if (lastWorkspaceId && lastWorkspaceId !== "prj_lattice") {
