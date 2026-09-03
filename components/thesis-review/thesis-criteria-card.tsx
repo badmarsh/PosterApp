@@ -32,6 +32,7 @@ import {
 } from "lucide-react"
 import type { ThesisSection, ThesisCriterion, ReviewLanguage, CriterionRating } from "@/lib/ai/thesis-rubric"
 import { useThesisReviewStore } from "./use-thesis-review-store"
+import { CriterionComments } from "./criterion-comments"
 import { cn } from "@/lib/utils"
 import { RATING_CLASSES } from "@/lib/thesis-review/badge-styles"
 
@@ -305,6 +306,9 @@ export function ThesisCriteriaCard({
               </ul>
             </div>
           )}
+
+          {/* Threaded multi-role comments */}
+          <CriterionComments criterionId={criterion.id} />
         </div>
       )}
     </div>

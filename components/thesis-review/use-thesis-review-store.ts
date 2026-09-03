@@ -123,6 +123,8 @@ export interface ThesisReviewGenerateOptions {
   focusCriteria?: string[]
   skipCitationAudit?: boolean
   professionalMode?: boolean
+  rubricTemplateId?: string
+  customWeights?: Record<string, number>
 }
 
 export interface ThesisReviewFormMetadata {
@@ -428,6 +430,8 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
             skipCitationAudit: opts.skipCitationAudit ?? false,
             multiAgentDebate: get().multiAgentDebate,
             professionalMode: opts.professionalMode ?? get().professionalModeOverride,
+            rubricTemplateId: opts.rubricTemplateId,
+            customWeights: opts.customWeights,
           }),
         })
 
