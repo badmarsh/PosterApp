@@ -3,6 +3,32 @@
  * they are unit-testable in isolation).
  */
 
+import { FIGURE_CAPTION_LINE_RE, type ChunkKind } from "./chunking-config"
+
+/** A typed segment: prose text vs. an atomic structural block (table/equation/figure caption). */
+export interface StructuralSegment {
+  kind: ChunkKind
+  text: string
+}
+
+/** A pipe row looks like a markdown table row: starts with `|` and contains another `|`. */
+function isTableLine(line: string): boolean {
+  return /^\s*\|.*\|\s*$/.test(line)
+}
+
+/** Separator line after a table header: |---|:--:|---|. */
+function isTableSeparatorLine(line: string): boolean {
+  return isTableLine(line) && /^\s*\|?[\s:|-]+\|?\s*$/.test(line) && line.includes("-")
+}
+
+function isDisplayMathStart(line: string): boolean {
+  return /^\s*\$\$/.test(line)
+}
+
+function isDisplayMathEnd(line: string): boolean {
+  return /\$\$\s*$/.test(line)
+}
+
 /**
  * Splits `text` into "atomic units" that must never be cut in the middle:
  *  - Markdown tables (consecutive `|`-rows) and `$$ … $$` display-math blocks
@@ -139,9 +165,17 @@ export function splitIntoSubchunks(
 
   for (const unit of units) {
     if (unit.length > maxChars) {
-      // Oversized atomic unit (giant table / equation / unbroken text)
+      // Oversized atomic unit (giant table / equation / unbroken text).
+      // Structural blocks (tables, $$ … $$ math) are NEVER hard-split mid-block:
+      // an equation cut in half produces LaTeX garbage and a table split loses
+      // its header row. They are passed through whole even when oversized;
+      // only unbroken prose is hard-split.
       flush()
-      subchunks.push(...hardSplit(unit, maxChars, overlapChars))
+      if (/^\s*\|.*\|\s*$/m.test(unit) || /\$\$/.test(unit)) {
+        subchunks.push(unit)
+      } else {
+        subchunks.push(...hardSplit(unit, maxChars, overlapChars))
+      }
       buffer = []
       bufferLen = 0
       continue
@@ -165,3 +199,151 @@ export function splitIntoSubchunks(
   return subchunks
 }
 
+
+// ---------------------------------------------------------------------------
+// Structure-aware segmentation
+// ---------------------------------------------------------------------------
+
+/**
+ * Partitions a section's Markdown text into typed segments:
+ *  - `table`         — consecutive pipe rows (kept whole, including the `|---|`
+ *                      separator; tables are NEVER split across chunks).
+ *  - `equation`      — `$$ … $$` display-math blocks, single-line or spanning
+ *                      multiple lines (never split inside).
+ *  - `figure_caption`— a MinerU/standard caption line (Obr. 1 … / Figure 2 … /
+ *                      Tab. 3 …) together with its immediately following
+ *                      non-caption text line (caption continuation/context).
+ *  - `prose`         — everything else (paragraphs, lists, headings are already
+ *                      stripped by the chunker before this stage).
+ *
+ * The segments are a partition of the *non-empty* input: joining segments in
+ * order with single "\n" reproduces the original (whitespace-trimmed) text.
+ */
+export function splitIntoStructuralSegments(text: string): StructuralSegment[] {
+  const segments: StructuralSegment[] = []
+  const lines = text.replace(/\r\n/g, "\n").split("\n")
+  let prose: string[] = []
+
+  const flushProse = () => {
+    const block = prose.join("\n").trim()
+    if (block) segments.push({ kind: "prose", text: block })
+    prose = []
+  }
+
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]
+    const trimmed = line.trim()
+
+    // Blank line → prose paragraph boundary
+    if (!trimmed) {
+      i++
+      continue
+    }
+
+    // --- Markdown table: a run of consecutive pipe rows (separator optional) ---
+    if (isTableLine(line)) {
+      flushProse()
+      const tableLines: string[] = [line]
+      i++
+      while (i < lines.length && (isTableLine(lines[i]) || isTableSeparatorLine(lines[i]))) {
+        tableLines.push(lines[i])
+        i++
+      }
+      // Only treat it as a table if it has a data row + something that looks
+      // like a separator or ≥2 rows; a single stray `|foo|` line stays prose.
+      if (tableLines.length >= 2 || tableLines.some(isTableSeparatorLine)) {
+        segments.push({ kind: "table", text: tableLines.join("\n").trim() })
+      } else {
+        prose.push(...tableLines)
+      }
+      continue
+    }
+
+    // --- Display equation: $$ … $$ (single- or multi-line; never split) ---
+    if (isDisplayMathStart(line)) {
+      flushProse()
+      const singleLine = /^.*\$\$.*\$\$\s*$/.test(line) && line.trim().length > 4
+      if (singleLine) {
+        segments.push({ kind: "equation", text: line.trim() })
+        i++
+        continue
+      }
+      const eqLines: string[] = [line]
+      i++
+      while (i < lines.length) {
+        eqLines.push(lines[i])
+        if (isDisplayMathEnd(lines[i])) {
+          i++
+          break
+        }
+        i++
+      }
+      segments.push({ kind: "equation", text: eqLines.join("\n").trim() })
+      continue
+    }
+
+    // --- Figure / table caption line: keep with one following text line ---
+    if (FIGURE_CAPTION_LINE_RE.test(line)) {
+      flushProse()
+      const captionLines: string[] = [line]
+      i++
+      // Continuation of a wrapped caption: next non-structural, non-blank line
+      if (i < lines.length) {
+        const next = lines[i].trim()
+        if (next && !isTableLine(lines[i]) && !isDisplayMathStart(lines[i]) && !FIGURE_CAPTION_LINE_RE.test(lines[i])) {
+          captionLines.push(lines[i])
+          i++
+        }
+      }
+      segments.push({ kind: "figure_caption", text: captionLines.join("\n").trim() })
+      continue
+    }
+
+    prose.push(line)
+    i++
+  }
+  flushProse()
+  return segments
+}
+
+/**
+ * Table embedding text: `heading + column names + row text`.
+ *
+ * Embedding raw pipe rows leaves the model spending its 512-token window on
+ * `|---|---|` scaffolding. Instead we flatten the table into a compact
+ * "columns: A, B, C. Rows: A=1, B=2 …" form that matches how natural-language
+ * queries ("what accuracy did the model achieve?") land in vector space.
+ * The original Markdown is still stored as chunk content for display.
+ */
+export function buildTableEmbeddingText(markdownTable: string, heading: string | null): string {
+  const rows = markdownTable
+    .split("\n")
+    .filter((l) => isTableLine(l))
+    .map((l) =>
+      l
+        .trim()
+        .replace(/^\||\|$/g, "")
+        .split("|")
+        .map((c) => c.trim())
+        .filter((c) => c.length > 0)
+    )
+    .filter((cells) => !(cells.length > 0 && cells.every((c) => /^:?-{2,}:?$/.test(c))))
+
+  if (rows.length === 0) return heading ? `${heading}: ${markdownTable.slice(0, 800)}` : markdownTable.slice(0, 800)
+
+  const header = rows[0]
+  const dataRows = rows.slice(1)
+  const parts: string[] = []
+  if (heading) parts.push(heading)
+  parts.push(`Columns: ${header.join(", ")}`)
+  const flattenedRows = dataRows
+    .slice(0, 12)
+    .map((cells) =>
+      cells
+        .map((cell, idx) => (header[idx] ? `${header[idx]} = ${cell}` : cell))
+        .join(", ")
+    )
+  parts.push(`Rows: ${flattenedRows.join("; ")}`)
+  return parts.join(". ").slice(0, 1200)
+}

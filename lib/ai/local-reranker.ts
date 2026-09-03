@@ -1,20 +1,24 @@
 /**
  * Local cross-encoder reranker (self-hosted, no API calls).
  *
- * Model: Xenova/bge-reranker-base — multilingual (covers SK/CS/EN), ONNX,
- * runs on the same @xenova/transformers WASM runtime as the embedder.
+ * Model: Xenova/bge-reranker-v2-m3 — multilingual (covers SK/CS/EN and ~100
+ * other languages), ONNX, runs on the same @xenova/transformers WASM runtime
+ * as the embedder. It is substantially stronger than bge-reranker-base on
+ * multilingual academic text; the older ~280 MB base model was English-biased.
+ * Override with AI_RERANKER_MODEL (set AI_RERANKER_MODEL=Xenova/ms-marco-MiniLM-L-6-v2
+ * for the small English-only option on memory-constrained hosts).
  * A cross-encoder reads (query, passage) *jointly* and is far more accurate
  * than bi-encoder cosine + keyword heuristics for the final top-K.
  *
- * Failure policy: any model error → `null` (callers keep the heuristic order),
- * and the health flag is surfaced through rag-stats.
+ * Failure policy: any model error → `null` (callers keep the *normalised*
+ * heuristic order), and the health flag is surfaced through rag-stats.
  */
 
 import { env, AutoTokenizer, AutoModelForSequenceClassification } from "@xenova/transformers"
 
 env.allowLocalModels = false
 
-export const RERANKER_MODEL = process.env.AI_RERANKER_MODEL || "Xenova/bge-reranker-base"
+export const RERANKER_MODEL = process.env.AI_RERANKER_MODEL || "Xenova/bge-reranker-v2-m3"
 export const RERANKER_ENABLED = process.env.AI_RERANKER_ENABLED !== "false"
 /** Passage text longer than this is truncated (tokens ≈ chars/3 for SK) to keep within 512-token pairs. */
 const MAX_PASSAGE_CHARS = 1_400

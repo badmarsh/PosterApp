@@ -33,6 +33,25 @@ export const CHUNK_SIZE_LONG = 1500
 export const CHUNK_OVERLAP = 150
 
 /**
+ * Chunk structural kinds emitted by the structure-aware chunker.
+ * MinerU already marks tables (`| … |` blocks), display equations
+ * (`$$ … $$`) and figure captions (`Obr. 1 …` / `Figure 1 …` lines)
+ * in its Markdown; the chunker keeps each such block whole.
+ */
+export type ChunkKind = "prose" | "table" | "equation" | "figure_caption"
+
+/** Marker used to label non-prose structural chunks (kept stable for migration). */
+export const CHUNK_KINDS: readonly ChunkKind[] = ["prose", "table", "equation", "figure_caption"] as const
+
+/**
+ * Caption patterns that MinerU/typical theses emit directly before/after a
+ * figure. Lines matching these (plus one following text line) become
+ * figure_caption chunks so figure context is retrievable on its own.
+ */
+export const FIGURE_CAPTION_LINE_RE =
+  /^\s*(?:#{1,6}\s*)?(?:obr\.?\s*č?\.?\s*\d|obrázok\s*č?\.?\s*\d|tab\.?\s*č?\.?\s*\d|fig(?:ure)?\.?\s*\d|image\s*\d|graf\s*č?\.?\s*\d|schéma\s*č?\.?\s*\d)\b/i
+
+/**
  * Resolves the appropriate chunk size for a given markdown document length.
  *
  * @param markdownLength  Length of the full markdown string in characters.

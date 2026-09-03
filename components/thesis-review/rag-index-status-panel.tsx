@@ -36,6 +36,7 @@ interface ChunkDocument {
   chunkCount: number
   embeddedCount: number
   avgTokens: number
+  kindCounts?: { table: number; equation: number; figure_caption: number }
   lastIngestedAt: string
 }
 
@@ -52,6 +53,7 @@ export interface RagStats {
   totalEmbedded: number
   totalDocuments: number
   avgTokensPerChunk: number
+  chunkKindCounts?: { prose: number; table: number; equation: number; figure_caption: number }
   hnswIndexReady: boolean
   embeddingModel: string
   embeddingDimensions: number
@@ -64,8 +66,21 @@ export interface RagStats {
     totalFailures: number
     totalPromptTokens: number
     totalCompletionTokens: number
-    lastHour: { calls: number; totalTokens: number }
+    totalCostUsd?: number
+    lastHour: { calls: number; totalTokens: number; costUsd?: number }
     breakers: Record<string, { state: string; failures: number }>
+    byModel?: Record<string, { calls: number; failures: number; failureRate: number; avgDurationMs: number; costUsd: number; lastFailureAt: string | null }>
+  }
+  aiBudget?: {
+    day: string
+    budgetUsd: number
+    spentUsd: number
+    remainingUsd: number
+    overBudget: boolean
+    utilization: number
+    calls: number
+    promptTokens: number
+    completionTokens: number
   }
 }
 
@@ -75,6 +90,23 @@ interface SearchResult {
   snippet: string
   similarity: number
   tokens: number | null
+  kind?: string
+}
+
+const CHUNK_KIND_LABELS: Record<string, { sk: string; className: string }> = {
+  table: { sk: "Tabuľka", className: "border-sky-400/40 bg-sky-500/10 text-sky-600 dark:text-sky-300" },
+  equation: { sk: "Rovnica", className: "border-violet-400/40 bg-violet-500/10 text-violet-600 dark:text-violet-300" },
+  figure_caption: { sk: "Obrázok", className: "border-amber-400/40 bg-amber-500/10 text-amber-600 dark:text-amber-300" },
+  prose: { sk: "Text", className: "border-border/70 bg-muted/40 text-muted-foreground" },
+}
+
+function ChunkKindBadge({ kind }: { kind?: string }) {
+  const meta = CHUNK_KIND_LABELS[kind ?? "prose"] ?? CHUNK_KIND_LABELS.prose
+  return (
+    <Badge variant="outline" className={`text-[10px] font-normal px-1.5 py-0 ${meta.className}`}>
+      {meta.sk}
+    </Badge>
+  )
 }
 
 interface Props {
@@ -301,6 +333,61 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
             </div>
           )}
 
+          {/* Structure-aware chunk kinds (Part 7) */}
+          {stats?.chunkKindCounts && stats.totalChunks > 0 && (
+            <div className="rounded-xl border bg-card p-3.5 space-y-2">
+              <span className="text-xs font-semibold text-foreground flex items-center gap-2">
+                <Database className="size-3.5 text-muted-foreground" />
+                Štruktúra blokov
+              </span>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                {[
+                  { label: "Tabuľky", value: stats.chunkKindCounts.table, kind: "table" as const },
+                  { label: "Rovnice", value: stats.chunkKindCounts.equation, kind: "equation" as const },
+                  { label: "Obrázky", value: stats.chunkKindCounts.figure_caption, kind: "figure_caption" as const },
+                  { label: "Text", value: stats.chunkKindCounts.prose, kind: "prose" as const },
+                ].map((c) => (
+                  <div key={c.kind} className="space-y-1">
+                    <p className="text-lg font-bold text-foreground tabular-nums">{c.value.toLocaleString("sk-SK")}</p>
+                    <ChunkKindBadge kind={c.kind} />
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Tabuľky a rovnice sa nikdy nerozdeľujú uprostred; tabuľky sa embedujú ako „nadpis + hlavička + riadky“.
+              </p>
+            </div>
+          )}
+
+          {/* Daily AI budget (Part 7) */}
+          {stats?.aiBudget && (
+            <div className="rounded-xl border bg-card p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground">Denný AI rozpočet · {stats.aiBudget.day}</span>
+                <span className={`text-xs font-semibold tabular-nums ${stats.aiBudget.overBudget ? "text-destructive" : "text-foreground"}`}>
+                  ${stats.aiBudget.spentUsd.toFixed(3)} / ${stats.aiBudget.budgetUsd.toFixed(2)}
+                </span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${stats.aiBudget.overBudget ? "bg-destructive" : stats.aiBudget.utilization > 0.7 ? "bg-amber-500" : "bg-primary"}`}
+                  style={{ width: `${Math.min(100, Math.round(stats.aiBudget.utilization * 100))}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>
+                  {stats.aiBudget.calls.toLocaleString("sk-SK")} volaní ·{" "}
+                  {Math.round((stats.aiBudget.promptTokens + stats.aiBudget.completionTokens) / 1000)}k tokenov
+                </span>
+                {stats.aiBudget.overBudget ? (
+                  <span className="text-destructive font-medium">Mäkký stop — voliteľné volania pozastavené</span>
+                ) : (
+                  <span>Zostáva ${stats.aiBudget.remainingUsd.toFixed(2)}</span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Active indexed documents overview */}
           {stats && stats.documents.length > 0 && (
             <div className="rounded-xl border bg-card p-3.5 space-y-3">
@@ -339,9 +426,14 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
                             {formatDocumentDisplayName(doc.name, doc.detectedTopic)}
                           </span>
                         </div>
-                        <Badge variant="secondary" className="text-[10px] font-mono shrink-0 px-2 py-0.5">
-                          {doc.chunkCount} {pluralizeSk(doc.chunkCount, "chunk", "chunky", "chunkov")}
-                        </Badge>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {doc.kindCounts && doc.kindCounts.table > 0 && <ChunkKindBadge kind="table" />}
+                          {doc.kindCounts && doc.kindCounts.equation > 0 && <ChunkKindBadge kind="equation" />}
+                          {doc.kindCounts && doc.kindCounts.figure_caption > 0 && <ChunkKindBadge kind="figure_caption" />}
+                          <Badge variant="secondary" className="text-[10px] font-mono px-2 py-0.5">
+                            {doc.chunkCount} {pluralizeSk(doc.chunkCount, "chunk", "chunky", "chunkov")}
+                          </Badge>
+                        </div>
                       </div>
                       {/* Embedding progress bar */}
                       <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
@@ -371,8 +463,10 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
               <p className="text-[11px] text-muted-foreground font-mono">
                 {stats.aiUsage.totalCalls} volaní · {stats.aiUsage.totalFailures} zlyhaní ·{" "}
                 {(stats.aiUsage.totalPromptTokens + stats.aiUsage.totalCompletionTokens).toLocaleString("sk-SK")} tokenov
+                {typeof stats.aiUsage.totalCostUsd === "number" ? ` · $${stats.aiUsage.totalCostUsd.toFixed(3)}` : ""}
                 {" · posledná hodina: "}
                 {stats.aiUsage.lastHour.calls} volaní / {stats.aiUsage.lastHour.totalTokens.toLocaleString("sk-SK")} tokenov
+                {typeof stats.aiUsage.lastHour.costUsd === "number" ? ` / $${stats.aiUsage.lastHour.costUsd.toFixed(3)}` : ""}
               </p>
             </div>
           )}
@@ -466,6 +560,7 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
                           <Badge variant="secondary" className="text-[10px] font-mono px-1 py-0">
                             #{i + 1}
                           </Badge>
+                          {r.kind && r.kind !== "prose" && <ChunkKindBadge kind={r.kind} />}
                           {r.heading ? (
                             <span className="text-xs font-semibold truncate text-foreground" title={r.heading}>
                               {r.heading}

@@ -583,6 +583,14 @@ export function FindingCard({
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
               <Quote className="h-3 w-3 text-primary" /> {L.evidenceLabel}
+              {primaryEvidence.chunkId && (
+                <span
+                  className="font-mono text-[10px] px-1.5 py-0 rounded border border-primary/30 bg-primary/10 text-primary tabular-nums"
+                  title={`Zdrojový blok RAG indexu: ${primaryEvidence.chunkId}${primaryEvidence.verified ? "" : " — kotva sa nenašla presne; citáciu preverte"}`}
+                >
+                  [{primaryEvidence.chunkId.slice(0, 8)}]
+                </span>
+              )}
               {renderEvidenceState(primaryEvidence)}
             </span>
             <Button

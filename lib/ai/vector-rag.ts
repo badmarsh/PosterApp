@@ -35,8 +35,8 @@
  */
 
 import { prisma } from "@/lib/prisma"
-import { splitIntoAtomicUnits } from "./text-splitter"
 import { Prisma } from "@prisma/client"
+import { splitIntoAtomicUnits } from "./text-splitter"
 import { generateLocalEmbedding } from "./local-embeddings"
 import { crossEncoderScores } from "./local-reranker"
 import type { ReviewLanguage, ThesisMetadata } from "./thesis-rubric"
@@ -235,7 +235,7 @@ export async function generateHypotheticalDocument(
  */
 export async function generateHypotheses(
   criteria: Array<{ id: string; label: string; guidance: string }>,
-  ctx: { thesisTitle?: string; domainContext: string; lang: ReviewLanguage; model: string }
+  ctx: { thesisTitle?: string; domainContext: string; lang: ReviewLanguage; model: string; workspaceId?: string }
 ): Promise<Record<string, string>> {
   if (process.env.AI_HYDE_LLM === "false" || criteria.length === 0) return {}
   if (process.env.VITEST) return {}
@@ -250,6 +250,10 @@ export async function generateHypotheses(
       temperature: 0.4,
       maxTokens: 2048,
       signal: AbortSignal.timeout(45_000),
+      workspaceId: ctx.workspaceId,
+      // HyDE is a retrieval-quality enhancement, not essential — the template
+      // HyDE path covers budget-exhausted / failure cases.
+      optional: true,
     })
     return res.hypotheses ?? {}
   } catch (err) {
@@ -292,7 +296,7 @@ async function retrieveSingleQuery(
   queryText: string,
   limit: number,
   documentId?: string
-): Promise<Array<{ id: string; heading: string | null; content: string; tokens: number; similarity: number }>> {
+): Promise<Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; similarity: number }>> {
   const docCondition = documentId
     ? Prisma.sql`AND "documentId" = ${documentId}`
     : Prisma.empty
@@ -317,6 +321,7 @@ async function retrieveSingleQuery(
       heading: string | null
       content: string
       tokens: number
+      kind: string
       similarity: number
     }>>`
     WITH vector_search AS (
@@ -344,6 +349,7 @@ async function retrieveSingleQuery(
       d.heading,
       d.content,
       d.tokens,
+      d.kind,
       (
         COALESCE(0.7 / (60.0 + v.rank_vec), 0.0) +
         COALESCE(0.3 / (60.0 + f.rank_fts), 0.0)
@@ -357,9 +363,12 @@ async function retrieveSingleQuery(
   `
   }
 
-  const rows = typeof prisma.$transaction === "function"
-    ? await prisma.$transaction(async (tx) => runQuery(tx))
-    : await runQuery(prisma)
+  // Real PrismaClient exposes $transaction (used for the SET LOCAL GUCs);
+  // test mocks expose only $queryRaw, which runQuery uses directly.
+  const rows =
+    typeof prisma.$transaction === "function"
+      ? await prisma.$transaction(async (tx: any) => runQuery(tx))
+      : await runQuery(prisma)
   return rows
 }
 
@@ -385,7 +394,7 @@ export async function searchHybrid(
     /** LLM-written hypothetical passage (see generateHypotheses); takes precedence over the template HyDE. */
     hypothesis?: string
   }
-): Promise<Array<{ id: string; heading: string | null; content: string; tokens: number; similarity: number }>> {
+): Promise<Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; similarity: number }>> {
   const useHyDE = opts?.useHyDE ?? true
   const criterionExpansion = opts?.criterionExpansion ?? ""
 
@@ -445,8 +454,22 @@ export async function searchHybrid(
   const span = maxS - minS
   return fused.map(({ chunk, rrfScore }) => ({
     ...chunk,
+    kind: chunk.kind ?? "prose",
     similarity: span > 0 ? (rrfScore - minS) / span : 1,
   }))
+}
+
+/** Fetches a set of chunks by ID (used for citation-anchor verification & UI jump-to-source). */
+export async function fetchChunksByIds(
+  workspaceId: string,
+  chunkIds: string[]
+): Promise<Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; documentId: string }>> {
+  if (chunkIds.length === 0) return []
+  const ids = Array.from(new Set(chunkIds)).slice(0, 100)
+  return prisma.documentChunk.findMany({
+    where: { id: { in: ids }, workspaceId },
+    select: { id: true, heading: true, content: true, tokens: true, kind: true, documentId: true },
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -541,9 +564,9 @@ export function applyMMR(
  */
 export async function rerankChunks(
   query: string,
-  chunks: Array<{ id: string; content: string; heading: string | null; similarity?: number }>,
+  chunks: Array<{ id: string; content: string; heading: string | null; kind?: string; similarity?: number }>,
   options?: { criterionId?: string; rerankPool?: number; topN?: number }
-): Promise<Array<{ id: string; content: string; heading: string | null; similarity?: number; relevanceScore: number; crossEncoderScore?: number }>> {
+): Promise<Array<{ id: string; content: string; heading: string | null; kind?: string; similarity?: number; relevanceScore: number; crossEncoderScore?: number }>> {
   const queryTokens = new Set(
     query.toLowerCase().split(/\s+/).filter((t) => t.length > 3)
   )
@@ -591,12 +614,27 @@ export async function rerankChunks(
     return { ...c, relevanceScore: score }
   })
 
-  const heuristic = scored.sort((a, b) => b.relevanceScore - a.relevanceScore)
+  // Min-max normalise the heuristic score onto [0,1] *before* it meets the
+  // cross-encoder. Raw scores are (normalised RRF similarity 0–1) plus additive
+  // boosts (~+0.15–0.4) — they previously saturated the `Math.min(1, …)` prior,
+  // making the heuristic contribution constant; after normalisation it is a
+  // genuine, commensurable prior regardless of whether the cross-encoder runs.
+  const heuristicSorted = scored.sort((a, b) => b.relevanceScore - a.relevanceScore)
+  const hMin = heuristicSorted.length ? heuristicSorted[heuristicSorted.length - 1].relevanceScore : 0
+  const hMax = heuristicSorted.length ? heuristicSorted[0].relevanceScore : 1
+  const hSpan = hMax - hMin
+  const heuristic = heuristicSorted.map((c) => ({
+    ...c,
+    // Min-max normalise onto [0,1] so the heuristic is commensurable with the
+    // cross-encoder; keep the raw score for a single (tie-free) candidate.
+    relevanceScore: heuristicSorted.length > 1 && hSpan > 0 ? (c.relevanceScore - hMin) / hSpan : c.relevanceScore,
+  }))
 
   // Stage 5b — cross-encoder rerank of the heuristic top-N. The cross-encoder
-  // reads (query, passage) jointly and decides the final order; the heuristic
-  // score is folded in as a small prior so ties/near-ties respect section
-  // alignment. Falls back to pure heuristic order if the model is unavailable.
+  // reads (query, passage) jointly and decides the final order; the normalised
+  // heuristic score is folded in as a small prior so ties/near-ties respect
+  // section alignment. Falls back to pure heuristic order if the model is
+  // unavailable (kept at [0,1] by the normalisation above).
   const candidates = heuristic.slice(0, options?.rerankPool ?? 24)
   const ce = await crossEncoderScores(query, candidates.map((c) => (c.heading ? `${c.heading}\n${c.content}` : c.content)))
   if (!ce) return heuristic.slice(0, options?.topN ?? 10)
@@ -607,7 +645,7 @@ export async function rerankChunks(
   const merged = candidates
     .map((c, i) => {
       const ceNorm = (ce[i] - ceMin) / span // [0,1]
-      return { ...c, crossEncoderScore: ce[i], relevanceScore: 0.8 * ceNorm + 0.2 * Math.min(1, c.relevanceScore) }
+      return { ...c, crossEncoderScore: ce[i], relevanceScore: 0.8 * ceNorm + 0.2 * c.relevanceScore }
     })
     .sort((a, b) => b.relevanceScore - a.relevanceScore)
   return merged.slice(0, options?.topN ?? 10)
@@ -740,7 +778,7 @@ export async function retrieveForCriterion(
     lang?: ReviewLanguage
   } = {}
 ): Promise<{
-  chunks: Array<{ id: string; heading: string | null; content: string; tokens: number; relevanceScore: number }>
+  chunks: Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; relevanceScore: number }>
   /** Serialized community summary block — prepend to LLM prompt for global context */
   communityContext: string
 }> {
@@ -787,6 +825,7 @@ export async function retrieveForCriterion(
       heading: c.heading,
       content: c.content,
       tokens: Math.ceil(c.content.length / 4),
+      kind: (c as { kind?: string }).kind ?? "prose",
       relevanceScore: c.relevanceScore ?? c.similarity ?? 0,
     })),
     communityContext,

@@ -20,6 +20,7 @@ import { ExpertReviewWorkspace } from "./expert-review-workspace"
 import { AnalysisPlanPanel } from "./analysis-plan-panel"
 import { RagIndexStatusPanel, type RagStats } from "./rag-index-status-panel"
 import { ThesisWorkflowStepper } from "./thesis-workflow-stepper"
+import { ReviewGenerationProgress } from "./review-generation-progress"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useEditor } from "@/components/editor-store"
@@ -51,6 +52,8 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
     generateAnalysisPlan,
     isGenerating,
     isGeneratingPlan,
+    generationJob,
+    cancelGeneration,
     generateError,
     clearErrors,
     sourceMarkdown: storeSourceMarkdown,
@@ -220,30 +223,38 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
         <div className="rounded-xl border bg-card text-card-foreground shadow-2xs overflow-hidden">
           <div className="p-5 space-y-4">
             {isGenerating || isGeneratingPlan ? (
-              <div className="flex flex-col items-center justify-center space-y-4 py-8 text-center animate-fade-in">
-                <div className="relative">
-                  <div className="absolute inset-0 rounded-full blur-xl bg-primary/20 animate-pulse" />
-                  <Loader2 className="size-12 text-primary animate-spin relative z-10" />
-                </div>
-                <div className="space-y-1 max-w-md">
-                  <h3 className="text-base font-bold text-foreground">
-                    {isGeneratingPlan
-                      ? "Analyzujem štruktúru a pripravujem plán posudku…"
-                      : "Umelá inteligencia generuje odborný posudok…"}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {isGeneratingPlan
-                      ? "Kontrola výskumných cieľov, metodiky a odporúčaných štandardov."
-                      : "Prechádzanie vektorových dôkazov cez 12 rubrík, audit citácií a formulácia otázok na obhajobu (60 – 90 s)."}
-                  </p>
-                </div>
-                <div className="w-full max-w-sm space-y-2 pt-2">
-                  <div className="h-2 w-full bg-muted overflow-hidden rounded-full">
-                    <div className="h-full w-2/3 bg-primary animate-pulse rounded-full" />
+              isGenerating && generationJob ? (
+                <ReviewGenerationProgress
+                  job={generationJob}
+                  language={formMetadata.language}
+                  onCancel={() => cancelGeneration(workspaceId)}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center space-y-4 py-8 text-center animate-fade-in">
+                  <div className="relative">
+                    <div className="absolute inset-0 rounded-full blur-xl bg-primary/20 animate-pulse" />
+                    <Loader2 className="size-12 text-primary animate-spin relative z-10" />
                   </div>
-                  <span className="text-[11px] text-muted-foreground font-medium">Spracovávam sémantický kontext…</span>
+                  <div className="space-y-1 max-w-md">
+                    <h3 className="text-base font-bold text-foreground">
+                      {isGeneratingPlan
+                        ? "Analyzujem štruktúru a pripravujem plán posudku…"
+                        : "Umelá inteligencia generuje odborný posudok…"}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {isGeneratingPlan
+                        ? "Kontrola výskumných cieľov, metodiky a odporúčaných štandardov."
+                        : "Prechádzanie vektorových dôkazov cez 12 rubrík, audit citácií a formulácia otázok na obhajobu (5 – 20 min)."}
+                    </p>
+                  </div>
+                  <div className="w-full max-w-sm space-y-2 pt-2">
+                    <div className="h-2 w-full bg-muted overflow-hidden rounded-full">
+                      <div className="h-full w-2/3 bg-primary animate-pulse rounded-full" />
+                    </div>
+                    <span className="text-[11px] text-muted-foreground font-medium">Spracovávam sémantický kontext…</span>
+                  </div>
                 </div>
-              </div>
+              )
             ) : (
               <>
                 {/* Document & Author Summary */}

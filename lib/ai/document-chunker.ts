@@ -16,10 +16,11 @@ import { Prisma } from "@prisma/client"
 import { generateLocalEmbedding } from "@/lib/ai/local-embeddings"
 import { extractAndStoreGraphEntities } from "./graph-extractor"
 import { classifySectionKind, type SectionKind } from "@/lib/ai/thesis-context"
-import { resolveChunkSize, CHUNK_OVERLAP } from "./chunking-config"
-import { splitIntoSubchunks } from "./text-splitter"
+import { resolveChunkSize, CHUNK_OVERLAP, type ChunkKind } from "./chunking-config"
+import { splitIntoSubchunks, splitIntoStructuralSegments, buildTableEmbeddingText } from "./text-splitter"
 
 export type { SectionKind }
+export type { ChunkKind }
 
 // ---------------------------------------------------------------------------
 // GraphRAG extraction guards
@@ -75,6 +76,8 @@ export interface DocumentChunkInput {
   sectionKind: SectionKind
   content: string
   tokens: number
+  /** Structural chunk kind — table/equation/figure_caption blocks are never split. */
+  kind: ChunkKind
 }
 
 /** Split markdown text into semantic chunks based on heading hierarchy. */
@@ -107,13 +110,21 @@ export function chunkMarkdown(
 
   const chunks: Omit<DocumentChunkInput, "workspaceId">[] = []
 
-  const addChunk = (heading: string | null, headingPath: string | null, text: string) => {
-    const trimmed = text.trim()
+  const pushStructured = (
+    heading: string | null,
+    headingPath: string | null,
+    sectionKind: SectionKind,
+    segmentText: string,
+    kind: ChunkKind
+  ) => {
+    const trimmed = segmentText.trim()
     if (trimmed.length < minChunkChars) return
 
-    const sectionKind = heading ? classifySectionKind(heading, trimmed) : "unknown"
-
-    const subchunks = splitIntoSubchunks(trimmed, maxChunkChars, overlap)
+    // Structural blocks (tables / equations / captions) are atomic: they are
+    // never split across subchunks even when oversized — splitting inside
+    // $$…$$ destroys the equation and splitting a pipe table drops its header.
+    const subchunks =
+      kind === "prose" ? splitIntoSubchunks(trimmed, maxChunkChars, overlap) : [trimmed]
 
     if (subchunks.length === 1) {
       chunks.push({
@@ -123,6 +134,7 @@ export function chunkMarkdown(
         sectionKind,
         content: subchunks[0],
         tokens: Math.ceil(subchunks[0].length / 4), // approx 4 chars/token
+        kind,
       })
     } else {
       subchunks.forEach((slice, idx) => {
@@ -133,8 +145,24 @@ export function chunkMarkdown(
           sectionKind,
           content: slice,
           tokens: Math.ceil(slice.length / 4),
+          // Prose subchunks stay prose; structural blocks never reach this branch.
+          kind: "prose" as ChunkKind,
         })
       })
+    }
+  }
+
+  const addChunk = (heading: string | null, headingPath: string | null, text: string) => {
+    const trimmed = text.trim()
+    if (trimmed.length < minChunkChars) return
+
+    const sectionKind = heading ? classifySectionKind(heading, trimmed) : "unknown"
+
+    // Structure-aware pass: tables, $$…$$ equations and figure captions are
+    // emitted as their own chunk kinds; prose keeps the sentence-aware path.
+    const segments = splitIntoStructuralSegments(trimmed)
+    for (const segment of segments) {
+      pushStructured(heading, headingPath, sectionKind, segment.text, segment.kind)
     }
   }
 
@@ -241,7 +269,7 @@ export async function ingestDocumentChunks(
   let chunksCreated = 0
   let skipped = 0
   const graphCandidates: Array<{ sectionKind: string; content: string }> = []
-  const prepared: Array<{ heading: string | null; content: string; tokens: number; embeddingStr: string }> = []
+  const prepared: Array<{ heading: string | null; content: string; tokens: number; kind: ChunkKind; embeddingStr: string }> = []
 
   // Phase 1 — embed everything first (WASM, slow). The old chunks stay in
   // place meanwhile, so a review started during a reindex still retrieves
@@ -252,16 +280,32 @@ export async function ingestDocumentChunks(
       batch.map(async (chunk) => {
         try {
           const contextHeading = chunk.headingPath || chunk.heading
-          const embedding = await generateLocalEmbedding(
-            // Prepend hierarchical heading path for rich contextual semantic embedding
-            contextHeading
+          // Structural kinds get specialised embedding text:
+          //  - tables: "heading + column names + row text" (raw pipe scaffolding
+          //    wastes the embedding window on |---|---|)
+          //  - equations/figures: content plus a natural-language label so they
+          //    match keyword queries that don't contain LaTeX
+          let embedText: string
+          if (chunk.kind === "table") {
+            embedText = buildTableEmbeddingText(chunk.content, contextHeading)
+          } else if (chunk.kind === "equation") {
+            embedText = contextHeading
+              ? `${contextHeading}: matematický vzorec / equation. ${chunk.content.slice(0, 600)}`
+              : `matematický vzorec / equation: ${chunk.content.slice(0, 600)}`
+          } else if (chunk.kind === "figure_caption") {
+            embedText = contextHeading
               ? `${contextHeading}: ${chunk.content}`
               : chunk.content
-          )
+          } else {
+            // Prepend hierarchical heading path for rich contextual semantic embedding
+            embedText = contextHeading ? `${contextHeading}: ${chunk.content}` : chunk.content
+          }
+          const embedding = await generateLocalEmbedding(embedText)
           prepared.push({
             heading: chunk.heading,
             content: chunk.content,
             tokens: chunk.tokens,
+            kind: chunk.kind,
             embeddingStr: `[${embedding.join(",")}]`,
           })
           if (GRAPH_RAG_ENABLED && chunk.content.length >= GRAPH_EXTRACTION_MIN_CHARS) {
@@ -284,10 +328,10 @@ export async function ingestDocumentChunks(
       for (let i = 0; i < prepared.length; i += INSERT_BATCH) {
         const slice = prepared.slice(i, i + INSERT_BATCH)
         const values = slice.map(
-          (c) => Prisma.sql`(gen_random_uuid(), ${workspaceId}, ${documentId}, ${c.heading}, ${c.content}, ${c.tokens}, ${c.embeddingStr}::vector, NOW())`
+          (c) => Prisma.sql`(gen_random_uuid(), ${workspaceId}, ${documentId}, ${c.heading}, ${c.content}, ${c.tokens}, ${c.embeddingStr}::vector, NOW(), ${c.kind})`
         )
         await tx.$executeRaw`
-          INSERT INTO "DocumentChunk" (id, "workspaceId", "documentId", heading, content, tokens, embedding, "createdAt")
+          INSERT INTO "DocumentChunk" (id, "workspaceId", "documentId", heading, content, tokens, embedding, "createdAt", kind)
           VALUES ${Prisma.join(values)}
         `
         chunksCreated += slice.length
