@@ -10,7 +10,7 @@
  */
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react"
-import { useThesisReviewStore } from "./use-thesis-review-store"
+import { useScopedThesisReviewStore } from "./thesis-review-provider"
 import { EvidenceViewer } from "./evidence-viewer"
 import { FindingCard } from "./finding-card"
 import { ReportingChecklistPanel } from "./reporting-checklist-panel"
@@ -99,7 +99,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
     isSaving,
     isExporting,
     setActiveReview,
-  } = useThesisReviewStore()
+  } = useScopedThesisReviewStore()
 
   const [activeTab, setActiveTab] = useState<FilterTab>("priority")
   const [searchQuery, setSearchQuery] = useState("")

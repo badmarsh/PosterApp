@@ -13,7 +13,8 @@
  */
 
 import { useEffect, useMemo, useState } from "react"
-import { useThesisReviewStore, normalizeFormMetadataToThesisMetadata } from "./use-thesis-review-store"
+import { useScopedThesisReviewStore } from "./thesis-review-provider"
+import { normalizeFormMetadataToThesisMetadata } from "./use-thesis-review-store"
 import { ThesisMetadataPanel } from "./thesis-metadata-panel"
 import { ExpertReviewWorkspace } from "./expert-review-workspace"
 import { AnalysisPlanPanel } from "./analysis-plan-panel"
@@ -66,7 +67,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
     loadReview,
     loadSourceDocument,
     deleteReview,
-  } = useThesisReviewStore()
+  } = useScopedThesisReviewStore()
 
   // Real RAG index diagnostics, mirrored from RagIndexStatusPanel's own fetch
   const [ragStats, setRagStats] = useState<RagStats | null>(null)

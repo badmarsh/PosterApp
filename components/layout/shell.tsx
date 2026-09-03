@@ -24,6 +24,7 @@ import { BibliographyDialog } from "@/components/bibliography-dialog"
 import { AcademicSearchDialog } from "@/components/academic-search-dialog"
 
 import { CommandPalette } from "@/components/command-palette"
+import { ThesisReviewStoreProvider } from "@/components/thesis-review/thesis-review-provider"
 
 
 type MobilePane = "structure" | "preview" | "editor" | "agent"
@@ -48,49 +49,55 @@ function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: ()
     const o = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
     return o?.outputType === "thesis-review"
   })
+  const reviewOutputKey = useEditor((s) => {
+    const o = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
+    return o?.outputType === "thesis-review" ? `${s.project.id}:${o.id}` : null
+  })
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
-      <TopBar
-        structureOpen={structureOpen}
-        agentOpen={agentOpen}
-        onToggleStructure={() => setStructureOpen((v) => !v)}
-        onToggleAgent={() => setAgentOpen((v) => !v)}
-        onOpenWorkspaceSelector={onOpenWorkspaceSelector}
-        onOpenCommandPalette={() => setPaletteOpen(true)}
-      />
-      <CommandPalette
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        onToggleStructure={() => setStructureOpen((v) => !v)}
-        onOpenWorkspaceSelector={onOpenWorkspaceSelector}
-      />
-      <div className="flex min-h-0 flex-1">
-        {structureOpen ? (
-          <ErrorBoundary name="Project Settings Sidebar">
-            <ProjectSettingsSidebar />
+    <ThesisReviewStoreProvider outputKey={reviewOutputKey}>
+      <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+        <TopBar
+          structureOpen={structureOpen}
+          agentOpen={agentOpen}
+          onToggleStructure={() => setStructureOpen((v) => !v)}
+          onToggleAgent={() => setAgentOpen((v) => !v)}
+          onOpenWorkspaceSelector={onOpenWorkspaceSelector}
+          onOpenCommandPalette={() => setPaletteOpen(true)}
+        />
+        <CommandPalette
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+          onToggleStructure={() => setStructureOpen((v) => !v)}
+          onOpenWorkspaceSelector={onOpenWorkspaceSelector}
+        />
+        <div className="flex min-h-0 flex-1">
+          {structureOpen ? (
+            <ErrorBoundary name="Project Settings Sidebar">
+              <ProjectSettingsSidebar />
+            </ErrorBoundary>
+          ) : null}
+          <main className="flex min-w-0 flex-1 flex-col">
+            <ErrorBoundary name="Poster Preview">
+              <PosterPreview />
+            </ErrorBoundary>
+          </main>
+          {!isThesisReview ? (
+            <ErrorBoundary name="Right Sidebar">
+              <RightSidebar />
+            </ErrorBoundary>
+          ) : null}
+          {/* Always mounted — using CSS width-0 to hide rather than unmounting, so the
+              RightSidebar / PdfViewer ResizeObserver is not triggered by layout reflow.
+              Conditionally unmounting caused the PDF to re-render with incorrect containerWidth. */}
+          <ErrorBoundary name="Agent Panel">
+            <div style={{ display: agentOpen && !isThesisReview ? "contents" : "none" }}>
+              <AgentPanel />
+            </div>
           </ErrorBoundary>
-        ) : null}
-        <main className="flex min-w-0 flex-1 flex-col">
-          <ErrorBoundary name="Poster Preview">
-            <PosterPreview />
-          </ErrorBoundary>
-        </main>
-        {!isThesisReview ? (
-          <ErrorBoundary name="Right Sidebar">
-            <RightSidebar />
-          </ErrorBoundary>
-        ) : null}
-        {/* Always mounted — using CSS width-0 to hide rather than unmounting, so the
-            RightSidebar / PdfViewer ResizeObserver is not triggered by layout reflow.
-            Conditionally unmounting caused the PDF to re-render with incorrect containerWidth. */}
-        <ErrorBoundary name="Agent Panel">
-          <div style={{ display: agentOpen && !isThesisReview ? "contents" : "none" }}>
-            <AgentPanel />
-          </div>
-        </ErrorBoundary>
+        </div>
       </div>
-    </div>
+    </ThesisReviewStoreProvider>
   )
 }
 
@@ -156,8 +163,14 @@ function MobileShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () 
     if (selectedCardId) setPane("editor")
   }, [selectedCardId])
 
+  const reviewOutputKey = useEditor((s) => {
+    const o = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
+    return o?.outputType === "thesis-review" ? `${s.project.id}:${o.id}` : null
+  })
+
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+    <ThesisReviewStoreProvider outputKey={reviewOutputKey}>
+      <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       <TopBar
         structureOpen={pane === "structure"}
         agentOpen={pane === "agent"}
@@ -235,6 +248,7 @@ function MobileShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () 
         </MobileNavButton>
       </nav>
     </div>
+    </ThesisReviewStoreProvider>
   )
 }
 

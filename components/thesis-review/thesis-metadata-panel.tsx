@@ -29,7 +29,8 @@ import {
   GraduationCap,
   BookOpen,
 } from "lucide-react"
-import { useThesisReviewStore, normalizeFormMetadataToThesisMetadata } from "./use-thesis-review-store"
+import { useScopedThesisReviewStore } from "./thesis-review-provider"
+import { normalizeFormMetadataToThesisMetadata } from "./use-thesis-review-store"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import type { ThesisMetadata, ThesisType, ReviewerRole, ReviewLanguage } from "@/lib/ai/thesis-rubric"
@@ -190,7 +191,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
     skipCitationAudit,
     selectedFileId,
     setSelectedFileId,
-  } = useThesisReviewStore()
+  } = useScopedThesisReviewStore()
 
   const { ingestFiles, uploadFiles } = useEditor(
     useShallow((s) => ({

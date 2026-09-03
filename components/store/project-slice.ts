@@ -8,6 +8,7 @@ import type { OutputType } from "@/lib/output-types"
 import { getDefaultTemplateId, DEFAULT_STRUCTURES, getTemplateDef, buildDefaultStructure } from "@/lib/output-types"
 import { jobQueue } from "@/lib/job-queue"
 import { sanitizeCiteKeys } from "@/lib/ai/prompts"
+import { destroyThesisReviewStore, clearThesisReviewStoreRegistry } from "@/components/thesis-review/use-thesis-review-store"
 
 
 /** outputs[].cards is the persisted source of truth. `project.cards` only mirrors the active output for legacy consumers. */
@@ -77,6 +78,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         title: "Workspace loaded",
         detail: `${projectData.cards?.length || 0} cards · ${projectData.templateName || "atlas"}`,
       })
+      clearThesisReviewStoreRegistry()
       get().fetchBib(id)
       get().fetchEquations(id)
     } catch (err) {
@@ -134,6 +136,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     const index = s.project.outputs.findIndex(o => o.id === outputId)
     if (index === -1) return
     s.project.outputs.splice(index, 1)
+    destroyThesisReviewStore(`${s.project.id}:${outputId}`)
     if (s.project.activeOutputId === outputId) {
       const nextOutput = s.project.outputs[0]
       if (nextOutput) {

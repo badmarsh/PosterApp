@@ -163,7 +163,7 @@ export function normalizeFormMetadataToThesisMetadata(meta: ThesisReviewFormMeta
   }
 }
 
-interface ThesisReviewState {
+export interface ThesisReviewState {
   reviews: ThesisReviewListItem[]
   activeReview: ThesisReviewRecord | null
   sourceMarkdown: string
@@ -239,7 +239,8 @@ interface ThesisReviewState {
 // In-memory cache for source document markdown by workspace + fileId
 const sourceDocCache = new Map<string, string>()
 
-export const useThesisReviewStore = create<ThesisReviewState>()(
+function createThesisReviewStore() {
+return create<ThesisReviewState>()(
   immer((set, get) => ({
     reviews: [],
     activeReview: null,
@@ -788,6 +789,32 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     },
   }))
 )
+}
+
+// Default singleton instance — shared by tests, the Yjs collab layer and any
+// consumer that is not tied to a specific output tab.
+export const useThesisReviewStore = createThesisReviewStore()
+
+// Per-output (tab) store instances so every thesis-review tab keeps its own
+// independent review state instead of sharing one global store.
+const reviewStoreRegistry = new Map<string, ReturnType<typeof createThesisReviewStore>>()
+
+export function getThesisReviewStore(outputKey: string) {
+  let store = reviewStoreRegistry.get(outputKey)
+  if (!store) {
+    store = createThesisReviewStore()
+    reviewStoreRegistry.set(outputKey, store)
+  }
+  return store
+}
+
+export function destroyThesisReviewStore(outputKey: string) {
+  reviewStoreRegistry.delete(outputKey)
+}
+
+export function clearThesisReviewStoreRegistry() {
+  reviewStoreRegistry.clear()
+}
 
 if (typeof window !== "undefined") {
   ;(window as any).__thesisReviewStore = useThesisReviewStore
