@@ -97,6 +97,16 @@
       "cpu": [
         "x64"
       ]
-    }
+    },
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "esbuild",
+      "leveldown",
+      "msw",
+      "prisma",
+      "protobufjs",
+      "unrs-resolver"
+    ]
   }
 }
