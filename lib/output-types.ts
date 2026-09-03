@@ -58,6 +58,18 @@ export type TemplateDef = {
   detailFeatures: string[]
   latexClass: string
   colorSystem: string
+  /**
+   * TeX classes/packages this template needs that are NOT part of a base
+   * TeX Live install and are NOT vendored in `public/latex-styles/`.
+   *
+   * Compilation copies `public/latex-styles/**` and any workspace-root
+   * `.sty`/`.cls`/`.bst` into the staging dir (see
+   * `app/api/workspaces/[id]/compile/route.ts`), so anything listed here must
+   * come from the compiler image itself. The UI surfaces it as an up-front
+   * warning: a missing class is otherwise only discovered as a failed compile
+   * with an opaque log.
+   */
+  requiresClass?: string[]
 }
 
 export const TEMPLATE_REGISTRY: TemplateDef[] = [
@@ -77,6 +89,12 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
   { id: "a0poster",   outputType: "poster", label: "A0 Poster",              description: "Classic A0 layout. Raw LaTeX sections (no blocks). Color override ignored.",                    category: "core",
     colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"Blue",hex:"#1E40AF"}], layoutPreview: "poster-3col",
     detailFeatures: ["Raw LaTeX sections (no tikzposter blocks)", "Uses standard \\begin{multicols}{3}", "Minimal styling, very close to a raw document", "Note: Color overrides are ignored"], latexClass: "a0poster", colorSystem: "None" },
+  { id: "landscape",  outputType: "poster", label: "A0 Landscape",          description: "Landscape A0, 3 equal columns. For conferences that mandate landscape boards.", category: "core",
+    colors: [{id:"blue",name:"Cobalt",hex:"#2563EB"},{id:"teal",name:"Teal",hex:"#0D9488"},{id:"slate",name:"Slate",hex:"#334155"}], layoutPreview: "poster-3col",
+    detailFeatures: ["A0 LANDSCAPE (1189x841mm) — all other posters are portrait", "3 equal columns, wider and shorter than portrait", "Prefers wide tables and side-by-side figures", "Lower column budget (700u) reflects the shorter board"], latexClass: "tikzposter [landscape]", colorSystem: "Custom \\definecolorstyle" },
+  { id: "betterposter", outputType: "poster", label: "Better Poster (Morrison)", description: "Landscape with a dominant centre column for one big finding, narrow detail sidebars.", category: "poster",
+    colors: [{id:"slate",name:"Slate",hex:"#1F2937"},{id:"amber",name:"Amber",hex:"#D97706"},{id:"blue",name:"Blue",hex:"#2563EB"}], layoutPreview: "poster-3col",
+    detailFeatures: ["Morrison 'big finding' layout, landscape A0", "Centre column 46% — one plain-language sentence", "Narrow 24% sidebars for methods and references", "Tightest column budget (520u) — brevity is the point"], latexClass: "tikzposter [landscape]", colorSystem: "Custom \\definecolorstyle" },
   // Slides
   { id: "beamer-metropolis", outputType: "slides", label: "Metropolis",    description: "Modern minimal theme with progress bar. (Requires 'metropolis' package).",             category: "core",
     colors: [{id:"charcoal",name:"Charcoal",hex:"#2D3748"},{id:"blue",name:"Blue",hex:"#3B82F6"},{id:"green",name:"Green",hex:"#10B981"}], layoutPreview: "slides-wide",
@@ -115,6 +133,38 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
   { id: "pos-proceedings",   outputType: "paper", label: "PoS Proceedings",     description: "SISSA Proceedings of Science format using pos package.", category: "institutional",
     colors: [{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
     detailFeatures: ["Complies with SISSA Proceedings of Science format", "Uses pos package and linenumbers", "Single-column proceedings layout"], latexClass: "article + pos", colorSystem: "None" },
+  // Physics / HEP venues
+  { id: "elsarticle",   outputType: "paper", label: "Elsevier (elsarticle)",  description: "Elsevier journals (NIM A, Physics Letters B). Single-column preprint form.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"orange",name:"Elsevier Orange",hex:"#E9711C"}], layoutPreview: "paper-single",
+    detailFeatures: ["Elsevier elsarticle class (ships with TeX Live)", "Single-column preprint layout", "frontmatter block with journal line", "Standard figure/table floats"], latexClass: "elsarticle [preprint]", colorSystem: "None" },
+  { id: "revtex-aps",   outputType: "paper", label: "APS REVTeX (PRD/PRL)",   description: "American Physical Society two-column journal format.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"APS Blue",hex:"#00629B"}], layoutPreview: "paper-twocol",
+    detailFeatures: ["REVTeX 4.2, aps/prd options", "Two-column reprint layout", "Figures span columns via figure*", "Ships with TeX Live"], latexClass: "revtex4-2 [reprint,aps,prd]", colorSystem: "None" },
+  { id: "epj-woc",      outputType: "paper", label: "EPJ Web of Conferences", description: "Standard HEP conference proceedings (CHEP, Quark Matter).", category: "institutional",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"EPJ Blue",hex:"#1F4E79"}], layoutPreview: "paper-single",
+    detailFeatures: ["EPJ Web of Conferences proceedings format", "Single-column layout", "Author/institute blocks with email", "Requires the 'webofc' class"], latexClass: "webofc", colorSystem: "None", requiresClass: ["webofc"] },
+  { id: "iopart",       outputType: "paper", label: "IOP (iopart)",           description: "IOP Publishing journals (J. Phys. series, Meas. Sci. Technol.).", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"green",name:"IOP Green",hex:"#00847C"}], layoutPreview: "paper-single",
+    detailFeatures: ["IOP Publishing journal format", "Single-column layout", "\\address block for affiliations", "Requires the 'iopart' class"], latexClass: "iopart", colorSystem: "None", requiresClass: ["iopart"] },
+  // ML / CS conferences
+  { id: "neurips",      outputType: "paper", label: "NeurIPS",                description: "NeurIPS single-column camera-ready format.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"purple",name:"NeurIPS Purple",hex:"#6B4FA0"}], layoutPreview: "paper-single",
+    detailFeatures: ["NeurIPS single-column layout", "'final' option prints author names", "Do not use figure* — single column", "Requires 'neurips_2026.sty'"], latexClass: "article + neurips_2026", colorSystem: "None", requiresClass: ["neurips_2026.sty"] },
+  { id: "icml",         outputType: "paper", label: "ICML",                   description: "ICML two-column format with icmlauthorlist front matter.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"ICML Blue",hex:"#1B6CA8"}], layoutPreview: "paper-twocol",
+    detailFeatures: ["ICML two-column layout", "'accepted' option de-anonymises", "Figures span columns via figure*", "Requires 'icml2026.sty'"], latexClass: "article + icml2026", colorSystem: "None", requiresClass: ["icml2026.sty"] },
+  { id: "iclr",         outputType: "paper", label: "ICLR",                   description: "ICLR single-column conference format.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"red",name:"ICLR Red",hex:"#C0392B"}], layoutPreview: "paper-single",
+    detailFeatures: ["ICLR single-column layout", "Times body font", "Do not use figure* — single column", "Requires 'iclr2026_conference.sty'"], latexClass: "article + iclr2026_conference", colorSystem: "None", requiresClass: ["iclr2026_conference.sty"] },
+  { id: "acl",          outputType: "paper", label: "ACL / EMNLP / NAACL",    description: "ACL Rolling Review two-column NLP format.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"red",name:"ACL Red",hex:"#B31B1B"}], layoutPreview: "paper-twocol",
+    detailFeatures: ["Shared ACL/EMNLP/NAACL style", "Two-column layout with microtype", "Figures span columns via figure*", "Requires 'acl.sty'"], latexClass: "article + acl", colorSystem: "None", requiresClass: ["acl.sty"] },
+  { id: "cvpr",         outputType: "paper", label: "CVPR / ICCV",            description: "CVPR two-column camera-ready format.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"teal",name:"CVPR Teal",hex:"#00838F"}], layoutPreview: "paper-twocol",
+    detailFeatures: ["CVPR/ICCV two-column layout", "'final' camera-ready (no line numbers)", "Figures span columns via figure*", "Requires 'cvpr.sty'"], latexClass: "article + cvpr", colorSystem: "None", requiresClass: ["cvpr.sty"] },
+  { id: "aaai",         outputType: "paper", label: "AAAI",                   description: "AAAI two-column format. Forbids hyperref/geometry/fancyhdr.", category: "core",
+    colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"AAAI Blue",hex:"#003A70"}], layoutPreview: "paper-twocol",
+    detailFeatures: ["AAAI two-column layout", "Style forbids hyperref/geometry/fancyhdr", "Figures span columns via figure*", "Requires 'aaai2026.sty'"], latexClass: "article + aaai2026", colorSystem: "None", requiresClass: ["aaai2026.sty"] },
   // Thesis Reviews (Posudky)
   { id: "posudok-sk", outputType: "thesis-review", label: "Slovenský posudok (STU/UK)", description: "Štandardný posudok záverečnej práce podľa slovenských vysokoškolských noriem.", category: "institutional",
     colors: [{id:"blue",name:"Navy",hex:"#003366"},{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
@@ -125,6 +175,15 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
   { id: "posudok-cs", outputType: "thesis-review", label: "Český posudek (ČVUT/MUNI)", description: "Standardní posudek závěrečné práce dle českých vysokoškolských norem.", category: "institutional",
     colors: [{id:"blue",name:"Navy",hex:"#003366"},{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
     detailFeatures: ["Formátování dle ČVUT / MUNI / VUT", "Kritéria s ECTS hodnocením", "Otázky k obhajobě a podpisový blok"], latexClass: "article [czech]", colorSystem: "None" },
+  { id: "posudok-de", outputType: "thesis-review", label: "Deutsches Gutachten", description: "Gutachten zur Abschlussarbeit nach mitteleuropäischem Hochschulstandard.", category: "core",
+    colors: [{id:"blue",name:"Navy",hex:"#003366"},{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
+    detailFeatures: ["Deutschsprachiges Gutachten (ngerman babel)", "Kriterientabelle mit ECTS-Noten", "Verteidigungsfragen und Unterschriftsfeld", "Kriterienbezeichnungen auf Englisch (Rubrik nicht übersetzt)"], latexClass: "article [ngerman]", colorSystem: "None" },
+  { id: "posudok-pl", outputType: "thesis-review", label: "Recenzja polska", description: "Recenzja pracy dyplomowej zgodna ze standardami polskich uczelni.", category: "core",
+    colors: [{id:"blue",name:"Navy",hex:"#003366"},{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
+    detailFeatures: ["Recenzja w języku polskim (polish babel)", "Tabela kryteriów z ocenami ECTS", "Pytania na obronę i pole podpisu", "Nazwy kryteriów po angielsku (rubryka nieprzetłumaczona)"], latexClass: "article [polish]", colorSystem: "None" },
+  { id: "posudok-hu", outputType: "thesis-review", label: "Magyar bírálat", description: "Záródolgozat bírálata magyar felsőoktatási szabvány szerint.", category: "core",
+    colors: [{id:"blue",name:"Navy",hex:"#003366"},{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
+    detailFeatures: ["Magyar nyelvű bírálat (magyar babel)", "Szempontok táblázata ECTS érdemjegyekkel", "Védési kérdések és aláírás mező", "A szempontok neve angolul (a rubrika nincs lefordítva)"], latexClass: "article [magyar]", colorSystem: "None" },
 ]
 
 /** Get all templates available for a given output type. */

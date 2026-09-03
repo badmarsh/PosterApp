@@ -17,8 +17,8 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { prisma } from "@/lib/prisma"
 import { generateThesisReviewLatex } from "@/lib/latex/generator-thesis-review"
-import type { ThesisReviewTemplate } from "@/lib/latex/templates-thesis"
-import type { ThesisSection, ReviewLanguage } from "@/lib/ai/thesis-rubric"
+import { reportLanguageFor, type ThesisReviewTemplate } from "@/lib/latex/templates-thesis"
+import type { ThesisSection } from "@/lib/ai/thesis-rubric"
 import { deserializeThesisReview } from "@/lib/ai/review-serializer"
 import { safeContentDisposition, sanitizeFilename } from "@/lib/security"
 import { WORKSPACES_ROOT, workspacePath } from "@/lib/workspace-files"
@@ -74,6 +74,9 @@ export async function POST(
     if (body.template) template = body.template as ThesisReviewTemplate
     else if (review.language === "en") template = "posudok-en"
     else if (review.language === "cs") template = "posudok-cs"
+    // de/pl/hu are render-only report languages: the AI review itself is
+    // still produced in sk/cs/en, but the PDF can be typeset for a German,
+    // Polish or Hungarian faculty by passing an explicit `template`.
   } catch { /* use default */ }
 
   let stage = ""
@@ -97,7 +100,7 @@ export async function POST(
       sections,
       defenseQuestions,
       citationIssues,
-      language: review.language as ReviewLanguage,
+      language: reportLanguageFor(template),
       template,
       confidentialComments: review.confidentialComments,
       includeConfidential,
@@ -234,7 +237,7 @@ export async function GET(
       sections,
       defenseQuestions,
       citationIssues,
-      language: review.language as ReviewLanguage,
+      language: reportLanguageFor(template),
       template,
       confidentialComments: review.confidentialComments,
       includeConfidential,

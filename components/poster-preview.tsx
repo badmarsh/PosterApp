@@ -53,7 +53,7 @@ import {
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { StatusIcon } from "@/components/status"
-import { COLUMN_BUDGET, estimateHeight, generateFullTemplate } from "@/lib/latex"
+import { columnBudgetFor, estimateHeight, generateFullTemplate } from "@/lib/latex"
 import type { Card, ColumnIndex, OutputConfig, Project } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 import { apiFetch } from "@/lib/api-fetch"
@@ -489,6 +489,24 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
                   </p>
                 </div>
 
+                {/* Missing-class warning: surfaced before a wasted compile */}
+                {activeTmpl.requiresClass && activeTmpl.requiresClass.length > 0 && (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 dark:border-amber-900/60 dark:bg-amber-950/30">
+                    <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+                      <span className="font-semibold">Requires{" "}
+                        {activeTmpl.requiresClass.map((c, i) => (
+                          <span key={c}>
+                            {i > 0 && ", "}
+                            <code className="font-mono">{c}</code>
+                          </span>
+                        ))}
+                      </span>{" "}
+                      — not bundled with PosterApp. If your compiler image lacks it, the build
+                      will fail. Upload the file to the workspace root to vendor it.
+                    </p>
+                  </div>
+                )}
+
                 {/* Feature bullets */}
                 <div className="flex flex-col gap-2">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -676,7 +694,8 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
   const active = card.id === selectedCardId
   const status = getStatus(card)
   const height = estimateHeight(card)
-  const pct = Math.min(100, Math.round((height / COLUMN_BUDGET) * 100))
+  const budget = columnBudgetFor(project.outputs?.find((o) => o.id === project.activeOutputId)?.templateId)
+  const pct = Math.min(100, Math.round((height / budget) * 100))
   const figs = card.figures.filter((f) => f.url.trim()).length
   const hasBullets =
     card.pattern !== "image-focused" && card.content.trim().length > 0
@@ -852,7 +871,7 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
                   }
                 />
                 <TooltipContent>
-                  Estimated fill: {pct}% ({height}u / {COLUMN_BUDGET}u budget)
+                  Estimated fill: {pct}% ({height}u / {budget}u budget)
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -906,11 +925,12 @@ function PosterColumn({ column }: { column: ColumnIndex }) {
       addCard: s.addCard,
     }))
   )
-  const cards = (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])
+  const activeOut = project.outputs?.find(o => o.id === project.activeOutputId)
+  const cards = (activeOut?.cards ?? [])
     .filter((c) => c.column === column)
     .sort((a, b) => a.order - b.order)
   const total = cards.reduce((s, c) => s + estimateHeight(c), 0)
-  const pct = Math.round((total / COLUMN_BUDGET) * 100)
+  const pct = Math.round((total / columnBudgetFor(activeOut?.templateId)) * 100)
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">

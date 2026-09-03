@@ -7,16 +7,52 @@
  *  - posudok-cs: Czech template
  */
 
-export type ThesisReviewTemplate = "posudok-sk" | "posudok-en" | "posudok-cs"
+export type ThesisReviewTemplate =
+  | "posudok-sk"
+  | "posudok-en"
+  | "posudok-cs"
+  | "posudok-de"
+  | "posudok-pl"
+  | "posudok-hu"
+
+/**
+ * Languages the *report* can be typeset in.
+ *
+ * Deliberately wider than `ReviewLanguage` from lib/ai/thesis-rubric: the AI
+ * review pipeline (rubrics, prompts, evidence checks) only reasons in sk/cs/en,
+ * but a finished report can be rendered for a German, Polish or Hungarian
+ * faculty. Criterion names fall back to English for those, since the rubric
+ * itself is not translated — see resolveCriterionLabel in the generator.
+ *
+ * This also makes the de/pl/hu entries in BABEL_BY_LANG (lib/latex/generator.ts)
+ * reachable; they were previously dead code (audit finding B-01).
+ */
+export type ReportLanguage = "sk" | "cs" | "en" | "de" | "pl" | "hu"
+
+const TEMPLATE_TO_LANG: Record<ThesisReviewTemplate, ReportLanguage> = {
+  "posudok-sk": "sk",
+  "posudok-cs": "cs",
+  "posudok-en": "en",
+  "posudok-de": "de",
+  "posudok-pl": "pl",
+  "posudok-hu": "hu",
+}
+
+export function reportLanguageFor(template: ThesisReviewTemplate): ReportLanguage {
+  return TEMPLATE_TO_LANG[template] ?? "sk"
+}
 
 export function getThesisReviewPreamble(template: ThesisReviewTemplate): string {
-  const lang = template === "posudok-en" ? "en" : template === "posudok-cs" ? "cs" : "sk"
+  const lang = reportLanguageFor(template)
   const labels = THESIS_REVIEW_LABELS[lang]
 
-  const babel: Record<string, string> = {
+  const babel: Record<ReportLanguage, string> = {
     sk: "\\usepackage[slovak]{babel}",
     cs: "\\usepackage[czech]{babel}",
     en: "\\usepackage[english]{babel}",
+    de: "\\usepackage[ngerman]{babel}",
+    pl: "\\usepackage[polish]{babel}",
+    hu: "\\usepackage[magyar]{babel}",
   }
 
   return `\\documentclass[12pt,a4paper]{article}
@@ -87,10 +123,7 @@ export interface ThesisReviewLabels {
   roles: { supervisor: string; opponent: string; self?: string; reviewer?: string; [key: string]: string | undefined }
 }
 
-export const THESIS_REVIEW_LABELS: Record<
-  "sk" | "cs" | "en",
-  ThesisReviewLabels
-> = {
+export const THESIS_REVIEW_LABELS: Record<ReportLanguage, ThesisReviewLabels> = {
   sk: {
     title: "POSUDOK ZÁVEREČNEJ PRÁCE",
     studentLabel: "Autor/Autorka práce",
@@ -162,5 +195,77 @@ export const THESIS_REVIEW_LABELS: Record<
     dateLabel: "Date",
     thesisTypes: { bachelor: "Bachelor's thesis", master: "Master's thesis", phd: "PhD dissertation" },
     roles: { supervisor: "Supervisor", opponent: "Opponent", self: "Pre-consultation triage", reviewer: "Reviewer" },
+  },
+  de: {
+    title: "GUTACHTEN ZUR ABSCHLUSSARBEIT",
+    studentLabel: "Verfasser/in",
+    thesisTitleLabel: "Titel der Arbeit",
+    thesisTypeLabel: "Art der Arbeit",
+    reviewerLabel: "Gutachter/in",
+    roleLabel: "Rolle",
+    institutionLabel: "Institution",
+    departmentLabel: "Institut/Lehrstuhl",
+    gradingLabel: "BEWERTUNG DER KRITERIEN",
+    criterionLabel: "Kriterium",
+    ratingLabel: "Bewertung",
+    commentLabel: "Kommentar",
+    defenseLabel: "FRAGEN ZUR VERTEIDIGUNG",
+    citationLabel: "ANMERKUNGEN ZU DEN ZITATEN",
+    summaryLabel: "GESAMTBEWERTUNG",
+    confidentialLabel: "VERTRAULICHE ANMERKUNGEN FÜR DIE KOMMISSION (NICHT AN DIE STUDIERENDEN WEITERGEBEN)",
+    gradeLabel: "Vorgeschlagene Note",
+    recommendationLabel: "Empfehlung",
+    signatureLabel: "Unterschrift des Gutachters/der Gutachterin",
+    dateLabel: "Datum",
+    thesisTypes: { bachelor: "Bachelorarbeit", master: "Masterarbeit", phd: "Dissertation" },
+    roles: { supervisor: "Betreuer/in", opponent: "Zweitgutachter/in", self: "Vorbegutachtung", reviewer: "Gutachter/in" },
+  },
+  pl: {
+    title: "RECENZJA PRACY DYPLOMOWEJ",
+    studentLabel: "Autor/Autorka pracy",
+    thesisTitleLabel: "Tytuł pracy",
+    thesisTypeLabel: "Rodzaj pracy",
+    reviewerLabel: "Recenzent/ka",
+    roleLabel: "Rola",
+    institutionLabel: "Uczelnia",
+    departmentLabel: "Katedra/Instytut",
+    gradingLabel: "OCENA KRYTERIÓW",
+    criterionLabel: "Kryterium",
+    ratingLabel: "Ocena",
+    commentLabel: "Komentarz",
+    defenseLabel: "PYTANIA NA OBRONĘ",
+    citationLabel: "UWAGI DO CYTOWAŃ",
+    summaryLabel: "OCENA KOŃCOWA",
+    confidentialLabel: "UWAGI POUFNE DLA KOMISJI (NIE UDOSTĘPNIAĆ STUDENTOWI)",
+    gradeLabel: "Proponowana ocena",
+    recommendationLabel: "Rekomendacja",
+    signatureLabel: "Podpis recenzenta/ki",
+    dateLabel: "Data",
+    thesisTypes: { bachelor: "Praca licencjacka", master: "Praca magisterska", phd: "Rozprawa doktorska" },
+    roles: { supervisor: "Promotor/ka", opponent: "Recenzent/ka", self: "Analiza wstępna", reviewer: "Recenzent/ka" },
+  },
+  hu: {
+    title: "BÍRÁLAT A ZÁRÓDOLGOZATRÓL",
+    studentLabel: "A dolgozat szerzője",
+    thesisTitleLabel: "A dolgozat címe",
+    thesisTypeLabel: "A dolgozat típusa",
+    reviewerLabel: "Bíráló",
+    roleLabel: "Szerepkör",
+    institutionLabel: "Intézmény",
+    departmentLabel: "Tanszék/Intézet",
+    gradingLabel: "A SZEMPONTOK ÉRTÉKELÉSE",
+    criterionLabel: "Szempont",
+    ratingLabel: "Értékelés",
+    commentLabel: "Megjegyzés",
+    defenseLabel: "KÉRDÉSEK A VÉDÉSHEZ",
+    citationLabel: "MEGJEGYZÉSEK A HIVATKOZÁSOKHOZ",
+    summaryLabel: "ÖSSZEGZŐ ÉRTÉKELÉS",
+    confidentialLabel: "BIZALMAS MEGJEGYZÉSEK A BIZOTTSÁGNAK (A HALLGATÓVAL NEM KÖZÖLHETŐ)",
+    gradeLabel: "Javasolt érdemjegy",
+    recommendationLabel: "Ajánlás",
+    signatureLabel: "A bíráló aláírása",
+    dateLabel: "Dátum",
+    thesisTypes: { bachelor: "Szakdolgozat (BSc/BA)", master: "Diplomamunka (MSc/MA)", phd: "Doktori értekezés" },
+    roles: { supervisor: "Témavezető", opponent: "Opponens", self: "Előzetes elemzés", reviewer: "Bíráló" },
   },
 }

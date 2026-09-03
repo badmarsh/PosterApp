@@ -7,7 +7,9 @@
 
 import {
   getThesisReviewPreamble,
+  reportLanguageFor,
   THESIS_REVIEW_LABELS,
+  type ReportLanguage,
   type ThesisReviewTemplate,
   type ThesisReviewLabels,
 } from "./templates-thesis"
@@ -130,10 +132,26 @@ ${rows.join("\n")}
 \\end{tabularx}`
 }
 
+/**
+ * Criterion display name for a report language.
+ *
+ * THESIS_CRITERIA is part of the AI rubric and is only translated into
+ * sk/cs/en. For a report rendered in de/pl/hu the criterion names fall back
+ * to English rather than printing a raw id like "methodology_rigor".
+ */
+function resolveCriterionLabel(
+  criterion: (typeof THESIS_CRITERIA)[number],
+  lang: ReportLanguage,
+  fallbackId: string
+): string {
+  const rubricLang: ReviewLanguage = lang === "sk" || lang === "cs" || lang === "en" ? lang : "en"
+  return criterion.labels[rubricLang] ?? criterion.labels.en ?? fallbackId
+}
+
 function buildCriteriaTable(
   labels: ThesisReviewLabels,
   sections: ThesisSection[],
-  lang: ReviewLanguage
+  lang: ReportLanguage
 ): string {
   const rows: string[] = []
 
@@ -141,7 +159,7 @@ function buildCriteriaTable(
     const criterion = THESIS_CRITERIA.find((c) => c.id === section.criterionId)
     if (!criterion || criterion.weight === 0 || criterion.category === "defense") continue
 
-    const criterionName = criterion.labels[lang] ?? section.criterionId
+    const criterionName = resolveCriterionLabel(criterion, lang, section.criterionId)
     const rating = section.rating && section.rating !== "pending" ? section.rating : "---"
     const text = nl2par(section.text || "")
 
@@ -228,7 +246,8 @@ export interface ThesisReviewGeneratorInput {
   sections: ThesisSection[]
   defenseQuestions: string[]
   citationIssues: string[]
-  language: ReviewLanguage
+  /** Report language. Wider than ReviewLanguage: de/pl/hu are render-only. */
+  language: ReportLanguage
   template: ThesisReviewTemplate
   confidentialComments?: string | null
   includeConfidential?: boolean
@@ -306,8 +325,11 @@ export class ThesisReviewLatexGenerator implements LatexGenerator {
   }
 
   generateDocument(project: Project, outputConfig: OutputConfig, _workspaceId = ""): string {
-    const template = (this.templateId === "posudok-en" ? "posudok-en" : this.templateId === "posudok-cs" ? "posudok-cs" : "posudok-sk") as ThesisReviewTemplate
-    const lang: ReviewLanguage = this.templateId === "posudok-en" ? "en" : this.templateId === "posudok-cs" ? "cs" : "sk"
+    const known: ThesisReviewTemplate[] = ["posudok-sk", "posudok-cs", "posudok-en", "posudok-de", "posudok-pl", "posudok-hu"]
+    const template: ThesisReviewTemplate = known.includes(this.templateId as ThesisReviewTemplate)
+      ? (this.templateId as ThesisReviewTemplate)
+      : "posudok-sk"
+    const lang = reportLanguageFor(template)
 
     const sections: ThesisSection[] = outputConfig.cards.map((c) => ({
       id: c.id,

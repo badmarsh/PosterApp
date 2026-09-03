@@ -99,11 +99,11 @@ This is one behaviour change per field, all justifiable, and it leaves exactly o
 
 ## 3. Tier B — verified, queued (not executed this pass)
 
-- **B-01 `detectDocumentLanguage` dead entries + SK tie-break** (`generator.ts:42-61`). Recommendation: trim `de`/`pl`/`hu` from `BABEL_BY_LANG` **or** extend the detector — but not both half-way. Given no Settings-language path reaches `ensureEncodingPreamble` (verified by grep: only `generateFullTemplate:33`), trimming plus an explicit comment ("poster/slides/paper auto-detect SK/CZ/EN only; other languages fall back to english hyphenation by design") is the honest option, with the de/pl/hu diacritic sets kept in a comment for whoever implements it. Separately, change the shared-only fall-through from `return "sk"` to `return "en"` **only if** product confirms SK is not the house default — the current bias is plausibly deliberate for this app's user base, so this needs a product answer, not a code guess.
+- **B-01 `detectDocumentLanguage` dead entries + SK tie-break** (`generator.ts:42-61`). ✅ **Partly done** (Round 8) — the de/pl/hu babel entries are no longer dead: `posudok-de/pl/hu` reach them through `ReportLanguage`, and `de` was corrected from `german` to `ngerman`. The SK tie-break for shared-only diacritics is **still open** and still needs a product decision. The original recommendation was to trim the unreachable entries; Round 8 made them reachable instead, which is the better resolution. Still open: change the shared-only fall-through from `return "sk"` to `return "en"` **only if** product confirms SK is not the house default — the current bias is plausibly deliberate for this app's user base, so this needs a product answer, not a code guess.
 - **B-02 `resolveBibSource` `@` sniff** (`bib-source.ts:11`). Replace with `/@[A-Za-z]+\s*\{[^,\s]+\s*,/` (entry type + key + comma). One-line change, needs a test with an email-bearing references card and one with a real `@article{...}`.
 - **B-03 Document that `hasUnsafeLatex` is UX, not a security control.** Add a header comment to `validation.ts` mirroring `compiler-runner.ts:31-36`, naming the sandbox as the boundary and stating that the blocklist deliberately runs at authoring/patch time, not on save. Prevents a future "fix" that threads it into `cards/[cardId]` PUT and starts rejecting legitimate `\def`-containing pasted TeX.
 - **B-04 Parallelise `materializeRemoteFigures`** (`remote-assets.ts:115-134`). Bounded concurrency (4) over `collectRemoteFigureUrls`, writes still awaited. No change to the returned mapping; the existing `remote-assets.test.ts` should pass unmodified, which is the point.
-- **B-05 Template-aware column budget** (`layout.ts:3`). Introduce `COLUMN_BUDGET_BY_TEMPLATE` with the current 900 as the default, and let `validateCard` accept an optional template id. Requires threading one argument through `validateCard` call sites in `poster-preview.tsx:678` and `project-slice.ts:434-441`; keep the no-arg signature working so nothing outside the domain breaks. Calibration numbers must come from measured PDFs, not guesses — until someone measures, this is a structure change with the same constant, which is still worth it because it makes the wrongness expressible.
+- **B-05 Template-aware column budget** (`layout.ts:3`). ✅ **Done** (Round 8) — `COLUMN_BUDGET_BY_TEMPLATE` + `columnBudgetFor()`, threaded through `validateCard`, both preview gauges, the inspector and the autofill budget. Constants remain structural estimates, not PDF measurements — calibration against real compiled PDFs is still open.
 - **B-06 Third `cleanCaption`** (`generator-paper.ts:8-12` shadows `helpers.ts:37-43`). Delete the local copy, import the helper. Behaviour changes slightly for captions written `"Fig 3 – …"` (the helper strips it, the local one doesn't) and for non-string captions (the helper is guarded, the local one throws) — both are improvements, both need a test.
 
 ---
@@ -180,4 +180,22 @@ The bar for this section was "changes how good the output can be". Warning a use
 
 ---
 
-*Status: Tier A (A-01, A-02) executed against this document — see `CHANGELOG.md`. Tier B and C remain open.*
+## 8. Round 8 addendum — template expansion (2026-09-04)
+
+Triggered by a review of an external template catalogue (trybibby.com/latex/templates, 1732 entries). Most of that catalogue is not addable: PosterApp is a card→pattern→generator pipeline, not a document gallery, so résumés/invoices/letters would each need a new `OutputType`, generator, pattern set and prompts. Ten venue styles, two poster layouts and three review locales did map cleanly.
+
+**Added:** 10 paper venues — HEP (`elsarticle`, `revtex-aps`, `epj-woc`, `iopart`) and ML/CS (`neurips`, `icml`, `iclr`, `acl`, `cvpr`, `aaai`); 2 poster layouts (`landscape`, `betterposter`); 3 review locales (`posudok-de/pl/hu`). Registry went 20 → 35 templates.
+
+**Two bugs found while doing it** (neither seeded, both pre-existing):
+
+- **R8-1 — single-column paper templates emitted `figure*`/`table*`.** `generator-paper.ts` computed `isTwoColumn = templateId !== "article-single"`, so `springer-llncs`, `jinst-proceedings` and `pos-proceedings` — all single-column classes — produced starred floats. `figure*` is undefined outside a `twocolumn` class, so any wide table or two-figure section in an LLNCS or JINST paper **aborted the compile**. Replaced with an explicit `SINGLE_COLUMN_TEMPLATES` set; regression test asserts the invariant across all 17 paper templates.
+- **R8-2 — thesis-review export could disagree with itself.** Both the PDF and `.tex` paths chose a `template` (honouring a `body.template` override) but then passed `review.language` independently, so an override produced a document whose babel and labels disagreed. Both now derive language from the template.
+
+**New guard:** `lib/latex/__tests__/template-registry.test.ts` — every registry entry must produce a brace-balanced document with a *distinct* preamble. A registry entry with no generator branch previously fell through to the default template silently, giving the user the wrong venue format with no error.
+
+**`requiresClass`** was added to `TemplateDef` for styles that are neither in a base TeX Live install nor vendored in `public/latex-styles/`; the template detail panel warns up front rather than letting the user discover it as an opaque failed compile.
+
+**Genius-idea groundwork landed:** `estimateHeightBreakdown()` now returns per-part attribution and `suggestReductions()` converts it into concrete advice, so overflow warnings name the edit ("drop the 3 shortest bullets (−30u)") instead of only stating the problem. The shrink-endpoint half of that idea (§5.1) is still open.
+
+---
+*Status: Tier A (A-01, A-02) executed. Round 8 additionally closed B-05 and most of B-01. B-02, B-03, B-04, B-06 and Tier C remain open.*

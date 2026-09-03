@@ -608,3 +608,431 @@ ${FITMATH_MACRO}
 \\maketitle
 `
 }
+
+// ---------------------------------------------------------------------------
+// Physics / HEP venue templates
+// ---------------------------------------------------------------------------
+
+/**
+ * Elsevier journals (Nucl. Instrum. Methods, Physics Letters B, ...).
+ * `elsarticle` ships with TeX Live. `review` gives double spacing for
+ * submission; we use the default single-column preprint form.
+ */
+export function getElsarticleTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an Elsevier elsarticle document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% Figures use \\\\begin{figure}[htbp]; this is a single-column layout.
+\\\\documentclass[preprint,12pt]{elsarticle}
+\\\\usepackage[utf8]{inputenc}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{amssymb}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\journal{${venue || "Preprint submitted to Elsevier"}}
+
+\\\\begin{document}
+
+\\\\begin{frontmatter}
+\\\\title{${title}}
+\\\\author{${authors}}
+\\\\end{frontmatter}
+`
+}
+
+/**
+ * APS REVTeX 4.2 — Physical Review A-E / PRL.
+ * `reprint` produces the two-column journal look.
+ */
+export function getRevtexTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an APS REVTeX 4.2 two-column document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% For wide figures spanning both columns use \\\\begin{figure*} ... \\\\end{figure*}.
+\\\\documentclass[reprint,amsmath,amssymb,aps,prd]{revtex4-2}
+\\\\usepackage{graphicx}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\begin{document}
+
+\\\\title{${title}}
+\\\\author{${authors}}
+\\\\affiliation{${venue}}
+
+\\\\maketitle
+`
+}
+
+/**
+ * EPJ Web of Conferences — the standard proceedings format for many
+ * HEP conferences (CHEP, Quark Matter, ...). Requires the `webofc` class.
+ */
+export function getEpjWocTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an EPJ Web of Conferences document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+\\\\documentclass[option]{webofc}
+\\\\usepackage[varg]{txfonts}
+\\\\usepackage{graphicx}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\begin{document}
+
+\\\\title{${title}}
+\\\\author{\\\\firstname{} \\\\lastname{${authors}}\\\\inst{1}\\\\fnsep\\\\thanks{\\\\email{}}}
+\\\\institute{${venue}}
+
+\\\\abstract{%
+}
+\\\\maketitle
+`
+}
+
+/**
+ * IOP Publishing journals (J. Phys. series, Meas. Sci. Technol.).
+ * Requires the `iopart` class.
+ */
+export function getIopartTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an IOP iopart document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+\\\\documentclass[12pt]{iopart}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\begin{document}
+
+\\\\title{${title}}
+\\\\author{${authors}}
+\\\\address{${venue}}
+
+\\\\maketitle
+`
+}
+
+// ---------------------------------------------------------------------------
+// ML / CS conference templates
+// ---------------------------------------------------------------------------
+
+/**
+ * NeurIPS — single-column, `neurips_2026.sty`.
+ * `final` prints author names (the default is anonymised for submission).
+ */
+export function getNeurIPSTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside a NeurIPS document (single column).
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% Figures use \\\\begin{figure}[htbp]; do NOT use figure* (single-column layout).
+\\\\documentclass{article}
+\\\\usepackage[final]{neurips_2026}
+\\\\usepackage[utf8]{inputenc}
+\\\\usepackage[T1]{fontenc}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{amssymb}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\title{${title}}
+\\\\author{${authors}\\\\\\\\ ${venue}}
+
+\\\\begin{document}
+\\\\maketitle
+`
+}
+
+/**
+ * ICML — two-column, `icml2026.sty`. `accepted` de-anonymises.
+ */
+export function getICMLTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an ICML two-column document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% For wide figures spanning both columns use \\\\begin{figure*} ... \\\\end{figure*}.
+\\\\documentclass{article}
+\\\\usepackage[accepted]{icml2026}
+\\\\usepackage[utf8]{inputenc}
+\\\\usepackage[T1]{fontenc}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{amssymb}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\icmltitlerunning{${title}}
+
+\\\\begin{document}
+
+\\\\twocolumn[
+\\\\icmltitle{${title}}
+\\\\icmlsetsymbol{equal}{*}
+\\\\begin{icmlauthorlist}
+\\\\icmlauthor{${authors}}{inst1}
+\\\\end{icmlauthorlist}
+\\\\icmlaffiliation{inst1}{${venue}}
+\\\\vskip 0.3in
+]
+`
+}
+
+/**
+ * ICLR — single-column, `iclr2026_conference.sty`.
+ */
+export function getICLRTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an ICLR document (single column).
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% Figures use \\\\begin{figure}[htbp]; do NOT use figure* (single-column layout).
+\\\\documentclass{article}
+\\\\usepackage{iclr2026_conference,times}
+\\\\usepackage[utf8]{inputenc}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{amssymb}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\title{${title}}
+\\\\author{${authors}\\\\\\\\ ${venue}}
+
+\\\\begin{document}
+\\\\maketitle
+`
+}
+
+/**
+ * ACL / EMNLP / NAACL — two-column, `acl.sty` from the ACL style repo.
+ */
+export function getACLTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an ACL two-column document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% For wide figures spanning both columns use \\\\begin{figure*} ... \\\\end{figure*}.
+\\\\documentclass[11pt]{article}
+\\\\usepackage[final]{acl}
+\\\\usepackage[T1]{fontenc}
+\\\\usepackage[utf8]{inputenc}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{booktabs}
+\\\\usepackage{microtype}
+
+${FITMATH_MACRO}
+
+\\\\title{${title}}
+\\\\author{${authors} \\\\\\\\ ${venue}}
+
+\\\\begin{document}
+\\\\maketitle
+`
+}
+
+/**
+ * CVPR / ICCV — two-column, `cvpr.sty`. `review` adds line numbers;
+ * `final` is the camera-ready form used here.
+ */
+export function getCVPRTemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside a CVPR two-column document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% For wide figures spanning both columns use \\\\begin{figure*} ... \\\\end{figure*}.
+\\\\documentclass[10pt,twocolumn,letterpaper]{article}
+\\\\usepackage[final]{cvpr}
+\\\\usepackage[utf8]{inputenc}
+\\\\usepackage[T1]{fontenc}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{amssymb}
+\\\\usepackage{booktabs}
+
+${FITMATH_MACRO}
+
+\\\\title{${title}}
+\\\\author{${authors}\\\\\\\\ ${venue}}
+
+\\\\begin{document}
+\\\\maketitle
+`
+}
+
+/**
+ * AAAI — two-column, `aaai2026.sty`. AAAI forbids several packages
+ * (hyperref, geometry, fancyhdr); keep the preamble minimal.
+ */
+export function getAAAITemplate(project: Project): string {
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside an AAAI two-column document.
+% Use standard \\\\section{}, \\\\subsection{} commands.
+% For wide figures spanning both columns use \\\\begin{figure*} ... \\\\end{figure*}.
+% NOTE: AAAI style forbids hyperref/geometry/fancyhdr — do not add them.
+\\\\documentclass[letterpaper]{article}
+\\\\usepackage{aaai2026}
+\\\\usepackage{times}
+\\\\usepackage{helvet}
+\\\\usepackage{courier}
+\\\\usepackage[hyphens]{url}
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{booktabs}
+\\\\urlstyle{rm}
+\\\\frenchspacing
+\\\\setlength{\\\\pdfpagewidth}{8.5in}
+\\\\setlength{\\\\pdfpageheight}{11in}
+
+${FITMATH_MACRO}
+
+\\\\title{${title}}
+\\\\author{${authors}\\\\\\\\ ${venue}}
+
+\\\\begin{document}
+\\\\maketitle
+`
+}
+
+// ---------------------------------------------------------------------------
+// Landscape poster templates
+// ---------------------------------------------------------------------------
+
+/**
+ * A0 landscape, 3 equal columns. Many conferences mandate landscape boards;
+ * every other poster template in this file is hard-coded portrait.
+ *
+ * Landscape A0 is 1189mm wide x 841mm tall, so a column is ~40% wider and
+ * ~29% shorter than its portrait equivalent — see COLUMN_BUDGET_BY_TEMPLATE
+ * in layout.ts, which is why the overflow budget is template-aware.
+ */
+export function getLandscapeTemplate(project: Project, themeColor?: string): string {
+  const override = posterThemeOverride(themeColor)
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside a LANDSCAPE tikzposter poster template.
+% Use \\\\block{Title}{Content} for each card section.
+% Enclose blocks within \\\\column{width} commands (e.g. \\\\column{0.33}).
+% Columns are WIDER and SHORTER than portrait: prefer wide tables and
+% side-by-side figures; avoid very long single-column bullet runs.
+\\\\documentclass[a0paper,landscape, blockverticalspace=2em, colspace=2em]{tikzposter}
+\\\\tikzposterlatexaffectionproofoff
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{amssymb}
+\\\\usepackage{multicol}
+\\\\usetikzlibrary{calc}
+
+${FITMATH_MACRO}
+
+\\\\newcommand{\\\\looseitems}{\\\\begin{itemize}\\\\setlength{\\\\itemsep}{0.3em}}
+\\\\newcommand{\\\\tightitems}{\\\\begin{itemize}\\\\setlength{\\\\itemsep}{0.15em}}
+\\\\newcommand{\\\\captiontext}[1]{#1}
+
+\\\\usetheme{Default}
+
+\\\\definecolor{maincolor}{HTML}{2B4B9E}
+\\\\definecolor{secondarycolor}{RGB}{43, 75, 158}
+\\\\definecolor{lightblue}{RGB}{199, 215, 237}
+${override}
+\\\\definecolorstyle{landscapecolors}{
+    \\\\colorlet{backgroundcolor}{white}
+    \\\\colorlet{titlefgcolor}{white}
+    \\\\colorlet{titlebgcolor}{maincolor}
+    \\\\colorlet{blocktitlefgcolor}{white}
+    \\\\colorlet{blocktitlebgcolor}{maincolor}
+    \\\\colorlet{blockbodyfgcolor}{black}
+    \\\\colorlet{blockbodybgcolor}{lightblue!25}
+}{}
+\\\\usecolorstyle{landscapecolors}
+
+\\\\title{\\\\parbox{0.82\\\\linewidth}{\\\\centering\\\\huge
+    ${title}\\\\\\\\[1mm]
+    }}
+\\\\author{\\\\Large ${authors}}
+\\\\institute{\\\\normalsize ${venue}}
+\\\\date{}
+
+\\\\begin{document}
+\\\\maketitle
+`
+}
+
+/**
+ * "Better Poster" (Mike Morrison) — landscape, with a dominant centre column
+ * carrying the single main finding in very large type, flanked by narrow
+ * detail columns.
+ *
+ * Column geometry is 0.24 / 0.46 / 0.24 rather than three equal thirds, so
+ * the centre column holds far less text per unit height than a normal column
+ * — the takeaway is supposed to be one sentence, not a section.
+ */
+export function getBetterPosterTemplate(project: Project, themeColor?: string): string {
+  const override = posterThemeOverride(themeColor)
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside a BETTER POSTER (Morrison) landscape template.
+% Column 2 (the centre) is the BIG FINDING: one short, plain-language
+% sentence in very large type. Keep it under ~140 characters.
+% Columns 1 and 3 are narrow supporting detail (methods, data, references)
+% and should use short bullets, not paragraphs.
+\\\\documentclass[a0paper,landscape, blockverticalspace=2em, colspace=1.5em]{tikzposter}
+\\\\tikzposterlatexaffectionproofoff
+\\\\usepackage{graphicx}
+\\\\usepackage{amsmath}
+\\\\usepackage{amssymb}
+\\\\usepackage{multicol}
+\\\\usetikzlibrary{calc}
+
+${FITMATH_MACRO}
+
+\\\\newcommand{\\\\looseitems}{\\\\begin{itemize}\\\\setlength{\\\\itemsep}{0.3em}}
+\\\\newcommand{\\\\tightitems}{\\\\begin{itemize}\\\\setlength{\\\\itemsep}{0.15em}}
+\\\\newcommand{\\\\captiontext}[1]{#1}
+
+\\\\usetheme{Default}
+
+\\\\definecolor{maincolor}{HTML}{1F2937}
+\\\\definecolor{secondarycolor}{RGB}{31, 41, 55}
+\\\\definecolor{lightblue}{RGB}{243, 244, 246}
+${override}
+\\\\definecolorstyle{bettercolors}{
+    \\\\colorlet{backgroundcolor}{white}
+    \\\\colorlet{titlefgcolor}{white}
+    \\\\colorlet{titlebgcolor}{maincolor}
+    \\\\colorlet{blocktitlefgcolor}{maincolor}
+    \\\\colorlet{blocktitlebgcolor}{white}
+    \\\\colorlet{blockbodyfgcolor}{black}
+    \\\\colorlet{blockbodybgcolor}{lightblue}
+}{}
+\\\\usecolorstyle{bettercolors}
+
+\\\\title{\\\\parbox{0.82\\\\linewidth}{\\\\centering\\\\huge
+    ${title}\\\\\\\\[1mm]
+    }}
+\\\\author{\\\\Large ${authors}}
+\\\\institute{\\\\normalsize ${venue}}
+\\\\date{}
+
+\\\\begin{document}
+\\\\maketitle
+`
+}
