@@ -95,3 +95,78 @@ describe("Generator Paper", () => {
     expect(res).toContain("\\end{document}")
   })
 })
+
+describe("Venue templates", () => {
+  const TWO_COLUMN = ["article-twocol", "ieee-conf", "acm-sigconf", "revtex-aps", "icml", "acl", "cvpr", "aaai"]
+  const SINGLE_COLUMN = [
+    "article-single", "springer-llncs", "jinst-proceedings", "pos-proceedings",
+    "elsarticle", "epj-woc", "iopart", "neurips", "iclr",
+  ]
+
+  function projectFor(templateId: string, cards: Card[]): Project {
+    return {
+      id: "prj_1",
+      revision: 1,
+      name: "Test",
+      authors: "Jane Roe",
+      venue: "Some Venue 2026",
+      activeOutputId: "out_1",
+      outputs: [{ id: "out_1", outputType: "paper", templateId, title: "A Paper", cards }],
+      assets: [],
+      ingestFiles: [],
+    }
+  }
+
+  const wideCard = makeCard({
+    id: "card_wide",
+    pattern: "section-table",
+    title: "Results",
+    content: "Prose.",
+    // 4 columns -> triggers the wide-table (table*) branch when two-column
+    table: { hasHeader: true, caption: "Scores", rows: [["a", "b", "c", "d"], ["1", "2", "3", "4"]] },
+  })
+
+  const figCard = makeCard({
+    id: "card_fig",
+    pattern: "section-two-figures",
+    title: "Architecture",
+    content: "Prose.",
+    figures: [
+      { id: "f1", url: "/a.png", caption: "A" },
+      { id: "f2", url: "/b.png", caption: "B" },
+    ],
+  })
+
+  it.each([...TWO_COLUMN, ...SINGLE_COLUMN])("%s emits a documentclass and a begin/end document", (templateId) => {
+    const gen = new StandardPaperGenerator(templateId)
+    const tex = gen.generateDocument(projectFor(templateId, [wideCard, figCard]), {
+      id: "out_1", outputType: "paper", templateId, title: "A Paper", cards: [wideCard, figCard],
+    } as never)
+
+    expect(tex).toContain("\\documentclass")
+    expect(tex).toContain("\\begin{document}")
+    expect(tex).toContain("\\end{document}")
+    // Title metadata must reach the preamble
+    expect(tex).toContain("A Paper")
+  })
+
+  it.each(SINGLE_COLUMN)("%s never emits figure*/table* (undefined in a single-column class)", (templateId) => {
+    const gen = new StandardPaperGenerator(templateId)
+    const tex = gen.generateDocument(projectFor(templateId, [wideCard, figCard]), {
+      id: "out_1", outputType: "paper", templateId, title: "A Paper", cards: [wideCard, figCard],
+    } as never)
+
+    expect(tex).not.toContain("\\begin{figure*}")
+    expect(tex).not.toContain("\\begin{table*}")
+  })
+
+  it.each(TWO_COLUMN)("%s uses starred floats for wide content", (templateId) => {
+    const gen = new StandardPaperGenerator(templateId)
+    const tex = gen.generateDocument(projectFor(templateId, [wideCard, figCard]), {
+      id: "out_1", outputType: "paper", templateId, title: "A Paper", cards: [wideCard, figCard],
+    } as never)
+
+    expect(tex).toContain("\\begin{figure*}")
+    expect(tex).toContain("\\begin{table*}")
+  })
+})

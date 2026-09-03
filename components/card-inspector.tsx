@@ -845,7 +845,8 @@ function Section({ title, items }: { title: string; items: ValidationMessage[] }
 }
 
 function ValidationTab({ card }: { card: Card }) {
-  const msgs = validateCard(card)
+  const project = useEditor((s) => s.project)
+  const msgs = validateCard(card, project.outputs?.find((o) => o.id === project.activeOutputId)?.templateId)
   const level = levelFromMessages(msgs)
   const safety = msgs.filter((m) => m.message.includes("LaTeX"))
   const overflow = msgs.filter((m) => m.message.includes("height"))

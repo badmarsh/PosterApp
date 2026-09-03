@@ -1,6 +1,6 @@
 import type { EditorSlice, ProjectSlice } from "./types"
 import { sampleProjects, isDemoProject } from "@/lib/mock-data"
-import { COLUMN_BUDGET, estimateHeight, generateLatexForCard, hasUnsafeLatex, levelFromMessages, validateCard } from "@/lib/latex"
+import { columnBudgetFor, estimateHeight, generateLatexForCard, hasUnsafeLatex, levelFromMessages, validateCard } from "@/lib/latex"
 import type { Project, OutputConfig, BlockPattern, Card, Figure } from "@/lib/poster-types"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { apiFetch } from "@/lib/api-fetch"
@@ -109,7 +109,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
 
   getStatus: (card) => {
     if (get().generatingIds.includes(card.id)) return "generating"
-    return levelFromMessages(validateCard(card))
+    return levelFromMessages(validateCard(card, activeOutput(get().project)?.templateId))
   },
 
   updateProject: (patch) => set((s) => {
@@ -375,7 +375,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     const card = (activeOutput(get().project)?.cards ?? []).find((c) => c.id === id)
     if (!card) return
     const evId = get().pushEvent({ kind: "validate", status: "running", title: `Validating — ${id}` })
-    const msgs = validateCard(card)
+    const msgs = validateCard(card, activeOutput(get().project)?.templateId)
     const level = levelFromMessages(msgs)
     window.setTimeout(() => {
       get().updateEvent(evId, {
@@ -394,7 +394,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     const workspaceId = get().project.id
     const card = (activeOutput(get().project)?.cards ?? []).find((c) => c.id === id)
     if (!card) return
-    const msgs = validateCard(card)
+    const msgs = validateCard(card, activeOutput(get().project)?.templateId)
     if (levelFromMessages(msgs) === "invalid") {
       get().pushEvent({ kind: "generate", status: "error", title: `Generation blocked — ${id}`, detail: "Fix input errors first." })
       return
@@ -432,7 +432,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       // Calculate available text budget for this specific poster column
       const otherCards = (currOutput?.cards ?? []).filter(c => c.column === card.column && c.id !== card.id)
       const otherHeights = otherCards.reduce((acc, c) => acc + estimateHeight(c), 0)
-      const remainingBudget = Math.max(0, COLUMN_BUDGET - otherHeights)
+      const remainingBudget = Math.max(0, columnBudgetFor(currOutput?.templateId) - otherHeights)
       
       const targetHeight = card.heightBudget || remainingBudget
       

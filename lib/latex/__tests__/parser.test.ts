@@ -38,3 +38,30 @@ describe("LaTeX Parser", () => {
     expect(parseMarkdownToLatex("$\\input{secrets}$")).not.toContain("\\input")
   })
 })
+
+describe("markdown link URLs (A-02)", () => {
+  it("does not escape LaTeX specials inside the href target", () => {
+    const out = parseMarkdownToLatex("See [Paper](https://ex.com/a_b?x=1&y=2#sec)")
+    expect(out).toBe("See \\href{https://ex.com/a_b?x=1&y=2#sec}{Paper}")
+  })
+
+  it("keeps DOI underscores intact", () => {
+    expect(parseMarkdownToLatex("[X](https://doi.org/10.1_5/a)")).toBe("\\href{https://doi.org/10.1_5/a}{X}")
+  })
+
+  it("still escapes the link text while leaving the URL alone", () => {
+    expect(parseMarkdownToLatex("[Smith & Co](https://ex.com/a%20b)")).toBe(
+      "\\href{https://ex.com/a%20b}{Smith \\& Co}"
+    )
+  })
+
+  it("renders links inside bullet lists", () => {
+    const out = parseMarkdownToLatex("- see [d](https://ex.com/x_y)")
+    expect(out).toContain("\\item see \\href{https://ex.com/x_y}{d}")
+    expect(out).toContain("\\begin{itemize}")
+  })
+
+  it("drops the href for non-http targets, keeping escaped text", () => {
+    expect(parseMarkdownToLatex("[a_b](mailto:x@y.z)")).toBe("a\\_b")
+  })
+})

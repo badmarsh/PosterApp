@@ -1,7 +1,7 @@
 import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
-import { getTwoColumnTemplate, getSingleColumnTemplate, getIEEEConfTemplate, getACMSigconfTemplate, getSpringerLLNCSTemplate, getJinstProceedingsTemplate, getPosProceedingsTemplate } from "./templates"
+import { getTwoColumnTemplate, getSingleColumnTemplate, getIEEEConfTemplate, getACMSigconfTemplate, getSpringerLLNCSTemplate, getJinstProceedingsTemplate, getPosProceedingsTemplate, getElsarticleTemplate, getRevtexTemplate, getEpjWocTemplate, getIopartTemplate, getNeurIPSTemplate, getICMLTemplate, getICLRTemplate, getACLTemplate, getCVPRTemplate, getAAAITemplate } from "./templates"
 import type { LatexGenerator } from "./types"
 import { assetUrlToLatexPath, normalizeLatexPath } from "./helpers"
 
@@ -10,6 +10,23 @@ function cleanCaption(caption: string | undefined, prefix: "Figure" | "Table"): 
   const regex = prefix === "Figure" ? /^(Figure\s*\d*:?\s*|Fig\.\s*\d*:?\s*)/i : /^(Table\s*\d*:?\s*)/i
   return caption.replace(regex, "").trim()
 }
+
+/**
+ * Paper templates whose document class is single-column. `figure*`/`table*`
+ * only exist in a twocolumn class, so emitting them here is a fatal
+ * "Environment figure* undefined" rather than a layout quirk.
+ */
+const SINGLE_COLUMN_TEMPLATES = new Set([
+  "article-single",
+  "springer-llncs",
+  "jinst-proceedings",
+  "pos-proceedings",
+  "elsarticle",
+  "epj-woc",
+  "iopart",
+  "neurips",
+  "iclr",
+])
 
 function generateTable(card: Card, isTwoColumn = false): string {
   if (!card.table || !Array.isArray(card.table.rows) || card.table.rows.length === 0 || !Array.isArray(card.table.rows[0])) return ""
@@ -155,7 +172,9 @@ export class StandardPaperGenerator implements LatexGenerator {
     // Order by column then order, to match the reading flow of the poster.
     const sortedCards = [...outputConfig.cards].sort((a, b) => (a.column || 1) - (b.column || 1) || a.order - b.order)
 
-    const isTwoColumn = this.templateId !== "article-single";
+    // Single-column venues must never emit figure*/table*: those environments
+    // are undefined outside a twocolumn class and abort the compile.
+    const isTwoColumn = !SINGLE_COLUMN_TEMPLATES.has(this.templateId)
 
     let contentBlocks = ""
     if (this.templateId === "acm-sigconf") {
@@ -189,6 +208,36 @@ export class StandardPaperGenerator implements LatexGenerator {
         break;
       case "pos-proceedings":
         templateContent = getPosProceedingsTemplate(project);
+        break;
+      case "elsarticle":
+        templateContent = getElsarticleTemplate(project);
+        break;
+      case "revtex-aps":
+        templateContent = getRevtexTemplate(project);
+        break;
+      case "epj-woc":
+        templateContent = getEpjWocTemplate(project);
+        break;
+      case "iopart":
+        templateContent = getIopartTemplate(project);
+        break;
+      case "neurips":
+        templateContent = getNeurIPSTemplate(project);
+        break;
+      case "icml":
+        templateContent = getICMLTemplate(project);
+        break;
+      case "iclr":
+        templateContent = getICLRTemplate(project);
+        break;
+      case "acl":
+        templateContent = getACLTemplate(project);
+        break;
+      case "cvpr":
+        templateContent = getCVPRTemplate(project);
+        break;
+      case "aaai":
+        templateContent = getAAAITemplate(project);
         break;
       case "article-twocol":
       default:

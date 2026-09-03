@@ -7,19 +7,41 @@
 
 import {
   getThesisReviewPreamble,
+  reportLanguageFor,
   THESIS_REVIEW_LABELS,
+  type ReportLanguage,
   type ThesisReviewTemplate,
   type ThesisReviewLabels,
 } from "./templates-thesis"
 import { THESIS_CRITERIA, type ThesisSection, type ReviewLanguage } from "@/lib/ai/thesis-rubric"
+import { mapUnicodeToLatex, parseMarkdownToLatex } from "./parser"
 
 // ---------------------------------------------------------------------------
 // LaTeX escaping (Single-pass replacement)
 // ---------------------------------------------------------------------------
 
+/**
+ * Escaping policy for thesis-review documents, split by field role.
+ *
+ * `escapeLatex` (below) is for **structural** fields — student/reviewer names,
+ * institution, department, thesis title, grades, rating symbols, labels. These
+ * land inside `tabularx` cells and mandatory macro arguments, where an
+ * `itemize` or a display equation would break the layout, and where a literal
+ * `*` or `$` is far more likely to be a character than markup. They are
+ * escaped verbatim, then passed through the shared Unicode map so that a Greek
+ * letter in a thesis title is not a fatal `inputenc` error.
+ *
+ * `escapeProse` is for **free text** — section commentary, suggestions,
+ * defense questions, citation issues, confidential notes, recommendation.
+ * This content is LLM-written academic prose: it routinely contains Greek
+ * letters, em dashes, smart quotes, `**emphasis**` and inline `$math$`. It
+ * therefore goes through the same `parseMarkdownToLatex` pipeline that
+ * poster/slides/paper use, which protects math and citations, renders
+ * markdown, and applies the Unicode map.
+ */
 export function escapeLatex(text: string): string {
   if (!text) return ""
-  return text.replace(/[\\&%$#_{}~^<>]/g, (match) => {
+  const escaped = text.replace(/[\\&%$#_{}~^<>]/g, (match) => {
     switch (match) {
       case "\\":
         return "\\textbackslash{}"
@@ -49,6 +71,13 @@ export function escapeLatex(text: string): string {
         return match
     }
   })
+  return mapUnicodeToLatex(escaped)
+}
+
+/** Free-text (prose) escaping — see the policy note on escapeLatex. */
+export function escapeProse(text: string): string {
+  if (!text) return ""
+  return parseMarkdownToLatex(text)
 }
 
 function nl2par(text: string): string {
@@ -103,10 +132,26 @@ ${rows.join("\n")}
 \\end{tabularx}`
 }
 
+/**
+ * Criterion display name for a report language.
+ *
+ * THESIS_CRITERIA is part of the AI rubric and is only translated into
+ * sk/cs/en. For a report rendered in de/pl/hu the criterion names fall back
+ * to English rather than printing a raw id like "methodology_rigor".
+ */
+function resolveCriterionLabel(
+  criterion: (typeof THESIS_CRITERIA)[number],
+  lang: ReportLanguage,
+  fallbackId: string
+): string {
+  const rubricLang: ReviewLanguage = lang === "sk" || lang === "cs" || lang === "en" ? lang : "en"
+  return criterion.labels[rubricLang] ?? criterion.labels.en ?? fallbackId
+}
+
 function buildCriteriaTable(
   labels: ThesisReviewLabels,
   sections: ThesisSection[],
-  lang: ReviewLanguage
+  lang: ReportLanguage
 ): string {
   const rows: string[] = []
 
@@ -114,17 +159,17 @@ function buildCriteriaTable(
     const criterion = THESIS_CRITERIA.find((c) => c.id === section.criterionId)
     if (!criterion || criterion.weight === 0 || criterion.category === "defense") continue
 
-    const criterionName = criterion.labels[lang] ?? section.criterionId
+    const criterionName = resolveCriterionLabel(criterion, lang, section.criterionId)
     const rating = section.rating && section.rating !== "pending" ? section.rating : "---"
     const text = nl2par(section.text || "")
 
     rows.push(`\\Needspace{6\\baselineskip}
 \\subsection*{${escapeLatex(criterionName)} \\hfill \\ratingsymbol{${escapeLatex(rating)}}}
-${escapeLatex(text)}`)
+${escapeProse(text)}`)
 
     if (section.suggestions && section.suggestions.length > 0) {
       rows.push(`\\begin{itemize}[leftmargin=*,noitemsep,topsep=2pt]\\small
-${section.suggestions.map((s) => `  \\item ${escapeLatex(s)}`).join("\n")}
+${section.suggestions.map((s) => `  \\item ${escapeProse(s)}`).join("\n")}
 \\end{itemize}`)
     }
   }
@@ -137,7 +182,7 @@ function buildDefenseQuestions(labels: ThesisReviewLabels, questions: string[]):
   return `\\Needspace{8\\baselineskip}
 \\section{${escapeLatex(labels.defenseLabel)}}
 \\begin{enumerate}[leftmargin=*]
-${questions.map((q) => `  \\item ${escapeLatex(q)}`).join("\n")}
+${questions.map((q) => `  \\item ${escapeProse(q)}`).join("\n")}
 \\end{enumerate}`
 }
 
@@ -146,7 +191,7 @@ function buildCitationNotes(labels: ThesisReviewLabels, issues: string[]): strin
   return `\\Needspace{6\\baselineskip}
 \\section{${escapeLatex(labels.citationLabel)}}
 \\begin{itemize}[leftmargin=*]
-${issues.map((i) => `  \\item ${escapeLatex(i)}`).join("\n")}
+${issues.map((i) => `  \\item ${escapeProse(i)}`).join("\n")}
 \\end{itemize}`
 }
 
@@ -155,7 +200,7 @@ function buildConfidentialNotes(labels: ThesisReviewLabels, comments: string): s
   return `\\Needspace{8\\baselineskip}
 \\section{${escapeLatex(labels.confidentialLabel)}}
 {\\small
-${escapeLatex(nl2par(comments))}
+${escapeProse(nl2par(comments))}
 }`
 }
 
@@ -165,7 +210,7 @@ function buildSummaryBlock(
   recommendation: string | null | undefined
 ): string {
   const gradeBox = grade ? `\\ratingsymbol{${escapeLatex(grade)}}` : "\\underline{\\hspace{3cm}}"
-  const recText = recommendation ? escapeLatex(recommendation) : ""
+  const recText = recommendation ? escapeProse(recommendation) : ""
 
   return `\\Needspace{10\\baselineskip}
 \\section{${escapeLatex(labels.summaryLabel)}}
@@ -201,7 +246,8 @@ export interface ThesisReviewGeneratorInput {
   sections: ThesisSection[]
   defenseQuestions: string[]
   citationIssues: string[]
-  language: ReviewLanguage
+  /** Report language. Wider than ReviewLanguage: de/pl/hu are render-only. */
+  language: ReportLanguage
   template: ThesisReviewTemplate
   confidentialComments?: string | null
   includeConfidential?: boolean
@@ -279,8 +325,11 @@ export class ThesisReviewLatexGenerator implements LatexGenerator {
   }
 
   generateDocument(project: Project, outputConfig: OutputConfig, _workspaceId = ""): string {
-    const template = (this.templateId === "posudok-en" ? "posudok-en" : this.templateId === "posudok-cs" ? "posudok-cs" : "posudok-sk") as ThesisReviewTemplate
-    const lang: ReviewLanguage = this.templateId === "posudok-en" ? "en" : this.templateId === "posudok-cs" ? "cs" : "sk"
+    const known: ThesisReviewTemplate[] = ["posudok-sk", "posudok-cs", "posudok-en", "posudok-de", "posudok-pl", "posudok-hu"]
+    const template: ThesisReviewTemplate = known.includes(this.templateId as ThesisReviewTemplate)
+      ? (this.templateId as ThesisReviewTemplate)
+      : "posudok-sk"
+    const lang = reportLanguageFor(template)
 
     const sections: ThesisSection[] = outputConfig.cards.map((c) => ({
       id: c.id,
