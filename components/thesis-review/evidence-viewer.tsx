@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import type { EvidenceReference } from "@/lib/ai/review-types"
 import { formatDocumentDisplayName } from "@/lib/ingestion"
+import { SourceMarkdownView } from "./source-markdown-view"
 
 interface Props {
   workspaceId: string
@@ -34,10 +35,6 @@ interface Props {
   selectedEvidence: EvidenceReference | null
   isLoading?: boolean
   onAddFindingFromSelection?: (quote: string, sectionHeading?: string) => void
-}
-
-function normalizeStr(s: string): string {
-  return s.replace(/\s+/g, " ").trim().toLowerCase()
 }
 
 export function EvidenceViewer({
@@ -50,17 +47,16 @@ export function EvidenceViewer({
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedText, setSelectedText] = useState("")
   const containerRef = useRef<HTMLDivElement>(null)
-  const activeHighlightRef = useRef<HTMLSpanElement>(null)
 
-  // Auto-scroll to selected evidence with fallback matching
+  // Auto-scroll to the first evidence match after rendering.
   useEffect(() => {
-    if (selectedEvidence?.quote && activeHighlightRef.current) {
-      activeHighlightRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      })
-    }
-  }, [selectedEvidence])
+    if (!selectedEvidence?.quote) return
+    const t = setTimeout(() => {
+      const el = containerRef.current?.querySelector("[data-evidence-match]")
+      el?.scrollIntoView({ behavior: "smooth", block: "center" })
+    }, 60)
+    return () => clearTimeout(t)
+  }, [selectedEvidence, sourceMarkdown])
 
   const handleMouseUp = () => {
     const selection = window.getSelection()
@@ -72,69 +68,6 @@ export function EvidenceViewer({
   }
 
   // Highlight helper handling exact and normalized quotes
-  const highlightQuote = (text: string, targetQuote?: string, query?: string) => {
-    if (!text) return text
-
-    const cleanTarget = targetQuote?.trim()
-    if (cleanTarget && text.includes(cleanTarget)) {
-      const parts = text.split(cleanTarget)
-      return (
-        <>
-          {parts.map((part, i) => (
-            <React.Fragment key={i}>
-              {part}
-              {i < parts.length - 1 && (
-                <mark
-                  ref={activeHighlightRef}
-                  className="bg-primary/20 text-foreground border-b-2 border-primary font-medium px-1.5 py-0.5 rounded-md transition-all duration-300 ring-2 ring-primary/40 shadow-xs inline-block animate-pulse"
-                >
-                  {cleanTarget}
-                </mark>
-              )}
-            </React.Fragment>
-          ))}
-        </>
-      )
-    }
-
-    // Whitespace-normalized match fallback
-    if (cleanTarget && cleanTarget.length > 20) {
-      const normText = normalizeStr(text)
-      const normTarget = normalizeStr(cleanTarget)
-      if (normText.includes(normTarget)) {
-        return (
-          <mark
-            ref={activeHighlightRef}
-            className="bg-primary/20 text-foreground border-b-2 border-primary font-medium px-1.5 py-0.5 rounded-md ring-2 ring-primary/40 inline-block"
-          >
-            {text}
-          </mark>
-        )
-      }
-    }
-
-    // Search query highlighting
-    if (query && query.trim().length > 1) {
-      const q = query.trim()
-      const regex = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi")
-      const parts = text.split(regex)
-      return (
-        <>
-          {parts.map((part, i) =>
-            regex.test(part) ? (
-              <mark key={i} className="bg-amber-200 dark:bg-amber-900/60 text-foreground px-1 py-0.2 rounded font-medium">
-                {part}
-              </mark>
-            ) : (
-              part
-            )
-          )}
-        </>
-      )
-    }
-
-    return text
-  }
 
   const evidenceStatusBadge = useMemo(() => {
     if (!selectedEvidence) return null
@@ -257,8 +190,8 @@ export function EvidenceViewer({
             <p className="text-xs font-semibold text-foreground">Načítavam text rukopisu z workspace…</p>
           </div>
         ) : sourceMarkdown ? (
-          /* Elevated Paper Canvas */
-          <div className="max-w-3xl mx-auto bg-card dark:bg-card/95 rounded-2xl border border-border/80 shadow-xl ring-1 ring-black/5 dark:ring-white/10 p-6 sm:p-10 my-2 space-y-4 transition-all">
+          /* Elevated Paper Canvas — wide sheet with rendered math & tables */
+          <div className="max-w-5xl mx-auto bg-card dark:bg-card/95 rounded-2xl border border-border/80 shadow-xl ring-1 ring-black/5 dark:ring-white/10 p-6 sm:p-10 my-2 transition-all">
             {/* Document Sheet Header */}
             <div className="flex items-center justify-between border-b pb-3 text-xs text-muted-foreground mb-4">
               <div className="flex items-center gap-2">
@@ -270,98 +203,11 @@ export function EvidenceViewer({
               </span>
             </div>
 
-            {/* Parsed paragraphs & headings */}
-            <div className="whitespace-pre-wrap font-sans text-xs sm:text-[13px] leading-relaxed space-y-3 text-foreground/90">
-              {sourceMarkdown.split("\n\n").map((para, idx) => {
-                const trimmed = para.trim()
-                if (!trimmed) return null
-
-                // Headings
-                if (trimmed.startsWith("#")) {
-                  const level = trimmed.match(/^#+/)?.[0].length || 1
-                  const title = trimmed.replace(/^#+\s*/, "")
-                  return (
-                    <h3
-                      key={idx}
-                      className={`font-bold text-foreground tracking-tight pt-4 border-b border-border/60 pb-1.5 ${
-                        level === 1
-                          ? "text-base sm:text-lg text-foreground font-black"
-                          : level === 2
-                          ? "text-sm sm:text-base text-foreground font-bold"
-                          : "text-xs sm:text-sm font-semibold text-foreground/90"
-                      }`}
-                    >
-                      {highlightQuote(title, selectedEvidence?.quote, searchQuery)}
-                    </h3>
-                  )
-                }
-
-                // Blockquotes
-                if (trimmed.startsWith(">")) {
-                  const quoteContent = trimmed.replace(/^>\s*/gm, "")
-                  return (
-                    <blockquote
-                      key={idx}
-                      className="border-l-3 border-primary/60 bg-primary/5 pl-3.5 py-2 my-2 rounded-r-lg text-xs italic font-serif text-foreground/85"
-                    >
-                      {highlightQuote(quoteContent, selectedEvidence?.quote, searchQuery)}
-                    </blockquote>
-                  )
-                }
-
-                // Table syntax (starts with |)
-                if (trimmed.startsWith("|")) {
-                  const rows = trimmed.split("\n").filter((r) => r.trim().startsWith("|"))
-                  return (
-                    <div key={idx} className="my-3 overflow-x-auto rounded-lg border bg-muted/20 p-1">
-                      <table className="w-full text-[11px] text-left border-collapse">
-                        <tbody>
-                          {rows.map((row, rIdx) => {
-                            if (row.includes("---")) return null
-                            const cols = row.split("|").map((c) => c.trim()).filter((_, i, arr) => i > 0 && i < arr.length - 1)
-                            const isHeader = rIdx === 0
-                            return (
-                              <tr key={rIdx} className={isHeader ? "border-b bg-muted/40 font-semibold" : "border-b border-border/40 hover:bg-muted/30"}>
-                                {cols.map((col, cIdx) => (
-                                  <td key={cIdx} className="p-1.5 px-2.5">
-                                    {highlightQuote(col, selectedEvidence?.quote, searchQuery)}
-                                  </td>
-                                ))}
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )
-                }
-
-                // Images (Markdown syntax)
-                if (trimmed.startsWith("![") && trimmed.includes("](") && trimmed.endsWith(")")) {
-                  const altMatch = trimmed.match(/!\[([^\]]*)\]/);
-                  const urlMatch = trimmed.match(/\]\(([^)]+)\)/);
-                  const alt = altMatch ? altMatch[1] : "Figure";
-                  const url = urlMatch ? urlMatch[1] : "";
-                  
-                  if (url) {
-                    return (
-                      <figure key={idx} className="my-6 flex flex-col items-center justify-center p-2 rounded-lg bg-muted/10 border border-border/50">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={url} alt={alt} className="max-w-full max-h-[300px] object-contain rounded shadow-sm bg-white dark:bg-zinc-950" loading="lazy" />
-                        {alt && alt !== "Figure" && <figcaption className="text-[10px] text-muted-foreground mt-2 font-medium">{alt}</figcaption>}
-                      </figure>
-                    )
-                  }
-                }
-
-                // Standard paragraph
-                return (
-                  <p key={idx} className="text-foreground/85 leading-relaxed">
-                    {highlightQuote(trimmed, selectedEvidence?.quote, searchQuery)}
-                  </p>
-                )
-              })}
-            </div>
+            <SourceMarkdownView
+              markdown={sourceMarkdown}
+              highlightQuote={selectedEvidence?.quote}
+              searchQuery={searchQuery}
+            />
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 space-y-3">

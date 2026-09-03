@@ -44,6 +44,22 @@ Post prose.`
   })
 })
 
+  it("converts MinerU-style HTML tables to markdown and classifies them as table blocks", () => {
+    const text = [
+      "Some prose before the table explaining the results.",
+      "",
+      '<table><tbody><tr><td>Model</td><td>Accuracy</td></tr><tr><td>Baseline</td><td>0.72</td></tr><tr><td>Ours</td><td>0.89</td></tr></tbody></table>',
+      "",
+      "Prose after the table.",
+    ].join("\n")
+    const segs = splitIntoStructuralSegments(text)
+    const tableSeg = segs.find((s) => s.kind === "table")
+    expect(tableSeg).toBeDefined()
+    expect(tableSeg!.text).toContain("| Model | Accuracy |")
+    expect(tableSeg!.text).toContain("Baseline")
+    expect(tableSeg!.text).toContain("0.89")
+  })
+
 describe("buildTableEmbeddingText", () => {
   it("flattens tables into heading + column names + rows", () => {
     const md = `| Model | Acc |
