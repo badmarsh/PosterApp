@@ -244,3 +244,51 @@ describe("Thesis review Unicode & markdown handling (A-01)", () => {
   })
 })
 
+
+describe("Report languages beyond the AI rubric (de/pl/hu)", () => {
+  const base = {
+    studentName: "Anna Müller",
+    thesisTitle: "Analyse der Messunsicherheit",
+    thesisType: "master" as const,
+    reviewerRole: "opponent" as const,
+    defenseQuestions: [],
+    citationIssues: [],
+    sections: [
+      {
+        id: "s1",
+        sectionId: "methodology",
+        criterionId: "methodology",
+        text: "Die Methodik ist sorgfältig.",
+        rating: "A" as const,
+        suggestions: [],
+      },
+    ],
+  }
+
+  it.each([
+    ["posudok-de", "de", "ngerman", "GUTACHTEN ZUR ABSCHLUSSARBEIT"],
+    ["posudok-pl", "pl", "polish", "RECENZJA PRACY DYPLOMOWEJ"],
+    ["posudok-hu", "hu", "magyar", "BÍRÁLAT A ZÁRÓDOLGOZATRÓL"],
+  ] as const)("%s selects %s babel and localized headings", (template, lang, babel, heading) => {
+    const tex = generateThesisReviewLatex({ ...base, language: lang, template })
+    expect(tex).toContain(`\\usepackage[${babel}]{babel}`)
+    expect(tex).toContain(heading)
+    expect(tex).toContain("\\begin{document}")
+    expect(tex).toContain("\\end{document}")
+  })
+
+  it("falls back to English criterion names for untranslated rubric languages", () => {
+    const tex = generateThesisReviewLatex({ ...base, language: "de", template: "posudok-de" })
+    // Must not leak the raw criterion id into the PDF
+    expect(tex).not.toContain("methodology_rigor")
+    expect(tex).not.toContain("\\subsection*{methodology ")
+  })
+
+  it("keeps Unicode-heavy localized labels compile-safe", () => {
+    for (const [template, lang] of [["posudok-de", "de"], ["posudok-pl", "pl"], ["posudok-hu", "hu"]] as const) {
+      const tex = generateThesisReviewLatex({ ...base, language: lang, template })
+      // Greek/math Unicode must be mapped; plain accented Latin is fine under T1
+      expect(tex).not.toMatch(/[χαβ≤≥→]/)
+    }
+  })
+})

@@ -51,11 +51,25 @@ export function detectDocumentLanguage(tex: string): "sk" | "cs" | "en" {
   return "sk"
 }
 
+/**
+ * Babel option per language code.
+ *
+ * `detectDocumentLanguage` only ever returns sk/cs/en, because poster/slides/
+ * paper carry no explicit language and are detected from body diacritics.
+ * de/pl/hu are NOT dead: `ensureEncodingPreamble` is exported and takes an
+ * explicit `language`, and thesis-review reports are rendered in those
+ * languages via `ReportLanguage` (lib/latex/templates-thesis.ts), which
+ * declares its own babel line.
+ *
+ * Adding real de/pl/hu detection for poster/slides/paper would need the
+ * distinctive diacritics (ä/ö/ü/ß, ą/ę/ł/ż/ś/ć, ő/ű) and is deliberately not
+ * done here — see B-01 in docs/audit/latex-audit-2026-09.md.
+ */
 const BABEL_BY_LANG: Record<string, string> = {
   sk: "slovak",
   cs: "czech",
   en: "english",
-  de: "german",
+  de: "ngerman",
   pl: "polish",
   hu: "magyar",
 }

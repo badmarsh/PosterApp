@@ -175,6 +175,15 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
   { id: "posudok-cs", outputType: "thesis-review", label: "Český posudek (ČVUT/MUNI)", description: "Standardní posudek závěrečné práce dle českých vysokoškolských norem.", category: "institutional",
     colors: [{id:"blue",name:"Navy",hex:"#003366"},{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
     detailFeatures: ["Formátování dle ČVUT / MUNI / VUT", "Kritéria s ECTS hodnocením", "Otázky k obhajobě a podpisový blok"], latexClass: "article [czech]", colorSystem: "None" },
+  { id: "posudok-de", outputType: "thesis-review", label: "Deutsches Gutachten", description: "Gutachten zur Abschlussarbeit nach mitteleuropäischem Hochschulstandard.", category: "core",
+    colors: [{id:"blue",name:"Navy",hex:"#003366"},{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
+    detailFeatures: ["Deutschsprachiges Gutachten (ngerman babel)", "Kriterientabelle mit ECTS-Noten", "Verteidigungsfragen und Unterschriftsfeld", "Kriterienbezeichnungen auf Englisch (Rubrik nicht übersetzt)"], latexClass: "article [ngerman]", colorSystem: "None" },
+  { id: "posudok-pl", outputType: "thesis-review", label: "Recenzja polska", description: "Recenzja pracy dyplomowej zgodna ze standardami polskich uczelni.", category: "core",
+    colors: [{id:"blue",name:"Navy",hex:"#003366"},{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
+    detailFeatures: ["Recenzja w języku polskim (polish babel)", "Tabela kryteriów z ocenami ECTS", "Pytania na obronę i pole podpisu", "Nazwy kryteriów po angielsku (rubryka nieprzetłumaczona)"], latexClass: "article [polish]", colorSystem: "None" },
+  { id: "posudok-hu", outputType: "thesis-review", label: "Magyar bírálat", description: "Záródolgozat bírálata magyar felsőoktatási szabvány szerint.", category: "core",
+    colors: [{id:"blue",name:"Navy",hex:"#003366"},{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-single",
+    detailFeatures: ["Magyar nyelvű bírálat (magyar babel)", "Szempontok táblázata ECTS érdemjegyekkel", "Védési kérdések és aláírás mező", "A szempontok neve angolul (a rubrika nincs lefordítva)"], latexClass: "article [magyar]", colorSystem: "None" },
 ]
 
 /** Get all templates available for a given output type. */
