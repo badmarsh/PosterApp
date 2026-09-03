@@ -3,7 +3,7 @@ import {
   classifyDisciplineAndThesisType,
   detectReportingGuideline,
 } from "@/lib/ai/document-understanding"
-import { AUTO_APPLY_CONFIDENCE_THRESHOLD } from "@/app/api/workspaces/[id]/thesis-review/route"
+import { AUTO_APPLY_CONFIDENCE_THRESHOLD } from "@/lib/ai/thesis-review-policy"
 
 describe("Task 9: Thesis Classification and Confidence-Gated Guideline Suggestion", () => {
   it("exports the calibrated confidence threshold constant of 0.8", () => {

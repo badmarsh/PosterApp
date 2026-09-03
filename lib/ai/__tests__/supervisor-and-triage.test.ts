@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { buildSystemPrompt, buildUserPrompt } from "@/lib/ai/prompts-thesis"
-import { shouldUseProfessionalMode } from "@/app/api/workspaces/[id]/thesis-review/route"
+import { shouldUseProfessionalMode } from "@/lib/ai/thesis-review-policy"
 import type { ThesisMetadata } from "@/lib/ai/thesis-rubric"
 
 describe("TASK 1 & 4: Supervisor-Mode Tone and Pre-consultation Triage", () => {

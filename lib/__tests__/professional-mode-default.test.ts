@@ -3,7 +3,7 @@ import { extractDocumentStructure } from "@/lib/ai/document-understanding"
 import { checkObjectiveAlignment, auditCitationConsistency } from "@/lib/ai/academic-checks"
 import { buildPreGenerationGrounding } from "@/lib/ai/review-engine"
 import { RUBRIC_CRITERIA_MAP } from "@/lib/ai/rubric-engine"
-import { shouldUseProfessionalMode } from "@/app/api/workspaces/[id]/thesis-review/route"
+import { shouldUseProfessionalMode } from "@/lib/ai/thesis-review-policy"
 
 describe("Task 11: shouldUseProfessionalMode and Path A defaults", () => {
   describe("shouldUseProfessionalMode: auto-elevation rules", () => {

@@ -20,12 +20,17 @@ const SearchSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-  let userId = "anon"
+  // Never serve unauthenticated traffic against paid upstream APIs, and never
+  // share a rate-limit bucket between anonymous callers.
+  let userId: string | null = null
   try {
     const session = await auth()
-    if (session?.userId) userId = session.userId
+    userId = session?.userId ?? null
   } catch {
-    // E2E test fallback or unauth
+    userId = null
+  }
+  if (!userId) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 })
   }
 
   const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:academic-search`, 30, 60_000)

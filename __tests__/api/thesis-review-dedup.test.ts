@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { NextRequest } from "next/server"
-import { GET as getReviews, normalizeDefenseQuestions } from "@/app/api/workspaces/[id]/thesis-review/route"
+import { GET as getReviews } from "@/app/api/workspaces/[id]/thesis-review/route"
+import { normalizeDefenseQuestions } from "@/lib/ai/thesis-review-policy"
 import { GET as getSingleReview, PUT as updateReview } from "@/app/api/workspaces/[id]/thesis-review/[reviewId]/route"
 
 // Mock auth

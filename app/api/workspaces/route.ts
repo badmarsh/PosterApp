@@ -109,10 +109,11 @@ export async function GET() {
       msg.includes("does not exist") ||
       msg.includes("Invalid `prisma.workspace")
     ) {
-      return NextResponse.json(
-        { error: "Database offline or not initialized. Please start PostgreSQL and run 'npx dotenv-cli -e .env.local -- npx prisma db push'." },
-        { status: 503 }
-      )
+      const hint =
+        process.env.NODE_ENV !== "production"
+          ? " Start PostgreSQL and run 'pnpm exec prisma migrate deploy'."
+          : ""
+      return NextResponse.json({ error: `Database unavailable.${hint}` }, { status: 503 })
     }
     console.error("[Workspaces GET] Server error:", err)
     return NextResponse.json({ error: "Failed to load workspaces" }, { status: 500 })
@@ -191,10 +192,11 @@ export async function POST(req: Request) {
       msg.includes("does not exist") ||
       msg.includes("Invalid `prisma.workspace")
     ) {
-      return NextResponse.json(
-        { error: "Database offline or not initialized. Please start PostgreSQL and run 'npx dotenv-cli -e .env.local -- npx prisma db push'." },
-        { status: 503 }
-      )
+      const hint =
+        process.env.NODE_ENV !== "production"
+          ? " Start PostgreSQL and run 'pnpm exec prisma migrate deploy'."
+          : ""
+      return NextResponse.json({ error: `Database unavailable.${hint}` }, { status: 503 })
     }
     console.error("[Workspaces POST] Server error:", err)
     return NextResponse.json({ error: "Failed to create workspace" }, { status: 500 })

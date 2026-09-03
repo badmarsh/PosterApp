@@ -18,7 +18,37 @@ const DANGEROUS_LATEX_COMMANDS = [
   "\\gdef",
   "\\edef",
   "\\xdef",
+  // Category-code / internal-macro escapes that bypass the simple names above
+  "\\makeatletter",
+  "\\@@input",
+  "\\scantokens",
+  "\\openin",
+  "\\read",
+  "\\pdffiledump",
+  "\\pdffilesize",
+  "\\pdfmdfivesum",
+  "\\pdfobj",
+  "\\pdfstrcmp",
+  "\\directlua",
+  "\\ShellEscape",
+  "\\ifeof",
+  "\\endinput",
+  "\\lowercase",
+  "\\uppercase",
+  "\\expandafter",
+  "\\noexpand",
+  "\\special",
+  "\\jobname",
+  "\\everypar",
+  "\\everyjob",
+  "\\shipout",
+  "\\usepackage",
+  "\\RequirePackage",
+  "\\documentclass",
 ]
+
+/** Case-insensitive detection of active-character / caret-notation tricks (^^40 == @). */
+const CARET_NOTATION = /\^\^[0-9a-f]{2}|\^\^[@-_]/i
 
 export function hasUnsafeLatex(input: string): string[] {
   if (!input || typeof input !== "string") return []
@@ -29,6 +59,9 @@ export function hasUnsafeLatex(input: string): string[] {
     if (input.includes(cmd)) {
       found.add(`prohibited command ${cmd}`)
     }
+  }
+  if (CARET_NOTATION.test(input)) {
+    found.add("prohibited caret notation (^^)")
   }
 
   // Count brace balance, ignoring escaped braces like \{ and \}

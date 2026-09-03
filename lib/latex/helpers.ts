@@ -11,8 +11,19 @@ export function indent(s: string, n = 2): string {
  * `assets\remote\fig.jpg` is parsed as control sequences (`\r`, `\remote`).
  * Always emit forward slashes in generated .tex.
  */
+/**
+ * Normalize a file path for use inside `\includegraphics{...}` and friends.
+ * - Converts Windows separators to `/` (LaTeX would parse `\remote` as a macro).
+ * - Strips characters that can terminate the brace argument or inject TeX
+ *   (`{ } % # ~ $ & ^ \` plus control chars and whitespace). Paths are never
+ *   user-visible text, so lossy stripping is acceptable and far safer than
+ *   escaping (which graphicx does not reliably honour inside file names).
+ */
 export function normalizeLatexPath(p: string): string {
-  return p.replace(/\\/g, "/")
+  return p
+    .replace(/\\/g, "/")
+    // eslint-disable-next-line no-control-regex
+    .replace(/[{}%#~$&^\u0000-\u001f\u007f\s]/g, "")
 }
 
 export function assetUrlToLatexPath(apiUrl: string, workspaceId: string): string {

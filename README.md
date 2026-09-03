@@ -54,7 +54,10 @@ PosterApp is an intelligent, Next.js-based academic poster editor that assists r
   ```bash
   pnpm test
   ```
-- **End-to-End Tests** (Playwright with built-in Clerk bypass):
+- **End-to-End Tests** (Playwright). The Clerk bypass is enabled by the
+  server-only `E2E_AUTH_BYPASS=1` flag **and** `NODE_ENV=development|test`
+  (both set automatically by `playwright.config.ts`). It can never activate in
+  production or when `NODE_ENV` is unset:
   ```bash
   pnpm test:e2e
   ```
@@ -68,7 +71,12 @@ When deploying PosterApp to a production cluster or cloud environment:
 3. **Database**: Provide a production PostgreSQL connection string in `DATABASE_URL` with connection pooling enabled.
 4. **Authentication**: Set production Clerk keys (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`).
 5. **Realtime Collaboration (Yjs)**: Configure `NEXT_PUBLIC_YJS_WS_URL` with your production WebSocket domain (e.g. `wss://yourdomain.com/api/yjs`).
-6. **Edge Security**: Edge security headers (CSP with `worker-src 'self' blob:;`, HSTS, X-Frame-Options, nosniff) are automatically applied via `next.config.mjs`.
+6. **Edge Security**: Edge security headers (CSP with `worker-src 'self' blob:;`, HSTS, X-Frame-Options, nosniff) are automatically applied via `next.config.mjs`. `'unsafe-eval'` is only emitted in development.
+7. **Process entrypoint**: run `pnpm build && pnpm start`. `pnpm start` launches `server.ts` (Next.js + the Yjs WebSocket on the same port). Plain `next start` (`pnpm start:next-only`) does **not** host `/api/yjs` and collaboration will silently degrade.
+8. **Yjs durability**: set `YPERSISTENCE=/path/to/dir` so collaborative document state survives restarts (y-leveldb). Without it, unsaved CRDT edits live only in process memory.
+9. **Health check**: `GET /healthz` (served directly by `server.ts`, no auth) returns `{ ok: true }` for load balancers / container orchestrators.
+10. **Rate limiting fail-safe**: in production the in-memory limiter is disabled unless `RATE_LIMIT_ALLOW_IN_MEMORY=1` is set explicitly (single-instance only). Configure Upstash for multi-instance deployments.
+11. **Container image**: a production `Dockerfile` is provided (`docker build -t posterapp .`). It runs migrations on start and exposes port 3333.
 
 ## Environment Variables
 The application requires several environment variables to function correctly. Copy `.env.example` to `.env.local` and configure them:
@@ -88,6 +96,10 @@ The application requires several environment variables to function correctly. Co
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk Authentication frontend key |
 | `CLERK_SECRET_KEY` | Clerk Authentication backend key |
 | `NEXT_PUBLIC_YJS_WS_URL` | Yjs WebSocket URL (`ws://localhost:3333/api/yjs`) |
+| `YPERSISTENCE` | (Prod) Directory for y-leveldb persistence of collaborative docs |
+| `RATE_LIMIT_ALLOW_IN_MEMORY` | (Prod) Set to `1` to permit per-process rate limiting without Redis (single instance only) |
+| `AI_REQUEST_TIMEOUT_MS` | (Optional) Hard timeout per AI provider request (default 180000) |
+| `E2E_AUTH_BYPASS` | (Dev/test only) Server-side flag enabling the Playwright auth bypass; ignored in production |
 
 ## API Routes Reference
 - `POST /api/ingestion/parse` - Accepts PDF uploads, triggers MinerU, extracts markdown, figures, tables, and AI-generated BibTeX citations.

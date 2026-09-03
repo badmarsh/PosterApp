@@ -8,6 +8,8 @@ This document records the security hardening claims, corrections, and fixes appl
 
 ---
 
+> **Round 4 (2026-09-03):** an independent read-only audit of `f2930ad6` re-verified the claims below and found four divergences that are now fixed on this branch — remote-figure SSRF in `lib/latex/remote-assets.ts` (no host/DNS/redirect validation; bytes retrievable via export), incomplete optimistic-revision gating on card/asset routes, a CSP that still allowed `'unsafe-eval'` in production, and a production start script (`next start`) that did not host the Yjs WebSocket. See `CHANGELOG.md` → *Hardening Round 4* for the complete list of changes and the regression tests added (`lib/latex/__tests__/remote-assets.test.ts`, `lib/__tests__/e2e-bypass.test.ts`, `__tests__/api/card-route-isolation.test.ts`, `lib/latex/__tests__/validation.test.ts`).
+
 ## Tier A — Security Correctness (All ✅)
 
 ### A1: Workspace DELETE requires owner-only access

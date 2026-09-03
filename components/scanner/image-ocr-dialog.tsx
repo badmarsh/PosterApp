@@ -52,6 +52,9 @@ function KaTeXMathPreview({ formula }: { formula: string }) {
       return katex.renderToString(clean, {
         throwOnError: false,
         displayMode: true,
+        // OCR output is untrusted: never allow \href / \url / \includegraphics.
+        trust: false,
+        strict: "ignore",
       })
     } catch {
       return null

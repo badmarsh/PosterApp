@@ -13,18 +13,27 @@ const store = new Map<string, { count: number; resetAt: number }>()
 
 let warnedProdInMemory = false
 
-function checkProdWarning() {
-  if (
-    !warnedProdInMemory &&
-    process.env.NODE_ENV === "production" &&
-    !process.env.UPSTASH_REDIS_REST_URL &&
-    !process.env.KV_REST_API_URL
-  ) {
+/**
+ * In production the in-memory store is per-process, so a multi-instance
+ * deployment silently multiplies every limit. Require an explicit opt-in
+ * (RATE_LIMIT_ALLOW_IN_MEMORY=1) for single-instance deployments; otherwise
+ * fail closed so misconfiguration is loud instead of silent.
+ * Returns true when the in-memory limiter may be used.
+ */
+function inMemoryAllowed(): boolean {
+  const isProd = process.env.NODE_ENV === "production"
+  const hasRedis = Boolean(process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL)
+  if (!isProd || hasRedis) return true
+  const optedIn = process.env.RATE_LIMIT_ALLOW_IN_MEMORY === "1"
+  if (!warnedProdInMemory) {
     warnedProdInMemory = true
-    console.warn(
-      "[rate-limit] WARNING: Running in production with in-memory rate limiting. Configure UPSTASH_REDIS_REST_URL & UPSTASH_REDIS_REST_TOKEN for distributed rate limiting."
-    )
+    if (optedIn) {
+      console.warn("[rate-limit] WARNING: Running in production with in-memory rate limiting (RATE_LIMIT_ALLOW_IN_MEMORY=1). Limits are per-process.")
+    } else {
+      console.error("[rate-limit] Production requires UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN (or KV_REST_API_*). Denying rate-limited requests. Set RATE_LIMIT_ALLOW_IN_MEMORY=1 to accept per-process limits on a single instance.")
+    }
   }
+  return optedIn
 }
 
 function pruneStore(now: number) {
@@ -43,7 +52,7 @@ export function rateLimit(
   limit: number,
   windowMs: number
 ): RateLimitResult {
-  checkProdWarning()
+  if (!inMemoryAllowed()) return { allowed: false, retryAfterMs: windowMs }
   const now = Date.now()
   let record = store.get(key)
 

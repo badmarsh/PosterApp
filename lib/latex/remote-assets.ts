@@ -3,6 +3,8 @@ import path from "path"
 import fs from "fs/promises"
 import { normalizeLatexPath } from "./helpers"
 import type { Project } from "@/lib/poster-types"
+import { safeFetch } from "@/lib/safe-fetch"
+import { detectedImageMime } from "@/lib/workspace-files"
 
 /**
  * Remote figure materialization for the LaTeX pipeline.
@@ -15,14 +17,12 @@ import type { Project } from "@/lib/poster-types"
 
 const FETCH_TIMEOUT_MS = 10_000
 const MAX_BYTES = 5 * 1024 * 1024 // 5 MB
-const EXT_WHITELIST = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".pdf"])
 const MIME_TO_EXT: Record<string, string> = {
   "image/jpeg": ".jpg",
   "image/png": ".png",
   "image/gif": ".gif",
   "image/webp": ".webp",
   "image/svg+xml": ".svg",
-  "image/bmp": ".bmp",
   "application/pdf": ".pdf",
 }
 
@@ -43,36 +43,32 @@ export function collectRemoteFigureUrls(project: Project): string[] {
   return [...urls]
 }
 
-function inferExtension(url: string, contentType?: string | null): string {
-  try {
-    const pathname = new URL(url).pathname
-    const ext = path.extname(pathname).toLowerCase()
-    if (EXT_WHITELIST.has(ext)) return ext
-  } catch {
-    // fall through to content-type / default below
-  }
-  const mime = contentType?.split(";")[0].trim().toLowerCase()
-  if (mime && MIME_TO_EXT[mime]) return MIME_TO_EXT[mime]
-  return ".jpg"
-}
-
 interface DownloadedImage {
   buffer: Buffer
   ext: string
 }
 
-/** Download a remote image with timeout and size cap. Returns null on any failure. */
+const ALLOWED_MIMES = new Set(Object.keys(MIME_TO_EXT))
+
+/**
+ * Download a remote image with SSRF protection (reserved-host + DNS checks on
+ * every redirect hop), timeout, size cap, and content sniffing. Only real
+ * raster/vector images and PDFs are accepted; anything else (HTML, JSON,
+ * internal service responses) is discarded. Returns null on any failure.
+ */
 export async function downloadRemoteImage(url: string): Promise<DownloadedImage | null> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
   try {
-    const res = await fetch(url, { signal: controller.signal, redirect: "follow" })
+    const res = await safeFetch(url, {
+      timeoutMs: FETCH_TIMEOUT_MS,
+      headers: { Accept: "image/*,application/pdf" },
+    })
     if (!res.ok || !res.body) return null
 
     const declaredLength = Number(res.headers.get("content-length") ?? "0")
     if (declaredLength > MAX_BYTES) return null
 
-    const ext = inferExtension(url, res.headers.get("content-type"))
+    const declaredMime = res.headers.get("content-type")?.split(";")[0].trim().toLowerCase() ?? ""
+    if (declaredMime && !ALLOWED_MIMES.has(declaredMime)) return null
 
     const reader = res.body.getReader()
     const chunks: Uint8Array[] = []
@@ -81,15 +77,29 @@ export async function downloadRemoteImage(url: string): Promise<DownloadedImage 
       const { done, value } = await reader.read()
       if (done) break
       total += value.byteLength
-      if (total > MAX_BYTES) return null
+      if (total > MAX_BYTES) {
+        await reader.cancel().catch(() => {})
+        return null
+      }
       chunks.push(value)
     }
     if (total === 0) return null
-    return { buffer: Buffer.concat(chunks), ext }
+    const buffer = Buffer.concat(chunks)
+
+    // Verify the bytes are actually an image/PDF. SVG has no magic bytes, so it
+    // is accepted only when the server declared it and the body looks like XML.
+    const sniffed = detectedImageMime(buffer)
+    let ext: string
+    if (sniffed) {
+      ext = MIME_TO_EXT[sniffed]
+    } else if (declaredMime === "image/svg+xml" && /^\s*(<\?xml|<svg)/i.test(buffer.subarray(0, 512).toString("utf8"))) {
+      ext = ".svg"
+    } else {
+      return null
+    }
+    return { buffer, ext }
   } catch {
     return null
-  } finally {
-    clearTimeout(timer)
   }
 }
 
@@ -130,7 +140,12 @@ export function rewriteTexRemoteUrls(tex: string, mapping: Map<string, string>):
   let rewritten = tex
   for (const [url, localPath] of mapping) {
     // Defense in depth: never emit Windows separators into .tex.
-    rewritten = rewritten.split(url).join(normalizeLatexPath(localPath))
+    const local = normalizeLatexPath(localPath)
+    // Generators emit the URL through normalizeLatexPath (which strips TeX
+    // specials), so match both the raw and the normalized spelling.
+    for (const needle of new Set([url, normalizeLatexPath(url)])) {
+      if (needle) rewritten = rewritten.split(needle).join(local)
+    }
   }
   return rewritten
 }

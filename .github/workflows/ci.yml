@@ -2,13 +2,106 @@ name: CI
 
 on:
   push:
-    branches: ["main", "feat/peer-review-expert-module"]
+    branches: ["main"]
   pull_request:
     branches: ["main"]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/posterapp"
+  CLERK_SECRET_KEY: "sk_test_mock_mock_mock_mock_mock_mock_mock_mock_mock"
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_mock_mock_mock_mock_mock_mock_mock_mock_mock"
+  NEXT_PUBLIC_YJS_WS_URL: "ws://localhost:3333/api/yjs"
+  AI_API_URL: "https://openrouter.ai/api/v1"
+  AI_API_KEY: "mock-key"
+  AI_MODEL: "gemini-3-flash"
+  BASE_URL: "http://localhost:3333"
+  NEXT_TELEMETRY_DISABLED: "1"
+
 jobs:
-  build-and-test:
+  quality:
+    name: Lint · Typecheck · Unit · Build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: posterapp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+        # version is read from package.json "packageManager"
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: "pnpm"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+      - name: Run Prisma migrations
+        run: pnpm exec prisma migrate deploy
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Unit tests
+        run: pnpm test -- --run
+      - name: Build
+        # Must run even if an earlier quality gate fails so we always know
+        # whether HEAD builds.
+        if: always()
+        run: pnpm build
+
+  security:
+    name: Dependency audit · Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: "pnpm"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: pnpm audit (high+)
+        run: pnpm audit --audit-level high
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: quality
+    # Playwright's Clerk testing token requires a real Clerk tenant; run only
+    # when the secret is available (never on forks).
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
 
     services:
       postgres:
@@ -25,44 +118,31 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/posterapp"
-      CLERK_SECRET_KEY: "sk_test_mock_mock_mock_mock_mock_mock_mock_mock_mock"
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_mock_mock_mock_mock_mock_mock_mock_mock_mock"
+      # Client-only flag (skips sign-in redirect) + server-only bypass flag.
       NEXT_PUBLIC_E2E_TEST: "1"
-      NEXT_PUBLIC_YJS_WS_URL: "ws://localhost:3333/api/yjs"
-      AI_API_URL: "https://openrouter.ai/api/v1"
-      AI_API_KEY: "mock-key"
-      AI_MODEL: "gemini-3-flash"
-      BASE_URL: "http://localhost:3333"
+      E2E_AUTH_BYPASS: "1"
+      NODE_ENV: development
+      CI: "true"
 
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          version: 9
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
+          node-version: 22
+          cache: "pnpm"
       - name: Install dependencies
-        run: pnpm install
-      # Use migrate deploy (not db push) to verify migration history integrity
-      - name: Run Prisma Migrations
-        run: pnpm exec prisma migrate deploy
-      - name: Check typing
-        run: pnpm typecheck
-      - name: Lint
-        run: pnpm lint
-      - name: Test (Unit)
-        run: pnpm test -- --run
-      - name: Build
-        run: pnpm build
-      # Install Playwright browsers for E2E tests
-      - name: Install Playwright Browsers
+        run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client & migrate
+        run: pnpm exec prisma generate && pnpm exec prisma migrate deploy
+      - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
-      - name: Test (E2E — Playwright)
+      - name: Run Playwright
         run: pnpm exec playwright test --reporter=github
-        env:
-          CI: "true"
+      - name: Upload report
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

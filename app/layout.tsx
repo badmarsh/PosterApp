@@ -1,16 +1,14 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+// Self-hosted Geist (npm package) — no Google Fonts fetch at build time, so
+// builds are reproducible in air-gapped CI/containers.
+import { GeistSans } from 'geist/font/sans'
+import { GeistMono } from 'geist/font/mono'
 import { ClerkProvider } from '@clerk/nextjs'
 import { ThemeProvider } from '@/components/theme-provider'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import './globals.css'
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-})
 
 export const metadata: Metadata = {
   title: 'Poster Block Studio — tikzposter editor',
@@ -53,7 +51,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html
         lang="en"
-        className={`${geistSans.variable} ${geistMono.variable} bg-background`}
+        className={`${GeistSans.variable} ${GeistMono.variable} bg-background`}
         suppressHydrationWarning
       >
         <body className="font-sans antialiased">

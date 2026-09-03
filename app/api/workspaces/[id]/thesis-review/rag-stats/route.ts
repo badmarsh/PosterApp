@@ -47,25 +47,9 @@ export async function GET(
   })
   const activeDocIds = ingestFiles.map((f) => f.id)
 
-  // 2. Asynchronously cleanup any orphaned chunks or graph nodes for deleted files
-  if (activeDocIds.length > 0) {
-    await prisma.documentChunk.deleteMany({
-      where: {
-        workspaceId,
-        documentId: { notIn: activeDocIds },
-      },
-    }).catch(() => {})
-
-    await prisma.graphNode.deleteMany({
-      where: {
-        workspaceId,
-        documentId: { notIn: activeDocIds },
-      },
-    }).catch(() => {})
-  } else {
-    await prisma.documentChunk.deleteMany({ where: { workspaceId } }).catch(() => {})
-    await prisma.graphNode.deleteMany({ where: { workspaceId } }).catch(() => {})
-  }
+  // Orphaned chunks/graph nodes are removed when an IngestFile is deleted
+  // (ingest-files/[fileId] DELETE). A GET must stay side-effect free; stats
+  // below are scoped strictly to active files.
 
   // 3. Aggregate stats per document (strictly for active files)
   const rows = activeDocIds.length > 0 ? await prisma.$queryRaw<

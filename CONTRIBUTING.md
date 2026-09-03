@@ -19,7 +19,7 @@
 - **Every `catch` block** returning a JSON error must use `safeApiError(...)` from `lib/security.ts` — never leak raw error strings
 
 ## Architecture
-See `AGENTS.md` for full architecture documentation.
+See `.agents/AGENTS.md` for full architecture documentation.
 
 ## Pull Request Guidelines
 - Keep PRs focused on a single feature/fix

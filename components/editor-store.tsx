@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useRef, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { createStore, useStore } from "zustand"
 import { immer } from "zustand/middleware/immer"
 import { persist } from "zustand/middleware"
@@ -44,20 +44,21 @@ type EditorStore = ReturnType<typeof createEditorStore>
 const EditorStoreContext = createContext<EditorStore | null>(null)
 
 export function EditorProvider({ children }: { children: ReactNode }) {
-  const storeRef = useRef<EditorStore | null>(null)
-  if (storeRef.current === null) storeRef.current = createEditorStore()
+  // useState's lazy initializer runs exactly once per mounted provider and does
+  // not touch refs during render (react-hooks/refs).
+  const [store] = useState(() => createEditorStore())
 
   useEffect(() => {
     if (typeof window !== "undefined" && jobQueue?.subscribe) {
       const unsub = jobQueue.subscribe((jobs) => {
-        storeRef.current!.setState({ jobs })
+        store.setState({ jobs })
       })
       return unsub
     }
-  }, [])
+  }, [store])
 
   return (
-    <EditorStoreContext.Provider value={storeRef.current}>
+    <EditorStoreContext.Provider value={store}>
       {children}
     </EditorStoreContext.Provider>
   )

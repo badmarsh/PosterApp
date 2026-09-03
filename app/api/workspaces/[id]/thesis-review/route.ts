@@ -55,24 +55,7 @@ import {
 import { buildPreGenerationGrounding } from "@/lib/ai/review-engine"
 import { buildSystemPrompt, buildUserPrompt } from "@/lib/ai/prompts-thesis"
 import { z } from "zod"
-
-// Starting value; needs empirical tuning
-export const AUTO_APPLY_CONFIDENCE_THRESHOLD = 0.8
-
-export function shouldUseProfessionalMode(
-  professionalMode: boolean | undefined,
-  reviewKind: "thesis" | "paper" | "grant" | undefined,
-  reportingStandard: string | undefined,
-  thesisType?: "bachelor" | "master" | "phd" | undefined,
-  reviewerRole?: string | undefined
-): boolean {
-  if (reviewerRole === "self") return true
-  if (Boolean(professionalMode)) return true
-  if (reviewKind === "paper") return true
-  if (reportingStandard !== undefined && reportingStandard !== "none") return true
-  if ((reviewKind === "thesis" || reviewKind === undefined) && (thesisType === "master" || thesisType === "phd")) return true
-  return false
-}
+import { AUTO_APPLY_CONFIDENCE_THRESHOLD, shouldUseProfessionalMode, normalizeDefenseQuestions } from "@/lib/ai/thesis-review-policy"
 
 const ThesisMetadataSchema = z.object({
   studentName: z.string().max(200).default("Študent / Autor"),
@@ -106,12 +89,6 @@ const RequestBodySchema = z.object({
   rubricTemplateId: z.string().optional(),
   customWeights: z.record(z.string(), z.number()).optional(),
 })
-
-export function normalizeDefenseQuestions(
-  questions: Array<string | { question: string }>
-): string[] {
-  return questions.map((question) => typeof question === "string" ? question : question.question)
-}
 
 // ---------------------------------------------------------------------------
 // Route handler
