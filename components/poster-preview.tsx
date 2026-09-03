@@ -54,13 +54,14 @@ import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { StatusIcon } from "@/components/status"
 import { COLUMN_BUDGET, estimateHeight, generateFullTemplate } from "@/lib/latex"
-import type { Card, ColumnIndex } from "@/lib/poster-types"
+import type { Card, ColumnIndex, OutputConfig, Project } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 import { apiFetch } from "@/lib/api-fetch"
 import type { OutputType } from "@/lib/output-types"
 import { TemplateHeader } from "@/components/template-header"
 import { OUTPUT_TYPE_LABELS, TEMPLATE_REGISTRY, getTemplatesForType } from "@/lib/output-types"
 import { ThesisReviewPanel } from "@/components/thesis-review/thesis-review-panel"
+import { getExistingThesisReviewStore } from "@/components/thesis-review/use-thesis-review-store"
 
 // ---------------------------------------------------------------------------
 // OutputTypeIcon — maps output type to a small icon
@@ -546,6 +547,26 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
 }
 
 // ---------------------------------------------------------------------------
+export function getOutputTabLabel(output: OutputConfig, project: Project): string {
+  if (output.outputType === "thesis-review") {
+    if (output.title && output.title !== project.name) {
+      return output.title
+    }
+    const storeKey = `${project.id}:${output.id}`
+    const store = getExistingThesisReviewStore(storeKey)
+    const role = store?.getState().formMetadata.reviewerRole
+    if (role === "supervisor") return "Posudok školiteľa"
+    if (role === "opponent") return "Posudok oponenta"
+    if (role === "reviewer") return "Posudok recenzenta"
+
+    const thesisOutputs = (project.outputs || []).filter((o) => o.outputType === "thesis-review")
+    const index = thesisOutputs.findIndex((o) => o.id === output.id)
+    return index === 0 ? "Posudok školiteľa" : "Posudok oponenta"
+  }
+  return OUTPUT_TYPE_LABELS[output.outputType as OutputType] || output.title
+}
+
+// ---------------------------------------------------------------------------
 // OutputTabBar — row of output tabs + add button
 // ---------------------------------------------------------------------------
 function OutputTabBar() {
@@ -572,7 +593,7 @@ function OutputTabBar() {
                 )}
               >
                 <OutputTypeIcon type={o.outputType as OutputType} className="size-3" />
-                {OUTPUT_TYPE_LABELS[o.outputType as OutputType]}
+                {getOutputTabLabel(o, project)}
               </button>
               {outputs.length > 1 && !isActive && (
                 <button

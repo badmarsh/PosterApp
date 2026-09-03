@@ -29,7 +29,8 @@ import {
   GraduationCap,
   BookOpen,
 } from "lucide-react"
-import { useThesisReviewStore, normalizeFormMetadataToThesisMetadata } from "./use-thesis-review-store"
+import { useScopedThesisReviewStore } from "./thesis-review-provider"
+import { normalizeFormMetadataToThesisMetadata } from "./use-thesis-review-store"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import type { ThesisMetadata, ThesisType, ReviewerRole, ReviewLanguage } from "@/lib/ai/thesis-rubric"
@@ -190,12 +191,13 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
     skipCitationAudit,
     selectedFileId,
     setSelectedFileId,
-  } = useThesisReviewStore()
+  } = useScopedThesisReviewStore()
 
-  const { ingestFiles, uploadFiles } = useEditor(
+  const { ingestFiles, uploadFiles, updateActiveOutput } = useEditor(
     useShallow((s) => ({
       ingestFiles: s.project?.ingestFiles ?? [],
       uploadFiles: s.uploadFiles,
+      updateActiveOutput: s.updateActiveOutput,
     }))
   )
 
@@ -245,23 +247,28 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
   // Reset or re-extract form when document changes (ONLY once per unique document change, never re-runs on user typing)
   useEffect(() => {
     if (ingestFiles.length === 0) {
-      lastExtractedDocRef.current = null
-      updateFormMetadata({
-        thesisTitle: "",
-        studentName: "",
-        reviewerName: "",
-        institution: "",
-        department: "",
-        academicYear: "",
-      })
+      if (lastExtractedDocRef.current !== null) {
+        lastExtractedDocRef.current = null
+        updateFormMetadata({
+          thesisTitle: "",
+          studentName: "",
+          reviewerName: "",
+          institution: "",
+          department: "",
+          academicYear: "",
+        })
+      }
       return
     }
 
     if (activeFileId && sourceMarkdown && lastExtractedDocRef.current !== activeFileId) {
       lastExtractedDocRef.current = activeFileId
-      applyExtraction(sourceMarkdown, activeFile?.name)
+      // Only auto-extract if metadata is not already populated (e.g. from shared workspace context or user entry)
+      if (!formMetadata.thesisTitle && !formMetadata.studentName) {
+        applyExtraction(sourceMarkdown, activeFile?.name)
+      }
     }
-  }, [ingestFiles.length, activeFileId, sourceMarkdown, activeFile, applyExtraction, updateFormMetadata])
+  }, [ingestFiles.length, activeFileId, sourceMarkdown, activeFile, applyExtraction, updateFormMetadata, formMetadata.thesisTitle, formMetadata.studentName])
 
 
   const handleFileUpload = (files: FileList | File[] | null) => {
@@ -547,7 +554,14 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
               <Label className="text-[11px] font-medium text-muted-foreground">Rola recenzenta</Label>
               <Select
                 value={formMetadata.reviewerRole}
-                onValueChange={(v) => { if (v) updateFormMetadata({ reviewerRole: v as ReviewerRole }) }}
+                onValueChange={(v) => {
+                  if (v) {
+                    updateFormMetadata({ reviewerRole: v as ReviewerRole })
+                    updateActiveOutput({
+                      title: v === "supervisor" ? "Posudok školiteľa" : v === "opponent" ? "Posudok oponenta" : "Posudok recenzenta",
+                    })
+                  }
+                }}
               >
                 <SelectTrigger className="h-8 text-xs bg-card rounded-lg border-border/80">
                   <SelectValue>{REVIEWER_ROLES.find((r) => r.value === formMetadata.reviewerRole)?.[lang] || "Oponent práce"}</SelectValue>

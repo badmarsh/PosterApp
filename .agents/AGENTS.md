@@ -210,7 +210,16 @@ Schema at `prisma/schema.prisma`. Key notes:
 - ✅ **DB-Level Asset Deduplication** — Unique composite index `@@unique([workspaceId, filename])` in Prisma schema with atomic `prisma.asset.upsert()` in both ingestion parsing and workspace PUT routes.
 - ✅ **Compiler Container Hardening** — Docker compile execution fortified with `--cap-drop=ALL`, `--user 1000:1000`, `--read-only`, `--tmpfs /tmp:rw,noexec,nosuid,size=64m`, and `--security-opt no-new-privileges`.
 
-### Fixed in This Session (2026-09-01)
+### Fixed in This Session (2026-09-03)
+- ✅ **Shared Thesis Context & Multi-Tab Binding (Inherited Metadata & Document Binding)**:
+  - **Shared Thesis Ingestion & Metadata Map** (`components/thesis-review/use-thesis-review-store.ts`): Implemented `workspaceSharedThesisMap` caching shared thesis fields (`studentName`, `thesisTitle`, `thesisType`, `institution`, `department`, `academicYear`, `language`, `reviewKind`, `targetVenue`, `reportingStandard`, `selectedFileId`, `sourceMarkdown`) by workspace ID. New tabs initialize from shared context without starting blank or re-indexing. Updates to shared fields broadcast across sibling tabs with equality guards.
+  - **Differentiated Reviewer Roles & Dynamic Tab Labels** (`use-thesis-review-store.ts`, `components/store/project-slice.ts`, `components/poster-preview.tsx`, `app/api/workspaces/route.ts`): Tab 1 defaults to `reviewerRole: "supervisor"` (*Posudok školiteľa*), Tab 2 defaults to `reviewerRole: "opponent"` (*Posudok oponenta*). Tab bar renders dynamic Slovak titles via `getOutputTabLabel` and synchronizes tab titles when reviewer role changes.
+  - **Scoped Reviewer State Isolation**: Reviewer-specific fields (`reviewerRole`, `reviewerName`, `activeReview`, `grade`, `sections`, `defenseQuestions`, `confidentialComments`, sign-off status) remain strictly isolated per tab.
+  - **Lifecycle Mount Guard** (`components/thesis-review/thesis-metadata-panel.tsx`): Guarded empty `ingestFiles` reset so Tab 2 does not wipe out inherited metadata on mount.
+  - **Live Cross-Tab Calibration** (`components/thesis-review/reviewer-calibration-panel.tsx`, `thesis-review-panel.tsx`): Differential analysis queries active tab stores via `getAllThesisStoresForWorkspace(workspaceId)` alongside saved reviews to calculate ECTS grade delta and dynamic criteria diffs between supervisor and opponent.
+  - **Unit & System Tests**: 12 store unit tests in `lib/__tests__/thesis-review-store.test.ts` passing; full test suite (101 test files, 842 tests) passing; `tsc --noEmit` exits with 0 errors.
+
+### Fixed in Previous Session (2026-09-01)
 - ✅ **Thesis Review System Hardening (Pass 3 — 6 deterministic bugs fixed)**:
   - **[RAG-01] Grade Range Bug**: `calculateGradeRange(85)` (hardcoded constant) replaced with `computeScoreFromFindings(findings)` — severity-weighted deduction (critical=−20, major=−8, minor=−2, suggestion=−0.5, clamped to [10,100]). Hardcoded `numericScore: 85` in thesis-review/route.ts also removed.
   - **[RAG-02] RRF Fusion Math**: First-seen chunks were seeded with `chunk.similarity + rrfScore` — mixed units. Now seeded with `rrfScore` only (pure outer RRF term `1/(60+rank+1)`).

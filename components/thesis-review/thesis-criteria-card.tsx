@@ -31,7 +31,8 @@ import {
   MessageSquarePlus,
 } from "lucide-react"
 import type { ThesisSection, ThesisCriterion, ReviewLanguage, CriterionRating } from "@/lib/ai/thesis-rubric"
-import { useThesisReviewStore } from "./use-thesis-review-store"
+import { useScopedThesisReviewStore } from "./thesis-review-provider"
+import { CriterionComments } from "./criterion-comments"
 import { cn } from "@/lib/utils"
 import { RATING_CLASSES } from "@/lib/thesis-review/badge-styles"
 
@@ -66,7 +67,7 @@ export function ThesisCriteriaCard({
   const [showRegenPrompt, setShowRegenPrompt] = useState(false)
   const [userInstruction, setUserInstruction] = useState("")
 
-  const { regenerateCriterion, regeneratingCriterionId } = useThesisReviewStore()
+  const { regenerateCriterion, regeneratingCriterionId } = useScopedThesisReviewStore()
   const isRegenerating = regeneratingCriterionId === criterion.id
 
   const criterionLabel = criterion.labels[lang]
@@ -305,6 +306,9 @@ export function ThesisCriteriaCard({
               </ul>
             </div>
           )}
+
+          {/* Threaded multi-role comments */}
+          <CriterionComments criterionId={criterion.id} />
         </div>
       )}
     </div>

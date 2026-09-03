@@ -6,16 +6,36 @@ const isApiRoute = createRouteMatcher(['/api(.*)'])
 
 const handler = clerkMiddleware(async (auth, req) => {
   if (isApiRoute(req)) {
-    await auth.protect()
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized', message: 'Authentication required' },
+        { status: 401 }
+      )
+    }
   }
   return NextResponse.next()
 })
 
-export default function proxy(req: any, ev: any) {
+export default async function proxy(req: any, ev: any) {
   if (process.env.NEXT_PUBLIC_E2E_TEST === '1' && process.env.NODE_ENV !== 'production') {
     return NextResponse.next()
   }
-  return handler(req, ev)
+
+  const res = await handler(req, ev)
+
+  // Critical guard: If Clerk middleware attempts to redirect an API route (e.g. 307 to /sign-in
+  // due to missing session, dev-browser handshake, or auth failure), NEVER return an HTML redirect
+  // to API callers! That causes client-side fetch() to follow the redirect and crash with
+  // `SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON`.
+  if (isApiRoute(req) && res && res.status >= 300 && res.status < 400) {
+    return NextResponse.json(
+      { error: 'Unauthorized', message: 'Authentication required' },
+      { status: 401 }
+    )
+  }
+
+  return res
 }
 
 export const config = {

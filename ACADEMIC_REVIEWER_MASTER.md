@@ -168,7 +168,7 @@ if (body.professionalMode || thesisMetadata.reviewKind === "paper"
 }
 ```
 
-**Key problem:** neither UI panel previously exposed `professionalMode` as a manual checkbox — it was entirely derived from `reviewKind` (defaults to `"thesis"`) and `reportingStandard` (defaults to `"none"`). Fixed by Task 1 (checkbox added). `multiAgentDebate` is still off by default with no UI control.
+**Key problem:** neither UI panel previously exposed `professionalMode` as a manual checkbox — it was entirely derived from `reviewKind` (defaults to `"thesis"`) and `reportingStandard` (defaults to `"none"`). Fixed by Task 1 (checkbox added). `multiAgentDebate` is also fully exposed via a UI checkbox in `thesis-review-panel.tsx` ("Multi-Agent Debate (Hivemind Bias prevencia)") and passed through `use-thesis-review-store.ts` to `route.ts`.
 
 ### §4 — Path A: default/standard generation
 
@@ -192,7 +192,7 @@ Post-Task 11: Path A now also runs deterministic checks + pre-generation groundi
 
 **5.4 Deterministic layer (`academic-checks.ts`)** — `checkObjectiveAlignment` and `auditCitationConsistency`: regex/keyword pattern matching in sk/cs/en, produce `ReviewFinding[]` with `epistemicStatus: "SUPPORTED_FACT"` or `"MISSING_EVIDENCE"`. Zero sampling variance. Now also runs on Path A (Task 11).
 
-**5.5 Structured self-critique (`generateSelfCritique`, gated on `multiAgentDebate`)** — second LLM call at temp 0.6 (vs. 0.15 primary); receives findings list; flags overstated findings (downgraded one severity rung), missed weaknesses (appended as `suggestion`-severity, `includeInExport: false`), severity re-calibrations. Off by default; no UI control.
+**5.5 Structured self-critique (`generateSelfCritique`, gated on `multiAgentDebate`)** — second LLM call at temp 0.6 (vs. 0.15 primary); receives findings list; flags overstated findings (downgraded one severity rung), missed weaknesses (appended as `suggestion`-severity, `includeInExport: false`), severity re-calibrations. Off by default; toggleable via UI control in `thesis-review-panel.tsx`.
 
 **5.6 Score derivation + grade reconciliation** — `computeScoreFromFindings` (critical −20, major −8, minor −2, suggestion −0.5, floor 10). `reconcileGrade` refuses self-reported grade >15 ECTS-score points more lenient than derived. **Asymmetric by design: corrects leniency; flags (but does not change) harshness outliers >22 points (Task 14).**
 
@@ -242,7 +242,7 @@ Post-Task 11: Path A now also runs deterministic checks + pre-generation groundi
 | 7 | Evidence anchoring (4-tier cascade) | `review-engine.ts` + `evidence-validator.ts` | 5/5 (DRY fix done) | — | ✅ | ✅ |
 | 8 | Epistemic downgrading | `evidence-validator.ts` | 4/5 | — | ✅ | ✅ |
 | 9 | Deterministic checks (objective/citation) | `academic-checks.ts` | 3/5 | ✅ (Task 11) | ✅ | ✅ |
-| 10 | Self-critique (`multiAgentDebate`) | `review-engine.ts` §5.5 | 4/5 | — | ⚠️ No UI control | ✅ when triggered |
+| 10 | Self-critique (`multiAgentDebate`) | `review-engine.ts` §5.5 | 5/5 | — | ✅ Wired in UI | ✅ when triggered |
 | 11 | Score derivation + grade reconciliation | `review-engine.ts` §5.6 | 4/5 (Task 14 harsh flag added) | — | ✅ | ✅ |
 | 12 | Contribution-coverage guard | `review-engine.ts` §5.7 | 3/5 — PhD-only | — | ✅ (PhD) | ✅ |
 | 13 | Defense questions | `academic-checks.ts` | 4/5 (Task 8 finding-derived) | — | ✅ consistent | ✅ |
@@ -290,7 +290,7 @@ See §9 for full task specs. All 6 tasks implemented and verified.
 | ~~F5~~ | ~~Apply-time content validation inconsistent across 3 AI apply flows~~ | ~~Tier B~~ ✅ Fixed (2026-09-02) |
 | ~~F7~~ | ~~Untrusted content in prompt delimiters (partial `wrapUntrustedContext` fix)~~ | ~~Tier B~~ ✅ Fixed (2026-09-02) |
 | ~~F9~~ | ~~`cards/convert` source text bypasses size-capped `loadSourceContext`~~ | ~~Tier B/C~~ ✅ Fixed (2026-09-02) |
-| `multiAgentDebate` UI | No checkbox for adversarial self-critique pass | Future |
+| ~~`multiAgentDebate` UI~~ | ~~Checkbox for adversarial self-critique pass~~ | ~~Future~~ ✅ Wired in `thesis-review-panel.tsx` |
 | JSON Schema mode | `response_format: json_object` → strict schema-constrained decoding | Future |
 
 ---

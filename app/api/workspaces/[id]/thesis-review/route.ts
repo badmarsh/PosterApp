@@ -36,6 +36,7 @@ import {
   resolveThesisDomainContext,
   getThesisCriterionQueryExpansion,
 } from "@/lib/ai/vector-rag"
+import { getFacultyRubricTemplate } from "@/lib/ai/rubric-templates"
 import { prisma } from "@/lib/prisma"
 import {
   classifyDisciplineAndThesisType,
@@ -93,6 +94,8 @@ const RequestBodySchema = z.object({
   professionalMode: z.boolean().optional(),
   /** Enable multi-agent debate to mitigate hivemind bias */
   multiAgentDebate: z.boolean().optional().default(false),
+  rubricTemplateId: z.string().optional(),
+  customWeights: z.record(z.string(), z.number()).optional(),
 })
 
 export function normalizeDefenseQuestions(
@@ -307,11 +310,19 @@ export async function POST(
       applicableCriteria.map(({ criterion }) => RUBRIC_CRITERIA_MAP[criterion.key] || criterion.key)
     )
 
+    const template = body.rubricTemplateId ? getFacultyRubricTemplate(body.rubricTemplateId) : null
+    const weightOverrides = body.customWeights || (template ? Object.fromEntries(template.criteria.map((c) => [c.id, c.weight])) : null)
+
     const activeCriteria = THESIS_CRITERIA.filter((c) => {
       if (focusCriteria?.length && !focusCriteria.includes(c.id)) return false
       // Always include defense_questions unless explicitly excluded by focusCriteria
       if (c.id === "defense_questions") return true
       return applicableLegacyIds.has(c.id)
+    }).map((c) => {
+      if (weightOverrides && weightOverrides[c.id] != null) {
+        return { ...c, weight: weightOverrides[c.id] }
+      }
+      return c
     })
 
     const activeCriterionIds = activeCriteria.map((c) => c.id)

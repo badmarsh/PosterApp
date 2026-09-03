@@ -158,7 +158,7 @@ export async function POST(req: Request) {
             id: outputId,
             outputType,
             templateId: resolvedTemplateId,
-            title: name,
+            title: outputType === "thesis-review" ? "Posudok školiteľa" : name,
             themeColor: getTemplateDef(resolvedTemplateId)?.colors[0]?.hex ?? null,
             isActive: true,
           },

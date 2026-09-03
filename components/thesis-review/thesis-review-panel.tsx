@@ -13,7 +13,8 @@
  */
 
 import { useEffect, useMemo, useState } from "react"
-import { useThesisReviewStore, normalizeFormMetadataToThesisMetadata } from "./use-thesis-review-store"
+import { useScopedThesisReviewStore } from "./thesis-review-provider"
+import { normalizeFormMetadataToThesisMetadata } from "./use-thesis-review-store"
 import { ThesisMetadataPanel } from "./thesis-metadata-panel"
 import { ExpertReviewWorkspace } from "./expert-review-workspace"
 import { AnalysisPlanPanel } from "./analysis-plan-panel"
@@ -22,12 +23,16 @@ import { ThesisWorkflowStepper } from "./thesis-workflow-stepper"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useEditor } from "@/components/editor-store"
+import { RubricTemplateModal } from "./rubric-template-modal"
+import { ReviewerCalibrationPanel } from "./reviewer-calibration-panel"
 import {
   GraduationCap,
   Trash2,
   FileCheck2,
   Loader2,
   Sparkles,
+  SlidersHorizontal,
+  Scale,
 } from "lucide-react"
 
 interface Props {
@@ -62,10 +67,14 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
     loadReview,
     loadSourceDocument,
     deleteReview,
-  } = useThesisReviewStore()
+  } = useScopedThesisReviewStore()
 
   // Real RAG index diagnostics, mirrored from RagIndexStatusPanel's own fetch
   const [ragStats, setRagStats] = useState<RagStats | null>(null)
+  const [showRubricModal, setShowRubricModal] = useState(false)
+  const [showCalibrationModal, setShowCalibrationModal] = useState(false)
+  const [selectedTemplateId, setSelectedTemplateId] = useState("uk_prirodovedecka_stem")
+  const [customCriteria, setCustomCriteria] = useState<any[] | undefined>(undefined)
 
   const project = useEditor((s) => s.project)
 
@@ -88,9 +97,10 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
 
   const effectiveMarkdown = storeSourceMarkdown || assetSourceMarkdown
   const ingestFiles = project?.ingestFiles ?? []
+  const thesisOutputs = (project?.outputs || []).filter((o) => o.outputType === "thesis-review")
   const effectiveFileId = selectedFileId || ingestFiles[0]?.id || undefined
   const hasDocument = ingestFiles.length > 0 || !!effectiveMarkdown
-  const isParsing = ingestFiles.some((f) => f.status === "parsing" || f.status === "queued")
+  const isParsing = ingestFiles.some((f: any) => f.status === "parsing" || f.status === "queued")
 
   const chunkCount = ragStats?.totalChunks ?? 0
   const isIndexed = !!ragStats && chunkCount > 0 && ragStats.hnswIndexReady
@@ -115,12 +125,15 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
 
   const handleGenerate = async () => {
     clearErrors()
+    const weightsMap = customCriteria ? Object.fromEntries(customCriteria.map((c) => [c.id, c.weight])) : undefined
     await generateReview({
       workspaceId,
       sourceFileId: effectiveFileId,
       metadata: normalizeFormMetadataToThesisMetadata(formMetadata),
       skipCitationAudit,
       professionalMode: professionalModeOverride || formMetadata.reviewKind === "paper" || formMetadata.reportingStandard !== "none",
+      rubricTemplateId: selectedTemplateId,
+      customWeights: weightsMap,
     })
   }
 
@@ -348,6 +361,21 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
 
                   <Button
                     variant="outline"
+                    onClick={() => setShowRubricModal(true)}
+                    className="h-10 text-xs text-foreground hover:bg-muted font-medium cursor-pointer shrink-0 rounded-lg gap-1.5"
+                    title="Fakultná šablóna & Váhy kritérií"
+                  >
+                    <SlidersHorizontal className="size-3.5 text-primary" />
+                    <span>Šablóna fakulty & Váhy</span>
+                    {customCriteria && (
+                      <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-primary/15 text-primary font-bold">
+                        Upravené
+                      </Badge>
+                    )}
+                  </Button>
+
+                  <Button
+                    variant="outline"
                     onClick={handlePreflight}
                     disabled={!hasDocument || isGenerating || isGeneratingPlan || isParsing}
                     className="h-10 text-xs text-foreground hover:bg-muted font-medium cursor-pointer shrink-0 rounded-lg"
@@ -355,6 +383,18 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                     <Sparkles className="size-3.5 mr-1.5 text-primary" />
                     Predanalýza (Pre-flight)
                   </Button>
+
+                  {(thesisOutputs.length >= 2 || reviews.length >= 1) && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowCalibrationModal(true)}
+                      className="h-10 text-xs border-primary/40 text-primary hover:bg-primary/10 font-medium cursor-pointer shrink-0 rounded-lg gap-1.5"
+                      title="Porovnanie hodnotení recenzentov a návrh konsenzu pre štátnice"
+                    >
+                      <Scale className="size-3.5" />
+                      <span>Kalibrácia (Školiteľ vs. Oponent)</span>
+                    </Button>
+                  )}
                 </div>
               </>
             )}
@@ -367,10 +407,22 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
         {/* 2.6 Saved Reviews List with Rich Distinguishing Metadata */}
         {reviews.length > 0 ? (
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Uložené posudky v tomto projekte ({reviews.length})
               </h3>
+              {(reviews.length >= 1 || thesisOutputs.length >= 2) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowCalibrationModal(true)}
+                  className="text-xs h-7 gap-1.5 font-medium border-primary/40 text-primary hover:bg-primary/10 shadow-2xs rounded-lg"
+                  title="Porovnanie hodnotení recenzentov a návrh konsenzu pre štátnice"
+                >
+                  <Scale className="size-3.5" />
+                  <span>Kalibrácia & Konsenzus (Školiteľ vs. Oponent)</span>
+                </Button>
+              )}
             </div>
             <div className="grid gap-3">
               {reviews.map((rev, index) => {
@@ -475,6 +527,48 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
           </div>
         )}
       </div>
+
+      {/* Faculty Rubric Template Modal */}
+      <RubricTemplateModal
+        open={showRubricModal}
+        onOpenChange={setShowRubricModal}
+        currentTemplateId={selectedTemplateId}
+        currentCriteria={customCriteria}
+        language="sk"
+        onApplyCriteria={(templateId, criteria) => {
+          setSelectedTemplateId(templateId)
+          setCustomCriteria(criteria)
+        }}
+      />
+
+      {/* Reviewer Calibration Modal */}
+      {showCalibrationModal && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b pb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <Scale className="h-5 w-5 text-primary" />
+                <div>
+                  <h3 className="font-bold text-sm">Kalibrácia posudzovateľov & Konsenzus pre komisiu</h3>
+                  <p className="text-[11px] text-muted-foreground">
+                    Porovnanie hodnotenia školiteľa a oponenta, identifikácia divergentných kritérií.
+                  </p>
+                </div>
+              </div>
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setShowCalibrationModal(false)}>
+                ✕
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-1">
+              <ReviewerCalibrationPanel
+                workspaceId={workspaceId}
+                reviews={reviews}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

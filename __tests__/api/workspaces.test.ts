@@ -206,4 +206,21 @@ describe('POST /api/workspaces', () => {
       })
     )
   })
+
+  it('returns 401 with application/json header when unauthenticated on POST', async () => {
+    (mockAuth as any).mockResolvedValueOnce({ userId: null } as any)
+
+    const req = new Request('http://localhost/api/workspaces', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 'ws-unauth', name: 'Unauth Project' }),
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(401)
+    expect(res.headers.get('content-type')).toContain('application/json')
+    const json = await res.json()
+    expect(json.error).toBe('Unauthorized')
+  })
 })
+

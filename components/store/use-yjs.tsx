@@ -5,7 +5,7 @@ import { useUser } from "@clerk/nextjs"
 import * as Y from "yjs"
 import { WebsocketProvider } from "y-websocket"
 import { useEditorStoreInstance, useEditor } from "@/components/editor-store"
-import { useThesisReviewStore, type ThesisReviewRecord } from "@/components/thesis-review/use-thesis-review-store"
+import { useThesisReviewStore, getThesisReviewStore, type ThesisReviewRecord } from "@/components/thesis-review/use-thesis-review-store"
 import type { Card } from "@/lib/poster-types"
 import type { Collaborator } from "./types"
 import { jobQueue } from "@/lib/job-queue"
@@ -57,13 +57,13 @@ export function useYjs(workspaceId: string) {
       if (event.transaction.local) return
       event.changes.keys.forEach((change, key) => {
         if (change.action === "delete") {
-          useThesisReviewStore.getState()._removeReviewFromYjs(key)
+          currentThesisStore.getState()._removeReviewFromYjs(key)
         } else {
           const val = thesisReviewsMap.get(key)
           if (val) {
             try {
               const review = JSON.parse(val) as ThesisReviewRecord
-              useThesisReviewStore.getState()._syncReviewFromYjs(review)
+              currentThesisStore.getState()._syncReviewFromYjs(review)
             } catch (err) {
               console.error("[Yjs] Failed to parse synced thesis review:", err)
             }
@@ -188,6 +188,7 @@ export function useYjs(workspaceId: string) {
       const activeId = state.project.activeOutputId
       if (activeId !== currentBoundOutputId) {
         bindOutput(activeId)
+        rebindThesisStore()
       }
       if (!canWrite || !currentYCards || !activeId) return
       const newCards = state.project.outputs?.find((o) => o.id === activeId)?.cards ?? []
@@ -215,9 +216,9 @@ export function useYjs(workspaceId: string) {
 
       const handleGranularChange = (event: Y.YMapEvent<string> | Y.YArrayEvent<string>) => {
         if (event.transaction.local || event.transaction.origin === "local") return
-        const fallback = useThesisReviewStore.getState().activeReview ?? undefined
+        const fallback = currentThesisStore.getState().activeReview ?? undefined
         const updated = extractReviewFromYDoc(ydoc!, reviewId, fallback)
-        useThesisReviewStore.getState()._syncReviewFromYjs(updated)
+        currentThesisStore.getState()._syncReviewFromYjs(updated)
       }
 
       metadataMap.observe(handleGranularChange)
@@ -236,35 +237,48 @@ export function useYjs(workspaceId: string) {
     }
 
     // Listen for local Thesis Review changes and update Yjs (gated on canWrite permission)
-    let lastActiveReview: ThesisReviewRecord | null = useThesisReviewStore.getState().activeReview
+    let currentThesisStore = useThesisReviewStore
+    let lastActiveReview: ThesisReviewRecord | null = null
     let unbindGranular: (() => void) | null = null
+    let boundThesisReviewKey: string | null = null
 
-    if (lastActiveReview) {
-      unbindGranular = bindGranularReview(lastActiveReview.id)
-    }
-
-    unsubscribeThesisStore = useThesisReviewStore.subscribe((state) => {
-      const active = state.activeReview
-      if (active !== lastActiveReview) {
-        if (active?.id !== lastActiveReview?.id) {
-          unbindGranular?.()
-          if (active) {
-            unbindGranular = bindGranularReview(active.id)
+    const rebindThesisStore = () => {
+      const proj = store.getState().project
+      const out = proj.outputs?.find(o => o.id === proj.activeOutputId)
+      const key = out?.outputType === "thesis-review" ? `${proj.id}:${out.id}` : null
+      if (key === boundThesisReviewKey) return
+      unsubscribeThesisStore?.()
+      unbindGranular?.()
+      boundThesisReviewKey = key
+      currentThesisStore = key ? getThesisReviewStore(key) : useThesisReviewStore
+      lastActiveReview = currentThesisStore.getState().activeReview
+      if (lastActiveReview && ydoc) {
+        unbindGranular = bindGranularReview(lastActiveReview.id)
+      }
+      unsubscribeThesisStore = currentThesisStore.subscribe((state) => {
+        const active = state.activeReview
+        if (active !== lastActiveReview) {
+          if (active?.id !== lastActiveReview?.id) {
+            unbindGranular?.()
+            if (active) {
+              unbindGranular = bindGranularReview(active.id)
+            }
+          }
+          lastActiveReview = active
+          if (canWrite && active && ydoc) {
+            hydrateReviewIntoYDoc(ydoc, active, "local")
+            ydoc.transact(() => {
+              const currentStr = thesisReviewsMap.get(active.id)
+              const newStr = JSON.stringify(active)
+              if (currentStr !== newStr) {
+                thesisReviewsMap.set(active.id, newStr)
+              }
+            }, "local")
           }
         }
-        lastActiveReview = active
-        if (canWrite && active && ydoc) {
-          hydrateReviewIntoYDoc(ydoc, active, "local")
-          ydoc.transact(() => {
-            const currentStr = thesisReviewsMap.get(active.id)
-            const newStr = JSON.stringify(active)
-            if (currentStr !== newStr) {
-              thesisReviewsMap.set(active.id, newStr)
-            }
-          }, "local")
-        }
-      }
-    })
+      })
+    }
+    rebindThesisStore()
 
     // Track mouse for cursor — throttled
     const handleMouseMove = (e: MouseEvent) => {

@@ -114,4 +114,43 @@ describe("Thesis Review LaTeX Generator", () => {
     expect(tex).toContain("John Doe")
     expect(tex).toContain("Autonomous Navigation with LiDAR \\& Cameras")
   })
+
+  it("does NOT include confidential comments when includeConfidential is false or omitted", () => {
+    const tex = generateThesisReviewLatex({
+      studentName: "Ján Novák",
+      thesisTitle: "Záverečná práca",
+      thesisType: "master",
+      reviewerRole: "supervisor",
+      sections: [],
+      defenseQuestions: [],
+      citationIssues: [],
+      language: "sk",
+      template: "posudok-sk",
+      confidentialComments: "DÔVERNÁ POZNÁMKA: Študent pracoval s pomocou konzultanta.",
+      includeConfidential: false,
+    })
+
+    expect(tex).not.toContain("DÔVERNÉ POZNÁMKY PRE KOMISIU")
+    expect(tex).not.toContain("Študent pracoval s pomocou konzultanta")
+  })
+
+  it("includes confidential comments section when includeConfidential is true", () => {
+    const tex = generateThesisReviewLatex({
+      studentName: "Ján Novák",
+      thesisTitle: "Záverečná práca",
+      thesisType: "master",
+      reviewerRole: "supervisor",
+      sections: [],
+      defenseQuestions: [],
+      citationIssues: [],
+      language: "sk",
+      template: "posudok-sk",
+      confidentialComments: "DÔVERNÁ POZNÁMKA: Študent pracoval mimoriadne samostatne & prekonal očakávania.",
+      includeConfidential: true,
+    })
+
+    expect(tex).toContain("\\section{DÔVERNÉ POZNÁMKY PRE KOMISIU (NEZVEREJŇOVAŤ ŠTUDENTOVI)}")
+    expect(tex).toContain("DÔVERNÁ POZNÁMKA: Študent pracoval mimoriadne samostatne \\& prekonal očakávania.")
+  })
 })
+

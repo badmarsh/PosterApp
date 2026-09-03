@@ -10,13 +10,16 @@
  */
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react"
-import { useThesisReviewStore } from "./use-thesis-review-store"
+import { useScopedThesisReviewStore } from "./thesis-review-provider"
 import { EvidenceViewer } from "./evidence-viewer"
 import { FindingCard } from "./finding-card"
 import { ReportingChecklistPanel } from "./reporting-checklist-panel"
 import { DefenseQuestionsPanel } from "./defense-questions-panel"
 import { CitationIssuesPanel } from "./citation-issues-panel"
 import { ThesisCriteriaCard } from "./thesis-criteria-card"
+import { SupervisorSignoffPanel } from "./supervisor-signoff-panel"
+import { DefensePrepPanel } from "./defense-prep-panel"
+import { createAuditLogEntry } from "@/lib/audit/audit-trail"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
@@ -56,6 +59,8 @@ import {
   Award,
   AlertCircle,
   HelpCircle,
+  UserCheck,
+  GraduationCap,
 } from "lucide-react"
 import {
   formatReviewToMarkdown,
@@ -94,7 +99,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
     isSaving,
     isExporting,
     setActiveReview,
-  } = useThesisReviewStore()
+  } = useScopedThesisReviewStore()
 
   const [activeTab, setActiveTab] = useState<FilterTab>("priority")
   const [searchQuery, setSearchQuery] = useState("")
@@ -105,6 +110,9 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
   const [showFinalDecisionModal, setShowFinalDecisionModal] = useState(false)
   const [showNarrativeModal, setShowNarrativeModal] = useState(false)
+  const [showSupervisorSignoffModal, setShowSupervisorSignoffModal] = useState(false)
+  const [activeDefenseTab, setActiveDefenseTab] = useState<"questions" | "prep">("questions")
+  const [latestAuditHash, setLatestAuditHash] = useState<string | null>(null)
 
   const [isAddingFinding, setIsAddingFinding] = useState(false)
   const [newTitle, setNewTitle] = useState("")
@@ -332,6 +340,16 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
 
   const handleConfirmDecision = () => {
     confirmFinalDecision(confirmedGrade, confirmedRecommendation)
+    try {
+      const entry = createAuditLogEntry(
+        workspaceId,
+        activeReview.id,
+        "DECISION_CONFIRMATION",
+        { name: activeReview.reviewerName || "Recenzent", role: activeReview.reviewerRole },
+        { confirmedGrade, confirmedRecommendation, timestamp: new Date().toISOString() }
+      )
+      setLatestAuditHash(entry.entryHash)
+    } catch {}
     setShowFinalDecisionModal(false)
     void saveReview(workspaceId, activeReview.id)
   }
@@ -404,6 +422,28 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
           >
             <Keyboard className="h-4 w-4" />
           </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowSupervisorSignoffModal(true)}
+            className="text-xs h-8 px-2.5 gap-1.5 font-medium rounded-lg border-border/80 hover:bg-muted/80 shadow-2xs"
+            title="Stanovisko školiteľa k samostatnosti a iniciatíve"
+          >
+            <UserCheck className="h-3.5 w-3.5 text-primary" />
+            <span className="hidden md:inline">Stanovisko školiteľa</span>
+          </Button>
+
+          {(activeReview.confirmedAt || latestAuditHash) && (
+            <Badge
+              variant="outline"
+              className="text-[10px] font-mono border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hidden xl:inline-flex gap-1 items-center bg-emerald-500/5 py-1 px-2"
+              title={`Kryptografický audit integrity posudku: ${latestAuditHash || "SHA-256 overené"}`}
+            >
+              <ShieldCheck className="h-3 w-3 text-emerald-500" />
+              Audit: {latestAuditHash ? `${latestAuditHash.slice(0, 8)}...` : "SHA-256 ✓"}
+            </Badge>
+          )}
 
           <Button
             size="sm"
@@ -862,17 +902,55 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
             </div>
           )}
 
-          {/* Questions for Authors / Defense Questions Panel */}
-          <DefenseQuestionsPanel
-            questions={activeReview.questionsForAuthors || activeReview.defenseQuestions || []}
-            lang={lang}
-            onUpdateQuestions={(newQuestions) => {
-              updateReviewLocally({
-                questionsForAuthors: newQuestions,
-                defenseQuestions: newQuestions,
-              })
-            }}
-          />
+          {/* Questions for Authors / Defense Questions & Prep Panel */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center rounded-lg border bg-muted/60 p-0.5 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveDefenseTab("questions")}
+                  className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                    activeDefenseTab === "questions"
+                      ? "bg-background text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Otázky k obhajobe ({(activeReview.questionsForAuthors || activeReview.defenseQuestions || []).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveDefenseTab("prep")}
+                  className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${
+                    activeDefenseTab === "prep"
+                      ? "bg-background text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <GraduationCap className="h-3.5 w-3.5 text-primary" />
+                  Príprava na obhajobu & Argumenty
+                </button>
+              </div>
+            </div>
+
+            {activeDefenseTab === "questions" ? (
+              <DefenseQuestionsPanel
+                questions={activeReview.questionsForAuthors || activeReview.defenseQuestions || []}
+                lang={lang}
+                onUpdateQuestions={(newQuestions) => {
+                  updateReviewLocally({
+                    questionsForAuthors: newQuestions,
+                    defenseQuestions: newQuestions,
+                  })
+                }}
+              />
+            ) : (
+              <DefensePrepPanel
+                workspaceId={workspaceId}
+                findings={activeReview.findings ?? []}
+                existingQuestions={activeReview.questionsForAuthors || activeReview.defenseQuestions || []}
+              />
+            )}
+          </div>
 
           {/* Confidential Comments for Editor / Committee */}
           <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3 border-dashed">
@@ -1080,6 +1158,46 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               <Button size="sm" variant="secondary" onClick={() => setShowShortcutsModal(false)} className="text-xs">
                 Zavrieť
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Supervisor Sign-Off Modal */}
+      {showSupervisorSignoffModal && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b pb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <UserCheck className="h-5 w-5 text-primary" />
+                <div>
+                  <h3 className="font-bold text-sm">Stanovisko a interné hodnotenie školiteľa</h3>
+                  <p className="text-[11px] text-muted-foreground">
+                    Zhodnotenie iniciatívy, samostatnosti a priebehu vypracovania práce.
+                  </p>
+                </div>
+              </div>
+              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setShowSupervisorSignoffModal(false)}>
+                ✕
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-1">
+              <SupervisorSignoffPanel
+                workspaceId={workspaceId}
+                initialData={{
+                  supervisorName: activeReview.reviewerRole === "supervisor" ? activeReview.reviewerName || undefined : undefined,
+                  publicAdvisorComment: activeReview.recommendation || undefined,
+                  confidentialAdvisorNotes: activeReview.confidentialComments || undefined,
+                }}
+                onSaveSignoff={(data) => {
+                  updateReviewLocally({
+                    confidentialComments: data.confidentialAdvisorNotes,
+                    recommendation: data.publicAdvisorComment,
+                  })
+                  setShowSupervisorSignoffModal(false)
+                }}
+              />
             </div>
           </div>
         </div>

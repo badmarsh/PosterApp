@@ -1,3 +1,5 @@
+import path from "node:path"
+
 const aiOrigin = (() => { try { return new URL(process.env.AI_API_URL ?? "").origin } catch { return null } })()
 const aiFallbackOrigin = (() => { try { return new URL(process.env.AI_API_URL_FALLBACK ?? "").origin } catch { return null } })()
 const yjsOrigin = (() => {
@@ -66,6 +68,11 @@ const securityHeaders = [
 const nextConfig = {
   turbopack: {
     root: import.meta.dirname,
+    resolveAlias: {
+      "tailwindcss": path.resolve(import.meta.dirname, "node_modules/tailwindcss"),
+      "tw-animate-css": path.resolve(import.meta.dirname, "node_modules/tw-animate-css"),
+      "shadcn/tailwind.css": path.resolve(import.meta.dirname, "node_modules/shadcn/tailwind.css"),
+    },
   },
   allowedDevOrigins: [
     "127.0.0.1",

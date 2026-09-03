@@ -123,6 +123,8 @@ export interface ThesisReviewGenerateOptions {
   focusCriteria?: string[]
   skipCitationAudit?: boolean
   professionalMode?: boolean
+  rubricTemplateId?: string
+  customWeights?: Record<string, number>
 }
 
 export interface ThesisReviewFormMetadata {
@@ -161,7 +163,7 @@ export function normalizeFormMetadataToThesisMetadata(meta: ThesisReviewFormMeta
   }
 }
 
-interface ThesisReviewState {
+export interface ThesisReviewState {
   reviews: ThesisReviewListItem[]
   activeReview: ThesisReviewRecord | null
   sourceMarkdown: string
@@ -234,138 +236,277 @@ interface ThesisReviewState {
 // Store & Module Caches
 // ---------------------------------------------------------------------------
 
+export interface SharedThesisContext {
+  studentName: string
+  thesisTitle: string
+  thesisType: ThesisType
+  institution: string
+  department: string
+  academicYear: string
+  language: ReviewLanguage
+  reviewKind: ReviewKind
+  targetVenue: string
+  reportingStandard: ReportingStandard
+  selectedFileId: string
+  sourceMarkdown: string
+}
+
+export const SHARED_FORM_FIELDS: (keyof ThesisReviewFormMetadata)[] = [
+  "studentName",
+  "thesisTitle",
+  "thesisType",
+  "institution",
+  "department",
+  "academicYear",
+  "language",
+  "reviewKind",
+  "targetVenue",
+  "reportingStandard",
+]
+
+const workspaceSharedThesisMap = new Map<string, SharedThesisContext>()
+
+export function parseOutputKey(outputKey?: string | null): { workspaceId: string; outputId: string } {
+  if (!outputKey) return { workspaceId: "", outputId: "" }
+  const idx = outputKey.indexOf(":")
+  if (idx === -1) return { workspaceId: outputKey, outputId: "" }
+  return {
+    workspaceId: outputKey.slice(0, idx),
+    outputId: outputKey.slice(idx + 1),
+  }
+}
+
 // In-memory cache for source document markdown by workspace + fileId
 const sourceDocCache = new Map<string, string>()
 
-export const useThesisReviewStore = create<ThesisReviewState>()(
-  immer((set, get) => ({
-    reviews: [],
-    activeReview: null,
-    sourceMarkdown: "",
-    isLoadingSource: false,
-    selectedEvidence: null,
-    analysisPlan: null,
-    isGeneratingPlan: false,
-    isGenerating: false,
-    isSaving: false,
-    isExporting: false,
-    regeneratingCriterionId: null,
-    generateError: null,
-    saveError: null,
-    exportError: null,
-    isPanelOpen: false,
-    isMetadataValid: false,
-    formMetadata: {
-      studentName: "",
-      thesisTitle: "",
-      thesisType: "master",
-      reviewerRole: "opponent",
-      reviewerName: "",
-      institution: "Slovenská technická univerzita v Bratislave",
-      department: "FIIT - Ústav počítačového inžinierstva a aplikovanej informatiky",
-      language: getSettingsStore().getState().defaultReviewLanguage,
-      academicYear: "2025/2026",
-      reviewKind: "thesis",
-      targetVenue: "",
-      reportingStandard: "none",
-    },
-    confidentialityAgreed: true,
-    skipCitationAudit: false,
-    multiAgentDebate: false,
-    professionalModeOverride: false,
-    selectedFileId: "",
+function createThesisReviewStore(
+  outputKey?: string | null,
+  initialShared?: Partial<SharedThesisContext>,
+  initialRole?: ReviewerRole
+) {
+  const { workspaceId } = parseOutputKey(outputKey)
 
-    openPanel: () => set((s) => { s.isPanelOpen = true }),
-    closePanel: () => set((s) => { s.isPanelOpen = false }),
-    setMetadataValid: (valid) => set((s) => { s.isMetadataValid = valid }),
-    updateFormMetadata: (updates) =>
-      set((s) => {
-        Object.assign(s.formMetadata, updates)
-        const valid =
-          Boolean(s.formMetadata.studentName?.trim()) &&
-          Boolean(s.formMetadata.thesisTitle?.trim()) &&
-          s.confidentialityAgreed
-        s.isMetadataValid = valid
-      }),
-    setConfidentialityAgreed: (agreed) =>
-      set((s) => {
-        s.confidentialityAgreed = agreed
-        s.isMetadataValid = Boolean(s.formMetadata.studentName?.trim()) && Boolean(s.formMetadata.thesisTitle?.trim()) && agreed
-      }),
-    setSkipCitationAudit: (skip) => set((s) => { s.skipCitationAudit = skip }),
-    setMultiAgentDebate: (debate) => set((s) => { s.multiAgentDebate = debate }),
-    setProfessionalModeOverride: (enabled) => set((s) => { s.professionalModeOverride = enabled }),
-    setSelectedFileId: (fileId) => set((s) => { s.selectedFileId = fileId }),
+  const studentName = initialShared?.studentName ?? ""
+  const thesisTitle = initialShared?.thesisTitle ?? ""
+  const isInitialValid = Boolean(studentName.trim()) && Boolean(thesisTitle.trim())
 
-    setActiveReview: (review) => set((s) => { s.activeReview = review }),
-    setSelectedEvidence: (ev) => set((s) => { s.selectedEvidence = ev }),
-    setAnalysisPlan: (plan) => set((s) => { s.analysisPlan = plan }),
+  return create<ThesisReviewState>()(
+    immer((set, get) => ({
+      reviews: [],
+      activeReview: null,
+      sourceMarkdown: initialShared?.sourceMarkdown ?? "",
+      isLoadingSource: false,
+      selectedEvidence: null,
+      analysisPlan: null,
+      isGeneratingPlan: false,
+      isGenerating: false,
+      isSaving: false,
+      isExporting: false,
+      regeneratingCriterionId: null,
+      generateError: null,
+      saveError: null,
+      exportError: null,
+      isPanelOpen: false,
+      isMetadataValid: isInitialValid,
+      formMetadata: {
+        studentName,
+        thesisTitle,
+        thesisType: initialShared?.thesisType ?? "master",
+        reviewerRole: initialRole ?? "supervisor",
+        reviewerName: "",
+        institution: initialShared?.institution ?? "Slovenská technická univerzita v Bratislave",
+        department: initialShared?.department ?? "FIIT - Ústav počítačového inžinierstva a aplikovanej informatiky",
+        language: initialShared?.language ?? getSettingsStore().getState().defaultReviewLanguage,
+        academicYear: initialShared?.academicYear ?? "2025/2026",
+        reviewKind: initialShared?.reviewKind ?? "thesis",
+        targetVenue: initialShared?.targetVenue ?? "",
+        reportingStandard: initialShared?.reportingStandard ?? "none",
+      },
+      confidentialityAgreed: true,
+      skipCitationAudit: false,
+      multiAgentDebate: false,
+      professionalModeOverride: false,
+      selectedFileId: initialShared?.selectedFileId ?? "",
 
-    generateAnalysisPlan: async (workspaceId, metadata, fileId) => {
-      set((s) => { s.isGeneratingPlan = true; s.generateError = null })
-      try {
-        const targetFileId = fileId || get().selectedFileId || undefined
-        const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review/analysis-plan`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            thesisMetadata: metadata,
-            sourceFileId: targetFileId,
-          }),
-        })
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.message ?? errData.error ?? `HTTP ${res.status}`)
+      openPanel: () => set((s) => { s.isPanelOpen = true }),
+      closePanel: () => set((s) => { s.isPanelOpen = false }),
+      setMetadataValid: (valid) => set((s) => { s.isMetadataValid = valid }),
+      updateFormMetadata: (updates) =>
+        set((s) => {
+          Object.assign(s.formMetadata, updates)
+          const valid =
+            Boolean(s.formMetadata.studentName?.trim()) &&
+            Boolean(s.formMetadata.thesisTitle?.trim()) &&
+            s.confidentialityAgreed
+          s.isMetadataValid = valid
+
+          // Synchronize shared thesis metadata across all tabs in this workspace
+          if (workspaceId) {
+            const sharedUpdates: Partial<SharedThesisContext> = {}
+            for (const key of SHARED_FORM_FIELDS) {
+              if (key in updates && updates[key] !== undefined) {
+                ;(sharedUpdates as any)[key] = updates[key]
+              }
+            }
+
+            if (Object.keys(sharedUpdates).length > 0) {
+              let shared = workspaceSharedThesisMap.get(workspaceId)
+              if (!shared) {
+                shared = {
+                  studentName: s.formMetadata.studentName,
+                  thesisTitle: s.formMetadata.thesisTitle,
+                  thesisType: s.formMetadata.thesisType,
+                  institution: s.formMetadata.institution || "",
+                  department: s.formMetadata.department || "",
+                  academicYear: s.formMetadata.academicYear || "",
+                  language: s.formMetadata.language,
+                  reviewKind: s.formMetadata.reviewKind,
+                  targetVenue: s.formMetadata.targetVenue || "",
+                  reportingStandard: s.formMetadata.reportingStandard,
+                  selectedFileId: s.selectedFileId,
+                  sourceMarkdown: s.sourceMarkdown,
+                }
+                workspaceSharedThesisMap.set(workspaceId, shared)
+              } else {
+                Object.assign(shared, sharedUpdates)
+              }
+
+              // Propagate to all other stores in this workspace (guarded against self and redundant re-sets)
+              for (const [key, otherStore] of reviewStoreRegistry.entries()) {
+                if (key !== outputKey && key.startsWith(workspaceId + ":")) {
+                  otherStore.setState((otherState) => {
+                    let changed = false
+                    for (const [k, v] of Object.entries(sharedUpdates)) {
+                      if ((otherState.formMetadata as any)[k] !== v) {
+                        ;(otherState.formMetadata as any)[k] = v
+                        changed = true
+                      }
+                    }
+                    if (changed) {
+                      otherState.isMetadataValid =
+                        Boolean(otherState.formMetadata.studentName?.trim()) &&
+                        Boolean(otherState.formMetadata.thesisTitle?.trim()) &&
+                        otherState.confidentialityAgreed
+                    }
+                  })
+                }
+              }
+            }
+          }
+        }),
+      setConfidentialityAgreed: (agreed) =>
+        set((s) => {
+          s.confidentialityAgreed = agreed
+          s.isMetadataValid = Boolean(s.formMetadata.studentName?.trim()) && Boolean(s.formMetadata.thesisTitle?.trim()) && agreed
+        }),
+      setSkipCitationAudit: (skip) => set((s) => { s.skipCitationAudit = skip }),
+      setMultiAgentDebate: (debate) => set((s) => { s.multiAgentDebate = debate }),
+      setProfessionalModeOverride: (enabled) => set((s) => { s.professionalModeOverride = enabled }),
+      setSelectedFileId: (fileId) => {
+        set((s) => { s.selectedFileId = fileId })
+        if (workspaceId) {
+          let shared = workspaceSharedThesisMap.get(workspaceId)
+          if (shared) {
+            shared.selectedFileId = fileId
+          }
+          for (const [key, otherStore] of reviewStoreRegistry.entries()) {
+            if (key !== outputKey && key.startsWith(workspaceId + ":")) {
+              if (otherStore.getState().selectedFileId !== fileId) {
+                otherStore.setState((s) => { s.selectedFileId = fileId })
+              }
+            }
+          }
         }
-        const plan: ReviewAnalysisPlan = await res.json()
-        set((s) => {
-          s.analysisPlan = plan
-          s.isGeneratingPlan = false
-        })
-        return plan
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Plan generation failed"
-        set((s) => {
-          s.isGeneratingPlan = false
-          s.generateError = msg
-        })
-        return null
-      }
-    },
+      },
 
-    loadSourceDocument: async (workspaceId: string, fileId?: string) => {
-      const cacheKey = `${workspaceId}:${fileId || "all"}`
-      const cached = sourceDocCache.get(cacheKey)
-      if (cached) {
-        set((s) => {
-          s.sourceMarkdown = cached
-          s.isLoadingSource = false
-        })
-        return
-      }
+      setActiveReview: (review) => set((s) => { s.activeReview = review }),
+      setSelectedEvidence: (ev) => set((s) => { s.selectedEvidence = ev }),
+      setAnalysisPlan: (plan) => set((s) => { s.analysisPlan = plan }),
 
-      set((s) => { s.isLoadingSource = true })
-      try {
-        const url = fileId
-          ? `/api/workspaces/${workspaceId}/thesis-review/source-document?fileId=${encodeURIComponent(fileId)}`
-          : `/api/workspaces/${workspaceId}/thesis-review/source-document`
-        const res = await fetch(url)
-        if (res.ok) {
-          const data = await res.json()
-          const text = data.fullText ?? ""
-          sourceDocCache.set(cacheKey, text)
+      generateAnalysisPlan: async (workspaceId, metadata, fileId) => {
+        set((s) => { s.isGeneratingPlan = true; s.generateError = null })
+        try {
+          const targetFileId = fileId || get().selectedFileId || undefined
+          const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review/analysis-plan`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              thesisMetadata: metadata,
+              sourceFileId: targetFileId,
+            }),
+          })
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}))
+            throw new Error(errData.message ?? errData.error ?? `HTTP ${res.status}`)
+          }
+          const plan: ReviewAnalysisPlan = await res.json()
           set((s) => {
-            s.sourceMarkdown = text
+            s.analysisPlan = plan
+            s.isGeneratingPlan = false
+          })
+          return plan
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Plan generation failed"
+          set((s) => {
+            s.isGeneratingPlan = false
+            s.generateError = msg
+          })
+          return null
+        }
+      },
+
+      loadSourceDocument: async (workspaceId: string, fileId?: string) => {
+        const cacheKey = `${workspaceId}:${fileId || "all"}`
+        const cached = sourceDocCache.get(cacheKey)
+        if (cached) {
+          set((s) => {
+            s.sourceMarkdown = cached
             s.isLoadingSource = false
           })
-        } else {
+          return
+        }
+
+        set((s) => { s.isLoadingSource = true })
+        try {
+          const url = fileId
+            ? `/api/workspaces/${workspaceId}/thesis-review/source-document?fileId=${encodeURIComponent(fileId)}`
+            : `/api/workspaces/${workspaceId}/thesis-review/source-document`
+          const res = await fetch(url)
+          if (res.ok) {
+            const data = await res.json()
+            const text = data.fullText ?? ""
+            sourceDocCache.set(cacheKey, text)
+            set((s) => {
+              s.sourceMarkdown = text
+              s.isLoadingSource = false
+            })
+
+            if (workspaceId && text) {
+              let shared = workspaceSharedThesisMap.get(workspaceId)
+              if (shared) {
+                shared.sourceMarkdown = text
+                if (fileId) shared.selectedFileId = fileId
+              }
+              for (const [key, otherStore] of reviewStoreRegistry.entries()) {
+                if (key !== outputKey && key.startsWith(workspaceId + ":")) {
+                  if (otherStore.getState().sourceMarkdown !== text) {
+                    otherStore.setState((s) => {
+                      s.sourceMarkdown = text
+                      s.isLoadingSource = false
+                      if (fileId) s.selectedFileId = fileId
+                    })
+                  }
+                }
+              }
+            }
+          } else {
+            set((s) => { s.isLoadingSource = false })
+          }
+        } catch (err) {
+          console.warn("[ThesisReviewStore] loadSourceDocument failed:", err)
           set((s) => { s.isLoadingSource = false })
         }
-      } catch (err) {
-        console.warn("[ThesisReviewStore] loadSourceDocument failed:", err)
-        set((s) => { s.isLoadingSource = false })
-      }
-    },
+      },
 
     loadReviews: async (workspaceId) => {
       try {
@@ -428,6 +569,8 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
             skipCitationAudit: opts.skipCitationAudit ?? false,
             multiAgentDebate: get().multiAgentDebate,
             professionalMode: opts.professionalMode ?? get().professionalModeOverride,
+            rubricTemplateId: opts.rubricTemplateId,
+            customWeights: opts.customWeights,
           }),
         })
 
@@ -784,7 +927,100 @@ export const useThesisReviewStore = create<ThesisReviewState>()(
     },
   }))
 )
+}
+
+// Default singleton instance — shared by tests, the Yjs collab layer and any
+// consumer that is not tied to a specific output tab.
+export const useThesisReviewStore = createThesisReviewStore()
+
+// Per-output (tab) store instances so every thesis-review tab keeps its own
+// independent review state instead of sharing one global store.
+const reviewStoreRegistry = new Map<string, ReturnType<typeof createThesisReviewStore>>()
+
+export function getExistingThesisReviewStore(outputKey: string) {
+  return reviewStoreRegistry.get(outputKey)
+}
+
+export function getAllThesisStoresForWorkspace(workspaceId: string) {
+  const list: { outputKey: string; outputId: string; store: ReturnType<typeof createThesisReviewStore> }[] = []
+  for (const [key, store] of reviewStoreRegistry.entries()) {
+    if (key.startsWith(workspaceId + ":")) {
+      const { outputId } = parseOutputKey(key)
+      list.push({ outputKey: key, outputId, store })
+    }
+  }
+  return list
+}
+
+export function getWorkspaceSharedThesis(workspaceId: string): SharedThesisContext | undefined {
+  return workspaceSharedThesisMap.get(workspaceId)
+}
+
+export function getThesisReviewStore(outputKey: string) {
+  let store = reviewStoreRegistry.get(outputKey)
+  if (!store) {
+    const { workspaceId } = parseOutputKey(outputKey)
+    let shared = workspaceSharedThesisMap.get(workspaceId)
+
+    // If not yet in shared map, inspect any existing stores for this workspace
+    if (!shared) {
+      for (const [key, existingStore] of reviewStoreRegistry.entries()) {
+        if (key.startsWith(workspaceId + ":")) {
+          const state = existingStore.getState()
+          shared = {
+            studentName: state.formMetadata.studentName,
+            thesisTitle: state.formMetadata.thesisTitle,
+            thesisType: state.formMetadata.thesisType,
+            institution: state.formMetadata.institution || "",
+            department: state.formMetadata.department || "",
+            academicYear: state.formMetadata.academicYear || "",
+            language: state.formMetadata.language,
+            reviewKind: state.formMetadata.reviewKind,
+            targetVenue: state.formMetadata.targetVenue || "",
+            reportingStandard: state.formMetadata.reportingStandard,
+            selectedFileId: state.selectedFileId,
+            sourceMarkdown: state.sourceMarkdown,
+          }
+          workspaceSharedThesisMap.set(workspaceId, shared)
+          break
+        }
+      }
+    }
+
+    // Differentiate reviewer role
+    let initialRole: ReviewerRole = "supervisor"
+    const existingStores = Array.from(reviewStoreRegistry.entries())
+      .filter(([k]) => k.startsWith(workspaceId + ":") && k !== outputKey)
+      .map(([, s]) => s)
+
+    if (existingStores.length > 0) {
+      const existingRoles = existingStores.map((s) => s.getState().formMetadata.reviewerRole)
+      if (existingRoles.includes("supervisor")) {
+        initialRole = "opponent"
+      } else if (existingRoles.includes("opponent")) {
+        initialRole = "supervisor"
+      } else {
+        initialRole = "opponent"
+      }
+    }
+
+    store = createThesisReviewStore(outputKey, shared, initialRole)
+    reviewStoreRegistry.set(outputKey, store)
+  }
+  return store
+}
+
+export function destroyThesisReviewStore(outputKey: string) {
+  reviewStoreRegistry.delete(outputKey)
+}
+
+export function clearThesisReviewStoreRegistry() {
+  reviewStoreRegistry.clear()
+  workspaceSharedThesisMap.clear()
+  sourceDocCache.clear()
+}
 
 if (typeof window !== "undefined") {
   ;(window as any).__thesisReviewStore = useThesisReviewStore
 }
+

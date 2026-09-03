@@ -78,6 +78,7 @@ export interface ThesisReviewLabels {
   defenseLabel: string
   citationLabel: string
   summaryLabel: string
+  confidentialLabel: string
   gradeLabel: string
   recommendationLabel: string
   signatureLabel: string
@@ -106,6 +107,7 @@ export const THESIS_REVIEW_LABELS: Record<
     defenseLabel: "OTÁZKY K OBHAJOBE",
     citationLabel: "POZNÁMKY K CITÁCIÁM",
     summaryLabel: "CELKOVÉ HODNOTENIE",
+    confidentialLabel: "DÔVERNÉ POZNÁMKY PRE KOMISIU (NEZVEREJŇOVAŤ ŠTUDENTOVI)",
     gradeLabel: "Navrhovaná klasifikácia",
     recommendationLabel: "Odporúčanie",
     signatureLabel: "Podpis hodnotiteľa/ky",
@@ -129,6 +131,7 @@ export const THESIS_REVIEW_LABELS: Record<
     defenseLabel: "OTÁZKY K OBHAJOBĚ",
     citationLabel: "POZNÁMKY K CITACÍM",
     summaryLabel: "CELKOVÉ HODNOCENÍ",
+    confidentialLabel: "DŮVĚRNÉ POZNÁMKY PRO KOMISI (NEZVEŘEJŇOVAT STUDENTŮM)",
     gradeLabel: "Navrhovaná klasifikace",
     recommendationLabel: "Doporučení",
     signatureLabel: "Podpis hodnotitele/ky",
@@ -152,6 +155,7 @@ export const THESIS_REVIEW_LABELS: Record<
     defenseLabel: "DEFENSE QUESTIONS",
     citationLabel: "CITATION NOTES",
     summaryLabel: "OVERALL ASSESSMENT",
+    confidentialLabel: "CONFIDENTIAL NOTES FOR COMMITTEE (DO NOT SHARE WITH STUDENT)",
     gradeLabel: "Proposed grade",
     recommendationLabel: "Recommendation",
     signatureLabel: "Reviewer's signature",
