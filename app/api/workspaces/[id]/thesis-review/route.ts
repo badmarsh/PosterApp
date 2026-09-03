@@ -314,29 +314,33 @@ export async function POST(
       const domainContext = resolveThesisDomainContext(normalizedMetadata)
       const criterionVectorContextParts: string[] = []
 
-      await Promise.all(
-        activeCriteria.map(async (c) => {
-          const expansion = getThesisCriterionQueryExpansion(c.id, lang)
-          const query = `${c.labels[lang]} ${c.guidance[lang]}`.slice(0, 300)
-          const { chunks, communityContext: localCommunityCtx } = await retrieveForCriterion(workspaceId, query, {
-            topK: 4,
-            lambda: 0.7,
-            domainContext,
-            criterionId: c.id,
-            criterionExpansion: expansion,
-            useHyDE: true,
-            compress: true,
-            documentId: body.sourceFileId,
-            includeCommunityContext: c === activeCriteria[0],
+      const CRITERIA_BATCH_SIZE = 3
+      for (let i = 0; i < activeCriteria.length; i += CRITERIA_BATCH_SIZE) {
+        const batch = activeCriteria.slice(i, i + CRITERIA_BATCH_SIZE)
+        await Promise.all(
+          batch.map(async (c) => {
+            const expansion = getThesisCriterionQueryExpansion(c.id, lang)
+            const query = `${c.labels[lang]} ${c.guidance[lang]}`.slice(0, 300)
+            const { chunks, communityContext: localCommunityCtx } = await retrieveForCriterion(workspaceId, query, {
+              topK: 4,
+              lambda: 0.7,
+              domainContext,
+              criterionId: c.id,
+              criterionExpansion: expansion,
+              useHyDE: true,
+              compress: true,
+              documentId: body.sourceFileId,
+              includeCommunityContext: c === activeCriteria[0],
+            })
+            if (localCommunityCtx) criterionVectorContextParts.push(localCommunityCtx)
+            if (chunks.length === 0) return
+            const chunkText = chunks
+              .map((ch) => (ch.heading ? `### ${ch.heading}\n${ch.content}` : ch.content))
+              .join("\n\n")
+            criterionVectorContextParts.push(`[VectorRAG:${c.id}]\n${chunkText}`)
           })
-          if (localCommunityCtx) criterionVectorContextParts.push(localCommunityCtx)
-          if (chunks.length === 0) return
-          const chunkText = chunks
-            .map((ch) => (ch.heading ? `### ${ch.heading}\n${ch.content}` : ch.content))
-            .join("\n\n")
-          criterionVectorContextParts.push(`[VectorRAG:${c.id}]\n${chunkText}`)
-        })
-      )
+        )
+      }
 
       if (criterionVectorContextParts.length > 0) {
         // Budget: respect 60k char ceiling for the full prompt

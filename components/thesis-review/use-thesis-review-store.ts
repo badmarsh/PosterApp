@@ -373,10 +373,13 @@ function createThesisReviewStore(
                 Object.assign(shared, sharedUpdates)
               }
 
-              // Propagate to all other stores in this workspace (guarded against self and redundant re-sets)
+              // Propagate to all other stores in this workspace that share the same thesis file
               for (const [key, otherStore] of reviewStoreRegistry.entries()) {
                 if (key !== outputKey && key.startsWith(workspaceId + ":")) {
                   otherStore.setState((otherState) => {
+                    const sameFile = !s.selectedFileId || !otherState.selectedFileId || s.selectedFileId === otherState.selectedFileId
+                    if (!sameFile) return
+
                     let changed = false
                     for (const [k, v] of Object.entries(sharedUpdates)) {
                       if ((otherState.formMetadata as any)[k] !== v) {
@@ -413,13 +416,6 @@ function createThesisReviewStore(
           let shared = workspaceSharedThesisMap.get(workspaceId)
           if (shared) {
             shared.selectedFileId = fileId
-          }
-          for (const [key, otherStore] of reviewStoreRegistry.entries()) {
-            if (key !== outputKey && key.startsWith(workspaceId + ":")) {
-              if (otherStore.getState().selectedFileId !== fileId) {
-                otherStore.setState((s) => { s.selectedFileId = fileId })
-              }
-            }
           }
         }
       },
@@ -494,12 +490,15 @@ function createThesisReviewStore(
               }
               for (const [key, otherStore] of reviewStoreRegistry.entries()) {
                 if (key !== outputKey && key.startsWith(workspaceId + ":")) {
-                  if (otherStore.getState().sourceMarkdown !== text) {
-                    otherStore.setState((s) => {
-                      s.sourceMarkdown = text
-                      s.isLoadingSource = false
-                      if (fileId) s.selectedFileId = fileId
-                    })
+                  const otherFileId = otherStore.getState().selectedFileId
+                  // Only propagate to tabs reviewing the exact same file
+                  if (fileId && otherFileId && otherFileId === fileId) {
+                    if (otherStore.getState().sourceMarkdown !== text) {
+                      otherStore.setState((s) => {
+                        s.sourceMarkdown = text
+                        s.isLoadingSource = false
+                      })
+                    }
                   }
                 }
               }

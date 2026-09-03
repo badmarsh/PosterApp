@@ -226,7 +226,7 @@ export function RubricTemplateModal({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0 w-36">
+                  <div className="flex items-center gap-2 shrink-0 w-44">
                     <input
                       type="range"
                       min={0}
@@ -236,14 +236,14 @@ export function RubricTemplateModal({
                       onChange={(e) => handleWeightChange(criterion.id, parseInt(e.target.value, 10))}
                       className="w-20 accent-primary cursor-pointer"
                     />
-                    <div className="relative w-14">
+                    <div className="relative w-18">
                       <Input
                         type="number"
                         min={0}
                         max={100}
                         value={criterion.weight}
                         onChange={(e) => handleWeightChange(criterion.id, parseInt(e.target.value, 10))}
-                        className="h-7 text-xs text-right pr-4 font-mono font-semibold"
+                        className="h-7 text-xs text-right pr-5 font-mono font-semibold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                       <span className="absolute right-1.5 top-1.5 text-[10px] text-muted-foreground pointer-events-none">
                         %

@@ -8,6 +8,8 @@ import net from 'net'
 const isWin = os.platform() === 'win32'
 const PID_FILE = path.resolve('.dev.pid')
 
+process.env.NODE_OPTIONS = `${process.env.NODE_OPTIONS || ''} --max-old-space-size=8192`.trim()
+
 console.log('\n==================================================')
 console.log('🚀 Starting PosterApp Dev Orchestrator')
 console.log('==================================================\n')

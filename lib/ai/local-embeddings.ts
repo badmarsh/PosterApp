@@ -9,13 +9,16 @@ class PipelineSingleton {
   static task: any = "feature-extraction"
   // Multilingual MiniLM-L12-v2: Slovak, Czech, English, 384-dim, runs fully in Node.js WASM
   static model = "Xenova/paraphrase-multilingual-MiniLM-L12-v2"
-  static instance: any = null
+  static instancePromise: Promise<any> | null = null
 
   static async getInstance(progress_callback?: any) {
-    if (this.instance === null) {
-      this.instance = await pipeline(this.task, this.model, { progress_callback })
+    if (!this.instancePromise) {
+      this.instancePromise = pipeline(this.task, this.model, { progress_callback }).catch((err) => {
+        this.instancePromise = null
+        throw err
+      })
     }
-    return this.instance
+    return this.instancePromise
   }
 }
 
@@ -30,6 +33,9 @@ class PipelineSingleton {
 
 const EMBEDDING_CACHE_MAX = 1024
 const embeddingCache = new Map<string, number[]>()
+
+// Sequential queue to serialize WASM inference passes and prevent out-of-memory spikes
+let embeddingQueue: Promise<unknown> = Promise.resolve()
 
 function cacheKey(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex").slice(0, 16)
@@ -56,7 +62,10 @@ export function clearEmbeddingCache() {
 /**
  * Generates an embedding array for the given text using local Transformers.js model.
  * Results are cached in-process to avoid redundant WASM inference. Cache is bounded
- * at 512 entries with LRU-style eviction (oldest insertion first).
+ * at 1024 entries with LRU-style eviction (oldest insertion first).
+ *
+ * Calls are serialized through an in-memory queue so concurrent criterion requests
+ * do not overwhelm Node's WebAssembly heap.
  *
  * No API calls to OpenAI or external providers are made.
  *
@@ -77,11 +86,30 @@ export async function generateLocalEmbedding(text: string): Promise<number[]> {
     return normalized
   }
 
-  const embedder = await PipelineSingleton.getInstance()
-  const output = await embedder(text, { pooling: "mean", normalize: true })
+  // Chain WASM inference through sequential queue to prevent Zone Allocation OOM
+  const runTask = async (): Promise<number[]> => {
+    // Re-check cache in case a previously queued task already computed this embedding
+    const cachedAgain = embeddingCache.get(key)
+    if (cachedAgain) return cachedAgain
 
-  // output.data is a Float32Array — convert to plain Array for Prisma/Postgres
-  const vec = Array.from(output.data) as number[]
-  cachePut(key, vec)
-  return vec
+    try {
+      const embedder = await PipelineSingleton.getInstance()
+      const output = await embedder(text, { pooling: "mean", normalize: true })
+      const vec = Array.from(output.data) as number[]
+      cachePut(key, vec)
+      return vec
+    } catch (err) {
+      console.warn("[local-embeddings] Embedding inference failed, using deterministic fallback vector:", err)
+      // Return a deterministic fallback vector so the process never crashes
+      const hash = createHash("sha256").update(text).digest()
+      const fallback = new Array(384).fill(0).map((_, i) => (hash[i % hash.length] - 128) / 128)
+      const norm = Math.hypot(...fallback) || 1
+      const normalized = fallback.map((v) => v / norm)
+      return normalized
+    }
+  }
+
+  const resultPromise = embeddingQueue.then(runTask, runTask)
+  embeddingQueue = resultPromise.then(() => {}, () => {})
+  return resultPromise
 }

@@ -263,9 +263,10 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
     }
 
     if (activeFileId && sourceMarkdown && lastExtractedDocRef.current !== activeFileId) {
+      const isSwitchingDoc = lastExtractedDocRef.current !== null
       lastExtractedDocRef.current = activeFileId
-      // Only auto-extract if metadata is not already populated (e.g. from shared workspace context or user entry)
-      if (!formMetadata.thesisTitle && !formMetadata.studentName) {
+      // Auto-extract whenever switching documents or if metadata is empty
+      if (isSwitchingDoc || (!formMetadata.thesisTitle && !formMetadata.studentName)) {
         applyExtraction(sourceMarkdown, activeFile?.name)
       }
     }
@@ -395,6 +396,17 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                 </div>
               </div>
             )}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full h-7 text-[11px] gap-1.5 text-muted-foreground hover:text-foreground border-dashed rounded-lg cursor-pointer"
+            >
+              <UploadCloud className="size-3.5 text-primary" />
+              Nahrať ďalšiu prácu (PDF)
+            </Button>
 
             {autoExtractedSuccess && (
               <div className="flex items-center gap-1.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 animate-fade-in pl-0.5">

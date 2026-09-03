@@ -347,5 +347,38 @@ describe("Shared Thesis Context & Multi-Tab Isolation", () => {
     expect(store2.getState().activeReview?.id).toBe("rev-tab2")
     expect(store2.getState().activeReview?.grade).toBe("B")
   })
+
+  it("keeps different thesis documents completely isolated between tabs", () => {
+    const store1 = getThesisReviewStore("ws-multi:out-1")
+    const store2 = getThesisReviewStore("ws-multi:out-2")
+
+    // Tab 1 reviews Thesis A
+    store1.getState().setSelectedFileId("file-thesis-a")
+    store1.getState().updateFormMetadata({
+      studentName: "Bc. Maroš Bednár",
+      thesisTitle: "Systém na granty",
+      thesisType: "master",
+    })
+
+    // Tab 2 reviews Thesis B
+    store2.getState().setSelectedFileId("file-thesis-b")
+    store2.getState().updateFormMetadata({
+      studentName: "Ing. Zuzana Kováčová",
+      thesisTitle: "Kvantová kryptografia v optických sieťach",
+      thesisType: "phd",
+    })
+
+    // Tab 1 must remain Thesis A
+    expect(store1.getState().selectedFileId).toBe("file-thesis-a")
+    expect(store1.getState().formMetadata.studentName).toBe("Bc. Maroš Bednár")
+    expect(store1.getState().formMetadata.thesisTitle).toBe("Systém na granty")
+    expect(store1.getState().formMetadata.thesisType).toBe("master")
+
+    // Tab 2 must remain Thesis B
+    expect(store2.getState().selectedFileId).toBe("file-thesis-b")
+    expect(store2.getState().formMetadata.studentName).toBe("Ing. Zuzana Kováčová")
+    expect(store2.getState().formMetadata.thesisTitle).toBe("Kvantová kryptografia v optických sieťach")
+    expect(store2.getState().formMetadata.thesisType).toBe("phd")
+  })
 })
 
