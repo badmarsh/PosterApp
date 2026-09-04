@@ -1,5 +1,6 @@
 import type { EditorSlice, EquationSlice } from "./types"
 import { apiFetch } from "@/lib/api-fetch"
+import { notify } from "@/lib/notify"
 import { formatEquationForInsertion, cleanFormula, type EquationItem } from "@/lib/equation-types"
 import { SAMPLE_EQUATIONS } from "@/lib/sample-data"
 
@@ -67,6 +68,9 @@ export const createEquationSlice: EditorSlice<EquationSlice> = (set, get) => ({
         title: "Failed to Add Equation",
         detail: err instanceof Error ? err.message : String(err),
       })
+      notify.error("Equation add failed", {
+        description: err instanceof Error ? err.message : String(err),
+      })
     }
   },
 
@@ -101,6 +105,9 @@ export const createEquationSlice: EditorSlice<EquationSlice> = (set, get) => ({
         title: "Failed to Update Equation",
         detail: err instanceof Error ? err.message : String(err),
       })
+      notify.error("Equation update failed", {
+        description: err instanceof Error ? err.message : String(err),
+      })
     }
   },
 
@@ -120,6 +127,9 @@ export const createEquationSlice: EditorSlice<EquationSlice> = (set, get) => ({
         status: "error",
         title: "Failed to Delete Equation",
         detail: err instanceof Error ? err.message : String(err),
+      })
+      notify.error("Equation delete failed", {
+        description: err instanceof Error ? err.message : String(err),
       })
     }
   },

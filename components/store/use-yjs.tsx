@@ -10,6 +10,7 @@ import type { Card, OutputConfig } from "@/lib/poster-types"
 import { OUTPUT_META_KEYS, pickOutputMeta } from "./project-slice"
 import type { Collaborator } from "./types"
 import { jobQueue } from "@/lib/job-queue"
+import { notify } from "@/lib/notify"
 import {
   hydrateReviewIntoYDoc,
   extractReviewFromYDoc,
@@ -42,6 +43,7 @@ export function useYjs(workspaceId: string) {
     let unsubscribeThesisStore: (() => void) | null = null
     let unsubscribeJobs: (() => void) | null = null
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+    let disconnectNoticeTimer: ReturnType<typeof setTimeout> | null = null
     let isCancelled = false
 
     let currentBoundOutputId = store.getState().project.activeOutputId
@@ -162,6 +164,23 @@ export function useYjs(workspaceId: string) {
 
         provider.on("status", (event: { status: "connected" | "disconnected" | "connecting" }) => {
           store.getState().setYjsStatus(event.status)
+          // Transient blips are expected (auto-reconnect below) and stay
+          // visual-only; warn once if the connection stays down while the
+          // user has unsaved edits.
+          if (disconnectNoticeTimer) {
+            clearTimeout(disconnectNoticeTimer)
+            disconnectNoticeTimer = null
+          }
+          if (event.status === "disconnected") {
+            disconnectNoticeTimer = setTimeout(() => {
+              const st = store.getState()
+              if (st.yjsStatus === "disconnected" && st.isDirty) {
+                notify.error("Live sync disconnected", {
+                  description: "Your edits are kept locally and will sync automatically when the connection returns.",
+                })
+              }
+            }, 5000)
+          }
         })
 
         provider.on("connection-close", () => {
@@ -365,6 +384,7 @@ export function useYjs(workspaceId: string) {
     return () => {
       isCancelled = true
       if (reconnectTimer) clearTimeout(reconnectTimer)
+      if (disconnectNoticeTimer) clearTimeout(disconnectNoticeTimer)
       if (pushTimer) { clearTimeout(pushTimer); flushToYjs() }
       if (currentYCards && currentObserver) {
         currentYCards.unobserve(currentObserver)

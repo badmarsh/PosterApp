@@ -1023,7 +1023,7 @@ export function CardInspector() {
         <Button
           size="default"
           className="w-full justify-center h-9 text-sm"
-          onClick={() => saveProject()}
+          onClick={() => saveProject(true)}
           disabled={isGenerating}
         >
           <SaveAll className="size-4 mr-2" /> Save Project
@@ -1045,7 +1045,7 @@ export function CardInspector() {
             size="sm"
             variant="outline"
             className="flex-1"
-            onClick={() => saveProject()}
+            onClick={() => saveProject(true)}
             disabled={isGenerating}
           >
             <Save className="size-4 mr-2" /> Save Card

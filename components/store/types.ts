@@ -58,7 +58,7 @@ export interface ProjectSlice {
   aiReview: () => Promise<void>
   newProject: () => void
   duplicateProject: () => Promise<void>
-  saveProject: () => Promise<void>
+  saveProject: (manual?: boolean) => Promise<void>
   convertOutputAction: (sourceOutputId: string, targetType: OutputType) => Promise<void>
 }
 

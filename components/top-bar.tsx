@@ -277,7 +277,7 @@ export function TopBar({
               size="sm"
               className={cn("h-8 gap-1.5", isDirty ? "font-medium shadow-xs" : "text-muted-foreground")}
               disabled={!isDirty || isSaving}
-              onClick={() => saveProject()}
+              onClick={() => saveProject(true)}
               aria-label={isDirty ? "Save project changes" : "All changes saved"}
             >
               {isSaving ? (
