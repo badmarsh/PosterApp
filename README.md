@@ -78,6 +78,56 @@ When deploying PosterApp to a production cluster or cloud environment:
 10. **Rate limiting fail-safe**: in production the in-memory limiter is disabled unless `RATE_LIMIT_ALLOW_IN_MEMORY=1` is set explicitly (single-instance only). Configure Upstash for multi-instance deployments.
 11. **Container image**: a production `Dockerfile` is provided (`docker build -t posterapp .`). It runs migrations on start and exposes port 3333.
 
+## Optional DeerFlow integration
+
+PosterApp can delegate **long-horizon deep research** (multi-source literature
+research for a poster/paper, ~5–30 min agent runs) to an optional
+[DeerFlow](https://github.com/bytedance/deer-flow) sidecar (ByteDance's
+open-source SuperAgent harness, Gateway mode, MIT). This is a **second,
+opt-in tier** beside the existing single-shot AI paths — it never replaces
+them.
+
+### How to enable
+
+1. Run the sidecar (off by default; pinned/reviewed image required):
+   ```bash
+   docker compose --profile deerflow up -d
+   ```
+   Set `DEERFLOW_IMAGE` to a verified image/commit of `bytedance/deer-flow`
+   (Gateway mode) and align the model env mapping with its `config.yaml`.
+2. Configure in `.env.local` (see `.env.example`):
+   ```bash
+   DEERFLOW_ENABLED=1
+   DEERFLOW_URL=http://127.0.0.1:2026
+   DEERFLOW_SERVICE_TOKEN=<optional service token>
+   ```
+3. In the UI: **AI Assistant → Deep research** tab → write a focus, pick
+   depth/language, confirm the estimate, then **Apply to workspace** when the
+   proposal is ready.
+
+### Security notes
+
+- The browser never talks to DeerFlow directly — only server routes
+  (`/api/workspaces/[id]/deerflow/*`) reach the sidecar.
+- The sidecar receives a **bounded text summary** of workspace sources (max
+  40k chars) and asset ids — never raw PDFs, never `DATABASE_URL`,
+  `CLERK_SECRET_KEY`, or workspace paths.
+- Agent output is treated as **untrusted**: only a Zod-validated, asset
+  whitelist-checked proposal is stored, and applying it is an explicit human
+  action through revision-gated routes that only *create* cards.
+- Runs are capped by a per-workspace daily budget (`DEERFLOW_DAILY_BUDGET_USD`,
+  default $3), a per-user rate limit (3/h), a hard timeout (15 min) and a
+  max recursion limit.
+- The sidecar port is bound to `127.0.0.1` only.
+
+### Scope (Phase 0 + 1)
+
+Implemented: bridge client + SSE parser, run/thread mapping (`DeerflowThread`),
+estimate/budget gates, run + stream + status + apply + delete routes,
+Deep Research copilot UI tab, fake gateway fixture and unit tests.
+Deferred (design only): autonomous compile/fix loop, multi-agent review panel,
+skills, memory/IM channels — see `docs/internal/POSTERAPP_DEERFLOW_INTEGRATION_ANALYSIS.md`.
+
 ## Environment Variables
 The application requires several environment variables to function correctly. Copy `.env.example` to `.env.local` and configure them:
 
@@ -100,6 +150,14 @@ The application requires several environment variables to function correctly. Co
 | `RATE_LIMIT_ALLOW_IN_MEMORY` | (Prod) Set to `1` to permit per-process rate limiting without Redis (single instance only) |
 | `AI_REQUEST_TIMEOUT_MS` | (Optional) Hard timeout per AI provider request (default 180000) |
 | `E2E_AUTH_BYPASS` | (Dev/test only) Server-side flag enabling the Playwright auth bypass; ignored in production |
+| `DEERFLOW_ENABLED` | (Optional) Master kill switch for the DeerFlow deep-research sidecar (`1` = on) |
+| `DEERFLOW_URL` | (Optional) DeerFlow unified proxy base URL (default `http://127.0.0.1:2026`) |
+| `DEERFLOW_SERVICE_TOKEN` | (Optional) Bearer token sent to the DeerFlow sidecar |
+| `DEERFLOW_DAILY_BUDGET_USD` | (Optional) Per-workspace daily spend cap (default `3.00`) |
+| `DEERFLOW_RUN_TIMEOUT_MS` | (Optional) Hard cap per agent run (default `900000`) |
+| `DEERFLOW_MAX_RECURSION_LIMIT` | (Optional) LangGraph recursion limit (default `100`) |
+| `DEERFLOW_RUNS_PER_HOUR` | (Optional) Per-user run rate limit (default `3`) |
+| `DEERFLOW_MAX_RUN_MINUTES` | (Optional) Ceiling for client-requested `maxMinutes` (default `30`) |
 
 ## API Routes Reference
 - `POST /api/ingestion/parse` - Accepts PDF uploads, triggers MinerU, extracts markdown, figures, tables, and AI-generated BibTeX citations.
