@@ -3,6 +3,7 @@
  */
 
 import { NextResponse } from "next/server"
+export { wrapUntrustedContext } from "@/lib/ai/prompts"
 
 /**
  * Strips invalid XML 1.0 control characters (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F)

@@ -38,36 +38,35 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const start = Date.now()
   try {
     const { id } = await params
     const ctx = await verifyAgentKey(req)
-    requireScope(ctx, 'assets:write')
-    await requireAgentWorkspaceAccess(ctx, id, true)
+    const body = await req.json().catch(() => ({}))
 
-    const body = await req.json()
-    const asset = await prisma.asset.create({
-      data: {
-        id: body.id || ('asset_' + Math.random().toString(36).substring(2, 9)),
-        workspaceId: id,
-        fileId: body.fileId || 'agent_upload',
-        filename: body.filename || 'asset.png',
-        url: body.url || '',
-        kind: body.kind || 'figure',
-        page: body.page || 1,
-        confidence: body.confidence || 'high',
-        caption: body.caption || null,
-        assignedCardId: body.assignedCardId || null,
-      },
+    const { executeAgentTool } = await import("@/lib/agent-tools/executor")
+    const envelope = await executeAgentTool(ctx, "posterapp.assets.upload", {
+      workspaceId: id,
+      ...body,
     })
 
-    await logToolCall(ctx, id, 'posterapp.assets.upload', body, { id: asset.id }, Date.now() - start, true)
-    return NextResponse.json(asset)
+    if (!envelope.ok) {
+      const status =
+        envelope.error.code === "NOT_FOUND"
+          ? 404
+          : envelope.error.code === "FORBIDDEN" || envelope.error.code === "UNAUTHORIZED"
+          ? 403
+          : envelope.error.code === "RATE_LIMITED"
+          ? 429
+          : 400
+      return NextResponse.json(envelope, { status })
+    }
+
+    return NextResponse.json(envelope.data)
   } catch (err: any) {
     if (err instanceof AgentAuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status })
     }
-    console.error('[agent assets POST] Error:', err)
-    return NextResponse.json({ error: 'Failed to upload asset' }, { status: 500 })
+    console.error("[agent assets POST] Error:", err)
+    return NextResponse.json({ error: "Failed to upload asset" }, { status: 500 })
   }
 }

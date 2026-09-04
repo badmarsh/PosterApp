@@ -756,7 +756,7 @@ const snapshotsCreateTool: AgentTool = {
   handler: async (_ctx, args: { workspaceId: string; reason: string }) => {
     const { createWorkspaceSnapshot } = await import("@/lib/agent-snapshot")
     const label = `[agent] ${args.reason}`
-    const snap = await createWorkspaceSnapshot(args.workspaceId, label)
+    const snap = await createWorkspaceSnapshot(args.workspaceId, label, { source: "agent" })
     return {
       snapshotId: snap.id,
       reason: snap.label || label,

@@ -23,7 +23,8 @@ export async function logToolCall(
   durationMs?: number,
   ok = true,
   errorCode?: string | null,
-  changeId?: string | null
+  changeId?: string | null,
+  approved = false
 ) {
   try {
     await prisma.agentToolCallLog.create({
@@ -34,6 +35,7 @@ export async function logToolCall(
         args: sanitize(args) ?? {},
         result: result !== undefined ? sanitize(result) : undefined,
         ok,
+        approved,
         errorCode: errorCode || null,
         durationMs: durationMs ?? 0,
         changeId: changeId || null,
@@ -42,5 +44,32 @@ export async function logToolCall(
     })
   } catch (err) {
     console.error("[agent-audit] Failed to log tool call:", err)
+  }
+}
+
+export async function logApprovedMutation(
+  apiKeyId: string,
+  workspaceId: string,
+  toolName: string,
+  args: unknown,
+  result: unknown,
+  changeId: string
+) {
+  try {
+    await prisma.agentToolCallLog.create({
+      data: {
+        apiKeyId,
+        workspaceId,
+        toolName,
+        args: sanitize(args) ?? {},
+        result: sanitize(result) ?? undefined,
+        ok: true,
+        approved: true,
+        changeId,
+        calledAt: new Date(),
+      },
+    })
+  } catch (err) {
+    console.error("[agent-audit] Failed to log approved mutation:", err)
   }
 }

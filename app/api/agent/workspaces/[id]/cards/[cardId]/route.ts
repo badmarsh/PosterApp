@@ -44,59 +44,39 @@ export async function GET(
 }
 
 export async function PATCH(
-  req: NextRequest,
+  req: Request,
   { params }: { params: Promise<{ id: string; cardId: string }> }
 ) {
-  const start = Date.now()
   try {
     const { id, cardId } = await params
     const ctx = await verifyAgentKey(req)
-    requireScope(ctx, 'workspace:write')
-    await requireAgentWorkspaceAccess(ctx, id, true)
+    const body = await req.json().catch(() => ({}))
 
-    const card = await prisma.card.findUnique({
-      where: { id: cardId },
-      include: { output: true },
+    const { executeAgentTool } = await import("@/lib/agent-tools/executor")
+    const envelope = await executeAgentTool(ctx, "posterapp.cards.update", {
+      workspaceId: id,
+      cardId,
+      ...body,
     })
 
-    if (!card || card.output.workspaceId !== id) {
-      return NextResponse.json({ error: 'Card not found' }, { status: 404 })
+    if (!envelope.ok) {
+      const status =
+        envelope.error.code === "NOT_FOUND"
+          ? 404
+          : envelope.error.code === "FORBIDDEN" || envelope.error.code === "UNAUTHORIZED"
+          ? 403
+          : envelope.error.code === "RATE_LIMITED"
+          ? 429
+          : 400
+      return NextResponse.json(envelope, { status })
     }
 
-    const body = await req.json()
-
-    // MANDATORY PRE-WRITE SNAPSHOT
-    const snap = await createWorkspaceSnapshot(id, `agent:edit_card:${cardId}`)
-
-    const [updatedCard] = await prisma.$transaction([
-      prisma.card.update({
-        where: { id: cardId },
-        data: {
-          ...(typeof body.title === 'string' ? { title: body.title } : {}),
-          ...(typeof body.content === 'string' ? { content: body.content } : {}),
-          ...(typeof body.validation === 'string' ? { validation: body.validation } : {}),
-        },
-      }),
-      prisma.workspace.update({
-        where: { id },
-        data: { revision: { increment: 1 } },
-      }),
-    ])
-
-    const citations = extractCiteKeys(updatedCard.content || '')
-    const result = {
-      ...updatedCard,
-      citations,
-      preWriteSnapshotId: snap.id,
-    }
-
-    await logToolCall(ctx, id, 'posterapp.cards.update', { cardId, ...body }, result, Date.now() - start, true)
-    return NextResponse.json(result)
+    return NextResponse.json(envelope.data)
   } catch (err: any) {
     if (err instanceof AgentAuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status })
     }
-    console.error('[agent card PATCH] Error:', err)
-    return NextResponse.json({ error: 'Failed to update card' }, { status: 500 })
+    console.error("[agent card PATCH] Error:", err)
+    return NextResponse.json({ error: "Failed to update card" }, { status: 500 })
   }
 }

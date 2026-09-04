@@ -20,7 +20,9 @@ import {
   XCircle,
   Camera,
   Undo2,
+  Layers,
 } from "lucide-react"
+import { ApprovalInbox } from "@/components/agent/approval-inbox"
 import {
   AssistantRuntimeProvider,
   useLocalRuntime,
@@ -777,44 +779,90 @@ function AgentPanelInner({
   onCancelJob: (id: string) => void
   onCollapse: () => void
 }) {
-  const { hydrateUi, updateProject, isAiStreaming } = useEditor(
+  const { hydrateUi, updateProject, isAiStreaming, projectId } = useEditor(
     useShallow((s) => ({
       hydrateUi: s.hydrateUi,
       updateProject: s.updateProject,
       isAiStreaming: s.isAiStreaming,
+      projectId: s.project.id,
     }))
   )
 
   const [confirmClear, setConfirmClear] = useState(false)
+  const [panelMode, setPanelMode] = useState<"chat" | "inbox">("chat")
+  const [pendingCount, setPendingCount] = useState(0)
+
+  // Periodically check pending changes count for badge
+  useEffect(() => {
+    let mounted = true
+    const checkPending = async () => {
+      try {
+        const res = await fetch(`/api/workspaces/${projectId}/agent-changes?status=pending`)
+        if (res.ok && mounted) {
+          const data = await res.json()
+          setPendingCount((data.changes || []).length)
+        }
+      } catch {}
+    }
+    checkPending()
+    const interval = setInterval(checkPending, 15_000)
+    return () => {
+      mounted = false
+      clearInterval(interval)
+    }
+  }, [projectId])
 
   return (
     <>
     <aside
       aria-label="Agent panel"
-      className="flex w-full shrink-0 flex-col border-l border-border bg-sidebar lg:w-72"
+      className="flex w-full shrink-0 flex-col border-l border-border bg-sidebar lg:w-80"
     >
       {/* Header */}
-      <div className="flex h-9 shrink-0 items-center justify-between border-b border-border px-3">
-        <div className="flex items-center gap-1.5">
-          <Cpu className="size-4 text-primary" />
-          <span className="text-[11px] font-semibold uppercase tracking-wide">
-            AI Assistant
-          </span>
-          {isAiStreaming ? (
-            <span className="size-1.5 rounded-full bg-primary animate-pulse" title="Generuje…" />
-          ) : (
-            <span className="size-1.5 rounded-full bg-chart-3/80" title="Ready" />
-          )}
+      <div className="flex h-9 shrink-0 items-center justify-between border-b border-border px-2.5">
+        <div className="flex items-center gap-1">
+          <div className="flex bg-muted/60 p-0.5 rounded-md border border-border/50 text-[10px]">
+            <button
+              onClick={() => setPanelMode("chat")}
+              className={cn(
+                "px-2 py-0.5 rounded font-semibold transition-colors flex items-center gap-1",
+                panelMode === "chat" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Cpu className="size-3 text-primary" />
+              Chat
+              {isAiStreaming && (
+                <span className="size-1.5 rounded-full bg-primary animate-pulse" />
+              )}
+            </button>
+            <button
+              onClick={() => setPanelMode("inbox")}
+              className={cn(
+                "px-2 py-0.5 rounded font-semibold transition-colors flex items-center gap-1 relative",
+                panelMode === "inbox" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Layers className="size-3 text-amber-500" />
+              Inbox
+              {pendingCount > 0 && (
+                <span className="px-1 py-0.2 rounded-full text-[9px] font-bold bg-amber-500 text-white dark:text-black leading-none">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            title="Clear history"
-            onClick={() => setConfirmClear(true)}
-          >
-            <XCircle className="size-3.5 text-muted-foreground/70" />
-          </Button>
+          {panelMode === "chat" && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              title="Clear history"
+              onClick={() => setConfirmClear(true)}
+            >
+              <XCircle className="size-3.5 text-muted-foreground/70" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon-xs"
@@ -827,12 +875,28 @@ function AgentPanelInner({
         </div>
       </div>
 
-      {/* Status strip (collapsible event log) */}
-      <StatusStrip agentEvents={agentEvents} generatingIds={generatingIds} />
+      {panelMode === "chat" ? (
+        <>
+          {/* Status strip (collapsible event log) */}
+          <StatusStrip agentEvents={agentEvents} generatingIds={generatingIds} />
 
-      <div className="flex-1 min-h-0 flex flex-col">
-        <ChatThread />
-      </div>
+          <div className="flex-1 min-h-0 flex flex-col">
+            <ChatThread />
+          </div>
+        </>
+      ) : (
+        <div className="flex-1 min-h-0 flex flex-col">
+          <ApprovalInbox
+            workspaceId={projectId}
+            onApplySuccess={() => {
+              setPendingCount((c) => Math.max(0, c - 1))
+              if (typeof window !== "undefined") {
+                window.location.reload()
+              }
+            }}
+          />
+        </div>
+      )}
     </aside>
     <Dialog open={confirmClear} onOpenChange={setConfirmClear}>
       <DialogContent className="sm:max-w-sm" showCloseButton={false}>

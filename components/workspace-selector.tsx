@@ -382,7 +382,14 @@ export function WorkspaceSelector({
                     <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-sm leading-tight">{ws.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{ws.id} · {ws.templateName}</p>
+                      <div className="flex items-center justify-between gap-2 mt-0.5">
+                        <p className="text-xs text-muted-foreground truncate">{ws.id} · {ws.templateName}</p>
+                        {Boolean(ws.pendingChangesCount && ws.pendingChangesCount > 0) && (
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-500 border border-amber-500/40 shrink-0">
+                            {ws.pendingChangesCount} pending
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </button>
                 ))}

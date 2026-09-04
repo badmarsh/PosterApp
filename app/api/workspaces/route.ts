@@ -26,8 +26,12 @@ export async function GET() {
             templateId: true,
             title: true,
             isActive: true,
-          }
-        }
+          },
+        },
+        agentPendingChanges: {
+          where: { status: "pending" },
+          select: { id: true },
+        },
       },
       orderBy: { id: "asc" },
     })
@@ -80,7 +84,11 @@ export async function GET() {
                 title: true,
                 isActive: true,
               }
-            }
+            },
+            agentPendingChanges: {
+              where: { status: "pending" },
+              select: { id: true },
+            },
           }
         })
       }))
@@ -88,14 +96,15 @@ export async function GET() {
       workspaces = demoWorkspaces
     }
 
-    const result = workspaces.map((ws) => {
-      const activeOut = ws.outputs?.find((o) => o.isActive) || ws.outputs?.[0]
+    const result = workspaces.map((ws: any) => {
+      const activeOut = ws.outputs?.find((o: any) => o.isActive) || ws.outputs?.[0]
       return {
         id: ws.id,
         name: ws.name,
         authors: ws.authors,
         venue: ws.venue,
         templateName: activeOut?.templateId ?? "atlas",
+        pendingChangesCount: ws.agentPendingChanges?.length || 0,
       }
     })
 

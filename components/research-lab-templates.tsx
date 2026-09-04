@@ -44,6 +44,8 @@ export interface ScientificTask {
     tools: string[]
     summary: string
     details: string[]
+    approvalRequired?: boolean
+    approvalNote?: string
   }[]
   benchmarkTable?: {
     headers: string[]
@@ -144,11 +146,11 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
         title: "SYNTHESIS & WORKSPACE UPDATE",
         duration: "~15 min",
         tools: ["posterapp.snapshots.create", "posterapp.cards.update"],
-        summary: "Creates safety snapshot and updates workspace cards (reversible via snapshot).",
+        summary: "Enqueues proposed card updates in the approval queue for human review before applying.",
         details: [
           "Creates pre-agent:methodology-update snapshot.",
           "Proposes methodology card update incorporating hybrid RRF findings.",
-          "Proposed changes are written immediately and reversible via snapshot.",
+          "Writes are enqueued in your approval queue and applied only after human review.",
         ],
       },
     ],
@@ -1110,7 +1112,7 @@ export function ResearchLabTemplates({
           <div className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground flex items-start gap-2 border border-border/60">
             <Info className="size-4 shrink-0 text-primary mt-0.5" />
             <p>
-              {"Each protocol leverages DeerFlow's full agent stack: background tasks, sandboxed Python, subagent batches, and authenticated PosterApp endpoints. Proposed changes are written immediately and are individually reversible via automatic snapshots."}
+              {"Each protocol leverages DeerFlow's full agent stack: background tasks, sandboxed Python, subagent batches, and authenticated PosterApp endpoints. Proposed mutations are enqueued in your approval queue and applied only after your review and confirmation."}
             </p>
           </div>
         </div>

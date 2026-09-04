@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -158,10 +159,30 @@ export function AgentIntegrationPanel() {
     }
   }
 
+  const [activityTab, setActivityTab] = useState<"logs" | "changes">("logs")
+  const [changes, setChanges] = useState<any[]>([])
+  const [loadingChanges, setLoadingChanges] = useState(false)
+
+  async function fetchChanges() {
+    setLoadingChanges(true)
+    try {
+      const res = await fetch("/api/agent-keys/changes")
+      if (res.ok) {
+        const data = await res.json()
+        setChanges(data)
+      }
+    } catch (e) {
+      console.error("Failed to load agent changes:", e)
+    } finally {
+      setLoadingChanges(false)
+    }
+  }
+
   useEffect(() => {
     fetchWorkspaces()
     fetchKeys()
     fetchLogs()
+    fetchChanges()
   }, [])
 
   function handlePresetChange(p: AgentScopePreset) {
@@ -260,7 +281,7 @@ export function AgentIntegrationPanel() {
         <p className="text-sm text-muted-foreground mt-1">
           Connect your PosterApp workspaces to your DeerFlow agent via MCP or REST. Keys use
           cryptographic SHA-256 token hashing and granular workspace scoping. Proposed changes
-          are written immediately and individually reversible via snapshot.
+          are enqueued in your approval queue and applied only after human review.
         </p>
       </div>
 
@@ -609,65 +630,166 @@ export function AgentIntegrationPanel() {
         </div>
       )}
 
-      {/* Recent agent activity audit log */}
+      {/* Agent activity: Audit Log & Changes tabs (§9.3) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <Clock className="size-4 text-muted-foreground" />
-            Recent Agent Activity (Audit Log)
-          </h3>
+            <div className="flex bg-muted/60 p-0.5 rounded-md border border-border/50 text-xs">
+              <button
+                type="button"
+                onClick={() => setActivityTab("logs")}
+                className={cn(
+                  "px-2.5 py-1 rounded font-medium transition-colors",
+                  activityTab === "logs"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Audit Log ({logs.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActivityTab("changes")}
+                className={cn(
+                  "px-2.5 py-1 rounded font-medium transition-colors",
+                  activityTab === "changes"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Changes ({changes.length})
+              </button>
+            </div>
+          </div>
           <Button
             variant="ghost"
             size="sm"
-            onClick={fetchLogs}
-            disabled={loadingLogs}
+            onClick={() => {
+              if (activityTab === "logs") fetchLogs()
+              else fetchChanges()
+            }}
+            disabled={loadingLogs || loadingChanges}
             className="h-7 text-xs gap-1"
           >
-            <RefreshCw className={"size-3 " + (loadingLogs ? "animate-spin" : "")} />
+            <RefreshCw
+              className={
+                "size-3 " + (loadingLogs || loadingChanges ? "animate-spin" : "")
+              }
+            />
             Refresh
           </Button>
         </div>
 
-        {logs.length === 0 ? (
+        {activityTab === "logs" ? (
+          logs.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic border rounded-lg p-4 text-center">
+              No agent activity recorded yet.
+            </p>
+          ) : (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div className="max-h-[300px] overflow-y-auto divide-y divide-border text-xs">
+                {logs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="p-2.5 flex items-center justify-between hover:bg-muted/30 transition-colors gap-2"
+                  >
+                    <div className="min-w-0 flex items-center gap-2">
+                      <code className="font-mono font-semibold text-primary truncate">
+                        {log.toolName}
+                      </code>
+                      {log.workspaceId && (
+                        <span className="text-muted-foreground truncate max-w-[120px]">
+                          ws: {log.workspaceId}
+                        </span>
+                      )}
+                      {log.changeId && (
+                        <Badge variant="outline" className="text-[9px]">
+                          change: {log.changeId.slice(0, 8)}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0 text-muted-foreground">
+                      {log.durationMs !== null && <span>{log.durationMs}ms</span>}
+                      <span>{new Date(log.calledAt).toLocaleTimeString()}</span>
+                      {log.ok ? (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] bg-emerald-500/10 text-emerald-500"
+                        >
+                          Success
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive" className="text-[10px]">
+                          {log.errorCode || "Failed"}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        ) : changes.length === 0 ? (
           <p className="text-xs text-muted-foreground italic border rounded-lg p-4 text-center">
-            No agent activity recorded yet.
+            No agent change proposals recorded yet.
           </p>
         ) : (
           <div className="rounded-lg border border-border overflow-hidden">
-            <div className="max-h-[300px] overflow-y-auto divide-y divide-border text-xs">
-              {logs.map((log) => (
+            <div className="max-h-[320px] overflow-y-auto divide-y divide-border text-xs">
+              {changes.map((change) => (
                 <div
-                  key={log.id}
-                  className="p-2.5 flex items-center justify-between hover:bg-muted/30 transition-colors gap-2"
+                  key={change.id}
+                  className="p-2.5 flex flex-col gap-1.5 hover:bg-muted/30 transition-colors"
                 >
-                  <div className="min-w-0 flex items-center gap-2">
-                    <code className="font-mono font-semibold text-primary truncate">
-                      {log.toolName}
-                    </code>
-                    {log.workspaceId && (
-                      <span className="text-muted-foreground truncate max-w-[120px]">
-                        ws: {log.workspaceId}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <code className="font-mono font-semibold text-foreground truncate">
+                        {change.toolName}
+                      </code>
+                      <span className="text-muted-foreground truncate text-[11px]">
+                        {change.workspaceName || change.workspaceId}
                       </span>
-                    )}
-                    {log.changeId && (
-                      <Badge variant="outline" className="text-[9px]">
-                        change: {log.changeId.slice(0, 8)}
-                      </Badge>
-                    )}
+                      <span className="text-muted-foreground text-[10px] bg-muted/80 px-1 rounded">
+                        {change.apiKeyName}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] text-muted-foreground">
+                        {new Date(change.createdAt).toLocaleDateString()}
+                      </span>
+                      {change.status === "pending" && (
+                        <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-500">
+                          Pending
+                        </Badge>
+                      )}
+                      {change.status === "applied" && (
+                        <Badge variant="outline" className="text-[10px] border-emerald-500 text-emerald-500">
+                          Applied
+                        </Badge>
+                      )}
+                      {change.status === "rejected" && (
+                        <Badge variant="outline" className="text-[10px] border-red-500 text-red-500">
+                          Rejected
+                        </Badge>
+                      )}
+                      {change.status === "failed" && (
+                        <Badge variant="destructive" className="text-[10px]">
+                          Failed
+                        </Badge>
+                      )}
+                      {change.status === "expired" && (
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                          Expired
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0 text-muted-foreground">
-                    {log.durationMs !== null && <span>{log.durationMs}ms</span>}
-                    <span>{new Date(log.calledAt).toLocaleTimeString()}</span>
-                    {log.ok ? (
-                      <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-500">
-                        Success
-                      </Badge>
-                    ) : (
-                      <Badge variant="destructive" className="text-[10px]">
-                        {log.errorCode || "Failed"}
-                      </Badge>
-                    )}
-                  </div>
+                  {change.rationale && (
+                    <div className="text-[11px] font-mono text-muted-foreground bg-muted/40 p-1.5 rounded truncate">
+                      Rationale: {change.rationale}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -189,11 +189,13 @@ model WorkspaceSnapshot {
   workspaceId String
   savedAt     DateTime  @default(now())
   label       String?
+  source      String    @default("human")
   revision    Int
   snapshot    String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, savedAt(sort: Desc)])
+  @@index([workspaceId, source])
 }
 
 /// Stores metadata for a thesis assessment (posudok diplomovej práce).
@@ -396,6 +398,7 @@ model AgentToolCallLog {
   args        Json
   result      Json?
   ok          Boolean     @default(true)
+  approved    Boolean     @default(false)
   errorCode   String?
   durationMs  Int?
   changeId    String?     // link to AgentPendingChange if write

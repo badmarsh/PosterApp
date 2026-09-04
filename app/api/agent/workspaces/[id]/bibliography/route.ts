@@ -74,71 +74,35 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const start = Date.now()
   try {
     const { id } = await params
     const ctx = await verifyAgentKey(req)
-    requireScope(ctx, 'bibliography:write')
-    await requireAgentWorkspaceAccess(ctx, id, true)
+    const body = await req.json().catch(() => ({}))
 
-    const body = await req.json()
-
-    // Generate BibTeX string if structured fields given
-    let entryText = ''
-    let key = body.key
-
-    if (body.bibEntry && typeof body.bibEntry === 'string') {
-      entryText = body.bibEntry.trim()
-      const found = parseBibKeys(entryText)
-      if (found.length > 0) key = found[0]
-    } else if (body.title) {
-      const authorsStr = Array.isArray(body.authors) ? body.authors.join(' and ') : (body.authors || 'Unknown')
-      const firstAuthor = (Array.isArray(body.authors) && body.authors[0]) ? body.authors[0].split(' ').pop()?.replace(/[^a-zA-Z]/g, '') : 'Ref'
-      const yearStr = body.year ? String(body.year) : new Date().getFullYear().toString()
-      key = key || `${firstAuthor}${yearStr}`
-      const doiField = body.doi ? `  doi = {${body.doi}},\n` : ''
-      entryText = `@article{${key},\n  title = {${body.title}},\n  author = {${authorsStr}},\n  year = {${yearStr}},\n${doiField}}`
-    } else if (body.bib && typeof body.bib === 'string') {
-      entryText = body.bib.trim()
-      const found = parseBibKeys(entryText)
-      if (found.length > 0) key = found[0]
-    } else {
-      return NextResponse.json({ error: 'Invalid input. Expected title, bibEntry, or bib string.' }, { status: 400 })
-    }
-
-    // MANDATORY PRE-WRITE SNAPSHOT
-    const snap = await createWorkspaceSnapshot(id, `agent:bib:add:${key || 'entry'}`)
-
-    const workspace = await prisma.workspace.findUnique({ where: { id }, select: { bibContent: true } })
-    const currentBib = workspace?.bibContent || ''
-    const newBib = currentBib ? `${currentBib.trim()}\n\n${entryText}\n` : `${entryText}\n`
-
-    const updatedKeys = parseBibKeys(newBib)
-
-    await prisma.workspace.update({
-      where: { id },
-      data: {
-        bibContent: newBib,
-        bibKeys: updatedKeys,
-        revision: { increment: 1 },
-      },
+    const { executeAgentTool } = await import("@/lib/agent-tools/executor")
+    const envelope = await executeAgentTool(ctx, "posterapp.bibliography.add", {
+      workspaceId: id,
+      ...body,
     })
 
-    const result = {
-      ok: true,
-      key,
-      entry: entryText,
-      totalKeys: updatedKeys.length,
-      preWriteSnapshotId: snap.id,
+    if (!envelope.ok) {
+      const status =
+        envelope.error.code === "NOT_FOUND"
+          ? 404
+          : envelope.error.code === "FORBIDDEN" || envelope.error.code === "UNAUTHORIZED"
+          ? 403
+          : envelope.error.code === "RATE_LIMITED"
+          ? 429
+          : 400
+      return NextResponse.json(envelope, { status })
     }
 
-    await logToolCall(ctx, id, 'posterapp.bibliography.add', body, result, Date.now() - start, true)
-    return NextResponse.json(result)
+    return NextResponse.json(envelope.data)
   } catch (err: any) {
     if (err instanceof AgentAuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status })
     }
-    console.error('[agent bibliography POST] Error:', err)
-    return NextResponse.json({ error: 'Failed to add bibliography entry' }, { status: 500 })
+    console.error("[agent bibliography POST] Error:", err)
+    return NextResponse.json({ error: "Failed to add bibliography entry" }, { status: 500 })
   }
 }
