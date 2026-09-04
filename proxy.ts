@@ -2,10 +2,15 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { isE2eAuthBypassEnabled } from '@/lib/e2e-bypass'
 
-// Protect every API route. Asset bytes are workspace-private too.
+// Protect every API route except machine-to-machine /api/agent routes (authenticated via Bearer API keys)
 const isApiRoute = createRouteMatcher(['/api(.*)'])
+const isAgentRoute = createRouteMatcher(['/api/agent(.*)'])
 
 const handler = clerkMiddleware(async (auth, req) => {
+  if (isAgentRoute(req)) {
+    return NextResponse.next()
+  }
+
   if (isApiRoute(req)) {
     const { userId } = await auth()
     if (!userId) {

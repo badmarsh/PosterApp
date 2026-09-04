@@ -97,7 +97,7 @@ export function SourceMarkdownView({ markdown, highlightQuote, searchQuery }: Pr
       h4: ({ children }) => (
         <h4 className="text-sm font-semibold text-foreground/90 pt-3">{children}</h4>
       ),
-      p: ({ children }) => <p className="text-foreground/85 leading-relaxed my-2">{children}</p>,
+      p: ({ children }) => <div className="text-foreground/85 leading-relaxed my-2">{children}</div>,
       blockquote: ({ children }) => (
         <blockquote className="border-l-3 border-primary/60 bg-primary/5 pl-3.5 py-2 my-3 rounded-r-lg text-sm italic font-serif text-foreground/85">
           {children}
@@ -141,7 +141,7 @@ export function SourceMarkdownView({ markdown, highlightQuote, searchQuery }: Pr
         const srcText = typeof src === "string" ? src : ""
         return (
           <figure className="my-4 flex flex-col items-center justify-center p-3 rounded-lg bg-muted/10 border border-dashed border-border/60">
-            <div className="text-muted-foreground/60 text-[11px] font-mono truncate max-w-full">🖼 {altText || srcText}</div>
+            <span className="text-muted-foreground/60 text-[11px] font-mono truncate max-w-full block">🖼 {altText || srcText}</span>
             {altText && altText !== "Figure" && (
               <figcaption className="text-[11px] text-muted-foreground mt-1 font-medium">{altText}</figcaption>
             )}

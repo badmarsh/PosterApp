@@ -143,7 +143,7 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
         phase: "PHASE 6",
         title: "SYNTHESIS & WORKSPACE UPDATE",
         duration: "~15 min",
-        tools: ["posterapp.snapshot", "posterapp.cards.update"],
+        tools: ["posterapp.snapshots.create", "posterapp.cards.update"],
         summary: "Creates safety snapshot and updates workspace cards (reversible via snapshot).",
         details: [
           "Creates pre-agent:methodology-update snapshot.",
@@ -463,7 +463,7 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
         phase: "PHASE 6",
         title: "WORKSPACE UPDATE",
         duration: "~15 min",
-        tools: ["posterapp.snapshot", "posterapp.cards.update"],
+        tools: ["posterapp.snapshots.create", "posterapp.cards.update"],
         summary: "Updates Results and Methodology cards with exact statistical attribution.",
         details: [
           "Queues safe updates reflecting true component value.",
@@ -612,7 +612,7 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
         phase: "PHASE 5",
         title: "NEW POSTER CARD CREATION",
         duration: "~15 min",
-        tools: ["posterapp.snapshot", "posterapp.cards.update"],
+        tools: ["posterapp.snapshots.create", "posterapp.cards.update"],
         summary: "Generates a dedicated 'Failure Analysis' card directly addressing thesis review flags.",
         details: [
           "Drafts comprehensive error breakdown card.",
@@ -761,7 +761,7 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
         phase: "PHASE 5",
         title: "WORKSPACE UPDATE",
         duration: "~15 min",
-        tools: ["posterapp.snapshot", "posterapp.cards.update"],
+        tools: ["posterapp.snapshots.create", "posterapp.cards.update"],
         summary: "Prepares verified update for Results and Methodology cards.",
         details: [
           "Generates optuna_history.png and param_importance.png.",
@@ -908,7 +908,7 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
         phase: "PHASE 5",
         title: "METHODOLOGY SPECIFICATION",
         duration: "~15 min",
-        tools: ["posterapp.snapshot", "posterapp.cards.update"],
+        tools: ["posterapp.snapshots.create", "posterapp.cards.update"],
         summary: "Updates poster methodology to make all critical parameters explicit.",
         details: [
           "Amends methodology card with explicit overlap and threshold values.",
