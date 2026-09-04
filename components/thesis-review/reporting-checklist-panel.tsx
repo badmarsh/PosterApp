@@ -27,9 +27,9 @@ interface Props {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
-  compliant: { label: "Splnené", color: "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30", icon: CheckCircle2 },
-  partial: { label: "Čiastočne", color: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30", icon: AlertCircle },
-  missing: { label: "Chýba", color: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30", icon: XCircle },
+  compliant: { label: "Splnené", color: "bg-success/100/15 text-success dark:text-success border-success/40", icon: CheckCircle2 },
+  partial: { label: "Čiastočne", color: "bg-warning/100/15 text-warning dark:text-warning border-warning/40", icon: AlertCircle },
+  missing: { label: "Chýba", color: "bg-destructive/100/15 text-destructive dark:text-destructive border-destructive/40", icon: XCircle },
   not_applicable: { label: "Nerelevantné", color: "bg-muted text-muted-foreground border-muted-foreground/30", icon: HelpCircle },
 }
 
@@ -79,7 +79,7 @@ export function ReportingChecklistPanel({ standard, checks, onUpdateCheck }: Pro
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-foreground">{chk.item}</span>
-                    <Badge variant="secondary" className="text-[9px] uppercase">
+                    <Badge variant="secondary" className="text-[10px] uppercase">
                       {chk.category}
                     </Badge>
                   </div>

@@ -558,7 +558,7 @@ export function FindingCard({
               {cleanTitle}
             </h4>
             {finding.audience === "editor" && (
-              <Badge variant="outline" className="text-[9px] text-warning border-warning/40 gap-1 shrink-0">
+              <Badge variant="outline" className="text-[10px] text-warning border-warning/40 gap-1 shrink-0">
                 <Lock className="h-2.5 w-2.5" /> {L.confidential}
               </Badge>
             )}

@@ -416,7 +416,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               <span className="font-bold text-xs sm:text-sm truncate">{activeReview.studentName}</span>
               <ReviewRoleBadge role={activeReview.reviewerRole} lang={lang} size="sm" />
               {activeReview.reviewKind === "paper" && (
-                <Badge variant="outline" className="text-[10px] uppercase font-mono shrink-0 border-violet-300 text-violet-700 dark:text-violet-300">
+                <Badge variant="outline" className="text-[10px] uppercase font-mono shrink-0 border-status-ambiguous/40 text-status-ambiguous dark:text-status-ambiguous">
                   Article
                 </Badge>
               )}
@@ -483,10 +483,10 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
           {auditError ? (
             <Badge
               variant="outline"
-              className="text-[10px] font-mono border-amber-500/40 text-amber-700 dark:text-amber-300 hidden xl:inline-flex gap-1 items-center bg-amber-500/5 py-1 px-2"
+              className="text-[10px] font-mono border-warning/40 text-warning dark:text-warning hidden xl:inline-flex gap-1 items-center bg-warning/100/5 py-1 px-2"
               title="Záznam kryptografického auditu sa nepodarilo vytvoriť. Rozhodnutie bolo uložené, ale bez overenia integrity."
             >
-              <AlertCircle className="h-3 w-3 text-amber-500" />
+              <AlertCircle className="h-3 w-3 text-warning" />
               Audit: nedostupný
             </Badge>
           ) : (activeReview.confirmedAt || latestAuditHash) && (
@@ -508,10 +508,10 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               "text-xs h-8 px-3 gap-1.5 font-medium rounded-lg shadow-2xs transition-all",
               activeReview.confirmedAt
                 ? "border-emerald-500/40 text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20"
-                : "border-amber-500/40 text-amber-800 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20"
+                : "border-warning/40 text-warning dark:text-warning bg-warning/100/10 hover:bg-warning/100/20"
             )}
           >
-            <Award className={cn("h-3.5 w-3.5", activeReview.confirmedAt ? "text-success" : "text-amber-600 dark:text-amber-400")} />
+            <Award className={cn("h-3.5 w-3.5", activeReview.confirmedAt ? "text-success" : "text-warning dark:text-warning")} />
             {activeReview.confirmedAt ? "Rozhodnutie potvrdené ✓" : "Potvrdiť známku"}
           </Button>
 
@@ -522,7 +522,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
             disabled={isSaving}
             className="text-xs h-8 px-3 gap-1.5 font-medium rounded-lg border-border/80 hover:bg-muted/80 shadow-2xs"
           >
-            <Save className={cn("h-3.5 w-3.5", isReviewDirty ? "text-amber-600" : "text-muted-foreground")} />
+            <Save className={cn("h-3.5 w-3.5", isReviewDirty ? "text-warning" : "text-muted-foreground")} />
             {isSaving ? "Ukladám..." : isReviewDirty ? "Uložiť •" : "Uložené"}
           </Button>
           <span className="hidden lg:inline text-[10px] text-muted-foreground" aria-live="polite">
@@ -559,13 +559,13 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 Stiahnuť zdrojový LaTeX (.TEX)
               </DropdownMenuItem>
               {activeReview.reviewerRole === "self" ? (
-                <DropdownMenuItem disabled className="text-muted-foreground/60 cursor-not-allowed">
+                <DropdownMenuItem disabled className="text-muted-foreground cursor-not-allowed">
                   <FileText className="h-4 w-4 mr-2 text-muted-foreground/40" />
                   Stiahnuť Word (iba pre formálne posudky)
                 </DropdownMenuItem>
               ) : (
                 <DropdownMenuItem onClick={handleDownloadDocx} disabled={isExportingDocx}>
-                  <FileText className="h-4 w-4 mr-2 text-blue-600" />
+                  <FileText className="h-4 w-4 mr-2 text-info" />
                   {isExportingDocx ? "Generujem Word..." : "Stiahnuť Word (.DOCX)"}
                 </DropdownMenuItem>
               )}
@@ -598,9 +598,9 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
 
       {/* Diagnostics Alert Banner if recovery fallbacks were applied */}
       {activeReview.diagnostics && activeReview.diagnostics.corruptedFields.length > 0 && (
-        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-xs flex items-center justify-between text-amber-900 dark:text-amber-300">
+        <div className="bg-warning/100/10 border-b border-warning/40 px-4 py-2 text-xs flex items-center justify-between text-warning dark:text-warning">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+            <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
             <span>
               Niektoré polia posudku boli obnovené so záchranným formátom (
               {activeReview.diagnostics.corruptedFields.join(", ")}). Vaša manuálna práca bola zachovaná.
@@ -682,7 +682,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
           {activeReview.debateLog && (
             <details className="rounded-xl border bg-card p-4 shadow-sm group">
               <summary className="flex cursor-pointer items-center gap-2 text-sm font-bold select-none">
-                <ShieldAlert className="h-4 w-4 text-amber-600" />
+                <ShieldAlert className="h-4 w-4 text-warning" />
                 Kritická sebarevízia AI (druhý nezávislý prechod)
                 <span className="ml-auto text-[10px] font-normal text-muted-foreground group-open:hidden">zobraziť</span>
               </summary>
@@ -815,14 +815,14 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5",
                   activeTab === "unreviewed"
-                    ? "bg-background text-amber-800 dark:text-amber-300 font-semibold shadow-2xs border border-amber-500/30"
+                    ? "bg-background text-warning dark:text-warning font-semibold shadow-2xs border border-warning/40"
                     : "text-muted-foreground hover:text-foreground hover:bg-background/40"
                 )}
               >
                 <span>Na posúdenie</span>
                 <span className={cn(
                   "px-1.5 py-0.5 rounded-full text-[10px] font-mono",
-                  activeTab === "unreviewed" ? "bg-amber-500/15 text-amber-800 dark:text-amber-300 font-semibold" : "bg-muted text-muted-foreground"
+                  activeTab === "unreviewed" ? "bg-warning/100/15 text-warning dark:text-warning font-semibold" : "bg-muted text-muted-foreground"
                 )}>
                   {unreviewedCount}
                 </span>
@@ -851,14 +851,14 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5",
                   activeTab === "missing_evidence"
-                    ? "bg-background text-purple-700 dark:text-purple-300 font-semibold shadow-2xs border border-purple-500/30"
+                    ? "bg-background text-status-ambiguous dark:text-status-ambiguous font-semibold shadow-2xs border border-status-ambiguous/40"
                     : "text-muted-foreground hover:text-foreground hover:bg-background/40"
                 )}
               >
                 <span>Chýbajúci dôkaz</span>
                 <span className={cn(
                   "px-1.5 py-0.5 rounded-full text-[10px] font-mono",
-                  activeTab === "missing_evidence" ? "bg-purple-500/15 text-purple-700 dark:text-purple-300" : "bg-muted text-muted-foreground"
+                  activeTab === "missing_evidence" ? "bg-status-ambiguous/100/15 text-status-ambiguous dark:text-status-ambiguous" : "bg-muted text-muted-foreground"
                 )}>
                   {missingEvidenceCount}
                 </span>
@@ -930,7 +930,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                       <SelectContent>
                         <SelectItem value="critical" className="text-xs font-bold text-destructive">Kritická (Critical)</SelectItem>
                         <SelectItem value="major" className="text-xs font-bold text-orange-600">Zásadná (Major)</SelectItem>
-                        <SelectItem value="minor" className="text-xs font-bold text-blue-600">Drobná (Minor)</SelectItem>
+                        <SelectItem value="minor" className="text-xs font-bold text-info">Drobná (Minor)</SelectItem>
                         <SelectItem value="suggestion" className="text-xs text-muted-foreground">Návrh (Suggestion)</SelectItem>
                       </SelectContent>
                     </Select>
@@ -1149,7 +1149,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Otvorené zásadné pripomienky:</span>
-                <span className={`font-bold ${openMajorBlockers > 0 ? "text-destructive" : "text-green-600"}`}>
+                <span className={`font-bold ${openMajorBlockers > 0 ? "text-destructive" : "text-success"}`}>
                   {openMajorBlockers}
                 </span>
               </div>

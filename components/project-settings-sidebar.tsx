@@ -218,6 +218,7 @@ export function ProjectSettingsSidebar() {
                   variant="ghost"
                   size="icon"
                   onClick={() => updateProject({ logoUrl: null })}
+                  aria-label="Remove logo"
                   className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
                   title="Remove logo"
                 >
@@ -255,7 +256,7 @@ export function ProjectSettingsSidebar() {
 
             {/* Secondary Logo (Optional) */}
             <div className="space-y-1 pt-1.5">
-              <Label className="text-[10px] font-medium text-muted-foreground/80">Secondary Logo (Optional)</Label>
+              <Label className="text-[10px] font-medium text-muted-foreground">Secondary Logo (Optional)</Label>
               {project.secondaryLogoUrl ? (
                 <div className="flex items-center justify-between gap-2 p-1.5 rounded-md border border-border bg-muted/20">
                   <div className="flex items-center gap-2 min-w-0">
@@ -272,7 +273,7 @@ export function ProjectSettingsSidebar() {
                       <button
                         type="button"
                         onClick={() => secondaryLogoInputRef.current?.click()}
-                        className="text-[9px] text-primary hover:underline"
+                        className="text-[10px] text-primary hover:underline"
                         disabled={isUploadingSecondaryLogo}
                       >
                         {isUploadingSecondaryLogo ? "Uploading..." : "Replace"}
@@ -283,6 +284,7 @@ export function ProjectSettingsSidebar() {
                     variant="ghost"
                     size="icon"
                     onClick={() => updateProject({ secondaryLogoUrl: null })}
+                    aria-label="Remove secondary logo"
                     className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
                     title="Remove secondary logo"
                   >

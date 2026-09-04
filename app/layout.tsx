@@ -59,7 +59,18 @@ export default function RootLayout({
           <ThemeProvider
             attribute="class"
             defaultTheme="light"
-            themes={["light", "dark", "vercel", "vercel-dark", "midnight"]}
+            themes={[
+              "light",
+              "forest",
+              "ocean",
+              "plum",
+              "dark",
+              "ember",
+              "sage",
+              "midnight",
+              "vercel",
+              "vercel-dark",
+            ]}
             enableSystem={false}
             disableTransitionOnChange
           >

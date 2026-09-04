@@ -28,7 +28,7 @@ function CompileLog({ log, ok }: { log: string; ok: boolean }) {
       {open && (
         <pre
           className={cn(
-            "max-h-48 overflow-auto px-3 py-2 font-mono text-[9px] leading-relaxed",
+            "max-h-48 overflow-auto px-3 py-2 font-mono text-[10px] leading-relaxed",
             ok
               ? "text-success/80"
               : "text-destructive",

@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
 const SIZE_CLASSES = {
-  sm: "text-[9px] py-0 px-1 gap-0.5",
+  sm: "text-[10px] py-0 px-1 gap-0.5",
   md: "text-[10px] py-0 px-1.5 gap-1",
 } as const
 

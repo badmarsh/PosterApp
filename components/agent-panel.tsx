@@ -229,7 +229,7 @@ const EventRow = memo(function EventRow({
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span
                         className={cn(
-                          "inline-flex shrink-0 items-center rounded-sm border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
+                          "inline-flex shrink-0 items-center rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
                           severityColor
                         )}
                       >
@@ -335,7 +335,7 @@ const EventRow = memo(function EventRow({
             </div>
           </div>
         )}
-        <span className="mt-0.5 block min-h-[12px] font-mono text-[9px] text-muted-foreground/70">
+        <span className="mt-0.5 block min-h-[12px] font-mono text-[10px] text-muted-foreground">
           {mounted ? (event.status === "running" && elapsed ? elapsed : event.ts) : ""}
         </span>
       </div>
@@ -386,13 +386,13 @@ function StatusStrip({
             {current?.title ?? "Idle"}
           </span>
           {generatingIds.length > 0 && (
-            <span className="ml-1 shrink-0 font-mono text-[9px] text-muted-foreground">
+            <span className="ml-1 shrink-0 font-mono text-[10px] text-muted-foreground">
               {generatingIds[0]}
             </span>
           )}
         </div>
         <div className="flex items-center gap-1 text-muted-foreground">
-          <span className="rounded bg-muted px-1 font-mono text-[9px]">
+          <span className="rounded bg-muted px-1 font-mono text-[10px]">
             {agentEvents.length}
           </span>
           <ChevronDown
@@ -533,7 +533,7 @@ function AssistantTextContent() {
   // If text is still empty while streaming, show subtle typing placeholder dots
   if ((!cleanText || cleanText.trim() === "") && isAiStreaming) {
     return (
-      <div className="flex items-center gap-1.5 py-1 text-muted-foreground/60">
+      <div className="flex items-center gap-1.5 py-1 text-muted-foreground">
         <span className="size-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.3s]" />
         <span className="size-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.15s]" />
         <span className="size-1.5 rounded-full bg-current animate-bounce" />
@@ -666,7 +666,7 @@ function ChatComposer() {
         rows={1}
         autoComplete="off"
         className={cn(
-          "min-h-[40px] w-full resize-none bg-transparent px-3 py-2.5 text-[12px] leading-relaxed placeholder:text-muted-foreground/60",
+          "min-h-[40px] w-full resize-none bg-transparent px-3 py-2.5 text-[12px] leading-relaxed placeholder:text-muted-foreground",
           "focus:outline-none",
           "max-h-[120px] overflow-y-auto"
         )}
@@ -736,7 +736,7 @@ function ChatThread() {
             <p className="text-[12px] font-medium text-muted-foreground">
               Ask AI anything about your poster
             </p>
-            <p className="text-[11px] text-muted-foreground/70">
+            <p className="text-[11px] text-muted-foreground">
               Try: &ldquo;Summarise the selected card&rdquo; or &ldquo;Suggest a
               better title for the Results section&rdquo;
             </p>
@@ -803,17 +803,18 @@ function AgentPanelInner({
           {isAiStreaming ? (
             <span className="size-1.5 rounded-full bg-primary animate-pulse" title="Generuje…" />
           ) : (
-            <span className="size-1.5 rounded-full bg-chart-3/80" title="Ready" />
+            <span className="size-1.5 rounded-full bg-success/80" title="Ready" />
           )}
         </div>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon-xs"
+            aria-label="Clear agent history"
             title="Clear history"
             onClick={() => setConfirmClear(true)}
           >
-            <XCircle className="size-3.5 text-muted-foreground/70" />
+            <XCircle className="size-3.5 text-muted-foreground" />
           </Button>
           <Button
             variant="ghost"

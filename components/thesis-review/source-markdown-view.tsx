@@ -141,7 +141,7 @@ export function SourceMarkdownView({ markdown, highlightQuote, searchQuery }: Pr
         const srcText = typeof src === "string" ? src : ""
         return (
           <figure className="my-4 flex flex-col items-center justify-center p-3 rounded-lg bg-muted/10 border border-dashed border-border/60">
-            <div className="text-muted-foreground/60 text-[11px] font-mono truncate max-w-full">🖼 {altText || srcText}</div>
+            <div className="text-muted-foreground text-[11px] font-mono truncate max-w-full">🖼 {altText || srcText}</div>
             {altText && altText !== "Figure" && (
               <figcaption className="text-[11px] text-muted-foreground mt-1 font-medium">{altText}</figcaption>
             )}

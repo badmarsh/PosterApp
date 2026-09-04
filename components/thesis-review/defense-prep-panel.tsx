@@ -133,12 +133,12 @@ export function DefensePrepPanel({
                     </Badge>
                     <span className="font-medium text-muted-foreground">{item.category}</span>
                     {item.difficulty === "challenging" && (
-                      <Badge className="bg-red-500/10 text-red-700 dark:text-red-300 text-[10px]">
+                      <Badge className="bg-destructive/100/10 text-destructive dark:text-destructive text-[10px]">
                         Náročná otázka
                       </Badge>
                     )}
                     {item.difficulty === "probing" && (
-                      <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[10px]">
+                      <Badge className="bg-warning/100/10 text-warning dark:text-warning text-[10px]">
                         Hĺbková otázka
                       </Badge>
                     )}
@@ -150,7 +150,7 @@ export function DefensePrepPanel({
 
                   {item.derivedFromFindingTitle && (
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                      <AlertTriangle className="size-3 text-amber-500 shrink-0" />
+                      <AlertTriangle className="size-3 text-warning shrink-0" />
                       Odvodené zo zistenia: <span className="font-medium text-foreground">{item.derivedFromFindingTitle}</span>
                     </p>
                   )}

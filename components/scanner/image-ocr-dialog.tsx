@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { apiFetch } from "@/lib/api-fetch"
+import { toast } from "sonner"
 import {
   Camera,
   Upload,
@@ -108,6 +109,7 @@ export function ImageOcrDialog() {
   const [ocrMode, setOcrMode] = useState<OcrMode>("auto")
   const [customPrompt, setCustomPrompt] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
+  const [ocrError, setOcrError] = useState<string | null>(null)
   const [ocrResult, setOcrResult] = useState<VisionOcrResult | null>(null)
   const [activeTab, setActiveTab] = useState<"scan" | "results">("scan")
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
@@ -236,6 +238,7 @@ export function ImageOcrDialog() {
   const runOcr = async () => {
     if (!imagePreview) return
     setIsProcessing(true)
+    setOcrError(null)
     setOcrResult(null)
 
     try {
@@ -267,13 +270,16 @@ export function ImageOcrDialog() {
           detail: `Extracted ${data.result.equations?.length || 0} equations, ${data.result.tables?.length || 0} tables.`,
         })
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      setOcrError(message)
       pushEvent({
         kind: "info",
         status: "error",
         title: "OCR Scan Failed",
-        detail: err instanceof Error ? err.message : String(err),
+        detail: message,
       })
+      toast.error("OCR scan failed", { description: message })
     } finally {
       setIsProcessing(false)
     }
@@ -531,6 +537,16 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                     </>
                   )}
                 </Button>
+
+                {ocrError && (
+                  <div
+                    role="alert"
+                    className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2"
+                  >
+                    <p className="text-[11px] font-medium text-destructive">Scan failed</p>
+                    <p className="mt-0.5 break-words text-[11px] text-destructive/80">{ocrError}</p>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -582,6 +598,18 @@ Please analyze this content and suggest how to incorporate it into my ${project.
               {/* Right: Detected Entities (Formulas, Tables, Prose) */}
               <ScrollArea className="flex-1 min-h-0 p-6">
                 <div className="flex flex-col gap-6 max-w-3xl">
+                  {ocrResult &&
+                    !(ocrResult.equations?.length) &&
+                    !ocrResult.tables?.length &&
+                    !ocrResult.text && (
+                      <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border px-6 py-12 text-center">
+                        <p className="text-sm font-medium text-foreground">No structured content detected</p>
+                        <p className="max-w-sm text-[12px] text-muted-foreground">
+                          No equations, tables, or text were extracted from this image.
+                          Try a sharper photo or a different scan mode, or retry the scan.
+                        </p>
+                      </div>
+                    )}
                   {/* Equations Section */}
                   {ocrResult?.equations && ocrResult.equations.length > 0 && (
                     <div className="space-y-3">
@@ -619,7 +647,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                                   onClick={() => handleCopy(eq.formula, `eq_${i}`)}
                                   className="h-6 text-[10px] gap-1 text-muted-foreground"
                                 >
-                                  {copiedKey === `eq_${i}` ? <Check className="size-3 text-chart-3" /> : <Copy className="size-3" />}
+                                  {copiedKey === `eq_${i}` ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
                                   {copiedKey === `eq_${i}` ? "Copied" : "Copy LaTeX"}
                                 </Button>
                                 <Button
@@ -682,7 +710,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                                 onClick={() => handleCopy(t.markdown || "", `tbl_${i}`)}
                                 className="h-6 text-[10px] gap-1"
                               >
-                                {copiedKey === `tbl_${i}` ? <Check className="size-3 text-chart-3" /> : <Copy className="size-3" />}
+                                {copiedKey === `tbl_${i}` ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
                                 Copy Markdown
                               </Button>
                             </div>
@@ -711,7 +739,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                           onClick={() => handleCopy(ocrResult.text, "full_text")}
                           className="h-6 text-[10px] gap-1"
                         >
-                          {copiedKey === "full_text" ? <Check className="size-3 text-chart-3" /> : <Copy className="size-3" />}
+                          {copiedKey === "full_text" ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
                           Copy Markdown
                         </Button>
                       </div>

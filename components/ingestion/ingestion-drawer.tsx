@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { FileStack, X } from "lucide-react"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { UploadZone } from "@/components/ingestion/upload-zone"
 import { AssetList } from "@/components/ingestion/asset-list"
 import { ParseLogPanel } from "@/components/ingestion/parse-log-panel"
+import { useFocusTrap } from "@/lib/use-focus-trap"
 
 export function IngestionDrawer() {
   const { ingestionOpen, closeIngestion, project } = useEditor(
@@ -20,6 +21,11 @@ export function IngestionDrawer() {
   )
   const assets = project.assets || []
   const ingestFiles = project.ingestFiles || []
+
+  const asideRef = useRef<HTMLElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  // Hooks must run before the early return below.
+  useFocusTrap(asideRef, closeButtonRef, ingestionOpen)
 
   useEffect(() => {
     if (!ingestionOpen) return
@@ -48,6 +54,7 @@ export function IngestionDrawer() {
       />
 
       <aside
+        ref={asideRef}
         role="dialog"
         aria-modal="true"
         aria-label="Ingest sources"
@@ -70,6 +77,7 @@ export function IngestionDrawer() {
             </div>
           </div>
           <Button
+            ref={closeButtonRef}
             variant="ghost"
             size="icon"
             className="size-8"

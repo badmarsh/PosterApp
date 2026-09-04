@@ -31,10 +31,11 @@ import { DEMO_PROJECT_ID } from "@/lib/mock-data"
 type MobilePane = "structure" | "preview" | "editor" | "agent"
 
 function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () => void }) {
-  const [structureOpen, setStructureOpen] = useState(true)
-  const [agentOpen, setAgentOpen] = useState(true)
-  const [paletteOpen, setPaletteOpen] = useState(false)
   const editorStore = useEditorStoreInstance()
+  // Panel visibility on load is a user preference (Settings → Editor).
+  const [structureOpen, setStructureOpen] = useState(() => editorStore.getState().structurePanelOpenOnLoad)
+  const [agentOpen, setAgentOpen] = useState(() => editorStore.getState().agentPanelOpenOnLoad)
+  const [paletteOpen, setPaletteOpen] = useState(false)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -49,6 +50,7 @@ function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: ()
         return
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        if (!editorStore.getState().compileOnCmdEnter) return
         const target = e.target as HTMLElement | null
         if (target && (target.tagName === "TEXTAREA" || target.isContentEditable)) return
         e.preventDefault()
@@ -86,11 +88,13 @@ function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: ()
           onOpenWorkspaceSelector={onOpenWorkspaceSelector}
         />
         <div className="flex min-h-0 flex-1">
-          {structureOpen ? (
-            <ErrorBoundary name="Project Settings Sidebar">
+          {/* Kept mounted (display:contents/none) so in-progress logo uploads
+              and form state survive panel toggling — same pattern as AgentPanel. */}
+          <ErrorBoundary name="Project Settings Sidebar">
+            <div style={{ display: structureOpen ? "contents" : "none" }}>
               <ProjectSettingsSidebar />
-            </ErrorBoundary>
-          ) : null}
+            </div>
+          </ErrorBoundary>
           <main className="flex min-w-0 flex-1 flex-col">
             <ErrorBoundary name="Poster Preview">
               <PosterPreview />
@@ -149,7 +153,7 @@ function MobileNavButton({
           <span className="absolute -right-1 -top-0.5 size-1.5 animate-pulse rounded-full bg-primary" />
         )}
         {!pulse && badge ? (
-          <span className="absolute -right-2 -top-1 min-w-3.5 rounded-full bg-muted px-1 text-center font-mono text-[9px] leading-[14px] text-muted-foreground">
+          <span className="absolute -right-2 -top-1 min-w-3.5 rounded-full bg-muted px-1 text-center font-mono text-[10px] leading-[14px] text-muted-foreground">
             {badge}
           </span>
         ) : null}
@@ -289,6 +293,18 @@ export function AppSkeleton() {
             <span className="size-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary" />
             Loading editor…
           </div>
+        </div>
+        <div className="hidden w-[26rem] shrink-0 flex-col gap-2 border-l border-border bg-card p-3 lg:flex">
+          <Skeleton className="h-11 w-full" />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+        <div className="hidden w-72 shrink-0 flex-col gap-2 border-l border-border bg-sidebar p-3 xl:flex">
+          <Skeleton className="h-8 w-24" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
         </div>
       </div>
     </div>

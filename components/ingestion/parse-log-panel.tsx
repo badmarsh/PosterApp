@@ -35,7 +35,7 @@ export function ParseLogPanel() {
         <span className="text-[11px] font-semibold uppercase tracking-wide">
           Parse log
         </span>
-        <span className="ml-auto flex items-center gap-1.5 font-mono text-[9px] text-muted-foreground">
+        <span className="ml-auto flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
           {warnings > 0 && (
             <span className="rounded border border-chart-4/30 bg-chart-4/10 px-1 text-chart-4">
               {warnings} warn/err
@@ -50,7 +50,7 @@ export function ParseLogPanel() {
           <ul className="flex flex-col gap-1">
             {parseLog.slice().reverse().map((entry) => (
               <li key={entry.id} className="flex gap-1.5 font-mono text-[10px] leading-snug">
-                <span className="shrink-0 text-muted-foreground/60">
+                <span className="shrink-0 text-muted-foreground">
                   {entry.ts === "loaded" ? "·" : entry.ts}
                 </span>
                 <span

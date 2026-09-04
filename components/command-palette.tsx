@@ -30,6 +30,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command"
 import { useEditor } from "@/components/editor-store"
+import { THEMES } from "@/components/theme-picker"
 import { generateFullTemplate } from "@/lib/latex"
 
 type CommandPaletteProps = {
@@ -128,10 +129,10 @@ export function CommandPalette({
     >
       <CommandInput placeholder="Type a command or search…" value={search} onValueChange={setSearch} />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandEmpty>No results{search ? ` for "${search}"` : ""}. Try a different command or name.</CommandEmpty>
 
         <CommandGroup heading="Project">
-          <CommandItem onSelect={() => run(() => saveProject())} disabled={!isDirty}>
+          <CommandItem onSelect={() => run(() => saveProject(true))} disabled={!isDirty}>
             <Save />
             Save project
             <CommandShortcut>⌘S</CommandShortcut>
@@ -218,36 +219,14 @@ export function CommandPalette({
             <Clock />
             Open save history
           </CommandItem>
-          <CommandItem onSelect={() => run(() => setTheme("light"))}>
-            <span className="flex size-4 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ring-border" style={{ background: "#faf9f6" }}>
-              <span className="size-1.5 rounded-full" style={{ background: "#8B2635" }} />
-            </span>
-            Light
-          </CommandItem>
-          <CommandItem onSelect={() => run(() => setTheme("dark"))}>
-            <span className="flex size-4 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ring-border" style={{ background: "#1c1917" }}>
-              <span className="size-1.5 rounded-full" style={{ background: "#d9777f" }} />
-            </span>
-            Dark
-          </CommandItem>
-          <CommandItem onSelect={() => run(() => setTheme("vercel"))}>
-            <span className="flex size-4 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ring-border" style={{ background: "#ffffff" }}>
-              <span className="size-1.5 rounded-full" style={{ background: "#000000" }} />
-            </span>
-            Vercel
-          </CommandItem>
-          <CommandItem onSelect={() => run(() => setTheme("vercel-dark"))}>
-            <span className="flex size-4 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ring-border" style={{ background: "#000000" }}>
-              <span className="size-1.5 rounded-full" style={{ background: "#ffffff" }} />
-            </span>
-            Vercel Dark
-          </CommandItem>
-          <CommandItem onSelect={() => run(() => setTheme("midnight"))}>
-            <span className="flex size-4 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ring-border" style={{ background: "#1a1a3a" }}>
-              <span className="size-1.5 rounded-full" style={{ background: "#7c6cf0" }} />
-            </span>
-            Midnight
-          </CommandItem>
+          {THEMES.map((t) => (
+            <CommandItem key={t.id} onSelect={() => run(() => setTheme(t.id))}>
+              <span className="flex size-4 shrink-0 items-center justify-center rounded-full ring-1 ring-inset ring-border" style={{ background: t.bg }} aria-hidden="true">
+                <span className="size-1.5 rounded-full" style={{ background: t.accent }} />
+              </span>
+              {t.name}
+            </CommandItem>
+          ))}
         </CommandGroup>
       </CommandList>
     </CommandDialog>

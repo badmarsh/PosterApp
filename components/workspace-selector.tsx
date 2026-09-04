@@ -35,6 +35,7 @@ export function WorkspaceSelector({
   const [workspaces, setWorkspaces] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
 
   const [isCreating, setIsCreating] = useState(false)
   const [newId, setNewId] = useState("")
@@ -80,7 +81,7 @@ export function WorkspaceSelector({
         setError(err instanceof Error ? err.message : String(err))
         setLoading(false)
       })
-  }, [])
+  }, [retryKey])
 
   const slugify = (v: string) =>
     v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32)
@@ -146,7 +147,7 @@ export function WorkspaceSelector({
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
-      <DialogContent className="sm:max-w-md" showCloseButton>
+      <DialogContent className="z-[60] sm:max-w-md" showCloseButton>
         <DialogHeader>
           <DialogTitle>Select a Workspace</DialogTitle>
           <DialogDescription>Open an existing project or create a new one.</DialogDescription>
@@ -180,6 +181,20 @@ export function WorkspaceSelector({
                 ? "Your session has expired or you are not signed in. Please sign in to access your projects."
                 : error}
             </p>
+            {!isAuthRequired && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 text-[11px] px-2.5 border-destructive/40 text-destructive hover:bg-destructive/10 cursor-pointer"
+                onClick={() => {
+                  setError(null)
+                  setLoading(true)
+                  setRetryKey((k) => k + 1)
+                }}
+              >
+                Retry
+              </Button>
+            )}
           </div>
         )}
 

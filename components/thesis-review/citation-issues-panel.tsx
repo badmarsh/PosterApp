@@ -140,14 +140,14 @@ export function CitationIssuesPanel({ issues, lang, workspaceId }: Props) {
         {issues.length > 0 ? (
           <Badge
             variant="outline"
-            className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-200 text-xs font-semibold"
+            className="bg-warning/15 text-warning border-warning/40 dark:bg-warning/20 dark:text-warning text-xs font-semibold"
           >
             {issues.length} {lang === "sk" ? "pripomienok" : lang === "cs" ? "připomínek" : "issues"}
           </Badge>
         ) : (
           <Badge
             variant="outline"
-            className="bg-green-100 text-green-800 border-green-300 dark:bg-green-950 dark:text-green-200 text-xs font-semibold"
+            className="bg-success/15 text-success border-success/40 dark:bg-success/20 dark:text-success text-xs font-semibold"
           >
             ISO 690 OK
           </Badge>
@@ -158,8 +158,8 @@ export function CitationIssuesPanel({ issues, lang, workspaceId }: Props) {
 
       {/* Issues list */}
       {issues.length === 0 ? (
-        <div className="flex items-center gap-2 rounded-md bg-green-50 p-3 text-xs text-green-800 dark:bg-green-950/40 dark:text-green-200 border border-green-200 dark:border-green-900/50">
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+        <div className="flex items-center gap-2 rounded-md bg-success/10 p-3 text-xs text-success dark:bg-success/20 dark:text-success border border-success/40 dark:border-success/50">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
           <span className="font-medium">{t.clean}</span>
         </div>
       ) : (
@@ -167,9 +167,9 @@ export function CitationIssuesPanel({ issues, lang, workspaceId }: Props) {
           {issues.map((issue, idx) => (
             <div
               key={idx}
-              className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/50 p-2.5 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
+              className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/5 p-2.5 text-xs text-warning dark:border-warning/40 dark:bg-warning/10 dark:text-warning"
             >
-              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+              <AlertTriangle className="h-4 w-4 shrink-0 text-warning mt-0.5" />
               <div className="flex-1 whitespace-pre-wrap leading-relaxed">{issue}</div>
             </div>
           ))}
@@ -244,7 +244,7 @@ export function CitationIssuesPanel({ issues, lang, workspaceId }: Props) {
                           href={`https://doi.org/${paper.doi}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[11px] text-blue-600 hover:underline inline-flex items-center gap-1 font-mono"
+                          className="text-[11px] text-info hover:underline inline-flex items-center gap-1 font-mono"
                         >
                           DOI:{paper.doi.slice(0, 24)}...
                           <ExternalLink className="h-2.5 w-2.5" />
@@ -255,7 +255,7 @@ export function CitationIssuesPanel({ issues, lang, workspaceId }: Props) {
                           href={paper.url || `https://arxiv.org/abs/${paper.arxivId}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[11px] text-amber-600 hover:underline inline-flex items-center gap-1 font-mono"
+                          className="text-[11px] text-warning hover:underline inline-flex items-center gap-1 font-mono"
                         >
                           arXiv:{paper.arxivId}
                           <ExternalLink className="h-2.5 w-2.5" />
@@ -271,7 +271,7 @@ export function CitationIssuesPanel({ issues, lang, workspaceId }: Props) {
                         >
                           {copiedId === String(idx) ? (
                             <>
-                              <Check className="h-2.5 w-2.5 text-green-600" />
+                              <Check className="h-2.5 w-2.5 text-success" />
                               {lang === "sk" ? "Skopírované" : "Copied"}
                             </>
                           ) : (
@@ -293,7 +293,7 @@ export function CitationIssuesPanel({ issues, lang, workspaceId }: Props) {
                             <Loader2 className="h-2.5 w-2.5 animate-spin" />
                           ) : importedKeys.has(academicPaperToBibEntry(paper).key) ? (
                             <>
-                              <Check className="h-2.5 w-2.5 text-green-600" />
+                              <Check className="h-2.5 w-2.5 text-success" />
                               {lang === "sk" ? "V .bib" : lang === "cs" ? "V .bib" : "In .bib"}
                             </>
                           ) : (

@@ -458,7 +458,7 @@ export function EquationRegistryDialog() {
 
                         {eq.contextSnippet && (
                           <div className="rounded bg-muted/40 p-2 border border-border/50 text-[10px] text-muted-foreground font-mono leading-relaxed line-clamp-2">
-                            <span className="font-sans font-semibold text-[9px] uppercase tracking-wider text-muted-foreground block mb-0.5">
+                            <span className="font-sans font-semibold text-[10px] uppercase tracking-wider text-muted-foreground block mb-0.5">
                               📄 MinerU Context:
                             </span>
                             {eq.contextSnippet}

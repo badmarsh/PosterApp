@@ -24,6 +24,7 @@ import {
   Settings as SettingsIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 import { Separator } from "@/components/ui/separator"
 import {
   Dialog,
@@ -114,7 +115,12 @@ export function TopBar({
     apiFetch("/api/workspaces")
       .then((r) => r.json())
       .then((data) => setWorkspaces(Array.isArray(data) ? data : []))
-      .catch(() => {})
+      .catch(() =>
+        toast.error("Couldn't load workspaces", {
+          description: "The workspace list is currently unavailable.",
+          action: { label: "Retry", onClick: () => refreshWorkspaces() },
+        })
+      )
   }
 
   useEffect(() => {
@@ -125,6 +131,7 @@ export function TopBar({
     const activeOutput = project.outputs?.find(o => o.id === project.activeOutputId) || project.outputs?.[0]
     if (!activeOutput) {
       pushEvent({ kind: "info", status: "error", title: "Export Failed", detail: "No active output found." })
+      toast.error("Export failed", { description: "No active output found. Generate or select an output first." })
       return
     }
     const tex = generateFullTemplate(project, activeOutput, project.id)
@@ -136,10 +143,18 @@ export function TopBar({
     a.click()
     URL.revokeObjectURL(url)
     pushEvent({ kind: "info", status: "done", title: `Exported ${activeOutput.outputType}.tex`, detail: "LaTeX source file downloaded." })
+    toast.success("LaTeX exported", { description: `${project.id}_${activeOutput.outputType}.tex downloaded.` })
   }
 
+  const compactMode = useEditor((s) => s.compactMode)
+
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2.5 border-b border-border bg-card px-3">
+    <header
+      className={cn(
+        "flex shrink-0 items-center gap-2.5 border-b border-border bg-card px-3",
+        compactMode ? "h-10" : "h-12"
+      )}
+    >
       {/* Zone 1: View Toggles — structure panel (left) and LaTeX source */}
       <div className="flex items-center gap-1">
         <Tooltip>
@@ -262,7 +277,7 @@ export function TopBar({
               size="sm"
               className={cn("h-8 gap-1.5", isDirty ? "font-medium shadow-xs" : "text-muted-foreground")}
               disabled={!isDirty || isSaving}
-              onClick={() => saveProject()}
+              onClick={() => saveProject(true)}
               aria-label={isDirty ? "Save project changes" : "All changes saved"}
             >
               {isSaving ? (
@@ -270,7 +285,7 @@ export function TopBar({
               ) : isDirty ? (
                 <Save className="size-3.5" />
               ) : (
-                <Check className="size-3.5 text-chart-3" />
+                <Check className="size-3.5 text-primary" />
               )}
               <span>{isDirty ? "Save changes" : "Saved"}</span>
             </Button>
@@ -372,12 +387,12 @@ export function TopBar({
         <Button
           variant={collabEnabled ? "default" : "outline"}
           size="sm"
-          className={cn("h-8 gap-1.5", collabEnabled && "bg-chart-3 hover:bg-chart-3/90 text-primary-foreground")}
+          className={cn("h-8 gap-1.5", collabEnabled && "bg-success hover:bg-success/90 text-success-foreground")}
           onClick={() => setCollabEnabled(!collabEnabled)}
           aria-label={collabEnabled ? "Live Collaboration enabled" : "Enable Live Collaboration"}
           aria-pressed={collabEnabled}
         >
-          <Users className={cn("size-3.5", collabEnabled ? "text-primary-foreground" : "")} />
+          <Users className={cn("size-3.5", collabEnabled && "text-success-foreground")} />
           <span className="hidden md:inline">Live Collab</span>
         </Button>
         <Button
@@ -504,7 +519,8 @@ export function TopBar({
                 Settings
               </DialogTitle>
               <DialogDescription className="text-sm">
-                Workspace appearance, review language, AI models and display preferences.
+                Theme, appearance, editor behavior, language, AI models,
+                shortcuts and data.
               </DialogDescription>
             </DialogHeader>
           </div>

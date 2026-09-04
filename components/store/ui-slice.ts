@@ -1,6 +1,7 @@
 import type { EditorSlice, UiSlice } from "./types"
 import type { AgentEvent } from "@/lib/poster-types"
 import { apiFetch } from "@/lib/api-fetch"
+import { notify } from "@/lib/notify"
 import { safeRandomUUID } from "@/lib/utils"
 
 /** Upper bounds so the event feed / chat history (persisted on every save) stay small. */
@@ -74,6 +75,18 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
   setCompactMode: (v) => set({ compactMode: v }),
   lastCompileFormat: "poster",
   setLastCompileFormat: (format) => set({ lastCompileFormat: format }),
+  layoutCheckEnabled: true,
+  setLayoutCheckEnabled: (v) => set({ layoutCheckEnabled: v }),
+  compileAutoFixEnabled: true,
+  setCompileAutoFixEnabled: (v) => set({ compileAutoFixEnabled: v }),
+  compileOnCmdEnter: true,
+  setCompileOnCmdEnter: (v) => set({ compileOnCmdEnter: v }),
+  agentPanelOpenOnLoad: true,
+  setAgentPanelOpenOnLoad: (v) => set({ agentPanelOpenOnLoad: v }),
+  structurePanelOpenOnLoad: true,
+  setStructurePanelOpenOnLoad: (v) => set({ structurePanelOpenOnLoad: v }),
+  inspectorDefaultTab: "pdf",
+  setInspectorDefaultTab: (tab) => set({ inspectorDefaultTab: tab }),
   layoutWarnings: [],
   lastReviewedRevision: null,
   setLastReviewedRevision: (r) => set({ lastReviewedRevision: r }),
@@ -172,9 +185,10 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
             set((s) => { s.pdfData = new Uint8Array(buf) })
           }
           get().updateEvent(evId, { status: "done", title: "Compile succeeded", detail: "PDF ready for preview." })
+          notify.success("Compile succeeded", { description: "PDF ready for preview." })
           
           // Background VLM Layout Check
-          if (get().lastReviewedRevision !== revision) {
+          if (get().layoutCheckEnabled && get().lastReviewedRevision !== revision) {
             const vlmEv = get().pushEvent({ kind: "info", status: "running", title: `VLM Layout Check running...` })
             apiFetch(`/api/workspaces/${project.id}/review-layout?revision=${revision}`, { method: "POST" })
             .then(async res => {
@@ -227,7 +241,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
 
           break; // Exit loop on success
         } else {
-          if (attempts < MAX_ATTEMPTS) {
+          if (attempts < MAX_ATTEMPTS && get().compileAutoFixEnabled) {
             get().updateEvent(evId, { detail: `Attempt ${attempts}/${MAX_ATTEMPTS} failed. Requesting LLM autofix...` })
             const autofixRes = await apiFetch(`/api/workspaces/${project.id}/autofix-compile?revision=${revision}`, {
                method: "POST",
@@ -250,6 +264,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
                const alreadyIdentical = fixes.every((f) => activeOutput.cards.find((c) => c.id === f.id)?.content === f.content)
                if (alreadyIdentical) {
                  get().updateEvent(evId, { status: "error", title: "Compile failed", detail: "Autofix returned unchanged content — stopping." })
+                 notify.error("Compile failed", { description: "Autofix returned unchanged content — the error log was shared with the agent." })
                  get().setPendingAiPrompt(`The LaTeX compilation failed and the automatic fix did not change anything. Please analyze this error log and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
                  break
                }
@@ -265,12 +280,26 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
                continue
             } else {
                get().updateEvent(evId, { status: "error", title: "Compile failed", detail: "LLM autofix could not provide a fix." })
+               notify.error("Compile failed", { description: "The automatic fix could not repair the LaTeX — the log was shared with the agent." })
                get().setPendingAiPrompt(`The LaTeX compilation failed with the following error. Please analyze it, explain the issue, and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
                break;
             }
           } else {
-            get().updateEvent(evId, { status: "error", title: `Compile failed after ${MAX_ATTEMPTS} attempts`, detail: (data.log ?? "").slice(0, 200) })
-            get().setPendingAiPrompt(`The LaTeX compilation failed after multiple attempts. Please analyze this error log, explain the issue, and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
+            get().updateEvent(evId, {
+              status: "error",
+              title: get().compileAutoFixEnabled
+                ? `Compile failed after ${MAX_ATTEMPTS} attempts`
+                : "Compile failed",
+              detail: get().compileAutoFixEnabled
+                ? (data.log ?? "").slice(0, 200)
+                : "Auto-fix is disabled — the log was shared with the agent for a manual fix.",
+            })
+            notify.error("Compile failed", {
+              description: get().compileAutoFixEnabled
+                ? `Failed after ${MAX_ATTEMPTS} attempts — the log was shared with the agent.`
+                : "Auto-fix is disabled — the log was shared with the agent for a manual fix.",
+            })
+            get().setPendingAiPrompt(`The LaTeX compilation failed${get().compileAutoFixEnabled ? " after multiple attempts" : ""}. Please analyze this error log and explain the issue, and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
           }
         }
       }
@@ -280,6 +309,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
         s.compileOk = false
       })
       get().updateEvent(evId, { status: "error", title: "Compile error", detail: String(err) })
+      notify.error("Compile error", { description: err instanceof Error ? err.message : String(err) })
     } finally {
       if (get().project.id === capturedWorkspaceId) {
         set((s) => { s.compiling = false })

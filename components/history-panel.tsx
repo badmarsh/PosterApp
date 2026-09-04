@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { X, Clock, RotateCcw, Tag, Trash2, AlertTriangle, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,6 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { apiFetch } from "@/lib/api-fetch"
+import { toast } from "sonner"
+import { useFocusTrap } from "@/lib/use-focus-trap"
 import { cn } from "@/lib/utils"
 import {
   Dialog,
@@ -45,6 +47,21 @@ export function HistoryPanel() {
   const [confirmRestoreId, setConfirmRestoreId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
+  const asideRef = useRef<HTMLElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  // Trap + initial focus + focus return (drawer is unmounted when closed).
+  useFocusTrap(asideRef, closeButtonRef, isHistoryOpen)
+
+  useEffect(() => {
+    if (!isHistoryOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsHistoryOpen(false)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [isHistoryOpen, setIsHistoryOpen])
+
   const fetchHistory = useCallback(async () => {
     if (!project.id) return
     setLoading(true)
@@ -72,9 +89,14 @@ export function HistoryPanel() {
       const res = await apiFetch(`/api/workspaces/${project.id}/history/${snapId}`, { method: "POST" })
       if (res.ok) {
         pushEvent({ kind: "info", status: "done", title: "Snapshot Restored", detail: "Reloading workspace..." })
+        toast.success("Snapshot restored", { description: "Reloading workspace..." })
         setTimeout(() => window.location.reload(), 800)
       } else {
         pushEvent({ kind: "info", status: "error", title: "Restore Failed", detail: "Failed to restore snapshot." })
+        const errData = await res.json().catch(() => ({}))
+        toast.error("Restore failed", {
+          description: errData.error || errData.message || `HTTP ${res.status}`,
+        })
       }
     } finally {
       setRestoringId(null)
@@ -89,9 +111,17 @@ export function HistoryPanel() {
       const res = await apiFetch(`/api/workspaces/${project.id}/history/${snapId}`, { method: "DELETE" })
       if (res.ok) {
         setSnapshots(s => s.filter(x => x.id !== snapId))
+      } else {
+        const errData = await res.json().catch(() => ({}))
+        toast.error("Delete failed", {
+          description: errData.error || errData.message || `HTTP ${res.status}`,
+        })
       }
     } catch (err) {
       pushEvent({ kind: "info", status: "error", title: "Delete Failed", detail: err instanceof Error ? err.message : String(err) })
+      toast.error("Delete failed", {
+        description: err instanceof Error ? err.message : String(err),
+      })
     }
   }
 
@@ -106,7 +136,16 @@ export function HistoryPanel() {
       })
       if (res.ok) {
         setSnapshots(s => s.map(x => x.id === snapId ? { ...x, label } : x))
+      } else {
+        const errData = await res.json().catch(() => ({}))
+        toast.error("Couldn't save label", {
+          description: errData.error || errData.message || `HTTP ${res.status}`,
+        })
       }
+    } catch (err) {
+      toast.error("Couldn't save label", {
+        description: err instanceof Error ? err.message : String(err),
+      })
     } finally {
       setLabelingId(null)
       setLabelInput("")
@@ -124,12 +163,12 @@ export function HistoryPanel() {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 z-[54] bg-black/40 backdrop-blur-sm"
         onClick={() => setIsHistoryOpen(false)}
       />
 
       {/* Drawer */}
-      <aside className="fixed right-0 top-0 z-50 h-full w-[380px] bg-background border-l border-border shadow-2xl flex flex-col">
+      <aside ref={asideRef} role="dialog" aria-label="Save history" className="fixed right-0 top-0 z-[55] h-full w-[380px] max-w-[calc(100vw-2rem)] bg-background border-l border-border shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2">
@@ -139,7 +178,14 @@ export function HistoryPanel() {
               {snapshots.length}/50
             </span>
           </div>
-          <Button variant="ghost" size="icon" className="size-7" onClick={() => setIsHistoryOpen(false)}>
+          <Button
+            ref={closeButtonRef}
+            variant="ghost"
+            size="icon"
+            aria-label="Close save history"
+            className="size-7"
+            onClick={() => setIsHistoryOpen(false)}
+          >
             <X className="size-4" />
           </Button>
         </div>
@@ -164,7 +210,7 @@ export function HistoryPanel() {
             <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
               <Clock className="size-8 text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">No saves yet.</p>
-              <p className="text-xs text-muted-foreground/60">Save your project to create a history entry.</p>
+              <p className="text-xs text-muted-foreground">Save your project to create a history entry.</p>
             </div>
           ) : (
             snapshots.map((snap, i) => (
