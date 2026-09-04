@@ -111,4 +111,52 @@ describe("Research Lab Scientific Protocols for DeerFlow", () => {
       }
     }
   })
+
+  it("ensures all 6 tasks configure valid tools, deerflowSkills, and pattern restrictions", () => {
+    const validSkills = new Set([
+      "posterapp-literature-sentinel",
+      "posterapp-adversarial-reviewer",
+      "posterapp-figure-generator",
+      "posterapp-retrieval-tournament",
+      "posterapp-reproduction",
+    ])
+
+    for (const task of SCIENTIFIC_TASKS) {
+      expect(task.tools.length).toBeGreaterThan(0)
+      for (const tool of task.tools) {
+        expect(tool).toMatch(/^posterapp\./)
+      }
+
+      expect(task.deerflowSkills.length).toBeGreaterThan(0)
+      for (const skill of task.deerflowSkills) {
+        expect(validSkills.has(skill)).toBe(true)
+      }
+    }
+
+    const reproTask = SCIENTIFIC_TASKS.find((t) => t.id === "replication-package")!
+    expect(reproTask.restrictCardPatterns).toEqual(["methods", "results"])
+  })
+
+  it("builds the canonical 3-step DeerFlow launch bundle (§14.1)", async () => {
+    const { buildDeerFlowLaunchBundle, AGENT_SCOPE_PRESETS } = await import("@/lib/agent-launch")
+
+    expect(AGENT_SCOPE_PRESETS["research-propose"]).toContain("workspace:read")
+    expect(AGENT_SCOPE_PRESETS["research-propose"]).toContain("workspace:write")
+    expect(AGENT_SCOPE_PRESETS["research-propose"]).toContain("changes:read")
+
+    const bundle = buildDeerFlowLaunchBundle({
+      workspaceId: "ws_lab_456",
+      rawKey: "pa_test_secret_key_123",
+      prompt: "Run the full calibration analysis on my claims.",
+      origin: "http://localhost:3333",
+    })
+
+    expect(bundle).toContain("### 1. Add to DeerFlow extensions_config.json → mcpServers")
+    expect(bundle).toContain('"url": "http://localhost:3333/api/agent/mcp"')
+    expect(bundle).toContain('"Authorization": "Bearer pa_test_secret_key_123"')
+    expect(bundle).toContain("### 2. Restart DeerFlow (MCP changes need restart; skills hot-reload)")
+    expect(bundle).toContain("### 3. Paste into a new DeerFlow thread")
+    expect(bundle).toContain("Workspace: ws_lab_456")
+    expect(bundle).toContain("Run the full calibration analysis on my claims.")
+  })
 })

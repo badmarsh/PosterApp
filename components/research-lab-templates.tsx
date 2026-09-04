@@ -54,8 +54,8 @@ export interface ScientificTask {
   }
   keyFindings: string[]
   deliverables: string[]
-  tools?: string[]
-  deerflowSkills?: string[]
+  tools: string[]
+  deerflowSkills: string[]
   restrictCardPatterns?: string[]
   setupCards: SeedCard[]
   placeholderResultCards: SeedCard[]
