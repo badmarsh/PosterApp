@@ -406,6 +406,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                       <Button
                         size="icon-xs"
                         variant="destructive"
+                        aria-label="Remove image"
                         onClick={() => {
                           setImagePreview(null)
                           setScannerImage(null)

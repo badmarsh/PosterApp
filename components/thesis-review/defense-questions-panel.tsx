@@ -188,6 +188,7 @@ export function DefenseQuestionsPanel({ questions, lang, onUpdateQuestions }: Pr
                         size="icon"
                         variant="ghost"
                         className="h-6 w-6"
+                        aria-label="Upraviť otázku"
                         onClick={() => handleStartEdit(idx)}
                       >
                         <Pencil className="h-3 w-3" />
@@ -196,6 +197,7 @@ export function DefenseQuestionsPanel({ questions, lang, onUpdateQuestions }: Pr
                         size="icon"
                         variant="ghost"
                         className="h-6 w-6 text-destructive"
+                        aria-label="Zmazať otázku"
                         onClick={() => handleDelete(idx)}
                       >
                         <Trash2 className="h-3 w-3" />

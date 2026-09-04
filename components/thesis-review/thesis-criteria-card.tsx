@@ -281,6 +281,7 @@ export function ThesisCriteriaCard({
               <Button
                 size="icon"
                 variant="ghost"
+                aria-label="Upraviť text kritéria"
                 className="absolute right-0 top-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={() => {
                   setEditText(section.text)
