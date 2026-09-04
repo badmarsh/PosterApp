@@ -6,7 +6,8 @@
  * `where { id, workspaceId }` scope so cross-workspace access is impossible.
  */
 import "server-only"
-import { prisma, type Prisma } from "@/lib/prisma"
+import { Prisma } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
 import type { PosterResearchProposal } from "./contracts"
 
 export type DeerflowRunStatus = "idle" | "queued" | "running" | "done" | "failed" | "cancelled"
@@ -35,19 +36,34 @@ export interface UpsertThreadParams {
   kind: string
 }
 
-/** Creates a mapping row, or returns the existing one for the same sidecar thread. */
+/**
+ * Creates a mapping row, returning the existing one for the same sidecar
+ * thread. Never updates an existing row — a thread can never be moved to a
+ * different workspace by a racing caller.
+ */
 export async function upsertDeerflowThread(params: UpsertThreadParams): Promise<DeerflowThreadRow> {
-  return prisma.deerflowThread.upsert({
+  const existing = await prisma.deerflowThread.findUnique({
     where: { deerThreadId: params.deerThreadId },
-    create: {
-      workspaceId: params.workspaceId,
-      userId: params.userId,
-      deerThreadId: params.deerThreadId,
-      kind: params.kind,
-      status: "idle",
-    },
-    update: {}, // never move an existing thread to another workspace
-  }) as Promise<DeerflowThreadRow>
+  })
+  if (existing) return existing as DeerflowThreadRow
+  try {
+    return (await prisma.deerflowThread.create({
+      data: {
+        workspaceId: params.workspaceId,
+        userId: params.userId,
+        deerThreadId: params.deerThreadId,
+        kind: params.kind,
+        status: "idle",
+      },
+    })) as DeerflowThreadRow
+  } catch (err) {
+    // Unique-constraint race: someone else created the same thread first.
+    const raced = await prisma.deerflowThread.findUnique({
+      where: { deerThreadId: params.deerThreadId },
+    })
+    if (raced) return raced as DeerflowThreadRow
+    throw err
+  }
 }
 
 /** Finds the most recent thread for a workspace + kind. */
@@ -92,7 +108,7 @@ export async function updateDeerflowRun(
   if (fields.phase !== undefined) data.phase = fields.phase
   if (fields.proposal !== undefined) {
     data.proposal =
-      fields.proposal === null ? null : (fields.proposal as unknown as Prisma.InputJsonValue)
+      fields.proposal === null ? Prisma.DbNull : (fields.proposal as unknown as Prisma.InputJsonValue)
   }
   if (fields.error !== undefined) data.error = fields.error
   if (fields.costEstimateUsd !== undefined) data.costEstimateUsd = fields.costEstimateUsd

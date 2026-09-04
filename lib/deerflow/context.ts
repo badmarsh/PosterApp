@@ -69,7 +69,7 @@ export async function buildDeerflowContext(options: DeerflowContextBuildOptions)
       prisma.ingestFile.findMany({
         where: { workspaceId, dismissed: false },
         select: { id: true, name: true },
-        orderBy: { createdAt: "desc" },
+        orderBy: { id: "desc" },
         take: 30,
       }) as Promise<IngestFileRow[]>,
       prisma.output.findMany({
