@@ -74,7 +74,7 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
     title: "Retrieval Strategy Tournament",
     shortTitle: "Retrieval Tournament",
     question: "Which retrieval strategy actually works best for my poster's domain?",
-    estimatedRuntime: "4–6 hours",
+    estimatedRuntime: "4–6 hours (typical on a laptop; unmeasured)",
     category: "Information Retrieval",
     badgeVariant: "secondary",
     scientificQuestion:
@@ -246,7 +246,7 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
     title: "Claim Confidence Calibration Study",
     shortTitle: "Confidence Calibration",
     question: "How confident should I actually be in each claim on my poster?",
-    estimatedRuntime: "3–5 hours",
+    estimatedRuntime: "3–5 hours (typical on a laptop; unmeasured)",
     category: "Literature Calibration",
     badgeVariant: "default",
     scientificQuestion:
@@ -417,7 +417,7 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
     title: "Automated Ablation Study",
     shortTitle: "Ablation Study",
     question: "What actually contributes to my results, and what's dead weight?",
-    estimatedRuntime: "6–10 hours",
+    estimatedRuntime: "6–10 hours (typical on a laptop; unmeasured)",
     category: "Component Attribution",
     badgeVariant: "secondary",
     scientificQuestion:
@@ -583,7 +583,7 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
     title: "Failure Mode Taxonomy",
     shortTitle: "Failure Taxonomy",
     question: "Where does my system actually break, and why?",
-    estimatedRuntime: "4–6 hours",
+    estimatedRuntime: "4–6 hours (typical on a laptop; unmeasured)",
     category: "Error Analysis",
     badgeVariant: "outline",
     scientificQuestion:
@@ -739,7 +739,7 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
     title: "Bayesian Hyperparameter Search",
     shortTitle: "Bayesian HPO",
     question: "What's the actual optimal configuration for my pipeline?",
-    estimatedRuntime: "8–12 hours (Overnight)",
+    estimatedRuntime: "8–12 hours (typical on a laptop; unmeasured)",
     category: "Optimization",
     badgeVariant: "secondary",
     scientificQuestion:
@@ -894,7 +894,7 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
     title: "Independent Replication Study",
     shortTitle: "Replication Study",
     question: "Can my results actually be reproduced by someone else?",
-    estimatedRuntime: "5–8 hours",
+    estimatedRuntime: "5–8 hours (typical on a laptop; unmeasured)",
     category: "Open Science",
     badgeVariant: "default",
     scientificQuestion:
