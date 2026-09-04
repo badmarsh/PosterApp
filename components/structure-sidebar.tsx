@@ -121,7 +121,7 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
                   e.stopPropagation()
                   deleteCard(card.id)
                 }}
-                className="rounded p-1 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+                className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
               >
                 <Trash2 className="size-3.5" />
               </button>
@@ -210,7 +210,7 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
         </div>
       </div>
       <div className="pl-5">
-        <span className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground/80">
+        <span className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
           {PATTERN_SHORT[card.pattern]}
         </span>
       </div>
@@ -377,15 +377,15 @@ export function StructureSidebar() {
           </p>
           <dl className="mt-1.5 space-y-0.5 text-[11px] text-muted-foreground">
             <div className="flex gap-1">
-              <dt className="text-muted-foreground/70">Authors</dt>
+              <dt className="text-muted-foreground">Authors</dt>
               <dd className="truncate">{project.authors}</dd>
             </div>
             <div className="flex gap-1">
-              <dt className="text-muted-foreground/70">Venue</dt>
+              <dt className="text-muted-foreground">Venue</dt>
               <dd className="truncate">{project.venue}</dd>
             </div>
             <div className="flex gap-1">
-              <dt className="text-muted-foreground/70">Cards</dt>
+              <dt className="text-muted-foreground">Cards</dt>
               <dd>
                 {(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []).length} blocks · {columnCount} columns
               </dd>

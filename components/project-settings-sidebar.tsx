@@ -256,7 +256,7 @@ export function ProjectSettingsSidebar() {
 
             {/* Secondary Logo (Optional) */}
             <div className="space-y-1 pt-1.5">
-              <Label className="text-[10px] font-medium text-muted-foreground/80">Secondary Logo (Optional)</Label>
+              <Label className="text-[10px] font-medium text-muted-foreground">Secondary Logo (Optional)</Label>
               {project.secondaryLogoUrl ? (
                 <div className="flex items-center justify-between gap-2 p-1.5 rounded-md border border-border bg-muted/20">
                   <div className="flex items-center gap-2 min-w-0">
@@ -273,7 +273,7 @@ export function ProjectSettingsSidebar() {
                       <button
                         type="button"
                         onClick={() => secondaryLogoInputRef.current?.click()}
-                        className="text-[9px] text-primary hover:underline"
+                        className="text-[10px] text-primary hover:underline"
                         disabled={isUploadingSecondaryLogo}
                       >
                         {isUploadingSecondaryLogo ? "Uploading..." : "Replace"}

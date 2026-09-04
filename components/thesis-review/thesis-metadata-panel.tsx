@@ -379,7 +379,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                   }
                 }}
               >
-                <SelectTrigger className="h-8.5 text-xs w-full bg-card border-border/80 shadow-2xs font-medium rounded-lg px-3 hover:border-border transition-colors">
+                <SelectTrigger className="h-8.5 text-xs w-full bg-card border-border/80 shadow-2xs font-medium rounded-lg px-3 hover:border-border transition-colors" aria-label="Vyberte prácu">
                   <SelectValue placeholder="Vyberte prácu...">
                     {formatDocumentDisplayName(activeFile?.name)}
                   </SelectValue>
@@ -432,7 +432,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
             )}
 
             {isParsing && (
-              <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20">
+              <div className="flex items-center gap-2 text-xs text-warning dark:text-warning bg-warning/100/10 p-2.5 rounded-lg border border-warning/30">
                 <Loader2 className="size-3.5 animate-spin shrink-0" />
                 <span>MinerU spracováva PDF…</span>
               </div>
@@ -520,6 +520,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                   ? "Napr. Bose-Einstein correlations in pp collisions at 13 TeV"
                   : "Napr. Systém na automatizované vyhľadávanie a asistenciu pri príprave grantov"
               }
+              aria-label={formMetadata.reviewKind === "paper" ? "Názov ániku" : "Názov práce"}
               value={formMetadata.thesisTitle}
               onChange={(e) => updateFormMetadata({ thesisTitle: e.target.value })}
             />
@@ -537,6 +538,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                   ? "Napr. R. Aštaloš, J. Novák, M. Kováč"
                   : "Napr. Bc. Maroš Bednár"
               }
+              aria-label={formMetadata.reviewKind === "paper" ? "Autori ániku" : "Meno autora/autorky"}
               value={formMetadata.studentName}
               onChange={(e) => updateFormMetadata({ studentName: e.target.value })}
             />
@@ -557,7 +559,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                   }
                 }}
               >
-                <SelectTrigger className="h-8 text-xs bg-card rounded-lg border-border/80">
+                <SelectTrigger className="h-8 text-xs bg-card rounded-lg border-border/80" aria-label="Typ práce">
                   <SelectValue>{THESIS_TYPES.find((t) => t.value === formMetadata.thesisType)?.[lang] || "Diplomová práca"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -580,7 +582,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                   }
                 }}
               >
-                <SelectTrigger className="h-8 text-xs bg-card rounded-lg border-border/80">
+                <SelectTrigger className="h-8 text-xs bg-card rounded-lg border-border/80" aria-label="Jazyk posudku">
                   <SelectValue>{LANGUAGES.find((l) => l.value === lang)?.label ?? "Slovenčina"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -609,7 +611,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                   }
                 }}
               >
-                <SelectTrigger className="h-8 text-xs bg-card rounded-lg border-border/80">
+                <SelectTrigger className="h-8 text-xs bg-card rounded-lg border-border/80" aria-label="Rola recenzenta">
                   <SelectValue>{REVIEWER_ROLES.find((r) => r.value === formMetadata.reviewerRole)?.[lang] || "Oponent práce"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -625,6 +627,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
             <div className="space-y-1">
               <Label className="text-[11px] font-medium text-muted-foreground">Meno recenzenta</Label>
               <Input
+                aria-label="Meno recenzenta"
                 className="h-8 text-xs bg-card rounded-lg border-border/80"
                 placeholder="Ing. Richard Marko, PhD."
                 value={formMetadata.reviewerName ?? ""}
@@ -637,6 +640,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
           <div className="space-y-1">
             <Label className="text-[11px] font-medium text-muted-foreground">Univerzita a fakulta</Label>
             <Input
+              aria-label="Univerzita a fakulta"
               className="h-8 text-xs bg-card rounded-lg border-border/80"
               placeholder="Slovenská technická univerzita v Bratislave, FIIT"
               value={formMetadata.institution ?? ""}
@@ -647,7 +651,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
       )}
 
       {!isMetadataValid && (
-        <p className="text-[10px] text-amber-600 dark:text-amber-400 text-center pt-1">
+        <p className="text-[10px] text-warning dark:text-warning text-center pt-1">
           Doplňte názov práce a meno autora pre spustenie posudku.
         </p>
       )}

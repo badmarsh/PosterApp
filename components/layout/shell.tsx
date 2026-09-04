@@ -153,7 +153,7 @@ function MobileNavButton({
           <span className="absolute -right-1 -top-0.5 size-1.5 animate-pulse rounded-full bg-primary" />
         )}
         {!pulse && badge ? (
-          <span className="absolute -right-2 -top-1 min-w-3.5 rounded-full bg-muted px-1 text-center font-mono text-[9px] leading-[14px] text-muted-foreground">
+          <span className="absolute -right-2 -top-1 min-w-3.5 rounded-full bg-muted px-1 text-center font-mono text-[10px] leading-[14px] text-muted-foreground">
             {badge}
           </span>
         ) : null}

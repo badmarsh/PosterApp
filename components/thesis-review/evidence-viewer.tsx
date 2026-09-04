@@ -89,21 +89,21 @@ export function EvidenceViewer({
     }
     if (st === "approximate") {
       return (
-        <Badge variant="outline" className="text-[10px] text-amber-600 dark:text-amber-400 border-amber-500/40 gap-1 bg-amber-500/10 font-semibold shrink-0">
+        <Badge variant="outline" className="text-[10px] text-warning dark:text-warning border-warning/40 gap-1 bg-warning/100/10 font-semibold shrink-0">
           <HelpCircle className="h-3 w-3" /> Približná zhoda
         </Badge>
       )
     }
     if (st === "ambiguous") {
       return (
-        <Badge variant="outline" className="text-[10px] text-purple-600 dark:text-purple-400 border-purple-500/40 gap-1 bg-purple-500/10 font-semibold shrink-0">
+        <Badge variant="outline" className="text-[10px] text-status-ambiguous dark:text-status-ambiguous border-status-ambiguous/40 gap-1 bg-status-ambiguous/100/10 font-semibold shrink-0">
           <HelpCircle className="h-3 w-3" /> Viacnásobný výskyt
         </Badge>
       )
     }
     if (st === "stale") {
       return (
-        <Badge variant="outline" className="text-[10px] text-red-600 dark:text-red-400 border-red-500/40 gap-1 bg-red-500/10 font-semibold shrink-0">
+        <Badge variant="outline" className="text-[10px] text-destructive dark:text-destructive border-destructive/40 gap-1 bg-destructive/100/10 font-semibold shrink-0">
           <AlertCircle className="h-3 w-3" /> Zmenený text
         </Badge>
       )
@@ -182,7 +182,7 @@ export function EvidenceViewer({
       <div
         ref={containerRef}
         onMouseUp={handleMouseUp}
-        className="flex-1 overflow-y-auto no-scrollbar p-3 sm:p-6 bg-muted/40 dark:bg-zinc-950/60"
+        className="flex-1 overflow-y-auto no-scrollbar p-3 sm:p-6 bg-muted/40 dark:bg-background/60"
       >
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 space-y-3">
@@ -212,7 +212,7 @@ export function EvidenceViewer({
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 space-y-3">
             <div className="p-4 rounded-2xl bg-card border shadow-sm">
-              <FileText className="h-10 w-10 text-muted-foreground/60 mx-auto mb-2" />
+              <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
               <h4 className="text-sm font-semibold text-foreground">Žiadny textový náhľad dokumentu</h4>
               <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
                 Nahrajte PDF práce a spustite analýzu pre extrakciu textu a dôkazov.

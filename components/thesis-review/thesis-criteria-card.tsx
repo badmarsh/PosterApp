@@ -299,7 +299,7 @@ export function ThesisCriteriaCard({
               <ul className="space-y-0.5">
                 {section.suggestions.map((s, i) => (
                   <li key={i} className="text-xs text-muted-foreground flex gap-1.5">
-                    <span className="text-blue-500 shrink-0">•</span>
+                    <span className="text-info shrink-0">•</span>
                     <span>{s}</span>
                   </li>
                 ))}

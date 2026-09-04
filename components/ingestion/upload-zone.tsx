@@ -78,7 +78,7 @@ function DocProcessingIllustration({ dragging = false }: { dragging?: boolean })
       <g transform="translate(98, 22)">
         <circle cx="8" cy="8" r="9.5" className="fill-card stroke-border shadow-xs" strokeWidth="1" />
         <circle cx="8" cy="8" r="7" className="fill-muted/50" />
-        <path d="M8 3.5L8.9 6.2L11.5 7L8.9 7.8L8 10.5L7.1 7.8L4.5 7L7.1 6.2L8 3.5Z" className="fill-amber-500" />
+        <path d="M8 3.5L8.9 6.2L11.5 7L8.9 7.8L8 10.5L7.1 7.8L4.5 7L7.1 6.2L8 3.5Z" className="fill-warning" />
       </g>
 
       {/* === 3. RIGHT: MONOCHROME STRUCTURED OUTPUTS === */}
@@ -246,7 +246,7 @@ export function UploadZone() {
               <Globe className="size-3.5 text-primary" />
               <span>Direct Preprint Fetch</span>
             </div>
-            <span className="text-[9px] font-mono text-muted-foreground">Zero-file download</span>
+            <span className="text-[10px] font-mono text-muted-foreground">Zero-file download</span>
           </div>
 
           <div className="flex items-center gap-1.5">
@@ -332,7 +332,7 @@ export function UploadZone() {
               {["PDF", "DOCX", "TEX", "PPTX", "IMG / Scan"].map((fmt) => (
                 <span
                   key={fmt}
-                  className="rounded px-1.5 py-0.5 text-[9px] font-medium font-mono bg-muted text-muted-foreground border border-border/60"
+                  className="rounded px-1.5 py-0.5 text-[10px] font-medium font-mono bg-muted text-muted-foreground border border-border/60"
                 >
                   {fmt}
                 </span>
@@ -370,7 +370,7 @@ export function UploadZone() {
                       {file.name}
                     </p>
                     <div className="mt-0.5 flex items-center gap-1.5">
-                      <span className="font-mono text-[9px] text-muted-foreground">
+                      <span className="font-mono text-[10px] text-muted-foreground">
                         {formatBytes(file.size)}
                       </span>
                       <MethodBadge method={file.method} />

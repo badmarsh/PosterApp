@@ -9,6 +9,7 @@ import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { apiFetch } from "@/lib/api-fetch"
 import { toast } from "sonner"
+import { useFocusTrap } from "@/lib/use-focus-trap"
 import { cn } from "@/lib/utils"
 import {
   Dialog,
@@ -46,12 +47,14 @@ export function HistoryPanel() {
   const [confirmRestoreId, setConfirmRestoreId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
+  const asideRef = useRef<HTMLElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  // Trap + initial focus + focus return (drawer is unmounted when closed).
+  useFocusTrap(asideRef, closeButtonRef, isHistoryOpen)
 
   useEffect(() => {
     if (!isHistoryOpen) return
-    // Move focus into the drawer when it opens.
-    closeButtonRef.current?.focus()
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setIsHistoryOpen(false)
     }
@@ -165,7 +168,7 @@ export function HistoryPanel() {
       />
 
       {/* Drawer */}
-      <aside role="dialog" aria-label="Save history" className="fixed right-0 top-0 z-[55] h-full w-[380px] max-w-[calc(100vw-2rem)] bg-background border-l border-border shadow-2xl flex flex-col">
+      <aside ref={asideRef} role="dialog" aria-label="Save history" className="fixed right-0 top-0 z-[55] h-full w-[380px] max-w-[calc(100vw-2rem)] bg-background border-l border-border shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2">
@@ -207,7 +210,7 @@ export function HistoryPanel() {
             <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
               <Clock className="size-8 text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">No saves yet.</p>
-              <p className="text-xs text-muted-foreground/60">Save your project to create a history entry.</p>
+              <p className="text-xs text-muted-foreground">Save your project to create a history entry.</p>
             </div>
           ) : (
             snapshots.map((snap, i) => (

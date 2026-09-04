@@ -73,7 +73,7 @@ export function CardTypeBadge({ card }: { card: Card }) {
   return (
     <span
       className={cn(
-        "rounded border border-border bg-muted px-1 py-px font-mono text-[9px] font-medium tracking-wide",
+        "rounded border border-border bg-muted px-1 py-px font-mono text-[10px] font-medium tracking-wide",
         meta.className,
       )}
     >

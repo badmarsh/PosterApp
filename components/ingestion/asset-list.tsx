@@ -120,7 +120,7 @@ function TablePreview({ rows }: { rows: string[][] | string | undefined | null }
   const preview = parsedRows.slice(0, 3)
   return (
     <div className="overflow-hidden rounded border border-border">
-      <table className="w-full border-collapse text-[9px]">
+      <table className="w-full border-collapse text-[10px]">
         <tbody>
           {preview.map((row, ri) => (
             <tr key={ri} className={ri === 0 ? "bg-muted font-medium" : ""}>
@@ -137,7 +137,7 @@ function TablePreview({ rows }: { rows: string[][] | string | undefined | null }
         </tbody>
       </table>
       {parsedRows.length > 3 && (
-        <p className="bg-card px-1 py-0.5 text-[9px] text-muted-foreground">
+        <p className="bg-card px-1 py-0.5 text-[10px] text-muted-foreground">
           +{parsedRows.length - 3} more rows
         </p>
       )}
@@ -191,7 +191,7 @@ const CitationRow = memo(function CitationRow({ entry }: { entry: BibEntry }) {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-mono text-[9px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/25">
+            <span className="font-mono text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/25">
               @{entry.type || "article"}
             </span>
             <span className="font-mono text-[10px] font-medium text-foreground bg-muted px-1.5 py-0.5 rounded">
@@ -204,9 +204,9 @@ const CitationRow = memo(function CitationRow({ entry }: { entry: BibEntry }) {
             )}
           </div>
 
-          <h5 className="mt-1 text-[11px] font-medium text-foreground leading-tight line-clamp-2">
+          <h4 className="mt-1 text-[11px] font-medium text-foreground leading-tight line-clamp-2">
             {entry.title || "Untitled Paper"}
-          </h5>
+          </h4>
 
           {(entry.authorString || (entry.authors && entry.authors.length > 0)) && (
             <p className="mt-0.5 text-[10px] text-muted-foreground line-clamp-1">
@@ -215,7 +215,7 @@ const CitationRow = memo(function CitationRow({ entry }: { entry: BibEntry }) {
           )}
 
           {(entry.journal || entry.booktitle) && (
-            <p className="mt-0.5 text-[9px] italic text-muted-foreground/80 line-clamp-1">
+            <p className="mt-0.5 text-[10px] italic text-muted-foreground line-clamp-1">
               {entry.journal || entry.booktitle}
             </p>
           )}
@@ -227,7 +227,7 @@ const CitationRow = memo(function CitationRow({ entry }: { entry: BibEntry }) {
           <Button
             size="xs"
             variant="outline"
-            className="h-6 px-1.5 text-[9px] gap-1"
+            className="h-6 px-1.5 text-[10px] gap-1"
             onClick={handleCopyCite}
             title="Copy LaTeX cite command"
           >
@@ -237,7 +237,7 @@ const CitationRow = memo(function CitationRow({ entry }: { entry: BibEntry }) {
           <Button
             size="xs"
             variant="ghost"
-            className="h-6 px-1.5 text-[9px] gap-1 text-muted-foreground hover:text-foreground"
+            className="h-6 px-1.5 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
             onClick={handleCopyBibTeX}
             title="Copy raw BibTeX entry"
           >
@@ -257,7 +257,7 @@ const CitationRow = memo(function CitationRow({ entry }: { entry: BibEntry }) {
             <span>Cite in Card</span>
           </Button>
         ) : (
-          <span className="text-[9px] text-muted-foreground italic">
+          <span className="text-[10px] text-muted-foreground italic">
             Select a card to insert
           </span>
         )}
@@ -349,7 +349,7 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
               <div className="mb-1 flex items-center gap-1.5 flex-wrap">
                 <OriginLabel asset={asset} />
                 {asset.heading && (
-                  <span className="font-mono text-[9px] font-semibold text-primary bg-primary/10 px-1.5 py-px rounded border border-primary/20">
+                  <span className="font-mono text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-px rounded border border-primary/20">
                     {asset.heading}
                   </span>
                 )}
@@ -537,10 +537,10 @@ export function AssetList() {
         <div key={kind} className="mt-3 first:mt-0">
           <div className="mb-1.5 flex items-center gap-1.5 text-muted-foreground">
             <AssetKindIcon kind={kind} className="size-3" />
-            <h5 className="text-[10px] font-semibold uppercase tracking-wide">
+            <h4 className="text-[10px] font-semibold uppercase tracking-wide">
               {ASSET_KIND_LABEL[kind]}
-            </h5>
-            <span className="font-mono text-[9px]">({items.length})</span>
+            </h4>
+            <span className="font-mono text-[10px]">({items.length})</span>
           </div>
           <div className="flex flex-col gap-1.5">
             {items.map((a) => (
@@ -600,7 +600,7 @@ export function AssetList() {
                 {tab.icon}
                 <span>{tab.label}</span>
                 <span className={cn(
-                  "font-mono text-[9px] px-1 py-0.5 rounded-full",
+                  "font-mono text-[10px] px-1 py-0.5 rounded-full",
                   isActive ? "bg-primary/15 text-primary font-semibold" : "bg-muted text-muted-foreground"
                 )}>
                   {tab.count}
@@ -696,7 +696,7 @@ export function AssetList() {
                     onClick={() => setOpenSection(isOpen ? null : g.file.id)}
                   >
                     <span className="truncate text-[12px] font-medium">{g.file.name}</span>
-                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                       {g.items.length} items
                     </span>
                   </button>
@@ -766,7 +766,7 @@ export function AssetList() {
                           >
                             {k === "all" ? <ListFilter className="size-2.5" /> : <AssetKindIcon kind={k as AssetKind} className="size-2.5" />}
                             <span>{k === "all" ? "All" : ASSET_KIND_LABEL[k as AssetKind]}</span>
-                            <span className="font-mono text-[9px] opacity-70">({count})</span>
+                            <span className="font-mono text-[10px] opacity-70">({count})</span>
                           </Button>
                         )
                       })}
@@ -786,7 +786,7 @@ export function AssetList() {
                   onClick={() => setOpenSection(openSection === "legacy" ? null : "legacy")}
                 >
                   <span className="text-[12px] font-medium">Other Assets</span>
-                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                     {legacyAssets.length} items
                   </span>
                 </button>
@@ -861,14 +861,14 @@ export function AssetList() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <Quote className="size-3.5 text-primary" />
-                  <h5 className="text-[10px] font-semibold uppercase tracking-wide">
+                  <h4 className="text-[10px] font-semibold uppercase tracking-wide">
                     Extracted References ({filteredBibEntries.length})
-                  </h5>
+                  </h4>
                 </div>
                 <Button
                   size="xs"
                   variant="ghost"
-                  className="h-6 px-1.5 text-[9px] text-muted-foreground hover:text-foreground"
+                  className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
                   onClick={() => setActiveTab("citation")}
                 >
                   View All

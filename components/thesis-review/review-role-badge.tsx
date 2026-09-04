@@ -50,9 +50,9 @@ export const REVIEW_ROLE_META: Record<ReviewerRole, RoleMeta> = {
     skSub: "Hodnotenie procesu vypracovania, spolupráce a prístupu študenta",
     csSub: "Hodnocení průběhu zpracování, spolupráce a přístupu studenta",
     enSub: "Assessment of the work process, supervision collaboration and student approach",
-    banner: "border-blue-300/60 bg-blue-50 dark:bg-blue-950/25 text-blue-900 dark:text-blue-100",
-    badge: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/60 dark:text-blue-200 dark:border-blue-800",
-    accent: "text-blue-600 dark:text-blue-400",
+    banner: "border-info/50 bg-info/10 dark:bg-info/15 text-info dark:text-info",
+    badge: "bg-info/15 text-info border-info/40 dark:bg-info/25 dark:text-info dark:border-info/40",
+    accent: "text-info dark:text-info",
   },
   self: {
     icon: Wrench,
@@ -62,9 +62,9 @@ export const REVIEW_ROLE_META: Record<ReviewerRole, RoleMeta> = {
     skSub: "Vnútorná kontrola pred odovzdaním — prioritizované pripomienky na opravu",
     csSub: "Vnitřní kontrola před odevzdáním — prioritizované připomínky k opravě",
     enSub: "Internal pre-submission check — triaged issues to fix before defense",
-    banner: "border-amber-300/60 bg-amber-50 dark:bg-amber-950/25 text-amber-900 dark:text-amber-100",
-    badge: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-800",
-    accent: "text-amber-600 dark:text-amber-400",
+    banner: "border-warning/50 bg-warning/10 dark:bg-warning/15 text-warning dark:text-warning",
+    badge: "bg-warning/15 text-warning border-warning/40 dark:bg-warning/25 dark:text-warning dark:border-warning/40",
+    accent: "text-warning dark:text-warning",
   },
   reviewer: {
     icon: FileSearch,
@@ -74,9 +74,9 @@ export const REVIEW_ROLE_META: Record<ReviewerRole, RoleMeta> = {
     skSub: "Článkové/konferenčné recenzné konanie podľa reporting štandardov",
     csSub: "Článekové/konferenční recenzní řízení podle reporting standardů",
     enSub: "Journal/conference peer review against reporting guidelines",
-    banner: "border-violet-300/60 bg-violet-50 dark:bg-violet-950/25 text-violet-900 dark:text-violet-100",
-    badge: "bg-violet-100 text-violet-800 border-violet-300 dark:bg-violet-950/60 dark:text-violet-200 dark:border-violet-800",
-    accent: "text-violet-600 dark:text-violet-400",
+    banner: "border-status-ambiguous/50 bg-status-ambiguous/10 dark:bg-status-ambiguous/15 text-status-ambiguous dark:text-status-ambiguous",
+    badge: "bg-status-ambiguous/15 text-status-ambiguous border-status-ambiguous/40 dark:bg-status-ambiguous/25 dark:text-status-ambiguous dark:border-status-ambiguous/40",
+    accent: "text-status-ambiguous dark:text-status-ambiguous",
   },
 }
 

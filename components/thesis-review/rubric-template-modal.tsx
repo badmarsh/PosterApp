@@ -187,7 +187,7 @@ export function RubricTemplateModal({
                   "font-bold font-mono px-2 py-0.5 rounded",
                   validation.isValid
                     ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
-                    : "text-amber-700 dark:text-amber-300 bg-amber-500/10"
+                    : "text-warning dark:text-warning bg-warning/100/10"
                 )}
               >
                 {validation.totalWeight}% / 100%
@@ -197,11 +197,11 @@ export function RubricTemplateModal({
               value={Math.min(100, validation.totalWeight)}
               className={cn(
                 "h-2",
-                validation.isValid ? "[&>div]:bg-emerald-500" : "[&>div]:bg-amber-500"
+                validation.isValid ? "[&>div]:bg-emerald-500" : "[&>div]:bg-warning/100"
               )}
             />
             {!validation.isValid && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5 flex items-center gap-1">
+              <p className="text-xs text-warning dark:text-warning mt-1.5 flex items-center gap-1">
                 <AlertTriangle className="size-3 shrink-0" />
                 {validation.message}
               </p>
@@ -229,6 +229,7 @@ export function RubricTemplateModal({
                   <div className="flex items-center gap-2 shrink-0 w-44">
                     <input
                       type="range"
+                      aria-label="Hmotnosť kritéria (percentá)"
                       min={0}
                       max={50}
                       step={5}
@@ -238,6 +239,7 @@ export function RubricTemplateModal({
                     />
                     <div className="relative w-18">
                       <Input
+                        aria-label="Hmotnosť kritéria"
                         type="number"
                         min={0}
                         max={100}

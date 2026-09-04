@@ -288,7 +288,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                       Pripravené
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-xs py-1 px-2.5 shrink-0 text-amber-600 dark:text-amber-400 self-start sm:self-center">
+                    <Badge variant="outline" className="text-xs py-1 px-2.5 shrink-0 text-warning dark:text-warning self-start sm:self-center">
                       {!hasDocument ? "Nahrajte PDF" : "Doplňte metadáta"}
                     </Badge>
                   )}
@@ -413,7 +413,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                     <SlidersHorizontal className="size-3.5 text-primary" />
                     <span>Šablóna fakulty & Váhy</span>
                     {customCriteria && (
-                      <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-primary/15 text-primary font-bold">
+                      <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 bg-primary/15 text-primary font-bold">
                         Upravené
                       </Badge>
                     )}
@@ -511,7 +511,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                         )}
                         <ReviewRoleBadge role={rev.reviewerRole} lang={formMetadata.language} size="sm" />
                         {rev.reviewKind === "paper" ? (
-                          <Badge variant="outline" className="text-[10px] uppercase font-mono px-2 py-0 border-violet-300 text-violet-700 dark:text-violet-300">
+                          <Badge variant="outline" className="text-[10px] uppercase font-mono px-2 py-0 border-status-ambiguous/40 text-status-ambiguous dark:text-status-ambiguous">
                             Article
                           </Badge>
                         ) : (
