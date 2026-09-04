@@ -54,6 +54,9 @@ export interface ScientificTask {
   }
   keyFindings: string[]
   deliverables: string[]
+  tools?: string[]
+  deerflowSkills?: string[]
+  restrictCardPatterns?: string[]
   setupCards: SeedCard[]
   placeholderResultCards: SeedCard[]
   initialCards: SeedCard[]
@@ -175,6 +178,14 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
       "/workspace/figures/per_query_heatmap.png (Supplementary chart)",
       "Automated methodology card revision draft",
     ],
+    tools: [
+      "posterapp.cards.list",
+      "posterapp.cards.get",
+      "posterapp.rag.query",
+      "posterapp.snapshots.create",
+      "posterapp.cards.update",
+    ],
+    deerflowSkills: ["posterapp-retrieval-tournament"],
     setupCards: [
       {
         title: "Research Question & Baseline",
@@ -338,6 +349,14 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
       "/workspace/figures/evidence_funnel_claim07.png (Publication bias check)",
       "Targeted claim softening & limitation recommendations",
     ],
+    tools: [
+      "posterapp.cards.list",
+      "posterapp.cards.get",
+      "posterapp.review.run",
+      "posterapp.snapshots.create",
+      "posterapp.cards.update",
+    ],
+    deerflowSkills: ["posterapp-literature-sentinel"],
     setupCards: [
       {
         title: "Claim Taxonomy & Evidence Scope",
@@ -497,6 +516,13 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
       "/workspace/ablation_analysis.json (Statistical test outputs)",
       "Card update drafts removing dead-weight claims",
     ],
+    tools: [
+      "posterapp.cards.list",
+      "posterapp.cards.get",
+      "posterapp.snapshots.create",
+      "posterapp.cards.update",
+    ],
+    deerflowSkills: ["posterapp-adversarial-reviewer"],
     setupCards: [
       {
         title: "System Architecture & Ablation Space",
@@ -646,6 +672,13 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
       "/workspace/failures.jsonl (847 classified error instances)",
       "New 'Error Taxonomy & Failure Modes' poster card",
     ],
+    tools: [
+      "posterapp.cards.list",
+      "posterapp.cards.get",
+      "posterapp.snapshots.create",
+      "posterapp.cards.update",
+    ],
+    deerflowSkills: ["posterapp-adversarial-reviewer"],
     setupCards: [
       {
         title: "Attribution & Entity Misalignment",
@@ -793,6 +826,14 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
       "/workspace/figures/parallel_coords.png (Multi-dimensional Pareto space)",
       "Card update queue reflecting validated 78.9 F1 score",
     ],
+    tools: [
+      "posterapp.cards.list",
+      "posterapp.cards.get",
+      "posterapp.assets.upload",
+      "posterapp.snapshots.create",
+      "posterapp.cards.update",
+    ],
+    deerflowSkills: ["posterapp-figure-generator"],
     setupCards: [
       {
         title: "Bayesian Optimization Framework",
@@ -939,6 +980,13 @@ export const SCIENTIFIC_TASKS: ScientificTask[] = [
       "/workspace/reproduction_package/reproduce.py (Single-command repro script)",
       "Amended methodology card specifying all hidden parameters",
     ],
+    tools: [
+      "posterapp.cards.get",
+      "posterapp.snapshots.create",
+      "posterapp.cards.update",
+    ],
+    deerflowSkills: ["posterapp-reproduction"],
+    restrictCardPatterns: ["methods", "results"],
     setupCards: [
       {
         title: "Reproducibility Audit & Blind Protocol",
