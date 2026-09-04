@@ -1,0 +1,376 @@
+[
+  {
+    "id": "posterapp.workspaces.list",
+    "wireName": "posterapp_workspaces_list",
+    "description": "List accessible PosterApp workspaces for the authenticated user",
+    "scopes": [
+      "workspace:read"
+    ],
+    "kind": "read",
+    "approval": false,
+    "rateLimit": {
+      "limit": 30,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.workspaces.get",
+    "wireName": "posterapp_workspaces_get",
+    "description": "Get details and statistics for a specific workspace including counts and latest snapshot",
+    "scopes": [
+      "workspace:read"
+    ],
+    "kind": "read",
+    "approval": false,
+    "rateLimit": {
+      "limit": 60,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.cards.list",
+    "wireName": "posterapp_cards_list",
+    "description": "List all cards in a workspace (honors restrictCardIds)",
+    "scopes": [
+      "workspace:read"
+    ],
+    "kind": "read",
+    "approval": false,
+    "rateLimit": {
+      "limit": 120,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.cards.get",
+    "wireName": "posterapp_cards_get",
+    "description": "Get a specific card's full content, title, and citation keys",
+    "scopes": [
+      "workspace:read"
+    ],
+    "kind": "read",
+    "approval": false,
+    "rateLimit": {
+      "limit": 120,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.bibliography.list",
+    "wireName": "posterapp_bibliography_list",
+    "description": "List bibliography entries in the workspace with citation backlinks",
+    "scopes": [
+      "bibliography:read"
+    ],
+    "kind": "read",
+    "approval": false,
+    "rateLimit": {
+      "limit": 120,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.assets.list",
+    "wireName": "posterapp_assets_list",
+    "description": "List asset metadata in the workspace",
+    "scopes": [
+      "assets:read"
+    ],
+    "kind": "read",
+    "approval": false,
+    "rateLimit": {
+      "limit": 120,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.assets.get",
+    "wireName": "posterapp_assets_get",
+    "description": "Get asset details and signed download URL (never inline bytes)",
+    "scopes": [
+      "assets:read"
+    ],
+    "kind": "read",
+    "approval": false,
+    "rateLimit": {
+      "limit": 60,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.rag.query",
+    "wireName": "posterapp_rag_query",
+    "description": "Execute hybrid vector + keyword RAG retrieval across workspace documents",
+    "scopes": [
+      "rag:query"
+    ],
+    "kind": "read",
+    "approval": false,
+    "rateLimit": {
+      "limit": 60,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.review.latest",
+    "wireName": "posterapp_review_latest",
+    "description": "Get the latest poster or thesis review for the workspace (agent-safe projection omitting confidential remarks)",
+    "scopes": [
+      "review:run"
+    ],
+    "kind": "read",
+    "approval": false,
+    "rateLimit": {
+      "limit": 60,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.changes.get",
+    "wireName": "posterapp_changes_get",
+    "description": "Query status of pending changes submitted by this agent key",
+    "scopes": [
+      "changes:read"
+    ],
+    "kind": "read",
+    "approval": false,
+    "rateLimit": {
+      "limit": 120,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.snapshots.list",
+    "wireName": "posterapp_snapshots_list",
+    "description": "List saved workspace snapshots",
+    "scopes": [
+      "workspace:read"
+    ],
+    "kind": "read",
+    "approval": false,
+    "rateLimit": {
+      "limit": 60,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.review.run",
+    "wireName": "posterapp_review_run",
+    "description": "Trigger asynchronous poster or thesis review",
+    "scopes": [
+      "review:run"
+    ],
+    "kind": "job",
+    "approval": false,
+    "rateLimit": {
+      "limit": 6,
+      "windowMs": 600000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.review.status",
+    "wireName": "posterapp_review_status",
+    "description": "Check status of a running review job",
+    "scopes": [
+      "review:run"
+    ],
+    "kind": "read",
+    "approval": false,
+    "rateLimit": {
+      "limit": 120,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.ingestion.trigger",
+    "wireName": "posterapp_ingestion_trigger",
+    "description": "Trigger ingestion of a paper or URL into workspace documents and RAG index (URL allow-listed)",
+    "scopes": [
+      "ingestion:run"
+    ],
+    "kind": "job",
+    "approval": false,
+    "rateLimit": {
+      "limit": 10,
+      "windowMs": 600000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.ingestion.status",
+    "wireName": "posterapp_ingestion_status",
+    "description": "Check status of document ingestion",
+    "scopes": [
+      "ingestion:run"
+    ],
+    "kind": "read",
+    "approval": false,
+    "rateLimit": {
+      "limit": 120,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.snapshots.create",
+    "wireName": "posterapp_snapshots_create",
+    "description": "Create a named workspace snapshot tagged with source: 'agent'",
+    "scopes": [
+      "snapshot:create"
+    ],
+    "kind": "job",
+    "approval": false,
+    "rateLimit": {
+      "limit": 10,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.cards.update",
+    "wireName": "posterapp_cards_update",
+    "description": "Propose an update to a card's title or content (enqueues change for human approval)",
+    "scopes": [
+      "workspace:write"
+    ],
+    "kind": "write",
+    "approval": true,
+    "rateLimit": {
+      "limit": 30,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.cards.create",
+    "wireName": "posterapp_cards_create",
+    "description": "Propose creating a new card in the workspace (enqueues change for human approval)",
+    "scopes": [
+      "workspace:write"
+    ],
+    "kind": "write",
+    "approval": true,
+    "rateLimit": {
+      "limit": 10,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.bibliography.add",
+    "wireName": "posterapp_bibliography_add",
+    "description": "Propose adding a bibliography entry (enqueues change for human approval)",
+    "scopes": [
+      "bibliography:write"
+    ],
+    "kind": "write",
+    "approval": true,
+    "rateLimit": {
+      "limit": 30,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.bibliography.remove",
+    "wireName": "posterapp_bibliography_remove",
+    "description": "Propose removing a bibliography entry (enqueues change for human approval)",
+    "scopes": [
+      "bibliography:write"
+    ],
+    "kind": "write",
+    "approval": true,
+    "rateLimit": {
+      "limit": 30,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.assets.upload",
+    "wireName": "posterapp_assets_upload",
+    "description": "Propose uploading a new asset/figure (enqueues change for human approval)",
+    "scopes": [
+      "assets:write"
+    ],
+    "kind": "write",
+    "approval": true,
+    "rateLimit": {
+      "limit": 10,
+      "windowMs": 60000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "id": "posterapp.compile.run",
+    "wireName": "posterapp_compile_run",
+    "description": "Propose compiling the workspace poster to PDF/LaTeX (enqueues change for human approval)",
+    "scopes": [
+      "compile:run"
+    ],
+    "kind": "write",
+    "approval": true,
+    "rateLimit": {
+      "limit": 3,
+      "windowMs": 600000
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  }
+]

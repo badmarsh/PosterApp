@@ -111,6 +111,11 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
         <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-tight">
           {card.title || "Untitled"}
         </span>
+        {status === "pending" && (
+          <span className="shrink-0 rounded bg-amber-500/15 border border-amber-500/30 px-1 py-0.5 font-mono text-[9px] font-semibold text-amber-500 uppercase tracking-tight">
+            Placeholder
+          </span>
+        )}
         <Tooltip>
           <TooltipTrigger
             render={

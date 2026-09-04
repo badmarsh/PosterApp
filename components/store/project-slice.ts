@@ -114,6 +114,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
 
   getStatus: (card) => {
     if (get().generatingIds.includes(card.id)) return "generating"
+    if (card.validation === "pending") return "pending"
     return levelFromMessages(validateCard(card, activeOutput(get().project)?.templateId))
   },
 
@@ -195,6 +196,9 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     const cards = syncActiveCards(s.project)
     const card = cards.find((c) => c.id === id)
     if (card) {
+      if (card.validation === "pending" && (patch.content !== undefined || patch.title !== undefined) && !patch.validation) {
+        card.validation = "valid"
+      }
       Object.assign(card, patch)
       s.isDirty = true
     }

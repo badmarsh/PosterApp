@@ -64,7 +64,11 @@ describe('GET /api/workspaces', () => {
             title: true,
             isActive: true,
           }
-        }
+        },
+        agentPendingChanges: {
+          where: { status: "pending" },
+          select: { id: true },
+        },
       },
       orderBy: { id: "asc" },
     })

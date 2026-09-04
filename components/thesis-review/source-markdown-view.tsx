@@ -97,7 +97,7 @@ export function SourceMarkdownView({ markdown, highlightQuote, searchQuery }: Pr
       h4: ({ children }) => (
         <h4 className="text-sm font-semibold text-foreground/90 pt-3">{children}</h4>
       ),
-      p: ({ children }) => <p className="text-foreground/85 leading-relaxed my-2">{children}</p>,
+      p: ({ children }) => <div className="text-foreground/85 leading-relaxed my-2">{children}</div>,
       blockquote: ({ children }) => (
         <blockquote className="border-l-3 border-primary/60 bg-primary/5 pl-3.5 py-2 my-3 rounded-r-lg text-sm italic font-serif text-foreground/85">
           {children}

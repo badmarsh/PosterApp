@@ -56,9 +56,11 @@ model Workspace {
   graphNodes       GraphNode[]
   ingestFiles      IngestFile[]
   outputs          Output[]
-  thesisReviews    ThesisReview[]
-  members          WorkspaceMember[]
-  snapshots        WorkspaceSnapshot[]
+  thesisReviews       ThesisReview[]
+  members             WorkspaceMember[]
+  snapshots           WorkspaceSnapshot[]
+  agentApiKeys        AgentApiKey[]
+  agentPendingChanges AgentPendingChange[]
 
   @@index([userId])
 }
@@ -215,11 +217,13 @@ model WorkspaceSnapshot {
   workspaceId String
   savedAt     DateTime  @default(now())
   label       String?
+  source      String    @default("human")
   revision    Int
   snapshot    String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, savedAt(sort: Desc)])
+  @@index([workspaceId, source])
 }
 
 /// Stores metadata for a thesis assessment (posudok diplomovej práce).
@@ -356,4 +360,78 @@ model GraphCommunity {
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+}
+
+model AgentApiKey {
+  id              String               @id @default(cuid())
+  tokenHash       String               @unique // sha256(raw); raw never stored
+  name            String
+  userId          String
+  scopes          String[]
+  workspaceId     String?              // null = all workspaces user can access (label loudly in UI)
+  workspace       Workspace?           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  restrictCardIds String[]             @default([]) // non-empty = reads limited to these cards (§8.4)
+  lastUsedAt      DateTime?
+  createdAt       DateTime             @default(now())
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+
+  pendingChanges  AgentPendingChange[]
+  toolCalls       AgentToolCallLog[]
+
+  @@index([tokenHash])
+  @@index([userId])
+  @@index([workspaceId])
+}
+
+enum AgentChangeStatus {
+  pending
+  approved
+  rejected
+  expired
+  applied
+  failed
+}
+
+model AgentPendingChange {
+  id          String            @id @default(cuid())
+  workspaceId String
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  apiKeyId    String
+  apiKey      AgentApiKey       @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  toolName    String            // canonical id, e.g. posterapp.cards.update
+  targetType  String            // card | bibliography | asset | compile
+  targetId    String?
+  payload     Json              // validated tool args
+  diffPreview Json?             // {before, after} for card/bib; null for compile
+  rationale   String?           // agent-supplied, <= 2000 chars, wrapped as untrusted in UI
+  status      AgentChangeStatus @default(pending)
+  createdAt   DateTime          @default(now())
+  expiresAt   DateTime          // createdAt + 7d default
+  decidedAt   DateTime?
+  decidedById String?
+  snapshotId  String?           // set at apply time
+  error       String?
+
+  @@index([workspaceId, status])
+  @@index([apiKeyId])
+}
+
+model AgentToolCallLog {
+  id          String      @id @default(cuid())
+  apiKeyId    String
+  apiKey      AgentApiKey @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  workspaceId String?
+  toolName    String
+  args        Json
+  result      Json?
+  ok          Boolean     @default(true)
+  approved    Boolean     @default(false)
+  errorCode   String?
+  durationMs  Int?
+  changeId    String?     // link to AgentPendingChange if write
+  calledAt    DateTime    @default(now())
+
+  @@index([workspaceId, calledAt])
+  @@index([apiKeyId, calledAt])
 }

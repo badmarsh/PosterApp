@@ -15,8 +15,10 @@ import {
   Sparkles,
   FileDown,
   Loader2,
+  Shield,
 } from "lucide-react"
 import { toast } from "sonner"
+import { AgentIntegrationPanel } from "@/components/settings/agent-integration-panel"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -84,6 +86,7 @@ type SettingsTab =
   | "ai"
   | "shortcuts"
   | "data"
+  | "deerflow"
 
 export function SettingsPanel() {
   const [tab, setTab] = useState<SettingsTab>("theme")
@@ -160,6 +163,7 @@ export function SettingsPanel() {
     { id: "ai" as const, icon: Bot, label: "AI Models" },
     { id: "shortcuts" as const, icon: Keyboard, label: "Shortcuts" },
     { id: "data" as const, icon: Database, label: "Data" },
+    { id: "deerflow" as const, icon: Shield, label: "DeerFlow Agent" },
   ]
 
   return (
@@ -342,6 +346,7 @@ export function SettingsPanel() {
             workspaceName={project.name}
           />
         )}
+        {tab === "deerflow" && <AgentIntegrationPanel />}
       </div>
     </div>
   )
