@@ -81,7 +81,7 @@ function ScaffoldIllustration({ outputType }: { outputType: OutputType }) {
         <rect x="5" y="27" width="26" height="1.5" rx="0.5" className="fill-muted-foreground/30" />
         <rect x="5" y="30" width="12" height="1.5" rx="0.5" className="fill-primary/60" />
         {/* Sparkle */}
-        <path d="M46 16L47.5 20L51.5 21.5L47.5 23L46 27L44.5 23L40.5 21.5L44.5 20L46 16Z" className="fill-amber-500" />
+        <path d="M46 16L47.5 20L51.5 21.5L47.5 23L46 27L44.5 23L40.5 21.5L44.5 20L46 16Z" className="fill-warning" />
       </svg>
     )
   }
@@ -111,7 +111,7 @@ function ScaffoldIllustration({ outputType }: { outputType: OutputType }) {
         <rect x="30" y="24" width="12" height="1.5" rx="0.5" className="fill-muted-foreground/30" />
         <rect x="30" y="27" width="9" height="1.5" rx="0.5" className="fill-muted-foreground/30" />
         {/* Sparkle */}
-        <path d="M48 6L49 9L52 10L49 11L48 14L47 11L44 10L47 9L48 6Z" className="fill-amber-500" />
+        <path d="M48 6L49 9L52 10L49 11L48 14L47 11L44 10L47 9L48 6Z" className="fill-warning" />
       </svg>
     )
   }
@@ -138,7 +138,7 @@ function ScaffoldIllustration({ outputType }: { outputType: OutputType }) {
       <rect x="37" y="12" width="11" height="11" rx="1" className="fill-muted stroke-border" strokeWidth="0.8" />
       <rect x="37" y="25" width="11" height="10" rx="1" className="fill-muted stroke-border" strokeWidth="0.8" />
       {/* Sparkle */}
-      <path d="M49 4L50 7L53 8L50 9L49 12L48 9L45 8L48 7L49 4Z" className="fill-amber-500" />
+      <path d="M49 4L50 7L53 8L50 9L49 12L48 9L45 8L48 7L49 4Z" className="fill-warning" />
     </svg>
   )
 }
@@ -173,9 +173,9 @@ function FillEmptyIllustration() {
         strokeWidth="1.2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="text-blue-500"
+        className="text-info"
       />
-      <circle cx="27" cy="14" r="1" className="fill-amber-400" />
+      <circle cx="27" cy="14" r="1" className="fill-warning" />
 
       {/* Right filled card */}
       <rect
@@ -184,14 +184,14 @@ function FillEmptyIllustration() {
         width="19"
         height="24"
         rx="2"
-        className="fill-card stroke-blue-500/60"
+        className="fill-card stroke-info/60"
         strokeWidth="1.2"
       />
-      <rect x="37" y="11" width="10" height="2" rx="0.5" className="fill-blue-600 dark:fill-blue-400" />
+      <rect x="37" y="11" width="10" height="2" rx="0.5" className="fill-info dark:fill-info" />
       <rect x="37" y="15" width="13" height="1.2" rx="0.5" className="fill-muted-foreground/40" />
       <rect x="37" y="18" width="11" height="1.2" rx="0.5" className="fill-muted-foreground/30" />
-      <rect x="37" y="21" width="13" height="6" rx="1" className="fill-blue-500/10 stroke-blue-500/30" strokeWidth="0.8" />
-      <circle cx="49" cy="9" r="3.5" className="fill-blue-600 text-white" />
+      <rect x="37" y="21" width="13" height="6" rx="1" className="fill-info/10 stroke-info/30" strokeWidth="0.8" />
+      <circle cx="49" cy="9" r="3.5" className="fill-info text-white" />
       <path d="M47.5 9L48.5 10L50.5 8" stroke="white" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
@@ -228,7 +228,7 @@ function AiReviewIllustration() {
       <path d="M37.5 11L38.5 12L40.5 10" stroke="#10B981" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
 
       {/* Sparkle */}
-      <path d="M46 2L47 5L50 6L47 7L46 10L45 7L42 6L45 5L46 2Z" className="fill-amber-400" />
+      <path d="M46 2L47 5L50 6L47 7L46 10L45 7L42 6L45 5L46 2Z" className="fill-warning" />
     </svg>
   )
 }
@@ -300,7 +300,7 @@ function RagSourcesIllustration() {
         strokeLinejoin="round"
       />
       {/* Sparkle */}
-      <path d="M47 8L48 11L51 12L48 13L47 16L46 13L43 12L46 11L47 8Z" className="fill-amber-500" />
+      <path d="M47 8L48 11L51 12L48 13L47 16L46 13L43 12L46 11L47 8Z" className="fill-warning" />
     </svg>
   )
 }
@@ -477,7 +477,7 @@ export function HeaderInspector() {
                 <Label className="text-[11px] font-semibold text-foreground">
                   Generate New {outputTypeLabel}
                 </Label>
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono font-medium">
+                <span className="text-[10px] text-warning dark:text-warning font-mono font-medium">
                   (Replaces all {unit.plural})
                 </span>
               </div>
@@ -503,6 +503,7 @@ export function HeaderInspector() {
                       {activeOutputType === "paper" ? "Sections:" : activeOutputType === "slides" ? "Slides:" : "Cards:"}
                     </span>
                     <Input
+                      aria-label={`${activeOutputType === "paper" ? "Sections" : activeOutputType === "slides" ? "Slides" : "Cards"} count`}
                       type="number"
                       min={activeOutputType === "paper" ? 3 : 3}
                       max={activeOutputType === "slides" ? 25 : activeOutputType === "poster" ? 15 : 12}
@@ -523,7 +524,7 @@ export function HeaderInspector() {
                     onClick={handleGenerateNew}
                     disabled={isBulkRunning}
                   >
-                    <Sparkles className="size-3 text-amber-500 dark:text-amber-400" />
+                    <Sparkles className="size-3 text-warning dark:text-warning" />
                     Generate New {outputTypeLabel}
                   </Button>
                 </div>
@@ -537,7 +538,7 @@ export function HeaderInspector() {
                   Generate Contents for Empty Items
                 </Label>
                 {emptyCardsCount > 0 && (
-                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-mono font-medium">
+                  <span className="text-[10px] text-info dark:text-info font-mono font-medium">
                     ({emptyCardsCount} empty)
                   </span>
                 )}
@@ -560,7 +561,7 @@ export function HeaderInspector() {
                   onClick={() => autoFillAllCardsAction()}
                   disabled={isBulkRunning}
                 >
-                  <Sparkles className="size-3 text-blue-500 dark:text-blue-400" />
+                  <Sparkles className="size-3 text-info dark:text-info" />
                   Generate contents for empty {unit.plural}
                 </Button>
               </div>
@@ -612,7 +613,7 @@ export function HeaderInspector() {
                       <RotateCcw className="size-2.5" /> Use all files
                     </button>
                   ) : (
-                    <span className="text-[10px] font-mono text-muted-foreground/70">
+                    <span className="text-[10px] font-mono text-muted-foreground">
                       (All files active)
                     </span>
                   )}
@@ -712,7 +713,7 @@ export function HeaderInspector() {
                 <Label className="text-[11px] font-medium text-foreground">
                   Active Template
                 </Label>
-                <span className="text-[10px] font-mono text-muted-foreground/70">
+                <span className="text-[10px] font-mono text-muted-foreground">
                   {getTemplatesForType(activeOutputType).length} available
                 </span>
               </div>
@@ -722,7 +723,7 @@ export function HeaderInspector() {
                   if (val) updateActiveOutput({ templateId: val })
                 }}
               >
-                <SelectTrigger className="w-full h-8 text-[12px] bg-background">
+                <SelectTrigger className="w-full h-8 text-[12px] bg-background" aria-label="Active template">
                   <SelectValue placeholder="Choose a template" />
                 </SelectTrigger>
                 <SelectContent>
@@ -731,7 +732,7 @@ export function HeaderInspector() {
                       <div className="flex items-center justify-between gap-2 w-full">
                         <span>{tmpl.label}</span>
                         {tmpl.category === "institutional" && (
-                          <span className="rounded bg-amber-100 dark:bg-amber-900/40 px-1 py-px text-[9px] font-bold text-amber-700 dark:text-amber-400">
+                          <span className="rounded bg-warning/15 dark:bg-warning/20 px-1 py-px text-[10px] font-bold text-warning dark:text-warning">
                             ATLAS
                           </span>
                         )}
@@ -762,12 +763,13 @@ export function HeaderInspector() {
                     <RotateCcw className="size-2.5" /> Reset to default
                   </button>
                 ) : (
-                  <span className="text-[10px] font-mono text-muted-foreground/70">
+                  <span className="text-[10px] font-mono text-muted-foreground">
                     (Inherited)
                   </span>
                 )}
               </div>
               <Textarea
+                aria-label="Output title"
                 value={activeOutput?.title ?? ""}
                 onChange={(e) => updateActiveOutput({ title: e.target.value })}
                 placeholder={metadata.defaultTitle}
@@ -794,12 +796,13 @@ export function HeaderInspector() {
                     <RotateCcw className="size-2.5" /> Reset to default
                   </button>
                 ) : (
-                  <span className="text-[10px] font-mono text-muted-foreground/70">
+                  <span className="text-[10px] font-mono text-muted-foreground">
                     (Inherited)
                   </span>
                 )}
               </div>
               <Textarea
+                aria-label="Authors"
                 value={activeOutput?.authors ?? ""}
                 onChange={(e) => updateActiveOutput({ authors: e.target.value })}
                 placeholder={metadata.defaultAuthors || "e.g. A. Reyes, M. Okafor"}
@@ -828,12 +831,13 @@ export function HeaderInspector() {
                     <RotateCcw className="size-2.5" /> Reset to default
                   </button>
                 ) : (
-                  <span className="text-[10px] font-mono text-muted-foreground/70">
+                  <span className="text-[10px] font-mono text-muted-foreground">
                     (Inherited)
                   </span>
                 )}
               </div>
               <Input
+                aria-label="Venue"
                 value={activeOutput?.venue ?? ""}
                 onChange={(e) => updateActiveOutput({ venue: e.target.value })}
                 placeholder={metadata.defaultVenue || "e.g. CoRL 2026"}
@@ -863,7 +867,7 @@ export function HeaderInspector() {
                       <RotateCcw className="size-2.5" /> Reset to project logo
                     </button>
                   ) : (
-                    <span className="text-[10px] font-mono text-muted-foreground/70">
+                    <span className="text-[10px] font-mono text-muted-foreground">
                       (Inherited)
                     </span>
                   )}
@@ -887,7 +891,7 @@ export function HeaderInspector() {
                         <button
                           type="button"
                           onClick={() => headerLogoInputRef.current?.click()}
-                          className="text-[9px] text-primary hover:underline"
+                          className="text-[10px] text-primary hover:underline"
                           disabled={isUploadingHeaderLogo}
                         >
                           {isUploadingHeaderLogo ? "Uploading..." : "Override logo"}
@@ -998,7 +1002,7 @@ export function HeaderInspector() {
                   </Label>
                 </div>
                 {qrAssetUrl && (
-                  <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                  <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
                     Active
                   </span>
                 )}
@@ -1009,6 +1013,7 @@ export function HeaderInspector() {
 
               <div className="space-y-1.5">
                 <Input
+                  aria-label="QR code URL"
                   value={qrUrl}
                   onChange={(e) => setQrUrl(e.target.value)}
                   placeholder="https://arxiv.org/abs/... or https://github.com/..."
@@ -1016,6 +1021,7 @@ export function HeaderInspector() {
                 />
                 <div className="flex items-center gap-1.5">
                   <Input
+                    aria-label="QR code label"
                     value={qrLabel}
                     onChange={(e) => setQrLabel(e.target.value)}
                     placeholder="Label (e.g. Scan for Paper & Code)"
@@ -1031,7 +1037,7 @@ export function HeaderInspector() {
                     {isGeneratingQr ? (
                       <Loader2 className="size-3 animate-spin" />
                     ) : (
-                      <Sparkles className="size-3 text-amber-500" />
+                      <Sparkles className="size-3 text-warning" />
                     )}
                     Generate QR
                   </Button>
@@ -1041,6 +1047,8 @@ export function HeaderInspector() {
               {qrAssetUrl && (
                 <div className="flex items-center justify-between gap-3 p-2 rounded-md border border-border bg-muted/20 mt-2">
                   <div className="flex items-center gap-2.5 min-w-0">
+                    {/* bg-white is intentional (not a token): QR codes need a
+                        light background for reliable scan contrast. */}
                     <div className="size-10 relative rounded border border-border bg-white flex items-center justify-center p-0.5 shrink-0">
                       <Image src={qrAssetUrl} alt="QR Code" fill className="object-contain" />
                     </div>
@@ -1048,7 +1056,7 @@ export function HeaderInspector() {
                       <p className="text-[10px] font-semibold text-foreground truncate">
                         qrcode.png
                       </p>
-                      <p className="text-[9px] text-muted-foreground truncate">
+                      <p className="text-[10px] text-muted-foreground truncate">
                         Saved in assets · Available for cards &amp; headers
                       </p>
                     </div>

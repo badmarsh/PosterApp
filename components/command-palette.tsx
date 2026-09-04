@@ -129,10 +129,10 @@ export function CommandPalette({
     >
       <CommandInput placeholder="Type a command or search…" value={search} onValueChange={setSearch} />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandEmpty>No results{search ? ` for "${search}"` : ""}. Try a different command or name.</CommandEmpty>
 
         <CommandGroup heading="Project">
-          <CommandItem onSelect={() => run(() => saveProject())} disabled={!isDirty}>
+          <CommandItem onSelect={() => run(() => saveProject(true))} disabled={!isDirty}>
             <Save />
             Save project
             <CommandShortcut>⌘S</CommandShortcut>

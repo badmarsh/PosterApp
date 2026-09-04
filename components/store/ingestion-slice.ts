@@ -4,6 +4,7 @@ import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval"
 import { jobQueue } from "@/lib/job-queue"
 import { apiFetch } from "@/lib/api-fetch"
+import { notify } from "@/lib/notify"
 import { safeRandomUUID, decodeHtmlEntities } from "@/lib/utils"
 
 function makeLog(level: ParseLogEntry["level"], message: string): ParseLogEntry {
@@ -80,6 +81,9 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
             })
             get().saveProject()
             get().pushLog("error", `Failed to buffer ${f.name} for parsing: ${err}`)
+            notify.error("Couldn't start parsing", {
+              description: `${f.name}: ${err instanceof Error ? err.message : String(err)}`,
+            })
           })
       })
     },
@@ -227,6 +231,7 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
 
             if (produced.length === 0) {
               get().pushLog("warning", `${f.name} parsed, but no assets were extracted.`)
+              notify.warning("No assets extracted", { description: `${f.name} parsed, but nothing could be extracted from it.` })
             } else {
               get().pushLog("info", `${f.name} parsed, ${produced.length} assets extracted.`)
             }
@@ -257,6 +262,7 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
             })
             get().saveProject()
             get().pushLog("error", `Parse failed: ${msg}`)
+            notify.error("Parse failed", { description: `${f.name}: ${msg}` })
           }
           throw err
         }
@@ -268,6 +274,9 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
       const f = await idbGet<File>(`file_${id}`)
       if (!f) {
         get().pushLog("error", "File no longer available in memory. Please re-upload.")
+        notify.error("Can't retry parsing", {
+          description: "The file is no longer available in this session — please re-upload it.",
+        })
         return
       }
       set((s) => {
@@ -286,6 +295,8 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         import("@/lib/job-queue").then(m => m.jobQueue.cancel(jobId))
         activeJobs.delete(id)
       }
+      const removedFile = get().project.ingestFiles.find((f) => f.id === id)
+      const removedAssets = get().project.assets.filter((a) => a.fileId === id)
       await idbDel(`file_${id}`)
       set((s) => {
         s.project.ingestFiles = s.project.ingestFiles.filter((f) => f.id !== id)
@@ -293,6 +304,23 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         s.project.assets = s.project.assets.filter((a) => a.fileId !== id)
       })
       get().saveProject()
+      if (removedFile) {
+        notify.success("File removed", {
+          description: removedFile.name,
+          duration: 6000,
+          action: {
+            label: "Undo",
+            onClick: () => {
+              set((s) => {
+                s.project.ingestFiles = [...s.project.ingestFiles, removedFile]
+                s.project.assets = [...s.project.assets, ...removedAssets]
+                s.isDirty = true
+              })
+              get().saveProject()
+            },
+          },
+        })
+      }
     },
 
     renameFile: async (id, newName) => {
@@ -453,10 +481,29 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
     },
 
     discardAsset: (assetId) => {
+      const removedAsset = get().project.assets.find((a) => a.id === assetId)
       set((s) => {
         s.project.assets = s.project.assets.filter((a) => a.id !== assetId)
       })
       get().saveProject()
+      if (removedAsset) {
+        notify.success("Asset discarded", {
+          description: removedAsset.heading || removedAsset.caption || removedAsset.filename || `${removedAsset.kind} asset`,
+          duration: 6000,
+          action: {
+            label: "Undo",
+            onClick: () => {
+              set((s) => {
+                if (!s.project.assets.some((a) => a.id === removedAsset.id)) {
+                  s.project.assets = [...s.project.assets, removedAsset]
+                  s.isDirty = true
+                }
+              })
+              get().saveProject()
+            },
+          },
+        })
+      }
     },
 
     backfillCaptions: async () => {
@@ -498,6 +545,7 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         get().pushLog("error", `Backfill captions error: ${msg}`)
+        notify.error("Caption backfill failed", { description: msg })
       }
     },
   }

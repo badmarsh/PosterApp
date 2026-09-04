@@ -26,7 +26,7 @@ export function MethodBadge({ method }: { method: ParseMethod }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded border px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase tracking-wide",
+        "inline-flex items-center rounded border px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide",
         styles[method],
       )}
     >
@@ -69,7 +69,7 @@ export function ParseStatusBadge({ status }: { status: ParseStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase tracking-wide",
+        "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide",
         m.className,
       )}
     >
@@ -105,7 +105,7 @@ export function ConfidenceMeter({ level }: { level: Confidence }) {
           />
         ))}
       </span>
-      <span className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
+      <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
         {level}
       </span>
     </span>

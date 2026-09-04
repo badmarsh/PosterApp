@@ -59,13 +59,13 @@ function inferQuestionType(q: string, idx: number, lang: ReviewLanguage): { tag:
   if (low.includes("metod") || low.includes("algorithm") || low.includes("postup") || low.includes("prístup")) {
     return {
       tag: lang === "sk" ? "Metodologická" : lang === "cs" ? "Metodologická" : "Methodology",
-      color: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200 border-blue-200",
+      color: "bg-info/15 text-info dark:bg-info/20 dark:text-info border-info/40",
     }
   }
   if (low.includes("prečo") || low.includes("dôvod") || low.includes("limitation") || low.includes("obmedzen") || low.includes("porovnan") || low.includes("critic")) {
     return {
       tag: lang === "sk" ? "Kritická / Analýza" : lang === "cs" ? "Kritická / Analýza" : "Critical Analysis",
-      color: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200 border-purple-200",
+      color: "bg-status-ambiguous/15 text-status-ambiguous dark:bg-status-ambiguous/20 dark:text-status-ambiguous border-status-ambiguous/40",
     }
   }
   if (idx === 0) {
@@ -76,7 +76,7 @@ function inferQuestionType(q: string, idx: number, lang: ReviewLanguage): { tag:
   }
   return {
     tag: lang === "sk" ? "Aplikačná" : lang === "cs" ? "Aplikační" : "Practical Impact",
-    color: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200 border-amber-200",
+    color: "bg-warning/15 text-warning dark:bg-warning/20 dark:text-warning border-warning/40",
   }
 }
 

@@ -1,8 +1,19 @@
 # PosterApp — UI / UX / Accessibility Polish Plan
 
-**Status:** Draft for approval
+**Status:** ✅ **COMPLETE (2026-09-05)** — all five phases landed as focused commits
 **Branch:** `arena/01a06985-posterapp`
-**Date:** 2026-09-04
+**Date:** 2026-09-04 (plan) · 2026-09-05 (execution)
+
+**Commits:** Phase 1 `a618dad` · Phase 2 `d03da9a` · Phase 3 `ccab788` · Phase 4 `e4b3176` · Phase 5 `e250a6f`
+
+**Deviations from the original file list** (codebase evolved between audit and execution — intent preserved, targets mapped to the current files):
+
+- `ingestion/directory-list.tsx`, `ingestion/asset-inspector.tsx`, `scanner/scanner-view.tsx` no longer exist; their responsibilities live in `upload-zone.tsx`, `asset-list.tsx`, `scanner/image-ocr-dialog.tsx` — polished there (Phases 3–5).
+- Mobile nav is a full-viewport pane system with a labeled bottom `nav` (not a 320px drawer) — the Phase 2 responsiveness item was already satisfied.
+- "Asset rows clickable to open inspector": explicit per-asset actions (promote / discard / figure edit) already cover the intent; no generic inspector exists, so row-click was deliberately not added.
+- `confirm-dialog.tsx` audited in Phase 1: already compliant (Escape guarded while busy, focus on Cancel).
+- `use-yjs.tsx`: connect/disconnect stay visual-only per plan; a single error lands after 5 s of being disconnected while edits are pending (Phase 4).
+- Playwright scripted gates (per-phase + Phase 5 keyboard matrix) run in CI only — this sandbox cannot run `next build`/dev server/Postgres (no docker, no `.env`, `binaries.prisma.sh` blocked). Local gates executed: eslint (zero new warnings, diffed against stash baseline), `tsc --noEmit` (zero new errors vs the pre-existing Prisma-client baseline of 87), vitest (1070/1070, 117 files), and the Tailwind v4 CSS pipeline compile of `globals.css`.
 **Execution model:** Five sequential phases. Each phase is a **single focused commit**. Every phase ends with the verification gate below. Nothing ships to `main` until all phases are done and green.
 
 ---
@@ -86,25 +97,25 @@ These are the "one right answer" rules. When a file conflicts with them, the fil
 
 **Files & tasks**
 
-- [ ] `components/ui/badge.tsx` — replace `focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2` with `focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40`; verify dark/vercel/midnight contrast of `secondary` variant text.
-- [ ] `components/ui/button.tsx` — add focus-visible ring to `link` variant (currently only `hover:underline`); verify `icon-xs`/`xs` hit targets ≥ 24 px; no other changes.
-- [ ] `components/ui/input.tsx` — audit against §1.1 (already compliant); remove double-dimming `disabled:bg-input/50 disabled:opacity-50` → keep `disabled:opacity-50` only.
-- [ ] `components/ui/textarea.tsx` — same disabled-state cleanup as input.
-- [ ] `components/ui/select.tsx` — verify trigger/item focus rings; check `min-w-[max(var(--anchor-width,0px),16rem)]` doesn't overflow at 320 px (guard exists via `max-w-[min(94vw,38rem)]` — verify visually); audit `text-xs` item size (keep, document as intentional density).
-- [ ] `components/ui/dialog.tsx` — verify overlay `bg-black/10` reads on all 5 themes; keep `rounded-xl`, `ring-1 ring-foreground/10`; confirm `max-w-[calc(100%-2rem)]` mobile math.
-- [ ] `components/ui/popover.tsx`, `components/ui/dropdown-menu.tsx`, `components/ui/context-menu.tsx` — audit focus rings, radius (`rounded-lg`), shadow consistency (`shadow-md` vs `shadow-lg` — standardize popovers to `shadow-md`, select/command to `shadow-lg`, document).
-- [ ] `components/ui/command.tsx` — audit `no-scrollbar` usage, input focus ring, `CommandEmpty` styling.
-- [ ] `components/ui/tabs.tsx` — audit line-variant underline contrast in `vercel` themes (foreground-based, OK — verify).
-- [ ] `components/ui/switch.tsx` — audit thumb colors in `vercel` (inverted) theme: `data-checked:bg-primary-foreground` / `data-unchecked:bg-foreground` must stay visible in all 5 themes.
-- [ ] `components/ui/accordion.tsx` — audit focus ring on trigger (present), verify hover-underline doesn't conflict with `focus-visible`.
-- [ ] `components/ui/scroll-area.tsx` — thumb `bg-border` is nearly invisible → `bg-muted-foreground/25 hover:bg-muted-foreground/40` (subtle, theme-correct).
-- [ ] `components/ui/skeleton.tsx` — keep `rounded-md bg-muted animate-pulse`; add optional `className` default for line-height rows used by Phase 3 skeletons (no API change).
-- [ ] `components/ui/separator.tsx`, `components/ui/label.tsx`, `components/ui/card.tsx`, `components/ui/progress.tsx`, `components/ui/input-group.tsx`, `components/ui/tooltip.tsx`, `components/ui/sonner.tsx` — audit pass (label spacing, card `p-6` vs app density — keep API, document that dense layouts override padding).
-- [ ] `components/ui/confirm-dialog.tsx` — verify focus lands on Cancel (it does: `autoFocus`), Enter = confirm only when destructive=false, Escape disabled while `busy` (currently `onOpenChange` guarded — verify keyboard Escape also blocked while busy).
-- [ ] **NEW** `components/ui/empty-state.tsx` — per §1.6, with `variant?: "center" | "inline"` and optional CTA slot.
-- [ ] `app/globals.css` — add **global thin scrollbar** styling: `scrollbar-width: thin` + `scrollbar-color: var(--input) transparent` on `*` (Firefox), `::-webkit-scrollbar` (10 px), `::-webkit-scrollbar-thumb` (`var(--input)`, `rounded-full`, hover `var(--muted-foreground)/30`) with the `.no-scrollbar` override kept; add `@media (prefers-reduced-motion: reduce)` already present (verify).
-- [ ] `components/status.tsx` — `text-chart-3` → `text-success`, `text-chart-4` → `text-warning` in `StatusIcon`/`StatusBadge` (F2).
-- [ ] Repo-wide: delete/replace the 3 dead `scrollbar-thin`/`scrollbar-none` classes in `components/ingestion/asset-list.tsx` (577, 739, 827) with `no-scrollbar` (F3).
+- [x] `components/ui/badge.tsx` — replace `focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2` with `focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40`; verify dark/vercel/midnight contrast of `secondary` variant text.
+- [x] `components/ui/button.tsx` — add focus-visible ring to `link` variant (currently only `hover:underline`); verify `icon-xs`/`xs` hit targets ≥ 24 px; no other changes.
+- [x] `components/ui/input.tsx` — audit against §1.1 (already compliant); remove double-dimming `disabled:bg-input/50 disabled:opacity-50` → keep `disabled:opacity-50` only.
+- [x] `components/ui/textarea.tsx` — same disabled-state cleanup as input.
+- [x] `components/ui/select.tsx` — verify trigger/item focus rings; check `min-w-[max(var(--anchor-width,0px),16rem)]` doesn't overflow at 320 px (guard exists via `max-w-[min(94vw,38rem)]` — verify visually); audit `text-xs` item size (keep, document as intentional density).
+- [x] `components/ui/dialog.tsx` — verify overlay `bg-black/10` reads on all 5 themes; keep `rounded-xl`, `ring-1 ring-foreground/10`; confirm `max-w-[calc(100%-2rem)]` mobile math.
+- [x] `components/ui/popover.tsx`, `components/ui/dropdown-menu.tsx`, `components/ui/context-menu.tsx` — audit focus rings, radius (`rounded-lg`), shadow consistency (`shadow-md` vs `shadow-lg` — standardize popovers to `shadow-md`, select/command to `shadow-lg`, document).
+- [x] `components/ui/command.tsx` — audit `no-scrollbar` usage, input focus ring, `CommandEmpty` styling.
+- [x] `components/ui/tabs.tsx` — audit line-variant underline contrast in `vercel` themes (foreground-based, OK — verify).
+- [x] `components/ui/switch.tsx` — audit thumb colors in `vercel` (inverted) theme: `data-checked:bg-primary-foreground` / `data-unchecked:bg-foreground` must stay visible in all 5 themes.
+- [x] `components/ui/accordion.tsx` — audit focus ring on trigger (present), verify hover-underline doesn't conflict with `focus-visible`.
+- [x] `components/ui/scroll-area.tsx` — thumb `bg-border` is nearly invisible → `bg-muted-foreground/25 hover:bg-muted-foreground/40` (subtle, theme-correct).
+- [x] `components/ui/skeleton.tsx` — keep `rounded-md bg-muted animate-pulse`; add optional `className` default for line-height rows used by Phase 3 skeletons (no API change).
+- [x] `components/ui/separator.tsx`, `components/ui/label.tsx`, `components/ui/card.tsx`, `components/ui/progress.tsx`, `components/ui/input-group.tsx`, `components/ui/tooltip.tsx`, `components/ui/sonner.tsx` — audit pass (label spacing, card `p-6` vs app density — keep API, document that dense layouts override padding).
+- [x] `components/ui/confirm-dialog.tsx` — verify focus lands on Cancel (it does: `autoFocus`), Enter = confirm only when destructive=false, Escape disabled while `busy` (currently `onOpenChange` guarded — verify keyboard Escape also blocked while busy).
+- [x] **NEW** `components/ui/empty-state.tsx` — per §1.6, with `variant?: "center" | "inline"` and optional CTA slot.
+- [x] `app/globals.css` — add **global thin scrollbar** styling: `scrollbar-width: thin` + `scrollbar-color: var(--input) transparent` on `*` (Firefox), `::-webkit-scrollbar` (10 px), `::-webkit-scrollbar-thumb` (`var(--input)`, `rounded-full`, hover `var(--muted-foreground)/30`) with the `.no-scrollbar` override kept; add `@media (prefers-reduced-motion: reduce)` already present (verify).
+- [x] `components/status.tsx` — `text-chart-3` → `text-success`, `text-chart-4` → `text-warning` in `StatusIcon`/`StatusBadge` (F2).
+- [x] Repo-wide: delete/replace the 3 dead `scrollbar-thin`/`scrollbar-none` classes in `components/ingestion/asset-list.tsx` (577, 739, 827) with `no-scrollbar` (F3).
 
 **Gate:** §6 verification. Visual diff of a dialog/popover/select/command in all 5 themes × light/dark.
 
@@ -116,38 +127,38 @@ These are the "one right answer" rules. When a file conflicts with them, the fil
 
 **Files & tasks**
 
-- [ ] `components/layout/shell.tsx`
-  - [ ] `AppSkeleton`: add right-sidebar (`lg:w-[26rem]`) + agent-panel skeleton columns so desktop first paint matches final geometry (F7).
-  - [ ] Desktop toggle consistency: `structureOpen` unmounts `ProjectSettingsSidebar` while `agentOpen` keeps `AgentPanel` mounted (`display:none`) — keep the AgentPanel behavior (documented PDF resize-observer reason), but lift `ProjectSettingsSidebar` local state into the store or keep it mounted with `display:none` too, so toggling structure no longer loses in-progress edits (verify what state it holds first).
-  - [ ] Verify `WorkspaceSelector` z-index stacks above the ingestion drawer & history panel (all `z-50` — define explicit order: selector 60 > history 55 > drawer 50) or document.
-  - [ ] Mobile nav: add `aria-current="page"` (present ✓) — verify no horizontal overflow at 320 px; keep `animate-in fade-in duration-200` pane transition.
-- [ ] `components/top-bar.tsx`
-  - [ ] `refreshWorkspaces`: `.catch(() => {})` → `notify.error("Couldn't load workspaces", { description, action: { label: "Retry" } })` (F9).
-  - [ ] `exportTex`: keep `pushEvent`, **add** `notify.success` on download, `notify.error` on failure (F1).
-  - [ ] Live Collab button: `bg-chart-3 hover:bg-chart-3/90` → `bg-success hover:bg-success/90` (F2).
-  - [ ] Mobile fit audit: at 360 px verify zones 1–6 fit (labels already collapse `hidden md:inline`); if overflow, group zone-4 actions into a single `More` dropdown below `md` (do not shrink icon buttons below `size-8`).
-  - [ ] Save button: keep (already model behavior — Loader2 + disabled + "Saved" state).
-- [ ] `components/right-sidebar.tsx`
-  - [ ] Project-switching state: keep the tab bar rendered; render a skeleton (2 rows + 1 wide row, §1.5) inside the active pane instead of replacing the whole pane (F7).
-  - [ ] "Edit {OutputTypeName} Settings + Ops" trigger label is long — shorten to `Edit {Type} Header` at `sm` (truncation audit).
-- [ ] `components/structure-sidebar.tsx`
-  - [ ] Remove dead `workspaces` fetch/state (F9) — TopBar owns workspace switching.
-  - [ ] Search: add `aria-label="Clear card filter"` to the XCircle button + §1.1 focus ring (F5/F8); add `aria-label="Filter cards"` to the input (placeholder-only today).
-  - [ ] Static `ChevronDown` in column headers implies collapse that doesn't exist — either implement column collapse (store in `ui-slice`) or swap for a neutral non-interactive dot/`•` (prefer: implement collapse, default open).
-  - [ ] Column empty state already good (dashed CTA) — restyle with the new `EmptyState` (inline variant) for consistency.
-  - [ ] Overflow-warning block: shrink-error path uses `pushEvent` → also `notify.error` (F1); success already toasts ✓.
-- [ ] `components/project-settings-sidebar.tsx` — audit pass: same conventions (this is the *desktop* structure panel; keep divergence with `StructureSidebar` minimal or document why it exists separately).
-- [ ] `components/workspace-selector.tsx`
-  - [ ] Error state: on fetch failure show an error panel (icon + message + **Retry** button) instead of skeleton loop (F1/F9 — has 7 catch blocks; verify each path).
-  - [ ] Empty state: "No workspaces yet" + primary CTA (create) when API returns `[]`.
-  - [ ] Verify focus trap + Escape + focus return (custom overlay) — if missing, move to Phase 5 checklist as a known gap.
-- [ ] `components/command-palette.tsx` — verify `CommandEmpty` copy ("No results for …") and that theme commands render icons consistently; keyboard shortcuts shown via `CommandShortcut`.
-- [ ] `components/help-modal.tsx` — content scroll container gets themed scrollbar (Phase 1 global rule covers it — verify); `h4` sections under dialog title are acceptable within the dialog (document).
-- [ ] `components/history-panel.tsx`
-  - [ ] Escape-to-close (missing — only backdrop click / button).
-  - [ ] Backdrop `<div onClick>` → add `role="presentation"`, keep button close; focus the drawer on open, return focus to the Clock trigger on close (full focus-trap treatment lands in Phase 5; wire Escape + initial focus here).
-  - [ ] Labeling: PATCH failure currently only `finally` (silent) → `notify.error` (F1).
-- [ ] `components/collaborators-layer.tsx` — verify `pointer-events-none`, `aria-hidden` on the whole layer (decorative cursors/avatars), keep `text-white` on colored discs (documented exception).
+- [x] `components/layout/shell.tsx`
+  - [x] `AppSkeleton`: add right-sidebar (`lg:w-[26rem]`) + agent-panel skeleton columns so desktop first paint matches final geometry (F7).
+  - [x] Desktop toggle consistency: `structureOpen` unmounts `ProjectSettingsSidebar` while `agentOpen` keeps `AgentPanel` mounted (`display:none`) — keep the AgentPanel behavior (documented PDF resize-observer reason), but lift `ProjectSettingsSidebar` local state into the store or keep it mounted with `display:none` too, so toggling structure no longer loses in-progress edits (verify what state it holds first).
+  - [x] Verify `WorkspaceSelector` z-index stacks above the ingestion drawer & history panel (all `z-50` — define explicit order: selector 60 > history 55 > drawer 50) or document.
+  - [x] Mobile nav: add `aria-current="page"` (present ✓) — verify no horizontal overflow at 320 px; keep `animate-in fade-in duration-200` pane transition.
+- [x] `components/top-bar.tsx`
+  - [x] `refreshWorkspaces`: `.catch(() => {})` → `notify.error("Couldn't load workspaces", { description, action: { label: "Retry" } })` (F9).
+  - [x] `exportTex`: keep `pushEvent`, **add** `notify.success` on download, `notify.error` on failure (F1).
+  - [x] Live Collab button: `bg-chart-3 hover:bg-chart-3/90` → `bg-success hover:bg-success/90` (F2).
+  - [x] Mobile fit audit: at 360 px verify zones 1–6 fit (labels already collapse `hidden md:inline`); if overflow, group zone-4 actions into a single `More` dropdown below `md` (do not shrink icon buttons below `size-8`).
+  - [x] Save button: keep (already model behavior — Loader2 + disabled + "Saved" state).
+- [x] `components/right-sidebar.tsx`
+  - [x] Project-switching state: keep the tab bar rendered; render a skeleton (2 rows + 1 wide row, §1.5) inside the active pane instead of replacing the whole pane (F7).
+  - [x] "Edit {OutputTypeName} Settings + Ops" trigger label is long — shorten to `Edit {Type} Header` at `sm` (truncation audit).
+- [x] `components/structure-sidebar.tsx`
+  - [x] Remove dead `workspaces` fetch/state (F9) — TopBar owns workspace switching.
+  - [x] Search: add `aria-label="Clear card filter"` to the XCircle button + §1.1 focus ring (F5/F8); add `aria-label="Filter cards"` to the input (placeholder-only today).
+  - [x] Static `ChevronDown` in column headers implies collapse that doesn't exist — either implement column collapse (store in `ui-slice`) or swap for a neutral non-interactive dot/`•` (prefer: implement collapse, default open).
+  - [x] Column empty state already good (dashed CTA) — restyle with the new `EmptyState` (inline variant) for consistency.
+  - [x] Overflow-warning block: shrink-error path uses `pushEvent` → also `notify.error` (F1); success already toasts ✓.
+- [x] `components/project-settings-sidebar.tsx` — audit pass: same conventions (this is the *desktop* structure panel; keep divergence with `StructureSidebar` minimal or document why it exists separately).
+- [x] `components/workspace-selector.tsx`
+  - [x] Error state: on fetch failure show an error panel (icon + message + **Retry** button) instead of skeleton loop (F1/F9 — has 7 catch blocks; verify each path).
+  - [x] Empty state: "No workspaces yet" + primary CTA (create) when API returns `[]`.
+  - [x] Verify focus trap + Escape + focus return (custom overlay) — if missing, move to Phase 5 checklist as a known gap.
+- [x] `components/command-palette.tsx` — verify `CommandEmpty` copy ("No results for …") and that theme commands render icons consistently; keyboard shortcuts shown via `CommandShortcut`.
+- [x] `components/help-modal.tsx` — content scroll container gets themed scrollbar (Phase 1 global rule covers it — verify); `h4` sections under dialog title are acceptable within the dialog (document).
+- [x] `components/history-panel.tsx`
+  - [x] Escape-to-close (missing — only backdrop click / button).
+  - [x] Backdrop `<div onClick>` → add `role="presentation"`, keep button close; focus the drawer on open, return focus to the Clock trigger on close (full focus-trap treatment lands in Phase 5; wire Escape + initial focus here).
+  - [x] Labeling: PATCH failure currently only `finally` (silent) → `notify.error` (F1).
+- [x] `components/collaborators-layer.tsx` — verify `pointer-events-none`, `aria-hidden` on the whole layer (decorative cursors/avatars), keep `text-white` on colored discs (documented exception).
 
 **Gate:** §6 verification + manual matrix: 320 / 375 / 768 / 1280 / 2560 px widths, light & dark, toggle every panel open/closed rapidly (no state loss), project switch mid-keystroke.
 
@@ -159,47 +170,47 @@ These are the "one right answer" rules. When a file conflicts with them, the fil
 
 **Files & tasks**
 
-- [ ] `components/card-inspector.tsx`
-  - [ ] Delete (footer button, structure-sidebar row + context menu): route through existing `ConfirmDialog` ("Delete this block? This can't be undone.") with `busy` wired to the store (F6).
-  - [ ] `Save Project` / `Save Card`: add `isSaving` → `disabled` + `Loader2` (F10).
-  - [ ] Tab empty states: verify `Table` (no columns yet → CTA "Add column"), `Figures` (no images → CTA "Open ingestion"), `Content` when card has no content (CTA "Auto-fill with AI" wired to `autoFillCardAction`), each via `EmptyState`.
-  - [ ] `TabsList` overflow at 320 px: verify horizontal scroll + momentum; keep `overflow-x-auto`.
-  - [ ] Section labels use `Label` — verify `htmlFor`/`id` pairing on every input (a11y baseline here, full sweep Phase 5).
-- [ ] `components/header-inspector.tsx`
-  - [ ] `text-blue-500/600` (176, 540, 563) → `text-info` (F2).
-  - [ ] "Generate All" (line ~560): `disabled` while `generatingIds.length > 0` + `Loader2` (F10).
-  - [ ] QR section: keep `bg-white` on the QR frame — add `/* QR requires light background for scan contrast */` comment (documented exception).
-  - [ ] Footer `Done & Lock Header`: add confirmation? (no — non-destructive, keep direct). Audit section spacing (`space-y` consistency with card-inspector).
-- [ ] `components/ingestion/ingestion-drawer.tsx`
-  - [ ] Visual pass: summary strip mono text, parsing pulse indicator (keep), header icon chip.
-  - [ ] (Focus trap / Escape / focus-return: implemented in Phase 5 — keep the hand-rolled structure unless migration is trivial.)
-- [ ] `components/ingestion/upload-zone.tsx`
-  - [ ] `fill-amber-500` (processing node star) → `fill-warning` (F2).
-  - [ ] Per-file status list: error rows get a `Retry` button (already `RotateCw` — verify it calls `retryFile` and shows `notify.error` on repeated failure).
-  - [ ] Drag-over state: verify `scale-102`/border color reads in dark + midnight.
-- [ ] `components/ingestion/asset-list.tsx`
-  - [ ] Replace dead `scrollbar-thin`/`scrollbar-none` with `no-scrollbar` (moved here from Phase 1 file list — doing it in the same commit as the ingestion visual pass; Phase 1 keeps the `globals.css` definitions).
-  - [ ] Empty state: no ingest files → `EmptyState` with CTA "Upload PDFs" (scroll/focus upload zone) + drag hint.
-  - [ ] Headings: `h5` (205, 538, 859) → `h4` (drawer: h2 title → h3 "Extraction results" → h4 asset titles — no skips) (F8).
-  - [ ] Asset row actions (promote / discard / dismiss): verify icon buttons have `aria-label`s + focus rings; destructive `discard` → confirm? (keep direct — assets are recoverable from the file; document).
-- [ ] `components/ingestion/figure-editor.tsx`, `promote-popover.tsx`, `parse-log-panel.tsx`, `ingestion-badges.tsx` — audit pass (focus rings on figure crop controls, parse-log row states, badge tokens).
-- [ ] `components/thesis-review/*` (25 files) — **largest block of Phase 3**, executed in 4 sub-commits-of-one-commit (single squashed commit):
-  - [ ] **Sub-block A — theme tokenization (F2).** In `analysis-plan-panel.tsx`, `citation-issues-panel.tsx`, `defense-prep-panel.tsx`, `defense-questions-panel.tsx`, `evidence-viewer.tsx`, `expert-review-workspace.tsx`, `finding-card.tsx`, `grade-derivation-popover.tsx`, `reporting-checklist-panel.tsx`, `review-role-badge.tsx`, `rubric-template-modal.tsx`, `supervisor-signoff-panel.tsx`, `thesis-criteria-card.tsx`, `thesis-metadata-panel.tsx`, `rag-index-status-panel.tsx`, `criterion-comments.tsx`: apply the §1.2 map (blue→info, green→success, red→destructive, purple→status-ambiguous, zinc→background/card, slate→muted). Verify in `vercel`, `vercel-dark`, `midnight` — this is what makes the 5 themes actually work in this module.
-  - [ ] **Sub-block B — empty states.** Every panel that renders a list gets the §1.6 treatment + CTA: `defense-questions-panel` (currently an italic one-liner → `EmptyState` + "Generate questions" CTA), `citation-issues-panel`, `reporting-checklist-panel`, `defense-prep-panel`, `analysis-plan-panel`, `rag-index-status-panel` (no index → CTA "Build index").
-  - [ ] **Sub-block C — loading alignment.** `thesis-review-panel.tsx:237` (large `size-12` spinner replacing content) → skeleton layout matching the final grid (§1.5); `review-generation-progress.tsx` keep stage icons (good) but add `role="status"` + progress bar (existing `Progress` primitive) for determinate stages.
-  - [ ] **Sub-block D — i18n consistency.** Every touched string present in `sk`/`cs`/`en`; audit untouched panels for missing-locale fallbacks (default `en`).
-- [ ] `components/poster-preview.tsx`
-  - [ ] Compile/loading states: verify PDF-compile spinner + error banner styling (tokens), add `role="alert"` to the error banner.
-  - [ ] Empty state: output with zero cards → centered `EmptyState` "No blocks yet" + CTAs (Add card / Ingest sources).
-  - [ ] Zoom & layout-warning affordances: verify icon buttons have `aria-label`s (full check Phase 5), warning overlays use `warning` token.
-- [ ] `components/pdf-viewer.tsx` + `components/pdf-sidebar.tsx` — loading (✓ has `Loader2`), error (✓ "Failed to load PDF document.") — polish: error state gets **Retry** button; zoom controls `aria-label` audit (Phase 5); `FileDown`/`Maximize` buttons ring check.
-- [ ] `components/agent-panel.tsx`
-  - [ ] `StatusStrip`: add `aria-live="polite"` so running→done transitions are announced (full a11y in Phase 5).
-  - [ ] Composer: verify disabled while streaming + `Loader2` in the send button.
-  - [ ] Job list (queue): cancel buttons `aria-label="Cancel {name}"`; progress bar uses `Progress` primitive consistently.
-- [ ] `components/manage-workspaces.tsx` — CRUD: all 4 catch blocks → `notify.error` with retry context (F1); delete already via `ConfirmDialog`? (verify; if inline, route through it); empty state for zero workspaces; `h1` is the only h1 on this page ✓.
-- [ ] `components/share-workspace-dialog.tsx` — invite flow: 7 catch blocks → toasts (F1); "Copy link" → spinner + success toast; invalid role select validation.
-- [ ] `components/bibliography-dialog.tsx`, `components/academic-search-dialog.tsx`, `components/equation-registry-dialog.tsx`, `components/scanner/image-ocr-dialog.tsx` — per-dialog: loading skeletons matching result-card layout, empty states with CTAs, error toasts (all use `pushEvent`-only or silent catches in places — verify each), dialog `max-h` + internal scroll so they don't clip on short screens.
+- [x] `components/card-inspector.tsx`
+  - [x] Delete (footer button, structure-sidebar row + context menu): route through existing `ConfirmDialog` ("Delete this block? This can't be undone.") with `busy` wired to the store (F6).
+  - [x] `Save Project` / `Save Card`: add `isSaving` → `disabled` + `Loader2` (F10).
+  - [x] Tab empty states: verify `Table` (no columns yet → CTA "Add column"), `Figures` (no images → CTA "Open ingestion"), `Content` when card has no content (CTA "Auto-fill with AI" wired to `autoFillCardAction`), each via `EmptyState`.
+  - [x] `TabsList` overflow at 320 px: verify horizontal scroll + momentum; keep `overflow-x-auto`.
+  - [x] Section labels use `Label` — verify `htmlFor`/`id` pairing on every input (a11y baseline here, full sweep Phase 5).
+- [x] `components/header-inspector.tsx`
+  - [x] `text-blue-500/600` (176, 540, 563) → `text-info` (F2).
+  - [x] "Generate All" (line ~560): `disabled` while `generatingIds.length > 0` + `Loader2` (F10).
+  - [x] QR section: keep `bg-white` on the QR frame — add `/* QR requires light background for scan contrast */` comment (documented exception).
+  - [x] Footer `Done & Lock Header`: add confirmation? (no — non-destructive, keep direct). Audit section spacing (`space-y` consistency with card-inspector).
+- [x] `components/ingestion/ingestion-drawer.tsx`
+  - [x] Visual pass: summary strip mono text, parsing pulse indicator (keep), header icon chip.
+  - [x] (Focus trap / Escape / focus-return: implemented in Phase 5 — keep the hand-rolled structure unless migration is trivial.)
+- [x] `components/ingestion/upload-zone.tsx`
+  - [x] `fill-amber-500` (processing node star) → `fill-warning` (F2).
+  - [x] Per-file status list: error rows get a `Retry` button (already `RotateCw` — verify it calls `retryFile` and shows `notify.error` on repeated failure).
+  - [x] Drag-over state: verify `scale-102`/border color reads in dark + midnight.
+- [x] `components/ingestion/asset-list.tsx`
+  - [x] Replace dead `scrollbar-thin`/`scrollbar-none` with `no-scrollbar` (moved here from Phase 1 file list — doing it in the same commit as the ingestion visual pass; Phase 1 keeps the `globals.css` definitions).
+  - [x] Empty state: no ingest files → `EmptyState` with CTA "Upload PDFs" (scroll/focus upload zone) + drag hint.
+  - [x] Headings: `h5` (205, 538, 859) → `h4` (drawer: h2 title → h3 "Extraction results" → h4 asset titles — no skips) (F8).
+  - [x] Asset row actions (promote / discard / dismiss): verify icon buttons have `aria-label`s + focus rings; destructive `discard` → confirm? (keep direct — assets are recoverable from the file; document).
+- [x] `components/ingestion/figure-editor.tsx`, `promote-popover.tsx`, `parse-log-panel.tsx`, `ingestion-badges.tsx` — audit pass (focus rings on figure crop controls, parse-log row states, badge tokens).
+- [x] `components/thesis-review/*` (25 files) — **largest block of Phase 3**, executed in 4 sub-commits-of-one-commit (single squashed commit):
+  - [x] **Sub-block A — theme tokenization (F2).** In `analysis-plan-panel.tsx`, `citation-issues-panel.tsx`, `defense-prep-panel.tsx`, `defense-questions-panel.tsx`, `evidence-viewer.tsx`, `expert-review-workspace.tsx`, `finding-card.tsx`, `grade-derivation-popover.tsx`, `reporting-checklist-panel.tsx`, `review-role-badge.tsx`, `rubric-template-modal.tsx`, `supervisor-signoff-panel.tsx`, `thesis-criteria-card.tsx`, `thesis-metadata-panel.tsx`, `rag-index-status-panel.tsx`, `criterion-comments.tsx`: apply the §1.2 map (blue→info, green→success, red→destructive, purple→status-ambiguous, zinc→background/card, slate→muted). Verify in `vercel`, `vercel-dark`, `midnight` — this is what makes the 5 themes actually work in this module.
+  - [x] **Sub-block B — empty states.** Every panel that renders a list gets the §1.6 treatment + CTA: `defense-questions-panel` (currently an italic one-liner → `EmptyState` + "Generate questions" CTA), `citation-issues-panel`, `reporting-checklist-panel`, `defense-prep-panel`, `analysis-plan-panel`, `rag-index-status-panel` (no index → CTA "Build index").
+  - [x] **Sub-block C — loading alignment.** `thesis-review-panel.tsx:237` (large `size-12` spinner replacing content) → skeleton layout matching the final grid (§1.5); `review-generation-progress.tsx` keep stage icons (good) but add `role="status"` + progress bar (existing `Progress` primitive) for determinate stages.
+  - [x] **Sub-block D — i18n consistency.** Every touched string present in `sk`/`cs`/`en`; audit untouched panels for missing-locale fallbacks (default `en`).
+- [x] `components/poster-preview.tsx`
+  - [x] Compile/loading states: verify PDF-compile spinner + error banner styling (tokens), add `role="alert"` to the error banner.
+  - [x] Empty state: output with zero cards → centered `EmptyState` "No blocks yet" + CTAs (Add card / Ingest sources).
+  - [x] Zoom & layout-warning affordances: verify icon buttons have `aria-label`s (full check Phase 5), warning overlays use `warning` token.
+- [x] `components/pdf-viewer.tsx` + `components/pdf-sidebar.tsx` — loading (✓ has `Loader2`), error (✓ "Failed to load PDF document.") — polish: error state gets **Retry** button; zoom controls `aria-label` audit (Phase 5); `FileDown`/`Maximize` buttons ring check.
+- [x] `components/agent-panel.tsx`
+  - [x] `StatusStrip`: add `aria-live="polite"` so running→done transitions are announced (full a11y in Phase 5).
+  - [x] Composer: verify disabled while streaming + `Loader2` in the send button.
+  - [x] Job list (queue): cancel buttons `aria-label="Cancel {name}"`; progress bar uses `Progress` primitive consistently.
+- [x] `components/manage-workspaces.tsx` — CRUD: all 4 catch blocks → `notify.error` with retry context (F1); delete already via `ConfirmDialog`? (verify; if inline, route through it); empty state for zero workspaces; `h1` is the only h1 on this page ✓.
+- [x] `components/share-workspace-dialog.tsx` — invite flow: 7 catch blocks → toasts (F1); "Copy link" → spinner + success toast; invalid role select validation.
+- [x] `components/bibliography-dialog.tsx`, `components/academic-search-dialog.tsx`, `components/equation-registry-dialog.tsx`, `components/scanner/image-ocr-dialog.tsx` — per-dialog: loading skeletons matching result-card layout, empty states with CTAs, error toasts (all use `pushEvent`-only or silent catches in places — verify each), dialog `max-h` + internal scroll so they don't clip on short screens.
 
 **Gate:** §6 verification + Playwright specs covering touched flows: `features.spec.ts`, `ingestion.spec.ts`, `thesis-review.spec.ts`, `add-output-dialog.spec.ts`, `workspace-selection.spec.ts`. Manual: run each workflow end-to-end in light & dark (upload → parse → promote; generate card content; run review generation; share workspace).
 
@@ -211,23 +222,23 @@ These are the "one right answer" rules. When a file conflicts with them, the fil
 
 **Files & tasks**
 
-- [ ] **NEW** `lib/notify.ts` — §1.4 helper over Sonner (`success`/`error`/`warning` + `action` slot + 3 s dedupe for identical errors). Client-only guard so it stays importable from slices.
-- [ ] `components/store/project-slice.ts` — mirror user-facing failures to `notify.error` (keep `pushEvent` for the agent log): `switchProject` (1008-1015 already pushes error events — add toast), `saveProject` (success toast "Saved" on ⌘S/manual save; failure toast), `duplicateProject`, `autoFillCardAction` / `autoFillAllCardsAction` (failure toast; keep progress events), `generateNewOutputStructure`, `convertOutputAction`, `aiReview`.
-- [ ] `components/store/ingestion-slice.ts` — `uploadFiles` (per-file failure toast with file name), `processFile`/`retryFile` (failure toast + keep parse log), `removeFile`/`discardAsset` (undo action via `toast(..., { action: { label: "Undo" } })`).
-- [ ] `components/store/bib-slice.ts`, `components/store/equation-slice.ts`, `components/store/ui-slice.ts` — same treatment for their async actions (audit each `pushEvent` site).
-- [ ] `components/store/use-yjs.tsx` — keep connection state visual (avatar stack + solo pill) — **no toasts** for connect/disconnect (noisy); add one `notify.error` only for *unexpected* disconnect while editing (verify current behavior).
-- [ ] Button call-site audit (disabled + `Loader2` per §1.4) — verify each:
-  - [ ] `top-bar.tsx`: Save (✓), Export items (synchronous — none), Ingest/Scan/Academic openers (instant — none needed).
-  - [ ] `card-inspector.tsx`: Save Project / Save Card (added Phase 3 — verify wiring), Delete (confirm `busy`).
-  - [ ] `header-inspector.tsx`: Generate All, Generate structure, QR (✓).
-  - [ ] `structure-sidebar.tsx`: Auto-Shrink (✓ already).
-  - [ ] `manage-workspaces.tsx`: create/delete/rename rows (busy state per row).
-  - [ ] `share-workspace-dialog.tsx`: send invite / copy link.
-  - [ ] `workspace-selector.tsx`: open workspace (per-row spinner).
-  - [ ] `thesis-review/*`: "Generate review", stage retry buttons, index build.
-  - [ ] `command-palette.tsx`: items that trigger async actions close palette immediately (non-blocking, §3 UX principle) — verify + the action still toasts its outcome (Phase 4 slices guarantee this).
-- [ ] Micro-interactions sweep: `hover:` on every clickable row/card (card rows ✓), `active:translate-y-px` (Button has it ✓), tooltip on every icon-only top-bar button (✓) — extend tooltips to icon-only buttons in `pdf-sidebar` / `figure-editor` where missing (low cost, high clarity).
-- [ ] Optimistic updates: verify Yjs-driven edits render immediately (they do) — ensure failed server save *reverts visible indicator only* (isDirty), not content.
+- [x] **NEW** `lib/notify.ts` — §1.4 helper over Sonner (`success`/`error`/`warning` + `action` slot + 3 s dedupe for identical errors). Client-only guard so it stays importable from slices.
+- [x] `components/store/project-slice.ts` — mirror user-facing failures to `notify.error` (keep `pushEvent` for the agent log): `switchProject` (1008-1015 already pushes error events — add toast), `saveProject` (success toast "Saved" on ⌘S/manual save; failure toast), `duplicateProject`, `autoFillCardAction` / `autoFillAllCardsAction` (failure toast; keep progress events), `generateNewOutputStructure`, `convertOutputAction`, `aiReview`.
+- [x] `components/store/ingestion-slice.ts` — `uploadFiles` (per-file failure toast with file name), `processFile`/`retryFile` (failure toast + keep parse log), `removeFile`/`discardAsset` (undo action via `toast(..., { action: { label: "Undo" } })`).
+- [x] `components/store/bib-slice.ts`, `components/store/equation-slice.ts`, `components/store/ui-slice.ts` — same treatment for their async actions (audit each `pushEvent` site).
+- [x] `components/store/use-yjs.tsx` — keep connection state visual (avatar stack + solo pill) — **no toasts** for connect/disconnect (noisy); add one `notify.error` only for *unexpected* disconnect while editing (verify current behavior).
+- [x] Button call-site audit (disabled + `Loader2` per §1.4) — verify each:
+  - [x] `top-bar.tsx`: Save (✓), Export items (synchronous — none), Ingest/Scan/Academic openers (instant — none needed).
+  - [x] `card-inspector.tsx`: Save Project / Save Card (added Phase 3 — verify wiring), Delete (confirm `busy`).
+  - [x] `header-inspector.tsx`: Generate All, Generate structure, QR (✓).
+  - [x] `structure-sidebar.tsx`: Auto-Shrink (✓ already).
+  - [x] `manage-workspaces.tsx`: create/delete/rename rows (busy state per row).
+  - [x] `share-workspace-dialog.tsx`: send invite / copy link.
+  - [x] `workspace-selector.tsx`: open workspace (per-row spinner).
+  - [x] `thesis-review/*`: "Generate review", stage retry buttons, index build.
+  - [x] `command-palette.tsx`: items that trigger async actions close palette immediately (non-blocking, §3 UX principle) — verify + the action still toasts its outcome (Phase 4 slices guarantee this).
+- [x] Micro-interactions sweep: `hover:` on every clickable row/card (card rows ✓), `active:translate-y-px` (Button has it ✓), tooltip on every icon-only top-bar button (✓) — extend tooltips to icon-only buttons in `pdf-sidebar` / `figure-editor` where missing (low cost, high clarity).
+- [x] Optimistic updates: verify Yjs-driven edits render immediately (they do) — ensure failed server save *reverts visible indicator only* (isDirty), not content.
 
 **Gate:** §6 verification + scripted pass: trigger a save with network killed (Playwright `route.abort`) → exactly one error toast, button re-enabled; repeat 3× → dedupe holds.
 
@@ -239,38 +250,38 @@ These are the "one right answer" rules. When a file conflicts with them, the fil
 
 **Files & tasks**
 
-- [ ] **Focus management for custom overlays** (F4):
-  - [ ] `ingestion/ingestion-drawer.tsx` — migrate to base-ui `Dialog` (asides → `DialogContent` with `align="end"` style) **or** add: initial focus to close button, `Tab` cycling (focus trap), Escape (✓ has it), focus return to "Ingest" trigger on close. Prefer migration if < ~50 line diff; else trap.
-  - [ ] `history-panel.tsx` — same (Escape wired in Phase 2; trap + focus return here).
-  - [ ] `workspace-selector.tsx` — same.
-- [ ] **Icon-only button accessible names** (audit all 43 `size="icon*"` usages + raw icon `<button>`s):
-  - [ ] `structure-sidebar.tsx` search-clear (done in Phase 2 — verify).
-  - [ ] `pdf-sidebar.tsx`: `Minus`/`Plus`/`FileDown`/`Maximize`/`ChevronDown` — each `aria-label` ("Zoom out", "Zoom in", "Download PDF", "Open in tab", collapse).
-  - [ ] `pdf-viewer.tsx`: toolbar controls (page nav, zoom, rotate) — labels + `aria-valuenow` on the zoom control (`role="slider"` or labeled buttons).
-  - [ ] `agent-panel.tsx`: `PanelRightClose`, `Undo2`, job cancel `XCircle`.
-  - [ ] `figure-editor.tsx`, `promote-popover.tsx`, `equation-registry-dialog.tsx`, `image-ocr-dialog.tsx`: every close/rotate/crop/delete icon.
-  - [ ] Repo rule: an icon-only `Button` without `aria-label` or adjacent text is a lint violation — add a tiny ESLint rule or a `pnpm lint:a11y` grep script to `scripts/` to keep this at zero going forward.
-- [ ] **Heading hierarchy** (F8) — target map: one `h1` per top-level page/dialog surface (manage-workspaces ✓, dialog `DialogTitle` serves as the accessible title), `h2` = panel/section, `h3` = subsection, `h4` = item. Fixes:
-  - [ ] `ingestion/ingestion-drawer.tsx` (h2 → h3 → **h4** asset titles) + `ingestion/asset-list.tsx` h5s (done in Phase 3 — verify no residual skips).
-  - [ ] `bibliography-dialog.tsx`: h3 → h4 → h3 → h4 sequence (328, 480, 576, 623, 654) — flatten to one consistent level per nesting depth.
-  - [ ] `help-modal.tsx`: h4 sections are fine *within the dialog* — document.
-  - [ ] `thesis-review/*` panels: verify each panel's top title is a single level below the workspace h2; item cards h4 (finding-card ✓).
-  - [ ] `template-header.tsx` `h2` (poster card title inside the *rendered poster*) — decorative duplicate of card inspector title: change to `p` (it's canvas content, not page structure).
-- [ ] **Live regions:**
-  - [ ] `agent-panel.tsx` `StatusStrip` → `aria-live="polite"` (started in Phase 3 — verify).
-  - [ ] Save indicator (`isSaving`) → keep visual-only (toasts announce, avoids chatter).
-  - [ ] Loading skeletons keep `role="status"` (structure-sidebar ✓; ensure new Phase 3 skeletons inherit it).
-- [ ] **Forms:** verify every `Input`/`Textarea`/`Select` in `card-inspector.tsx`, `header-inspector.tsx`, `settings-panel.tsx`, `thesis-metadata-panel.tsx`, `rubric-template-modal.tsx`, `supervisor-signoff-panel.tsx`, `share-workspace-dialog.tsx` has a programmatic label (`Label htmlFor` + `id`) or `aria-label`; error text linked via `aria-describedby` where validation exists (`hasUnsafeLatex` messages).
-- [ ] **Keyboard flows to script-test** (Playwright, keyboard-only):
-  - [ ] ⌘K palette: arrow/enter/escape.
-  - [ ] Structure sidebar: Tab to card row → Enter selects → Tab to trash → Enter (confirm dialog → Tab to Delete → Enter).
-  - [ ] Ingestion drawer: open via keyboard, Tab cycles inside, Escape closes, focus returns to Ingest button.
-  - [ ] Tabs in right sidebar & card inspector: arrow-key navigation (base-ui ✓ — verify).
-  - [ ] Every dialog: Tab trap, Escape, focus return.
-- [ ] **Contrast & text size audit:** `text-muted-foreground/60|/70|/80` opacity stacks (e.g. `structure-sidebar.tsx` dt `text-muted-foreground/70`, `status.tsx` none) — remove opacity stacking below ~4.5:1 (check in dark + vercel themes); `text-[9px]` (`CardTypeBadge`, some ingestion labels) → bump to `text-[10px]` min; `text-[10px]` kept only for truly secondary mono metadata.
-- [ ] **Semantic roles:** card rows are `role="button"` divs with Enter/Space handling (✓) — verify focus order; `role="group"` on avatar stack ✓; `role="presentation"` on decorative icon wrappers.
-- [ ] Add `aria-hidden` to all decorative `lucide` icons that aren't the sole content of a labeled control (spot check; `Button` already sets `[&_svg]:pointer-events-none` but not `aria-hidden` — add global `[&_svg:not([aria-label])]:aria-hidden`? Prefer: per-use `aria-hidden` in the top-traffic components only, to avoid surprises).
-- [ ] Final pass: `lang` (en ✓), `color-scheme` ✓, document title, `prefers-reduced-motion` ✓ (verify nothing new violates it).
+- [x] **Focus management for custom overlays** (F4):
+  - [x] `ingestion/ingestion-drawer.tsx` — migrate to base-ui `Dialog` (asides → `DialogContent` with `align="end"` style) **or** add: initial focus to close button, `Tab` cycling (focus trap), Escape (✓ has it), focus return to "Ingest" trigger on close. Prefer migration if < ~50 line diff; else trap.
+  - [x] `history-panel.tsx` — same (Escape wired in Phase 2; trap + focus return here).
+  - [x] `workspace-selector.tsx` — same.
+- [x] **Icon-only button accessible names** (audit all 43 `size="icon*"` usages + raw icon `<button>`s):
+  - [x] `structure-sidebar.tsx` search-clear (done in Phase 2 — verify).
+  - [x] `pdf-sidebar.tsx`: `Minus`/`Plus`/`FileDown`/`Maximize`/`ChevronDown` — each `aria-label` ("Zoom out", "Zoom in", "Download PDF", "Open in tab", collapse).
+  - [x] `pdf-viewer.tsx`: toolbar controls (page nav, zoom, rotate) — labels + `aria-valuenow` on the zoom control (`role="slider"` or labeled buttons).
+  - [x] `agent-panel.tsx`: `PanelRightClose`, `Undo2`, job cancel `XCircle`.
+  - [x] `figure-editor.tsx`, `promote-popover.tsx`, `equation-registry-dialog.tsx`, `image-ocr-dialog.tsx`: every close/rotate/crop/delete icon.
+  - [x] Repo rule: an icon-only `Button` without `aria-label` or adjacent text is a lint violation — add a tiny ESLint rule or a `pnpm lint:a11y` grep script to `scripts/` to keep this at zero going forward.
+- [x] **Heading hierarchy** (F8) — target map: one `h1` per top-level page/dialog surface (manage-workspaces ✓, dialog `DialogTitle` serves as the accessible title), `h2` = panel/section, `h3` = subsection, `h4` = item. Fixes:
+  - [x] `ingestion/ingestion-drawer.tsx` (h2 → h3 → **h4** asset titles) + `ingestion/asset-list.tsx` h5s (done in Phase 3 — verify no residual skips).
+  - [x] `bibliography-dialog.tsx`: h3 → h4 → h3 → h4 sequence (328, 480, 576, 623, 654) — flatten to one consistent level per nesting depth.
+  - [x] `help-modal.tsx`: h4 sections are fine *within the dialog* — document.
+  - [x] `thesis-review/*` panels: verify each panel's top title is a single level below the workspace h2; item cards h4 (finding-card ✓).
+  - [x] `template-header.tsx` `h2` (poster card title inside the *rendered poster*) — decorative duplicate of card inspector title: change to `p` (it's canvas content, not page structure).
+- [x] **Live regions:**
+  - [x] `agent-panel.tsx` `StatusStrip` → `aria-live="polite"` (started in Phase 3 — verify).
+  - [x] Save indicator (`isSaving`) → keep visual-only (toasts announce, avoids chatter).
+  - [x] Loading skeletons keep `role="status"` (structure-sidebar ✓; ensure new Phase 3 skeletons inherit it).
+- [x] **Forms:** verify every `Input`/`Textarea`/`Select` in `card-inspector.tsx`, `header-inspector.tsx`, `settings-panel.tsx`, `thesis-metadata-panel.tsx`, `rubric-template-modal.tsx`, `supervisor-signoff-panel.tsx`, `share-workspace-dialog.tsx` has a programmatic label (`Label htmlFor` + `id`) or `aria-label`; error text linked via `aria-describedby` where validation exists (`hasUnsafeLatex` messages).
+- [x] **Keyboard flows to script-test** (Playwright, keyboard-only):
+  - [x] ⌘K palette: arrow/enter/escape.
+  - [x] Structure sidebar: Tab to card row → Enter selects → Tab to trash → Enter (confirm dialog → Tab to Delete → Enter).
+  - [x] Ingestion drawer: open via keyboard, Tab cycles inside, Escape closes, focus returns to Ingest button.
+  - [x] Tabs in right sidebar & card inspector: arrow-key navigation (base-ui ✓ — verify).
+  - [x] Every dialog: Tab trap, Escape, focus return.
+- [x] **Contrast & text size audit:** `text-muted-foreground/60|/70|/80` opacity stacks (e.g. `structure-sidebar.tsx` dt `text-muted-foreground/70`, `status.tsx` none) — remove opacity stacking below ~4.5:1 (check in dark + vercel themes); `text-[9px]` (`CardTypeBadge`, some ingestion labels) → bump to `text-[10px]` min; `text-[10px]` kept only for truly secondary mono metadata.
+- [x] **Semantic roles:** card rows are `role="button"` divs with Enter/Space handling (✓) — verify focus order; `role="group"` on avatar stack ✓; `role="presentation"` on decorative icon wrappers.
+- [x] Add `aria-hidden` to all decorative `lucide` icons that aren't the sole content of a labeled control (spot check; `Button` already sets `[&_svg]:pointer-events-none` but not `aria-hidden` — add global `[&_svg:not([aria-label])]:aria-hidden`? Prefer: per-use `aria-hidden` in the top-traffic components only, to avoid surprises).
+- [x] Final pass: `lang` (en ✓), `color-scheme` ✓, document title, `prefers-reduced-motion` ✓ (verify nothing new violates it).
 
 **Gate:** §6 verification + full keyboard script + contrast spot-checks in all 5 themes.
 

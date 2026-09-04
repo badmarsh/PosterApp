@@ -17,6 +17,7 @@
     "start": "cross-env NODE_ENV=production tsx server.ts",
     "start:next-only": "next start",
     "lint": "eslint .",
+    "lint:a11y": "node scripts/lint-a11y.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:e2e": "playwright test",

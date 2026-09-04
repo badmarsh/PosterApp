@@ -446,7 +446,7 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
                       {tmpl.label}
                     </span>
                     {tmpl.category === "institutional" && (
-                      <span className="rounded bg-amber-100 px-1 py-px text-[8px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 shrink-0">
+                      <span className="rounded bg-warning/15 px-1 py-px text-[8px] font-bold uppercase tracking-wide text-warning dark:bg-warning/20 dark:text-warning shrink-0">
                         ATLAS
                       </span>
                     )}
@@ -476,7 +476,7 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
                   <div className="flex items-center gap-2.5 flex-wrap">
                     <span className="text-base font-bold">{activeTmpl.label}</span>
                     {activeTmpl.category === "institutional" && (
-                      <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                      <span className="rounded-md bg-warning/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning dark:bg-warning/20 dark:text-warning">
                         Institutional
                       </span>
                     )}
@@ -491,8 +491,8 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
 
                 {/* Missing-class warning: surfaced before a wasted compile */}
                 {activeTmpl.requiresClass && activeTmpl.requiresClass.length > 0 && (
-                  <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 dark:border-amber-900/60 dark:bg-amber-950/30">
-                    <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+                  <div className="rounded-md border border-warning/40 bg-warning/10 p-2.5 dark:border-warning/50 dark:bg-warning/15">
+                    <p className="text-[11px] leading-relaxed text-warning dark:text-warning">
                       <span className="font-semibold">Requires{" "}
                         {activeTmpl.requiresClass.map((c, i) => (
                           <span key={c}>
@@ -838,7 +838,7 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
                 {figs > 0 && (
                   <span className="flex items-center gap-0.5">
                     <ImageIcon className="size-3" />
-                    <span className="font-mono text-[9px]">{figs}</span>
+                    <span className="font-mono text-[10px]">{figs}</span>
                   </span>
                 )}
               </div>
@@ -861,7 +861,7 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
                       </div>
                       <span
                         className={cn(
-                          "font-mono text-[9px]",
+                          "font-mono text-[10px]",
                           pct > 100 ? "font-semibold text-destructive" : "text-muted-foreground"
                         )}
                       >
@@ -1163,9 +1163,9 @@ const SlideCard = memo(function SlideCard({ card, index, overlay }: { card: Card
           <p className="line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">{preview}</p>
         )}
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="rounded border border-border bg-muted px-1 py-px font-mono text-[9px] text-muted-foreground">{card.pattern}</span>
-          {figs > 0 && <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground"><ImageIcon className="size-2.5" />{figs}</span>}
-          {card.slideNotes && <span className="text-[9px] text-muted-foreground/60 italic">has notes</span>}
+          <span className="rounded border border-border bg-muted px-1 py-px font-mono text-[10px] text-muted-foreground">{card.pattern}</span>
+          {figs > 0 && <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground"><ImageIcon className="size-2.5" />{figs}</span>}
+          {card.slideNotes && <span className="text-[10px] text-muted-foreground italic">has notes</span>}
         </div>
       </div>
     </div>
@@ -1229,9 +1229,9 @@ const PaperSection = memo(function PaperSection({ card, overlay }: { card: Card;
           <p className="line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">{preview}</p>
         )}
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="rounded border border-border bg-muted px-1 py-px font-mono text-[9px] text-muted-foreground">{card.pattern}</span>
-          {figs > 0 && <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground"><ImageIcon className="size-2.5" />{figs}</span>}
-          {hasTable && <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground"><Table2 className="size-2.5" />table</span>}
+          <span className="rounded border border-border bg-muted px-1 py-px font-mono text-[10px] text-muted-foreground">{card.pattern}</span>
+          {figs > 0 && <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground"><ImageIcon className="size-2.5" />{figs}</span>}
+          {hasTable && <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground"><Table2 className="size-2.5" />table</span>}
         </div>
       </div>
     </div>

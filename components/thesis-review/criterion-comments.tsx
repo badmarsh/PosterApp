@@ -91,7 +91,7 @@ export function CriterionComments({
                   <div className="flex items-center justify-between text-[10px]">
                     <div className="flex items-center gap-1.5">
                       <span className="font-semibold text-foreground">{comment.authorName}</span>
-                      <Badge variant="outline" className="text-[9px] px-1 py-0 uppercase">
+                      <Badge variant="outline" className="text-[10px] px-1 py-0 uppercase">
                         {comment.authorRole}
                       </Badge>
                     </div>
@@ -101,7 +101,7 @@ export function CriterionComments({
                       </span>
                       <button
                         onClick={() => handleDeleteComment(comment.id)}
-                        className="opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground hover:text-red-500 transition-opacity"
+                        className="opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground hover:text-destructive transition-opacity"
                         title="Zmazať komentár"
                       >
                         <Trash2 className="size-2.5" />

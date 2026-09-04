@@ -107,7 +107,7 @@ export function GradeDerivationPopover({
         aria-label={t.how}
       >
         <Badge variant={confirmed ? "default" : "outline"} className="text-xs font-bold shrink-0 gap-1 cursor-help">
-          {confirmed && <CheckCircle2 className="h-3 w-3 text-green-400" />}
+          {confirmed && <CheckCircle2 className="h-3 w-3 text-success" />}
           ECTS: {grade}
           <Calculator className="h-3 w-3 opacity-60" />
         </Badge>

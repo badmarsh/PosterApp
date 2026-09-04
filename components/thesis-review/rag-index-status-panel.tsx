@@ -95,8 +95,8 @@ interface SearchResult {
 
 const CHUNK_KIND_LABELS: Record<string, { sk: string; className: string }> = {
   table: { sk: "Tabuľka", className: "border-sky-400/40 bg-sky-500/10 text-sky-600 dark:text-sky-300" },
-  equation: { sk: "Rovnica", className: "border-violet-400/40 bg-violet-500/10 text-violet-600 dark:text-violet-300" },
-  figure_caption: { sk: "Obrázok", className: "border-amber-400/40 bg-amber-500/10 text-amber-600 dark:text-amber-300" },
+  equation: { sk: "Rovnica", className: "border-status-ambiguous/40 bg-status-ambiguous/100/10 text-status-ambiguous dark:text-status-ambiguous" },
+  figure_caption: { sk: "Obrázok", className: "border-warning/40 bg-warning/100/10 text-warning dark:text-warning" },
   prose: { sk: "Text", className: "border-border/70 bg-muted/40 text-muted-foreground" },
 }
 
@@ -230,7 +230,7 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
     if (stats.totalChunks === 0)
       return (
         <Badge variant="outline" className="text-xs text-muted-foreground gap-1.5 py-0.5 px-2 font-normal">
-          <AlertCircle className="h-3 w-3 text-amber-500" />
+          <AlertCircle className="h-3 w-3 text-warning" />
           Žiadne chunky
         </Badge>
       )
@@ -247,7 +247,7 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
       )
     if (!stats.hnswIndexReady)
       return (
-        <Badge variant="outline" className="text-xs text-amber-600 dark:text-amber-400 gap-1.5 py-0.5 px-2 font-normal">
+        <Badge variant="outline" className="text-xs text-warning dark:text-warning gap-1.5 py-0.5 px-2 font-normal">
           <AlertCircle className="h-3 w-3" />
           Index sa buduje
         </Badge>
@@ -555,7 +555,7 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
                         {r.snippet.length >= 300 && "…"}
                       </p>
                       {r.tokens && (
-                        <p className="text-[10px] text-muted-foreground/60 font-mono">{r.tokens} tokenov</p>
+                        <p className="text-[10px] text-muted-foreground font-mono">{r.tokens} tokenov</p>
                       )}
                     </div>
                   ))}

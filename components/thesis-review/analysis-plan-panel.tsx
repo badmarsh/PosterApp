@@ -62,9 +62,9 @@ export function AnalysisPlanPanel({
   }
 
   const qualityBadge = {
-    high: <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-300 border-green-300 dark:border-green-800 text-[11px] font-semibold">Vysoká kvalita extrakcie</Badge>,
-    medium: <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800 text-[11px] font-semibold">Stredná kvalita</Badge>,
-    low: <Badge variant="outline" className="bg-red-500/10 text-red-700 dark:text-red-300 border-red-300 dark:border-red-800 text-[11px] font-semibold">Nízky rozsah textu</Badge>,
+    high: <Badge variant="outline" className="bg-success/100/10 text-success dark:text-success border-success/40 dark:border-success/40 text-[11px] font-semibold">Vysoká kvalita extrakcie</Badge>,
+    medium: <Badge variant="outline" className="bg-warning/100/10 text-warning dark:text-warning border-warning/40 dark:border-warning/40 text-[11px] font-semibold">Stredná kvalita</Badge>,
+    low: <Badge variant="outline" className="bg-destructive/100/10 text-destructive dark:text-destructive border-destructive/40 dark:border-destructive/40 text-[11px] font-semibold">Nízky rozsah textu</Badge>,
   }[plan.extractionQuality]
 
   const metrics = plan.metrics
@@ -182,15 +182,15 @@ export function AnalysisPlanPanel({
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-foreground flex items-center gap-1.5 text-[11px]">
-                      <Scale className="size-3.5 text-blue-500" />
+                      <Scale className="size-3.5 text-info" />
                       Vyváženosť teórie a praxe
                     </span>
                     <Badge
                       variant="outline"
-                      className={`text-[9px] ${
+                      className={`text-[10px] ${
                         metrics?.balance.status === "balanced"
-                          ? "bg-green-500/10 text-green-700 dark:text-green-300 border-green-400/30"
-                          : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-400/30"
+                          ? "bg-success/100/10 text-success dark:text-success border-success/40"
+                          : "bg-warning/100/10 text-warning dark:text-warning border-warning/40"
                       }`}
                     >
                       {metrics?.balance.status === "balanced" ? "Optimálne" : metrics?.balance.status === "theory_heavy" ? "Prevaha teórie" : "Silná prax"}
@@ -205,7 +205,7 @@ export function AnalysisPlanPanel({
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted overflow-hidden flex">
                         <div
-                          className="bg-blue-500 transition-all"
+                          className="bg-info/100 transition-all"
                           style={{ width: `${Math.max(5, Math.min(95, metrics.balance.theoryRatio * 100))}%` }}
                           title={`Teória: ${Math.round(metrics.balance.theoryRatio * 100)}%`}
                         />
@@ -228,17 +228,17 @@ export function AnalysisPlanPanel({
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-foreground flex items-center gap-1.5 text-[11px]">
-                      <Calendar className="size-3.5 text-purple-500" />
+                      <Calendar className="size-3.5 text-status-ambiguous" />
                       Citačná dynamika & Čerstvosť
                     </span>
                     <Badge
                       variant="outline"
-                      className={`text-[9px] ${
+                      className={`text-[10px] ${
                         metrics?.citations.recencyStatus === "fresh"
-                          ? "bg-green-500/10 text-green-700 dark:text-green-300 border-green-400/30"
+                          ? "bg-success/100/10 text-success dark:text-success border-success/40"
                           : metrics?.citations.recencyStatus === "adequate"
-                          ? "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-400/30"
-                          : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-400/30"
+                          ? "bg-info/100/10 text-info dark:text-info border-info/40"
+                          : "bg-warning/100/10 text-warning dark:text-warning border-warning/40"
                       }`}
                     >
                       {metrics?.citations.recencyStatus === "fresh" ? "Aktuálna rešerš" : metrics?.citations.recencyStatus === "adequate" ? "Priemerná" : "Staršie zdroje"}
@@ -260,7 +260,7 @@ export function AnalysisPlanPanel({
 
                       <div className="flex flex-wrap gap-1 pt-1">
                         {Object.entries(metrics.citations.decadeBreakdown).map(([decade, count]) => (
-                          <span key={decade} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border">
+                          <span key={decade} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border">
                             {decade}: {count}
                           </span>
                         ))}
@@ -275,15 +275,15 @@ export function AnalysisPlanPanel({
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-foreground flex items-center gap-1.5 text-[11px]">
-                      <Link2 className="size-3.5 text-amber-500" />
+                      <Link2 className="size-3.5 text-warning" />
                       Krížové odkazy & Prílohy
                     </span>
                     <Badge
                       variant="outline"
-                      className={`text-[9px] ${
+                      className={`text-[10px] ${
                         (metrics?.crossReferencing.integrityScore || 100) >= 90
-                          ? "bg-green-500/10 text-green-700 dark:text-green-300 border-green-400/30"
-                          : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-400/30"
+                          ? "bg-success/100/10 text-success dark:text-success border-success/40"
+                          : "bg-warning/100/10 text-warning dark:text-warning border-warning/40"
                       }`}
                     >
                       Integrita {metrics?.crossReferencing.integrityScore ?? 100}%
@@ -308,11 +308,11 @@ export function AnalysisPlanPanel({
                       </div>
 
                       {metrics.crossReferencing.orphanedItems.length > 0 ? (
-                        <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                        <p className="text-[10px] text-warning dark:text-warning font-medium">
                           ⚠️ {metrics.crossReferencing.orphanedItems.join(", ")}
                         </p>
                       ) : (
-                        <p className="text-[10px] text-green-600 dark:text-green-400 font-medium">
+                        <p className="text-[10px] text-success dark:text-success font-medium">
                           ✓ Všetky vizuálne prílohy sú prepojené s textom.
                         </p>
                       )}
@@ -329,7 +329,7 @@ export function AnalysisPlanPanel({
                       <Type className="size-3.5 text-indigo-500" />
                       Lexika & Akademický štýl
                     </span>
-                    <Badge variant="outline" className="text-[9px] bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-400/30">
+                    <Badge variant="outline" className="text-[10px] bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-400/30">
                       TTR: {metrics?.lexical.typeTokenRatio ?? 0.4}
                     </Badge>
                   </div>
@@ -361,7 +361,7 @@ export function AnalysisPlanPanel({
                       <Code2 className="size-3.5 text-rose-500" />
                       Technická formalizácia
                     </span>
-                    <Badge variant="outline" className="text-[9px] bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-400/30">
+                    <Badge variant="outline" className="text-[10px] bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-400/30">
                       {metrics?.formalization.technicalRigorLevel === "high" ? "Vysoká formalizácia" : metrics?.formalization.technicalRigorLevel === "medium" ? "Stredná formalizácia" : "Textový charakter"}
                     </Badge>
                   </div>
@@ -393,7 +393,7 @@ export function AnalysisPlanPanel({
                       <FileText className="size-3.5 text-cyan-500" />
                       Rozsah & Objem textu
                     </span>
-                    <Badge variant="outline" className="text-[9px] font-mono">
+                    <Badge variant="outline" className="text-[10px] font-mono">
                       {totalWords.toLocaleString()} slov
                     </Badge>
                   </div>
@@ -436,16 +436,16 @@ export function AnalysisPlanPanel({
                     key={p.key}
                     className={`p-2 rounded-lg border text-[10px] flex flex-col justify-between ${
                       p.status === "complete"
-                        ? "bg-green-500/10 border-green-500/30 text-green-800 dark:text-green-300"
+                        ? "bg-success/100/10 border-success/40 text-success dark:text-success"
                         : p.status === "partial"
-                        ? "bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300"
+                        ? "bg-warning/100/10 border-warning/40 text-warning dark:text-warning"
                         : "bg-muted/40 border-dashed text-muted-foreground opacity-60"
                     }`}
                   >
                     <span className="font-semibold truncate block" title={p.name}>
                       {p.name.split(" ")[1] || p.name}
                     </span>
-                    <div className="flex items-center justify-between pt-1 text-[9px]">
+                    <div className="flex items-center justify-between pt-1 text-[10px]">
                       <span>{p.percentage}%</span>
                       <span>{p.status === "complete" ? "✓" : p.status === "partial" ? "~" : "✗"}</span>
                     </div>
@@ -573,20 +573,20 @@ export function AnalysisPlanPanel({
                       c.applicability === "not_applicable"
                         ? "bg-muted/20 border-dashed opacity-60"
                         : c.applicability === "partially_applicable"
-                        ? "bg-amber-500/5 border-amber-500/20"
+                        ? "bg-warning/100/5 border-warning/30"
                         : "bg-card/60"
                     }`}
                   >
                     <span className="truncate mr-1 font-medium">{c.label}</span>
                     <div className="flex items-center gap-1 shrink-0">
-                      <span className="text-[9px] font-mono text-muted-foreground">{c.weight}%</span>
+                      <span className="text-[10px] font-mono text-muted-foreground">{c.weight}%</span>
                       <Badge
                         variant="outline"
                         className={`text-[8px] py-0 px-1 ${
                           c.applicability === "applicable"
-                            ? "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/30"
+                            ? "bg-success/100/10 text-success dark:text-success border-success/40"
                             : c.applicability === "partially_applicable"
-                            ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                            ? "bg-warning/100/10 text-warning dark:text-warning border-warning/40"
                             : "bg-muted text-muted-foreground"
                         }`}
                       >
@@ -601,8 +601,8 @@ export function AnalysisPlanPanel({
 
           {/* Limitations & Warnings */}
           {plan.limitations.length > 0 && (
-            <div className="p-3 rounded-xl border border-amber-300/40 bg-amber-500/5 space-y-1">
-              <div className="flex items-center gap-1.5 font-semibold text-[11px] text-amber-600 dark:text-amber-400">
+            <div className="p-3 rounded-xl border border-warning/40 bg-warning/100/5 space-y-1">
+              <div className="flex items-center gap-1.5 font-semibold text-[11px] text-warning dark:text-warning">
                 <AlertTriangle className="size-3.5" />
                 <span>Identifikované limitácie a chýbajúce sekcie</span>
               </div>
@@ -649,14 +649,14 @@ function TOCNodeRow({
   const isExpanded = expandedNodes[node.id] ?? false
 
   const kindColors: Record<string, string> = {
-    introduction: "text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20",
-    literature: "text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20",
+    introduction: "text-info dark:text-info bg-info/100/10 border-info/30",
+    literature: "text-status-ambiguous dark:text-status-ambiguous bg-status-ambiguous/100/10 border-status-ambiguous/30",
     methodology: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
     results: "text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
-    discussion: "text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20",
+    discussion: "text-warning dark:text-warning bg-warning/100/10 border-warning/30",
     conclusion: "text-teal-600 dark:text-teal-400 bg-teal-500/10 border-teal-500/20",
     references: "text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
-    appendix: "text-slate-600 dark:text-slate-400 bg-slate-500/10 border-slate-500/20",
+    appendix: "text-muted-foreground dark:text-muted-foreground bg-muted/40 border-muted/40",
     preamble: "text-muted-foreground bg-muted border-border",
     unknown: "text-muted-foreground bg-muted border-border",
   }
@@ -684,7 +684,7 @@ function TOCNodeRow({
           </span>
 
           {node.hasWarning && (
-            <span className="text-amber-500 text-[9px] font-semibold" title="Krátka alebo prázdna sekcia">
+            <span className="text-warning text-[10px] font-semibold" title="Krátka alebo prázdna sekcia">
               ⚠️
             </span>
           )}

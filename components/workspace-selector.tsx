@@ -39,6 +39,7 @@ export function WorkspaceSelector({
   const [workspaces, setWorkspaces] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
 
   const [isCreating, setIsCreating] = useState(false)
   const [newId, setNewId] = useState("")
@@ -84,7 +85,7 @@ export function WorkspaceSelector({
         setError(err instanceof Error ? err.message : String(err))
         setLoading(false)
       })
-  }, [])
+  }, [retryKey])
 
   const slugify = (v: string) =>
     v.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32)
@@ -251,8 +252,8 @@ export function WorkspaceSelector({
       <DialogContent
         className={
           activeTab === "research-lab"
-            ? "sm:max-w-4xl lg:max-w-5xl max-h-[92vh] flex flex-col p-6"
-            : "sm:max-w-md"
+            ? "z-[60] sm:max-w-4xl lg:max-w-5xl max-h-[92vh] flex flex-col p-6"
+            : "z-[60] sm:max-w-md"
         }
         showCloseButton
       >
@@ -312,6 +313,51 @@ export function WorkspaceSelector({
         {createError && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
             {createError}
+          </div>
+        )}
+
+        {isDbDown && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm">
+            <p className="font-medium text-destructive mb-0.5">Database Connection Failed</p>
+            <p className="text-destructive/80 text-xs">Cannot reach the database. Make sure the PostgreSQL container is running.</p>
+          </div>
+        )}
+        {error && !isDbDown && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-medium text-destructive">
+                {isAuthRequired ? "Authentication Required" : "Failed to load workspaces"}
+              </p>
+              {isAuthRequired && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-[11px] px-2.5 border-destructive/40 text-destructive hover:bg-destructive/10 cursor-pointer"
+                  onClick={() => { window.location.href = "/sign-in" }}
+                >
+                  Sign In
+                </Button>
+              )}
+            </div>
+            <p className="text-destructive/80 text-xs">
+              {isAuthRequired
+                ? "Your session has expired or you are not signed in. Please sign in to access your projects."
+                : error}
+            </p>
+            {!isAuthRequired && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 text-[11px] px-2.5 border-destructive/40 text-destructive hover:bg-destructive/10 cursor-pointer"
+                onClick={() => {
+                  setError(null)
+                  setLoading(true)
+                  setRetryKey((k) => k + 1)
+                }}
+              >
+                Retry
+              </Button>
+            )}
           </div>
         )}
 

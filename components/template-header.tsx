@@ -68,13 +68,13 @@ export function TemplateHeader({ variant = "poster", className }: TemplateHeader
       title="Click to edit header in right sidebar"
     >
       {/* Header text content */}
-      <h2 className="text-balance text-[13px] font-bold leading-tight group-hover:text-primary transition-colors">
+      <p className="text-balance text-[13px] font-bold leading-tight group-hover:text-primary transition-colors">
         {metadata.title}
-      </h2>
+      </p>
       <p className="mt-0.5 text-[10px] text-muted-foreground">
         {metadata.authors || "No authors set"}
       </p>
-      <p className="text-[10px] text-muted-foreground/80">
+      <p className="text-[10px] text-muted-foreground">
         {metadata.venue || "No venue / conference set"}
       </p>
     </div>

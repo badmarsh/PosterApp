@@ -513,6 +513,7 @@ export function BibliographyDialog() {
                               <Button
                                 variant="ghost"
                                 size="icon-xs"
+                                aria-label={`Edit citation ${entry.key}`}
                                 onClick={() => startEdit(entry)}
                                 className="h-7 w-7 text-muted-foreground hover:text-foreground"
                                 title="Edit entry"
@@ -523,6 +524,7 @@ export function BibliographyDialog() {
                               <Button
                                 variant="ghost"
                                 size="icon-xs"
+                                aria-label={`Delete citation ${entry.key}`}
                                 onClick={() => {
                                   if (confirm(`Remove citation "${entry.key}"?`)) {
                                     deleteBibEntry(entry.key)

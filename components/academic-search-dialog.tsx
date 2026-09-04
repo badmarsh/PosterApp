@@ -242,7 +242,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
             <div className="py-16 flex flex-col items-center justify-center space-y-3 text-muted-foreground">
               <Loader2 className="h-9 w-9 animate-spin text-primary" />
               <p className="text-xs font-medium">{t.searching}</p>
-              <p className="text-[11px] text-muted-foreground/80">{t.searchingSub}</p>
+              <p className="text-[11px] text-muted-foreground">{t.searchingSub}</p>
             </div>
           ) : results.length > 0 ? (
             results.map((paper, idx) => {
@@ -289,11 +289,11 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
                     {/* Source and metrics */}
                     <div className="flex items-center gap-1.5 shrink-0">
                       {paper.citationCount !== undefined && paper.citationCount > 0 && (
-                        <Badge variant="secondary" className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 gap-1 border border-amber-500/20 bg-amber-500/10">
+                        <Badge variant="secondary" className="text-[10px] font-semibold text-warning dark:text-warning gap-1 border border-warning/30 bg-warning/100/10">
                           ★ {t.citations(paper.citationCount)}
                         </Badge>
                       )}
-                      <Badge variant="outline" className="text-[9px] uppercase font-mono tracking-wider bg-muted/40">
+                      <Badge variant="outline" className="text-[10px] uppercase font-mono tracking-wider bg-muted/40">
                         {paper.source}
                       </Badge>
                     </div>

@@ -89,7 +89,7 @@ export function PromotePopover({ asset }: { asset: ExtractedAsset }) {
               {(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []).map((c) => (
                 <SelectItem key={c.id} value={c.id} className="text-[11px]">
                   {c.title || c.id}
-                  <span className="ml-1 font-mono text-[9px] text-muted-foreground">
+                  <span className="ml-1 font-mono text-[10px] text-muted-foreground">
                     {c.id}
                   </span>
                 </SelectItem>

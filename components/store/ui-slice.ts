@@ -1,6 +1,7 @@
 import type { EditorSlice, UiSlice } from "./types"
 import type { AgentEvent } from "@/lib/poster-types"
 import { apiFetch } from "@/lib/api-fetch"
+import { notify } from "@/lib/notify"
 import { safeRandomUUID } from "@/lib/utils"
 
 /** Upper bounds so the event feed / chat history (persisted on every save) stay small. */
@@ -184,6 +185,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
             set((s) => { s.pdfData = new Uint8Array(buf) })
           }
           get().updateEvent(evId, { status: "done", title: "Compile succeeded", detail: "PDF ready for preview." })
+          notify.success("Compile succeeded", { description: "PDF ready for preview." })
           
           // Background VLM Layout Check
           if (get().layoutCheckEnabled && get().lastReviewedRevision !== revision) {
@@ -262,6 +264,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
                const alreadyIdentical = fixes.every((f) => activeOutput.cards.find((c) => c.id === f.id)?.content === f.content)
                if (alreadyIdentical) {
                  get().updateEvent(evId, { status: "error", title: "Compile failed", detail: "Autofix returned unchanged content — stopping." })
+                 notify.error("Compile failed", { description: "Autofix returned unchanged content — the error log was shared with the agent." })
                  get().setPendingAiPrompt(`The LaTeX compilation failed and the automatic fix did not change anything. Please analyze this error log and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
                  break
                }
@@ -277,6 +280,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
                continue
             } else {
                get().updateEvent(evId, { status: "error", title: "Compile failed", detail: "LLM autofix could not provide a fix." })
+               notify.error("Compile failed", { description: "The automatic fix could not repair the LaTeX — the log was shared with the agent." })
                get().setPendingAiPrompt(`The LaTeX compilation failed with the following error. Please analyze it, explain the issue, and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
                break;
             }
@@ -290,6 +294,11 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
                 ? (data.log ?? "").slice(0, 200)
                 : "Auto-fix is disabled — the log was shared with the agent for a manual fix.",
             })
+            notify.error("Compile failed", {
+              description: get().compileAutoFixEnabled
+                ? `Failed after ${MAX_ATTEMPTS} attempts — the log was shared with the agent.`
+                : "Auto-fix is disabled — the log was shared with the agent for a manual fix.",
+            })
             get().setPendingAiPrompt(`The LaTeX compilation failed${get().compileAutoFixEnabled ? " after multiple attempts" : ""}. Please analyze this error log and explain the issue, and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
           }
         }
@@ -300,6 +309,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
         s.compileOk = false
       })
       get().updateEvent(evId, { status: "error", title: "Compile error", detail: String(err) })
+      notify.error("Compile error", { description: err instanceof Error ? err.message : String(err) })
     } finally {
       if (get().project.id === capturedWorkspaceId) {
         set((s) => { s.compiling = false })

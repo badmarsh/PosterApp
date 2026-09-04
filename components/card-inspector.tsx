@@ -89,7 +89,7 @@ function RagSourcesIllustration() {
         strokeLinejoin="round"
       />
       {/* Sparkle */}
-      <path d="M47 8L48 11L51 12L48 13L47 16L46 13L43 12L46 11L47 8Z" className="fill-amber-500" />
+      <path d="M47 8L48 11L51 12L48 13L47 16L46 13L43 12L46 11L47 8Z" className="fill-warning" />
     </svg>
   )
 }
@@ -135,6 +135,7 @@ function BasicsTab({ card }: { card: Card }) {
       <div className="flex flex-col gap-1">
         <FieldLabel>Title</FieldLabel>
         <Input
+          aria-label="Card title"
           value={card.title}
           onChange={(e) => updateCard(card.id, { title: e.target.value })}
           placeholder="Card title"
@@ -159,6 +160,7 @@ function BasicsTab({ card }: { card: Card }) {
       <div className="flex flex-col gap-1">
         <FieldLabel hint="blk_ or card_">Stable block ID</FieldLabel>
         <Input
+          aria-label="Stable block ID"
           value={card.id}
           readOnly
           className={cn(
@@ -179,7 +181,7 @@ function BasicsTab({ card }: { card: Card }) {
               value={String(card.column)}
               onValueChange={(v) => moveColumn(card.id, Number(v) as ColumnIndex)}
             >
-              <SelectTrigger size="sm" className="w-full">
+              <SelectTrigger size="sm" className="w-full" aria-label="Column">
                 <SelectValue>{`Column ${card.column}`}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -194,7 +196,7 @@ function BasicsTab({ card }: { card: Card }) {
             <div className="flex h-7 items-center gap-1.5 rounded-md border border-input bg-muted/40 px-2.5 font-mono text-xs text-muted-foreground">
               <GripVertical className="size-3.5" />
               {orderInCol} / {colCount}
-              <span className="ml-auto text-[9px] normal-case">reorder in preview</span>
+              <span className="ml-auto text-[10px] normal-case">reorder in preview</span>
             </div>
           </div>
         </div>
@@ -204,7 +206,7 @@ function BasicsTab({ card }: { card: Card }) {
           <div className="flex h-7 items-center gap-1.5 rounded-md border border-input bg-muted/40 px-2.5 font-mono text-xs text-muted-foreground">
             <GripVertical className="size-3.5" />
             {[...cards].sort((a, b) => a.order - b.order).findIndex((c) => c.id === card.id) + 1} / {cards.length}
-            <span className="ml-auto text-[9px] normal-case">reorder in preview</span>
+            <span className="ml-auto text-[10px] normal-case">reorder in preview</span>
           </div>
         </div>
       )}
@@ -215,7 +217,7 @@ function BasicsTab({ card }: { card: Card }) {
           value={card.pattern}
           onValueChange={(v) => updateCard(card.id, { pattern: v as Card["pattern"] })}
         >
-          <SelectTrigger size="sm" className="w-full">
+          <SelectTrigger size="sm" className="w-full" aria-label="Block pattern">
             <SelectValue>
               {patternsForOutput.find((p) => p.id === card.pattern)?.label ?? card.pattern}
             </SelectValue>
@@ -317,6 +319,7 @@ function ContentTab({ card }: { card: Card }) {
               <Button
                 variant="ghost"
                 size="icon-xs"
+                aria-label="Insert bold formatting"
                 onClick={() => insertMarkdown("**", "**")}
                 title="Bold"
               >
@@ -325,6 +328,7 @@ function ContentTab({ card }: { card: Card }) {
               <Button
                 variant="ghost"
                 size="icon-xs"
+                aria-label="Insert italic formatting"
                 onClick={() => insertMarkdown("*", "*")}
                 title="Italic"
               >
@@ -341,6 +345,7 @@ function ContentTab({ card }: { card: Card }) {
               <Button
                 variant="ghost"
                 size="icon-xs"
+                aria-label="Insert link"
                 onClick={() => insertMarkdown("[", "](url)")}
                 title="Link"
               >
@@ -349,6 +354,7 @@ function ContentTab({ card }: { card: Card }) {
             </div>
             <Textarea
               ref={contentRef}
+              aria-label="Card content"
               value={card.content}
               onChange={(e) => updateCard(card.id, { content: e.target.value })}
               placeholder="Use - or * for bulleted lists..."
@@ -361,6 +367,7 @@ function ContentTab({ card }: { card: Card }) {
         <div className="flex flex-col gap-1">
           <FieldLabel>Insert cite key</FieldLabel>
           <select
+            aria-label="Insert citation key"
             className="h-8 w-full rounded-md border border-input bg-background px-2 text-[12px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             defaultValue=""
             onChange={(e) => {
@@ -384,6 +391,7 @@ function ContentTab({ card }: { card: Card }) {
         <div className="flex flex-col gap-1">
           <FieldLabel>Height Budget (u)</FieldLabel>
           <Input
+            aria-label="Height budget"
             type="number"
             value={card.heightBudget || ""}
             onChange={(e) => {
@@ -421,7 +429,7 @@ function ContentTab({ card }: { card: Card }) {
                   <RotateCcw className="size-2.5" /> Inherit from {outputTypeLabel}
                 </button>
               ) : (
-                <span className="text-[10px] font-mono text-muted-foreground/70">
+                <span className="text-[10px] font-mono text-muted-foreground">
                   (Inherited from {outputTypeLabel})
                 </span>
               )}
@@ -561,7 +569,7 @@ function TableTab({ card }: { card: Card }) {
               }
             }}
           >
-            <SelectTrigger size="sm" className="w-full bg-card text-[11px] h-7">
+            <SelectTrigger size="sm" className="w-full bg-card text-[11px] h-7" aria-label="Populate from parsed table">
               <SelectValue placeholder="Select a parsed table..." />
             </SelectTrigger>
             <SelectContent>
@@ -639,6 +647,7 @@ function TableTab({ card }: { card: Card }) {
       <div className="flex flex-col gap-1">
         <FieldLabel>Caption</FieldLabel>
         <Input
+          aria-label="Caption"
           value={table.caption}
           onChange={(e) => updateCard(card.id, { table: { ...table, caption: e.target.value } })}
           placeholder="Table caption"
@@ -729,7 +738,7 @@ function FiguresTab({ card }: { card: Card }) {
             value={card.figureLayout}
             onValueChange={(v) => updateCard(card.id, { figureLayout: v as Card["figureLayout"] })}
           >
-            <SelectTrigger size="sm" className="w-36">
+            <SelectTrigger size="sm" className="w-36" aria-label="Figure layout">
               <SelectValue>
                 {card.figureLayout === "two-up" ? "Two-up figures" : "Single figure"}
               </SelectValue>
@@ -794,6 +803,7 @@ function FiguresTab({ card }: { card: Card }) {
                 <Upload className="size-3" /> Upload
               </Button>
               <Input
+                aria-label={`Figure ${i + 1} URL`}
                 value={fig?.url ?? ""}
                 onChange={(e) => setFigure(i, { url: e.target.value })}
                 placeholder="or image URL / path"
@@ -801,6 +811,7 @@ function FiguresTab({ card }: { card: Card }) {
               />
             </div>
             <Input
+              aria-label={`Figure ${i + 1} caption`}
               value={fig?.caption ?? ""}
               onChange={(e) => setFigure(i, { caption: e.target.value })}
               placeholder="Caption"
@@ -1041,7 +1052,7 @@ export function CardInspector() {
         <Button
           size="default"
           className="w-full justify-center h-9 text-sm"
-          onClick={() => saveProject()}
+          onClick={() => saveProject(true)}
           disabled={isGenerating}
         >
           <SaveAll className="size-4 mr-2" /> Save Project
@@ -1063,7 +1074,7 @@ export function CardInspector() {
             size="sm"
             variant="outline"
             className="flex-1"
-            onClick={() => saveProject()}
+            onClick={() => saveProject(true)}
             disabled={isGenerating}
           >
             <Save className="size-4 mr-2" /> Save Card

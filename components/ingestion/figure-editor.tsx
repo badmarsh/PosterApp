@@ -124,7 +124,7 @@ export function FigureEditor({
               className="h-20 w-full rounded border border-border bg-card object-contain"
             />
           )}
-          <figcaption className="text-center font-mono text-[9px] text-muted-foreground">
+          <figcaption className="text-center font-mono text-[10px] text-muted-foreground">
             Before
           </figcaption>
         </figure>
@@ -145,7 +145,7 @@ export function FigureEditor({
                 className="h-full w-full object-contain"
               />
             ) : (
-              <div className="flex h-full items-center justify-center px-2 text-center text-[9px] text-muted-foreground">
+              <div className="flex h-full items-center justify-center px-2 text-center text-[10px] text-muted-foreground">
                 {applying ? (
                   <Loader2 className="size-4 animate-spin text-primary" />
                 ) : (
@@ -154,7 +154,7 @@ export function FigureEditor({
               </div>
             )}
           </div>
-          <figcaption className="text-center font-mono text-[9px] text-muted-foreground">
+          <figcaption className="text-center font-mono text-[10px] text-muted-foreground">
             After
           </figcaption>
         </figure>

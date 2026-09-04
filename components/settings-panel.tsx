@@ -661,7 +661,7 @@ function AiModelRow({
         {effectiveModel}
       </span>
       {isOverridden && (
-        <Badge variant="secondary" className="h-4 gap-1 px-1.5 text-[9px]">
+        <Badge variant="secondary" className="h-4 gap-1 px-1.5 text-[10px]">
           <Sparkles className="size-2.5" />
           Custom
         </Badge>

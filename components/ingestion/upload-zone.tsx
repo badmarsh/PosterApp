@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { formatBytes } from "@/lib/ingestion"
 import { apiFetch } from "@/lib/api-fetch"
+import { toast } from "sonner"
 import {
   MethodBadge,
   ParseStatusBadge,
@@ -77,7 +78,7 @@ function DocProcessingIllustration({ dragging = false }: { dragging?: boolean })
       <g transform="translate(98, 22)">
         <circle cx="8" cy="8" r="9.5" className="fill-card stroke-border shadow-xs" strokeWidth="1" />
         <circle cx="8" cy="8" r="7" className="fill-muted/50" />
-        <path d="M8 3.5L8.9 6.2L11.5 7L8.9 7.8L8 10.5L7.1 7.8L4.5 7L7.1 6.2L8 3.5Z" className="fill-amber-500" />
+        <path d="M8 3.5L8.9 6.2L11.5 7L8.9 7.8L8 10.5L7.1 7.8L4.5 7L7.1 6.2L8 3.5Z" className="fill-warning" />
       </g>
 
       {/* === 3. RIGHT: MONOCHROME STRUCTURED OUTPUTS === */}
@@ -164,6 +165,7 @@ export function UploadZone() {
   // arXiv / DOI URL import state
   const [arxivUrl, setArxivUrl] = useState("")
   const [isImportingUrl, setIsImportingUrl] = useState(false)
+  const [urlError, setUrlError] = useState<string | null>(null)
 
   async function handleRetry(fileId: string) {
     if (retryingIds.includes(fileId)) return
@@ -183,13 +185,14 @@ export function UploadZone() {
   async function handleImportUrl() {
     if (!arxivUrl.trim() || isImportingUrl) return
     setIsImportingUrl(true)
+    setUrlError(null)
     try {
       const res = await apiFetch(`/api/ingestion/import-url`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workspaceId: project.id, url: arxivUrl.trim() }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "Failed to import paper from URL")
       }
@@ -216,12 +219,15 @@ export function UploadZone() {
         })
       }
     } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      setUrlError(message)
       pushEvent({
         kind: "info",
         status: "error",
         title: "URL Import Failed",
-        detail: err instanceof Error ? err.message : String(err),
+        detail: message,
       })
+      toast.error("URL import failed", { description: message })
     } finally {
       setIsImportingUrl(false)
     }
@@ -240,7 +246,7 @@ export function UploadZone() {
               <Globe className="size-3.5 text-primary" />
               <span>Direct Preprint Fetch</span>
             </div>
-            <span className="text-[9px] font-mono text-muted-foreground">Zero-file download</span>
+            <span className="text-[10px] font-mono text-muted-foreground">Zero-file download</span>
           </div>
 
           <div className="flex items-center gap-1.5">
@@ -267,6 +273,13 @@ export function UploadZone() {
               )}
             </Button>
           </div>
+
+          {urlError && (
+            <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5">
+              <p className="text-[10px] font-medium text-destructive">Import failed</p>
+              <p className="mt-0.5 break-words text-[10px] text-destructive/80">{urlError}</p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -319,7 +332,7 @@ export function UploadZone() {
               {["PDF", "DOCX", "TEX", "PPTX", "IMG / Scan"].map((fmt) => (
                 <span
                   key={fmt}
-                  className="rounded px-1.5 py-0.5 text-[9px] font-medium font-mono bg-muted text-muted-foreground border border-border/60"
+                  className="rounded px-1.5 py-0.5 text-[10px] font-medium font-mono bg-muted text-muted-foreground border border-border/60"
                 >
                   {fmt}
                 </span>
@@ -357,7 +370,7 @@ export function UploadZone() {
                       {file.name}
                     </p>
                     <div className="mt-0.5 flex items-center gap-1.5">
-                      <span className="font-mono text-[9px] text-muted-foreground">
+                      <span className="font-mono text-[10px] text-muted-foreground">
                         {formatBytes(file.size)}
                       </span>
                       <MethodBadge method={file.method} />

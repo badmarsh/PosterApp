@@ -193,7 +193,7 @@ export function ReviewerCalibrationPanel({ workspaceId, reviews }: Props) {
                   className={cn(
                     "text-xs font-semibold",
                     isGradeDivergent
-                      ? "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/30"
+                      ? "bg-destructive/100/10 text-destructive dark:text-destructive border-destructive/40"
                       : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
                   )}
                 >
@@ -273,7 +273,7 @@ export function ReviewerCalibrationPanel({ workspaceId, reviews }: Props) {
                   className={cn(
                     "p-3 rounded-lg border text-xs flex items-center justify-between gap-4 transition-colors",
                     diff.isDivergent
-                      ? "border-amber-500/30 bg-amber-500/5 ring-1 ring-amber-500/20"
+                      ? "border-warning/40 bg-warning/100/5 ring-1 ring-warning/20"
                       : "border-border bg-card"
                   )}
                 >
@@ -283,7 +283,7 @@ export function ReviewerCalibrationPanel({ workspaceId, reviews }: Props) {
                         {diff.criterionLabel}
                       </span>
                       {diff.isDivergent && (
-                        <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[10px]">
+                        <Badge className="bg-warning/100/10 text-warning dark:text-warning text-[10px]">
                           <AlertTriangle className="size-2.5 mr-1" />
                           Rozdielne hodnotenie (&gt; 15 b)
                         </Badge>

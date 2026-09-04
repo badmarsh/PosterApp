@@ -1,5 +1,6 @@
 import type { EditorSlice, BibSlice } from "./types"
 import { apiFetch } from "@/lib/api-fetch"
+import { notify } from "@/lib/notify"
 import { parseBibEntries, formatBibEntry, type BibEntry } from "@/lib/bib-types"
 import { parseBibKeys } from "@/lib/bib-parser"
 import { suggestCitationsForText } from "@/lib/services/citation-suggester"
@@ -68,6 +69,9 @@ export const createBibSlice: EditorSlice<BibSlice> = (set, get) => ({
         status: "error",
         title: "Bibliography Save Failed",
         detail: err instanceof Error ? err.message : String(err),
+      })
+      notify.error("Bibliography save failed", {
+        description: err instanceof Error ? err.message : String(err),
       })
     }
   },

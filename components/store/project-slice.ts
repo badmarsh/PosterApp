@@ -4,6 +4,7 @@ import { columnBudgetFor, estimateHeight, generateLatexForCard, hasUnsafeLatex, 
 import type { Project, OutputConfig, BlockPattern, Card, Figure } from "@/lib/poster-types"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { apiFetch } from "@/lib/api-fetch"
+import { notify } from "@/lib/notify"
 import type { OutputType } from "@/lib/output-types"
 import { getDefaultTemplateId, DEFAULT_STRUCTURES, getTemplateDef, buildDefaultStructure } from "@/lib/output-types"
 import { jobQueue } from "@/lib/job-queue"
@@ -104,6 +105,10 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       set((s) => { s.isSwitchingProject = false })
       get().setLastWorkspaceId(null)
       get().pushEvent({ kind: "info", status: "error", title: "Failed to load workspace", detail: String(err) })
+      notify.error("Couldn't load workspace", {
+        description: err instanceof Error ? err.message : String(err),
+        action: { label: "Retry", onClick: () => void get().switchProject(id) },
+      })
     }
   },
 
@@ -568,6 +573,11 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     } catch (err: unknown) {
       set((s) => { if (s.project.id === workspaceId) s.generatingIds = s.generatingIds.filter(gid => gid !== id) })
       get().updateEvent(evId, { status: "error", title: `Auto-fill failed — ${id}`, detail: String(err) })
+      if (!opts?.bulk) {
+        notify.error("Auto-fill failed", {
+          description: err instanceof Error ? err.message : String(err),
+        })
+      }
       // Rethrow so bulk callers (autoFillAllCardsAction) can track failure counts correctly
       throw err
     }
@@ -645,6 +655,13 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         title: "Generate All — Complete",
         detail: `${succeeded} succeeded, ${failed} failed.`,
       })
+      if (failed > 0) {
+        notify.error("Generate All finished with failures", {
+          description: `${succeeded} filled, ${failed} failed — check the agent log and retry those blocks.`,
+        })
+      } else {
+        notify.success("Generate All complete", { description: `${succeeded} blocks filled.` })
+      }
     })
   },
 
@@ -719,6 +736,9 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       status: "done",
       title: `New ${outputType} structure created`,
       detail: `Created ${newCards.length} ${unitName}. Filling contents from sources…`,
+    })
+    notify.success("New structure created", {
+      description: `${newCards.length} ${unitName} — filling contents from sources.`,
     })
 
     await get().saveProject()
@@ -843,6 +863,13 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       detail: `${succeeded} succeeded, ${failed} failed.${validationWarnings.length > 0 ? ` ${validationWarnings.length} card(s) have LaTeX validation warnings.` : ""}`,
       ...(validationWarnings.length > 0 ? { validationWarnings } : {}),
     })
+    if (failed > 0) {
+      notify.error("Conversion finished with failures", {
+        description: `${succeeded} cards converted, ${failed} failed.`,
+      })
+    } else {
+      notify.success("Conversion complete", { description: `${succeeded} cards converted.` })
+    }
   },
 
   aiReview: async () => {
@@ -887,6 +914,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       }
     } catch (e: unknown) {
       get().updateEvent(evId, { status: "error", title: "Review Failed", detail: e instanceof Error ? e.message : String(e) })
+      notify.error("AI review failed", { description: e instanceof Error ? e.message : String(e) })
     }
   },
 
@@ -955,10 +983,11 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       await get().switchProject(newId)
     } catch (e) {
       get().updateEvent(evId, { status: "error", title: "Duplicate failed", detail: e instanceof Error ? e.message : String(e) })
+      notify.error("Duplicate failed", { description: e instanceof Error ? e.message : String(e) })
     }
   },
 
-  saveProject: async () => {
+  saveProject: async (manual = false) => {
     if (isDemoProject(get().project.id)) {
       // The demo project only exists in memory — do not hammer the API with 404s.
       set((s) => { s.isDirty = false })
@@ -999,6 +1028,9 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         s.isSaving = false
         s.lastSavedAt = new Date()
       })
+      if (manual && get().project.id === workspaceId) {
+        notify.success("Saved", { description: `Workspace saved at ${new Date().toLocaleTimeString()}.` })
+      }
     } catch (err: unknown) {
       // Keep the snapshot dirty so a transient failure cannot silently strand
       // user changes. The retry timer is de-duplicated by scheduleRetry.
@@ -1015,12 +1047,18 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
           title: "Save Conflict",
           detail: "This workspace changed in another session. Reload before saving again.",
         })
+        notify.error("Save conflict", {
+          description: "This workspace changed in another session. Reload it before saving again.",
+        })
       } else {
         get().pushEvent({
           kind: "info",
           status: "warning",
           title: "Auto-save Pending",
           detail: "Save will retry automatically.",
+        })
+        notify.error("Save failed", {
+          description: "Your changes are kept locally and the save will retry automatically.",
         })
       }
     } finally {

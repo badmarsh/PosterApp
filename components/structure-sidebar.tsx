@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, memo } from "react"
+import { useState, memo } from "react"
 import {
   AlertTriangle,
   ChevronDown,
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   Select,
   SelectContent,
@@ -125,7 +126,7 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
                   e.stopPropagation()
                   deleteCard(card.id)
                 }}
-                className="rounded p-1 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+                className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
               >
                 <Trash2 className="size-3.5" />
               </button>
@@ -192,6 +193,9 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
                   title: "Shrink Failed",
                   detail: err instanceof Error ? err.message : String(err),
                 })
+                toast.error("Auto-shrink failed", {
+                  description: err instanceof Error ? err.message : String(err),
+                })
               } finally {
                 setIsShrinking(false)
               }
@@ -211,7 +215,7 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
         </div>
       </div>
       <div className="pl-5">
-        <span className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground/80">
+        <span className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
           {PATTERN_SHORT[card.pattern]}
         </span>
       </div>
@@ -235,7 +239,17 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
   )
 })
 
-function ColumnGroup({ column, searchQuery = "" }: { column: ColumnIndex; searchQuery?: string }) {
+function ColumnGroup({
+  column,
+  searchQuery = "",
+  collapsed = false,
+  onToggleCollapsed,
+}: {
+  column: ColumnIndex
+  searchQuery?: string
+  collapsed?: boolean
+  onToggleCollapsed?: (column: ColumnIndex) => void
+}) {
   const { project, addCard } = useEditor(
     useShallow((s) => ({
       project: s.project,
@@ -256,8 +270,16 @@ function ColumnGroup({ column, searchQuery = "" }: { column: ColumnIndex; search
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-1.5">
-          <ChevronDown className="size-3.5 text-muted-foreground" />
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-expanded={!collapsed}
+            aria-label={`${collapsed ? "Expand" : "Collapse"} column ${column}`}
+            onClick={() => onToggleCollapsed?.(column)}
+            className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40"
+          >
+            <ChevronDown className={cn("size-3.5 transition-transform", collapsed && "-rotate-90")} />
+          </button>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Column {column}
           </span>
@@ -281,20 +303,31 @@ function ColumnGroup({ column, searchQuery = "" }: { column: ColumnIndex; search
           <TooltipContent>Add card</TooltipContent>
         </Tooltip>
       </div>
-      <div className="flex flex-col gap-0.5">
-        {cards.length ? (
-          cards.map((c) => <CardRow key={c.id} card={c} />)
-        ) : (
-          <button
-            type="button"
-            onClick={() => addCard(column)}
-            className="flex flex-col items-center gap-1 rounded-md border border-dashed border-border px-2 py-3 text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:bg-sidebar-accent/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <Plus className="size-3.5" />
-            No cards yet — add the first block
-          </button>
-        )}
-      </div>
+      {!collapsed && (
+        <div className="flex flex-col gap-0.5">
+          {cards.length ? (
+            cards.map((c) => <CardRow key={c.id} card={c} />)
+          ) : (
+            <EmptyState
+              variant="inline"
+              compact
+              icon={Plus}
+              title="No cards yet"
+              action={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-0.5 h-6 gap-1 px-2 text-[10px]"
+                  onClick={() => addCard(column)}
+                >
+                  <Plus className="size-3" />
+                  Add block
+                </Button>
+              }
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -337,15 +370,8 @@ export function StructureSidebar() {
 
   const promotedCount = (project.assets || []).filter((a: { assignedCardId?: string | null }) => a.assignedCardId).length
 
-  const [workspaces, setWorkspaces] = useState<{id: string, name: string}[]>([])
-  useEffect(() => {
-    apiFetch('/api/workspaces')
-      .then((r) => r.json())
-      .then((data) => setWorkspaces(Array.isArray(data) ? data : []))
-      .catch(console.error)
-  }, [project.id])
-
   const [cardSearch, setCardSearch] = useState("")
+  const [collapsedColumns, setCollapsedColumns] = useState<Record<number, boolean>>({})
 
   return (
     <aside className="flex h-full w-full shrink-0 flex-col border-r border-border bg-sidebar lg:w-72">
@@ -356,15 +382,15 @@ export function StructureSidebar() {
           </p>
           <dl className="mt-1.5 space-y-0.5 text-[11px] text-muted-foreground">
             <div className="flex gap-1">
-              <dt className="text-muted-foreground/70">Authors</dt>
+              <dt className="text-muted-foreground">Authors</dt>
               <dd className="truncate">{project.authors}</dd>
             </div>
             <div className="flex gap-1">
-              <dt className="text-muted-foreground/70">Venue</dt>
+              <dt className="text-muted-foreground">Venue</dt>
               <dd className="truncate">{project.venue}</dd>
             </div>
             <div className="flex gap-1">
-              <dt className="text-muted-foreground/70">Cards</dt>
+              <dt className="text-muted-foreground">Cards</dt>
               <dd>
                 {(project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []).length} blocks · {columnCount} columns
               </dd>
@@ -411,8 +437,9 @@ export function StructureSidebar() {
             {cardSearch && (
               <button
                 type="button"
+                aria-label="Clear card search"
                 onClick={() => setCardSearch("")}
-                className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
+                className="absolute right-2 top-2 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40"
               >
                 <XCircle className="size-3" />
               </button>
@@ -453,9 +480,24 @@ export function StructureSidebar() {
           </div>
         ) : (
           <div className="flex flex-col gap-3 px-2.5 pb-4">
-            <ColumnGroup column={1} searchQuery={cardSearch} />
-            <ColumnGroup column={2} searchQuery={cardSearch} />
-            <ColumnGroup column={3} searchQuery={cardSearch} />
+            <ColumnGroup
+              column={1}
+              searchQuery={cardSearch}
+              collapsed={!!collapsedColumns[1]}
+              onToggleCollapsed={(c) => setCollapsedColumns((m) => ({ ...m, [c]: !m[c] }))}
+            />
+            <ColumnGroup
+              column={2}
+              searchQuery={cardSearch}
+              collapsed={!!collapsedColumns[2]}
+              onToggleCollapsed={(c) => setCollapsedColumns((m) => ({ ...m, [c]: !m[c] }))}
+            />
+            <ColumnGroup
+              column={3}
+              searchQuery={cardSearch}
+              collapsed={!!collapsedColumns[3]}
+              onToggleCollapsed={(c) => setCollapsedColumns((m) => ({ ...m, [c]: !m[c] }))}
+            />
           </div>
         )}
       </ScrollArea>

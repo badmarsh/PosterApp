@@ -114,6 +114,7 @@ export function SupervisorSignoffPanel({
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Meno vedúceho práce</Label>
               <Input
+                aria-label="Meno vedúceho práce"
                 value={data.supervisorName}
                 onChange={(e) => setData({ ...data, supervisorName: e.target.value })}
                 placeholder="Titul, Meno, Priezvisko"
@@ -127,7 +128,7 @@ export function SupervisorSignoffPanel({
                 value={data.preliminaryGradeRecommendation}
                 onValueChange={(val: any) => setData({ ...data, preliminaryGradeRecommendation: val })}
               >
-                <SelectTrigger className="text-sm font-semibold">
+                <SelectTrigger className="text-sm font-semibold" aria-label="Predbežný navrh známky školiteľa">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -150,7 +151,7 @@ export function SupervisorSignoffPanel({
                 value={data.consultationRegularity}
                 onValueChange={(val: any) => setData({ ...data, consultationRegularity: val })}
               >
-                <SelectTrigger className="text-xs">
+                <SelectTrigger className="text-xs" aria-label="Pravidelnosť konzultácií">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -167,7 +168,7 @@ export function SupervisorSignoffPanel({
                 value={data.studentIndependence}
                 onValueChange={(val: any) => setData({ ...data, studentIndependence: val })}
               >
-                <SelectTrigger className="text-xs">
+                <SelectTrigger className="text-xs" aria-label="Miera samostatnosti">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -184,7 +185,7 @@ export function SupervisorSignoffPanel({
                 value={data.initiativeRating}
                 onValueChange={(val: any) => setData({ ...data, initiativeRating: val })}
               >
-                <SelectTrigger className="text-xs">
+                <SelectTrigger className="text-xs" aria-label="Vlastná iniciatíva">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -203,6 +204,7 @@ export function SupervisorSignoffPanel({
                 Verejný komentár školiteľa do posudku
               </Label>
               <Textarea
+                aria-label="Verejný komentár školiteľa do posudku"
                 rows={3}
                 value={data.publicAdvisorComment}
                 onChange={(e) => setData({ ...data, publicAdvisorComment: e.target.value })}
@@ -211,12 +213,13 @@ export function SupervisorSignoffPanel({
               />
             </div>
 
-            <div className="space-y-1.5 bg-amber-500/5 p-3 rounded-lg border border-amber-500/20">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+            <div className="space-y-1.5 bg-warning/100/5 p-3 rounded-lg border border-warning/30">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-warning dark:text-warning">
                 <Info className="size-3.5" />
                 Dôverné poznámky školiteľa pre oponenta a komisiu
               </div>
               <Textarea
+                aria-label="Dôverné poznámky školiteľa"
                 rows={2}
                 value={data.confidentialAdvisorNotes}
                 onChange={(e) => setData({ ...data, confidentialAdvisorNotes: e.target.value })}
