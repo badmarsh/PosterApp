@@ -104,6 +104,8 @@ export const ChatMessageSchema = z
 export const WorkspaceSchema = z.object({
   revision: z.number().int().nonnegative().optional(),
   name: z.string().optional(),
+  /** DeerFlow deep-research toggle for this workspace (server-enforced). */
+  deerflowEnabled: z.boolean().optional(),
   // Legacy flat fields — mapped to/from the active output
   posterTitle: z.string().optional(),
   authors: z.string().optional(),

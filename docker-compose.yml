@@ -12,5 +12,41 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # ---------------------------------------------------------------------------
+  # Optional DeerFlow deep-research sidecar (off by default).
+  #
+  # Start with:  docker compose --profile deerflow up -d
+  #
+  # ⚠️ PIN REVIEW REQUIRED: the image below is a placeholder — replace
+  # $DEERFLOW_IMAGE with an image/tag you have reviewed for a specific commit
+  # of bytedance/deer-flow (Gateway mode). The env mapping is config-driven on
+  # the DeerFlow side (config.yaml); adjust to match your pinned version.
+  # Never publish the port beyond 127.0.0.1, and never grant the sidecar
+  # access to DATABASE_URL, CLERK_SECRET_KEY or host workspace directories.
+  # ---------------------------------------------------------------------------
+  deerflow:
+    profiles: ["deerflow"]
+    image: ${DEERFLOW_IMAGE:-ghcr.io/bytedance/deer-flow:2.0}
+    container_name: posterapp-deerflow
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:2026:2026"
+    environment:
+      # Optional token the PosterApp bridge sends as Bearer auth.
+      DEERFLOW_SERVICE_TOKEN: ${DEERFLOW_SERVICE_TOKEN:-}
+      # Model provider for the agent (OpenAI-compatible).
+      OPENAI_API_KEY: ${AI_API_KEY:-}
+      OPENAI_BASE_URL: ${AI_API_URL:-https://openrouter.ai/api/v1}
+      OPENAI_MODEL: ${AI_MODEL:-}
+    volumes:
+      - deerflow_data:/app/.deer-flow
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:2026/api/models"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
 volumes:
   postgres_data:
+  deerflow_data:

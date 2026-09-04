@@ -45,8 +45,11 @@ model Workspace {
   chatMessages     Json?
   logoUrl          String?
   secondaryLogoUrl String?
+  /// When false, DeerFlow deep-research runs are rejected for this workspace.
+  deerflowEnabled  Boolean               @default(true)
   assets           Asset[]
   collabTickets    CollaborationTicket[]
+  deerflowThreads  DeerflowThread[]
   documentChunks   DocumentChunk[]
   graphCommunities GraphCommunity[]
   graphEdges       GraphEdge[]
@@ -59,6 +62,31 @@ model Workspace {
   agentApiKeys        AgentApiKey[]
   agentPendingChanges AgentPendingChange[]
 
+  @@index([userId])
+}
+
+/// Maps one PosterApp run to a DeerFlow sidecar thread. Durable source of
+/// truth for run status + validated proposal; live progress lives in memory.
+model DeerflowThread {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  userId          String
+  deerThreadId    String    @unique
+  kind            String
+  /// "idle" | "queued" | "running" | "done" | "failed" | "cancelled"
+  status          String    @default("idle")
+  phase           String?
+  /// Validated PosterResearchProposal JSON (never raw agent output).
+  proposal        Json?
+  error           String?
+  costEstimateUsd Float?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
   @@index([userId])
 }
 

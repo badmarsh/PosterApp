@@ -52,6 +52,7 @@ import type { Job } from "@/lib/job-queue"
 import type { AgentEvent } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 import { makeChatAdapter } from "@/components/agent-chat-adapter"
+import { DeerflowPanel } from "@/components/deerflow/deerflow-panel"
 import { validateCard, hasUnsafeLatex } from "@/lib/latex/validation"
 import ReactMarkdown from "react-markdown"
 import remarkMath from "remark-math"
@@ -788,6 +789,7 @@ function AgentPanelInner({
     }))
   )
 
+  const [tab, setTab] = useState<"chat" | "research">("chat")
   const [confirmClear, setConfirmClear] = useState(false)
   const [panelMode, setPanelMode] = useState<"chat" | "inbox">("chat")
   const [pendingCount, setPendingCount] = useState(0)
@@ -880,8 +882,32 @@ function AgentPanelInner({
           {/* Status strip (collapsible event log) */}
           <StatusStrip agentEvents={agentEvents} generatingIds={generatingIds} />
 
+          {/* Tab switcher: chat (single-shot) vs deep research (DeerFlow) */}
+          <div className="flex h-8 shrink-0 items-center gap-1 border-b border-border px-2">
+            <button
+              type="button"
+              onClick={() => setTab("chat")}
+              className={cn(
+                "rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground",
+                tab === "chat" && "bg-accent text-foreground"
+              )}
+            >
+              Chat
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("research")}
+              className={cn(
+                "rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground",
+                tab === "research" && "bg-accent text-foreground"
+              )}
+            >
+              Deep research
+            </button>
+          </div>
+
           <div className="flex-1 min-h-0 flex flex-col">
-            <ChatThread />
+            {tab === "chat" ? <ChatThread /> : <DeerflowPanel projectId={projectId} />}
           </div>
         </>
       ) : (

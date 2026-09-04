@@ -76,6 +76,7 @@ export async function GET(
       role: access.role,
       revision: workspace.revision,
       name: workspace.name,
+      deerflowEnabled: workspace.deerflowEnabled,
       authors: workspace.authors,
       venue: workspace.venue,
       logoUrl: workspace.logoUrl ?? null,
@@ -187,6 +188,7 @@ export async function PUT(
           venue: body.venue || "",
           logoUrl: body.logoUrl !== undefined ? body.logoUrl : undefined,
           secondaryLogoUrl: body.secondaryLogoUrl !== undefined ? body.secondaryLogoUrl : undefined,
+          deerflowEnabled: body.deerflowEnabled !== undefined ? body.deerflowEnabled : undefined,
           // Zod passthrough objects are structurally JSON but not assignable to
           // Prisma's InputJsonValue; they were validated/bounded above.
           agentEvents: body.agentEvents ? (body.agentEvents as unknown as Prisma.InputJsonValue) : undefined,
