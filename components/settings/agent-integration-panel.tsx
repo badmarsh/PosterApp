@@ -36,31 +36,10 @@ export const ALL_AGENT_SCOPES = [
   "changes:read",
 ] as const
 
-export type AgentScopePreset = "research-ro" | "research-propose" | "full" | "custom"
+import { AGENT_SCOPE_PRESETS, type AgentScopePreset } from "@/lib/agent-launch"
 
-const PRESET_SCOPES: Record<Exclude<AgentScopePreset, "custom">, string[]> = {
-  "research-ro": [
-    "workspace:read",
-    "bibliography:read",
-    "assets:read",
-    "rag:query",
-    "review:run",
-    "changes:read",
-  ],
-  "research-propose": [
-    "workspace:read",
-    "workspace:write",
-    "bibliography:read",
-    "bibliography:write",
-    "assets:read",
-    "assets:write",
-    "rag:query",
-    "review:run",
-    "snapshot:create",
-    "changes:read",
-  ],
-  full: ["*"],
-}
+export { type AgentScopePreset }
+const PRESET_SCOPES = AGENT_SCOPE_PRESETS
 
 interface AgentKeyItem {
   id: string

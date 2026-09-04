@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api-fetch"
 import { TEMPLATE_REGISTRY as TEMPLATES } from "@/lib/output-types"
-import { FolderOpen, Plus, FlaskConical } from "lucide-react"
+import { FolderOpen, Plus, FlaskConical, Copy, Check } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { ResearchLabTemplates, type ScientificTask } from "@/components/research-lab-templates"
+import { AGENT_SCOPE_PRESETS, buildDeerFlowLaunchBundle } from "@/lib/agent-launch"
 
 import {
   Dialog,
@@ -49,6 +50,14 @@ export function WorkspaceSelector({
   const [idTouched, setIdTouched] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [launchedTaskBundle, setLaunchedTaskBundle] = useState<{
+    workspaceId: string
+    workspaceName: string
+    rawKey: string
+    bundle: string
+  } | null>(null)
+  const [hasCopiedBundle, setHasCopiedBundle] = useState(false)
+  const [hasCopiedKey, setHasCopiedKey] = useState(false)
 
   useEffect(() => {
     apiFetch("/api/workspaces")
@@ -229,14 +238,57 @@ export function WorkspaceSelector({
         console.warn("Could not populate initial cards:", putErr)
       })
 
+      // Compute restrictCardIds if task has restrictCardPatterns (§12.2)
+      let restrictCardIds: string[] = []
+      if (task.restrictCardPatterns && task.restrictCardPatterns.length > 0) {
+        restrictCardIds = initialCards
+          .filter((c) => task.restrictCardPatterns?.includes(c.pattern))
+          .map((c) => c.id)
+      }
+
+      // Mint scoped agent key: preset "Research + propose", 30d expiry (§12.2)
+      const keyRes = await apiFetch("/api/agent-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: `Lab: ${task.shortTitle || task.title}`,
+          workspaceId: generatedId,
+          scopes: AGENT_SCOPE_PRESETS["research-propose"],
+          restrictCardIds,
+          expiresInDays: 30,
+        }),
+      })
+
+      if (!keyRes.ok) {
+        const err = await keyRes.json().catch(() => ({}))
+        throw new Error(err.error || err.message || "Failed to mint scoped agent key for lab task")
+      }
+
+      const keyData = await keyRes.json()
+      const rawKey: string = keyData.rawKey
+
+      // Build canonical 3-step DeerFlow launch bundle (§14.1)
+      const bundle = buildDeerFlowLaunchBundle({
+        workspaceId: generatedId,
+        rawKey,
+        prompt: task.prompt,
+      })
+
       try {
-        await navigator.clipboard.writeText(task.prompt)
-        toast.success("Lab workspace created & DeerFlow prompt copied to clipboard!")
+        await navigator.clipboard.writeText(bundle)
+        toast.success("Lab workspace created & DeerFlow launch bundle copied to clipboard!")
       } catch {
         toast.success("Lab workspace created!")
       }
 
-      onSelect(generatedId)
+      setHasCopiedBundle(false)
+      setHasCopiedKey(false)
+      setLaunchedTaskBundle({
+        workspaceId: generatedId,
+        workspaceName: task.title,
+        rawKey,
+        bundle,
+      })
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -248,6 +300,7 @@ export function WorkspaceSelector({
   const isAuthRequired = error?.includes("Unauthorized") || error?.includes("Sign in required")
 
   return (
+    <>
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent
         className={
@@ -513,5 +566,111 @@ export function WorkspaceSelector({
         )}
       </DialogContent>
     </Dialog>
+
+    {launchedTaskBundle && (
+      <Dialog
+        open
+        onOpenChange={(open) => {
+          if (!open) {
+            const wsId = launchedTaskBundle.workspaceId
+            setLaunchedTaskBundle(null)
+            onSelect(wsId)
+          }
+        }}
+      >
+        <DialogContent className="z-[70] sm:max-w-2xl max-h-[90vh] flex flex-col p-6" showCloseButton>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+              <FlaskConical className="h-5 w-5 text-primary" />
+              Research Lab Task Launched
+            </DialogTitle>
+            <DialogDescription>
+              Workspace <strong className="text-foreground">{launchedTaskBundle.workspaceName}</strong> ({launchedTaskBundle.workspaceId}) is initialized and ready in PosterApp.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 my-2 overflow-y-auto pr-1">
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200 flex flex-col gap-1">
+              <div className="font-semibold flex items-center gap-1.5 text-amber-100">
+                <span>⚠️</span> Scoped One-Time API Key Minted
+              </div>
+              <p>
+                This key is pre-scoped exclusively to this workspace with 30-day expiry. It will <strong>never be shown again</strong>.
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={launchedTaskBundle.rawKey}
+                  className="flex-1 bg-black/40 border border-amber-500/40 rounded px-2.5 py-1 text-xs font-mono text-amber-100 select-all"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs border-amber-500/40 hover:bg-amber-500/20 text-amber-100 gap-1"
+                  onClick={() => {
+                    navigator.clipboard.writeText(launchedTaskBundle.rawKey)
+                    setHasCopiedKey(true)
+                    setTimeout(() => setHasCopiedKey(false), 2000)
+                    toast.success("API key copied to clipboard")
+                  }}
+                >
+                  {hasCopiedKey ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3" />}
+                  {hasCopiedKey ? "Copied" : "Copy Key"}
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  DeerFlow Launch Configuration Bundle (§14.1)
+                </Label>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs flex items-center gap-1 text-primary hover:text-primary"
+                  onClick={() => {
+                    navigator.clipboard.writeText(launchedTaskBundle.bundle)
+                    setHasCopiedBundle(true)
+                    setTimeout(() => setHasCopiedBundle(false), 2000)
+                    toast.success("Launch bundle copied to clipboard")
+                  }}
+                >
+                  {hasCopiedBundle ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3" />}
+                  {hasCopiedBundle ? "Copied Bundle" : "Copy Bundle"}
+                </Button>
+              </div>
+              <pre className="text-xs font-mono bg-muted/60 border rounded-lg p-3 overflow-x-auto max-h-60 whitespace-pre leading-relaxed text-foreground select-all">
+                {launchedTaskBundle.bundle}
+              </pre>
+            </div>
+
+            <div className="text-xs text-muted-foreground bg-muted/30 p-2.5 rounded border leading-normal space-y-1">
+              <div className="font-medium text-foreground">How to run:</div>
+              <ol className="list-decimal list-inside space-y-0.5 pl-1">
+                <li>Add the <code>posterapp</code> entry into DeerFlow <code>extensions_config.json</code> under <code>mcpServers</code>.</li>
+                <li>Restart DeerFlow Gateway so the new MCP server is discovered.</li>
+                <li>Paste Step 3 into a new DeerFlow thread. The agent will read your setup cards and propose experiment updates!</li>
+              </ol>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-2 flex sm:justify-end gap-2">
+            <Button
+              onClick={() => {
+                const wsId = launchedTaskBundle.workspaceId
+                setLaunchedTaskBundle(null)
+                onSelect(wsId)
+              }}
+              className="gap-2"
+            >
+              Open Workspace
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
+    </>
   )
 }
