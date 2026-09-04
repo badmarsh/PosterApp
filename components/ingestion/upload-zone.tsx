@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { formatBytes } from "@/lib/ingestion"
 import { apiFetch } from "@/lib/api-fetch"
+import { toast } from "sonner"
 import {
   MethodBadge,
   ParseStatusBadge,
@@ -164,6 +165,7 @@ export function UploadZone() {
   // arXiv / DOI URL import state
   const [arxivUrl, setArxivUrl] = useState("")
   const [isImportingUrl, setIsImportingUrl] = useState(false)
+  const [urlError, setUrlError] = useState<string | null>(null)
 
   async function handleRetry(fileId: string) {
     if (retryingIds.includes(fileId)) return
@@ -183,13 +185,14 @@ export function UploadZone() {
   async function handleImportUrl() {
     if (!arxivUrl.trim() || isImportingUrl) return
     setIsImportingUrl(true)
+    setUrlError(null)
     try {
       const res = await apiFetch(`/api/ingestion/import-url`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workspaceId: project.id, url: arxivUrl.trim() }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "Failed to import paper from URL")
       }
@@ -216,12 +219,15 @@ export function UploadZone() {
         })
       }
     } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      setUrlError(message)
       pushEvent({
         kind: "info",
         status: "error",
         title: "URL Import Failed",
-        detail: err instanceof Error ? err.message : String(err),
+        detail: message,
       })
+      toast.error("URL import failed", { description: message })
     } finally {
       setIsImportingUrl(false)
     }
@@ -267,6 +273,13 @@ export function UploadZone() {
               )}
             </Button>
           </div>
+
+          {urlError && (
+            <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5">
+              <p className="text-[10px] font-medium text-destructive">Import failed</p>
+              <p className="mt-0.5 break-words text-[10px] text-destructive/80">{urlError}</p>
+            </div>
+          )}
         </div>
       </section>
 

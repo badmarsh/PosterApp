@@ -13,12 +13,14 @@ import {
   Check,
   BookOpen,
   PlusCircle,
+  FileStack,
 } from "lucide-react"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import type { ExtractedAsset as Asset } from "@/lib/ingestion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { EmptyState } from "@/components/ui/empty-state"
 import { cn, decodeHtmlEntities } from "@/lib/utils"
 import katex from "katex"
 import "katex/dist/katex.min.css"
@@ -517,12 +519,12 @@ export function AssetList() {
 
   if (!assets.length && !citationsCount) {
     return (
-      <div className="flex flex-col items-center gap-1.5 rounded-md border border-dashed border-border px-4 py-10 text-center">
-        <p className="text-[12px] font-medium">No extracted assets or citations yet</p>
-        <p className="text-[11px] text-muted-foreground">
-          Upload a paper or preprint above — figures, tables, equations, citations, and text will appear here.
-        </p>
-      </div>
+      <EmptyState
+        variant="inline"
+        icon={FileStack}
+        title="No extracted assets yet"
+        description="Upload a paper or preprint above — figures, tables, equations, citations, and text will appear here."
+      />
     )
   }
 
@@ -565,8 +567,9 @@ export function AssetList() {
           {searchQuery && (
             <button
               type="button"
+              aria-label="Clear asset search"
               onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+              className="absolute right-2.5 top-2.5 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40"
             >
               <XCircle className="size-3.5" />
             </button>
@@ -687,7 +690,9 @@ export function AssetList() {
               <div key={g.file.id} className="rounded-md border border-border bg-muted/10">
                 <div className="flex w-full items-center justify-between px-3 py-2 transition-colors hover:bg-muted/30">
                   <button
-                    className="flex flex-1 items-center gap-2 overflow-hidden text-left"
+                    aria-expanded={isOpen}
+                    aria-label={`${isOpen ? "Collapse" : "Expand"} ${g.file.name}`}
+                    className="flex flex-1 items-center gap-2 overflow-hidden rounded text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40"
                     onClick={() => setOpenSection(isOpen ? null : g.file.id)}
                   >
                     <span className="truncate text-[12px] font-medium">{g.file.name}</span>
