@@ -11,6 +11,7 @@ import {
   HelpCircle,
   Lightbulb,
   Loader2,
+  Clock,
   Play,
   Plus,
   ShieldCheck,
@@ -846,6 +847,23 @@ function Section({ title, items }: { title: string; items: ValidationMessage[] }
 
 function ValidationTab({ card }: { card: Card }) {
   const project = useEditor((s) => s.project)
+
+  if (card.validation === "pending") {
+    return (
+      <div className="flex flex-col gap-3 p-3">
+        <div className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-2">
+          <Clock className="size-4 text-amber-500 shrink-0" />
+          <div>
+            <p className="text-[12px] font-medium text-amber-500">Placeholder Card</p>
+            <p className="text-[11px] text-muted-foreground">
+              This card is a pending experiment placeholder. It will become validated once an agent proposes results or you edit it manually.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const msgs = validateCard(card, project.outputs?.find((o) => o.id === project.activeOutputId)?.templateId)
   const level = levelFromMessages(msgs)
   const safety = msgs.filter((m) => m.message.includes("LaTeX"))

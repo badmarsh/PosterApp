@@ -20,10 +20,16 @@ function buildLintReport(cards: Card[], bibKeys: string[]) {
 
   const emptyCaptions: { cardId: string; figId: string }[] = []
   const emptyCards: string[] = []
+  const pendingCards: string[] = []
   const layoutOverflows: string[] = []
 
   // 1. Citation and Layout Audit
   for (const card of cards) {
+    if (card.validation === "pending") {
+      pendingCards.push(`${card.id} ("${card.title || "Untitled"}")`)
+      continue
+    }
+
     // Audit Content for cites
     const textParts = [card.content || ""]
     if (card.table?.caption) textParts.push(card.table.caption)
@@ -74,6 +80,7 @@ function buildLintReport(cards: Card[], bibKeys: string[]) {
     unusedBibKeys,
     emptyCaptions,
     emptyCards,
+    pendingCards,
     layoutOverflows,
   }
 }
@@ -126,6 +133,14 @@ export async function POST(
     let accumulatedLength = 0
     const boundedCardEntries: string[] = []
     for (const c of cards as Card[]) {
+      if (c.validation === "pending") {
+        let entry = `[${c.id}] | column ${c.column} | pattern: ${c.pattern} | status: PENDING_PLACEHOLDER\n`
+        entry += `Title: ${c.title}\n`
+        entry += `Content: [PLACEHOLDER — no experiment has run yet. Excluded from claim evaluation.]\n`
+        boundedCardEntries.push(entry)
+        continue
+      }
+
       const truncatedCardContent =
         (c.content || "").length > MAX_CARD_CHARS
           ? (c.content || "").slice(0, MAX_CARD_CHARS) + " [...truncated...]"
@@ -173,18 +188,20 @@ ${wrapUntrustedContext("Pre-computed Lint Report", `- \\cite{} keys used in post
 - Bib keys defined but NEVER cited anywhere: ${lintReport.unusedBibKeys.length > 0 ? lintReport.unusedBibKeys.join(", ") : "none"}
 - Figure captions that are empty: ${lintReport.emptyCaptions.length > 0 ? lintReport.emptyCaptions.map((e) => `${e.cardId} -> ${e.figId}`).join(", ") : "none"}
 - Cards with no content at all: ${lintReport.emptyCards.length > 0 ? lintReport.emptyCards.join(", ") : "none"}
+- Pending placeholder cards awaiting experiments: ${lintReport.pendingCards.length > 0 ? lintReport.pendingCards.join(", ") : "none"}
 - Estimated layout overflows (chars vs budget): ${lintReport.layoutOverflows.length > 0 ? "\n  " + lintReport.layoutOverflows.join("\n  ") : "none"}`)}
 
 ${wrapUntrustedContext("Full Card Contents", fullCardContents || "No cards provided.")}
 
 ${wrapUntrustedContext("Review Task", `Review the poster cards against the source documents above.
+Cards marked as PENDING_PLACEHOLDER are experimental stubs that have not run yet. Exclude them from grounding penalties and report them only as info-level stubs awaiting results.
 For each issue found, output a JSON tip with:
 - severity: "error" | "warning" | "info"
 - category: "citation" | "typo" | "figure" | "layout" | "content" | "grounding"
 - cardId: the exact bracketed id of the card the issue is in (e.g. "card_abc123"), or omit if the issue is poster-wide
 - message: one actionable sentence (mention the card title or specific text)
 
-Use category "grounding" when a specific factual claim in a card cannot be
+Use category "grounding" when a specific factual claim in a non-placeholder card cannot be
 verified against any provided source snippet.
 
 Return EXACTLY (no markdown wrappers):

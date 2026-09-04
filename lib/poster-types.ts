@@ -102,7 +102,7 @@ export const BLOCK_PATTERNS: {
 
 export type CardType = "bullets" | "table" | "figure" | "mixed"
 
-export type ValidationLevel = "valid" | "warning" | "invalid" | "generating"
+export type ValidationLevel = "valid" | "warning" | "invalid" | "generating" | "pending"
 
 export type ValidationMessage = {
   level: "error" | "warning" | "info"

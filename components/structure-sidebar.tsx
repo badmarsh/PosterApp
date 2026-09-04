@@ -55,7 +55,7 @@ import type { Card, ColumnIndex } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 
 const CardRow = memo(function CardRow({ card }: { card: Card }) {
-  const { selectedCardId, selectCard, deleteCard, getStatus, layoutWarnings, reorderCard, moveColumn, updateCard, saveProject, project, pushEvent } = useEditor(
+  const { selectedCardId, selectCard, deleteCard, getStatus, layoutWarnings, reorderCard, moveColumn, updateCard, saveProject, project, pushEvent, compactMode } = useEditor(
     useShallow((s) => ({
       selectedCardId: s.selectedCardId,
       selectCard: s.selectCard,
@@ -68,6 +68,7 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
       saveProject: s.saveProject,
       project: s.project,
       pushEvent: s.pushEvent,
+      compactMode: s.compactMode,
     }))
   )
   const [isShrinking, setIsShrinking] = useState(false)
@@ -97,7 +98,8 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
         }
       }}
       className={cn(
-        "group flex cursor-pointer flex-col gap-1 rounded-md border px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "group flex cursor-pointer flex-col rounded-md border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        compactMode ? "gap-0.5 px-1.5 py-1" : "gap-1 px-2 py-1.5",
         active
           ? "border-primary/40 bg-sidebar-accent"
           : "border-transparent hover:border-border hover:bg-sidebar-accent/50 active:bg-sidebar-accent/70",
@@ -108,6 +110,11 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
         <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-tight">
           {card.title || "Untitled"}
         </span>
+        {status === "pending" && (
+          <span className="shrink-0 rounded bg-amber-500/15 border border-amber-500/30 px-1 py-0.5 font-mono text-[9px] font-semibold text-amber-500 uppercase tracking-tight">
+            Placeholder
+          </span>
+        )}
         <Tooltip>
           <TooltipTrigger
             render={

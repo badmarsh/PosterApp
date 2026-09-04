@@ -7,6 +7,7 @@ import {
   ImageIcon,
   Images,
   XCircle,
+  Clock,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { cardType, type BlockPattern, type Card, type ValidationLevel } from "@/lib/poster-types"
@@ -28,6 +29,8 @@ export function StatusIcon({
       return <XCircle className={cn(base, "text-destructive")} />
     case "generating":
       return <Loader2 className={cn(base, "animate-spin text-primary")} />
+    case "pending":
+      return <Clock className={cn(base, "text-amber-500")} />
   }
 }
 
@@ -36,6 +39,7 @@ const STATUS_LABEL: Record<ValidationLevel, string> = {
   warning: "Warning",
   invalid: "Invalid",
   generating: "Generating",
+  pending: "Placeholder",
 }
 
 export function StatusBadge({ level }: { level: ValidationLevel }) {
@@ -44,6 +48,7 @@ export function StatusBadge({ level }: { level: ValidationLevel }) {
     warning: "border-chart-4/30 bg-chart-4/10 text-chart-4",
     invalid: "border-destructive/30 bg-destructive/10 text-destructive",
     generating: "border-primary/30 bg-primary/10 text-primary",
+    pending: "border-amber-500/30 bg-amber-500/10 text-amber-500",
   }
   return (
     <span
