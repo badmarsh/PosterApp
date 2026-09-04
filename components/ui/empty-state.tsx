@@ -14,6 +14,8 @@ export interface EmptyStateProps {
    * "inline" — compact dashed box, for empty lists inside a panel.
    */
   variant?: "center" | "inline"
+  /** Tighter sizing for sidebar/dense contexts. */
+  compact?: boolean
   className?: string
 }
 
@@ -27,6 +29,7 @@ export function EmptyState({
   description,
   action,
   variant = "center",
+  compact = false,
   className,
 }: EmptyStateProps) {
   return (
@@ -34,20 +37,22 @@ export function EmptyState({
       role="group"
       aria-label={title}
       className={cn(
-        "flex flex-col items-center justify-center gap-3 text-center",
+        "flex flex-col items-center justify-center text-center",
+        compact ? "gap-1.5" : "gap-3",
         variant === "center"
           ? "px-6 py-10"
           : "rounded-md border border-dashed border-border px-4 py-6",
+        compact && variant === "inline" && "px-3 py-3",
         className
       )}
     >
-      <div className="rounded-full border border-border bg-muted p-3">
-        <Icon className="size-5 text-muted-foreground" aria-hidden="true" />
+      <div className={cn("rounded-full border border-border bg-muted", compact ? "p-1.5" : "p-3")}>
+        <Icon className={cn("text-muted-foreground", compact ? "size-3.5" : "size-5")} aria-hidden="true" />
       </div>
-      <div className="flex flex-col items-center gap-1">
-        <p className="text-sm font-medium text-foreground">{title}</p>
+      <div className="flex flex-col items-center gap-0.5">
+        <p className={cn("font-medium text-foreground", compact ? "text-[11px]" : "text-sm")}>{title}</p>
         {description && (
-          <p className="max-w-[18rem] text-[12px] leading-relaxed text-muted-foreground">
+          <p className={cn("max-w-[18rem] leading-relaxed text-muted-foreground", compact ? "text-[10px]" : "text-[12px]")}>
             {description}
           </p>
         )}

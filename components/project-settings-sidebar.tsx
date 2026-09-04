@@ -218,6 +218,7 @@ export function ProjectSettingsSidebar() {
                   variant="ghost"
                   size="icon"
                   onClick={() => updateProject({ logoUrl: null })}
+                  aria-label="Remove logo"
                   className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
                   title="Remove logo"
                 >
@@ -283,6 +284,7 @@ export function ProjectSettingsSidebar() {
                     variant="ghost"
                     size="icon"
                     onClick={() => updateProject({ secondaryLogoUrl: null })}
+                    aria-label="Remove secondary logo"
                     className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
                     title="Remove secondary logo"
                   >

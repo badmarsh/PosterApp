@@ -10,7 +10,7 @@ export function CollaboratorsLayer() {
   const collaborators = useEditor(s => s.collaborators)
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-[100] overflow-hidden">
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[100] overflow-hidden">
       {collaborators.map((c) => {
         if (!c.cursor) return null
         return (
