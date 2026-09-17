@@ -20,11 +20,18 @@ export function getMinerUCandidateUrls(): string[] {
     candidates.push(envUrl.replace(/\/+$/, ""))
   }
 
-  // 2. Loopback endpoints (standard NAT mode or direct host)
+  // 2. Docker container hostnames on internal networks (dokploy-network)
+  candidates.push("http://mineru-api-wsl:8000")
+  candidates.push("http://mineru-api:8000")
+  candidates.push("http://mineru-api-wsl:8001")
+  candidates.push("http://mineru-api:8001")
+  candidates.push("http://172.17.0.1:8001")
+
+  // 3. Loopback endpoints (standard NAT mode or direct host)
   candidates.push("http://127.0.0.1:8001")
   candidates.push("http://localhost:8001")
 
-  // 3. Host network interfaces (WSL2 mirrored networking mode)
+  // 4. Host network interfaces (WSL2 mirrored networking mode)
   try {
     const ifaces = os.networkInterfaces()
     for (const name of Object.keys(ifaces)) {
@@ -38,7 +45,7 @@ export function getMinerUCandidateUrls(): string[] {
     }
   } catch {}
 
-  // 4. If envUrl was localhost/127.0.0.1, ensure it is included
+  // 5. If envUrl was localhost/127.0.0.1, ensure it is included
   if (envUrl && !candidates.includes(envUrl.replace(/\/+$/, ""))) {
     candidates.push(envUrl.replace(/\/+$/, ""))
   }
@@ -111,8 +118,17 @@ export async function fetchMinerU(endpointPath: string, init?: RequestInit): Pro
   const cleanPath = endpointPath.startsWith("/") ? endpointPath : `/${endpointPath}`
   const baseUrl = await resolveMinerUUrl()
 
+  const headers = new Headers(init?.headers)
+  const apiKey = process.env.MINERU_API_KEY?.trim()
+  if (apiKey) {
+    if (!headers.has("X-API-Key")) headers.set("X-API-Key", apiKey)
+    if (!headers.has("Authorization")) headers.set("Authorization", `Bearer ${apiKey}`)
+  }
+
+  const reqInit: RequestInit = { ...init, headers }
+
   try {
-    const res = await fetch(`${baseUrl}${cleanPath}`, init)
+    const res = await fetch(`${baseUrl}${cleanPath}`, reqInit)
     return res
   } catch (initialErr) {
     // If connection failed, invalidate cache and perform one retry with fresh discovery
@@ -120,7 +136,7 @@ export async function fetchMinerU(endpointPath: string, init?: RequestInit): Pro
     const freshBaseUrl = await resolveMinerUUrl(2000, true)
 
     if (freshBaseUrl !== baseUrl) {
-      return await fetch(`${freshBaseUrl}${cleanPath}`, init)
+      return await fetch(`${freshBaseUrl}${cleanPath}`, reqInit)
     }
 
     throw initialErr
