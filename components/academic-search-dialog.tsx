@@ -7,7 +7,7 @@
  * with Open Access PDF resolution, citation metrics, and 1-click BibTeX importing.
  */
 
-import { useState, useTransition, useEffect } from "react"
+import { useState, useTransition, useEffect, useRef } from "react"
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   Search,
   BookOpen,
@@ -42,6 +44,7 @@ import { getAcademicSearchStrings } from "@/lib/i18n/academic-search"
 import type { AcademicPaperResult } from "@/lib/services/academic-connector"
 import { academicPaperToBibEntry } from "@/lib/bib-types"
 import { useEditorStoreInstance } from "@/components/editor-store"
+import { useCopyFeedback } from "@/hooks/use-copy-feedback"
 
 interface Props {
   open: boolean
@@ -73,11 +76,20 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
   const [results, setResults] = useState<AcademicPaperResult[]>([])
   const [isSearching, startSearch] = useTransition()
   const [hasSearched, setHasSearched] = useState(false)
-  const [copiedId, setCopiedId] = useState<string | null>(null)
   const [importedKeys, setImportedKeys] = useState<Set<string>>(new Set())
   const [expandedAbstracts, setExpandedAbstracts] = useState<Set<string>>(new Set())
+  const inputRef = useRef<HTMLInputElement>(null)
+  const { copiedKey, copy, isCopied } = useCopyFeedback()
 
   const editorStore = useEditorStoreInstance()
+
+  // Autofocus primary input whenever dialog opens; also handle Esc to clear query
+  useEffect(() => {
+    if (open) {
+      const t = setTimeout(() => inputRef.current?.focus(), 60)
+      return () => clearTimeout(t)
+    }
+  }, [open])
 
   const executeSearch = (searchQuery: string) => {
     const trimmed = searchQuery.trim()
@@ -123,20 +135,29 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
     executeSearch(suggestQuery)
   }
 
-  const handleCopyCitation = (paper: AcademicPaperResult, idx: number) => {
+  const handleCopyCitation = async (paper: AcademicPaperResult, idx: number) => {
     const authors = paper.authors.join(", ")
     const cit = `${authors} (${paper.year ?? "n.d."}). ${paper.title}.${paper.venue ? ` ${paper.venue}.` : ""}${paper.doi ? ` DOI: ${paper.doi}` : paper.url ? ` URL: ${paper.url}` : ""}`
-    navigator.clipboard.writeText(cit)
-    setCopiedId(String(idx))
-    toast.success(t.toastCopied)
-    setTimeout(() => setCopiedId(null), 2000)
+    await copy(cit, String(idx), t.toastCopied)
+  }
+
+  const handleCopyBibtex = async (paper: AcademicPaperResult, idx: number) => {
+    const entry = academicPaperToBibEntry(paper)
+    const bib = entry.rawBibtex || `@article{${entry.key},\n  title={${entry.title}},\n  author={${entry.authorString}},\n  year={${entry.year || ""}}\n}`
+    await copy(bib, `bib-${idx}`, "BibTeX copied to clipboard")
   }
 
   const handleImportBib = async (paper: AcademicPaperResult) => {
     const entry = academicPaperToBibEntry(paper)
-    await editorStore.getState().addBibEntry(entry)
-    setImportedKeys((prev) => new Set([...prev, entry.key]))
-    toast.success(t.toastAdded(entry.key))
+    try {
+      await editorStore.getState().addBibEntry(entry)
+      setImportedKeys((prev) => new Set([...prev, entry.key]))
+      toast.success(t.toastAdded(entry.key))
+    } catch (e) {
+      toast.error("Failed to add citation", {
+        description: e instanceof Error ? e.message : "Please try again or add manually.",
+      })
+    }
   }
 
   const toggleAbstract = (id: string) => {
@@ -150,8 +171,8 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-w-[96vw] w-full h-[88vh] max-h-[850px] flex flex-col p-0 overflow-hidden shadow-2xl border bg-background">
-        <DialogHeader className="px-6 pt-5 pb-4 border-b bg-muted/20">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-4xl max-w-[96vw] w-full h-[88vh] max-h-[850px] flex flex-col p-0 overflow-hidden shadow-2xl border bg-background gap-0">
+        <DialogHeader className="shrink-0 sticky top-0 z-10 px-6 pt-5 pb-4 border-b bg-card shadow-xs">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-2xs">
               <Sparkles className="h-4.5 w-4.5" />
@@ -167,35 +188,49 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
           </div>
         </DialogHeader>
 
-        <div className="p-5 border-b space-y-3.5 bg-card/60">
+        <div className="shrink-0 p-5 border-b space-y-3.5 bg-card/60">
           {/* Search bar */}
           <div className="flex gap-2.5">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                className="pl-10 pr-9 h-10 text-sm rounded-lg bg-background shadow-2xs focus-visible:ring-1"
+                ref={inputRef}
+                className="pl-10 pr-9 h-10 text-sm rounded-lg bg-background shadow-2xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0"
                 placeholder={t.placeholder}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.nativeEvent.isComposing) handleSearch()
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                    e.preventDefault()
+                    handleSearch()
+                  }
+                  if (e.key === "Escape" && query) {
+                    e.preventDefault()
+                    setQuery("")
+                  }
                 }}
+                aria-label="Search academic literature"
                 autoFocus
               />
               {query && (
                 <button
                   type="button"
-                  onClick={() => setQuery("")}
-                  className="absolute right-3 top-2.5 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                  aria-label="Clear search"
+                  onClick={() => {
+                    setQuery("")
+                    inputRef.current?.focus()
+                  }}
+                  className="absolute right-3 top-2.5 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-150"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
             <Button
-              className="h-10 px-5 font-semibold text-xs gap-1.5 shrink-0 shadow-2xs"
+              className="h-10 px-5 font-semibold text-xs gap-1.5 shrink-0 shadow-2xs transition-colors duration-150"
               onClick={handleSearch}
               disabled={isSearching || query.trim().length < 2}
+              aria-label="Search academic literature"
             >
               {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               {t.search}
@@ -210,7 +245,8 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
                 <button
                   key={d.id}
                   onClick={() => setDomain(d.id)}
-                  className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
+                  aria-pressed={domain === d.id}
+                  className={`px-3 py-1 rounded-full text-[11px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                     domain === d.id
                       ? "bg-primary text-primary-foreground shadow-xs font-semibold"
                       : "bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/40"
@@ -239,10 +275,24 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
         {/* Results Area */}
         <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-3.5 bg-muted/10">
           {isSearching ? (
-            <div className="py-16 flex flex-col items-center justify-center space-y-3 text-muted-foreground">
-              <Loader2 className="h-9 w-9 animate-spin text-primary" />
-              <p className="text-xs font-medium">{t.searching}</p>
-              <p className="text-[11px] text-muted-foreground">{t.searchingSub}</p>
+            <div className="space-y-3" role="status" aria-label="Searching academic literature">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground pb-1">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="font-medium">{t.searching}</span>
+                <span className="text-[11px]">{t.searchingSub}</span>
+              </div>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="rounded-xl border bg-card p-4 space-y-3 animate-pulse">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-16 w-full rounded-lg" />
+                  <div className="flex justify-between pt-2">
+                    <Skeleton className="h-6 w-24 rounded-md" />
+                    <Skeleton className="h-7 w-20 rounded-md" />
+                  </div>
+                </div>
+              ))}
+              <span className="sr-only">Searching…</span>
             </div>
           ) : results.length > 0 ? (
             results.map((paper, idx) => {
@@ -254,7 +304,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
               return (
                 <div
                   key={cardId}
-                  className="rounded-xl border bg-card p-4 space-y-3 hover:border-primary/40 hover:shadow-xs transition-all duration-150"
+                  className="rounded-xl border bg-card p-4 space-y-3 hover:border-primary/40 hover:shadow-xs transition-colors duration-150 focus-within:ring-1 focus-within:ring-ring"
                 >
                   {/* Top metadata row */}
                   <div className="flex items-start justify-between gap-3">
@@ -289,7 +339,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
                     {/* Source and metrics */}
                     <div className="flex items-center gap-1.5 shrink-0">
                       {paper.citationCount !== undefined && paper.citationCount > 0 && (
-                        <Badge variant="secondary" className="text-[10px] font-semibold text-warning dark:text-warning gap-1 border border-warning/30 bg-warning/100/10">
+                        <Badge variant="outline" className="text-[10px] font-semibold gap-1 border-warning/30 bg-warning/10 text-warning">
                           ★ {t.citations(paper.citationCount)}
                         </Badge>
                       )}
@@ -369,12 +419,13 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5"
+                        aria-label={`Copy citation for ${paper.title.slice(0, 40)}`}
+                        className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
                         onClick={() => handleCopyCitation(paper, idx)}
                       >
-                        {copiedId === String(idx) ? (
+                        {isCopied(String(idx)) ? (
                           <>
-                            <Check className="h-3.5 w-3.5 text-emerald-500" />
+                            <Check className="h-3.5 w-3.5 text-success" />
                             {t.copied}
                           </>
                         ) : (
@@ -382,6 +433,22 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
                             <Copy className="h-3.5 w-3.5" />
                             {t.copy}
                           </>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        aria-label={`Copy BibTeX for ${paper.title.slice(0, 40)}`}
+                        className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => handleCopyBibtex(paper, idx)}
+                      >
+                        {isCopied(`bib-${idx}`) ? (
+                          <>
+                            <Check className="h-3 w-3 text-success" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>BibTeX</>
                         )}
                       </Button>
 
@@ -410,13 +477,17 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
               )
             })
           ) : hasSearched ? (
-            <div className="py-16 text-center space-y-3 text-muted-foreground">
-              <BookOpen className="h-9 w-9 mx-auto opacity-50 text-muted-foreground" />
-              <p className="text-sm font-semibold text-foreground">{t.noResults}</p>
-              <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-                {t.noResultsHint}
-              </p>
-            </div>
+            <EmptyState
+              icon={BookOpen}
+              title={t.noResults}
+              description={t.noResultsHint}
+              action={
+                <Button size="sm" variant="outline" className="mt-2 h-7 text-xs gap-1.5" onClick={() => inputRef.current?.focus()}>
+                  <Search className="h-3.5 w-3.5" />
+                  Try another query
+                </Button>
+              }
+            />
           ) : (
             <div className="py-12 space-y-6 max-w-xl mx-auto text-center">
               <div className="space-y-2">

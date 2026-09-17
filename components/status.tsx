@@ -30,7 +30,7 @@ export function StatusIcon({
     case "generating":
       return <Loader2 className={cn(base, "animate-spin text-primary")} />
     case "pending":
-      return <Clock className={cn(base, "text-amber-500")} />
+      return <Clock className={cn(base, "text-warning")} />
   }
 }
 
@@ -48,12 +48,12 @@ export function StatusBadge({ level }: { level: ValidationLevel }) {
     warning: "border-warning/30 bg-warning/10 text-warning",
     invalid: "border-destructive/30 bg-destructive/10 text-destructive",
     generating: "border-primary/30 bg-primary/10 text-primary",
-    pending: "border-amber-500/30 bg-amber-500/10 text-amber-500",
+    pending: "border-warning/30 bg-warning/10 text-warning",
   }
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide",
+        "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide transition-colors duration-150",
         styles[level],
       )}
     >
@@ -78,7 +78,7 @@ export function CardTypeBadge({ card }: { card: Card }) {
   return (
     <span
       className={cn(
-        "rounded border border-border bg-muted px-1 py-px font-mono text-[10px] font-medium tracking-wide",
+        "rounded border border-border bg-muted px-1 py-px font-mono text-[10px] font-medium tracking-wide transition-colors duration-150",
         meta.className,
       )}
     >

@@ -227,8 +227,9 @@ const CitationRow = memo(function CitationRow({ entry }: { entry: BibEntry }) {
           <Button
             size="xs"
             variant="outline"
-            className="h-6 px-1.5 text-[10px] gap-1"
+            className="h-6 px-1.5 text-[10px] gap-1 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
             onClick={handleCopyCite}
+            aria-label={`Copy \cite for ${entry.key}`}
             title="Copy LaTeX cite command"
           >
             {copiedKey ? <Check className="size-2.5 text-chart-3" /> : <Copy className="size-2.5" />}
@@ -237,8 +238,9 @@ const CitationRow = memo(function CitationRow({ entry }: { entry: BibEntry }) {
           <Button
             size="xs"
             variant="ghost"
-            className="h-6 px-1.5 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
+            className="h-6 px-1.5 text-[10px] gap-1 text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
             onClick={handleCopyBibTeX}
+            aria-label={`Copy BibTeX for ${entry.key}`}
             title="Copy raw BibTeX entry"
           >
             {copiedBib ? <Check className="size-2.5 text-chart-3" /> : <Copy className="size-2.5" />}
@@ -250,7 +252,7 @@ const CitationRow = memo(function CitationRow({ entry }: { entry: BibEntry }) {
           <Button
             size="xs"
             variant="secondary"
-            className="h-6 px-2 text-[10px] gap-1 font-medium bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20"
+            className="h-6 px-2 text-[10px] gap-1 font-medium bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
             onClick={handleInsert}
           >
             <PlusCircle className="size-3" />
@@ -273,7 +275,7 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
   return (
     <div
       className={cn(
-        "rounded-md border bg-card p-2 transition-colors",
+        "rounded-md border bg-card p-2 transition-colors duration-150 hover:shadow-xs",
         asset.assignedCardId
           ? "border-primary/30"
           : "border-border hover:border-muted-foreground/30",
@@ -523,7 +525,8 @@ export function AssetList() {
         variant="inline"
         icon={FileStack}
         title="No extracted assets yet"
-        description="Upload a paper or preprint above — figures, tables, equations, citations, and text will appear here."
+        description="Upload a paper or preprint above — figures, tables, equations, citations, and text will appear here. Try the example suggestions in Academic Search (⌘K) to discover literature first."
+        action={<span className="text-[11px] text-muted-foreground">Tip: drag & drop a PDF anywhere on the ingestion panel</span>}
       />
     )
   }
@@ -561,8 +564,15 @@ export function AssetList() {
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search figures, tables, equations, citations..."
-            className="h-8 pl-8 pr-8 text-xs bg-card"
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && searchQuery) {
+                e.preventDefault()
+                setSearchQuery("")
+              }
+            }}
+            placeholder="Search figures, tables, equations, citations… (Esc to clear)"
+            aria-label="Search extracted assets"
+            className="h-8 pl-8 pr-8 text-xs bg-card focus-visible:ring-2 transition-colors duration-150"
           />
           {searchQuery && (
             <button
@@ -586,7 +596,7 @@ export function AssetList() {
                 variant={isActive ? "secondary" : "ghost"}
                 size="sm"
                 className={cn(
-                  "h-7 px-2 text-[11px] shrink-0 gap-1.5 border transition-all",
+                  "h-7 px-2 text-[11px] shrink-0 gap-1.5 border transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
                   isActive
                     ? "bg-card border-border font-medium text-foreground shadow-2xs"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -647,12 +657,14 @@ export function AssetList() {
       </div>
 
       {searchQuery && matchingAssetsCount === 0 && (
-        <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border px-4 py-8 text-center">
-          <p className="text-xs font-medium text-foreground">No items match &ldquo;{searchQuery}&rdquo;</p>
-          <Button size="xs" variant="outline" onClick={() => setSearchQuery("")}>
-            Clear Search
-          </Button>
-        </div>
+        <EmptyState
+          variant="inline"
+          compact
+          icon={Search}
+          title={`No items match "${searchQuery}"`}
+          description="Try a broader keyword or switch the modality filter to All."
+          action={<Button size="xs" variant="outline" onClick={() => setSearchQuery("")} className="h-6 text-xs transition-colors duration-150">Clear search</Button>}
+        />
       )}
 
       {/* 3. If Citations Tab is Active -> Render Dedicated Citations Stream */}

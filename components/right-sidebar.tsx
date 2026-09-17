@@ -60,7 +60,7 @@ export function RightSidebar() {
         >
           <Skeleton className="h-7 w-full rounded-md" />
         </div>
-        <div role="status" className="flex flex-1 flex-col gap-2 p-3">
+        <div role="status" aria-label="Loading inspector" className="flex flex-1 flex-col gap-2 p-3">
           <Skeleton className="h-6 w-2/3" />
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
@@ -74,11 +74,11 @@ export function RightSidebar() {
   const isEditingHeader = !selectedCardId && isHeaderUnlocked
 
   return (
-    <section className="flex w-full shrink-0 flex-col border-l border-border bg-card lg:w-[26rem] h-full min-h-0">
-      <div className={cn("flex shrink-0 items-center border-b border-border bg-muted/30 px-3 py-1.5", compactMode ? "h-9" : "h-11")}>
+    <section className="flex w-full shrink-0 flex-col border-l border-border bg-card lg:w-[26rem] xl:w-[28rem] h-full min-h-0 max-h-[100dvh] overflow-hidden">
+      <div className={cn("flex shrink-0 sticky top-0 z-10 items-center border-b border-border bg-muted/30 backdrop-blur-sm px-3 py-1.5", compactMode ? "h-9" : "h-11")}>
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "editor" | "pdf")} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="editor" disabled={!isEditorEnabled} className="text-[11px] h-7">
+            <TabsTrigger value="editor" disabled={!isEditorEnabled} className="text-[11px] h-7 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring">
               {isEditingHeader ? (
                 <>
                   <Heading className="size-3.5 mr-1.5 text-primary" />
@@ -91,7 +91,7 @@ export function RightSidebar() {
                 </>
               )}
             </TabsTrigger>
-            <TabsTrigger value="pdf" className="text-[11px] h-7">
+            <TabsTrigger value="pdf" className="text-[11px] h-7 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring">
               <FileText className="size-3.5 mr-1.5" />
               PDF Preview
             </TabsTrigger>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import {
@@ -38,6 +38,9 @@ import {
 } from "lucide-react"
 import { type BibEntry, slugifyCiteKey } from "@/lib/bib-types"
 import { cn } from "@/lib/utils"
+import { useCopyFeedback } from "@/hooks/use-copy-feedback"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export function BibliographyDialog() {
   const {
@@ -77,6 +80,8 @@ export function BibliographyDialog() {
   const [activeTab, setActiveTab] = useState<"library" | "lookup" | "raw">("library")
   const [searchQuery, setSearchQuery] = useState("")
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const librarySearchRef = useRef<HTMLInputElement>(null)
+  const lookupInputRef = useRef<HTMLInputElement>(null)
   const [localRawBib, setLocalRawBib] = useState(bibContent)
 
   // Lookup state
@@ -102,6 +107,15 @@ export function BibliographyDialog() {
     setLocalRawBib(bibContent)
   }, [bibContent])
 
+  useEffect(() => {
+    if (!isBibManagerOpen) return
+    const id = setTimeout(() => {
+      if (activeTab === "library") librarySearchRef.current?.focus()
+      else if (activeTab === "lookup") lookupInputRef.current?.focus()
+    }, 80)
+    return () => clearTimeout(id)
+  }, [isBibManagerOpen, activeTab])
+
   // Filtered entries
   const filteredEntries = useMemo(() => {
     if (!searchQuery.trim()) return bibEntries
@@ -116,11 +130,18 @@ export function BibliographyDialog() {
     )
   }, [bibEntries, searchQuery])
 
-  // Copy citation helper
-  const handleCopyCite = (key: string) => {
-    navigator.clipboard.writeText(`\\cite{${key}}`)
-    setCopiedKey(key)
-    setTimeout(() => setCopiedKey(null), 1800)
+  const { copy: copyFeedback, isCopied } = useCopyFeedback(1800)
+  // Copy citation helper — now with centralized feedback + toast resilience
+  const handleCopyCite = async (key: string) => {
+    const ok = await copyFeedback(`\\cite{${key}}`, key)
+    if (ok) {
+      setCopiedKey(key)
+      setTimeout(() => setCopiedKey(null), 1800)
+    }
+  }
+  const handleCopyBibtex = async (entry: BibEntry) => {
+    const raw = entry.rawBibtex || `@${entry.type}{${entry.key},\n  title={${entry.title}},\n  author={${entry.authorString}}\n}`
+    await copyFeedback(raw, `bib-${entry.key}`, "BibTeX copied")
   }
 
   // Open Edit Form
@@ -232,9 +253,9 @@ export function BibliographyDialog() {
   return (
     <>
     <Dialog open={isBibManagerOpen} onOpenChange={setIsBibManagerOpen}>
-      <DialogContent showCloseButton className="w-[95vw] sm:max-w-4xl md:max-w-5xl h-[88vh] p-0 overflow-hidden flex flex-col shadow-2xl border border-border bg-background">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-b border-border bg-card shrink-0 pr-12">
+      <DialogContent aria-describedby={undefined} showCloseButton className="w-[95vw] sm:max-w-4xl md:max-w-5xl h-[88vh] p-0 overflow-hidden flex flex-col shadow-2xl border border-border bg-background gap-0">
+        {/* Header — sticky so Tabs/actions stay reachable while list scrolls */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-b border-border bg-card shrink-0 pr-12 sticky top-0 z-10">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5 flex-wrap">
               <DialogTitle className="text-base font-semibold tracking-tight flex items-center gap-2 text-foreground">
@@ -277,16 +298,25 @@ export function BibliographyDialog() {
                 <div className="relative w-full sm:w-80">
                   <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
                   <Input
-                    placeholder="Search by title, author, key, or year..."
+                    ref={librarySearchRef}
+                    placeholder="Search by title, author, key, or year... (Esc to clear)"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8 text-xs h-8"
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape" && searchQuery) {
+                        e.preventDefault()
+                        setSearchQuery("")
+                      }
+                    }}
+                    aria-label="Search bibliography"
+                    className="pl-8 text-xs h-8 focus-visible:ring-2"
                   />
                   {searchQuery && (
                     <button
                       type="button"
                       onClick={() => setSearchQuery("")}
-                      className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                      aria-label="Clear bibliography search"
+                      className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded transition-colors duration-150"
                     >
                       <X className="size-3.5" />
                     </button>
@@ -436,31 +466,29 @@ export function BibliographyDialog() {
                 /* Citation Cards List */
                 <ScrollArea className="flex-1 min-h-0 p-6">
                   {filteredEntries.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <BookOpen className="size-10 text-muted-foreground/40 mb-3" />
-                      <p className="text-sm font-semibold text-foreground">
-                        {searchQuery ? "No citations matching your search" : "No citations in this workspace"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-                        Ingest research PDFs to automatically parse references, or lookup papers by DOI / title.
-                      </p>
-                      <div className="flex items-center gap-2 mt-4">
-                        <Button size="sm" onClick={() => setActiveTab("lookup")} className="h-8 text-xs gap-1.5">
-                          <Sparkles className="size-3.5" />
-                          Lookup by DOI / Title
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={startAddNew} className="h-8 text-xs gap-1.5">
-                          <Plus className="size-3.5" />
-                          Add Manually
-                        </Button>
-                      </div>
-                    </div>
+                    <EmptyState
+                      icon={BookOpen}
+                      title={searchQuery ? "No citations matching your search" : "No citations in this workspace"}
+                      description="Ingest research PDFs to automatically parse references, or lookup papers by DOI / title."
+                      action={
+                        <div className="flex items-center gap-2 mt-1">
+                          <Button size="sm" onClick={() => setActiveTab("lookup")} className="h-8 text-xs gap-1.5 shadow-xs transition-colors duration-150">
+                            <Sparkles className="size-3.5" />
+                            Lookup by DOI / Title
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={startAddNew} className="h-8 text-xs gap-1.5 transition-colors duration-150">
+                            <Plus className="size-3.5" />
+                            Add Manually
+                          </Button>
+                        </div>
+                      }
+                    />
                   ) : (
                     <div className="grid grid-cols-1 gap-3 max-w-4xl">
                       {filteredEntries.map((entry) => (
                         <div
                           key={entry.key}
-                          className="rounded-lg border border-border bg-card p-4 shadow-xs hover:border-primary/40 transition-all flex flex-col gap-2 group"
+                          className="rounded-lg border border-border bg-card p-4 shadow-xs hover:border-primary/40 hover:shadow-sm transition-colors duration-150 flex flex-col gap-2 group"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="space-y-1">
@@ -487,22 +515,39 @@ export function BibliographyDialog() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleCopyCite(entry.key)}
-                                className="h-7 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+                                aria-label={`Copy citation key ${entry.key}`}
+                                className="h-7 text-[11px] gap-1 text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
                                 title="Copy \cite{key}"
                               >
                                 {copiedKey === entry.key ? (
-                                  <Check className="size-3.5 text-emerald-600" />
+                                  <Check className="size-3.5 text-success" />
                                 ) : (
                                   <Copy className="size-3.5" />
                                 )}
-                                {copiedKey === entry.key ? "Copied" : "Copy"}
+                                {copiedKey === entry.key ? "Copied!" : "Copy"}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleCopyBibtex(entry)}
+                                aria-label={`Copy BibTeX for ${entry.key}`}
+                                className="h-7 text-[11px] gap-1 text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring hidden sm:inline-flex"
+                                title="Copy BibTeX entry"
+                              >
+                                {isCopied(`bib-${entry.key}`) ? (
+                                  <Check className="size-3.5 text-success" />
+                                ) : (
+                                  <Copy className="size-3.5" />
+                                )}
+                                {isCopied(`bib-${entry.key}`) ? "Copied!" : "BibTeX"}
                               </Button>
 
                               {selectedCardId && (
                                 <Button
                                   size="sm"
                                   onClick={() => insertCitation(entry.key, selectedCardId)}
-                                  className="h-7 text-[11px] gap-1 shadow-xs"
+                                  aria-label={`Insert citation ${entry.key} into selected card`}
+                                  className="h-7 text-[11px] gap-1 shadow-xs transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
                                   title="Insert \cite into selected card"
                                 >
                                   <CornerDownLeft className="size-3.5" />
@@ -515,7 +560,7 @@ export function BibliographyDialog() {
                                 size="icon-xs"
                                 aria-label={`Edit citation ${entry.key}`}
                                 onClick={() => startEdit(entry)}
-                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
                                 title="Edit entry"
                               >
                                 <Edit2 className="size-3.5" />
@@ -530,7 +575,7 @@ export function BibliographyDialog() {
                                     deleteBibEntry(entry.key)
                                   }
                                 }}
-                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
                                 title="Delete citation"
                               >
                                 <Trash2 className="size-3.5" />
@@ -585,11 +630,27 @@ export function BibliographyDialog() {
 
                 <div className="flex items-center gap-2 pt-2">
                   <Input
-                    placeholder="Enter DOI, arXiv ID, or paper title..."
+                    ref={lookupInputRef}
+                    placeholder="Enter DOI, arXiv ID, or paper title... (Enter to search, Esc to clear)"
                     value={lookupQuery}
                     onChange={(e) => setLookupQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleRunLookup()}
-                    className="text-xs h-9"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                        e.preventDefault()
+                        handleRunLookup()
+                      }
+                      if (e.key === "Escape") {
+                        if (lookupQuery) {
+                          e.preventDefault()
+                          setLookupQuery("")
+                        } else {
+                          setIsBibManagerOpen(false)
+                        }
+                      }
+                    }}
+                    aria-label="Lookup citation by DOI or title"
+                    className="text-xs h-9 focus-visible:ring-2"
+                    autoFocus
                   />
                   <Button
                     onClick={handleRunLookup}

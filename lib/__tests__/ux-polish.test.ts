@@ -1,0 +1,67 @@
+import { describe, it, expect } from "vitest"
+import { pluralizeSk, decodeHtmlEntities, cn } from "@/lib/utils"
+import * as fs from "fs/promises"
+
+describe("UX Polish — lib/utils helpers", () => {
+  it("pluralizeSk handles Slovak three-form plural", () => {
+    expect(pluralizeSk(1, "chunk", "chunky", "chunkov")).toBe("chunk")
+    expect(pluralizeSk(2, "chunk", "chunky", "chunkov")).toBe("chunky")
+    expect(pluralizeSk(3, "chunk", "chunky", "chunkov")).toBe("chunky")
+    expect(pluralizeSk(4, "chunk", "chunky", "chunkov")).toBe("chunky")
+    expect(pluralizeSk(5, "chunk", "chunky", "chunkov")).toBe("chunkov")
+    expect(pluralizeSk(0, "chunk", "chunky", "chunkov")).toBe("chunkov")
+  })
+
+  it("decodeHtmlEntities decodes named and numeric entities", () => {
+    expect(decodeHtmlEntities("&amp; &lt; &gt;")).toBe("& < >")
+    expect(decodeHtmlEntities("&#39; &#x27;")).toBe("' '")
+    expect(decodeHtmlEntities("a &amp;#x27; b")).toBe("a ' b")
+  })
+
+  it("cn merges tailwind classes", () => {
+    expect(cn("p-2", "p-4")).toBe("p-4")
+    expect(cn("bg-card", { "text-foreground": true })).toContain("bg-card")
+  })
+})
+
+describe("UX Polish — design token alignment", () => {
+  it("globals.css defines semantic tokens", async () => {
+    const css = await fs.readFile("app/globals.css", "utf-8")
+    expect(css).toContain("--warning")
+    expect(css).toContain("--success")
+    expect(css).toContain("--destructive")
+    expect(css).toContain("--status-info")
+    expect(css).toContain("--background")
+    expect(css).toContain("--foreground")
+  })
+  it("StatusIcon uses design tokens not hardcoded amber", async () => {
+    const src = await fs.readFile("components/status.tsx", "utf-8")
+    expect(src).not.toContain("text-amber-500")
+    expect(src).toContain("text-warning")
+  })
+  it("useCopyFeedback hook exists and exports copy helpers", async () => {
+    const src = await fs.readFile("hooks/use-copy-feedback.ts", "utf-8")
+    expect(src).toContain("export function useCopyFeedback")
+    expect(src).toContain("navigator.clipboard.writeText")
+    expect(src).toContain("toast.success")
+  })
+  it("CopyButton component uses design tokens and transition", async () => {
+    const src = await fs.readFile("components/ui/copy-button.tsx", "utf-8")
+    expect(src).toContain("transition-colors duration-150")
+    expect(src).toContain("text-success")
+  })
+  it("AcademicSearchDialog uses skeleton and EmptyState", async () => {
+    const src = await fs.readFile("components/academic-search-dialog.tsx", "utf-8")
+    expect(src).toContain("Skeleton")
+    expect(src).toContain("EmptyState")
+    expect(src).toContain("useCopyFeedback")
+    expect(src).toContain("isCopied")
+  })
+  it("CommandPalette indexes bibliography and inbox", async () => {
+    const src = await fs.readFile("components/command-palette.tsx", "utf-8")
+    expect(src).toContain("setIsBibManagerOpen")
+    expect(src).toContain("setIsEquationLibraryOpen")
+    expect(src).toContain("View Approval Inbox")
+    expect(src).toContain("Compile / Recompile PDF")
+  })
+})

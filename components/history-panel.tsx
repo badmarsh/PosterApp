@@ -259,7 +259,8 @@ export function HistoryPanel() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="size-6"
+                      aria-label="Add label to snapshot"
+                      className="size-6 focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-150"
                       title="Add label"
                       onClick={() => { setLabelingId(snap.id); setLabelInput(snap.label ?? "") }}
                     >
@@ -269,7 +270,8 @@ export function HistoryPanel() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-6 text-destructive hover:text-destructive"
+                        aria-label="Delete snapshot"
+                        className="size-6 text-destructive hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-150"
                         title="Delete snapshot"
                         onClick={() => setConfirmDeleteId(snap.id)}
                       >
@@ -279,7 +281,8 @@ export function HistoryPanel() {
                     {i !== 0 && (
                       <Button
                         size="icon"
-                        className="size-6"
+                        aria-label="Restore this snapshot"
+                        className="size-6 focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-150"
                         title="Restore this snapshot"
                         disabled={restoringId === snap.id}
                         onClick={() => setConfirmRestoreId(snap.id)}

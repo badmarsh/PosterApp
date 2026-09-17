@@ -57,17 +57,17 @@ export function IngestionDrawer() {
         ref={asideRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Ingest sources"
-        className="relative flex h-full w-full max-w-xl flex-col border-l border-border bg-sidebar shadow-xl duration-200 animate-in slide-in-from-right"
+        aria-labelledby="ingestion-drawer-title"
+        className="relative flex h-[100dvh] w-full sm:max-w-xl max-w-full flex-col border-l border-border bg-sidebar shadow-xl duration-200 animate-in slide-in-from-right overflow-hidden"
       >
-        {/* header */}
-        <div className="flex shrink-0 items-start justify-between gap-2 border-b border-border bg-card px-3 py-2.5">
+        {/* header — sticky */}
+        <div className="flex shrink-0 sticky top-0 z-10 items-start justify-between gap-2 border-b border-border bg-card px-3 py-2.5">
           <div className="flex items-start gap-2">
             <span className="mt-0.5 flex size-7 items-center justify-center rounded bg-primary/10 text-primary">
               <FileStack className="size-4" />
             </span>
             <div>
-              <h2 className="text-sm font-semibold tracking-tight">
+              <h2 id="ingestion-drawer-title" className="text-sm font-semibold tracking-tight">
                 Ingest sources
               </h2>
               <p className="text-[11px] text-muted-foreground">
@@ -80,7 +80,7 @@ export function IngestionDrawer() {
             ref={closeButtonRef}
             variant="ghost"
             size="icon"
-            className="size-8"
+            className="size-8 focus-visible:ring-2 focus-visible:ring-ring transition-colors duration-150"
             aria-label="Close ingestion panel"
             onClick={closeIngestion}
           >
@@ -88,8 +88,8 @@ export function IngestionDrawer() {
           </Button>
         </div>
 
-        {/* summary strip */}
-        <div className="flex shrink-0 items-center gap-3 border-b border-border bg-muted/30 px-3 py-1.5 font-mono text-[10px] text-muted-foreground">
+        {/* summary strip — remains visible while scrolling */}
+        <div className="flex shrink-0 sticky top-[57px] z-10 items-center gap-3 border-b border-border bg-muted/30 px-3 py-1.5 font-mono text-[10px] text-muted-foreground backdrop-blur-sm">
           <span>
             {ingestFiles.length} file{ingestFiles.length === 1 ? "" : "s"}
           </span>
@@ -105,7 +105,7 @@ export function IngestionDrawer() {
           )}
         </div>
 
-        <ScrollArea className="min-h-0 flex-1">
+        <ScrollArea className="min-h-0 flex-1 overscroll-contain">
           <div className="flex flex-col gap-3 p-3">
             <UploadZone />
 

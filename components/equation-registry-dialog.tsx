@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import {
@@ -41,6 +41,8 @@ import katex from "katex"
 import "katex/dist/katex.min.css"
 import { cleanFormula, slugifyEquationKey, type EquationItem } from "@/lib/equation-types"
 import { cn } from "@/lib/utils"
+import { EmptyState } from "@/components/ui/empty-state"
+import { useCopyFeedback } from "@/hooks/use-copy-feedback"
 
 function EquationMathPreview({ formula, className }: { formula: string; className?: string }) {
   const html = useMemo(() => {
@@ -103,6 +105,9 @@ export function EquationRegistryDialog() {
   const [editingEquation, setEditingEquation] = useState<EquationItem | null>(null)
   const [isAddingNew, setIsAddingNew] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const formulaRef = useRef<HTMLTextAreaElement>(null)
+  const { copy: copyFeedback, isCopied } = useCopyFeedback()
 
   // Form states for Add / Edit
   const [formKey, setFormKey] = useState("")
@@ -153,6 +158,16 @@ export function EquationRegistryDialog() {
     setEditingEquation(null)
   }
 
+  useEffect(() => {
+    if (!isEquationLibraryOpen) return
+    if (isAddingNew || editingEquation) {
+      const id = setTimeout(() => formulaRef.current?.focus(), 60)
+      return () => clearTimeout(id)
+    }
+    const id = setTimeout(() => searchRef.current?.focus(), 60)
+    return () => clearTimeout(id)
+  }, [isEquationLibraryOpen, isAddingNew, editingEquation])
+
   const handleSave = async () => {
     if (!formFormula.trim()) return
     const key = formKey.trim() || slugifyEquationKey(formName, equations.length + 1)
@@ -179,8 +194,8 @@ export function EquationRegistryDialog() {
     }
   }
 
-  const handleCopy = (formula: string, id: string) => {
-    navigator.clipboard.writeText(formula)
+  const handleCopy = async (formula: string, id: string) => {
+    await copyFeedback(formula, id)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 1800)
   }
@@ -199,9 +214,9 @@ export function EquationRegistryDialog() {
 
   return (
     <Dialog open={isEquationLibraryOpen} onOpenChange={setIsEquationLibraryOpen}>
-      <DialogContent showCloseButton className="w-[95vw] sm:max-w-4xl md:max-w-5xl h-[85vh] p-0 overflow-hidden flex flex-col shadow-2xl border border-border bg-background">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-b border-border bg-card shrink-0 pr-12">
+      <DialogContent aria-describedby={undefined} showCloseButton className="w-[95vw] sm:max-w-4xl md:max-w-5xl h-[85vh] p-0 overflow-hidden flex flex-col shadow-2xl border border-border bg-background gap-0">
+        {/* Header — sticky */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-b border-border bg-card shrink-0 pr-12 sticky top-0 z-10">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5 flex-wrap">
               <DialogTitle className="text-base font-semibold tracking-tight text-foreground">
@@ -344,7 +359,7 @@ export function EquationRegistryDialog() {
                 </div>
 
                 <div className="flex items-center gap-2 pt-3 border-t border-border">
-                  <Button onClick={handleSave} disabled={!formFormula.trim() || !formulaValidation.valid} className="h-8 text-[12px] px-5">
+                  <Button onClick={handleSave} disabled={!formFormula.trim() || !formulaValidation.valid} aria-label="Save equation (⌘+Enter)" className="h-8 text-[12px] px-5 transition-colors duration-150">
                     {isAddingNew ? "Add to Library" : "Save Changes"}
                   </Button>
                   <Button variant="ghost" onClick={cancelForm} className="h-8 text-[12px]">
@@ -359,12 +374,20 @@ export function EquationRegistryDialog() {
               {/* Search & Filter Bar */}
               <div className="flex items-center gap-3 px-6 py-3 border-b border-border bg-card">
                 <div className="relative flex-1">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" aria-hidden="true" />
                   <Input
+                    ref={searchRef}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by key, formula, or descriptive title..."
-                    className="pl-8 h-8 text-[12px] bg-muted/30"
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape" && searchQuery) {
+                        e.preventDefault()
+                        setSearchQuery("")
+                      }
+                    }}
+                    placeholder="Search by key, formula, or title… (Esc to clear)"
+                    aria-label="Search equations"
+                    className="pl-8 h-8 text-[12px] bg-muted/30 focus-visible:ring-2"
                   />
                 </div>
               </div>
@@ -372,27 +395,33 @@ export function EquationRegistryDialog() {
               {/* List */}
               <ScrollArea className="flex-1 min-h-0 p-6">
                 {filtered.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <Sparkles className="size-8 text-muted-foreground/40 mb-3" />
-                    <p className="text-sm font-semibold text-foreground">No equations found</p>
-                    <p className="text-[12px] text-muted-foreground max-w-sm mt-1">
-                      {equations.length === 0
-                        ? "Upload papers in the Ingestion Drawer to extract equations automatically, or click '+ Add Equation' to pre-configure your own."
-                        : "No equations matching your search query."}
-                    </p>
-                    {equations.length === 0 && (
-                      <Button size="sm" onClick={startAddNew} className="mt-4 h-8 text-[12px] gap-1.5">
-                        <Plus className="size-3.5" />
-                        Create First Equation
-                      </Button>
-                    )}
-                  </div>
+                  <EmptyState
+                    icon={equations.length === 0 ? FileText : Search}
+                    title={equations.length === 0 ? "No equations yet" : "No equations found"}
+                    description={
+                      equations.length === 0
+                        ? "Upload papers in the Ingestion Drawer to extract equations automatically, or create your own."
+                        : "No equations matching your search query. Try a different keyword or clear the filter."
+                    }
+                    action={
+                      equations.length === 0 ? (
+                        <Button size="sm" onClick={startAddNew} className="mt-1 h-8 text-[12px] gap-1.5 shadow-xs transition-colors duration-150">
+                          <Plus className="size-3.5" />
+                          Create First Equation
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => setSearchQuery("")} className="mt-1 h-7 text-xs">
+                          Clear search
+                        </Button>
+                      )
+                    }
+                  />
                 ) : (
                   <div className="flex flex-col gap-3.5 pb-6">
                     {filtered.map((eq) => (
                       <div
                         key={eq.id}
-                        className="rounded-lg border border-border bg-card p-4 shadow-xs transition-all hover:border-muted-foreground/40 flex flex-col gap-2.5"
+                        className="rounded-lg border border-border bg-card p-4 shadow-xs hover:border-primary/30 hover:shadow-sm transition-colors duration-150 flex flex-col gap-2.5"
                       >
                         {/* Top Meta Row */}
                         <div className="flex items-start justify-between gap-3">
@@ -416,7 +445,8 @@ export function EquationRegistryDialog() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleCopy(eq.formula, eq.id)}
-                              className="h-7 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+                              className="h-7 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
+                              aria-label={`Copy LaTeX for ${eq.key}`}
                               title="Copy LaTeX Formula"
                             >
                               {copiedId === eq.id ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
@@ -428,6 +458,7 @@ export function EquationRegistryDialog() {
                               size="sm"
                               onClick={() => startEdit(eq)}
                               className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                              aria-label={`Edit equation ${eq.key}`}
                               title="Edit Equation"
                             >
                               <Edit2 className="size-3" />
@@ -438,6 +469,7 @@ export function EquationRegistryDialog() {
                               size="sm"
                               onClick={() => deleteEquation(eq.id)}
                               className="h-7 px-2 text-[11px] text-muted-foreground hover:text-destructive"
+                              aria-label={`Delete equation ${eq.key}`}
                               title="Delete Equation"
                             >
                               <Trash2 className="size-3" />

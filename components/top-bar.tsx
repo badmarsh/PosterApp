@@ -172,7 +172,7 @@ export function TopBar({
               </Button>
             }
           />
-          <TooltipContent>Structure panel</TooltipContent>
+          <TooltipContent>Structure panel <kbd className="ml-1 rounded border bg-muted px-1 font-mono text-[10px]">⌘K → Toggle</kbd></TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -190,7 +190,7 @@ export function TopBar({
               </Button>
             }
           />
-          <TooltipContent>Source code</TooltipContent>
+          <TooltipContent>Source code <kbd className="ml-1 rounded border bg-muted px-1 font-mono text-[10px]">⌘⇧S</kbd></TooltipContent>
         </Tooltip>
       </div>
 
@@ -263,7 +263,7 @@ export function TopBar({
             </Button>
           }
         />
-        <TooltipContent>Command palette</TooltipContent>
+        <TooltipContent>Command palette <kbd className="ml-1 rounded border bg-muted px-1 font-mono text-[10px]">⌘K</kbd></TooltipContent>
       </Tooltip>
 
       <div className="flex-1" />
@@ -291,7 +291,7 @@ export function TopBar({
             </Button>
           }
         />
-        <TooltipContent>{isDirty ? "Save unsaved changes" : "Project is up to date"}</TooltipContent>
+        <TooltipContent>{isDirty ? "Save unsaved changes" : "Project is up to date"} <kbd className="ml-1 rounded border bg-muted px-1 font-mono text-[10px]">⌘S</kbd></TooltipContent>
       </Tooltip>
 
       <Separator orientation="vertical" className="h-5" />
@@ -471,7 +471,7 @@ export function TopBar({
               </Button>
             }
           />
-          <TooltipContent>Help Guide</TooltipContent>
+          <TooltipContent>Help Guide <kbd className="ml-1 rounded border bg-muted px-1 font-mono text-[10px]">?</kbd></TooltipContent>
         </Tooltip>
         
         <Tooltip>
@@ -488,7 +488,7 @@ export function TopBar({
               </Button>
             }
           />
-          <TooltipContent>Save History</TooltipContent>
+          <TooltipContent>Save History <span className="text-muted-foreground">(⌘K → History)</span></TooltipContent>
         </Tooltip>
 
         <UserButton>

@@ -46,8 +46,10 @@ const PdfViewerComponent = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      <div className="flex h-full flex-col gap-2 p-4" role="status" aria-label="Loading PDF viewer">
+        <div className="h-4 w-1/3 animate-pulse rounded bg-muted" />
+        <div className="flex-1 animate-pulse rounded bg-muted" />
+        <span className="sr-only">Loading PDF viewer…</span>
       </div>
     ),
   },
@@ -116,7 +118,7 @@ export function PdfSidebar() {
             type="button"
             onClick={zoomOut}
             disabled={scale === ZOOM_OPTIONS[0].value || !pdfData}
-            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Zoom out"
           >
             <Minus className="size-3.5" />
@@ -140,7 +142,7 @@ export function PdfSidebar() {
             type="button"
             onClick={zoomIn}
             disabled={scale === ZOOM_OPTIONS[ZOOM_OPTIONS.length - 1].value || !pdfData}
-            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Zoom in"
           >
             <Plus className="size-3.5" />
@@ -155,7 +157,7 @@ export function PdfSidebar() {
           <div className="flex items-center gap-2">
             <button
               onClick={toggleFullscreen}
-              className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground border border-border"
+              className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground border border-border transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label="Toggle Fullscreen"
             >
               <Maximize className="size-3" />
@@ -164,7 +166,7 @@ export function PdfSidebar() {
             <a
               href={`/api/workspaces/${projectId}/pdf?t=${pdfData.byteLength || 0}`}
               download="poster.pdf"
-              className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground border border-border"
+              className="flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground border border-border transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Download className="size-3" />
               Download
@@ -176,9 +178,10 @@ export function PdfSidebar() {
       {/* PDF render area */}
       <div className="relative min-h-0 flex-1 bg-muted/20">
         {compiling && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-background/70 backdrop-blur-sm">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-background/70 backdrop-blur-sm" role="status" aria-live="polite">
             <Loader2 className="size-6 animate-spin text-primary" />
             <span className="text-[11px] text-muted-foreground">Compiling with pdflatex…</span>
+            <span className="sr-only">Compiling PDF</span>
           </div>
         )}
         {pdfData ? (

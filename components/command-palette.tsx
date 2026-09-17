@@ -10,12 +10,19 @@ import {
   Folders,
   LayoutTemplate,
   PanelLeft,
+  PanelRight,
   Play,
   Plus,
   Save,
   Sparkles,
   Clock,
   Copy,
+  BookOpen,
+  Sigma,
+  Camera,
+  Search,
+  Inbox,
+  Eye,
 } from "lucide-react"
 import { useShallow } from "zustand/react/shallow"
 
@@ -71,6 +78,9 @@ export function CommandPalette({
     toggleLatexSource,
     setIsHistoryOpen,
     setIsAcademicSearchOpen,
+    setIsScannerOpen,
+    setIsBibManagerOpen,
+    setIsEquationLibraryOpen,
     isDirty,
   } = useEditor(
     useShallow((s) => ({
@@ -88,6 +98,9 @@ export function CommandPalette({
       toggleLatexSource: s.toggleLatexSource,
       setIsHistoryOpen: s.setIsHistoryOpen,
       setIsAcademicSearchOpen: s.setIsAcademicSearchOpen,
+      setIsScannerOpen: s.setIsScannerOpen,
+      setIsBibManagerOpen: s.setIsBibManagerOpen,
+      setIsEquationLibraryOpen: s.setIsEquationLibraryOpen,
       isDirty: s.isDirty,
     }))
   )
@@ -143,7 +156,8 @@ export function CommandPalette({
           </CommandItem>
           <CommandItem onSelect={() => run(() => compileProject())}>
             <Play />
-            Compile PDF
+            Compile / Recompile PDF
+            <CommandShortcut>⌘↩</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={() => run(() => aiReview())}>
             <Sparkles />
@@ -170,8 +184,23 @@ export function CommandPalette({
             Ingest source PDFs
           </CommandItem>
           <CommandItem onSelect={() => run(() => setIsAcademicSearchOpen(true))}>
-            <Sparkles />
+            <Search />
             Search Academic Literature (Perplexity)
+          </CommandItem>
+        </CommandGroup>
+
+        <CommandGroup heading="Bibliography & Knowledge">
+          <CommandItem onSelect={() => run(() => setIsBibManagerOpen(true))}>
+            <BookOpen />
+            Open Bibliography manager
+          </CommandItem>
+          <CommandItem onSelect={() => run(() => setIsEquationLibraryOpen(true))}>
+            <Sigma />
+            Open Equation registry
+          </CommandItem>
+          <CommandItem onSelect={() => run(() => setIsScannerOpen(true))}>
+            <Camera />
+            Scan image with OCR
           </CommandItem>
         </CommandGroup>
 
@@ -218,6 +247,14 @@ export function CommandPalette({
           <CommandItem onSelect={() => run(() => setIsHistoryOpen(true))}>
             <Clock />
             Open save history
+          </CommandItem>
+          <CommandItem onSelect={() => run(() => setIsAcademicSearchOpen(true))}>
+            <Inbox />
+            View Approval Inbox (Agent changes)
+          </CommandItem>
+          <CommandItem onSelect={() => run(() => setIsHistoryOpen(true))}>
+            <Eye />
+            Toggle Review / Thesis review panel
           </CommandItem>
           {THEMES.map((t) => (
             <CommandItem key={t.id} onSelect={() => run(() => setTheme(t.id))}>

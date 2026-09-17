@@ -11,6 +11,7 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Textarea } from "@/components/ui/textarea"
 import {
   GraduationCap,
@@ -120,10 +121,17 @@ export function DefensePrepPanel({
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {prepItems.map((item, idx) => (
+          {prepItems.length === 0 ? (
+            <EmptyState
+              icon={HelpCircle}
+              title="No defense questions yet"
+              description="Generate review findings first — anticipated opponent questions will be derived from weak points in your thesis."
+            />
+          ) : (
+            prepItems.map((item, idx) => (
             <div
               key={item.id}
-              className="p-4 rounded-xl border bg-card hover:bg-accent/10 transition-all space-y-3"
+              className="p-4 rounded-xl border bg-card hover:bg-accent/10 hover:border-primary/20 transition-colors duration-150 space-y-3"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="space-y-1 flex-1">
@@ -160,7 +168,7 @@ export function DefensePrepPanel({
                   variant="ghost"
                   size="sm"
                   onClick={() => handleCopyQuestion(item)}
-                  className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0"
+                  className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {copiedId === item.id ? (
                     <>
@@ -189,7 +197,8 @@ export function DefensePrepPanel({
                 </ul>
               </div>
             </div>
-          ))}
+          ))
+          )}
         </CardContent>
       </Card>
     </div>
