@@ -16,6 +16,7 @@ import {
   FileDown,
   Loader2,
   Shield,
+  ShieldCheck,
 } from "lucide-react"
 import { toast } from "sonner"
 import { AgentIntegrationPanel } from "@/components/settings/agent-integration-panel"
@@ -86,6 +87,7 @@ type SettingsTab =
   | "ai"
   | "shortcuts"
   | "data"
+  | "access"
   | "deerflow"
 
 export function SettingsPanel() {
@@ -163,7 +165,8 @@ export function SettingsPanel() {
     { id: "ai" as const, icon: Bot, label: "AI Models" },
     { id: "shortcuts" as const, icon: Keyboard, label: "Shortcuts" },
     { id: "data" as const, icon: Database, label: "Data" },
-    { id: "deerflow" as const, icon: Shield, label: "DeerFlow Agent" },
+    { id: "access" as const, icon: Shield, label: "Access & Security" },
+    { id: "deerflow" as const, icon: Sparkles, label: "DeerFlow Agent" },
   ]
 
   return (
@@ -346,6 +349,7 @@ export function SettingsPanel() {
             workspaceName={project.name}
           />
         )}
+        {tab === "access" && <AccessSettings />}
         {tab === "deerflow" && <AgentIntegrationPanel />}
       </div>
     </div>
@@ -805,6 +809,212 @@ function DataSettings({
           <p className="mt-0.5 text-xs text-muted-foreground">
             v{pkg.version} · tikzposter editor for structured academic posters
           </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ----------------------------------- access & registration ----------------------------------- */
+
+function AccessSettings() {
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [settings, setSettings] = useState<{
+    allowRegistration: boolean
+    source: "database" | "env" | "default"
+    envDefault: boolean | null
+  } | null>(null)
+
+  useEffect(() => {
+    let active = true
+    async function load() {
+      try {
+        const res = await apiFetch("/api/system/settings")
+        if (res.ok) {
+          const data = await res.json()
+          if (active) setSettings(data)
+        }
+      } catch (err) {
+        console.warn("[AccessSettings] Failed to fetch settings:", err)
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    load()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  async function handleToggle(newValue: boolean) {
+    if (!settings) return
+    const prev = settings
+    setSettings({ ...prev, allowRegistration: newValue, source: "database" })
+    setSaving(true)
+    try {
+      const res = await apiFetch("/api/system/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allowRegistration: newValue }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error?.message || `HTTP ${res.status}`)
+      }
+      const data = await res.json()
+      if (data?.settings) {
+        setSettings(data.settings)
+      }
+      toast.success(
+        newValue ? "Registrácia je povolená" : "Registrácia je zakázaná",
+        {
+          description: newValue
+            ? "Noví návštevníci sa môžu registrovať na stránke /sign-up."
+            : "Stránka /sign-up odmietne nové registrácie a informuje návštevníkov.",
+        }
+      )
+    } catch (err) {
+      setSettings(prev)
+      toast.error("Zlyhala zmena nastavenia registrácie", {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleResetToEnv() {
+    setSaving(true)
+    try {
+      const res = await apiFetch("/api/system/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resetToEnv: true }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error?.message || `HTTP ${res.status}`)
+      }
+      const data = await res.json()
+      if (data?.settings) {
+        setSettings(data.settings)
+      }
+      toast.info("Nastavenie registrácie obnovené", {
+        description: "Boli aplikované predvolené hodnoty z premenných prostredia.",
+      })
+    } catch (err) {
+      toast.error("Zlyhalo obnovenie nastavenia", {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const isAllowed = settings?.allowRegistration ?? true
+  const isCustomized = settings?.source === "database"
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <SectionHeader
+          icon={Shield}
+          title="Prístup a registrácia"
+          description="Správa dostupnosti registrácie nových používateľov a zabezpečenie prístupu."
+        />
+
+        <div className="rounded-lg border border-border bg-card p-4 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 space-y-1">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="allow-registration-switch" className="text-sm font-medium">
+                  Povoliť registráciu nových používateľov
+                </Label>
+                {loading ? (
+                  <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+                ) : (
+                  <Badge
+                    variant={isAllowed ? "default" : "destructive"}
+                    className="h-5 px-2 text-[11px]"
+                  >
+                    {isAllowed ? "Povolená" : "Zakázaná"}
+                  </Badge>
+                )}
+                {isCustomized && (
+                  <Badge variant="outline" className="h-5 px-2 text-[10px] text-muted-foreground">
+                    Upravené v DB
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Keď je táto voľba vypnutá, stránka <code>/sign-up</code> odmietne nové registrácie a
+                zobrazí oznam o pozastavení. Do aplikácie sa budú môcť prihlásiť len existujúci používatelia.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center">
+              <Switch
+                id="allow-registration-switch"
+                checked={isAllowed}
+                disabled={loading || saving}
+                onCheckedChange={handleToggle}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-muted-foreground bg-muted/40 p-3 rounded-md">
+            <div>
+              <span className="font-semibold text-foreground">Konfigurácia v prostredí (.env): </span>
+              {settings?.envDefault === null ? (
+                <span>Premenná <code>ALLOW_REGISTRATION</code> nie je nastavená (predvolene: povolená)</span>
+              ) : settings?.envDefault ? (
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">ALLOW_REGISTRATION=true</span>
+              ) : (
+                <span className="text-amber-600 dark:text-amber-400 font-medium">ALLOW_REGISTRATION=false</span>
+              )}
+            </div>
+
+            {isCustomized && (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={loading || saving}
+                onClick={handleResetToEnv}
+                className="h-7 text-xs gap-1.5 self-start sm:self-auto"
+              >
+                <RotateCcw className="size-3" />
+                Obnoviť na .env
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Separator />
+
+      <div>
+        <SectionHeader
+          icon={ShieldCheck}
+          title="Odporúčania pre nasadenie"
+          description="Ako správne spravovať registráciu v produkcii."
+        />
+        <div className="space-y-2 text-xs text-muted-foreground bg-card border border-border p-4 rounded-lg">
+          <p className="font-medium text-foreground">
+            🔒 Uzatvorenie registrácie pre interné tímy:
+          </p>
+          <ul className="list-disc pl-4 space-y-1">
+            <li>
+              Po vytvorení vašich účtov môžete registráciu prepnúť do stavu <strong>Zakázaná</strong> priamo tu v nastaveniach, alebo nastaviť <code>ALLOW_REGISTRATION=false</code> v <code>.env.local</code> / Dokploy.
+            </li>
+            <li>
+              Existujúci používatelia sa budú naďalej bez obmedzení prihlasovať cez <code>/sign-in</code>.
+            </li>
+            <li>
+              Návštevníci pokúšajúci sa o registráciu uvidia informačnú obrazovku s vysvetlením a tlačidlom na prihlásenie.
+            </li>
+          </ul>
         </div>
       </div>
     </div>

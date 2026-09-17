@@ -83,6 +83,10 @@ NEXT_TELEMETRY_DISABLED=1
 # Produkčná verejná doména (použije sa pre Traefik aj WebSocket)
 DOMAIN="poster.dev.significa.sk"
 
+# Riadenie registrácie (true: registrácie povolené; false: registrácia zakázaná)
+ALLOW_REGISTRATION="true"
+NEXT_PUBLIC_ALLOW_REGISTRATION="true"
+
 # Clerk Autentifikácia
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_...alebo_pk_live_..."
 CLERK_SECRET_KEY="sk_test_...alebo_sk_live_..."

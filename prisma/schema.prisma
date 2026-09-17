@@ -436,3 +436,11 @@ model AgentToolCallLog {
   @@index([workspaceId, calledAt])
   @@index([apiKeyId, calledAt])
 }
+
+/// Global system configuration (e.g. registration toggle, maintenance mode).
+/// Persisted in DB so runtime changes take effect immediately across all instances.
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
