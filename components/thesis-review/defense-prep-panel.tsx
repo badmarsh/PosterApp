@@ -26,15 +26,19 @@ import {
 } from "lucide-react"
 import type { ReviewFinding } from "@/lib/ai/review-types"
 
-export interface DefensePrepItem {
-  id: string
-  category: string
-  questionText: string
-  difficulty: "standard" | "probing" | "challenging"
-  derivedFromFindingTitle?: string
-  suggestedTalkingPoints: string[]
-  recommendedEvidenceQuote?: string
-}
+import {
+  buildDefensePackMarkdown,
+  defenseQuestionRiskScore,
+  riskLevel,
+  sortQuestionsByRisk,
+  summarizeDefenseReadiness,
+  type DefensePackQuestion,
+} from "@/lib/thesis-review/defense-pack"
+import { useCopyFeedback } from "@/hooks/use-copy-feedback"
+import { RehearsalTimer } from "@/components/thesis-review/rehearsal-timer"
+
+/** Risk-scored defense question (pure logic lives in lib/thesis-review). */
+export type DefensePrepItem = DefensePackQuestion
 
 interface Props {
   workspaceId: string
@@ -48,6 +52,8 @@ export function DefensePrepPanel({
   existingQuestions = [],
 }: Props) {
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [sortByRisk, setSortByRisk] = useState(true)
+  const { copy, isCopied } = useCopyFeedback()
 
   // Seed default questions derived from findings or defaults
   const [prepItems, setPrepItems] = useState<DefensePrepItem[]>([
@@ -94,6 +100,14 @@ export function DefensePrepPanel({
     setTimeout(() => setCopiedId(null), 2000)
   }
 
+  const readiness = summarizeDefenseReadiness(prepItems)
+  const displayItems = sortByRisk ? sortQuestionsByRisk(prepItems) : prepItems
+
+  const handleCopyPack = () => {
+    const md = buildDefensePackMarkdown({ title: "dizertačná práca" }, prepItems)
+    void copy(md, "defense-pack", "Balíček na obhajobu skopírovaný")
+  }
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto p-4 lg:p-6">
       <Card className="border-border shadow-xs">
@@ -105,8 +119,13 @@ export function DefensePrepPanel({
                   <GraduationCap className="size-3 mr-1" />
                   Príprava na štátnu záverečnú skúšku & obhajobu
                 </Badge>
-                <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30">
-                  {prepItems.length} cielených otázok
+                <Badge className={readiness.verdict === "at-risk"
+                  ? "bg-destructive/10 text-destructive border-destructive/30"
+                  : readiness.verdict === "needs-preparation"
+                    ? "bg-warning/10 text-warning border-warning/30"
+                    : "bg-success/10 text-success border-success/30"}
+                >
+                  {prepItems.length} cielených otázok · {readiness.highRisk} vysokej rizikovosti
                 </Badge>
               </div>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
@@ -121,14 +140,52 @@ export function DefensePrepPanel({
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {prepItems.length === 0 ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/20 p-2.5">
+            <RehearsalTimer className="flex-1 min-w-[16rem]" />
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setSortByRisk((v) => !v)}
+                aria-pressed={sortByRisk}
+                className="h-8 gap-1.5 text-xs transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
+                title="Zoradiť otázky od najrizikovejšej"
+              >
+                <AlertTriangle className="size-3.5" />
+                {sortByRisk ? "Zoradené podľa rizika" : "Pôvodné poradie"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCopyPack}
+                disabled={prepItems.length === 0}
+                className="h-8 gap-1.5 text-xs transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {isCopied("defense-pack") ? (
+                  <>
+                    <CheckCircle2 className="size-3.5 text-success" />
+                    Skopírované
+                  </>
+                ) : (
+                  <>
+                    <Copy className="size-3.5" />
+                    Balíček (Markdown)
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+          <p className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+            {readiness.recommendation}
+          </p>
+          {prepItems.length === 0? (
             <EmptyState
               icon={HelpCircle}
               title="No defense questions yet"
               description="Generate review findings first — anticipated opponent questions will be derived from weak points in your thesis."
             />
           ) : (
-            prepItems.map((item, idx) => (
+            displayItems.map((item, idx) => (
             <div
               key={item.id}
               className="p-4 rounded-xl border bg-card hover:bg-accent/10 hover:border-primary/20 transition-colors duration-150 space-y-3"
@@ -140,13 +197,31 @@ export function DefensePrepPanel({
                       Otázka #{idx + 1}
                     </Badge>
                     <span className="font-medium text-muted-foreground">{item.category}</span>
+                    {(() => {
+                      const score = defenseQuestionRiskScore(item)
+                      const level = riskLevel(score)
+                      return (
+                        <Badge
+                          className={
+                            level === "high"
+                              ? "bg-destructive/10 text-destructive border-destructive/30 text-[10px]"
+                              : level === "medium"
+                                ? "bg-warning/10 text-warning border-warning/30 text-[10px]"
+                                : "bg-success/10 text-success border-success/30 text-[10px]"
+                          }
+                          title="Riziko otázky (náročnosť, kategória, pripravenosť evidencie)"
+                        >
+                          Riziko {score}/100
+                        </Badge>
+                      )
+                    })()}
                     {item.difficulty === "challenging" && (
-                      <Badge className="bg-destructive/100/10 text-destructive dark:text-destructive text-[10px]">
+                      <Badge className="bg-destructive/10 text-destructive dark:text-destructive text-[10px]">
                         Náročná otázka
                       </Badge>
                     )}
                     {item.difficulty === "probing" && (
-                      <Badge className="bg-warning/100/10 text-warning dark:text-warning text-[10px]">
+                      <Badge className="bg-warning/10 text-warning dark:text-warning text-[10px]">
                         Hĺbková otázka
                       </Badge>
                     )}
@@ -172,7 +247,7 @@ export function DefensePrepPanel({
                 >
                   {copiedId === item.id ? (
                     <>
-                      <CheckCircle2 className="size-3.5 text-emerald-500" />
+                      <CheckCircle2 className="size-3.5 text-success" />
                       Skopírované
                     </>
                   ) : (
@@ -196,6 +271,13 @@ export function DefensePrepPanel({
                   ))}
                 </ul>
               </div>
+
+              {item.recommendedEvidenceQuote && (
+                <p className="rounded-lg border border-border bg-muted/20 p-2.5 text-xs italic text-muted-foreground">
+                  <BookOpen className="mr-1.5 inline size-3 shrink-0 text-primary" />
+                  Evidencia z práce: „{item.recommendedEvidenceQuote}“
+                </p>
+              )}
             </div>
           ))
           )}

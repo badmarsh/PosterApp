@@ -65,3 +65,65 @@ describe("UX Polish — design token alignment", () => {
     expect(src).toContain("Compile / Recompile PDF")
   })
 })
+
+describe("UX Polish — error lens & quick fixes (2026-09-17 audit)", () => {
+  it("pdf-sidebar renders the structured error lens, not only the raw log", async () => {
+    const src = await fs.readFile("components/pdf-sidebar.tsx", "utf-8")
+    expect(src).toContain("parseCompileLog")
+    expect(src).toContain("attributeIssuesToCards")
+    expect(src).toContain("Show raw log")
+    expect(src).toContain("setInspectorTab")
+  })
+
+  it("CardInspector surfaces quick fixes and the height meter", async () => {
+    const src = await fs.readFile("components/card-inspector.tsx", "utf-8")
+    expect(src).toContain("deriveQuickFixes")
+    expect(src).toContain("findDanglingCiteKeys")
+    expect(src).toContain("findDanglingRefKeys")
+    expect(src).toContain("HeightMeter")
+    expect(src).toContain("estimateHeightBreakdown")
+  })
+
+  it("CardInspector uses semantic warning tokens (no hardcoded amber)", async () => {
+    const src = await fs.readFile("components/card-inspector.tsx", "utf-8")
+    expect(src).not.toContain("amber-500")
+  })
+
+  it("quick fixes and log parser are unit-tested", async () => {
+    const qf = await fs.readFile("lib/latex/__tests__/quick-fixes.test.ts", "utf-8")
+    expect(qf).toContain("deriveQuickFixes")
+    const lp = await fs.readFile("lib/latex/__tests__/log-parser.test.ts", "utf-8")
+    expect(lp).toContain("parseCompileLog")
+  })
+})
+
+describe("UX Polish — design token sweep (2026-09-17 audit, friction #5)", () => {
+  const FILES = [
+    "components/structure-sidebar.tsx",
+    "components/agent-panel.tsx",
+    "components/agent/approval-inbox.tsx",
+    "components/settings/agent-integration-panel.tsx",
+    "components/poster-preview.tsx",
+    "components/research-lab-templates.tsx",
+    "components/equation-registry-dialog.tsx",
+    "components/header-inspector.tsx",
+    "components/thesis-review/analysis-plan-panel.tsx",
+    "components/thesis-review/defense-prep-panel.tsx",
+    "components/academic-search-dialog.tsx",
+  ]
+
+  it.each(FILES)("semantic-only tokens in %s (no amber/emerald/green/blue/red-500)", async (file) => {
+    const src = await fs.readFile(file, "utf-8")
+    expect(src).not.toMatch(/(?:bg|text|border)-(?:amber|emerald|green|blue|red)-500/)
+    expect(src).not.toContain("/100/10")
+  })
+
+  it("compile status and defense verdicts use semantic tokens", async () => {
+    const preview = await fs.readFile("components/poster-preview.tsx", "utf-8")
+    expect(preview).toContain('"text-success"')
+    const panel = await fs.readFile("components/thesis-review/defense-prep-panel.tsx", "utf-8")
+    expect(panel).toContain("bg-success/10")
+    expect(panel).toContain("RehearsalTimer")
+    expect(panel).toContain("buildDefensePackMarkdown")
+  })
+})

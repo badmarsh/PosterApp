@@ -843,10 +843,10 @@ function AgentPanelInner({
                 panelMode === "inbox" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Layers className="size-3 text-amber-500" />
+              <Layers className="size-3 text-warning" />
               Inbox
               {pendingCount > 0 && (
-                <span className="px-1 py-0.2 rounded-full text-[9px] font-bold bg-amber-500 text-white dark:text-black leading-none">
+                <span className="px-1 py-0.2 rounded-full text-[9px] font-bold bg-warning text-warning-foreground leading-none">
                   {pendingCount}
                 </span>
               )}

@@ -37,11 +37,14 @@ import {
   X,
   ArrowRight,
   TrendingUp,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useSettings } from "@/lib/settings-store"
 import { getAcademicSearchStrings } from "@/lib/i18n/academic-search"
 import type { AcademicPaperResult } from "@/lib/services/academic-connector"
+import { credibilityAssessment, type CredibilityAssessment } from "@/lib/services/search-quality"
 import { academicPaperToBibEntry } from "@/lib/bib-types"
 import { useEditorStoreInstance } from "@/components/editor-store"
 import { useCopyFeedback } from "@/hooks/use-copy-feedback"
@@ -66,6 +69,44 @@ const QUICK_SUGGESTIONS = [
   { label: "Transformer Neural Networks", query: "attention is all you need transformers" },
   { label: "DOI: 10.1038/nature14539", query: "10.1038/nature14539" },
 ]
+
+/**
+ * Trust pill for one search result: credibility level + score, with the
+ * concrete reasons in the tooltip. Retracted papers get a hard destructive
+ * badge — they must never look merely "medium".
+ */
+function CredibilityPill({ assessment }: { assessment: CredibilityAssessment }) {
+  if (assessment.isRetracted) {
+    return (
+      <Badge
+        variant="outline"
+        className="text-[10px] font-bold gap-1 border-destructive/40 bg-destructive/10 text-destructive"
+        title={assessment.reasons.join(" · ")}
+      >
+        <ShieldAlert className="size-3" aria-hidden="true" />
+        RETRACTED — necitovať
+      </Badge>
+    )
+  }
+  const { level, score, reasons } = assessment
+  const style =
+    level === "high"
+      ? "border-success/30 bg-success/10 text-success"
+      : level === "medium"
+        ? "border-status-info/30 bg-status-info/10 text-status-info"
+        : "border-border bg-muted/40 text-muted-foreground"
+  const label = level === "high" ? "Dôveryhodný" : level === "medium" ? "Overiteľný" : "Slabá evidencia"
+  return (
+    <Badge
+      variant="outline"
+      className={`text-[10px] font-semibold gap-1 ${style}`}
+      title={`${score}/100 — ${reasons.join(" · ")}`}
+    >
+      <ShieldCheck className="size-3" aria-hidden="true" />
+      {label}
+    </Badge>
+  )
+}
 
 export function AcademicSearchDialog({ open, onOpenChange }: Props) {
   const uiLanguage = useSettings((s) => s.defaultReviewLanguage)
@@ -338,6 +379,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
 
                     {/* Source and metrics */}
                     <div className="flex items-center gap-1.5 shrink-0">
+                      <CredibilityPill assessment={credibilityAssessment(paper)} />
                       {paper.citationCount !== undefined && paper.citationCount > 0 && (
                         <Badge variant="outline" className="text-[10px] font-semibold gap-1 border-warning/30 bg-warning/10 text-warning">
                           ★ {t.citations(paper.citationCount)}
@@ -396,7 +438,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
                           href={paper.openAccessPdfUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline bg-emerald-500/10 dark:bg-emerald-500/20 px-2.5 py-1 rounded-md border border-emerald-500/30"
+                          className="flex items-center gap-1.5 text-[11px] font-semibold text-success hover:underline bg-success/10 px-2.5 py-1 rounded-md border border-success/30 transition-colors duration-150"
                         >
                           <Download className="h-3.5 w-3.5" />
                           Open Access PDF
@@ -461,7 +503,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
                       >
                         {isImported ? (
                           <>
-                            <Check className="h-3.5 w-3.5 text-emerald-500" />
+                            <Check className="h-3.5 w-3.5 text-success" />
                             V bibliografii
                           </>
                         ) : (

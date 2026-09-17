@@ -1002,7 +1002,7 @@ export function HeaderInspector() {
                   </Label>
                 </div>
                 {qrAssetUrl && (
-                  <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                  <span className="text-[10px] font-mono text-success bg-success/10 px-1.5 py-0.5 rounded border border-success/20">
                     Active
                   </span>
                 )}
