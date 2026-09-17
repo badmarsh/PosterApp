@@ -144,7 +144,16 @@ Schema at `prisma/schema.prisma`. Key notes:
 ### Still Open
 (None currently)
 
-### Fixed in This Session (2026-08-30)
+### Fixed in This Session (2026-09-17)
+- ✅ **Thesis Preview Math, Tables & Images (Thesis Review Detail Page)**:
+  - **KaTeX Equations Rendering**: Integrated `remark-math` + `rehype-katex` with automatic preprocessing (`preprocessMathAndHtml`) converting LaTeX display brackets `\[ ... \]` to CommonMark `$$ ... $$` and inline `\( ... \)` to `$ ... $`. Display equations are encased in horizontally scrollable containers (`overflow-x-auto`) to guarantee zero layout breakage on deep formulas.
+  - **GFM & HTML Tables**: Added `rehype-raw@^7.0.0` to ReactMarkdown pipeline, rendering both standard Markdown tables and MinerU raw `<table><tr><td>...</td></tr></table>` elements with responsive card wrappers, alternating row styling, and bold header cells.
+  - **Manuscript Image Assets & Lightbox Zoom**: Extracted MinerU images (`images/filename.jpg`) resolve dynamically via `resolveManuscriptAssetUrl` to `/api/workspaces/[id]/assets/[filename]`. Built interactive `ManuscriptImage` component featuring click-to-zoom full-screen lightbox modal, new-tab view link, lazy loading, and dashed fallback placeholder if an asset is missing.
+  - **Evidence & Search Highlighting**: Whitespace-normalized text node highlighting (`highlightQuote` / `searchQuery`) seamlessly integrates across the entire rendered ReactMarkdown AST tree.
+  - **Tests**: Added comprehensive test suite `lib/__tests__/source-markdown-view.test.ts` (12 unit tests). Full test suite passes: 135 files, 1281 tests, 0 failures.
+  - **Production Deployment**: Committed (`c88ecbe`), pushed to GitHub `main`, automatic Dokploy webhook executed, and container `apps-posterapp-web-1` deployed and healthy on `poster.dev.significa.sk`.
+
+### Fixed in Previous Session (2026-08-30)
 - ✅ **Thesis Review Workflow UI Redesign & Performance Optimization**:
   - **Bug Fix — Duplicate Saved Reviews**: Updated GET projection in `app/api/workspaces/[id]/thesis-review/route.ts` to return full distinguishing metadata (`reviewKind`, `status`, `confirmedAt`, `grade`, `suggestedGrade`, `finalGrade`, `recommendation`, `createdAt`, `updatedAt`). Regression-tested in `__tests__/api/thesis-review-dedup.test.ts`.
   - **Phase 2.1 — Step Indicator Rail**: Redesigned `ThesisWorkflowStepper` from 4 equal-weight cards into a compact horizontal `<nav aria-label="Kroky posudku">` rail with completed checkmark indicators, numbered active indicator, and accessibility semantics.
