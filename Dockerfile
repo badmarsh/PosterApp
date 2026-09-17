@@ -42,6 +42,7 @@ ENV PORT=3333
 ENV HOSTNAME="0.0.0.0"
 ENV WORKSPACES_DIR=workspaces
 ENV YPERSISTENCE=./tmp/yjs
+ENV CACHE_DIR=/app/.cache
 
 # Non-root system user
 RUN groupadd --system --gid 1001 nodejs && \

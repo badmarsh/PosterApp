@@ -102,6 +102,7 @@ services:
       # Storage & Persistence
       WORKSPACES_DIR: workspaces
       YPERSISTENCE: ./tmp/yjs
+      CACHE_DIR: /app/.cache
       RATE_LIMIT_ALLOW_IN_MEMORY: ${RATE_LIMIT_ALLOW_IN_MEMORY:-1}
       AUTH_SECRET: ${AUTH_SECRET}
       NEXT_TELEMETRY_DISABLED: 1

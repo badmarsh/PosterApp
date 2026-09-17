@@ -1,9 +1,11 @@
 import { pipeline, env } from "@xenova/transformers"
 import { createHash } from "crypto"
 
-// We want to download the model if it's missing, but not rely on local filesystem caching
-// inside standard Next.js folders that might get wiped.
+import path from "path"
+
+// Persist downloaded models into persistent cache directory (/app/.cache in production)
 env.allowLocalModels = false
+env.cacheDir = process.env.CACHE_DIR || path.join(process.cwd(), ".cache")
 
 class PipelineSingleton {
   static task: any = "feature-extraction"
