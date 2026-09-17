@@ -377,16 +377,12 @@ export function splitIntoStructuralSegments(rawText: string): StructuralSegment[
 }
 
 /**
- * Table embedding text: `heading + column names + row text`.
- *
- * Embedding raw pipe rows leaves the model spending its 512-token window on
- * `|---|---|` scaffolding. Instead we flatten the table into a compact
- * "columns: A, B, C. Rows: A=1, B=2 …" form that matches how natural-language
- * queries ("what accuracy did the model achieve?") land in vector space.
- * The original Markdown is still stored as chunk content for display.
+ * Parses a markdown pipe table into aligned cell rows, dropping the
+ * `|---|---|` separator row. Shared by buildTableEmbeddingText and
+ * describeTableChunk so both always see the same grid.
  */
-export function buildTableEmbeddingText(markdownTable: string, heading: string | null): string {
-  const rows = markdownTable
+function parseMarkdownTableRows(markdownTable: string): string[][] {
+  return markdownTable
     .split("\n")
     .filter((l) => isTableLine(l))
     .map((l) =>
@@ -398,6 +394,103 @@ export function buildTableEmbeddingText(markdownTable: string, heading: string |
         .filter((c) => c.length > 0)
     )
     .filter((cells) => !(cells.length > 0 && cells.every((c) => /^:?-{2,}:?$/.test(c))))
+}
+
+const NUMERIC_CELL_RE = /^-?\d+(?:[.,]\d+)?(?:\s*(?:%|±\s*\d+(?:[.,]\d+)?))?$/
+/** p-values / significance markers worth surfacing for statistical queries. */
+const SIGNIFICANCE_CELL_RE = /(?:^|\b)p\s*[<=>≤≥]\s*0?\.\d+|(?:význam|signifik|significant)/i
+
+/**
+ * Table description for retrieval (Objective: statistical/table query recall).
+ *
+ * Returns a compact natural-language description of the table:
+ *   `heading + caption + columns + flattened rows + notable values`.
+ *
+ * Tables and equations systematically score low cosine similarity against
+ * natural-language questions ("Aké boli p-hodnoty v experimente?") because raw
+ * pipe scaffolding dominates the embedding window. This description gives the
+ * embedding AND the FTS tsvector real query-shaped text: column headers as
+ * words, rows as `Header = value` pairs, and — crucially — the *notable*
+ * values of every numeric column (min/max) plus any statistical-significance
+ * markers (p < 0.05 …) with their row label, which is what such questions
+ * actually target.
+ *
+ * The original Markdown stays untouched as chunk content; only the retrieval
+ * representations are enriched.
+ */
+export function describeTableChunk(markdownTable: string, heading: string | null): string {
+  const rows = parseMarkdownTableRows(markdownTable)
+  if (rows.length === 0) return heading ? `${heading}: ${markdownTable.slice(0, 800)}` : markdownTable.slice(0, 800)
+
+  const header = rows[0]
+  const dataRows = rows.slice(1)
+
+  const parts: string[] = []
+  if (heading) parts.push(heading)
+  parts.push(`Tabuľka s ${dataRows.length} riadkami. Columns: ${header.join(", ")}`)
+
+  // 1. Notable values per numeric column (min/max, extremes are what
+  //    "which was best / largest / most significant" questions target).
+  const notable: string[] = []
+  for (let col = 0; col < header.length; col++) {
+    const name = header[col]
+    const numeric = dataRows
+      .map((cells, rowIdx) => ({ v: cells[col], rowIdx }))
+      .filter(({ v }) => NUMERIC_CELL_RE.test(v.trim()))
+      .map(({ v, rowIdx }) => ({ n: parseFloat(v.replace(",", ".").replace(/[^\d.+-]/g, "")), rowIdx, label: dataRows[rowIdx][0] }))
+      .filter(({ n }) => Number.isFinite(n))
+    if (numeric.length >= 2) {
+      let min = numeric[0]
+      let max = numeric[0]
+      for (const c of numeric) {
+        if (c.n < min.n) min = c
+        if (c.n > max.n) max = c
+      }
+      if (max.n !== min.n) {
+        notable.push(`${name}: najnižšia hodnota ${min.n} (${min.label}), najvyššia hodnota ${max.n} (${max.label})`)
+      }
+    }
+  }
+
+  // 2. Statistical significance markers anywhere in the table (p-values etc.)
+  const significance: string[] = []
+  for (const cells of dataRows) {
+    for (let col = 0; col < cells.length; col++) {
+      const cell = cells[col]
+      if (SIGNIFICANCE_CELL_RE.test(cell)) {
+        significance.push(`${header[col] ?? "hodnota"} = ${cell}${header.length > 1 && col > 0 ? ` (${cells[0]})` : ""}`)
+      }
+    }
+  }
+
+  if (notable.length > 0) parts.push(`Notable values: ${notable.join("; ")}`)
+  if (significance.length > 0) parts.push(`Štatistická významnosť / p-hodnoty: ${significance.join("; ")}`)
+
+  // 3. Flattened rows (same format as buildTableEmbeddingText).
+  const flattenedRows = dataRows
+    .slice(0, 12)
+    .map((cells) =>
+      cells
+        .map((cell, idx) => (header[idx] ? `${header[idx]} = ${cell}` : cell))
+        .join(", ")
+    )
+  parts.push(`Rows: ${flattenedRows.join("; ")}`)
+
+  return parts.join(". ").slice(0, 1500)
+}
+
+/**
+ * Table embedding text: `heading + column names + row text` (+ notable values
+ * and significance markers from describeTableChunk).
+ *
+ * Embedding raw pipe rows leaves the model spending its 512-token window on
+ * `|---|---|` scaffolding. Instead we flatten the table into a compact
+ * "columns: A, B, C. Rows: A=1, B=2 …" form that matches how natural-language
+ * queries ("what accuracy did the model achieve?") land in vector space.
+ * The original Markdown is still stored as chunk content for display.
+ */
+export function buildTableEmbeddingText(markdownTable: string, heading: string | null): string {
+  const rows = parseMarkdownTableRows(markdownTable)
 
   if (rows.length === 0) return heading ? `${heading}: ${markdownTable.slice(0, 800)}` : markdownTable.slice(0, 800)
 

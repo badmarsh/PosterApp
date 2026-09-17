@@ -494,9 +494,14 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         body: JSON.stringify({
           outputType,
           topic: card.title || "Introduction",
+          // First-pass layout budgeting: the server mirrors estimateHeight and
+          // shrinks over-budget drafts before responding (Objective D).
+          templateId: currOutput?.templateId,
+          pattern: card.pattern,
+          heightBudget: card.heightBudget ?? null,
           // Send only the fields the server actually uses, not full asset objects
-          assets: get().project.assets.map(({ id: aid, filename, kind, caption, snippet }) => ({
-            id: aid, filename, kind, caption, snippet,
+          assets: get().project.assets.map(({ id: aid, filename, kind, caption, snippet, section }) => ({
+            id: aid, filename, kind, caption, snippet, section,
           })),
           sourceIds: effectiveSourceIds,
           characterLimit,

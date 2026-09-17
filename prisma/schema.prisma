@@ -22,6 +22,11 @@ model DocumentChunk {
   /// Structural chunk kind: "prose" | "table" | "equation" | "figure_caption".
   /// Tables / equations / captions are never split across chunks.
   kind        String                 @default("prose")
+  /// Anthropic-style contextual prefix (document title, research domain,
+  /// hierarchical section path, section objective). Indexed for embedding +
+  /// full-text search, but NEVER merged into `content`, which stays verbatim
+  /// for evidence quote validation. NULL for chunks indexed before this column.
+  contextPrefix String?
   createdAt   DateTime               @default(now())
   workspace   Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 

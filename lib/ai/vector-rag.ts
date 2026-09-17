@@ -285,42 +285,144 @@ export function buildFtsQuery(text: string, maxTerms = 8): string {
   return terms.join(" OR ")
 }
 
+/** A chunk as returned by the retrieval legs of the pipeline. */
+export interface RetrievedChunk {
+  id: string
+  heading: string | null
+  content: string
+  tokens: number
+  kind: string
+  similarity: number
+  /** Anthropic-style contextual prefix (indexed for FTS; never part of content). */
+  contextPrefix?: string | null
+}
+
+/** Filters applied to every retrieval leg (vector, FTS, exact fallback). */
+export interface RetrievalFilter {
+  /** Restrict retrieval to a single ingest/document ID. */
+  documentId?: string
+  /** Restrict retrieval to these ingest/document IDs. An empty array matches nothing. */
+  documentIds?: string[]
+  /** Restrict retrieval to structural chunk kinds, e.g. ["table"] or ["table","equation"]. */
+  kinds?: string[]
+}
+
+/**
+ * ef_search for a retrieval query, scaled to the requested candidate count.
+ * HNSW evaluates the index *before* the workspace/document filter, so the
+ * default 40 can prune candidate branches before small workspaces fill their
+ * result set in a large multi-tenant table. We scale with `limit * 8`
+ * (bounded 40–1000) via SET LOCAL — transaction-scoped, so PgBouncer
+ * transaction pooling (Supabase port 6543) never leaks the setting.
+ */
+export function efSearchFor(limit: number): number {
+  return Math.min(1000, Math.max(40, limit * 8))
+}
+
+/**
+ * Builds the shared parameterized WHERE fragment for retrieval queries.
+ *
+ * Everything that reaches this function is either a Prisma-bound parameter or
+ * a structural fragment assembled with `Prisma.sql` / `Prisma.join` — no user
+ * input is ever string-interpolated, which keeps the query both
+ * injection-proof and (for the vector leg) eligible for the HNSW index plan.
+ *
+ * Returns `Prisma.empty` when no filter applies. An explicitly provided empty
+ * `documentIds` array compiles to `AND 1 = 0` (must match nothing) rather than
+ * silently dropping the isolation filter.
+ */
+export function retrievalJoin(filter: RetrievalFilter = {}): Prisma.Sql {
+  const parts: Prisma.Sql[] = []
+  if (filter.documentIds !== undefined) {
+    parts.push(
+      filter.documentIds.length > 0
+        ? Prisma.sql`AND "documentId" IN (${Prisma.join(filter.documentIds)})`
+        : Prisma.sql`AND 1 = 0`
+    )
+  } else if (filter.documentId) {
+    parts.push(Prisma.sql`AND "documentId" = ${filter.documentId}`)
+  }
+  if (filter.kinds && filter.kinds.length > 0) {
+    parts.push(Prisma.sql`AND kind IN (${Prisma.join(filter.kinds)})`)
+  }
+  return parts.length > 0 ? Prisma.join(parts, " ") : Prisma.empty
+}
+
+/** Exact (non-indexed) nearest-neighbour scan, scoped by the same isolation filters. */
+function exactScanSql(
+  workspaceId: string,
+  queryEmbeddingStr: string,
+  limit: number,
+  docCondition: Prisma.Sql
+): Prisma.Sql {
+  // Sequential scan + sort — immune to HNSW pruning, so it always returns the
+  // true nearest neighbours of the (workspace, document) subset. Used ONLY as
+  // a recall fallback for small workspaces (see retrieveSingleQuery).
+  return Prisma.sql`
+    SELECT id, heading, content, tokens, kind, "contextPrefix",
+           1.0 - (embedding <=> ${queryEmbeddingStr}::vector) AS similarity
+    FROM "DocumentChunk"
+    WHERE "workspaceId" = ${workspaceId}
+      ${docCondition}
+      AND embedding IS NOT NULL
+    ORDER BY embedding <=> ${queryEmbeddingStr}::vector
+    LIMIT ${limit}
+  `
+}
+
 /**
  * Single-query hybrid retrieval using Reciprocal Rank Fusion (RRF, k=60).
- * Combines pgvector cosine similarity with PostgreSQL full-text search rankings.
- * Document-level isolation via optional `documentId` filter.
+ * Combines pgvector cosine similarity (HNSW index) with PostgreSQL full-text
+ * search. Workspace isolation is mandatory; document/kind filters are optional.
+ *
+ * Supabase / PgBouncer transaction-pooler contract:
+ *  - `SET LOCAL hnsw.ef_search` and `hnsw.iterative_scan` are executed INSIDE
+ *    an explicit `prisma.$transaction` block. `SET LOCAL` outside a
+ *    transaction raises SQLSTATE 25001 on port 6543 (or is silently discarded
+ *    on connection return) — inside one it is strictly bound to the query.
+ *  - The unknown-GUC risk (pgvector < 0.8 without `iterative_scan`) is guarded
+ *    by a `DO $$ … EXCEPTION WHEN OTHERS` block so the SET cannot abort the
+ *    whole transaction.
+ *  - If the pooled transaction fails at the client level (pool timeout, restart,
+ *    prepared-statement edge), the query is retried once WITHOUT the session
+ *    tuning — degraded recall, never a failed request.
+ *  - Adaptive recall fallback: when the hybrid query returns fewer rows than
+ *    requested (small workspace whose HNSW branches got pruned by the tenant
+ *    filter), the missing nearest neighbours are filled from a non-indexed
+ *    exact scan (`ORDER BY embedding <=> …`, same isolation filters). Disable
+ *    with RAG_EXACT_FALLBACK=false.
  */
 async function retrieveSingleQuery(
   workspaceId: string,
   queryEmbeddingStr: string,
   queryText: string,
   limit: number,
-  documentId?: string,
-  documentIds?: string[]
-): Promise<Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; similarity: number }>> {
-  const docCondition =
-    documentIds !== undefined
-      ? documentIds.length > 0
-        ? Prisma.sql`AND "documentId" IN (${Prisma.join(documentIds)})`
-        : Prisma.sql`AND 1 = 0`
-      : documentId
-      ? Prisma.sql`AND "documentId" = ${documentId}`
-      : Prisma.empty
+  filter: RetrievalFilter = {},
+  legacyDocumentId?: string,
+  legacyDocumentIds?: string[]
+): Promise<RetrievedChunk[]> {
+  // Backward-compatible positional call signature (documentId, documentIds)
+  // used by earlier callers/tests — normalised into the filter object.
+  const resolved: RetrievalFilter = {
+    documentId: filter.documentId ?? legacyDocumentId,
+    documentIds: filter.documentIds ?? legacyDocumentIds,
+    kinds: filter.kinds,
+  }
+  const docCondition = retrievalJoin(resolved)
   const ftsQuery = buildFtsQuery(queryText) || queryText
 
-  // HNSW evaluates the index *before* the workspaceId/documentId filter with
-  // ef_search=40 by default, so small workspaces in a large multi-tenant table
-  // can receive fewer than `limit` candidates (even zero). Raise ef_search for
-  // this query only (SET LOCAL is transaction-scoped). pgvector ≥ 0.8 additionally
-  // honours iterative scans; the SET is harmless on older versions.
+  // The FTS leg indexes the contextual prefix (Objective: contextual retrieval)
+  // alongside content; COALESCE keeps chunks without a prefix content-only.
   const runQuery = async (client: any) => {
     if (typeof client.$executeRawUnsafe === "function") {
-      await client.$executeRawUnsafe(`SET LOCAL hnsw.ef_search = ${Math.min(1000, Math.max(40, limit * 8))}`).catch(() => {})
+      await client.$executeRawUnsafe(`SET LOCAL hnsw.ef_search = ${efSearchFor(limit)}`).catch(() => {})
       // Guarded inside a DO block: an unknown GUC (pgvector < 0.8) would otherwise
       // abort the whole transaction.
-      await client.$executeRawUnsafe(
-        `DO $$ BEGIN PERFORM set_config('hnsw.iterative_scan', 'relaxed_order', true); EXCEPTION WHEN OTHERS THEN NULL; END $$;`
-      ).catch(() => {})
+      await client
+        .$executeRawUnsafe(
+          `DO $$ BEGIN PERFORM set_config('hnsw.iterative_scan', 'relaxed_order', true); EXCEPTION WHEN OTHERS THEN NULL; END $$;`
+        )
+        .catch(() => {})
     }
     return client.$queryRaw<Array<{
       id: string
@@ -329,6 +431,7 @@ async function retrieveSingleQuery(
       tokens: number
       kind: string
       similarity: number
+      contextPrefix?: string | null
     }>>`
     WITH vector_search AS (
       SELECT
@@ -343,11 +446,11 @@ async function retrieveSingleQuery(
     fts_search AS (
       SELECT
         id,
-        ROW_NUMBER() OVER (ORDER BY ts_rank(to_tsvector('simple', content), websearch_to_tsquery('simple', ${ftsQuery})) DESC) AS rank_fts
+        ROW_NUMBER() OVER (ORDER BY ts_rank(to_tsvector('simple', COALESCE("contextPrefix", '') || ' ' || content), websearch_to_tsquery('simple', ${ftsQuery})) DESC) AS rank_fts
       FROM "DocumentChunk"
       WHERE "workspaceId" = ${workspaceId}
         ${docCondition}
-        AND to_tsvector('simple', content) @@ websearch_to_tsquery('simple', ${ftsQuery})
+        AND to_tsvector('simple', COALESCE("contextPrefix", '') || ' ' || content) @@ websearch_to_tsquery('simple', ${ftsQuery})
       LIMIT ${limit * 2}
     )
     SELECT
@@ -356,6 +459,7 @@ async function retrieveSingleQuery(
       d.content,
       d.tokens,
       d.kind,
+      d."contextPrefix",
       (
         COALESCE(0.7 / (60.0 + v.rank_vec), 0.0) +
         COALESCE(0.3 / (60.0 + f.rank_fts), 0.0)
@@ -369,12 +473,55 @@ async function retrieveSingleQuery(
   `
   }
 
-  // Real PrismaClient exposes $transaction (used for the SET LOCAL GUCs);
-  // test mocks expose only $queryRaw, which runQuery uses directly.
-  const rows =
-    typeof prisma.$transaction === "function"
-      ? await prisma.$transaction(async (tx: any) => runQuery(tx))
-      : await runQuery(prisma)
+  type Row = RetrievedChunk
+  let rows: Row[] = []
+  // Real PrismaClient exposes $transaction (required for the SET LOCAL GUCs
+  // over PgBouncer transaction mode); test mocks expose only $queryRaw, which
+  // runQuery uses directly — keep both paths first-class.
+  if (typeof (prisma as unknown as { $transaction?: unknown }).$transaction === "function") {
+    try {
+      rows = await prisma.$transaction(async (tx: any) => runQuery(tx))
+    } catch (txErr) {
+      // Pool timeout / connection recycle / statement edge on the transaction
+      // pooler. Retry once without session tuning: mildly lower recall beats
+      // failing the whole review pipeline.
+      console.warn(
+        "[vector-rag] transactional retrieval failed, retrying without SET LOCAL:",
+        txErr instanceof Error ? txErr.message : txErr
+      )
+      rows = await runQuery(prisma)
+    }
+  } else {
+    rows = await runQuery(prisma)
+  }
+
+  // Adaptive recall fallback: HNSW can return fewer candidates than requested
+  // for small workspaces (index traversal is filtered post-hoc on multi-tenant
+  // tables). Fill the deficit from an exact, filter-scoped nearest-neighbour
+  // scan so downstream ranking stages always get a full candidate pool.
+  const exactFallbackEnabled = process.env.RAG_EXACT_FALLBACK !== "false"
+  const isolationImpossible = resolved.documentIds !== undefined && resolved.documentIds.length === 0
+  if (exactFallbackEnabled && !isolationImpossible && rows.length < limit) {
+    try {
+      const extra = ((await prisma.$queryRaw(exactScanSql(workspaceId, queryEmbeddingStr, limit, docCondition))) as Row[] | undefined) ?? []
+      if (extra.length > 0) {
+        const seen = new Set(rows.map((r) => r.id))
+        for (const row of extra) {
+          if (rows.length >= limit) break
+          if (!seen.has(row.id)) {
+            seen.add(row.id)
+            rows.push(row)
+          }
+        }
+      }
+    } catch (exactErr) {
+      console.warn(
+        "[vector-rag] exact-scan recall fallback failed (non-fatal):",
+        exactErr instanceof Error ? exactErr.message : exactErr
+      )
+    }
+  }
+
   return rows
 }
 
@@ -401,8 +548,10 @@ export async function searchHybrid(
     hypothesis?: string
     /** Restrict retrieval to these ingest/document IDs. An empty array returns no hits. */
     documentIds?: string[]
+    /** Restrict retrieval to structural chunk kinds, e.g. ["table", "equation"]. */
+    kinds?: string[]
   }
-): Promise<Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; similarity: number }>> {
+): Promise<RetrievedChunk[]> {
   const useHyDE = opts?.useHyDE ?? true
   const criterionExpansion = opts?.criterionExpansion ?? ""
 
@@ -422,13 +571,14 @@ export async function searchHybrid(
   const embeddings = await Promise.all(embedInputs.map((text) => generateLocalEmbedding(text)))
 
   // Retrieve candidates for each embedding in parallel
+  const filter: RetrievalFilter = { documentId, documentIds: opts?.documentIds, kinds: opts?.kinds }
   const allResultSets = await Promise.all(
     embeddings.map((emb, i) => {
       const embStr = `[${emb.join(",")}]`
       // Use the corresponding query text for FTS (not the HyDE doc); the HyDE
       // slot gets the criterion expansion keywords so it is not a 4th identical FTS query
       const ftsQuery = i < queryVariants.length ? queryVariants[i] : (criterionExpansion || query)
-      return retrieveSingleQuery(workspaceId, embStr, ftsQuery, limit, documentId, opts?.documentIds)
+      return retrieveSingleQuery(workspaceId, embStr, ftsQuery, limit, filter)
     })
   )
 
@@ -471,12 +621,12 @@ export async function searchHybrid(
 export async function fetchChunksByIds(
   workspaceId: string,
   chunkIds: string[]
-): Promise<Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; documentId: string }>> {
+): Promise<Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; documentId: string; contextPrefix: string | null }>> {
   if (chunkIds.length === 0) return []
   const ids = Array.from(new Set(chunkIds)).slice(0, 100)
   return prisma.documentChunk.findMany({
     where: { id: { in: ids }, workspaceId },
-    select: { id: true, heading: true, content: true, tokens: true, kind: true, documentId: true },
+    select: { id: true, heading: true, content: true, tokens: true, kind: true, documentId: true, contextPrefix: true },
   })
 }
 
@@ -572,9 +722,9 @@ export function applyMMR(
  */
 export async function rerankChunks(
   query: string,
-  chunks: Array<{ id: string; content: string; heading: string | null; kind?: string; similarity?: number }>,
+  chunks: Array<{ id: string; content: string; heading: string | null; kind?: string; similarity?: number; contextPrefix?: string | null }>,
   options?: { criterionId?: string; rerankPool?: number; topN?: number }
-): Promise<Array<{ id: string; content: string; heading: string | null; kind?: string; similarity?: number; relevanceScore: number; crossEncoderScore?: number }>> {
+): Promise<Array<{ id: string; content: string; heading: string | null; kind?: string; similarity?: number; contextPrefix?: string | null; relevanceScore: number; crossEncoderScore?: number }>> {
   const queryTokens = new Set(
     query.toLowerCase().split(/\s+/).filter((t) => t.length > 3)
   )
@@ -584,6 +734,11 @@ export async function rerankChunks(
   const scored = chunks.map((c) => {
     const contentLower = c.content.toLowerCase()
     const headingLower = (c.heading ?? "").toLowerCase()
+    // Contextual prefix (Anthropic-style enrichment) carries the document
+    // title + section path; a hit there signals section-level relevance.
+    // Weighted at half the content weight so it can re-order near-ties but
+    // never swamp the retrieval score.
+    const prefixLower = (c.contextPrefix ?? "").toLowerCase()
     // `similarity` is normalised to [0,1] by searchHybrid; all boosts below are
     // capped so that lexical signals can re-order but never swamp retrieval.
     let score = c.similarity ?? 0
@@ -593,12 +748,14 @@ export async function rerankChunks(
     // heading weight is 2× content weight (0.16 vs 0.08; max +0.24 total).
     let headingHits = 0
     let contentHits = 0
+    let prefixHits = 0
     for (const tok of queryTokens) {
       if (headingLower.includes(tok)) headingHits++
       if (contentLower.includes(tok)) contentHits++
+      if (prefixLower.includes(tok)) prefixHits++
     }
     const denom = Math.max(1, queryTokens.size)
-    score += 0.16 * (headingHits / denom) + 0.08 * (contentHits / denom)
+    score += 0.16 * (headingHits / denom) + 0.08 * (contentHits / denom) + 0.04 * (prefixHits / denom)
 
     // Criterion-family section heading alignment boost
     if (family) {
@@ -786,9 +943,12 @@ export async function retrieveForCriterion(
     lang?: ReviewLanguage
     /** Restrict retrieval to these ingest/document IDs. */
     documentIds?: string[]
+    /** Restrict retrieval to structural chunk kinds, e.g. ["table", "equation"] —
+     *  used by kind-aware retrieval (statistical questions → table chunks). */
+    kinds?: string[]
   } = {}
 ): Promise<{
-  chunks: Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; relevanceScore: number }>
+  chunks: Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; relevanceScore: number; contextPrefix: string | null }>
   /** Serialized community summary block — prepend to LLM prompt for global context */
   communityContext: string
 }> {
@@ -810,6 +970,7 @@ export async function retrieveForCriterion(
     hypothesis: opts.hypothesis,
     lang: opts.lang,
     documentIds: opts.documentIds,
+    kinds: opts.kinds,
   })
 
   if (rawChunks.length === 0) {
@@ -834,10 +995,13 @@ export async function retrieveForCriterion(
     chunks: finalChunks.map((c) => ({
       id: c.id,
       heading: c.heading,
+      // Verbatim source text — contextual enrichment lives in contextPrefix so
+      // evidence-validator quote checks keep matching the original document.
       content: c.content,
       tokens: Math.ceil(c.content.length / 4),
       kind: (c as { kind?: string }).kind ?? "prose",
       relevanceScore: c.relevanceScore ?? c.similarity ?? 0,
+      contextPrefix: (c as { contextPrefix?: string | null }).contextPrefix ?? null,
     })),
     communityContext,
   }
