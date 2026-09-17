@@ -4,7 +4,8 @@ This file contains important context about the project infrastructure and depend
 
 ## Key Services
 - **Next.js Frontend/API + Yjs WebSocket**: Single custom server (`server.ts`). Run via `tsx --env-file=.env.local server.ts`. Serves Next.js on port 3333 AND the Yjs WebSocket at `ws://localhost:3333/api/yjs` (authenticated via short-lived, one-time ticket passed via `Sec-WebSocket-Protocol: posterapp-yjs-v1, <ticket>` to avoid token leakage in URLs).
-- **MinerU**: Document parsing service. Runs in a WSL (Ubuntu) environment at `http://localhost:8001`. Source at `~/mineru`. Returns `md_content` (CommonMark Markdown with ATX headings), `images{}` (base64), `middle_json` (tables, equations, page structure).
+- **MinerU**: Document parsing service. Runs in a WSL (Ubuntu) environment at `http://localhost:8001` (local dev) or as Docker container `mineru-api-wsl` on `dokploy-network` at `http://mineru-api-wsl:8000` / host port 8001 (production on `dev.significa.sk`). Returns `md_content` (CommonMark Markdown with ATX headings), `images{}` (base64), `middle_json` (tables, equations, page structure). Secured via `X-API-Key: <MINERU_API_KEY>`.
+- **AI Models & Native Gemini Support**: Direct Google Gemini API key support (`AQ.*` / `AIzaSy*`) via `GEMINI_API_KEY`, routing requests for `gemini-*` models directly to Google's official OpenAI-compatible endpoint `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` with Bearer authentication. Default model across the app is `gemini-3.8-flash`.
 - **PostgreSQL + pgvector**: Database via Docker using `pgvector/pgvector:pg16` image (NOT the standard `postgres:16-alpine`). Run with: `docker run -d --name posterapp-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=posterapp -p 5432:5432 pgvector/pgvector:pg16`. Connection: `postgresql://postgres:postgres@localhost:5432/posterapp`. The `vector` extension is enabled via Prisma schema (`extensions = [vector]`).
 - **Local Embedding Model**: `Xenova/paraphrase-multilingual-MiniLM-L12-v2` via `@xenova/transformers` (Transformers.js/WASM), runs inside Node.js. No external API. Multilingual SK/CS/EN, 384-dimensional vectors. Singleton, lazy-loaded on first use. Model auto-downloads from HuggingFace on first call.
 
@@ -56,16 +57,19 @@ All AI/model configuration is via `.env.local`. Key vars:
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `AI_API_URL` | Base URL for AI completions (OpenRouter-compatible) | required |
-| `AI_API_KEY` | Bearer token for AI API | required |
-| `AI_MODEL` | Fallback model for all AI calls | `gemini-3-flash` |
-| `AI_VISION_MODEL` | Model for image captioning (must support vision) | `AI_MODEL` fallback |
-| `AI_GENERATION_MODEL` | Model for card auto-fill | `AI_MODEL` fallback |
-| `AI_REVIEW_MODEL` | Model for poster review | `AI_MODEL` fallback |
+| `GEMINI_API_KEY` | Direct Google Gemini API Key (`AQ.*` or `AIzaSy*`) | required if direct Gemini used |
+| `GEMINI_API_URL` | Google OpenAI-compatible endpoint | `https://generativelanguage.googleapis.com/v1beta/openai` |
+| `AI_API_URL` | Base URL for AI completions (OpenRouter-compatible) | fallback if Gemini key unset |
+| `AI_API_KEY` | Bearer token for AI API | required if OpenRouter used |
+| `AI_MODEL` | Fallback model for all AI calls | `gemini-3.8-flash` |
+| `AI_VISION_MODEL` | Model for image captioning (must support vision) | `gemini-3.8-flash` |
+| `AI_GENERATION_MODEL` | Model for card auto-fill | `gemini-3.8-flash` |
+| `AI_REVIEW_MODEL` | Model for poster review | `gemini-3.8-flash` |
 | `OPENROUTER_API_KEY` | Key for image editing via OpenRouter | required for image edit |
 | `OPENROUTER_BASE_URL` | OpenRouter API base | `https://openrouter.ai/api/v1` |
 | `OPENROUTER_IMAGE_MODEL` | Image-to-image model | `openai/gpt-image-1` |
-| `MINERU_API_URL` | MinerU parse service | `http://localhost:8001` |
+| `MINERU_API_URL` | MinerU parse service | `http://mineru-api-wsl:8000` or `http://localhost:8001` |
+| `MINERU_API_KEY` | Secret token for MinerU sidecar (`X-API-Key`) | required in production |
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/posterapp` |
 | `NEXT_PUBLIC_YJS_WS_URL` | Yjs WebSocket URL (enables collaboration) | `ws://localhost:3333/api/yjs` |
 | `CLERK_SECRET_KEY` | Used by server.ts to verify WebSocket JWT tokens | required |

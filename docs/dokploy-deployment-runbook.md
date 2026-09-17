@@ -19,6 +19,7 @@
 | **`postgres`** *(voliteľné)* | `posterapp-postgres` | `pgvector/pgvector:pg16` | `5432` (interná sieť) | PostgreSQL 16 databáza s `pgvector` pre 384-dimenzionálne HNSW embeddingy. *Ak je nastavený Supabase Cloud, táto služba sa ignoruje.* |
 | **`db-init`** | `posterapp-db-init` | multi-stage `builder` (`Dockerfile`) | jednorazový (exit 0) | Spustenie `npx prisma db push --skip-generate` pred štartom webu. Zabezpečí 100% aktuálnu schému v DB. |
 | **`web`** | `posterapp-web` | multi-stage `runner` (`Dockerfile`) | `3333` (Traefik proxy) | Next.js 16 + React 19 + Custom Server (`server.ts`). Servuje web na porte 3333 a Yjs WebSocket na `/api/yjs`. |
+| **`mineru-api`** | `mineru-api-wsl` | `mineru-wsl-cpu:latest` | `8000` (dokploy-network) / `8001` (host) | CPU parsing sidecar pre extrakciu CommonMark markdownu, obrázkov a tabuliek z PDF. Zabezpečené cez `X-API-Key`. |
 
 Traefik reverse proxy v Dokploy počúva na externej sieti **`dokploy-network`**, automaticky spravuje Let's Encrypt TLS certifikáty a natívne prepája WebSocket spojenia pre kolaboratívne úpravy (`/api/yjs`).
 
@@ -111,16 +112,19 @@ DIRECT_URL="postgresql://postgres.gruuqqiazsqkcpnejwsb:P0sterApp2026SecureDb99@a
 # DATABASE_URL="postgresql://postgres:SilneHesloPrePosterAppDb123@postgres:5432/posterapp"
 # DIRECT_URL="postgresql://postgres:SilneHesloPrePosterAppDb123@postgres:5432/posterapp"
 
-# AI Modely & OpenRouter
+# AI Modely & Provideri (Google Gemini Native + OpenRouter)
+GEMINI_API_KEY="AQ.Ab8RN6...alebo_AIzaSy..."
+GEMINI_API_URL="https://generativelanguage.googleapis.com/v1beta/openai"
 OPENROUTER_API_KEY="sk-or-v1-..."
 OPENROUTER_BASE_URL="https://openrouter.ai/api/v1"
-AI_MODEL="gemini-3.1-pro-preview"
-AI_VISION_MODEL="qwen3-vl-flash"
-AI_VISION_API_URL="https://ws-8cyjh6mqqru3jqy6.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/chat/completions"
-AI_VISION_API_KEY="sk-ws-..."
+AI_MODEL="gemini-3.8-flash"
+AI_VISION_MODEL="gemini-3.8-flash"
+AI_REVIEW_LAYOUT_MODEL="gemini-3.8-flash"
+AI_AUTOFIX_MODEL="gemini-3.8-flash"
 
-# MinerU Document Parsing Sidecar (ak beží na serveri alebo dedikovanom GPU node)
-MINERU_API_URL="http://mineru:8001"
+# MinerU Document Parsing Sidecar (CPU kontajner v dokploy-network)
+MINERU_API_URL="http://mineru-api-wsl:8000"
+MINERU_API_KEY="e7da866f538b38a6140344f05bffaa2cade29cddf5d62ca5"
 
 # Academic & Research Connectors
 SEMANTIC_SCHOLAR_API_KEY="s2k-..."
@@ -180,6 +184,46 @@ docker compose -f docker/docker-compose.dokploy.yml ps
 
 ---
 
+## Fáza 3.3: Nasadenie a prevádzka MinerU Document Parsing Sidecaru (CPU Mode)
+
+MinerU zabezpečuje extrakciu štruktúrovaného CommonMark markdownu, obrázkov, grafov a tabuliek z akademických PDF dokumentov. Na serveri `dev.significa.sk` beží v CPU režime ako Docker kontajner pripojený k sieti `dokploy-network`.
+
+### 3.3.1 Príprava a konfigurácia MinerU (`/root/mineru/.env`)
+V adresári `/root/mineru` overte prítomnosť súboru `.env`:
+```env
+MINERU_API_KEY=e7da866f538b38a6140344f05bffaa2cade29cddf5d62ca5
+MINERU_API_PORT=8001
+MINERU_API_ENABLE_FASTAPI_DOCS=1
+MINERU_DEVICE_MODE=cpu
+MINERU_PDF_RENDER_THREADS=2
+MINERU_INTRA_OP_NUM_THREADS=2
+MINERU_INTER_OP_NUM_THREADS=1
+```
+
+### 3.3.2 Zostavenie obrazu a spustenie kontajnera
+```bash
+# 1. Prechod do adresára MinerU
+cd /root/mineru
+
+# 2. Build CPU kontajnera (používa PyTorch CPU wheel + pypdfium2 + doclayout_yolo)
+docker compose -f docker-compose.wsl.yml build mineru-api
+
+# 3. Spustenie služby na pozadí s profilom api
+docker compose -f docker-compose.wsl.yml --profile api up -d mineru-api
+
+# 4. Kontrola stavu a pripojenia k sieti dokploy-network
+docker ps --filter "name=mineru-api"
+docker network connect dokploy-network mineru-api-wsl || true
+```
+
+### 3.3.3 Prepojenie s PosterApp
+PosterApp (`apps-posterapp-web-1`) automaticky komunikuje s MinerU prostredníctvom `lib/services/mineru-bridge.ts`:
+- Interná adresa: `http://mineru-api-wsl:8000` (cez sieť `dokploy-network`)
+- Záložná adresa: `http://172.17.0.1:8001` (host gateway)
+- Autentifikácia: Hlavička `X-API-Key: <MINERU_API_KEY>`
+
+---
+
 ## Fáza 4: Verifikácia a Smoke testy (Overenie funkčnosti)
 
 Po nasadení overte správny chod všetkých subsystémov:
@@ -205,6 +249,19 @@ Skontrolujte v DevTools prehliadača (Network ➔ WS):
 1. Otvorte ľubovoľný workspace a modul **Posudok záverečnej práce (Thesis Review)**.
 2. V sekcii diagnostiky vektorového indexu kliknite na **Indexovať / Hľadať**.
 3. Overte, že hybridné vyhľadávanie vráti relevantné pasáže bez chyby pripojenia.
+
+### 4.5 Test MinerU Ingestion Sidecaru
+1. **Healthcheck endpoint:**
+   ```bash
+   curl -s http://localhost:8001/health
+   # Očakávaný výsledok: {"status":"ok","version":"1.3.1","auth_enabled":true}
+   ```
+2. **Autorizovaný endpoint cez sieť kontajnerov:**
+   ```bash
+   docker exec -it apps-posterapp-web-1 curl -s -H "X-API-Key: e7da866f538b38a6140344f05bffaa2cade29cddf5d62ca5" http://mineru-api-wsl:8000/health
+   ```
+3. **End-to-End nahrávanie PDF:**
+   V používateľskom rozhraní nahrajte PDF súbor do workspace. MinerU extrahuje CommonMark markdown a extrahované obrázky sa uložia do `workspaces/<id>/assets/`.
 
 ---
 

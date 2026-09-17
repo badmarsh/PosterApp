@@ -107,7 +107,8 @@ services:
       AI_VISION_API_URL: ${AI_VISION_API_URL}
       AI_VISION_API_KEY: ${AI_VISION_API_KEY}
       # MinerU Document Parsing Sidecar
-      MINERU_API_URL: ${MINERU_API_URL}
+      MINERU_API_URL: ${MINERU_API_URL:-http://mineru-api-wsl:8000}
+      MINERU_API_KEY: ${MINERU_API_KEY}
       # Academic & Research Connectors
       SEMANTIC_SCHOLAR_API_KEY: ${SEMANTIC_SCHOLAR_API_KEY}
       OPENALEX_API_KEY: ${OPENALEX_API_KEY}
