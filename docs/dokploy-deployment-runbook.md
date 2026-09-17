@@ -1,10 +1,14 @@
 # PosterApp — Dokploy Deployment Runbook & SOP
 
-**Cieľový server:** Dokploy cluster (napr. `dev.significa.sk` / vlastný VPS)  
-**Predvolená doména:** `https://poster.dev.significa.sk` (alebo vlastná produkčná doména)  
-**Dokploy Project:** `PosterApp`  
-**Dokploy Compose App:** `posterapp`  
-**Cesta ku kódu na serveri:** `/etc/dokploy/compose/<compose-id>/code/`  
+**Cieľový server:** `dev.significa.sk` (SSH: `root@dev.significa.sk`)  
+**Verejná produkčná URL:** [https://poster.dev.significa.sk](https://poster.dev.significa.sk)  
+**Dokploy Project ID:** `P0stErAppPr0j3ctId26` (`PosterApp`)  
+**Dokploy Environment ID:** `P0stErAppEnvPr0dId26` (`production`)  
+**Dokploy Compose App ID:** `P0stErAppC0mp0sEId26` (`posterapp`)  
+**Interný názov aplikácie na disku:** `apps-posterapp`  
+**Cesta ku kódu na serveri:** `/etc/dokploy/compose/apps-posterapp/code/`  
+**Cesta k logom nasadenia:** `/etc/dokploy/logs/apps-posterapp/`  
+**Dokploy Webhook URL:** `https://dev.significa.sk/api/deploy/compose/posterapp_whk_2026_tok`  
 
 ---
 
