@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -319,9 +320,9 @@ Please analyze this content and suggest how to incorporate it into my ${project.
 
   return (
     <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
-      <DialogContent showCloseButton className="w-[95vw] sm:max-w-4xl md:max-w-5xl h-[88vh] p-0 overflow-hidden flex flex-col shadow-2xl border border-border bg-background">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-b border-border bg-card shrink-0 pr-12">
+      <DialogContent aria-describedby={undefined} showCloseButton className="w-[95vw] sm:max-w-4xl md:max-w-5xl h-[88vh] p-0 overflow-hidden flex flex-col shadow-2xl border border-border bg-background gap-0">
+        {/* Header — sticky */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-b border-border bg-card shrink-0 pr-12 sticky top-0 z-10">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5 flex-wrap">
               <DialogTitle className="text-base font-semibold tracking-tight flex items-center gap-2 text-foreground">
@@ -438,7 +439,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                         size="sm"
                         variant="outline"
                         onClick={() => fileInputRef.current?.click()}
-                        className="h-8 text-[11px] gap-1.5"
+                        className="h-8 text-[11px] gap-1.5 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <Upload className="size-3.5" />
                         Choose File
@@ -447,7 +448,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                         size="sm"
                         variant="outline"
                         onClick={startCamera}
-                        className="h-8 text-[11px] gap-1.5"
+                        className="h-8 text-[11px] gap-1.5 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <Camera className="size-3.5" />
                         Live Camera Scan
@@ -483,7 +484,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                         type="button"
                         onClick={() => setOcrMode(mode.id as OcrMode)}
                         className={cn(
-                          "flex items-center justify-between px-3 py-2 rounded-md border text-left text-[12px] font-medium transition-all",
+                          "flex items-center justify-between px-3 py-2 rounded-md border text-left text-[12px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           ocrMode === mode.id
                             ? "border-primary bg-primary/10 text-primary font-semibold"
                             : "border-border hover:bg-muted/50 text-foreground"
@@ -504,7 +505,14 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                     id="custom-ocr-prompt"
                     value={customPrompt}
                     onChange={(e) => setCustomPrompt(e.target.value)}
-                    placeholder="e.g. Focus on derivation steps..."
+                    placeholder="e.g. Focus on derivation steps... (Esc to clear)"
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape" && customPrompt) {
+                        e.preventDefault()
+                        setCustomPrompt("")
+                      }
+                    }}
+                    aria-label="Custom OCR instruction"
                     className="text-[12px] h-8"
                   />
                 </div>
@@ -524,7 +532,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                 <Button
                   onClick={runOcr}
                   disabled={!imagePreview || isProcessing}
-                  className="w-full h-9 text-[12px] gap-2 mt-auto shadow-md"
+                  className="w-full h-9 text-[12px] gap-2 mt-auto shadow-md transition-colors duration-150"
                 >
                   {isProcessing ? (
                     <>

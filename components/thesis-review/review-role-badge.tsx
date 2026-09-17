@@ -123,7 +123,7 @@ export function ReviewRoleBanner({
   const sub = lang === "en" ? meta.enSub : lang === "cs" ? meta.csSub : meta.skSub
   return (
     <div className={`rounded-xl border px-4 py-3 flex items-start gap-3 ${meta.banner}`}>
-      <div className="p-2 rounded-lg bg-white/60 dark:bg-white/10 shrink-0">
+      <div className="p-2 rounded-lg bg-card/80 dark:bg-card/50 border border-border/50 shrink-0">
         <Icon className={`h-5 w-5 ${meta.accent}`} />
       </div>
       <div className="min-w-0">

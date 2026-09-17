@@ -99,7 +99,7 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
         }
       }}
       className={cn(
-        "group flex cursor-pointer flex-col rounded-md border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "group flex cursor-pointer flex-col rounded-md border text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         compactMode ? "gap-0.5 px-1.5 py-1" : "gap-1 px-2 py-1.5",
         active
           ? "border-primary/40 bg-sidebar-accent"
@@ -276,7 +276,7 @@ function ColumnGroup({
             aria-expanded={!collapsed}
             aria-label={`${collapsed ? "Expand" : "Collapse"} column ${column}`}
             onClick={() => onToggleCollapsed?.(column)}
-            className="rounded p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40"
+            className="rounded p-0.5 text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40"
           >
             <ChevronDown className={cn("size-3.5 transition-transform", collapsed && "-rotate-90")} />
           </button>
@@ -317,7 +317,7 @@ function ColumnGroup({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="mt-0.5 h-6 gap-1 px-2 text-[10px]"
+                  className="mt-0.5 h-6 gap-1 px-2 text-[10px] transition-colors duration-150"
                   onClick={() => addCard(column)}
                 >
                   <Plus className="size-3" />
@@ -374,7 +374,7 @@ export function StructureSidebar() {
   const [collapsedColumns, setCollapsedColumns] = useState<Record<number, boolean>>({})
 
   return (
-    <aside className="flex h-full w-full shrink-0 flex-col border-r border-border bg-sidebar lg:w-72">
+    <aside className="flex h-full w-full shrink-0 flex-col border-r border-border bg-sidebar lg:w-72 overflow-hidden">
       <div className="flex flex-col gap-2 border-b border-border p-2.5">
         <div className="rounded-md border border-border bg-card p-2">
           <p className="text-[11px] font-medium leading-tight text-pretty">
@@ -432,7 +432,7 @@ export function StructureSidebar() {
               value={cardSearch}
               onChange={(e) => setCardSearch(e.target.value)}
               placeholder="Filter sections..."
-              className="h-7 pl-6 pr-6 text-[11px] bg-card"
+              className="h-7 pl-6 pr-6 text-[11px] bg-card focus-visible:ring-2 transition-colors duration-150"
             />
             {cardSearch && (
               <button

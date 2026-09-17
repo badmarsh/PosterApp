@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Trash2, HelpCircle, Pencil, Check, X, Tag } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Plus, Trash2, HelpCircle, Pencil, Check, X, Tag, Sparkles } from "lucide-react"
 import type { ReviewLanguage } from "@/lib/ai/thesis-rubric"
 
 interface Props {
@@ -145,9 +146,25 @@ export function DefenseQuestionsPanel({ questions, lang, onUpdateQuestions }: Pr
 
       <p className="text-xs text-muted-foreground">{t.subtitle}</p>
 
-      {questions.length === 0 && !isAdding && (
-        <p className="text-xs text-muted-foreground italic py-2">{t.empty}</p>
-      )}
+      {questions.length === 0 && !isAdding ? (
+        <EmptyState
+          compact
+          variant="inline"
+          icon={HelpCircle}
+          title={t.empty}
+          description={t.subtitle}
+          action={
+            <Button
+              size="sm"
+              className="h-7 text-xs gap-1.5 shadow-xs transition-colors duration-150"
+              onClick={() => setIsAdding(true)}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {t.addBtn}
+            </Button>
+          }
+        />
+      ) : null}
 
       <div className="space-y-2">
         {questions.map((q, idx) => {
@@ -156,7 +173,7 @@ export function DefenseQuestionsPanel({ questions, lang, onUpdateQuestions }: Pr
           return (
             <div
               key={idx}
-              className="group flex items-start gap-2.5 rounded-md border bg-muted/30 p-3 text-xs transition-colors hover:bg-muted/50"
+              className="group flex items-start gap-2.5 rounded-md border bg-muted/30 p-3 text-xs transition-colors duration-150 hover:bg-muted/50 hover:border-border focus-within:ring-1 focus-within:ring-ring"
             >
               <span className="font-bold text-primary shrink-0 mt-0.5 w-4">{idx + 1}.</span>
 
@@ -187,7 +204,7 @@ export function DefenseQuestionsPanel({ questions, lang, onUpdateQuestions }: Pr
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-6 w-6"
+                        className="h-6 w-6 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
                         aria-label="Upraviť otázku"
                         onClick={() => handleStartEdit(idx)}
                       >
@@ -224,7 +241,8 @@ export function DefenseQuestionsPanel({ questions, lang, onUpdateQuestions }: Pr
             placeholder={t.placeholder}
             value={newQuestionText}
             onChange={(e) => setNewQuestionText(e.target.value)}
-            className="text-xs h-8"
+            className="text-xs h-8 focus-visible:ring-2"
+            aria-label="New defense question"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                 e.preventDefault()
@@ -235,7 +253,7 @@ export function DefenseQuestionsPanel({ questions, lang, onUpdateQuestions }: Pr
             autoFocus
           />
           <div className="flex gap-2">
-            <Button size="xs" onClick={handleAddQuestion} disabled={!newQuestionText.trim()} className="h-6 text-xs gap-1">
+            <Button size="xs" onClick={handleAddQuestion} disabled={!newQuestionText.trim()} className="h-6 text-xs gap-1 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring">
               <Check className="h-3 w-3" />
               {lang === "sk" ? "Pridať otázku" : lang === "cs" ? "Přidat otázku" : "Add Question"}
             </Button>

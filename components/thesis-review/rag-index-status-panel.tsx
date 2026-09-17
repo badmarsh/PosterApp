@@ -16,6 +16,8 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
 import { pluralizeSk } from "@/lib/utils"
 import { formatDocumentDisplayName } from "@/lib/ingestion"
 import {
@@ -300,7 +302,8 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            aria-label="Refresh RAG stats"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => loadStats(true)}
             disabled={isLoading}
             title="Obnoviť štatistiky"
@@ -311,7 +314,8 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            aria-label={expanded ? "Collapse RAG details" : "Expand RAG details"}
+            className="h-7 w-7 text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => setExpanded((v) => !v)}
             aria-expanded={expanded}
             aria-controls="rag-index-details"
@@ -325,6 +329,14 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
       {/* Expanded content */}
       {expanded && (
         <div id="rag-index-details" className="p-4 space-y-4 border-t">
+          {isLoading && !stats && (
+            <div className="space-y-2" role="status" aria-label="Loading RAG index">
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-20 w-full rounded-lg" />
+              <Skeleton className="h-8 w-full rounded-md" />
+              <span className="sr-only">Loading…</span>
+            </div>
+          )}
           {/* Error message */}
           {error && (
             <div className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">

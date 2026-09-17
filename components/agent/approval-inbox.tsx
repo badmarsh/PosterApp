@@ -20,6 +20,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export interface AgentChangeItem {
   id: string
@@ -189,7 +191,7 @@ export function ApprovalInbox({ workspaceId, onApplySuccess }: ApprovalInboxProp
           <Layers className="size-4 text-primary" />
           <span className="text-xs font-semibold">Approval Inbox</span>
           {pendingCount > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-500 border border-amber-500/40">
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-warning/15 text-warning border border-warning/30">
               {pendingCount} pending
             </span>
           )}
@@ -199,7 +201,7 @@ export function ApprovalInbox({ workspaceId, onApplySuccess }: ApprovalInboxProp
             <button
               onClick={() => setStatusFilter("pending")}
               className={cn(
-                "px-2 py-0.5 rounded font-medium transition-colors",
+                "px-2 py-0.5 rounded font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                 statusFilter === "pending" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -208,7 +210,7 @@ export function ApprovalInbox({ workspaceId, onApplySuccess }: ApprovalInboxProp
             <button
               onClick={() => setStatusFilter("all")}
               className={cn(
-                "px-2 py-0.5 rounded font-medium transition-colors",
+                "px-2 py-0.5 rounded font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                 statusFilter === "all" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -220,6 +222,7 @@ export function ApprovalInbox({ workspaceId, onApplySuccess }: ApprovalInboxProp
             size="icon-xs"
             onClick={fetchChanges}
             disabled={isLoading}
+            aria-label="Refresh approval inbox"
             title="Refresh changes"
           >
             <RefreshCw className={cn("size-3.5", isLoading && "animate-spin")} />
@@ -238,7 +241,7 @@ export function ApprovalInbox({ workspaceId, onApplySuccess }: ApprovalInboxProp
             variant="default"
             onClick={handleBatchApproveBib}
             disabled={isLoading}
-            className="text-[11px] h-6 px-2"
+            className="text-[11px] h-6 px-2 transition-colors duration-150"
           >
             Approve all {pendingBibChanges.length} entries
           </Button>
@@ -247,8 +250,8 @@ export function ApprovalInbox({ workspaceId, onApplySuccess }: ApprovalInboxProp
 
       {/* Conflict Modal / Inline Card View */}
       {conflict && (
-        <div className="m-3 p-3 rounded-lg border border-red-500/40 bg-red-500/10 flex flex-col gap-2">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-red-500">
+        <div className="m-3 p-3 rounded-lg border border-destructive/30 bg-destructive/10 flex flex-col gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
             <AlertTriangle className="size-4 shrink-0" />
             <span>Conflict: Card modified after proposal</span>
           </div>
@@ -297,14 +300,33 @@ export function ApprovalInbox({ workspaceId, onApplySuccess }: ApprovalInboxProp
 
       {/* Changes list */}
       <div className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-3">
-        {changes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground gap-2">
-            <Layers className="size-8 opacity-40" />
-            <p className="text-xs font-medium">No pending agent changes</p>
-            <p className="text-[11px] opacity-70 max-w-[220px]">
-              When DeerFlow proposes changes to cards, bibliography, or assets, they will appear here for your review.
-            </p>
+        {isLoading ? (
+          <div className="flex flex-col gap-3" role="status" aria-label="Loading approval inbox">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-lg border border-border bg-card p-3 space-y-2 animate-pulse">
+                <Skeleton className="h-3 w-2/3" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-6 w-full" />
+              </div>
+            ))}
+            <span className="sr-only">Loading…</span>
           </div>
+        ) : changes.length === 0 ? (
+          <EmptyState
+            icon={Layers}
+            title={statusFilter === "pending" ? "Inbox zero — no pending changes" : "No agent changes yet"}
+            description={
+              statusFilter === "pending"
+                ? "When DeerFlow proposes changes to cards, bibliography, or assets, they will appear here for your review. Try prompting the agent to draft a poster section."
+                : "No changes have been proposed yet for this workspace. Approve or reject items as the agent works."
+            }
+            action={
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 mt-1 transition-colors duration-150" onClick={fetchChanges}>
+                <RefreshCw className="size-3.5" />
+                Refresh inbox
+              </Button>
+            }
+          />
         ) : (
           changes.map((change) => {
             const isPending = change.status === "pending"
@@ -324,7 +346,7 @@ export function ApprovalInbox({ workspaceId, onApplySuccess }: ApprovalInboxProp
                 key={change.id}
                 className={cn(
                   "rounded-lg border p-3 flex flex-col gap-2 transition-all bg-card/60 shadow-xs",
-                  isPending ? "border-amber-500/40 hover:border-amber-500/60" : "border-border/60 opacity-80"
+                  isPending ? "border-warning/30 hover:border-warning/50" : "border-border/60 opacity-80"
                 )}
               >
                 {/* Meta row */}
@@ -341,17 +363,17 @@ export function ApprovalInbox({ workspaceId, onApplySuccess }: ApprovalInboxProp
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {change.status === "pending" && (
-                      <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-500">
+                      <Badge variant="outline" className="text-[10px] border-warning/30 bg-warning/10 text-warning">
                         Pending
                       </Badge>
                     )}
                     {change.status === "applied" && (
-                      <Badge variant="outline" className="text-[10px] border-emerald-500/50 text-emerald-500">
+                      <Badge variant="outline" className="text-[10px] border-success/30 bg-success/10 text-success">
                         Applied
                       </Badge>
                     )}
                     {change.status === "rejected" && (
-                      <Badge variant="outline" className="text-[10px] border-red-500/50 text-red-500">
+                      <Badge variant="outline" className="text-[10px] border-destructive/30 bg-destructive/10 text-destructive">
                         Rejected
                       </Badge>
                     )}
@@ -361,7 +383,7 @@ export function ApprovalInbox({ workspaceId, onApplySuccess }: ApprovalInboxProp
                       </Badge>
                     )}
                     {change.status === "failed" && (
-                      <Badge variant="outline" className="text-[10px] border-red-500/50 text-red-500">
+                      <Badge variant="outline" className="text-[10px] border-destructive/30 bg-destructive/10 text-destructive">
                         Failed
                       </Badge>
                     )}
@@ -387,7 +409,7 @@ export function ApprovalInbox({ workspaceId, onApplySuccess }: ApprovalInboxProp
                     </div>
 
                     {change.diffPreview.before && (
-                      <div className="p-1.5 rounded bg-red-500/5 border border-red-500/20 text-red-700 dark:text-red-400">
+                      <div className="p-1.5 rounded bg-destructive/5 border border-destructive/20 text-destructive">
                         <span className="font-bold block mb-0.5">Before:</span>
                         {typeof change.diffPreview.before === "string" ? (
                           <pre className="whitespace-pre-wrap">{change.diffPreview.before}</pre>
@@ -400,7 +422,7 @@ export function ApprovalInbox({ workspaceId, onApplySuccess }: ApprovalInboxProp
                     )}
 
                     {change.diffPreview.after && (
-                      <div className="p-1.5 rounded bg-emerald-500/5 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400">
+                      <div className="p-1.5 rounded bg-success/5 border border-success/20 text-success">
                         <span className="font-bold block mb-0.5">After:</span>
                         {typeof change.diffPreview.after === "string" ? (
                           <pre className="whitespace-pre-wrap">{change.diffPreview.after}</pre>
@@ -428,7 +450,7 @@ export function ApprovalInbox({ workspaceId, onApplySuccess }: ApprovalInboxProp
                         variant="outline"
                         onClick={() => handleReject(change.id)}
                         disabled={processingId === change.id}
-                        className="h-6 px-2 text-[10px] hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40"
+                        className="h-6 px-2 text-[10px] hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <XCircle className="size-3 mr-1" />
                         Reject
@@ -438,7 +460,7 @@ export function ApprovalInbox({ workspaceId, onApplySuccess }: ApprovalInboxProp
                         variant="default"
                         onClick={() => handleApprove(change.id)}
                         disabled={processingId === change.id}
-                        className="h-6 px-2 text-[10px]"
+                        className="h-6 px-2 text-[10px] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <CheckCircle2 className="size-3 mr-1" />
                         Approve

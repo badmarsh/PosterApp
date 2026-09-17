@@ -337,6 +337,7 @@ function ContentTab({ card }: { card: Card }) {
               <Button
                 variant="ghost"
                 size="icon-xs"
+                aria-label="Insert inline code"
                 onClick={() => insertMarkdown("`", "`")}
                 title="Inline Code"
               >
