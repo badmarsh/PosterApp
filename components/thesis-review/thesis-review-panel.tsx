@@ -37,6 +37,7 @@ import {
   Sparkles,
   SlidersHorizontal,
   Scale,
+  FileText,
 } from "lucide-react"
 
 interface Props {
@@ -210,13 +211,19 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
     )
   }
 
+  const isPaper = formMetadata.reviewKind === "paper"
+
   return (
     <div className="flex-1 h-full w-full min-h-0 overflow-y-auto p-4 lg:p-8 bg-background">
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground">Odborný posudok záverečnej práce</h2>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">
+            {isPaper ? "Odborný posudok vedeckého článku" : "Odborný posudok záverečnej práce"}
+          </h2>
           <p className="text-xs text-muted-foreground">
-            Sémantická analýza rukopisu, ukotvenie dôkazov v texte a automatické hodnotenie podľa akademických štandardov.
+            {isPaper
+              ? "Sémantická analýza rukopisu, kontrola metodiky a experimentov, overenie citácií a formulácia pripomienok pre autorov."
+              : "Sémantická analýza rukopisu, ukotvenie dôkazov v texte a automatické hodnotenie podľa akademických štandardov."}
           </p>
         </div>
 
@@ -240,11 +247,15 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                     <h3 className="text-base font-bold text-foreground">
                       {isGeneratingPlan
                         ? "Analyzujem štruktúru a pripravujem plán posudku…"
+                        : isPaper
+                        ? "Umelá inteligencia pripravuje peer review článku…"
                         : "Umelá inteligencia generuje odborný posudok…"}
                     </h3>
                     <p className="text-xs text-muted-foreground">
                       {isGeneratingPlan
                         ? "Kontrola výskumných cieľov, metodiky a odporúčaných štandardov."
+                        : isPaper
+                        ? "Prechádzanie vektorových dôkazov, audit citácií a formulácia pripomienok pre autorov (5 – 20 min)."
                         : "Prechádzanie vektorových dôkazov cez 12 rubrík, audit citácií a formulácia otázok na obhajobu (5 – 20 min)."}
                     </p>
                   </div>
@@ -262,16 +273,26 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b">
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <GraduationCap className="size-4 text-primary shrink-0" />
+                      {isPaper ? (
+                        <FileText className="size-4 text-primary shrink-0" />
+                      ) : (
+                        <GraduationCap className="size-4 text-primary shrink-0" />
+                      )}
                       <h3 className="text-sm font-bold text-foreground truncate">
                         {formMetadata.studentName || formMetadata.thesisTitle
-                          ? `${formMetadata.studentName || 'Autor'} — ${formMetadata.thesisTitle || 'Záverečná práca'}`
-                          : "Nový posudok"}
+                          ? `${formMetadata.studentName || (isPaper ? 'Autori' : 'Autor')} — ${formMetadata.thesisTitle || (isPaper ? 'Vedecký článok' : 'Záverečná práca')}`
+                          : (isPaper ? "Nový posudok článku" : "Nový posudok")}
                       </h3>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                       <span className="capitalize">
-                        {formMetadata.thesisType === "phd" ? "Dizertačná práca (PhD)" : formMetadata.thesisType === "master" ? "Diplomová práca (Ing./Mgr.)" : "Bakalárska práca (Bc.)"}
+                        {isPaper
+                          ? "Vedecký článok / Peer Review"
+                          : formMetadata.thesisType === "phd"
+                          ? "Dizertačná práca (PhD)"
+                          : formMetadata.thesisType === "master"
+                          ? "Diplomová práca (Ing./Mgr.)"
+                          : "Bakalárska práca (Bc.)"}
                       </span>
                       {formMetadata.department && (
                         <>
@@ -289,7 +310,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="text-xs py-1 px-2.5 shrink-0 text-warning dark:text-warning self-start sm:self-center">
-                      {!hasDocument ? "Nahrajte PDF" : "Doplňte metadáta"}
+                      {!hasDocument ? (isPaper ? "Nahrajte PDF článku" : "Nahrajte PDF") : "Doplňte metadáta"}
                     </Badge>
                   )}
                 </div>
@@ -401,7 +422,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                     className="flex-1 h-10 gap-2 font-semibold text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs transition-all cursor-pointer rounded-lg"
                   >
                     <Sparkles className="size-4" />
-                    Vygenerovať posudok (AI + RAG)
+                    {isPaper ? "Vygenerovať peer review (AI + RAG)" : "Vygenerovať posudok (AI + RAG)"}
                   </Button>
 
                   <Button
@@ -496,7 +517,11 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                     <div className="space-y-1.5 min-w-0 flex-1 pr-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-primary shrink-0">
-                          <GraduationCap className="h-4 w-4" />
+                          {rev.reviewKind === "paper" ? (
+                            <FileText className="h-4 w-4" />
+                          ) : (
+                            <GraduationCap className="h-4 w-4" />
+                          )}
                         </div>
                         <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 text-muted-foreground">
                           #{reviews.length - index}
@@ -532,13 +557,17 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
 
                       {rev.thesisTitle && rev.thesisTitle !== rev.studentName && rev.studentName && (
                         <p className="text-xs text-muted-foreground line-clamp-1 pl-9">
-                          Autor: <strong className="text-foreground/90 font-medium">{rev.studentName}</strong>
+                          {rev.reviewKind === "paper" ? "Autori:" : "Autor:"} <strong className="text-foreground/90 font-medium">{rev.studentName}</strong>
                         </p>
                       )}
 
                       <p className="text-[11px] text-muted-foreground pl-9">
                         <span className="font-medium text-foreground/80">
-                          {rev.reviewerRole === "supervisor" ? "Vedúci práce" : "Oponent / Recenzent"}
+                          {rev.reviewKind === "paper"
+                            ? "Recenzent"
+                            : rev.reviewerRole === "supervisor"
+                            ? "Vedúci práce"
+                            : "Oponent / Recenzent"}
                         </span>
                         {rev.reviewerName && ` (${rev.reviewerName})`} • Vytvorené: {formattedTime}
                       </p>

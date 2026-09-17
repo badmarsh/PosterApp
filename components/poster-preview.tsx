@@ -574,10 +574,13 @@ export function getOutputTabLabel(output: OutputConfig, project: Project): strin
     }
     const storeKey = `${project.id}:${output.id}`
     const store = getExistingThesisReviewStore(storeKey)
+    const reviewKind = store?.getState().formMetadata.reviewKind
+    if (reviewKind === "paper") return "Posudok článku"
     const role = store?.getState().formMetadata.reviewerRole
     if (role === "supervisor") return "Posudok školiteľa"
     if (role === "opponent") return "Posudok oponenta"
     if (role === "reviewer") return "Posudok recenzenta"
+    if (role === "self") return "Predkonzultačný rozbor"
 
     const thesisOutputs = (project.outputs || []).filter((o) => o.outputType === "thesis-review")
     const index = thesisOutputs.findIndex((o) => o.id === output.id)

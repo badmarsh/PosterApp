@@ -119,7 +119,7 @@ export async function fetchMinerU(endpointPath: string, init?: RequestInit): Pro
   const baseUrl = await resolveMinerUUrl()
 
   const headers = new Headers(init?.headers)
-  const apiKey = process.env.MINERU_API_KEY?.trim()
+  const apiKey = (process.env.MINERU_API_KEY || "e7da866f538b38a6140344f05bffaa2cade29cddf5d62ca5").trim()
   if (apiKey) {
     if (!headers.has("X-API-Key")) headers.set("X-API-Key", apiKey)
     if (!headers.has("Authorization")) headers.set("Authorization", `Bearer ${apiKey}`)

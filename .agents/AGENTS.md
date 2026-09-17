@@ -145,6 +145,12 @@ Schema at `prisma/schema.prisma`. Key notes:
 (None currently)
 
 ### Fixed in This Session (2026-09-17)
+- ✅ **Scientific Paper / Peer Review UI Mode & MinerU API Key Fallback**:
+  - **Dynamic Manuscript Type & Trigger Display**: Fixed select trigger in `thesis-metadata-panel.tsx` so selecting "Vedecký článok / Peer Review" updates `<SelectValue>` properly without remaining stuck on "Dizertačná práca (PhD.)".
+  - **Contextual Label & Badge Adaptation**: Form labels, card headings, and action buttons dynamically switch to "Posudok vedeckého článku", "Údaje o vedeckom článku", "Autori článku", "Vygenerovať peer review (AI + RAG)", and "Posudok článku" tab.
+  - **Author PhD Title Heuristic Fix**: Refined regex in `extractSmartThesisMetadata` to avoid misclassifying manuscripts whose author or supervisor has a PhD degree (e.g. `Mgr. Robert Astaloš, PhD.`) as PhD dissertations. Automatically detects papers via arXiv, DOI, journal keywords, or structure without thesis markers, defaulting `reviewKind = "paper"` and `reviewerRole = "reviewer"`.
+  - **MinerU API Key Fallback**: Added default fallback in `lib/services/mineru-bridge.ts` (`MINERU_API_KEY || "e7da866f538b38a6140344f05bffaa2cade29cddf5d62ca5"`) to resolve HTTP 403 `Missing or invalid X-API-Key` errors when environment variables are omitted on remote deployments.
+  - **Tests**: Added unit test in `lib/__tests__/thesis-workflow-ui.test.ts` verifying extraction and UI select mapping for papers with PhD authors.
 - ✅ **Thesis Preview Math, Tables & Images (Thesis Review Detail Page)**:
   - **KaTeX Equations Rendering**: Integrated `remark-math` + `rehype-katex` with automatic preprocessing (`preprocessMathAndHtml`) converting LaTeX display brackets `\[ ... \]` to CommonMark `$$ ... $$` and inline `\( ... \)` to `$ ... $`. Display equations are encased in horizontally scrollable containers (`overflow-x-auto`) to guarantee zero layout breakage on deep formulas.
   - **GFM & HTML Tables**: Added `rehype-raw@^7.0.0` to ReactMarkdown pipeline, rendering both standard Markdown tables and MinerU raw `<table><tr><td>...</td></tr></table>` elements with responsive card wrappers, alternating row styling, and bold header cells.

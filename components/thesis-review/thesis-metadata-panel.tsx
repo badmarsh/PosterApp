@@ -174,14 +174,42 @@ export function extractSmartThesisMetadata(text: string, filename?: string) {
     department = ""
   }
 
-  // 6. Degree / Type
+  // 6. Degree / Type & Review Kind
   const lower = text.toLowerCase()
-  if (lower.includes("bakalársk") || lower.includes("bachelor")) {
+  const frontLower = frontMatter.toLowerCase()
+
+  const isBachelor = /(?:bakalársk[áé]|bakalářsk[áé])\s+prác[ae]|bachelor'?s?\s+thesis/i.test(frontLower)
+  const isMaster = /(?:diplomov[áé]|magistersk[áé])\s+prác[ae]|master'?s?\s+thesis/i.test(frontLower)
+  const isPhd = /(?:dizertačn[áé]|disertačn[íé])\s+prác[ae]|doctoral\s+(?:thesis|dissertation)|phd\s+(?:thesis|dissertation)/i.test(frontLower)
+  const isExplicitThesis = isBachelor || isMaster || isPhd || /záverečn[áé]\s+prác[ae]/i.test(frontLower)
+
+  // Scientific Paper / Peer Review markers
+  const isPaperDoc = !isExplicitThesis && (
+    /(?:arxiv:\d+\.\d+|doi:\s*10\.\d+|issn\s*\d+|journal\s+of|proceedings\s+of|submitted\s+to|peer\s+review)/i.test(frontLower) ||
+    (frontLower.includes("abstract") && frontLower.includes("introduction") && !frontLower.includes("vedúci práce") && !frontLower.includes("školiteľ"))
+  )
+
+  if (isPaperDoc) {
+    reviewKind = "paper"
+    reviewerRole = "reviewer"
+  } else if (isBachelor) {
     thesisType = "bachelor"
-  } else if (lower.includes("diplomov") || lower.includes("master thesis") || lower.includes("magistersk") || lower.includes("diplomová práca")) {
+    reviewKind = "thesis"
+  } else if (isMaster) {
     thesisType = "master"
-  } else if (lower.includes("dizertač") || lower.includes("dissertation") || lower.includes("phd") || lower.includes("dizertačná práca")) {
+    reviewKind = "thesis"
+  } else if (isPhd) {
     thesisType = "phd"
+    reviewKind = "thesis"
+  } else if (lower.includes("bakalársk") || lower.includes("bachelor")) {
+    thesisType = "bachelor"
+    reviewKind = "thesis"
+  } else if (lower.includes("diplomov") || lower.includes("master thesis") || lower.includes("magistersk")) {
+    thesisType = "master"
+    reviewKind = "thesis"
+  } else if (lower.includes("dizertač") || lower.includes("disertač") || lower.includes("dissertation")) {
+    thesisType = "phd"
+    reviewKind = "thesis"
   }
 
   // 7. Academic Year / Date
@@ -255,14 +283,19 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
       thesisTitle: ext.title,
       studentName: ext.studentName,
       thesisType: ext.thesisType,
+      reviewKind: ext.reviewKind,
+      reviewerRole: (ext.reviewKind === "paper" ? "reviewer" : ext.reviewerRole) as ReviewerRole,
       reviewerName: ext.reviewerName,
       institution: ext.institution,
       department: ext.department,
       academicYear: ext.academicYear,
     })
+    if (ext.reviewKind === "paper") {
+      updateActiveOutput({ title: "Posudok vedeckého článku" })
+    }
     setAutoExtractedSuccess(true)
     setTimeout(() => setAutoExtractedSuccess(false), 3000)
-  }, [updateFormMetadata])
+  }, [updateFormMetadata, updateActiveOutput])
 
   // Reset or re-extract form when document changes (ONLY once per unique document change, never re-runs on user typing)
   useEffect(() => {
@@ -314,6 +347,9 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
   }
 
   const lang = formMetadata.language || "sk"
+  const isPaper = formMetadata.reviewKind === "paper"
+  const selectedDocType = isPaper ? "article" : formMetadata.thesisType
+
   const isComplete = formMetadata.reviewerRole === "self"
     ? Boolean(formMetadata.thesisTitle?.trim())
     : Boolean(formMetadata.studentName?.trim()) && Boolean(formMetadata.thesisTitle?.trim())
@@ -324,14 +360,14 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
       <div className="flex items-center pb-3 border-b border-border/70">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20 shadow-2xs">
-            <GraduationCap className="size-4" />
+            {isPaper ? <FileText className="size-4" /> : <GraduationCap className="size-4" />}
           </div>
           <div className="min-w-0">
             <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">
-              Posudok záverečnej práce
+              {isPaper ? "Posudok vedeckého článku" : "Posudok záverečnej práce"}
             </h2>
             <p className="text-[11px] text-muted-foreground truncate">
-              Parametre a spustenie AI hodnotenia
+              {isPaper ? "Parametre a spustenie AI recenzie" : "Parametre a spustenie AI hodnotenia"}
             </p>
           </div>
         </div>
@@ -379,8 +415,8 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                   }
                 }}
               >
-                <SelectTrigger className="h-8.5 text-xs w-full bg-card border-border/80 shadow-2xs font-medium rounded-lg px-3 hover:border-border transition-colors" aria-label="Vyberte prácu">
-                  <SelectValue placeholder="Vyberte prácu...">
+                <SelectTrigger className="h-8.5 text-xs w-full bg-card border-border/80 shadow-2xs font-medium rounded-lg px-3 hover:border-border transition-colors" aria-label={isPaper ? "Vyberte článok" : "Vyberte prácu"}>
+                  <SelectValue placeholder={isPaper ? "Vyberte článok..." : "Vyberte prácu..."}>
                     {formatDocumentDisplayName(activeFile?.name)}
                   </SelectValue>
                 </SelectTrigger>
@@ -421,7 +457,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
               className="w-full h-7 text-[11px] gap-1.5 text-muted-foreground hover:text-foreground border-dashed rounded-lg cursor-pointer"
             >
               <UploadCloud className="size-3.5 text-primary" />
-              Nahrať ďalšiu prácu (PDF)
+              {isPaper ? "Nahrať ďalší článok (PDF)" : "Nahrať ďalšiu prácu (PDF)"}
             </Button>
 
             {autoExtractedSuccess && (
@@ -453,7 +489,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
             }`}
           >
             <UploadCloud className="size-6 text-primary mx-auto mb-1.5 opacity-80" />
-            <p className="text-xs font-semibold">Nahrajte PDF práce</p>
+            <p className="text-xs font-semibold">{isPaper ? "Nahrajte PDF článku" : "Nahrajte PDF práce"}</p>
             <p className="text-[10px] text-muted-foreground">Presuňte súbor sem</p>
           </div>
         )}
@@ -485,7 +521,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
             <span>{formMetadata.studentName}</span>
             <span>•</span>
             <Badge variant="secondary" className="text-[10px] font-normal px-1.5 py-0">
-              {THESIS_TYPES.find((t) => t.value === formMetadata.thesisType)?.[lang] || "Diplomová práca"}
+              {THESIS_TYPES.find((t) => t.value === selectedDocType)?.[lang] || "Diplomová práca"}
             </Badge>
           </div>
         </div>
@@ -494,7 +530,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
           <div className="flex items-center justify-between">
             <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
               <FileText className="size-3.5 text-primary" />
-              Údaje o záverečnej práci
+              {isPaper ? "Údaje o vedeckom článku" : "Údaje o záverečnej práci"}
             </Label>
             {isComplete && (
               <Button
@@ -511,16 +547,16 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
           {/* Thesis Title */}
           <div className="space-y-1">
             <Label className="text-[11px] font-medium text-muted-foreground">
-              {formMetadata.reviewKind === "paper" ? "Názov článku *" : "Názov práce *"}
+              {isPaper ? "Názov článku *" : "Názov práce *"}
             </Label>
             <Input
               className="h-8 text-xs bg-card rounded-lg border-border/80"
               placeholder={
-                formMetadata.reviewKind === "paper"
+                isPaper
                   ? "Napr. Bose-Einstein correlations in pp collisions at 13 TeV"
                   : "Napr. Systém na automatizované vyhľadávanie a asistenciu pri príprave grantov"
               }
-              aria-label={formMetadata.reviewKind === "paper" ? "Názov ániku" : "Názov práce"}
+              aria-label={isPaper ? "Názov článku" : "Názov práce"}
               value={formMetadata.thesisTitle}
               onChange={(e) => updateFormMetadata({ thesisTitle: e.target.value })}
             />
@@ -529,16 +565,16 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
           {/* Student Name */}
           <div className="space-y-1">
             <Label className="text-[11px] font-medium text-muted-foreground">
-              {formMetadata.reviewKind === "paper" ? "Autori článku *" : "Meno autora/autorky *"}
+              {isPaper ? "Autori článku *" : "Meno autora/autorky *"}
             </Label>
             <Input
               className="h-8 text-xs bg-card rounded-lg border-border/80"
               placeholder={
-                formMetadata.reviewKind === "paper"
+                isPaper
                   ? "Napr. R. Aštaloš, J. Novák, M. Kováč"
                   : "Napr. Bc. Maroš Bednár"
               }
-              aria-label={formMetadata.reviewKind === "paper" ? "Autori ániku" : "Meno autora/autorky"}
+              aria-label={isPaper ? "Autori článku" : "Meno autora/autorky"}
               value={formMetadata.studentName}
               onChange={(e) => updateFormMetadata({ studentName: e.target.value })}
             />
@@ -549,18 +585,30 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
             <div className="space-y-1">
               <Label className="text-[11px] font-medium text-muted-foreground">Typ dokumentu</Label>
               <Select
-                value={formMetadata.reviewKind === "paper" ? "article" : formMetadata.thesisType}
+                value={selectedDocType}
                 onValueChange={(v) => {
                   if (!v) return
                   if (v === "article") {
                     updateFormMetadata({ reviewKind: "paper" as ReviewKind })
+                    updateActiveOutput({ title: "Posudok vedeckého článku" })
                   } else {
                     updateFormMetadata({ thesisType: v as any, reviewKind: "thesis" as ReviewKind })
+                    updateActiveOutput({
+                      title: formMetadata.reviewerRole === "supervisor"
+                        ? "Posudok školiteľa"
+                        : formMetadata.reviewerRole === "self"
+                        ? "Predkonzultačný rozbor"
+                        : formMetadata.reviewerRole === "opponent"
+                        ? "Posudok oponenta"
+                        : "Posudok recenzenta",
+                    })
                   }
                 }}
               >
-                <SelectTrigger className="h-8 text-xs bg-card rounded-lg border-border/80" aria-label="Typ práce">
-                  <SelectValue>{THESIS_TYPES.find((t) => t.value === formMetadata.thesisType)?.[lang] || "Diplomová práca"}</SelectValue>
+                <SelectTrigger className="h-8 text-xs bg-card rounded-lg border-border/80" aria-label="Typ dokumentu">
+                  <SelectValue>
+                    {THESIS_TYPES.find((t) => t.value === selectedDocType)?.[lang] || "Diplomová práca"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {THESIS_TYPES.map((t) => (
@@ -606,13 +654,21 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                   if (v) {
                     updateFormMetadata({ reviewerRole: v as ReviewerRole })
                     updateActiveOutput({
-                      title: v === "supervisor" ? "Posudok školiteľa" : v === "self" ? "Predkonzultačný rozbor" : v === "opponent" ? "Posudok oponenta" : "Posudok recenzenta",
+                      title: isPaper
+                        ? "Posudok vedeckého článku"
+                        : v === "supervisor"
+                        ? "Posudok školiteľa"
+                        : v === "self"
+                        ? "Predkonzultačný rozbor"
+                        : v === "opponent"
+                        ? "Posudok oponenta"
+                        : "Posudok recenzenta",
                     })
                   }
                 }}
               >
                 <SelectTrigger className="h-8 text-xs bg-card rounded-lg border-border/80" aria-label="Rola recenzenta">
-                  <SelectValue>{REVIEWER_ROLES.find((r) => r.value === formMetadata.reviewerRole)?.[lang] || "Oponent práce"}</SelectValue>
+                  <SelectValue>{REVIEWER_ROLES.find((r) => r.value === formMetadata.reviewerRole)?.[lang] || (isPaper ? "Recenzent" : "Oponent práce")}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {REVIEWER_ROLES.map((r) => (
@@ -638,11 +694,17 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
 
           {/* Institution & Department */}
           <div className="space-y-1">
-            <Label className="text-[11px] font-medium text-muted-foreground">Univerzita a fakulta</Label>
+            <Label className="text-[11px] font-medium text-muted-foreground">
+              {isPaper ? "Inštitúcia / Pracovisko" : "Univerzita a fakulta"}
+            </Label>
             <Input
-              aria-label="Univerzita a fakulta"
+              aria-label={isPaper ? "Inštitúcia / Pracovisko" : "Univerzita a fakulta"}
               className="h-8 text-xs bg-card rounded-lg border-border/80"
-              placeholder="Slovenská technická univerzita v Bratislave, FIIT"
+              placeholder={
+                isPaper
+                  ? "Napr. Ústav experimentálnej fyziky SAV / CERN"
+                  : "Slovenská technická univerzita v Bratislave, FIIT"
+              }
               value={formMetadata.institution ?? ""}
               onChange={(e) => updateFormMetadata({ institution: e.target.value })}
             />
@@ -652,7 +714,9 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
 
       {!isMetadataValid && (
         <p className="text-[10px] text-warning dark:text-warning text-center pt-1">
-          Doplňte názov práce a meno autora pre spustenie posudku.
+          {isPaper
+            ? "Doplňte názov článku a autorov pre spustenie recenzie."
+            : "Doplňte názov práce a meno autora pre spustenie posudku."}
         </p>
       )}
     </div>

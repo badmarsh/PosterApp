@@ -122,4 +122,31 @@ Bratislava, máj 2026`
     store.setActiveReview(null)
     expect(useThesisReviewStore.getState().activeReview).toBeNull()
   })
+
+  it("correctly identifies scientific paper manuscripts and does not misclassify author PhD degree as dissertation", () => {
+    const paperText = [
+      "# Boson probability function for the moving system",
+      "Mgr. Robert Astaloš, PhD.",
+      "Institute of Experimental Physics SAS, Watsonova 47, 040 01 Košice, Slovak Republic",
+      "",
+      "## Abstract",
+      "The probability function of a system of identical bosons is analyzed.",
+      "",
+      "## 1. Introduction",
+      "Correlations of identical particles in high-energy collisions provide valuable insights.",
+      "",
+      "## References",
+      "[1] G. Goldhaber et al., Phys. Rev. 120, 300 (1960).",
+    ].join("\n")
+
+    const extracted = extractSmartThesisMetadata(paperText, "boson_probability.pdf")
+    expect(extracted.title).toContain("Boson probability function")
+    expect(extracted.studentName).toContain("Robert Astaloš")
+    expect(extracted.reviewKind).toBe("paper")
+    expect(extracted.reviewerRole).toBe("reviewer")
+
+    // Verify select value mapping
+    const selectedDocType = extracted.reviewKind === "paper" ? "article" : extracted.thesisType
+    expect(selectedDocType).toBe("article")
+  })
 })
