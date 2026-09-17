@@ -60,11 +60,19 @@ function withDefaultTimeout(signal?: AbortSignal): AbortSignal {
 type AIRequestOptions = Omit<AIClientOptions<any>, "schema">
 
 export const GOOGLE_GEMINI_OPENAI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+export const DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
+export function normalizeChatCompletionsUrl(url: string): string {
+  const trimmed = url.trim().replace(/\/+$/, "")
+  if (trimmed.endsWith("/chat/completions")) return trimmed
+  if (trimmed.endsWith("/v1")) return `${trimmed}/chat/completions`
+  return trimmed
+}
 
 function resolveProvider(options: Pick<AIRequestOptions, "role" | "model" | "apiUrl" | "apiKey">) {
   // If explicitly provided via options with both url and key, use them directly
   if (options.apiUrl && options.apiKey) {
-    return { apiUrl: options.apiUrl, apiKey: options.apiKey }
+    return { apiUrl: normalizeChatCompletionsUrl(options.apiUrl), apiKey: options.apiKey }
   }
 
   const explicitKey = options.apiKey
@@ -82,14 +90,28 @@ function resolveProvider(options: Pick<AIRequestOptions, "role" | "model" | "api
   let apiUrl = options.apiUrl || (isVision && process.env.AI_VISION_API_URL ? process.env.AI_VISION_API_URL : process.env.AI_API_URL)
   let apiKey = options.apiKey || (isVision && process.env.AI_VISION_API_KEY ? process.env.AI_VISION_API_KEY : process.env.AI_API_KEY)
 
+  // Fallback to OPENROUTER_API_KEY and OPENROUTER_BASE_URL
+  const openRouterKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey && openRouterKey) {
+    apiKey = openRouterKey
+  }
+  if (!apiUrl && apiKey && (apiKey.startsWith("sk-or-") || (openRouterKey && apiKey === openRouterKey))) {
+    const base = (process.env.OPENROUTER_BASE_URL || DEFAULT_OPENROUTER_BASE_URL).trim().replace(/\/+$/, "")
+    apiUrl = `${base}/chat/completions`
+  }
+
   // Fallback to GEMINI_API_KEY if primary API key is missing
   if (!apiKey && geminiKey) {
     apiKey = geminiKey
     apiUrl = apiUrl || geminiUrl
   }
 
+  if (apiUrl) {
+    apiUrl = normalizeChatCompletionsUrl(apiUrl)
+  }
+
   if (!apiUrl || !apiKey) {
-    throw new Error("AI API configuration missing (AI_API_URL, AI_API_KEY, or GEMINI_API_KEY)")
+    throw new Error("AI API configuration missing (AI_API_URL or AI_API_KEY)")
   }
 
   return { apiUrl, apiKey }

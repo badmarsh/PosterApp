@@ -64,4 +64,42 @@ describe("AI client resilience", () => {
     expect(repairPayload.max_tokens).toBe(Math.ceil(DEFAULT_AI_MAX_TOKENS * 1.5))
     expect(repairPayload.messages.at(-1).content).toContain("truncated")
   })
+
+  it("normalizes base URLs ending with /v1 to /chat/completions", async () => {
+    vi.stubEnv("AI_API_URL", "https://openrouter.ai/api/v1")
+    vi.stubEnv("AI_API_KEY", "sk-or-test")
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ choices: [{ message: { content: '{"answer":"normalized"}' } }] }), { status: 200 })
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(generateAIResponse("norm-test", {
+      model: "google/gemini-2.0-flash-001",
+      userPrompt: "Return JSON",
+      schema: z.object({ answer: z.string() }),
+    })).resolves.toEqual({ answer: "normalized" })
+
+    expect(fetchMock.mock.calls[0][0]).toBe("https://openrouter.ai/api/v1/chat/completions")
+  })
+
+  it("falls back to OPENROUTER_API_KEY and OPENROUTER_BASE_URL when AI_API_* are unset", async () => {
+    delete process.env.AI_API_URL
+    delete process.env.AI_API_KEY
+    vi.stubEnv("OPENROUTER_API_KEY", "sk-or-v1-mykey")
+    vi.stubEnv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ choices: [{ message: { content: '{"answer":"openrouter-success"}' } }] }), { status: 200 })
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(generateAIResponse("or-test", {
+      model: "anthropic/claude-3.5-sonnet",
+      userPrompt: "Return JSON",
+      schema: z.object({ answer: z.string() }),
+    })).resolves.toEqual({ answer: "openrouter-success" })
+
+    expect(fetchMock.mock.calls[0][0]).toBe("https://openrouter.ai/api/v1/chat/completions")
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer sk-or-v1-mykey")
+  })
 })
