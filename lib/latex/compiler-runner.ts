@@ -58,10 +58,25 @@ export async function runSandboxedLatex({ stage, buildCmd, timeoutMs = 60_000, i
       stage,
       timeoutMs
     )
-  } else if (process.env.NODE_ENV !== "production") {
-    // Development-only WSL fallback; production must configure LATEX_COMPILER_IMAGE.
-    return await run("wsl", ["--cd", stage, "bash", "-lc", `ulimit -t 55 -v 524288 -f 20480; ${hardenedCmd}`], stage, timeoutMs)
-  } else {
-    throw new Error("COMPILER_UNAVAILABLE")
   }
+
+  // Direct local runner on Linux (in-container or Linux server)
+  if (process.platform === "linux") {
+    try {
+      return await run("sh", ["-c", `ulimit -t 55 -v 1048576 -f 51200; ${hardenedCmd}`], stage, timeoutMs)
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes("not found") || msg.includes("ENOENT") || msg.includes("127")) {
+        throw new Error("COMPILER_UNAVAILABLE")
+      }
+      throw err
+    }
+  }
+
+  // Development-only WSL fallback for Windows hosts
+  if (process.env.NODE_ENV !== "production") {
+    return await run("wsl", ["--cd", stage, "bash", "-lc", `ulimit -t 55 -v 524288 -f 20480; ${hardenedCmd}`], stage, timeoutMs)
+  }
+
+  throw new Error("COMPILER_UNAVAILABLE")
 }
