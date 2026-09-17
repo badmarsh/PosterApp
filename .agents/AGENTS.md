@@ -145,6 +145,11 @@ Schema at `prisma/schema.prisma`. Key notes:
 (None currently)
 
 ### Fixed in This Session (2026-09-17)
+- ✅ **Automatic Metadata Prefill on Source Document Selection (Fields 2, 3, 4)**:
+  - **Immediate & Async Two-Stage Prefill**: Selecting a source document in `ThesisMetadataPanel` immediately pre-fills (2) Title, (3) Author, (4) Document Type from filename hints, and as soon as the source document markdown resolves (from cache or API), automatically enriches the fields with the parsed text metadata.
+  - **Filename Prefix Stripping & Type Inference**: Added `cleanTitleFromFilename` which strips document prefixes (`phd_tesis_`, `phd thesis `, `diplomova_praca_`, `bakalarska_praca_`, `final_thesis_`, etc.) so filenames like `phd_tesis_Bose-Einstein correlations...` yield clean titles (`Bose-Einstein correlations...`) and correctly prefill `thesisType = "phd"` instead of defaulting to master thesis.
+  - **Slovak Bibliographic Record & Multi-Degree Parsing**: Extracted student names and titles from standard Slovak academic abstract records (`KEĽOVÁ, Margaréta: ...`) and standalone degree lines (`Mgr. Margaréta Keľová`). Extended supervisor regex to support `Vedúci záverečnej/diplomovej/bakalárskej/dizertačnej práce: doc. RNDr. ..., PhD., MBA`.
+  - **Eliminated Selection Race Condition**: `handleDocumentSelect` now awaits `loadSourceDocument(workspaceId, fileId)` directly and extracts for the specific chosen document, eliminating the useEffect race condition where stale markdown from the previous file was extracted.
 - ✅ **Scientific Paper / Peer Review UI Mode & MinerU API Key Fallback**:
   - **Dynamic Manuscript Type & Trigger Display**: Fixed select trigger in `thesis-metadata-panel.tsx` so selecting "Vedecký článok / Peer Review" updates `<SelectValue>` properly without remaining stuck on "Dizertačná práca (PhD.)".
   - **Contextual Label & Badge Adaptation**: Form labels, card headings, and action buttons dynamically switch to "Posudok vedeckého článku", "Údaje o vedeckom článku", "Autori článku", "Vygenerovať peer review (AI + RAG)", and "Posudok článku" tab.

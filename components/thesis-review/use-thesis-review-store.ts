@@ -220,7 +220,7 @@ export interface ThesisReviewState {
   setSelectedEvidence: (ev: EvidenceReference | null) => void
   setAnalysisPlan: (plan: ReviewAnalysisPlan | null) => void
   generateAnalysisPlan: (workspaceId: string, metadata: any, sourceFileId?: string) => Promise<ReviewAnalysisPlan | null>
-  loadSourceDocument: (workspaceId: string, fileId?: string) => Promise<void>
+  loadSourceDocument: (workspaceId: string, fileId?: string) => Promise<string>
   loadReviews: (workspaceId: string) => Promise<void>
   loadReview: (workspaceId: string, reviewId: string) => Promise<void>
   generateReview: (opts: ThesisReviewGenerateOptions) => Promise<ThesisReviewRecord | null>
@@ -570,7 +570,7 @@ function createThesisReviewStore(
         }
       },
 
-      loadSourceDocument: async (workspaceId: string, fileId?: string) => {
+      loadSourceDocument: async (workspaceId: string, fileId?: string): Promise<string> => {
         const cacheKey = `${workspaceId}:${fileId || "all"}`
         const cached = sourceDocCache.get(cacheKey)
         if (cached) {
@@ -578,7 +578,7 @@ function createThesisReviewStore(
             s.sourceMarkdown = cached
             s.isLoadingSource = false
           })
-          return
+          return cached
         }
 
         set((s) => { s.isLoadingSource = true })
@@ -617,12 +617,15 @@ function createThesisReviewStore(
                 }
               }
             }
+            return text
           } else {
             set((s) => { s.isLoadingSource = false })
+            return ""
           }
         } catch (err) {
           console.warn("[ThesisReviewStore] loadSourceDocument failed:", err)
           set((s) => { s.isLoadingSource = false })
+          return ""
         }
       },
 

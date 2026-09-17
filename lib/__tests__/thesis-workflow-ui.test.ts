@@ -149,4 +149,41 @@ Bratislava, máj 2026`
     const selectedDocType = extracted.reviewKind === "paper" ? "article" : extracted.thesisType
     expect(selectedDocType).toBe("article")
   })
+
+  it("extracts clean title, PhD thesis type, and reviewKind directly from filename like phd_tesis_...", () => {
+    const filename = "phd_tesis_Bose-Einstein correlations in 7 TeV proton-proton collisions in the ATLAS experiment.pdf"
+    
+    // Even when text is completely empty, it pre-fills title, type (phd), and reviewKind
+    const extracted = extractSmartThesisMetadata("", filename)
+    expect(extracted.title).toBe("Bose-Einstein correlations in 7 TeV proton-proton collisions in the ATLAS experiment")
+    expect(extracted.thesisType).toBe("phd")
+    expect(extracted.reviewKind).toBe("thesis")
+
+    // Verify UI select mapping
+    const selectedDocType = extracted.reviewKind === "paper" ? "article" : extracted.thesisType
+    expect(selectedDocType).toBe("phd")
+  })
+
+  it("extracts student name and title from Slovak academic abstract bibliographic record", () => {
+    const kelovaText = [
+      "# UNIVERZITA MATEJA BELA V BANSKEJ BYSTRICI FAKULTA PRÍRODNÝCH VIED",
+      "",
+      "# HODNOTENIE VO VÝUČBE CHÉMIE Záverečná práca",
+      "",
+      "Vedúci záverečnej práce: doc. RNDr. Jarmila Kmeťová, PhD., MBA",
+      "",
+      "Mgr. Margaréta Keľová",
+      "",
+      "## ABSTRAKT",
+      "",
+      "KEĽOVÁ, Margaréta: Hodnotenie vo výučbe chémie. [Záverečná práca] / Margaréta Keľová – Univerzita Mateja Bela v Banskej Bystrici. Fakulta prírodných vied; Katedra chémie.",
+    ].join("\n")
+
+    const extracted = extractSmartThesisMetadata(kelovaText, "ZAVERECNA_PRACA_KELOVA.pdf")
+    expect(extracted.title).toBe("Hodnotenie vo výučbe chémie")
+    expect(extracted.studentName).toBe("Margaréta Keľová")
+    expect(extracted.reviewerName).toContain("Jarmila Kmeťová")
+    expect(extracted.institution).toContain("Univerzita Mateja Bela")
+  })
 })
+
