@@ -161,8 +161,10 @@ STRICT CALIBRATION:
 - NEVER include entries with "No issues detected", "None", or "Clean".`
 
     const modelOverrides = parseAiModelOverrides(req.headers)
+    const geminiHeaderKey = req.headers.get("x-gemini-api-key")?.trim() || undefined
     const parsedData = await generateAIResponse("review-layout", {
       model: resolveAiModelWithOverrides("reviewLayout", modelOverrides),
+      apiKey: geminiHeaderKey,
       systemPrompt,
       userPrompt,
       schema: LayoutWarningsSchema,

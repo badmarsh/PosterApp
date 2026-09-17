@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cm-super \
     ghostscript \
     qpdf \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 

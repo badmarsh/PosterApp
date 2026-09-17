@@ -59,13 +59,37 @@ function withDefaultTimeout(signal?: AbortSignal): AbortSignal {
 
 type AIRequestOptions = Omit<AIClientOptions<any>, "schema">
 
+export const GOOGLE_GEMINI_OPENAI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+
 function resolveProvider(options: Pick<AIRequestOptions, "role" | "model" | "apiUrl" | "apiKey">) {
+  // If explicitly provided via options with both url and key, use them directly
+  if (options.apiUrl && options.apiKey) {
+    return { apiUrl: options.apiUrl, apiKey: options.apiKey }
+  }
+
+  const explicitKey = options.apiKey
+  const isDirectGeminiKey = typeof explicitKey === "string" && (explicitKey.startsWith("AQ.") || explicitKey.startsWith("AIza"))
+  const geminiKey = isDirectGeminiKey ? explicitKey : (process.env.GEMINI_API_KEY || (explicitKey && (options.model.startsWith("gemini") || options.model.includes("gemini")) ? explicitKey : undefined))
+  const geminiUrl = process.env.GEMINI_API_URL || GOOGLE_GEMINI_OPENAI_URL
+  const isGeminiModel = options.model.startsWith("gemini") || options.model.includes("gemini")
+
+  // If calling a Gemini model or using a direct Gemini key, route directly to Google Gemini OpenAI endpoint
+  if (geminiKey && (isGeminiModel || isDirectGeminiKey) && !options.apiUrl) {
+    return { apiUrl: geminiUrl, apiKey: geminiKey }
+  }
+
   const isVision = options.role === "vision" || options.model.includes("omni") || options.model.includes("vl")
-  const apiUrl = options.apiUrl || (isVision && process.env.AI_VISION_API_URL ? process.env.AI_VISION_API_URL : process.env.AI_API_URL)
-  const apiKey = options.apiKey || (isVision && process.env.AI_VISION_API_KEY ? process.env.AI_VISION_API_KEY : process.env.AI_API_KEY)
+  let apiUrl = options.apiUrl || (isVision && process.env.AI_VISION_API_URL ? process.env.AI_VISION_API_URL : process.env.AI_API_URL)
+  let apiKey = options.apiKey || (isVision && process.env.AI_VISION_API_KEY ? process.env.AI_VISION_API_KEY : process.env.AI_API_KEY)
+
+  // Fallback to GEMINI_API_KEY if primary API key is missing
+  if (!apiKey && geminiKey) {
+    apiKey = geminiKey
+    apiUrl = apiUrl || geminiUrl
+  }
 
   if (!apiUrl || !apiKey) {
-    throw new Error("AI API configuration missing (AI_API_URL or AI_API_KEY)")
+    throw new Error("AI API configuration missing (AI_API_URL, AI_API_KEY, or GEMINI_API_KEY)")
   }
 
   return { apiUrl, apiKey }

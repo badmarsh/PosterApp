@@ -5,20 +5,20 @@
 import { rankModelsByHealth } from "./telemetry"
 
 export const DEFAULT_AI_MODELS = {
-  default: "gemini-3.7-flash",
-  generation: "gemini-3.7-flash",
-  structure: "gemini-3.7-flash",
-  convert: "gemini-3.7-flash",
-  shrink: "gemini-3.7-flash",
-  review: "gemini-3.7-flash",
-  reviewLayout: "qwen3-vl-flash",
-  vision: "qwen3-vl-flash",
-  ocr: "qwen3-vl-flash",
-  chat: "gemini-3.7-flash",
-  bibtex: "gemini-3.7-flash",
-  labeler: "gemini-3.7-flash",
-  autofix: "gemini-3.7-flash",
-  thesis: "gemini-3.7-flash",
+  default: "gemini-3.8-flash",
+  generation: "gemini-3.8-flash",
+  structure: "gemini-3.8-flash",
+  convert: "gemini-3.8-flash",
+  shrink: "gemini-3.8-flash",
+  review: "gemini-3.8-flash",
+  reviewLayout: "gemini-3.8-flash",
+  vision: "gemini-3.8-flash",
+  ocr: "gemini-3.8-flash",
+  chat: "gemini-3.8-flash",
+  bibtex: "gemini-3.8-flash",
+  labeler: "gemini-3.8-flash",
+  autofix: "gemini-3.8-flash",
+  thesis: "gemini-3.8-flash",
 } as const
 
 export type AiModelRole = keyof typeof DEFAULT_AI_MODELS
@@ -37,6 +37,8 @@ export const AI_TIMEOUTS = {
 } as const
 
 export const DEFAULT_FALLBACK_VISION_MODELS: readonly string[] = [
+  "gemini-3.8-flash",
+  "gemini-3.6-flash",
   "qwen-omni-turbo",
   "qwen3-omni-flash",
   "qwen3-vl-plus",

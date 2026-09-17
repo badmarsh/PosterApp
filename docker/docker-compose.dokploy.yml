@@ -98,10 +98,12 @@ services:
       # OpenRouter & AI Providers
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
-      AI_MODEL: ${AI_MODEL:-gemini-3.1-pro-preview}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_API_URL: ${GEMINI_API_URL}
+      AI_MODEL: ${AI_MODEL:-gemini-3.8-flash}
       AI_API_URL: ${AI_API_URL}
       AI_API_KEY: ${AI_API_KEY}
-      AI_VISION_MODEL: ${AI_VISION_MODEL:-qwen3-vl-flash}
+      AI_VISION_MODEL: ${AI_VISION_MODEL:-gemini-3.8-flash}
       AI_VISION_API_URL: ${AI_VISION_API_URL}
       AI_VISION_API_KEY: ${AI_VISION_API_KEY}
       # MinerU Document Parsing Sidecar

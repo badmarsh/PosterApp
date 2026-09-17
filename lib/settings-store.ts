@@ -13,6 +13,9 @@ export type SettingsState = {
   setAiModelOverride: (role: AiModelRole, model: string) => void
   clearAiModelOverride: (role: AiModelRole) => void
   clearAllAiModelOverrides: () => void
+
+  geminiApiKey: string
+  setGeminiApiKey: (key: string) => void
 }
 
 export const SETTINGS_STORAGE_KEY = "posterapp-settings"
@@ -43,6 +46,9 @@ export function createSettingsStore() {
             return { aiModelOverrides: next }
           }),
         clearAllAiModelOverrides: () => set({ aiModelOverrides: {} }),
+
+        geminiApiKey: "",
+        setGeminiApiKey: (key) => set({ geminiApiKey: key }),
       }),
       {
         name: SETTINGS_STORAGE_KEY,
@@ -71,12 +77,18 @@ export function useSettings<T>(selector?: (state: SettingsState) => T) {
 }
 
 /**
- * Get the AI model overrides as headers for fetch requests.
+ * Get the AI model overrides and optional Gemini key as headers for fetch requests.
  * Returns an empty object if no overrides are set.
  */
 export function getAiModelOverrideHeaders(): Record<string, string> {
   const store = getSettingsStore()
-  const overrides = store.getState().aiModelOverrides
-  if (Object.keys(overrides).length === 0) return {}
-  return { "X-AI-Model-Override": JSON.stringify(overrides) }
+  const state = store.getState()
+  const headers: Record<string, string> = {}
+  if (Object.keys(state.aiModelOverrides).length > 0) {
+    headers["X-AI-Model-Override"] = JSON.stringify(state.aiModelOverrides)
+  }
+  if (state.geminiApiKey?.trim()) {
+    headers["X-Gemini-Api-Key"] = state.geminiApiKey.trim()
+  }
+  return headers
 }

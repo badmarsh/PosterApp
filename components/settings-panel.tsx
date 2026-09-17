@@ -142,6 +142,8 @@ export function SettingsPanel() {
     setAiModelOverride,
     clearAiModelOverride,
     clearAllAiModelOverrides,
+    geminiApiKey,
+    setGeminiApiKey,
   } = useSettings(
     useShallow((s) => ({
       defaultReviewLanguage: s.defaultReviewLanguage,
@@ -150,6 +152,8 @@ export function SettingsPanel() {
       setAiModelOverride: s.setAiModelOverride,
       clearAiModelOverride: s.clearAiModelOverride,
       clearAllAiModelOverrides: s.clearAllAiModelOverrides,
+      geminiApiKey: s.geminiApiKey,
+      setGeminiApiKey: s.setGeminiApiKey,
     }))
   )
 
@@ -304,6 +308,8 @@ export function SettingsPanel() {
             onOverride={setAiModelOverride}
             onClear={clearAiModelOverride}
             onClearAll={clearAllAiModelOverrides}
+            geminiApiKey={geminiApiKey}
+            onGeminiApiKeyChange={setGeminiApiKey}
           />
         )}
         {tab === "shortcuts" && (
@@ -556,17 +562,55 @@ function AiModelSettings({
   onOverride,
   onClear,
   onClearAll,
+  geminiApiKey,
+  onGeminiApiKeyChange,
 }: {
   overrides: Partial<Record<AiModelRole, string>>
   onOverride: (role: AiModelRole, model: string) => void
   onClear: (role: AiModelRole) => void
   onClearAll: () => void
+  geminiApiKey: string
+  onGeminiApiKeyChange: (key: string) => void
 }) {
   const roles = Object.keys(DEFAULT_AI_MODELS) as AiModelRole[]
   const hasOverrides = Object.keys(overrides).length > 0
 
   return (
     <div>
+      <div className="mb-4 rounded-lg border border-border bg-card p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-foreground">Google Gemini API Key</p>
+            <p className="text-[11px] text-muted-foreground">
+              Direct Gemini API key (AQ.* or AIza*). Uses Google Gemini models (e.g. gemini-3.8-flash).
+            </p>
+          </div>
+          <Badge variant="secondary" className="text-[10px]">Direct API</Badge>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="password"
+            value={geminiApiKey}
+            onChange={(e) => onGeminiApiKeyChange(e.target.value)}
+            placeholder="AQ.Ab8RN6... or AIzaSy..."
+            className="h-8 flex-1 rounded border border-border bg-background px-2.5 text-xs font-mono"
+          />
+          {geminiApiKey && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                onGeminiApiKeyChange("")
+                toast.info("Gemini API kľúč bol vymazaný")
+              }}
+              className="h-8 px-2.5 text-xs"
+            >
+              Vymazať
+            </Button>
+          )}
+        </div>
+      </div>
+
       <div className="mb-4 flex items-center justify-between">
         <SectionHeader
           icon={Bot}

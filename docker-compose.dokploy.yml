@@ -98,15 +98,17 @@ services:
       # OpenRouter & AI Providers
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
-      AI_MODEL: ${AI_MODEL:-gemini-3.1-pro-preview}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_API_URL: ${GEMINI_API_URL}
+      AI_MODEL: ${AI_MODEL:-gemini-3.8-flash}
       AI_API_URL: ${AI_API_URL}
       AI_API_KEY: ${AI_API_KEY}
-      AI_VISION_MODEL: ${AI_VISION_MODEL:-qwen3-vl-flash}
+      AI_VISION_MODEL: ${AI_VISION_MODEL:-gemini-3.8-flash}
       AI_VISION_FALLBACK_MODELS: ${AI_VISION_FALLBACK_MODELS}
       AI_VISION_API_URL: ${AI_VISION_API_URL}
       AI_VISION_API_KEY: ${AI_VISION_API_KEY}
-      AI_REVIEW_LAYOUT_MODEL: ${AI_REVIEW_LAYOUT_MODEL:-qwen3-vl-flash}
-      AI_AUTOFIX_MODEL: ${AI_AUTOFIX_MODEL:-gemini-3.7-flash}
+      AI_REVIEW_LAYOUT_MODEL: ${AI_REVIEW_LAYOUT_MODEL:-gemini-3.8-flash}
+      AI_AUTOFIX_MODEL: ${AI_AUTOFIX_MODEL:-gemini-3.8-flash}
       # MinerU Document Parsing Sidecar
       MINERU_API_URL: ${MINERU_API_URL}
       # Academic & Research Connectors
