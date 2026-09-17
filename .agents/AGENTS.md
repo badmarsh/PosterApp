@@ -144,7 +144,17 @@ Schema at `prisma/schema.prisma`. Key notes:
 ### Still Open
 (None currently)
 
-### Fixed in This Session (2026-09-17)
+### Fixed in This Session (2026-09-17 / 2026-09-18)
+- ✅ **LaTeX & Academic Review Hardening Audit (PR #9 / `arena/01a0b0ec-posterapp`)**:
+  - **LaTeX Syntax & Template Escaping**: Repaired malformed doubled command prefixes (`\\documentclass`, `\\usepackage`, etc.) in registered venue templates (AAAI, CVPR, Landscape, Better Poster). Added strict template registry validation assertions preventing regression.
+  - **Scientific Paper vs. Academic Thesis Decoupling**: Centralized policy guards in `lib/ai/thesis-review-policy.ts` (`shouldApplyEctsGrading`, `shouldRunPhdEnrichment`, `shouldUseProfessionalMode`). For scientific papers (`reviewKind === "paper"`), ECTS ratings/ranges are suppressed (`null`), defense terminology is converted to author feedback ("Otázky pre autorov", "Publikačné odporúčanie"), and the composer uses a dedicated peer-review narrative format.
+  - **Missing Graphics Fallback**: Implemented `ensureMissingGraphicsFallback` in `lib/latex/generator.ts`, injecting `\providecommand{\PosterIncludeGraphics}` with `\IfFileExists` placeholder box ("Image unavailable"), preventing fatal compilation crashes from stale/deleted assets and template logos.
+  - **Layout Budget & Occupancy Harmonization**: Added `estimatePosterColumnOccupancy` and `validatePosterColumns` in `lib/latex/validation.ts`. Accounts for structural pattern overhead (`section-figure`, `section-table`, `two-column`, `title-slide`), enforces explicit card height budgets (`card.heightBudget`), and checks for aggregate column overflow across UI preview, card inspector, and review linting.
+  - **Epistemic Gating of Adverse Claims**: Gated unverified adverse AI findings (`evidence-validator.ts`): ungrounded negative claims are marked `needs_human_review`, excluded from export, and excluded from automated scoring with confidence capped at 0.4. Replaced generic praise fallback text in `review-composer.ts` with transparent `noGroundedAssessment` notices requiring reviewer confirmation.
+  - **Bidirectional Citation Integrity Audit**: Added bidirectional auditing in `academic-checks.ts` for both numeric `[1]` and author-year `(Novák, 2024)` citations, checking uncited bibliography items and in-text citations missing from the bibliography while stripping bibliography text from body scanning.
+  - **Stable RAG Evidence Anchors**: Implemented deterministic opaque anchors (`c-${sha256(chunkId).slice(0, 16)}`) preventing evidence anchor drift across asynchronous retrieval, deduplication, and reranking.
+  - **Formal Exports & AI Disclosure**: TeX, PDF, and DOCX exports dynamically use publication terminology for papers, omit ECTS ratings, include formal AI assistance disclosures ("Vyhlásenie o AI asistencii"), and strictly isolate confidential remarks.
+  - **Full Validation**: 135 test suites, 1,308 tests passing, clean production build.
 - ✅ **Workspace Deletion in Settings & Manage Account**:
   - **Replaced Portaled Dialog with Inline Confirmation**: In `ManageWorkspaces` (`components/manage-workspaces.tsx`), replaced the Base UI portaled `Dialog` (which was rendered with `z-50` underneath Clerk's `<UserProfile>` modal at `z-99999`, causing the confirmation modal to be completely invisible and appear to do nothing) with a responsive inline confirmation directly within the workspace row card.
   - **Added Workspaces Tab to Settings Panel**: Added a dedicated `Workspaces` tab to `SettingsPanel` (`components/settings-panel.tsx`), allowing users to inspect, switch, and delete workspaces directly from the main Settings dialog as well as from Clerk's "Manage account" profile page.
