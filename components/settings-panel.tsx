@@ -18,6 +18,9 @@ import {
   Shield,
   ShieldCheck,
   Folders,
+  Key,
+  Check,
+  SlidersHorizontal,
 } from "lucide-react"
 import { toast } from "sonner"
 import { AgentIntegrationPanel } from "@/components/settings/agent-integration-panel"
@@ -51,22 +54,88 @@ const LANGUAGES: { value: ReviewLanguage; label: string; flag: string }[] = [
   { value: "en", label: "English", flag: "🇬🇧" },
 ]
 
-const AI_ROLE_LABELS: Record<AiModelRole, string> = {
-  default: "Default",
-  generation: "Card Auto-fill",
-  structure: "Structure Generation",
-  convert: "Format Conversion",
-  shrink: "Content Condensing",
-  review: "Poster Review",
-  reviewLayout: "Layout Review (VLM)",
-  vision: "Image Understanding",
-  ocr: "OCR",
-  chat: "Chat Assistant",
-  bibtex: "BibTeX Extraction",
-  labeler: "Snapshot Labeler",
-  autofix: "Compile Autofix",
-  thesis: "Thesis Review",
+export interface AiRoleMeta {
+  label: string
+  category: "General" | "Content" | "Review" | "Academic" | "Vision"
+  description: string
 }
+
+export const AI_ROLE_METADATA: Record<AiModelRole, AiRoleMeta> = {
+  default: {
+    label: "Global Default Fallback",
+    category: "General",
+    description: "Fallback model for background operations or unconfigured prompts.",
+  },
+  generation: {
+    label: "Card Auto-fill",
+    category: "Content",
+    description: "Generates title, structured bullet points, and figures from parsed paper text.",
+  },
+  structure: {
+    label: "Structure Generation",
+    category: "Content",
+    description: "Generates section flow, poster layout schema, and card distribution.",
+  },
+  convert: {
+    label: "Format Conversion",
+    category: "Content",
+    description: "Converts poster content to slides (Beamer) or paper drafts (twocol/single).",
+  },
+  shrink: {
+    label: "Content Condensing",
+    category: "Content",
+    description: "Shortens overflowing card text to fit strict column height budgets.",
+  },
+  review: {
+    label: "Poster Review",
+    category: "Review",
+    description: "Audits poster text, academic rigor, missing citations, and typography.",
+  },
+  reviewLayout: {
+    label: "Layout Review (VLM)",
+    category: "Vision",
+    description: "Visual inspection of compiled PDF pages to detect overflows and collisions.",
+  },
+  vision: {
+    label: "Image Understanding",
+    category: "Vision",
+    description: "Captions and extracts semantic insights from ingested figures and plots.",
+  },
+  ocr: {
+    label: "OCR & Document Vision",
+    category: "Vision",
+    description: "Parses scanned figures, math equations, and tables directly from document images.",
+  },
+  chat: {
+    label: "Chat Assistant",
+    category: "General",
+    description: "Interactive AI assistant in the sidebar for poster brainstorming and Q&A.",
+  },
+  bibtex: {
+    label: "BibTeX Extraction",
+    category: "Review",
+    description: "Parses reference sections into clean, standardized BibTeX entries.",
+  },
+  labeler: {
+    label: "Snapshot Labeler",
+    category: "General",
+    description: "Generates descriptive 2-5 word titles for project save history snapshots.",
+  },
+  autofix: {
+    label: "Compile Autofix",
+    category: "Review",
+    description: "Diagnoses pdflatex error logs and automatically patches broken LaTeX code.",
+  },
+  thesis: {
+    label: "Thesis & Paper Review",
+    category: "Academic",
+    description: "Evaluates manuscript against academic rubrics with RAG evidence and ECTS grading.",
+  },
+}
+
+const AI_ROLE_LABELS: Record<AiModelRole, string> = Object.fromEntries(
+  Object.entries(AI_ROLE_METADATA).map(([k, v]) => [k, v.label])
+) as Record<AiModelRole, string>
 
 const SHORTCUTS: { keys: string[]; action: string; hint?: string }[] = [
   { keys: ["⌘", "K"], action: "Open command palette" },
@@ -143,6 +212,7 @@ export function SettingsPanel() {
     setDefaultReviewLanguage,
     aiModelOverrides,
     setAiModelOverride,
+    setAllAiModelOverrides,
     clearAiModelOverride,
     clearAllAiModelOverrides,
     geminiApiKey,
@@ -153,6 +223,7 @@ export function SettingsPanel() {
       setDefaultReviewLanguage: s.setDefaultReviewLanguage,
       aiModelOverrides: s.aiModelOverrides,
       setAiModelOverride: s.setAiModelOverride,
+      setAllAiModelOverrides: s.setAllAiModelOverrides,
       clearAiModelOverride: s.clearAiModelOverride,
       clearAllAiModelOverrides: s.clearAllAiModelOverrides,
       geminiApiKey: s.geminiApiKey,
@@ -310,6 +381,7 @@ export function SettingsPanel() {
           <AiModelSettings
             overrides={aiModelOverrides}
             onOverride={setAiModelOverride}
+            onSetAll={setAllAiModelOverrides}
             onClear={clearAiModelOverride}
             onClearAll={clearAllAiModelOverrides}
             geminiApiKey={geminiApiKey}
@@ -562,9 +634,76 @@ function LanguageSettings({
 
 /* ----------------------------------- ai ----------------------------------- */
 
+const PRIMARY_MODEL_PRESETS = [
+  {
+    id: "gemini-2.5-flash",
+    name: "gemini-2.5-flash",
+    tag: "Recommended",
+    tagVariant: "success" as const,
+    desc: "Fast, multimodal, generous rate limits (~700ms latency).",
+  },
+  {
+    id: "gemini-3.8-flash",
+    name: "gemini-3.8-flash",
+    tag: "Latest",
+    tagVariant: "secondary" as const,
+    desc: "Google's newest flash model with advanced reasoning.",
+  },
+  {
+    id: "gemini-3.6-flash",
+    name: "gemini-3.6-flash",
+    tag: "Stable",
+    tagVariant: "secondary" as const,
+    desc: "Balanced speed and consistent instruction following.",
+  },
+  {
+    id: "gemini-3.1-pro-preview",
+    name: "gemini-3.1-pro",
+    tag: "Pro",
+    tagVariant: "outline" as const,
+    desc: "Deep reasoning for complex thesis evaluation & long contexts.",
+  },
+]
+
+function getCategoryBadge(category: AiRoleMeta["category"]) {
+  switch (category) {
+    case "Content":
+      return (
+        <span className="inline-flex items-center rounded border border-blue-500/30 bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-500">
+          Content
+        </span>
+      )
+    case "Vision":
+      return (
+        <span className="inline-flex items-center rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-500">
+          Vision
+        </span>
+      )
+    case "Review":
+      return (
+        <span className="inline-flex items-center rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-500">
+          Review
+        </span>
+      )
+    case "Academic":
+      return (
+        <span className="inline-flex items-center rounded border border-purple-500/30 bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium text-purple-500">
+          Academic
+        </span>
+      )
+    default:
+      return (
+        <span className="inline-flex items-center rounded border border-border bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+          General
+        </span>
+      )
+  }
+}
+
 function AiModelSettings({
   overrides,
   onOverride,
+  onSetAll,
   onClear,
   onClearAll,
   geminiApiKey,
@@ -572,32 +711,263 @@ function AiModelSettings({
 }: {
   overrides: Partial<Record<AiModelRole, string>>
   onOverride: (role: AiModelRole, model: string) => void
+  onSetAll?: (overrides: Partial<Record<AiModelRole, string>>) => void
   onClear: (role: AiModelRole) => void
   onClearAll: () => void
   geminiApiKey: string
   onGeminiApiKeyChange: (key: string) => void
 }) {
   const roles = Object.keys(DEFAULT_AI_MODELS) as AiModelRole[]
-  const hasOverrides = Object.keys(overrides).length > 0
+  const [selectedCategory, setSelectedCategory] = useState<string>("All")
+  const [customPrimaryModel, setCustomPrimaryModel] = useState("")
+  const [showCustomPrimaryInput, setShowCustomPrimaryInput] = useState(false)
+
+  const primaryModel = overrides.default || DEFAULT_AI_MODELS.default
+  const isPrimaryOverridden = Boolean(overrides.default)
+  const isKnownPreset = PRIMARY_MODEL_PRESETS.some((p) => p.id === primaryModel)
+  const activeOverridesCount = Object.keys(overrides).length
+
+  const categories = ["All", "General", "Content", "Review", "Academic", "Vision"] as const
+
+  const filteredRoles = roles.filter((role) => {
+    if (selectedCategory === "All") return true
+    return AI_ROLE_METADATA[role]?.category === selectedCategory
+  })
+
+  const handleApplyToAllTasks = (model: string) => {
+    const textRoles: AiModelRole[] = [
+      "default",
+      "generation",
+      "structure",
+      "convert",
+      "shrink",
+      "review",
+      "chat",
+      "bibtex",
+      "labeler",
+      "autofix",
+      "thesis",
+    ]
+    if (onSetAll) {
+      const next = { ...overrides }
+      for (const r of textRoles) {
+        next[r] = model
+      }
+      onSetAll(next)
+    } else {
+      for (const r of textRoles) {
+        onOverride(r, model)
+      }
+    }
+    toast.success(`Použité: "${model}" pre všetky textové a posudkové úlohy`)
+  }
+
+  const handleClearTaskOverridesOnly = () => {
+    if (onSetAll) {
+      if (overrides.default) {
+        onSetAll({ default: overrides.default })
+      } else {
+        onClearAll()
+      }
+    } else {
+      for (const r of roles) {
+        if (r !== "default" && overrides[r]) {
+          onClear(r)
+        }
+      }
+    }
+    toast.info("Všetky preťaženia úloh boli vyresetované na hlavný model")
+  }
 
   return (
-    <div>
-      <div className="mb-4 rounded-lg border border-border bg-card p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold text-foreground">Google Gemini API Key</p>
-            <p className="text-[11px] text-muted-foreground">
-              Direct Gemini API key (AQ.* or AIza*). Uses Google Gemini models (e.g. gemini-3.8-flash).
+    <div className="space-y-6">
+      {/* 1. PRIMARY APPLICATION MODEL CARD */}
+      <div className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/5 via-card to-background p-4 shadow-xs space-y-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Bot className="size-4" />
+              </div>
+              <h3 className="text-sm font-semibold text-foreground">Primary Application Model</h3>
+              <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px]">
+                Global Default
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              The default AI model powering poster generation, card auto-fill, reviews, thesis evaluations, chat, and LaTeX autofix.
+              Tasks without a specific override automatically inherit this model.
             </p>
           </div>
-          <Badge variant="secondary" className="text-[10px]">Direct API</Badge>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleApplyToAllTasks(primaryModel)}
+              className="h-8 gap-1.5 text-xs font-medium border-primary/30 hover:bg-primary/10"
+              title="Explicitly assign this model to all text tasks"
+            >
+              <Sparkles className="size-3 text-primary" />
+              Apply to All Tasks
+            </Button>
+            {isPrimaryOverridden && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  onClear("default")
+                  setShowCustomPrimaryInput(false)
+                  toast.info(`Hlavný model resetovaný na predvolený (${DEFAULT_AI_MODELS.default})`)
+                }}
+                className="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground"
+                title="Reset to factory default"
+              >
+                <RotateCcw className="size-3" />
+                Reset
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Preset Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          {PRIMARY_MODEL_PRESETS.map((preset) => {
+            const isSelected = primaryModel === preset.id && !showCustomPrimaryInput
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => {
+                  setShowCustomPrimaryInput(false)
+                  onOverride("default", preset.id)
+                  toast.success(`Hlavný model nastavený: ${preset.id}`)
+                }}
+                className={cn(
+                  "flex flex-col items-start p-2.5 rounded-lg border text-left transition-all",
+                  isSelected
+                    ? "border-primary bg-primary/10 ring-1 ring-primary shadow-xs"
+                    : "border-border bg-card/60 hover:border-border/80 hover:bg-muted/40"
+                )}
+              >
+                <div className="flex w-full items-center justify-between gap-1 mb-1">
+                  <span className="text-xs font-mono font-semibold text-foreground truncate">
+                    {preset.name}
+                  </span>
+                  {isSelected ? (
+                    <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px]">
+                      <Check className="size-2.5" />
+                    </span>
+                  ) : (
+                    <Badge
+                      variant={preset.tagVariant === "success" ? "outline" : "secondary"}
+                      className={cn(
+                        "text-[9px] px-1 py-0 h-4",
+                        preset.tagVariant === "success" && "border-emerald-500/30 text-emerald-500 bg-emerald-500/10"
+                      )}
+                    >
+                      {preset.tag}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground line-clamp-2 leading-snug">
+                  {preset.desc}
+                </p>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Custom primary model input toggle */}
+        <div className="pt-0.5">
+          {!showCustomPrimaryInput && isKnownPreset ? (
+            <button
+              type="button"
+              onClick={() => {
+                setShowCustomPrimaryInput(true)
+                setCustomPrimaryModel(primaryModel)
+              }}
+              className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            >
+              + Use a custom model identifier (e.g. OpenRouter or custom proxy)
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 p-2 rounded-lg border border-border bg-card">
+              <span className="text-xs text-muted-foreground font-medium shrink-0">Custom Model:</span>
+              <input
+                type="text"
+                value={showCustomPrimaryInput ? customPrimaryModel : primaryModel}
+                onChange={(e) => setCustomPrimaryModel(e.target.value)}
+                placeholder="e.g. google/gemini-2.5-flash or anthropic/claude-3.5-sonnet"
+                className="h-7 flex-1 rounded border border-border bg-background px-2 text-xs font-mono"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const val = (e.target as HTMLInputElement).value.trim()
+                    if (val) {
+                      onOverride("default", val)
+                      toast.success(`Hlavný model nastavený: ${val}`)
+                    }
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                onClick={() => {
+                  const val = customPrimaryModel.trim()
+                  if (val) {
+                    onOverride("default", val)
+                    toast.success(`Hlavný model nastavený: ${val}`)
+                  }
+                }}
+                className="h-7 px-3 text-xs"
+              >
+                Save
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCustomPrimaryInput(false)}
+                className="h-7 px-2 text-xs text-muted-foreground"
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 2. GOOGLE GEMINI API KEY CARD */}
+      <div className="rounded-lg border border-border bg-card p-3.5 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-500">
+              <Key className="size-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold text-foreground">Google Gemini API Key</p>
+                {geminiApiKey ? (
+                  <Badge variant="outline" className="border-emerald-500/30 text-emerald-500 bg-emerald-500/10 text-[10px]">
+                    User Key Active
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-[10px]">
+                    Default Server Key
+                  </Badge>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Direct Google Gemini API key (<code className="font-mono text-[10px]">AIzaSy*</code> or <code className="font-mono text-[10px]">AQ.*</code>) routing directly to Google's official endpoint.
+              </p>
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <input
             type="password"
             value={geminiApiKey}
             onChange={(e) => onGeminiApiKeyChange(e.target.value)}
-            placeholder="AQ.Ab8RN6... or AIzaSy..."
+            placeholder="AIzaSy... or AQ.Ab8RN6..."
             className="h-8 flex-1 rounded border border-border bg-background px-2.5 text-xs font-mono"
           />
           {geminiApiKey && (
@@ -606,7 +976,7 @@ function AiModelSettings({
               size="sm"
               onClick={() => {
                 onGeminiApiKeyChange("")
-                toast.info("Gemini API kľúč bol vymazaný")
+                toast.info("Gemini API kľúč bol vymazaný (použije sa kľúč zo servera)")
               }}
               className="h-8 px-2.5 text-xs"
             >
@@ -616,35 +986,86 @@ function AiModelSettings({
         </div>
       </div>
 
-      <div className="mb-4 flex items-center justify-between">
-        <SectionHeader
-          icon={Bot}
-          title="AI Model Overrides"
-          description="Override default models for specific tasks."
-        />
-        {hasOverrides && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClearAll}
-            className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-destructive"
-          >
-            <RotateCcw className="size-3" />
-            Reset All
-          </Button>
-        )}
-      </div>
-      <div className="space-y-3">
-        {roles.map((role) => (
-          <AiModelRow
-            key={role}
-            role={role}
-            defaultModel={DEFAULT_AI_MODELS[role]}
-            currentOverride={overrides[role]}
-            onOverride={(model) => onOverride(role, model)}
-            onClear={() => onClear(role)}
+      {/* 3. PER-TASK MODEL OVERRIDES SECTION */}
+      <div className="space-y-3 pt-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
+          <SectionHeader
+            icon={SlidersHorizontal}
+            title="Per-Task Model Overrides"
+            description="Fine-tune specific models for individual tasks. Tasks without an override automatically use the Primary Application Model."
           />
-        ))}
+          <div className="flex items-center gap-2">
+            {activeOverridesCount > 0 && (
+              <>
+                <Badge variant="secondary" className="text-[11px] h-6 px-2">
+                  {activeOverridesCount} {activeOverridesCount === 1 ? "override" : "overrides"}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearTaskOverridesOnly}
+                  className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-destructive"
+                  title="Reset all per-task overrides back to primary model"
+                >
+                  <RotateCcw className="size-3" />
+                  Reset All Tasks
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Category Filter Pills */}
+        <div className="flex flex-wrap items-center gap-1.5 pb-1">
+          {categories.map((cat) => {
+            const isSelected = selectedCategory === cat
+            const count =
+              cat === "All"
+                ? roles.length
+                : roles.filter((r) => AI_ROLE_METADATA[r]?.category === cat).length
+
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                  isSelected
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <span>{cat}</span>
+                <span
+                  className={cn(
+                    "text-[10px] rounded-full px-1.5 py-0.2",
+                    isSelected
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-background/80 text-muted-foreground"
+                  )}
+                >
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* List of Tasks */}
+        <div className="space-y-2.5">
+          {filteredRoles.map((role) => (
+            <AiModelRow
+              key={role}
+              role={role}
+              defaultModel={DEFAULT_AI_MODELS[role]}
+              primaryModel={primaryModel}
+              currentOverride={overrides[role]}
+              onOverride={(model) => onOverride(role, model)}
+              onClear={() => onClear(role)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -653,81 +1074,134 @@ function AiModelSettings({
 function AiModelRow({
   role,
   defaultModel,
+  primaryModel,
   currentOverride,
   onOverride,
   onClear,
 }: {
   role: AiModelRole
   defaultModel: string
+  primaryModel: string
   currentOverride?: string
   onOverride: (model: string) => void
   onClear: () => void
 }) {
-  const [isEditing, setIsEditing] = useState(false)
-  const effectiveModel = currentOverride || defaultModel
-  const isOverridden = Boolean(currentOverride)
+  const meta = AI_ROLE_METADATA[role] || {
+    label: role,
+    category: "General",
+    description: `Task handler for ${role}`,
+  }
 
-  if (isEditing) {
-    return (
-      <div className="flex items-center gap-2 rounded-md border border-border bg-card p-2">
-        <Label className="w-28 shrink-0 text-xs">{AI_ROLE_LABELS[role]}</Label>
-        <input
-          type="text"
-          list={`model-suggestions-${role}`}
-          defaultValue={effectiveModel}
-          placeholder={defaultModel}
-          className="h-7 flex-1 rounded border border-border bg-background px-2 text-xs font-mono"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              const val = (e.target as HTMLInputElement).value.trim()
-              if (val) onOverride(val)
-              setIsEditing(false)
-            } else if (e.key === "Escape") {
-              setIsEditing(false)
-            }
-          }}
-          onBlur={(e) => {
-            const val = e.target.value.trim()
-            if (val) onOverride(val)
-            setIsEditing(false)
-          }}
-          autoFocus
-        />
-        <datalist id={`model-suggestions-${role}`}>
-          <option value="gemini-2.5-flash" label="Gemini 2.5 Flash (Fast, Recommended)" />
-          <option value="gemini-3.8-flash" label="Gemini 3.8 Flash (Latest)" />
-          <option value="gemini-3.6-flash" label="Gemini 3.6 Flash" />
-          <option value="qwen3-vl-flash" label="Qwen3 VL Flash (Vision/Layout)" />
-          <option value="qwen-vl-max" label="Qwen VL Max (High-precision Vision)" />
-        </datalist>
-        {isOverridden && (
-          <Button variant="ghost" size="sm" onClick={onClear} className="h-7 px-2 text-xs">
-            <RotateCcw className="size-3" />
-          </Button>
-        )}
-      </div>
-    )
+  const isMultimodal = role === "vision" || role === "ocr" || role === "reviewLayout"
+  const inheritedModel = isMultimodal ? defaultModel : (primaryModel || defaultModel)
+  const isOverridden = Boolean(currentOverride && currentOverride !== inheritedModel)
+  const effectiveModel = currentOverride || inheritedModel
+
+  const [inputValue, setInputValue] = useState(effectiveModel)
+
+  useEffect(() => {
+    setInputValue(effectiveModel)
+  }, [effectiveModel])
+
+  const handleCommit = (raw: string) => {
+    const trimmed = raw.trim()
+    if (!trimmed || trimmed === inheritedModel) {
+      onClear()
+      setInputValue(inheritedModel)
+      if (isOverridden) {
+        toast.info(`Resetovaný model pre "${meta.label}"`)
+      }
+    } else {
+      onOverride(trimmed)
+      setInputValue(trimmed)
+      toast.success(`Preťažený model pre "${meta.label}": ${trimmed}`)
+    }
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => setIsEditing(true)}
-      className="flex w-full items-center gap-2 rounded-md border border-transparent p-2 text-left transition-colors hover:border-border hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <Label className="w-28 shrink-0 text-xs font-medium text-foreground">
-        {AI_ROLE_LABELS[role]}
-      </Label>
-      <span className={`flex-1 truncate text-xs ${isOverridden ? "text-primary" : "text-muted-foreground"}`}>
-        {effectiveModel}
-      </span>
-      {isOverridden && (
-        <Badge variant="secondary" className="h-4 gap-1 px-1.5 text-[10px]">
-          <Sparkles className="size-2.5" />
-          Custom
-        </Badge>
-      )}
-    </button>
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-lg border border-border bg-card p-3 transition-colors hover:border-border/80">
+      {/* Left: Role title, badge, description */}
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-foreground">
+            {meta.label}
+          </span>
+          {getCategoryBadge(meta.category)}
+          {isOverridden && (
+            <Badge variant="secondary" className="h-4 gap-1 px-1.5 text-[10px] font-medium text-primary">
+              <Sparkles className="size-2.5" />
+              Custom
+            </Badge>
+          )}
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-snug">
+          {meta.description}
+        </p>
+      </div>
+
+      {/* Right: Explicit input + datalist + reset button */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        <div className="relative w-full sm:w-56">
+          <input
+            type="text"
+            list={`model-suggestions-${role}`}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onBlur={(e) => handleCommit(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleCommit((e.target as HTMLInputElement).value)
+                ;(e.target as HTMLInputElement).blur()
+              } else if (e.key === "Escape") {
+                setInputValue(effectiveModel)
+                ;(e.target as HTMLInputElement).blur()
+              }
+            }}
+            placeholder={inheritedModel}
+            className={cn(
+              "h-8 w-full rounded-md border bg-background px-2.5 text-xs font-mono transition-colors",
+              isOverridden
+                ? "border-primary/50 text-foreground font-medium ring-1 ring-primary/20"
+                : "border-border text-muted-foreground hover:border-border/80 focus:text-foreground"
+            )}
+            title={`Active: ${effectiveModel} (Inherited: ${inheritedModel})`}
+          />
+          <datalist id={`model-suggestions-${role}`}>
+            {isMultimodal ? (
+              <>
+                <option value="qwen3-vl-flash" label="Qwen3 VL Flash (Default Vision)" />
+                <option value="qwen-vl-max" label="Qwen VL Max (High Precision)" />
+                <option value="gemini-2.5-flash" label="Gemini 2.5 Flash (Multimodal)" />
+                <option value="gemini-3.8-flash" label="Gemini 3.8 Flash (Multimodal)" />
+              </>
+            ) : (
+              <>
+                <option value="gemini-2.5-flash" label="Gemini 2.5 Flash (Recommended)" />
+                <option value="gemini-3.8-flash" label="Gemini 3.8 Flash (Latest)" />
+                <option value="gemini-3.6-flash" label="Gemini 3.6 Flash" />
+                <option value="gemini-3.1-pro-preview" label="Gemini 3.1 Pro (Deep Reasoning)" />
+              </>
+            )}
+          </datalist>
+        </div>
+
+        {isOverridden && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              onClear()
+              setInputValue(inheritedModel)
+              toast.info(`Resetovaný model pre "${meta.label}"`)
+            }}
+            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+            title="Reset to inherited model"
+          >
+            <RotateCcw className="size-3.5" />
+          </Button>
+        )}
+      </div>
+    </div>
   )
 }
 

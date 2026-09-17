@@ -436,8 +436,12 @@ export function describeTableChunk(markdownTable: string, heading: string | null
     const name = header[col]
     const numeric = dataRows
       .map((cells, rowIdx) => ({ v: cells[col], rowIdx }))
-      .filter(({ v }) => NUMERIC_CELL_RE.test(v.trim()))
-      .map(({ v, rowIdx }) => ({ n: parseFloat(v.replace(",", ".").replace(/[^\d.+-]/g, "")), rowIdx, label: dataRows[rowIdx][0] }))
+      .filter(({ v }) => typeof v === "string" && NUMERIC_CELL_RE.test(v.trim()))
+      .map(({ v, rowIdx }) => ({
+        n: parseFloat(v.replace(",", ".").replace(/[^\d.+-]/g, "")),
+        rowIdx,
+        label: dataRows[rowIdx]?.[0] || `riadok ${rowIdx + 1}`,
+      }))
       .filter(({ n }) => Number.isFinite(n))
     if (numeric.length >= 2) {
       let min = numeric[0]
@@ -457,8 +461,8 @@ export function describeTableChunk(markdownTable: string, heading: string | null
   for (const cells of dataRows) {
     for (let col = 0; col < cells.length; col++) {
       const cell = cells[col]
-      if (SIGNIFICANCE_CELL_RE.test(cell)) {
-        significance.push(`${header[col] ?? "hodnota"} = ${cell}${header.length > 1 && col > 0 ? ` (${cells[0]})` : ""}`)
+      if (typeof cell === "string" && SIGNIFICANCE_CELL_RE.test(cell)) {
+        significance.push(`${header[col] ?? "hodnota"} = ${cell}${header.length > 1 && col > 0 && cells[0] ? ` (${cells[0]})` : ""}`)
       }
     }
   }

@@ -11,6 +11,7 @@ export type SettingsState = {
 
   aiModelOverrides: Partial<Record<AiModelRole, string>>
   setAiModelOverride: (role: AiModelRole, model: string) => void
+  setAllAiModelOverrides: (overrides: Partial<Record<AiModelRole, string>>) => void
   clearAiModelOverride: (role: AiModelRole) => void
   clearAllAiModelOverrides: () => void
 
@@ -39,6 +40,8 @@ export function createSettingsStore() {
           set((s) => ({
             aiModelOverrides: { ...s.aiModelOverrides, [role]: model },
           })),
+        setAllAiModelOverrides: (overrides) =>
+          set({ aiModelOverrides: overrides }),
         clearAiModelOverride: (role) =>
           set((s) => {
             const next = { ...s.aiModelOverrides }

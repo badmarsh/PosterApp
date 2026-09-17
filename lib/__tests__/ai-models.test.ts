@@ -135,6 +135,9 @@ describe("resolveAiModelWithOverrides", () => {
   beforeEach(() => {
     delete process.env.AI_MODEL
     delete process.env.AI_CHAT_MODEL
+    delete process.env.AI_VISION_MODEL
+    delete process.env.AI_REVIEW_LAYOUT_MODEL
+    delete process.env.AI_OCR_MODEL
   })
 
   it("uses a valid override when provided", () => {
@@ -151,5 +154,23 @@ describe("resolveAiModelWithOverrides", () => {
   it("falls back to DEFAULT_AI_MODELS when nothing is set", () => {
     const overrides: OverrideMap = {}
     expect(resolveAiModelWithOverrides("chat", overrides)).toBe(DEFAULT_AI_MODELS.chat)
+  })
+
+  it("inherits overrides.default for text roles when specific role is not overridden", () => {
+    const overrides: OverrideMap = { default: "primary-gemini" }
+    expect(resolveAiModelWithOverrides("chat", overrides)).toBe("primary-gemini")
+    expect(resolveAiModelWithOverrides("generation", overrides)).toBe("primary-gemini")
+    expect(resolveAiModelWithOverrides("review", overrides)).toBe("primary-gemini")
+    expect(resolveAiModelWithOverrides("thesis", overrides)).toBe("primary-gemini")
+  })
+
+  it("does not overwrite multimodal vision roles with overrides.default unless explicitly overridden", () => {
+    const overrides: OverrideMap = { default: "primary-gemini" }
+    expect(resolveAiModelWithOverrides("vision", overrides)).toBe(DEFAULT_AI_MODELS.vision)
+    expect(resolveAiModelWithOverrides("reviewLayout", overrides)).toBe(DEFAULT_AI_MODELS.reviewLayout)
+    expect(resolveAiModelWithOverrides("ocr", overrides)).toBe(DEFAULT_AI_MODELS.ocr)
+
+    const specificVisionOverrides: OverrideMap = { default: "primary-gemini", vision: "custom-vision" }
+    expect(resolveAiModelWithOverrides("vision", specificVisionOverrides)).toBe("custom-vision")
   })
 })

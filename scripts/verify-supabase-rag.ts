@@ -23,8 +23,14 @@
 
 import { PrismaClient } from "@prisma/client"
 
-const pooled = new PrismaClient({ log: ["error", "warn"] })
-const direct = new PrismaClient({ log: ["error", "warn"], datasourceUrl: process.env.DIRECT_URL })
+const pooled = new PrismaClient({
+  log: ["error", "warn"],
+  datasources: process.env.DATABASE_URL ? { db: { url: process.env.DATABASE_URL } } : undefined,
+})
+const direct = new PrismaClient({
+  log: ["error", "warn"],
+  datasources: process.env.DIRECT_URL ? { db: { url: process.env.DIRECT_URL } } : undefined,
+})
 
 let failures = 0
 function pass(id: string, msg: string) {

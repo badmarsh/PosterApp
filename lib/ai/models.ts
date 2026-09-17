@@ -5,20 +5,20 @@
 import { rankModelsByHealth } from "./telemetry"
 
 export const DEFAULT_AI_MODELS = {
-  default: "gemini-3.8-flash",
-  generation: "gemini-3.8-flash",
-  structure: "gemini-3.8-flash",
-  convert: "gemini-3.8-flash",
-  shrink: "gemini-3.8-flash",
-  review: "gemini-3.8-flash",
-  reviewLayout: "gemini-3.8-flash",
-  vision: "gemini-3.8-flash",
-  ocr: "gemini-3.8-flash",
-  chat: "gemini-3.8-flash",
-  bibtex: "gemini-3.8-flash",
-  labeler: "gemini-3.8-flash",
-  autofix: "gemini-3.8-flash",
-  thesis: "gemini-3.8-flash",
+  default: "gemini-2.5-flash",
+  generation: "gemini-2.5-flash",
+  structure: "gemini-2.5-flash",
+  convert: "gemini-2.5-flash",
+  shrink: "gemini-2.5-flash",
+  review: "gemini-2.5-flash",
+  reviewLayout: "qwen3-vl-flash",
+  vision: "qwen3-vl-flash",
+  ocr: "qwen3-vl-flash",
+  chat: "gemini-2.5-flash",
+  bibtex: "gemini-2.5-flash",
+  labeler: "gemini-2.5-flash",
+  autofix: "gemini-2.5-flash",
+  thesis: "gemini-2.5-flash",
 } as const
 
 export type AiModelRole = keyof typeof DEFAULT_AI_MODELS
@@ -139,6 +139,15 @@ export function resolveAiModelWithOverrides(
 ): string {
   const override = overrides[role]
   if (typeof override === "string" && override) return override
+
+  // If a primary default override is configured, inherit it for general text-based tasks
+  if (role !== "default" && typeof overrides.default === "string" && overrides.default) {
+    const isMultimodal = role === "vision" || role === "ocr" || role === "reviewLayout"
+    if (!isMultimodal) {
+      return overrides.default
+    }
+  }
+
   return resolveAiModel(role)
 }
 

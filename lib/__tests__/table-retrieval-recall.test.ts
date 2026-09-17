@@ -96,4 +96,16 @@ describe("table retrieval recall benchmark", () => {
     expect(TABLE_MD).toContain("|---|") // original untouched
     expect(TABLE_MD).toContain("| Navrhovaný | 0.94 | p < 0.001 |")
   })
+
+  it("handles ragged markdown tables with missing cells gracefully without throwing", () => {
+    const raggedTable = `| Kritérium | Hodnota 1 | Hodnota 2 |
+|---|---|---|
+| Riadok A | 12.5 |
+| Riadok B |
+| Riadok C | 45.0 | 99.0 |`
+    expect(() => describeTableChunk(raggedTable, "Ragged Table")).not.toThrow()
+    const desc = describeTableChunk(raggedTable, "Ragged Table")
+    expect(desc).toContain("Hodnota 1")
+    expect(desc).toContain("najnižšia hodnota 12.5")
+  })
 })
