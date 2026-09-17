@@ -1,14 +1,118 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useMemo, useState, useRef } from "react"
 import dynamic from "next/dynamic"
-import { Minus, Download, Plus, FileDown, Loader2, ChevronDownIcon, Maximize } from "lucide-react"
+import {
+  Minus,
+  Download,
+  Plus,
+  FileDown,
+  Loader2,
+  ChevronDownIcon,
+  Maximize,
+  XCircle,
+  AlertTriangle,
+  Info,
+  CornerUpLeft,
+} from "lucide-react"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { cn } from "@/lib/utils"
+import {
+  parseCompileLog,
+  attributeIssuesToCards,
+  type LatexLogIssue,
+} from "@/lib/latex/log-parser"
+
+const KIND_HINTS: Partial<Record<LatexLogIssue["kind"], string>> = {
+  "undefined-control-sequence": "Unknown \\command — check spelling or wrap it in $…$ if it is math.",
+  math: "Unbalanced $…$ math delimiters.",
+  "file-not-found": "A referenced file (figure/logo) is missing from the workspace assets.",
+  bibtex: "BibTeX failed — check references.bib and the cite keys.",
+  overfull: "Content sticks out past the column edge; shorten the text or shrink the figure.",
+  underfull: "Loose spacing — usually cosmetic.",
+}
+
+function IssueRow({ issue, cardTitle, onJump }: { issue: LatexLogIssue; cardTitle?: string; onJump?: () => void }) {
+  const [expanded, setExpanded] = useState(false)
+  const Icon = issue.severity === "error" ? XCircle : issue.severity === "warning" ? AlertTriangle : Info
+  const color =
+    issue.severity === "error"
+      ? "text-destructive"
+      : issue.severity === "warning"
+        ? "text-warning"
+        : "text-muted-foreground"
+
+  return (
+    <li className="flex items-start gap-1.5 rounded-md border border-border bg-card px-2 py-1.5">
+      <Icon className={cn("mt-0.5 size-3.5 shrink-0", color)} aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          onClick={() => issue.detail.length > 0 && setExpanded((v) => !v)}
+          disabled={issue.detail.length === 0}
+          className="w-full text-left text-[11px] leading-snug text-foreground disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+          aria-expanded={expanded}
+        >
+          <span className="line-clamp-2">{issue.message}</span>
+        </button>
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+          {issue.line !== undefined && (
+            <span className="rounded bg-muted px-1 py-px font-mono">l.{issue.line}</span>
+          )}
+          {cardTitle && onJump && (
+            <button
+              type="button"
+              onClick={onJump}
+              className="inline-flex items-center gap-0.5 rounded px-1 py-px font-medium text-primary hover:bg-primary/10 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`Open card ${cardTitle}`}
+              title="Open the card this error likely came from"
+            >
+              <CornerUpLeft className="size-3" aria-hidden="true" />
+              {cardTitle}
+            </button>
+          )}
+          {KIND_HINTS[issue.kind] && <span className="line-clamp-1">{KIND_HINTS[issue.kind]}</span>}
+        </div>
+        {expanded && issue.detail.length > 0 && (
+          <pre className="mt-1 max-h-24 overflow-auto rounded bg-muted/50 p-1.5 font-mono text-[10px] text-muted-foreground">
+            {issue.detail.join("\n")}
+          </pre>
+        )}
+      </div>
+    </li>
+  )
+}
 
 function CompileLog({ log, ok }: { log: string; ok: boolean }) {
   const [open, setOpen] = useState(false)
+  const [showRaw, setShowRaw] = useState(false)
+  const cards = useEditor(
+    useShallow((s) => {
+      const active = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
+      return active?.cards ?? []
+    })
+  )
+  const selectCard = useEditor((s) => s.selectCard)
+  const setInspectorTab = useEditor((s) => s.setInspectorTab)
+
+  const parsed = useMemo(() => parseCompileLog(log), [log])
+  const attributed = useMemo(
+    () => (cards.length ? attributeIssuesToCards(parsed.issues, cards) : parsed.issues),
+    [parsed.issues, cards],
+  )
+  const cardTitleById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const c of cards) map.set(c.id, c.title || "Untitled card")
+    return map
+  }, [cards])
+
+  // Errors first, then warnings, then cosmetic box hints.
+  const sortedIssues = useMemo(() => {
+    const rank = { error: 0, warning: 1, info: 2 } as const
+    return [...attributed].sort((a, b) => rank[a.severity] - rank[b.severity])
+  }, [attributed])
+  const visibleIssues = sortedIssues.slice(0, 12)
 
   return (
     <div className="shrink-0 border-t border-border">
@@ -19,23 +123,74 @@ function CompileLog({ log, ok }: { log: string; ok: boolean }) {
           "flex w-full items-center justify-between px-3 py-1.5 text-left text-[10px] font-mono font-semibold uppercase tracking-wide transition-colors hover:bg-muted/40",
           ok ? "text-success" : "text-destructive",
         )}
+        aria-expanded={open}
+        aria-label={ok ? "Compile succeeded — show log details" : "Compile failed — show error details"}
       >
-        <span>{ok ? "✓ Compile succeeded" : "✗ Compile failed"} — log</span>
+        <span>
+          {ok ? "✓ Compile succeeded" : "✗ Compile failed"}
+          <span className="ml-2 font-sans font-medium normal-case tracking-normal">
+            {parsed.errorCount > 0 && `${parsed.errorCount} error${parsed.errorCount === 1 ? "" : "s"}`}
+            {parsed.errorCount > 0 && parsed.warningCount > 0 && " · "}
+            {parsed.warningCount > 0 && `${parsed.warningCount} warning${parsed.warningCount === 1 ? "" : "s"}`}
+            {parsed.errorCount === 0 && parsed.warningCount === 0 && "no issues parsed"}
+          </span>
+        </span>
         <ChevronDownIcon
           className={cn("size-3 transition-transform", open && "rotate-180")}
+          aria-hidden="true"
         />
       </button>
       {open && (
-        <pre
-          className={cn(
-            "max-h-48 overflow-auto px-3 py-2 font-mono text-[10px] leading-relaxed",
-            ok
-              ? "text-success/80"
-              : "text-destructive",
+        <div className="max-h-56 overflow-auto px-3 py-2">
+          {sortedIssues.length > 0 ? (
+            <>
+              <ul className="flex flex-col gap-1.5">
+                {visibleIssues.map((issue) => (
+                  <IssueRow
+                    key={issue.id}
+                    issue={issue}
+                    cardTitle={issue.cardId ? cardTitleById.get(issue.cardId) : undefined}
+                    onJump={
+                      issue.cardId
+                        ? () => {
+                            selectCard(issue.cardId!)
+                            setInspectorTab("validation")
+                          }
+                        : undefined
+                    }
+                  />
+                ))}
+              </ul>
+              {sortedIssues.length > visibleIssues.length && (
+                <p className="mt-1.5 text-[10px] text-muted-foreground">
+                  +{sortedIssues.length - visibleIssues.length} more in the raw log.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-[11px] text-muted-foreground">
+              {ok ? "No warnings or errors in the log." : "Compiler reported a failure without a parseable error block — see the raw log."}
+            </p>
           )}
-        >
-          {log || "(no output)"}
-        </pre>
+          <button
+            type="button"
+            onClick={() => setShowRaw((v) => !v)}
+            className="mt-2 text-[10px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+            aria-expanded={showRaw}
+          >
+            {showRaw ? "Hide raw log" : "Show raw log"}
+          </button>
+          {showRaw && (
+            <pre
+              className={cn(
+                "mt-1 max-h-48 overflow-auto rounded-md border border-border bg-muted/40 p-2 font-mono text-[10px] leading-relaxed",
+                ok ? "text-success/80" : "text-destructive",
+              )}
+            >
+              {log || "(no output)"}
+            </pre>
+          )}
+        </div>
       )}
     </div>
   )
