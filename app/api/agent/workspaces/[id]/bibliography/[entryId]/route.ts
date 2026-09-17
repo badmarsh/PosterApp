@@ -1,10 +1,6 @@
-import { rateLimitAsync } from "@/lib/rate-limit"
+// Mutating calls use the canonical executeAgentTool rateLimitAsync chain exactly once.
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAgentKey, requireScope, requireAgentWorkspaceAccess, AgentAuthError } from '@/lib/agent-auth'
-import { logToolCall } from '@/lib/agent-audit'
-import { createWorkspaceSnapshot } from '@/lib/agent-snapshot'
-import { prisma } from '@/lib/prisma'
-import { parseBibKeys } from '@/lib/bib-parser'
+import { verifyAgentKey, AgentAuthError } from '@/lib/agent-auth'
 
 export async function DELETE(
   req: NextRequest,

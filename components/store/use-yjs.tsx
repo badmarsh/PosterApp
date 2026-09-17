@@ -30,7 +30,9 @@ export function useYjs(workspaceId: string) {
   const collabEnabled = useEditor(s => s.collabEnabled)
 
   useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_YJS_WS_URL) return
+    // The browser connection is same-origin (`/api/yjs`), so collaboration
+    // must not depend on a public build-time URL being present. The server
+    // already hosts the WebSocket alongside Next.js.
     if (!workspaceId) return
     if (!collabEnabled) {
       store.getState().setYjsStatus("disconnected")

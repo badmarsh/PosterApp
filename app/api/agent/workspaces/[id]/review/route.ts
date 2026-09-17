@@ -22,6 +22,14 @@ export async function POST(
     requireScope(ctx, 'review:run')
     await requireAgentWorkspaceAccess(ctx, id, false)
 
+    const rateLimit = await rateLimitAsync(`agent:${ctx.apiKeyId}:${id}:job`, 6, 600_000)
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded', retryAfterMs: rateLimit.retryAfterMs },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(rateLimit.retryAfterMs / 1000)) } }
+      )
+    }
+
     const raw = await req.json().catch(() => ({}))
     const body = reviewSchema.parse(raw)
 
@@ -46,9 +54,13 @@ export async function POST(
 
     const activeOutput = workspace.outputs.find((o) => o.isActive) || workspace.outputs[0]
     const allCards = activeOutput ? activeOutput.cards : []
-    const cardsToReview = body.cards && body.cards.length > 0
+    const requestedCards = body.cards && body.cards.length > 0
       ? allCards.filter((c) => body.cards!.includes(c.id))
       : allCards
+    const cardsToReview =
+      ctx.restrictCardIds.length > 0
+        ? requestedCards.filter((card) => ctx.restrictCardIds.includes(card.id))
+        : requestedCards
 
     const missingCitations: string[] = []
     const usedCitations = new Set<string>()

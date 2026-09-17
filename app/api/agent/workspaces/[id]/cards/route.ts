@@ -35,7 +35,12 @@ export async function GET(
     const activeOutput = workspace.outputs.find((o) => o.isActive) || workspace.outputs[0]
     const cards = activeOutput ? activeOutput.cards : []
 
-    const formattedCards = cards.map((c) => {
+    const visibleCards =
+      ctx.restrictCardIds.length > 0
+        ? cards.filter((card) => ctx.restrictCardIds.includes(card.id))
+        : cards
+
+    const formattedCards = visibleCards.map((c) => {
       const citations = extractCiteKeys(c.content || '')
       return {
         id: c.id,

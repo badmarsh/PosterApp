@@ -5,6 +5,7 @@ import { logApprovedMutation } from "@/lib/agent-audit"
 import { parseBibKeys } from "@/lib/bib-parser"
 import { workspacePath } from "@/lib/workspace-files"
 import { findToolById } from "@/lib/agent-tools/registry"
+import { isSafeAgentAssetFilename } from "@/lib/agent-restrictions"
 import fs from "fs"
 import path from "path"
 
@@ -110,14 +111,39 @@ export async function applyAgentChange(
   }
   const payload = parseResult.data as any
 
+  // A pending change is authorized for its persisted workspace, not merely for
+  // whatever workspaceId an untrusted JSON payload happens to contain.
+  if (payload.workspaceId !== change.workspaceId) {
+    return {
+      ok: false,
+      code: "FORBIDDEN",
+      message: "Change payload workspace does not match its authorized workspace",
+    }
+  }
+
+  if (
+    change.toolName === "posterapp.assets.upload" &&
+    !isSafeAgentAssetFilename(payload.filename)
+  ) {
+    return {
+      ok: false,
+      code: "VALIDATION",
+      message: "Asset filename must be a single safe path component",
+    }
+  }
+
   // 5. Conflict detection for cards.update
   let targetCard: any = null
   if (change.toolName === "posterapp.cards.update") {
     targetCard = await prisma.card.findUnique({
       where: { id: payload.cardId },
+      include: { output: { select: { workspaceId: true } } },
     })
 
-    if (!targetCard) {
+    if (
+      !targetCard ||
+      (targetCard.output?.workspaceId && targetCard.output.workspaceId !== change.workspaceId)
+    ) {
       return { ok: false, code: "NOT_FOUND", message: `Target card ${payload.cardId} not found` }
     }
 
@@ -148,6 +174,31 @@ export async function applyAgentChange(
     }
   }
 
+  // Claim the pending row before taking the snapshot or mutating data. This
+  // closes the double-approval race: only one concurrent approver can move a
+  // pending change into the transient `approved` state.
+  const claimTime = new Date()
+  const claim = await prisma.agentPendingChange.updateMany({
+    where: {
+      id: changeId,
+      status: "pending",
+      expiresAt: { gt: claimTime },
+    },
+    data: {
+      status: "approved",
+      decidedById: approverUserId,
+      decidedAt: claimTime,
+    },
+  })
+
+  if (claim.count !== 1) {
+    return {
+      ok: false,
+      code: "INVALID_STATE",
+      message: `Change ${changeId} is already being applied or is no longer pending`,
+    }
+  }
+
   // 6. Pre-apply snapshot tagged source: 'agent'
   let snapshot: any
   try {
@@ -158,11 +209,21 @@ export async function applyAgentChange(
     )
   } catch (err: any) {
     console.error(`[apply] Snapshot failed for change ${changeId}:`, err)
+    await prisma.agentPendingChange.update({
+      where: { id: changeId },
+      data: {
+        status: "failed",
+        decidedById: approverUserId,
+        decidedAt: new Date(),
+        error: "Failed to create pre-agent snapshot",
+      },
+    })
     return { ok: false, code: "INTERNAL", message: "Failed to create pre-agent snapshot" }
   }
 
   // 7 & 8. Execute mutation & mark applied inside prisma.$transaction
   let resultData: any = null
+  let createdAssetPath: string | null = null
   try {
     await prisma.$transaction(async (tx) => {
       // Branch per tool type
@@ -286,7 +347,11 @@ export async function applyAgentChange(
           fs.mkdirSync(dir, { recursive: true })
         }
         const filePath = path.join(dir, payload.filename)
+        if (fs.existsSync(filePath)) {
+          throw new Error(`Asset filename already exists: ${payload.filename}`)
+        }
         fs.writeFileSync(filePath, buffer)
+        createdAssetPath = filePath
 
         const assetId = `asset-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
         const asset = await tx.asset.create({
@@ -321,6 +386,13 @@ export async function applyAgentChange(
     })
   } catch (err: any) {
     console.error(`[apply] Mutation transaction failed for change ${changeId}:`, err)
+    if (createdAssetPath) {
+      try {
+        fs.rmSync(createdAssetPath, { force: true })
+      } catch (cleanupErr) {
+        console.error(`[apply] Failed to clean up asset after rollback for change ${changeId}:`, cleanupErr)
+      }
+    }
     // Mark failed
     await prisma.agentPendingChange.update({
       where: { id: changeId },

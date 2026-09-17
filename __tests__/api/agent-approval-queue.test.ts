@@ -11,6 +11,7 @@ const { mockPrisma, mockRequireWorkspaceEditor } = vi.hoisted(() => {
       findUnique: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
     },
     card: {
       findUnique: vi.fn(),
@@ -93,6 +94,7 @@ describe("Phase 3 Approval Queue — Core Invariants (§9.2, §17)", () => {
     mockPrisma.workspace.update.mockResolvedValue({ id: "ws_test", revision: 2 })
     mockPrisma.workspaceSnapshot.findMany.mockResolvedValue([])
     mockPrisma.agentPendingChange.update.mockResolvedValue({})
+    mockPrisma.agentPendingChange.updateMany.mockResolvedValue({ count: 1 })
   })
 
   it("1. cards.update NEVER writes directly to Card rows; enqueues AgentPendingChange", async () => {
@@ -153,8 +155,8 @@ describe("Phase 3 Approval Queue — Core Invariants (§9.2, §17)", () => {
   })
 
   it("2. Conflict detection: approving after card was edited by human returns CONFLICT (§9.2 Step 5)", async () => {
-    const proposalDate = new Date("2026-09-04T05:00:00.000Z")
-    const humanEditDate = new Date("2026-09-04T05:15:00.000Z") // 15 mins later
+    const proposalDate = new Date(Date.now() - 15 * 60_000)
+    const humanEditDate = new Date(Date.now() - 5 * 60_000) // 10 mins later
 
     mockPrisma.agentPendingChange.findUnique.mockResolvedValue({
       id: "change_conflict",
@@ -163,7 +165,7 @@ describe("Phase 3 Approval Queue — Core Invariants (§9.2, §17)", () => {
       toolName: "posterapp.cards.update",
       status: "pending",
       createdAt: proposalDate,
-      expiresAt: new Date("2026-09-11T05:00:00.000Z"),
+      expiresAt: new Date(Date.now() + 6 * 86_400_000),
       payload: {
         workspaceId: "ws_test",
         cardId: "card_1",
@@ -192,9 +194,40 @@ describe("Phase 3 Approval Queue — Core Invariants (§9.2, §17)", () => {
     expect(mockPrisma.card.update).not.toHaveBeenCalled()
   })
 
-  it("3. Force rebase bypasses conflict and applies mutation", async () => {
-    const proposalDate = new Date("2026-09-04T05:00:00.000Z")
-    const humanEditDate = new Date("2026-09-04T05:15:00.000Z")
+  it("3. Rejects a card target from another workspace before approval mutation", async () => {
+    mockPrisma.agentPendingChange.findUnique.mockResolvedValue({
+      id: "change_cross_workspace",
+      workspaceId: "ws_test",
+      apiKeyId: "key_agent_1",
+      toolName: "posterapp.cards.update",
+      status: "pending",
+      createdAt: new Date(Date.now() - 60_000),
+      expiresAt: new Date(Date.now() + 86_400_000),
+      payload: {
+        workspaceId: "ws_test",
+        cardId: "card_from_other_workspace",
+        title: "Cross-tenant write",
+      },
+    })
+    mockPrisma.card.findUnique.mockResolvedValue({
+      id: "card_from_other_workspace",
+      title: "Victim Card",
+      content: "Victim content",
+      output: { workspaceId: "ws_other" },
+    })
+
+    const applyRes = await applyAgentChange("change_cross_workspace", "user_human")
+
+    expect(applyRes.ok).toBe(false)
+    if (!applyRes.ok) expect(applyRes.code).toBe("NOT_FOUND")
+    expect(mockPrisma.card.update).not.toHaveBeenCalled()
+    expect(mockPrisma.workspaceSnapshot.create).not.toHaveBeenCalled()
+    expect(mockPrisma.agentPendingChange.updateMany).not.toHaveBeenCalled()
+  })
+
+  it("4. Force rebase bypasses conflict and applies mutation", async () => {
+    const proposalDate = new Date(Date.now() - 15 * 60_000)
+    const humanEditDate = new Date(Date.now() - 5 * 60_000)
 
     mockPrisma.agentPendingChange.findUnique.mockResolvedValue({
       id: "change_conflict",
@@ -203,7 +236,7 @@ describe("Phase 3 Approval Queue — Core Invariants (§9.2, §17)", () => {
       toolName: "posterapp.cards.update",
       status: "pending",
       createdAt: proposalDate,
-      expiresAt: new Date("2026-09-11T05:00:00.000Z"),
+      expiresAt: new Date(Date.now() + 6 * 86_400_000),
       payload: {
         workspaceId: "ws_test",
         cardId: "card_1",

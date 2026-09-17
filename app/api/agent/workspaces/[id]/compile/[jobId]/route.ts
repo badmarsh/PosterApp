@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAgentKey, requireAgentWorkspaceAccess, AgentAuthError } from '@/lib/agent-auth'
+import { verifyAgentKey, requireScope, requireAgentWorkspaceAccess, AgentAuthError } from '@/lib/agent-auth'
 import { logToolCall } from '@/lib/agent-audit'
 
 export async function GET(
@@ -10,6 +10,7 @@ export async function GET(
   try {
     const { id, jobId } = await params
     const ctx = await verifyAgentKey(req)
+    requireScope(ctx, 'compile:run')
     await requireAgentWorkspaceAccess(ctx, id, false)
 
     const result = {

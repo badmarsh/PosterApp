@@ -265,7 +265,15 @@ export function WorkspaceSelector({
       }
 
       const keyData = await keyRes.json()
-      const rawKey: string = keyData.rawKey
+      // The key endpoint returns the one-time credential as `key`.
+      // Keep the launch bundle contract explicit so it cannot copy `undefined`.
+      const rawKey =
+        typeof keyData.key === "string"
+          ? keyData.key
+          : typeof keyData.rawKey === "string"
+          ? keyData.rawKey
+          : ""
+      if (!rawKey) throw new Error("Agent key response did not include a one-time key")
 
       // Build canonical 3-step DeerFlow launch bundle (§14.1)
       const bundle = buildDeerFlowLaunchBundle({

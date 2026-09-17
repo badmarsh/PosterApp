@@ -33,8 +33,29 @@ export async function GET(
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
     }
 
+    // A restricted-context key cannot safely receive this legacy full-object
+    // response because it also contains bibliography, assets, and ingest files.
+    // Preserve workspace metadata and only expose the selected card payloads;
+    // callers needing full card data should use the cards endpoint.
+    const responseWorkspace =
+      ctx.restrictCardIds.length > 0
+        ? {
+            id: workspace.id,
+            name: workspace.name,
+            authors: workspace.authors,
+            venue: workspace.venue,
+            revision: workspace.revision,
+            outputs: workspace.outputs.map((output) => ({
+              ...output,
+              cards: output.cards.filter((card) => ctx.restrictCardIds.includes(card.id)),
+            })),
+            assets: [],
+            ingestFiles: [],
+          }
+        : workspace
+
     await logToolCall(ctx, id, 'posterapp.workspaces.get', { id }, { id: workspace.id, name: workspace.name }, Date.now() - start)
-    return NextResponse.json(workspace)
+    return NextResponse.json(responseWorkspace)
   } catch (err: any) {
     if (err instanceof AgentAuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status })

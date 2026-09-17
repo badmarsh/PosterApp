@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAgentKey, requireAgentWorkspaceAccess, AgentAuthError } from '@/lib/agent-auth'
+import { verifyAgentKey, requireScope, requireAgentWorkspaceAccess, AgentAuthError } from '@/lib/agent-auth'
 import { logToolCall } from '@/lib/agent-audit'
 import { prisma } from '@/lib/prisma'
 
@@ -11,7 +11,14 @@ export async function GET(
   try {
     const { id, assetId } = await params
     const ctx = await verifyAgentKey(req)
+    requireScope(ctx, 'assets:read')
     await requireAgentWorkspaceAccess(ctx, id, false)
+    if (ctx.restrictCardIds.length > 0) {
+      return NextResponse.json(
+        { error: 'Restricted-context key cannot access assets' },
+        { status: 403 }
+      )
+    }
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },

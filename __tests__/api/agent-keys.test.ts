@@ -16,6 +16,9 @@ vi.mock("@/lib/prisma", () => ({
     workspace: {
       findUnique: vi.fn(),
     },
+    card: {
+      findMany: vi.fn(),
+    },
   },
 }))
 
@@ -136,6 +139,34 @@ describe("API /api/agent-keys", () => {
     expect(res.status).toBe(403)
     const json = await res.json()
     expect(json.error).toContain("Access denied")
+  })
+
+  it("rejects restricted card IDs that are not in the scoped workspace", async () => {
+    ;(mockAuth as any).mockResolvedValueOnce({ userId: "user-123" })
+    vi.spyOn(await import("@/lib/rate-limit"), "rateLimitAsync").mockResolvedValueOnce({
+      allowed: true,
+      retryAfterMs: 0,
+    })
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce({
+      id: "ws-abc",
+      userId: "user-123",
+      members: [],
+    })
+    ;(mockPrisma.card.findMany as any).mockResolvedValueOnce([{ id: "card-ok" }])
+
+    const req = new NextRequest("https://example.com/api/agent-keys", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Restricted Agent",
+        scopes: ["workspace:read"],
+        workspaceId: "ws-abc",
+        restrictCardIds: ["card-ok", "card-from-other-workspace"],
+      }),
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(400)
+    expect(mockPrisma.agentApiKey.create).not.toHaveBeenCalled()
   })
 
   it("GET lists keys without exposing raw keys or tokenHash", async () => {
