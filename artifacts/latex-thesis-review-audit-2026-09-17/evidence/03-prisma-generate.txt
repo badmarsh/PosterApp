@@ -1,0 +1,1 @@
+Error: request to https://binaries.prisma.sh/all_commits/6b0aef69b7cdfc787f822ecd7cdc76d5f1991584/debian-openssl-3.0.x/libquery_engine.so.node.gz.sha256 failed, reason: Client network socket disconnected before secure TLS connection was established

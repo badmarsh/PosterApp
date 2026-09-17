@@ -1,0 +1,11 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.9 [39m[90m/home/user/PosterApp[39m
+
+ [32m✓[39m lib/latex/__tests__/generator-paper.test.ts [2m([22m[2m39 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/template-registry.test.ts [2m([22m[2m38 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m77 passed[39m[22m[90m (77)[39m
+[2m   Start at [22m 19:58:06
+[2m   Duration [22m 725ms[2m (transform 235ms, setup 0ms, import 308ms, tests 96ms, environment 0ms)[22m
+

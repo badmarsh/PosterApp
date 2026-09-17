@@ -91,6 +91,17 @@ describe("Human-Controlled Review Composer", () => {
     expect(authorView.sections.find((s) => s.id === "confidential")).toBeUndefined()
   })
 
+  it("always emits exactly the canonical 14 thesis sections", () => {
+    const authorView = composeFullReviewNarrative(sampleReview, "author", "sk")
+    const editorView = composeFullReviewNarrative(sampleReview, "editor", "sk")
+
+    expect(authorView.sections).toHaveLength(14)
+    expect(editorView.sections).toHaveLength(14)
+    expect(authorView.sections.map((section) => section.title)).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^1\./), expect.stringMatching(/^14\./)]),
+    )
+  })
+
   it("includes confidential comments and private findings for editor/committee audience", () => {
     const editorView = composeFullReviewNarrative(sampleReview, "editor", "sk")
 
@@ -110,5 +121,48 @@ describe("Human-Controlled Review Composer", () => {
     expect(res.metadata.isConfirmed).toBe(true)
     expect(res.plainText).toContain("Navrhovaná známka / ECTS: A")
     expect(res.plainText).toContain("explicitne potvrdené recenzentom")
+  })
+
+  it("does not invent positive thesis judgments when evidence is absent", () => {
+    const emptyDraft = {
+      ...sampleReview,
+      confirmedAt: null,
+      findings: [],
+      strengths: [],
+      summary: null,
+      grade: null,
+      suggestedGrade: null,
+      finalGrade: null,
+      proposedGradeRange: null,
+    } as ThesisReviewRecord
+    const result = composeFullReviewNarrative(emptyDraft, "author", "sk")
+
+    expect(result.plainText).toContain("Vyžaduje sa posúdenie recenzentom")
+    expect(result.plainText).not.toContain("Ciele práce boli formulované zrozumiteľne")
+    expect(result.plainText).not.toContain("Zvolené metódy a postup riešenia zodpovedajú")
+    expect(result.plainText).not.toContain("Práca spĺňa formálne")
+  })
+
+  it("uses scientific peer-review terminology and omits ECTS for papers", () => {
+    const paper = {
+      ...sampleReview,
+      reviewKind: "paper",
+      reviewerRole: "reviewer",
+      recommendation: "major_revisions",
+      suggestedRecommendation: "major_revisions",
+      finalRecommendation: null,
+      grade: "A",
+      suggestedGrade: "A",
+      finalGrade: "A",
+      confirmedAt: null,
+      confidentialComments: null,
+    } as ThesisReviewRecord
+    const result = composeFullReviewNarrative(paper, "author", "en")
+
+    expect(result.metadata.grade).toBeNull()
+    expect(result.markdownText).toContain("Scientific Paper Peer Review")
+    expect(result.plainText).toContain("Major Concerns")
+    expect(result.plainText).toContain("Questions for the Authors")
+    expect(result.plainText).not.toMatch(/ECTS|Defense Questions|Thesis Overview/)
   })
 })

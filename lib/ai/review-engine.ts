@@ -68,6 +68,7 @@ import {
   type GradeReconciliationResult,
 } from "./rubric-engine"
 import { THESIS_CRITERIA } from "./thesis-rubric"
+import { shouldApplyEctsGrading, shouldRunPhdEnrichment } from "./thesis-review-policy"
 
 export interface GenerateProfessionalReviewOptions {
   workspaceId: string
@@ -198,6 +199,13 @@ export function computeScoreFromFindings(findings: ReviewFinding[]): number {
   }
   let score = 100
   for (const f of findings) {
+    // Findings withheld from export or awaiting human verification are not
+    // eligible to influence an automated outcome.
+    if (
+      f.includeInExport === false ||
+      f.decisionStatus === "needs_human_review" ||
+      f.status === "rejected"
+    ) continue
     const deduction = DEDUCTIONS[f.severity as string] ?? 0
     score -= deduction
   }
@@ -268,7 +276,7 @@ export function checkContributionCoverage(
     evidenceState: "unverified",
     status: "unreviewed",
     decisionStatus: "needs_human_review",
-    includeInExport: true,
+    includeInExport: false,
     createdBy: "ai",
     createdAt: now,
     updatedAt: now,
@@ -658,7 +666,7 @@ export async function generateProfessionalReview(
   const standardGuidance = REPORTING_CHECKLIST_PROMPTS[standard]
 
   let levelExpectationsText = ""
-  if (options.thesisType && THESIS_LEVEL_PROFILES[options.thesisType]) {
+  if (options.reviewKind === "thesis" && options.thesisType && THESIS_LEVEL_PROFILES[options.thesisType]) {
     const profile = THESIS_LEVEL_PROFILES[options.thesisType]
     levelExpectationsText = `
 --- THESIS LEVEL EXPECTATIONS (${options.thesisType.toUpperCase()}) ---
@@ -787,12 +795,13 @@ CRITICAL INSTRUCTIONS:
    - Any methodological gap you may have missed on first pass → add it.
    The final output must represent your most calibrated, evidence-grounded judgment.` : ""}`
 
-  const userPrompt = `Please evaluate the following academic manuscript and generate a comprehensive, structured peer review.
+  const isThesisReview = options.reviewKind === "thesis"
+  const userPrompt = `Please evaluate the following academic manuscript and generate a comprehensive, structured ${isThesisReview ? "thesis assessment" : "peer review"}.
 
 --- MANUSCRIPT METADATA ---
 Document Title: ${options.documentTitle}
 Author(s): ${options.authorName}
-Review Type: ${options.reviewKind} ${options.thesisType ? `(${options.thesisType})` : ""}
+Review Type: ${options.reviewKind} ${isThesisReview && options.thesisType ? `(${options.thesisType})` : ""}
 Target Venue: ${options.targetVenue || "Academic Review"}
 Reviewer Role: ${options.reviewerRole || "Expert Reviewer"}
 Language: ${options.language}
@@ -816,7 +825,7 @@ ${wrapUntrustedContext("manuscript_text", manuscriptExcerpts)}
 --- RESPONSE JSON FORMAT ---
 Respond with a valid JSON object matching this structure:
 {
-  "summary": "High-level summary of the paper's core premise, contribution, and primary novelty in ${options.language}",
+  "summary": "High-level summary of the ${isThesisReview ? "thesis" : "paper"}'s core premise, contribution, and primary novelty in ${options.language}",
   "strengths": [
     "Key strength 1 with specific merit",
     "Key strength 2"
@@ -852,12 +861,12 @@ Respond with a valid JSON object matching this structure:
     }
   ],
   "questionsForAuthors": [
-    "Targeted defense or revision question 1",
-    "Targeted defense or revision question 2"
+    "Targeted ${isThesisReview ? "defense" : "author revision"} question 1",
+    "Targeted ${isThesisReview ? "defense" : "author revision"} question 2"
   ],
-  "confidentialComments": "Optional confidential notes for the editor/committee",
+  "confidentialComments": "Optional confidential notes for the ${isThesisReview ? "committee" : "editor"}",
   "recommendation": "accept | minor_revisions | major_revisions | reject",
-  "grade": "${options.reviewKind === "thesis" ? "A | B | C | D | E | FX" : ""}"
+  "grade": ${isThesisReview ? '"A | B | C | D | E | FX"' : "null"}
 }`
 
   const model = resolveAiModel("thesis")
@@ -945,7 +954,9 @@ Respond with a valid JSON object matching this structure:
 
   // 3c. PhD-only guard: flag total silence on originality/contribution as a finding,
   // so it participates in computeScoreFromFindings rather than reading as "flawless."
-  const contributionGuardFinding = checkContributionCoverage(finalFindings, options.thesisType, options.language)
+  const contributionGuardFinding = options.reviewKind === "thesis"
+    ? checkContributionCoverage(finalFindings, options.thesisType, options.language)
+    : null
   if (contributionGuardFinding) {
     finalFindings = [...finalFindings, contributionGuardFinding]
   }
@@ -956,23 +967,24 @@ Respond with a valid JSON object matching this structure:
   // 5. Calculate proposed grade range — derived from actual finding severity, NOT hardcoded.
   // Uses severity-weighted deduction: critical=−20, major=−8, minor=−2, suggestion=−0.5
   // Clamped to [10, 100] so FX is the floor.
-  // When reviewerRole === "self", skip ECTS grading derivation (Task 4)
-  const isSelfTriage = options.reviewerRole === "self"
+  // ECTS is a thesis-only outcome. Paper/grant reviews retain publication
+  // recommendations and severity triage, but never synthesize an academic grade.
+  const applyEctsGrading = shouldApplyEctsGrading(options.reviewKind, options.reviewerRole)
   const derivedScore = computeScoreFromFindings(finalFindings)
-  const gradeRangeInfo = isSelfTriage
-    ? { grade: undefined as any, range: "", minScore: derivedScore, maxScore: derivedScore }
-    : calculateGradeRange(derivedScore)
-  const { grade: reconciledGrade, note: gradeReconciliationNote } = isSelfTriage
-    ? { grade: undefined as any, note: undefined }
-    : reconcileGrade(
+  const gradeRangeInfo = applyEctsGrading
+    ? calculateGradeRange(derivedScore)
+    : { grade: undefined as any, range: "", minScore: derivedScore, maxScore: derivedScore }
+  const { grade: reconciledGrade, note: gradeReconciliationNote } = applyEctsGrading
+    ? reconcileGrade(
         validated.grade,
         derivedScore,
         gradeRangeInfo.grade
       )
+    : { grade: undefined as any, note: undefined }
 
   // 6. PhD Opponent Enrichment
   let phdEnrichment: any = null
-  if (options.thesisType === "phd" && options.reviewerRole === "opponent") {
+  if (shouldRunPhdEnrichment(options.reviewKind, options.thesisType, options.reviewerRole)) {
     let authorProfile = null
     let sotaBenchmarking: AcademicPaperResult[] = []
     let citationAudit = null

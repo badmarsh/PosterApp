@@ -14,6 +14,7 @@ import {
   type ThesisReviewLabels,
 } from "./templates-thesis"
 import { THESIS_CRITERIA, type ThesisSection, type ReviewLanguage } from "@/lib/ai/thesis-rubric"
+import type { ReviewKind } from "@/lib/ai/review-types"
 import { mapUnicodeToLatex, parseMarkdownToLatex } from "./parser"
 
 // ---------------------------------------------------------------------------
@@ -151,7 +152,8 @@ function resolveCriterionLabel(
 function buildCriteriaTable(
   labels: ThesisReviewLabels,
   sections: ThesisSection[],
-  lang: ReportLanguage
+  lang: ReportLanguage,
+  includeRatings: boolean
 ): string {
   const rows: string[] = []
 
@@ -163,8 +165,9 @@ function buildCriteriaTable(
     const rating = section.rating && section.rating !== "pending" ? section.rating : "---"
     const text = nl2par(section.text || "")
 
+    const ratingSuffix = includeRatings ? ` \\hfill \\ratingsymbol{${escapeLatex(rating)}}` : ""
     rows.push(`\\Needspace{6\\baselineskip}
-\\subsection*{${escapeLatex(criterionName)} \\hfill \\ratingsymbol{${escapeLatex(rating)}}}
+\\subsection*{${escapeLatex(criterionName)}${ratingSuffix}}
 ${escapeProse(text)}`)
 
     if (section.suggestions && section.suggestions.length > 0) {
@@ -207,15 +210,17 @@ ${escapeProse(nl2par(comments))}
 function buildSummaryBlock(
   labels: ThesisReviewLabels,
   grade: string | null | undefined,
-  recommendation: string | null | undefined
+  recommendation: string | null | undefined,
+  includeGrade: boolean
 ): string {
   const gradeBox = grade ? `\\ratingsymbol{${escapeLatex(grade)}}` : "\\underline{\\hspace{3cm}}"
   const recText = recommendation ? escapeProse(recommendation) : ""
+  const gradeField = includeGrade ? `\\thesisfield{${escapeLatex(labels.gradeLabel)}}{${gradeBox}}` : ""
 
   return `\\Needspace{10\\baselineskip}
 \\section{${escapeLatex(labels.summaryLabel)}}
 
-\\thesisfield{${escapeLatex(labels.gradeLabel)}}{${gradeBox}}
+${gradeField}
 
 \\thesisfield{${escapeLatex(labels.recommendationLabel)}}{${recText}}
 
@@ -232,7 +237,45 @@ function buildSummaryBlock(
 // Public API
 // ---------------------------------------------------------------------------
 
+function labelsForReviewKind(
+  labels: ThesisReviewLabels,
+  lang: ReportLanguage,
+  reviewKind: ReviewKind
+): ThesisReviewLabels {
+  if (reviewKind !== "paper") return labels
+
+  const sk = lang === "sk"
+  const cs = lang === "cs"
+  const scientificPaper = sk ? "Vedecký článok" : cs ? "Vědecký článek" : "Scientific paper"
+  return {
+    ...labels,
+    title: sk ? "ODBORNÁ RECENZIA VEDECKÉHO ČLÁNKU" : cs ? "ODBORNÁ RECENZE VĚDECKÉHO ČLÁNKU" : "SCIENTIFIC PAPER PEER REVIEW",
+    studentLabel: sk ? "Autor/Autorka článku" : cs ? "Autor/Autorka článku" : "Author(s)",
+    thesisTitleLabel: sk ? "Názov článku" : cs ? "Název článku" : "Paper title",
+    thesisTypeLabel: sk ? "Typ rukopisu" : cs ? "Typ rukopisu" : "Manuscript type",
+    gradingLabel: sk ? "ODBORNÉ POSÚDENIE" : cs ? "ODBORNÉ POSOUZENÍ" : "PEER-REVIEW FINDINGS",
+    defenseLabel: sk ? "OTÁZKY PRE AUTOROV" : cs ? "OTÁZKY PRO AUTORY" : "QUESTIONS FOR THE AUTHORS",
+    citationLabel: sk ? "POZNÁMKY K CITÁCIÁM" : cs ? "POZNÁMKY K CITACÍM" : "CITATION NOTES",
+    summaryLabel: sk ? "PUBLIKAČNÉ ODPORÚČANIE" : cs ? "PUBLIKAČNÍ DOPORUČENÍ" : "PUBLICATION RECOMMENDATION",
+    confidentialLabel: sk ? "DÔVERNÉ POZNÁMKY PRE EDITORA" : cs ? "DŮVĚRNÉ POZNÁMKY PRO EDITORA" : "CONFIDENTIAL COMMENTS TO THE EDITOR",
+    recommendationLabel: sk ? "Odporúčanie editorovi" : cs ? "Doporučení editorovi" : "Recommendation to the editor",
+    signatureLabel: sk ? "Podpis recenzenta/ky" : cs ? "Podpis recenzenta/ky" : "Reviewer's signature",
+    thesisTypes: { bachelor: scientificPaper, master: scientificPaper, phd: scientificPaper },
+    roles: { ...labels.roles, supervisor: "Reviewer", opponent: "Reviewer", self: "Author triage", reviewer: "Reviewer" },
+  }
+}
+
+function buildAiDisclosure(lang: ReportLanguage): string {
+  const disclosure = lang === "sk"
+    ? "Koncept recenzie bol pripravený s podporou evidenciou podloženého AI asistenta PosterApp. Konečné odborné posúdenie a rozhodnutie vykonal ľudský recenzent."
+    : lang === "cs"
+      ? "Návrh recenze byl připraven s podporou AI asistenta PosterApp založeného na důkazech. Konečné odborné posouzení a rozhodnutí provedl lidský recenzent."
+      : "This review draft was prepared with PosterApp's evidence-grounded AI assistant. Final scholarly judgment and the decision remain with the human reviewer."
+  return `\\Needspace{5\\baselineskip}\n\\section*{${escapeLatex(lang === "sk" ? "Vyhlásenie o AI asistencii" : lang === "cs" ? "Prohlášení o AI asistenci" : "AI Assistance Disclosure")}}\n${escapeProse(disclosure)}`
+}
+
 export interface ThesisReviewGeneratorInput {
+  reviewKind?: ReviewKind
   studentName: string
   thesisTitle: string
   thesisType: "bachelor" | "master" | "phd"
@@ -258,11 +301,12 @@ export interface ThesisReviewGeneratorInput {
  */
 export function generateThesisReviewLatex(input: ThesisReviewGeneratorInput): string {
   const lang = input.language
-  const labels = THESIS_REVIEW_LABELS[lang]
-  const preamble = getThesisReviewPreamble(input.template)
+  const reviewKind = input.reviewKind ?? "thesis"
+  const labels = labelsForReviewKind(THESIS_REVIEW_LABELS[lang], lang, reviewKind)
+  const preamble = getThesisReviewPreamble(input.template, labels.title)
 
   const metaBlock = buildMetadataBlock(labels, input)
-  const criteriaBlock = buildCriteriaTable(labels, input.sections, lang)
+  const criteriaBlock = buildCriteriaTable(labels, input.sections, lang, reviewKind === "thesis")
 
   // Defense questions — may be in sections or top-level
   const defenseSection = input.sections.find((s) => s.criterionId === "defense_questions")
@@ -277,7 +321,8 @@ export function generateThesisReviewLatex(input: ThesisReviewGeneratorInput): st
     input.includeConfidential && input.confidentialComments?.trim()
       ? buildConfidentialNotes(labels, input.confidentialComments)
       : ""
-  const summaryBlock = buildSummaryBlock(labels, input.grade, input.recommendation)
+  const summaryBlock = buildSummaryBlock(labels, input.grade, input.recommendation, reviewKind === "thesis")
+  const aiDisclosureBlock = buildAiDisclosure(lang)
 
   return `${preamble}
 
@@ -308,6 +353,8 @@ ${citationBlock}
 ${confidentialBlock}
 
 ${summaryBlock}
+
+${aiDisclosureBlock}
 
 \\end{document}
 `

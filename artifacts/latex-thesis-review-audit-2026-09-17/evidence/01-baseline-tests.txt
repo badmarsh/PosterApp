@@ -1,0 +1,659 @@
+
+> posterapp@0.2.0 test /home/user/PosterApp
+> vitest
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.9 [39m[90m/home/user/PosterApp[39m
+
+ [32m✓[39m __tests__/api/agent-approval-queue.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+[90mstderr[2m | lib/__tests__/thesis-review-store.test.ts[2m > [22m[2mThesis Review Store State & Error Handling[2m > [22m[2mcleans up stale 404 review from reviews list during loadReview without throwing
+[22m[39m[ThesisReviewStore] Review rev-1 not found (404)
+
+[90mstderr[2m | lib/__tests__/thesis-review-store.test.ts[2m > [22m[2mThesis Review Store State & Error Handling[2m > [22m[2mhandles delete failure by rolling back optimistic removal and recording error
+[22m[39m[ThesisReviewStore] deleteReview failed: Error: Delete failed (HTTP 500)
+    at Object.deleteReview [90m(/home/user/PosterApp/[39mcomponents/thesis-review/use-thesis-review-store.ts:1094:17[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at [90m/home/user/PosterApp/[39mlib/__tests__/thesis-review-store.test.ts:156:21
+
+[90mstderr[2m | lib/__tests__/thesis-review-store.test.ts[2m > [22m[2mThesis Review Store State & Error Handling[2m > [22m[2mrecords save error when PUT returns non-200 HTTP response
+[22m[39m[ThesisReviewStore] saveReview failed: Error: Access Denied
+    at Object.saveReview [90m(/home/user/PosterApp/[39mcomponents/thesis-review/use-thesis-review-store.ts:1030:17[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at [90m/home/user/PosterApp/[39mlib/__tests__/thesis-review-store.test.ts:191:21
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
+
+ [32m✓[39m lib/__tests__/thesis-review-store.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+[90mstdout[2m | lib/__tests__/vector-rag.test.ts
+[22m[39m◇ injected env (0) from .env.local // tip: ⌘ enable debugging { debug: true }
+◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+
+ [32m✓[39m lib/__tests__/vector-rag.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m lib/__tests__/expert-review.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 127[2mms[22m[39m
+ [32m✓[39m lib/__tests__/graph-rag.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m __tests__/security/wrap-untrusted-context-pentest.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+[90mstderr[2m | __tests__/api/workspace-by-id.test.ts[2m > [22m[2mPUT /api/workspaces/[id][2m > [22m[2mreturns 400 for invalid body (bad card column)
+[22m[39m[Workspace PUT] Validation failed: {
+  "_errors": [],
+  "cards": {
+    "0": {
+      "_errors": [],
+      "column": {
+        "_errors": [
+          "Too big: expected number to be <=3"
+        ]
+      }
+    },
+    "_errors": []
+  }
+}
+
+[90mstderr[2m | __tests__/api/workspace-by-id.test.ts[2m > [22m[2mPUT /api/workspaces/[id][2m > [22m[2msuccessfully saves workspace and creates snapshot
+[22m[39mFailed to generate AI label diff TypeError: Cannot read properties of undefined (reading 'id')
+    at Module.PUT [90m(/home/user/PosterApp/[39mapp/api/workspaces/[id]/route.ts:567:60[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at [90m/home/user/PosterApp/[39m__tests__/api/workspace-by-id.test.ts:294:17
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
+
+[90mstderr[2m | __tests__/api/workspace-by-id.test.ts[2m > [22m[2mPUT /api/workspaces/[id][2m > [22m[2msuccessfully saves workspace and creates snapshot
+[22m[39m[Workspace PUT] Snapshot bookkeeping failed after successful save: TypeError: Cannot read properties of undefined (reading 'length')
+    at Module.PUT [90m(/home/user/PosterApp/[39mapp/api/workspaces/[id]/route.ts:580:17[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at [90m/home/user/PosterApp/[39m__tests__/api/workspace-by-id.test.ts:294:17
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
+
+[90mstderr[2m | __tests__/api/workspace-by-id.test.ts[2m > [22m[2mPUT /api/workspaces/[id][2m > [22m[2mreturns 409 conflict when revision mismatch (stale tab)
+[22m[39m[Workspace PUT] Unhandled error: WorkspaceConflictError: This workspace was changed in another session. Reload before saving again.
+    at PUT.__vite_ssr_import_3__.prisma.$transaction.timeout [90m(/home/user/PosterApp/[39mapp/api/workspaces/[id]/route.ts:199:37[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+
+ [32m✓[39m __tests__/api/workspace-by-id.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+ [32m✓[39m __tests__/store/convert-validation-logic.test.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m lib/__tests__/security.test.ts [2m([22m[2m36 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+[90mstderr[2m | __tests__/ai-workflows.test.ts[2m > [22m[2mAI Workflows Integration[2m > [22m[2mReview Route[2m > [22m[2mreturns deterministic lintReport when AI call throws
+[22m[39m[review] AI Review failed, falling back to deterministic lint findings: Error: AI provider offline
+    at [90m/home/user/PosterApp/[39m__tests__/ai-workflows.test.ts:271:44
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel [90m(file:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10[90m)[39m
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2272:10[90m)[39m
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2955:64
+
+ [32m✓[39m __tests__/ai-workflows.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/generator-thesis-review.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m lib/__tests__/review-serializer.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m __tests__/api/agent-mcp.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+[90mstdout[2m | lib/__tests__/vector-rag-pipeline.test.ts
+[22m[39m◇ injected env (0) from .env.local // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+
+ [32m✓[39m lib/__tests__/vector-rag-pipeline.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m lib/__tests__/thesis-review.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/remote-assets.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 55[2mms[22m[39m
+[90mstdout[2m | lib/__tests__/document-chunker.test.ts
+[22m[39m◇ injected env (0) from .env.local // tip: ⌘ override existing { override: true }
+◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+
+ [32m✓[39m lib/__tests__/document-chunker.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+[90mstderr[2m | __tests__/store/ingestion-slice.test.ts[2m > [22m[2mingestion-slice[2m > [22m[2mopens and closes ingestion panel
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ingestion-slice.test.ts[2m > [22m[2mingestion-slice[2m > [22m[2mpushLog adds entries to the parse log
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ingestion-slice.test.ts[2m > [22m[2mingestion-slice[2m > [22m[2mdismissFile sets dismissed to true
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ingestion-slice.test.ts[2m > [22m[2mingestion-slice[2m > [22m[2mremoveFile removes file and its associated assets
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ingestion-slice.test.ts[2m > [22m[2mingestion-slice[2m > [22m[2mremoveFile removes file and its associated assets
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ingestion-slice.test.ts[2m > [22m[2mingestion-slice[2m > [22m[2mdiscardAsset removes a specific asset
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ingestion-slice.test.ts[2m > [22m[2mingestion-slice[2m > [22m[2munassignAsset clears card assignment
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ingestion-slice.test.ts[2m > [22m[2mingestion-slice[2m > [22m[2mupdateAssetUrl updates both url and thumbnailUrl
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ingestion-slice.test.ts[2m > [22m[2mingestion-slice[2m > [22m[2mpromoteAsset assigns asset to card figure slot
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ingestion-slice.test.ts[2m > [22m[2mingestion-slice[2m > [22m[2mpromoteAsset adds text snippet to card bullets
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ingestion-slice.test.ts[2m > [22m[2mingestion-slice[2m > [22m[2mpromoteAsset assigns table asset safely even if card.table is undefined
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+ [32m✓[39m __tests__/store/ingestion-slice.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+ [32m✓[39m lib/__tests__/retrieval-golden.test.ts [2m([22m[2m6 tests[22m[2m | [22m[33m1 skipped[39m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m lib/__tests__/document-understanding.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m lib/__tests__/thesis-context.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+[90mstderr[2m | __tests__/system-settings.test.ts[2m > [22m[2mSystem Settings — User Registration Control[2m > [22m[2mgetRegistrationSetting[2m > [22m[2mhandles database errors gracefully and falls back to env
+[22m[39m[system-settings] Failed to query SystemSetting from DB, falling back to env: Error: DB connection timeout
+    at [90m/home/user/PosterApp/[39m__tests__/system-settings.test.ts:133:68
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel [90m(file:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10[90m)[39m
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2272:10[90m)[39m
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2955:64
+
+ [32m✓[39m __tests__/system-settings.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 124[2mms[22m[39m
+ [32m✓[39m __tests__/api/zod-body-validation.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 187[2mms[22m[39m
+ [32m✓[39m lib/__tests__/agent-auth.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/figure-generation.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m __tests__/api/thesis-review-dedup.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+[90mstderr[2m | lib/__tests__/academic-connector.test.ts[2m > [22m[2mAcademic Connector Service[2m > [22m[2mmerges and deduplicates multi-source search results across OpenAlex and Crossref
+[22m[39mTAVILY_API_KEY not configured, skipping Tavily search.
+
+ [32m✓[39m lib/__tests__/academic-connector.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 66[2mms[22m[39m
+ [32m✓[39m lib/__tests__/evidence-validator.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m __tests__/api/thesis-review-auth-idor.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/log-parser.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m lib/__tests__/research-lab-templates.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m __tests__/api/thesis-review-api-extended.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 185[2mms[22m[39m
+ [32m✓[39m __tests__/api/thesis-review-roundtrip.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 85[2mms[22m[39m
+ [32m✓[39m __tests__/api/agent-keys.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m __tests__/sanitize-and-search.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m lib/thesis-review/__tests__/defense-pack.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m lib/__tests__/ai-prompts.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m lib/__tests__/docx-structure.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+ [32m✓[39m __tests__/api/workspaces.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m lib/__tests__/rubric-unification.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/generator-paper.test.ts [2m([22m[2m39 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m lib/__tests__/yjs-thesis-sync.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+[90mstderr[2m | lib/__tests__/provider-fallback.test.ts[2m > [22m[2mTask 13: Provider-level fallback in AI client[2m > [22m[2mfails over to AI_API_URL_FALLBACK when primary provider fails with 503 and records fallback provider provenance
+[22m[39m[AI test-failover] Provider failed: HTTP 503 (3029ms)
+
+[90mstderr[2m | lib/__tests__/provider-fallback.test.ts[2m > [22m[2mTask 13: Provider-level fallback in AI client[2m > [22m[2mfails over to AI_API_URL_FALLBACK when primary provider fails with 503 and records fallback provider provenance
+[22m[39m[AI test-failover] Primary provider (https://primary.example/v1/chat/completions) failed: AI API failed: HTTP 503. Attempting fallback provider (https://fallback.example/v1/chat/completions)...
+
+[90mstdout[2m | lib/__tests__/provider-fallback.test.ts[2m > [22m[2mTask 13: Provider-level fallback in AI client[2m > [22m[2mfails over to AI_API_URL_FALLBACK when primary provider fails with 503 and records fallback provider provenance
+[22m[39m[AI test-failover] Success. Model: test-model, Duration: 1ms, Tokens: unknown
+
+[90mstderr[2m | lib/__tests__/provider-fallback.test.ts[2m > [22m[2mTask 13: Provider-level fallback in AI client[2m > [22m[2mfails over to AI_API_URL_FALLBACK when primary provider fails with 503 and records fallback provider provenance
+[22m[39m[AI client] Primary provider failed; succeeded via fallback provider https://fallback.example/v1/chat/completions
+
+[90mstdout[2m | lib/__tests__/provider-fallback.test.ts[2m > [22m[2mTask 13: Provider-level fallback in AI client[2m > [22m[2mdoes NOT call fallback provider and records primary provenance when primary provider succeeds
+[22m[39m[AI test-primary] Success. Model: test-model, Duration: 1ms, Tokens: unknown
+
+[90mstderr[2m | lib/__tests__/provider-fallback.test.ts[2m > [22m[2mTask 13: Provider-level fallback in AI client[2m > [22m[2mdoes NOT attempt fallback for 4xx client errors (e.g. HTTP 400 Bad Request)
+[22m[39m[AI test-400] Provider failed: HTTP 400 (1ms)
+
+[90mstdout[2m | lib/__tests__/provider-fallback.test.ts[2m > [22m[2mTask 13: Provider-level fallback in AI client[2m > [22m[2mdoes NOT attempt fallback for AIValidationError (schema mismatch)
+[22m[39m[AI test-validation-no-fallback] Success. Model: test-model, Duration: 0ms, Tokens: unknown
+
+[90mstderr[2m | lib/__tests__/provider-fallback.test.ts[2m > [22m[2mTask 13: Provider-level fallback in AI client[2m > [22m[2mdoes NOT attempt fallback for AIValidationError (schema mismatch)
+[22m[39m[AI] Schema validation failed {
+  _errors: [],
+  answer: { _errors: [ [32m'Invalid input: expected string, received undefined'[39m ] }
+}
+
+[90mstdout[2m | lib/__tests__/provider-fallback.test.ts[2m > [22m[2mTask 13: Provider-level fallback in AI client[2m > [22m[2mdoes NOT attempt fallback for AIValidationError (schema mismatch)
+[22m[39m[AI test-validation-no-fallback] Success. Model: test-model, Duration: 0ms, Tokens: unknown
+
+[90mstderr[2m | lib/__tests__/provider-fallback.test.ts[2m > [22m[2mTask 13: Provider-level fallback in AI client[2m > [22m[2mdoes NOT attempt fallback for AIValidationError (schema mismatch)
+[22m[39m[AI] Schema validation failed {
+  _errors: [],
+  answer: { _errors: [ [32m'Invalid input: expected string, received undefined'[39m ] }
+}
+
+[90mstderr[2m | lib/__tests__/provider-fallback.test.ts[2m > [22m[2mTask 13: Provider-level fallback in AI client[2m > [22m[2mthrows primary error when fallback provider is not configured
+[22m[39m[AI test-no-fallback] Provider failed: HTTP 500 (0ms)
+
+[90mstderr[2m | lib/__tests__/provider-fallback.test.ts[2m > [22m[2mTask 13: Provider-level fallback in AI client[2m > [22m[2msupports fallback in generateAITextResponse
+[22m[39m[AI test-text-failover] Provider failed: HTTP 503 (3004ms)
+
+[90mstderr[2m | lib/__tests__/provider-fallback.test.ts[2m > [22m[2mTask 13: Provider-level fallback in AI client[2m > [22m[2msupports fallback in generateAITextResponse
+[22m[39m[AI test-text-failover] Primary provider (https://primary.example/v1/chat/completions) failed: AI API failed: HTTP 503. Attempting fallback provider (https://fallback.example/v1/chat/completions)...
+
+[90mstdout[2m | lib/__tests__/provider-fallback.test.ts[2m > [22m[2mTask 13: Provider-level fallback in AI client[2m > [22m[2msupports fallback in generateAITextResponse
+[22m[39m[AI test-text-failover] Success. Model: test-model, Duration: 1ms, Tokens: unknown
+
+[90mstderr[2m | lib/__tests__/provider-fallback.test.ts[2m > [22m[2mTask 13: Provider-level fallback in AI client[2m > [22m[2msupports fallback in generateAITextResponse
+[22m[39m[AI client] Primary provider failed; succeeded via fallback provider https://fallback.example/v1/chat/completions
+
+ [32m✓[39m lib/__tests__/provider-fallback.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 6068[2mms[22m[39m
+     [33m[2m✓[22m[39m fails over to AI_API_URL_FALLBACK when primary provider fails with 503 and records fallback provider provenance [33m 3046[2mms[22m[39m
+     [33m[2m✓[22m[39m supports fallback in generateAITextResponse [33m 3006[2mms[22m[39m
+ [32m✓[39m __tests__/api/snapshot-restore.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m lib/__tests__/ai-models.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 64[2mms[22m[39m
+ [32m✓[39m __tests__/api/cards-convert-performance.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m __tests__/api/ingestion-parse-error-leak.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m lib/__tests__/thesis-workflow-ui.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m lib/__tests__/ux-polish.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m lib/__tests__/yjs-granular-sync.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m lib/ai/__tests__/rubric-unification.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m lib/__tests__/professional-mode-default.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 192[2mms[22m[39m
+[90mstderr[2m | __tests__/store/equation-slice.test.ts[2m > [22m[2mequation-slice[2m > [22m[2msetIsEquationLibraryOpen toggles modal state
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/equation-slice.test.ts[2m > [22m[2mequation-slice[2m > [22m[2mfetchEquations populates equations on success
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/equation-slice.test.ts[2m > [22m[2mequation-slice[2m > [22m[2mfetchEquations falls back to sample equations on failure or network error
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/equation-slice.test.ts[2m > [22m[2mequation-slice[2m > [22m[2maddEquation appends equation to store and calls API
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/equation-slice.test.ts[2m > [22m[2mequation-slice[2m > [22m[2mupdateEquation modifies local state and syncs to API
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/equation-slice.test.ts[2m > [22m[2mequation-slice[2m > [22m[2mupdateEquation modifies local state and syncs to API
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/equation-slice.test.ts[2m > [22m[2mequation-slice[2m > [22m[2mupdateEquation modifies local state and syncs to API
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/equation-slice.test.ts[2m > [22m[2mequation-slice[2m > [22m[2mdeleteEquation removes equation from state and calls DELETE
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/equation-slice.test.ts[2m > [22m[2mequation-slice[2m > [22m[2mdeleteEquation removes equation from state and calls DELETE
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/equation-slice.test.ts[2m > [22m[2mequation-slice[2m > [22m[2minsertEquation appends formatted LaTeX equation into the target card
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+ [32m✓[39m __tests__/store/equation-slice.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m lib/__tests__/ai-contracts.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+[90mstdout[2m | __tests__/skills/deerflow-skills.test.ts
+[22m[39m◇ injected env (0) from .env.local // tip: ⌘ override existing { override: true }
+◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+
+ [32m✓[39m __tests__/skills/deerflow-skills.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m lib/__tests__/equation-extraction.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/layout-budget.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/quick-fixes.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+[90mstderr[2m | __tests__/api/cards-generate.test.ts[2m > [22m[2mPOST /api/workspaces/[id]/cards/[cardId]/generate[2m > [22m[2mreturns 500 when AI API not configured
+[22m[39mCard generation failed: Error: AI API configuration missing (AI_API_URL or AI_API_KEY)
+    at resolveProvider [90m(/home/user/PosterApp/[39mlib/ai/client.ts:114:11[90m)[39m
+    at executeWithProviderFallback [90m(/home/user/PosterApp/[39mlib/ai/client.ts:352:54[90m)[39m
+    at generateAIResponse [90m(/home/user/PosterApp/[39mlib/ai/client.ts:413:10[90m)[39m
+    at Module.POST [90m(/home/user/PosterApp/[39mapp/api/workspaces/[id]/cards/[cardId]/generate/route.ts:114:28[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at [90m/home/user/PosterApp/[39m__tests__/api/cards-generate.test.ts:130:17
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
+
+ [32m✓[39m __tests__/api/cards-generate.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m __tests__/api/cards-convert-sourceIds.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m lib/__tests__/review-engine-grading.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+[90mstdout[2m | lib/__tests__/structure-chunker.test.ts
+[22m[39m◇ injected env (0) from .env.local // tip: ⌘ enable debugging { debug: true }
+◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+
+ [32m✓[39m lib/__tests__/structure-chunker.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m lib/__tests__/analysis-plan.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m lib/__tests__/review-composer.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m lib/__tests__/self-critique.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+[90mstdout[2m | lib/__tests__/ai-client.test.ts[2m > [22m[2mAI client resilience[2m > [22m[2mretries retryable provider failures and pins the default output ceiling
+[22m[39m[AI retry-test] Success. Model: test-model, Duration: 3ms, Tokens: unknown
+
+[90mstdout[2m | lib/__tests__/ai-client.test.ts[2m > [22m[2mAI client resilience[2m > [22m[2mrepairs one malformed structured response before failing
+[22m[39m[AI repair-test] Success. Model: test-model, Duration: 0ms, Tokens: unknown
+
+[90mstderr[2m | lib/__tests__/ai-client.test.ts[2m > [22m[2mAI client resilience[2m > [22m[2mrepairs one malformed structured response before failing
+[22m[39m[AI] Schema validation failed {
+  _errors: [],
+  answer: { _errors: [ [32m'Invalid input: expected string, received number'[39m ] }
+}
+
+[90mstdout[2m | lib/__tests__/ai-client.test.ts[2m > [22m[2mAI client resilience[2m > [22m[2mrepairs one malformed structured response before failing
+[22m[39m[AI repair-test] Success. Model: test-model, Duration: 0ms, Tokens: unknown
+
+[90mstdout[2m | lib/__tests__/ai-client.test.ts[2m > [22m[2mAI client resilience[2m > [22m[2mrepairs truncated responses (finish_reason=length) with a 1.5x token budget
+[22m[39m[AI trunc-test] Success. Model: test-model, Duration: 0ms, Tokens: unknown
+
+[90mstdout[2m | lib/__tests__/ai-client.test.ts[2m > [22m[2mAI client resilience[2m > [22m[2mrepairs truncated responses (finish_reason=length) with a 1.5x token budget
+[22m[39m[AI trunc-test] Success. Model: test-model, Duration: 0ms, Tokens: unknown
+
+[90mstdout[2m | lib/__tests__/ai-client.test.ts[2m > [22m[2mAI client resilience[2m > [22m[2mnormalizes base URLs ending with /v1 to /chat/completions
+[22m[39m[AI norm-test] Success. Model: google/gemini-2.0-flash-001, Duration: 0ms, Tokens: unknown
+
+[90mstdout[2m | lib/__tests__/ai-client.test.ts[2m > [22m[2mAI client resilience[2m > [22m[2mfalls back to OPENROUTER_API_KEY and OPENROUTER_BASE_URL when AI_API_* are unset
+[22m[39m[AI or-test] Success. Model: anthropic/claude-3.5-sonnet, Duration: 1ms, Tokens: unknown
+
+ [32m✓[39m lib/__tests__/ai-client.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/generator.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+[90mstderr[2m | __tests__/api/cards-convert.test.ts[2m > [22m[2mPOST /api/workspaces/[id]/cards/convert[2m > [22m[2mreturns 500 when AI API not configured
+[22m[39mCard conversion failed: Error: AI API configuration missing (AI_API_URL or AI_API_KEY)
+    at resolveProvider [90m(/home/user/PosterApp/[39mlib/ai/client.ts:114:11[90m)[39m
+    at executeWithProviderFallback [90m(/home/user/PosterApp/[39mlib/ai/client.ts:352:54[90m)[39m
+    at generateAIResponse [90m(/home/user/PosterApp/[39mlib/ai/client.ts:413:10[90m)[39m
+    at Module.POST [90m(/home/user/PosterApp/[39mapp/api/workspaces/[id]/cards/convert/route.ts:123:30[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at [90m/home/user/PosterApp/[39m__tests__/api/cards-convert.test.ts:100:17
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
+
+ [32m✓[39m __tests__/api/cards-convert.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m __tests__/api/workspace-isolation.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+[90mstderr[2m | __tests__/store/bib-slice.test.ts[2m > [22m[2mbib-slice[2m > [22m[2mfetchBib populates bibContent and bibKeys on success
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/bib-slice.test.ts[2m > [22m[2mbib-slice[2m > [22m[2mfetchBib clears state on failure
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/bib-slice.test.ts[2m > [22m[2mbib-slice[2m > [22m[2mfetchBib clears state on failure
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/bib-slice.test.ts[2m > [22m[2mbib-slice[2m > [22m[2mfetchBib clears state on network error
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/bib-slice.test.ts[2m > [22m[2mbib-slice[2m > [22m[2mupdateBib updates local state immediately
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/bib-slice.test.ts[2m > [22m[2mbib-slice[2m > [22m[2mupdateBib updates local state immediately
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/bib-slice.test.ts[2m > [22m[2mbib-slice[2m > [22m[2mupdateBib calls the API with correct payload
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/bib-slice.test.ts[2m > [22m[2mbib-slice[2m > [22m[2mupdateBib calls the API with correct payload
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/bib-slice.test.ts[2m > [22m[2mbib-slice[2m > [22m[2madds and deletes structured BibEntry
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/bib-slice.test.ts[2m > [22m[2mbib-slice[2m > [22m[2madds and deletes structured BibEntry
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/bib-slice.test.ts[2m > [22m[2mbib-slice[2m > [22m[2madds and deletes structured BibEntry
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/bib-slice.test.ts[2m > [22m[2mbib-slice[2m > [22m[2madds and deletes structured BibEntry
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/bib-slice.test.ts[2m > [22m[2mbib-slice[2m > [22m[2madds and deletes structured BibEntry
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/bib-slice.test.ts[2m > [22m[2mbib-slice[2m > [22m[2madds and deletes structured BibEntry
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/bib-slice.test.ts[2m > [22m[2mbib-slice[2m > [22m[2mmanages isBibManagerOpen modal state
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+ [32m✓[39m __tests__/store/bib-slice.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+ [32m✓[39m lib/deerflow/__tests__/contracts.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m __tests__/lib/docx-confidential.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 178[2mms[22m[39m
+ [32m✓[39m lib/__tests__/thesis-classification-wiring.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m lib/__tests__/semantic-grounding.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m lib/__tests__/equation-registry.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m lib/__tests__/bib-parser.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m __tests__/api/card-route-isolation.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m lib/deerflow/__tests__/sse.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+[90mstderr[2m | lib/__tests__/phd-enrichment-institution.test.ts[2m > [22m[2mTask 6: Institution-aware PhD enrichment (sk/cs/en)[2m > [22m[2mskips statutory clause for non-Slovak/Czech institutions
+[22m[39m[review-engine] section routing failed, using manuscript prefix: Cannot read properties of undefined (reading 'includes')
+
+[90mstderr[2m | lib/__tests__/phd-enrichment-institution.test.ts[2m > [22m[2mTask 6: Institution-aware PhD enrichment (sk/cs/en)[2m > [22m[2mincludes Slovak clause for Slovak institutions
+[22m[39m[review-engine] section routing failed, using manuscript prefix: Cannot read properties of undefined (reading 'includes')
+
+[90mstderr[2m | lib/__tests__/phd-enrichment-institution.test.ts[2m > [22m[2mTask 6: Institution-aware PhD enrichment (sk/cs/en)[2m > [22m[2mincludes Czech clause for Czech institutions
+[22m[39m[review-engine] section routing failed, using manuscript prefix: Cannot read properties of undefined (reading 'includes')
+
+[90mstderr[2m | lib/__tests__/phd-enrichment-institution.test.ts[2m > [22m[2mTask 6: Institution-aware PhD enrichment (sk/cs/en)[2m > [22m[2mincludes Slovak clause for sk language regardless of institution
+[22m[39m[review-engine] section routing failed, using manuscript prefix: Cannot read properties of undefined (reading 'includes')
+
+ [32m✓[39m lib/__tests__/phd-enrichment-institution.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 200[2mms[22m[39m
+ [32m✓[39m lib/__tests__/review-engine-pre-grounding.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 186[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/backslash-path-matrix.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m lib/ai/__tests__/supervisor-and-triage.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m lib/__tests__/table-parser.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m __tests__/lib/job-queue.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 72[2mms[22m[39m
+ [32m✓[39m lib/__tests__/workflow-step-registry.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m __tests__/ai/wrap-untrusted-context-enhanced.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m lib/__tests__/academic-checks.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m __tests__/latex/figures-sparse.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m lib/__tests__/ai-helpers.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m lib/ai/__tests__/vector-rag-scoring.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m lib/__tests__/api-fetch-workspace-auth.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+[90mstdout[2m | lib/__tests__/ocr-service.test.ts[2m > [22m[2mocr-service[2m > [22m[2mshould process image OCR and extract equations and markdown text
+[22m[39m[AI vision-ocr] Success. Model: gemini-3.8-flash, Duration: 1ms, Tokens: unknown
+
+[90mstdout[2m | lib/__tests__/ocr-service.test.ts[2m > [22m[2mocr-service[2m > [22m[2mshould process table mode and return structured tables
+[22m[39m[AI vision-ocr] Success. Model: gemini-3.8-flash, Duration: 0ms, Tokens: unknown
+
+ [32m✓[39m lib/__tests__/ocr-service.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/template-registry.test.ts [2m([22m[2m38 tests[22m[2m)[22m[32m 35[2mms[22m[39m
+[90mstderr[2m | __tests__/store/ui-slice.test.ts[2m > [22m[2mui-slice[2m > [22m[2mpushes an agent event and returns its id
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ui-slice.test.ts[2m > [22m[2mui-slice[2m > [22m[2mupdates an existing agent event
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ui-slice.test.ts[2m > [22m[2mui-slice[2m > [22m[2msets and reads inspector tab
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ui-slice.test.ts[2m > [22m[2mui-slice[2m > [22m[2mtoggles autoCompile
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ui-slice.test.ts[2m > [22m[2mui-slice[2m > [22m[2msets and clears pendingAiPrompt
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ui-slice.test.ts[2m > [22m[2mui-slice[2m > [22m[2msets lastCompileFormat
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/ui-slice.test.ts[2m > [22m[2mui-slice[2m > [22m[2mmanages scanner open state and scanner image
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+ [32m✓[39m __tests__/store/ui-slice.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m lib/__tests__/review-jobs.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 61[2mms[22m[39m
+ [32m✓[39m lib/__tests__/sample-data.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 70[2mms[22m[39m
+ [32m✓[39m lib/__tests__/semantic-scholar-service.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 3721[2mms[22m[39m
+     [33m[2m✓[22m[39m reports service_error when all retry attempts fail on 503 [33m 3451[2mms[22m[39m
+ [32m✓[39m lib/__tests__/bib-source.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m lib/__tests__/source-markdown-view.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m lib/deerflow/__tests__/client.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 144[2mms[22m[39m
+[90mstderr[2m | __tests__/lib/rate-limit.test.ts[2m > [22m[2mRate Limiter[2m > [22m[2mAsync Rate Limiter (Upstash Fallback)[2m > [22m[2mfalls back to memory (fail-open) on network error by default
+[22m[39m[rate-limit] Upstash error, falling back to memory: Error: Network Error
+    at [90m/home/user/PosterApp/[39m__tests__/lib/rate-limit.test.ts:51:48
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel [90m(file:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10[90m)[39m
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2272:10[90m)[39m
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2955:64
+
+[90mstderr[2m | __tests__/lib/rate-limit.test.ts[2m > [22m[2mRate Limiter[2m > [22m[2mAsync Rate Limiter (Upstash Fallback)[2m > [22m[2mfalls back to memory (fail-open) on network error by default
+[22m[39m[rate-limit] Upstash error, falling back to memory: Error: Network Error
+    at [90m/home/user/PosterApp/[39m__tests__/lib/rate-limit.test.ts:51:48
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel [90m(file:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10[90m)[39m
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2272:10[90m)[39m
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2955:64
+
+[90mstderr[2m | __tests__/lib/rate-limit.test.ts[2m > [22m[2mRate Limiter[2m > [22m[2mAsync Rate Limiter (Upstash Fallback)[2m > [22m[2mfalls back to memory (fail-open) on non-200 HTTP response by default
+[22m[39m[rate-limit] Upstash HTTP error 500, falling back to memory
+
+[90mstderr[2m | __tests__/lib/rate-limit.test.ts[2m > [22m[2mRate Limiter[2m > [22m[2mAsync Rate Limiter (Upstash Fallback)[2m > [22m[2mfalls back to memory (fail-open) on non-200 HTTP response by default
+[22m[39m[rate-limit] Upstash HTTP error 500, falling back to memory
+
+[90mstderr[2m | __tests__/lib/rate-limit.test.ts[2m > [22m[2mRate Limiter[2m > [22m[2mAsync Rate Limiter (Upstash Fallback)[2m > [22m[2mblocks request (fail-closed) on network error when RATE_LIMIT_FAIL_MODE is closed
+[22m[39m[rate-limit] Upstash error (fail-closed): Error: Network Error
+    at [90m/home/user/PosterApp/[39m__tests__/lib/rate-limit.test.ts:75:48
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel [90m(file:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10[90m)[39m
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2272:10[90m)[39m
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2955:64
+
+[90mstderr[2m | __tests__/lib/rate-limit.test.ts[2m > [22m[2mRate Limiter[2m > [22m[2mAsync Rate Limiter (Upstash Fallback)[2m > [22m[2mblocks request (fail-closed) on non-200 HTTP response when RATE_LIMIT_FAIL_MODE is closed
+[22m[39m[rate-limit] Upstash HTTP error 500 (fail-closed)
+
+ [32m✓[39m __tests__/lib/rate-limit.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m lib/__tests__/prioritization.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+[90mstdout[2m | lib/__tests__/citation-suggester.test.ts[2m > [22m[2mcitation-suggester[2m > [22m[2msuggests citations via AI response when available
+[22m[39m[AI citation-suggest] Success. Model: gemini-3.8-flash, Duration: 0ms, Tokens: unknown
+
+ [32m✓[39m lib/__tests__/citation-suggester.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m lib/__tests__/validations/workspace.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/validation.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+[90mstdout[2m | lib/__tests__/bibtex-service.test.ts
+[22m[39m◇ injected env (0) from .env.local // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+[90mstderr[2m | lib/__tests__/bibtex-service.test.ts[2m > [22m[2mbibtex-service[2m > [22m[2mextractBibTeX[2m > [22m[2mshould handle empty text gracefully
+[22m[39m[bibtex-service] No references section detected in manuscript markdown.
+
+ [32m✓[39m lib/__tests__/bibtex-service.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m lib/__tests__/snapshot-diff.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+[90mstderr[2m | __tests__/api/structure-generate.test.ts[2m > [22m[2mPOST /api/workspaces/[id]/structure/generate[2m > [22m[2mgenerates fallback structure when editor access confirmed but AI offline
+[22m[39mAI structure generation failed, using static fallback: Error: AI API configuration missing (AI_API_URL or AI_API_KEY)
+    at resolveProvider [90m(/home/user/PosterApp/[39mlib/ai/client.ts:114:11[90m)[39m
+    at executeWithProviderFallback [90m(/home/user/PosterApp/[39mlib/ai/client.ts:352:54[90m)[39m
+    at generateAIResponse [90m(/home/user/PosterApp/[39mlib/ai/client.ts:413:10[90m)[39m
+    at Module.POST [90m(/home/user/PosterApp/[39mapp/api/workspaces/[id]/structure/generate/route.ts:181:32[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at [90m/home/user/PosterApp/[39m__tests__/api/structure-generate.test.ts:76:17
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
+
+ [32m✓[39m __tests__/api/structure-generate.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m lib/__tests__/rubric-engine.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m lib/__tests__/reconcile-grade-harsh-outlier.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/generator-slides.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/parser.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+[90mstdout[2m | lib/__tests__/vision-service.test.ts[2m > [22m[2mvision-service[2m > [22m[2mshould generate a caption successfully with JSON schema
+[22m[39m[AI vision-caption] Success. Model: mock-vision-model, Duration: 1ms, Tokens: unknown
+
+[90mstdout[2m | lib/__tests__/vision-service.test.ts[2m > [22m[2mvision-service[2m > [22m[2mshould fall back to descriptive name when originalCaption is 'Not provided'
+[22m[39m[AI vision-caption] Success. Model: mock-vision-model, Duration: 0ms, Tokens: unknown
+
+[90mstderr[2m | lib/__tests__/vision-service.test.ts[2m > [22m[2mvision-service[2m > [22m[2mshould return a fallback on error
+[22m[39m[AI vision-caption] Unhandled error: Network error
+
+[90mstderr[2m | lib/__tests__/vision-service.test.ts[2m > [22m[2mvision-service[2m > [22m[2mshould return a fallback on error
+[22m[39m[Vision] Model "mock-vision-model" caption generation failed: AI operation failed: Network error. Trying fallback...
+All vision fallback models failed: Error: AI operation failed: Network error
+    at [90m/home/user/PosterApp/[39mlib/ai/client.ts:432:15
+    at executeWithProviderFallback [90m(/home/user/PosterApp/[39mlib/ai/client.ts:356:20[90m)[39m
+    at generateCaption [90m(/home/user/PosterApp/[39mlib/services/vision-service.ts:73:26[90m)[39m
+    at [90m/home/user/PosterApp/[39mlib/__tests__/vision-service.test.ts:71:20
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:20
+
+ [32m✓[39m lib/__tests__/vision-service.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1526[2mms[22m[39m
+     [33m[2m✓[22m[39m should return a fallback on error [33m 1513[2mms[22m[39m
+ [32m✓[39m lib/__tests__/agent-restrictions.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m lib/__tests__/cost-ledger.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m lib/__tests__/export-templates.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m lib/deerflow/__tests__/budget.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+[90mstderr[2m | __tests__/store/project-slice.test.ts[2m > [22m[2mproject-slice[2m > [22m[2mupdates project title via updateProject
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/project-slice.test.ts[2m > [22m[2mproject-slice[2m > [22m[2mselects and clears card selection
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+[90mstderr[2m | __tests__/store/project-slice.test.ts[2m > [22m[2mproject-slice[2m > [22m[2mkeeps edits with the output that owns them across output switches
+[22m[39m[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+[zustand persist middleware] Unable to update item 'posterapp-editor-storage', the given storage is currently unavailable.
+
+ [32m✓[39m __tests__/store/project-slice.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m __tests__/api/safe-api-error.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m lib/__tests__/search-quality.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m lib/__tests__/rubric-templates.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m lib/ai/__tests__/text-splitter.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m lib/ai/__tests__/telemetry.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m lib/__tests__/workspace-files.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 76[2mms[22m[39m
+ [32m✓[39m lib/__tests__/audit-trail.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m lib/__tests__/review-engine-rubric-guidance.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m lib/__tests__/e2e-bypass.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m lib/__tests__/ingestion.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m lib/__tests__/arxiv-service.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m __tests__/api/rate-limit-coverage.test.ts [2m([22m[2m63 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/encoding-preamble.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+[90mstderr[2m | lib/__tests__/db-helpers.test.ts[2m > [22m[2mdb-helpers[2m > [22m[2msafeJsonParse[2m > [22m[2mreturns fallback for invalid JSON
+[22m[39mFailed to parse JSON column: SyntaxError: Unexpected token 'o', "not json" is not valid JSON
+    at JSON.parse (<anonymous>)
+    at safeJsonParse [90m(/home/user/PosterApp/[39mlib/db-helpers.ts:7:17[90m)[39m
+    at [90m/home/user/PosterApp/[39mlib/__tests__/db-helpers.test.ts:12:14
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel [90m(file:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10[90m)[39m
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+Failed to parse JSON column: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+    at JSON.parse (<anonymous>)
+    at safeJsonParse [90m(/home/user/PosterApp/[39mlib/db-helpers.ts:7:17[90m)[39m
+    at [90m/home/user/PosterApp/[39mlib/__tests__/db-helpers.test.ts:13:14
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel [90m(file:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10[90m)[39m
+    at [90mfile:///home/user/PosterApp/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.9/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+
+ [32m✓[39m lib/__tests__/db-helpers.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m lib/__tests__/rate-limit.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m lib/__tests__/export-bundle.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 10[2mms[22m[39m
+[90mstdout[2m | lib/__tests__/qr-service.test.ts
+[22m[39m◇ injected env (0) from .env.local // tip: ⌘ override existing { override: true }
+◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+
+ [32m✓[39m lib/__tests__/qr-service.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 52[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m135 passed[39m[22m[90m (135)[39m
+[2m      Tests [22m [1m[32m1282 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (1283)[39m
+[2m   Start at [22m 19:52:26
+[2m   Duration [22m 45.83s[2m (transform 2.44s, setup 0ms, import 11.95s, tests 15.46s, environment 15ms)[22m
+

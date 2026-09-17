@@ -88,6 +88,7 @@ export async function POST(
     const citationIssues: string[] = deserialized.citationIssues
 
     const tex = generateThesisReviewLatex({
+      reviewKind: deserialized.reviewKind,
       studentName: review.studentName,
       thesisTitle: review.thesisTitle,
       thesisType: review.thesisType as "bachelor" | "master" | "phd",
@@ -128,7 +129,8 @@ export async function POST(
     await fs.mkdir(targetDir, { recursive: true })
     await fs.writeFile(path.join(targetDir, `thesis-review-${reviewId}.pdf`), pdfBuffer)
 
-    const pdfFilename = `posudok-${sanitizeFilename(review.studentName, "student")}.pdf`
+    const pdfPrefix = deserialized.reviewKind === "paper" ? "peer-review" : "posudok"
+    const pdfFilename = `${pdfPrefix}-${sanitizeFilename(review.studentName, "student")}.pdf`
     return new Response(pdfBuffer, {
       status: 200,
       headers: {
@@ -189,7 +191,8 @@ export async function GET(
     const deserialized = deserializeThesisReview(review)
     const blob = await generateThesisReviewDocx(deserialized as any, { includeConfidential })
     const arrayBuffer = await blob.arrayBuffer()
-    const docxFilename = `posudok-${sanitizeFilename(review.studentName, "student")}${includeConfidential ? "-confidential" : ""}.docx`
+    const docxPrefix = deserialized.reviewKind === "paper" ? "peer-review" : "posudok"
+    const docxFilename = `${docxPrefix}-${sanitizeFilename(review.studentName, "student")}${includeConfidential ? "-confidential" : ""}.docx`
     return new Response(arrayBuffer, {
       status: 200,
       headers: {
@@ -203,7 +206,9 @@ export async function GET(
     const { composeFullReviewNarrative } = await import("@/lib/ai/review-composer")
     const deserialized = deserializeThesisReview(review)
     const composed = composeFullReviewNarrative(deserialized as any, includeConfidential ? "editor" : "author", review.language as any)
-    const prefix = review.reviewerRole === "self" ? "predkonzultacny-rozbor" : "posudok"
+    const prefix = deserialized.reviewKind === "paper"
+      ? "peer-review"
+      : review.reviewerRole === "self" ? "predkonzultacny-rozbor" : "posudok"
     const mdFilename = `${prefix}-${sanitizeFilename(review.studentName, "student")}.md`
     return new Response(composed.markdownText, {
       status: 200,
@@ -225,6 +230,7 @@ export async function GET(
     const citationIssues: string[] = deserialized.citationIssues
 
     const tex = generateThesisReviewLatex({
+      reviewKind: deserialized.reviewKind,
       studentName: review.studentName,
       thesisTitle: review.thesisTitle,
       thesisType: review.thesisType as "bachelor" | "master" | "phd",
@@ -243,7 +249,8 @@ export async function GET(
       includeConfidential,
     })
 
-    const texFilename = `posudok-${sanitizeFilename(review.studentName, "student")}${includeConfidential ? "-confidential" : ""}.tex`
+    const texPrefix = deserialized.reviewKind === "paper" ? "peer-review" : "posudok"
+    const texFilename = `${texPrefix}-${sanitizeFilename(review.studentName, "student")}${includeConfidential ? "-confidential" : ""}.tex`
     return new Response(tex, {
       status: 200,
       headers: {

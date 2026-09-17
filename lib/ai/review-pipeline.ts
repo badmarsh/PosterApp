@@ -45,8 +45,14 @@ import { computeScoreFromFindings } from "./review-engine"
 import { buildSystemPrompt, buildUserPrompt } from "./prompts-thesis"
 import { buildPreGenerationGrounding } from "./review-engine"
 import { runAgenticPerCriterionReview } from "./agentic-review"
-import { normalizeDefenseQuestions, AUTO_APPLY_CONFIDENCE_THRESHOLD, shouldUseProfessionalMode } from "./thesis-review-policy"
+import {
+  normalizeDefenseQuestions,
+  AUTO_APPLY_CONFIDENCE_THRESHOLD,
+  shouldApplyEctsGrading,
+  shouldUseProfessionalMode,
+} from "./thesis-review-policy"
 import type { ReviewStage } from "./review-stages"
+import { stableEvidenceAnchor } from "./evidence-validator"
 
 export interface PipelineParams {
   workspaceId: string
@@ -75,6 +81,9 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
   const report = params.onProgress ?? (() => {})
   const signal = params.signal
   const lang = body.thesisMetadata.language as ReviewLanguage
+  const reviewKind = body.thesisMetadata.reviewKind ?? "thesis"
+  const isThesisReview = reviewKind === "thesis"
+  const applyEctsGrading = shouldApplyEctsGrading(reviewKind, body.thesisMetadata.reviewerRole)
 
   const normalizedMetadata: ThesisMetadata = {
     studentName: body.thesisMetadata.studentName || "Študent / Autor",
@@ -84,6 +93,8 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       ? "supervisor"
       : body.thesisMetadata.reviewerRole === "self"
       ? "self"
+      : body.thesisMetadata.reviewerRole === "reviewer"
+      ? "reviewer"
       : "opponent",
     reviewerName: body.thesisMetadata.reviewerName,
     institution: body.thesisMetadata.institution,
@@ -91,7 +102,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     language: body.thesisMetadata.language,
     academicYear: body.thesisMetadata.academicYear,
     targetVenue: body.thesisMetadata.targetVenue,
-    reviewKind: body.thesisMetadata.reviewKind,
+    reviewKind,
   }
 
   report("loading_context", "loading manuscript")
@@ -124,8 +135,11 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     lang
   )
 
+  // Degree-level applicability is thesis-only. Papers use the full neutral
+  // academic rubric rather than inheriting bachelor/master/PhD expectations.
+  const rubricDocumentType = isThesisReview ? classification.thesisType : "unknown"
   const applicableCriteria = getApplicableCriteriaForThesisType(
-    classification.thesisType,
+    rubricDocumentType,
     SK_ACADEMIC_RUBRIC_V1
   ).filter(({ applicability }) => applicability !== "not_applicable")
   const applicableCriterionMap = new Map(
@@ -220,8 +234,8 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
   report("retrieval", `retrieval 0/${activeCriteria.length}`)
   const domainContext = resolveThesisDomainContext(normalizedMetadata)
   const modelOverrides = parseAiModelOverrides(params.headers)
-  const criterionVectorContextParts: string[] = []
-  const retrievedChunkMap = new Map<string, { heading: string | null; content: string; kind?: string }>()
+  const criterionVectorContextParts = new Map<string, string>()
+  const retrievedChunkMap = new Map<string, { anchor: string; heading: string | null; content: string; kind?: string }>()
   let retrievalDone = 0
   try {
     const hypotheses = await generateHypotheses(
@@ -256,16 +270,22 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
             documentId: body.sourceFileId,
             includeCommunityContext: false,
           })
-          if (communityContext) criterionVectorContextParts.push(communityContext)
-          if (chunks.length === 0) return
-          // Citation anchors: [cN] per chunk, global across the review.
-          const base = retrievedChunkMap.size
-          const labeled = chunks.map((ch, idx) => {
-            const anchor = `c${base + idx + 1}`
-            retrievedChunkMap.set(ch.id, { heading: ch.heading, content: ch.content, kind: ch.kind })
+          if (chunks.length === 0) {
+            if (communityContext) criterionVectorContextParts.set(c.id, communityContext)
+            return
+          }
+          // Anchors derive solely from persistent chunk IDs. They therefore stay
+          // stable across criterion order, async completion order, and deduplication.
+          const labeled = chunks.map((ch) => {
+            const anchor = stableEvidenceAnchor(ch.id)
+            const existing = retrievedChunkMap.get(ch.id)
+            if (!existing || ch.content.length > existing.content.length) {
+              retrievedChunkMap.set(ch.id, { anchor, heading: ch.heading, content: ch.content, kind: ch.kind })
+            }
             return `[${anchor}]${ch.heading ? ` ${ch.heading}` : ""}\n${ch.content}`
           })
-          criterionVectorContextParts.push(`[VectorRAG:${c.id}]\n${labeled.join("\n\n")}`)
+          const parts = [communityContext, `[VectorRAG:${c.id}]\n${labeled.join("\n\n")}`].filter(Boolean)
+          criterionVectorContextParts.set(c.id, parts.join("\n\n"))
         })
       )
       retrievalDone += batchC.length
@@ -276,8 +296,11 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     console.warn("[review-pipeline] pgvector augmentation skipped:", vectorErr)
   }
 
-  let vectorAugmentation = criterionVectorContextParts.length > 0
-    ? criterionVectorContextParts.join("\n\n---\n\n").slice(0, vectorBudgetReserved)
+  const orderedVectorContext = activeCriteria
+    .map((criterion) => criterionVectorContextParts.get(criterion.id))
+    .filter((part): part is string => Boolean(part))
+  const vectorAugmentation = orderedVectorContext.length > 0
+    ? orderedVectorContext.join("\n\n---\n\n").slice(0, vectorBudgetReserved)
     : ""
 
   // 2c. GraphRAG augmentation
@@ -325,7 +348,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
 
   const useProfessionalMode = shouldUseProfessionalMode(
     body.professionalMode,
-    body.thesisMetadata.reviewKind,
+    reviewKind,
     effectiveReportingStandard,
     body.thesisMetadata.thesisType,
     body.thesisMetadata.reviewerRole
@@ -340,10 +363,10 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
   let calibratedDefenseQuestions: string[] | null = null
   const reviewProvenance: { source?: AIProviderSource } = {}
 
-  // Evidence chunks in the shape the review engine expects (anchor [cN] → real id).
-  const evidenceChunks = Array.from(retrievedChunkMap.entries()).map(([id, c], i) => ({
+  // Preserve the exact same stable anchor shown in retrieval context.
+  const evidenceChunks = Array.from(retrievedChunkMap.entries()).map(([id, c]) => ({
     id,
-    anchor: `c${i + 1}`,
+    anchor: c.anchor,
     heading: c.heading,
     content: c.content,
     kind: c.kind,
@@ -357,8 +380,9 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       sourceFileId: body.sourceFileId,
       documentTitle: body.thesisMetadata.thesisTitle,
       language: lang,
+      reviewKind,
       thesisType: body.thesisMetadata.thesisType,
-      detailedThesisType: classification.thesisType,
+      detailedThesisType: rubricDocumentType,
       sourceRevision,
       signal,
       onProgress: (stage, detail) => report(stage as ReviewStage, detail),
@@ -382,30 +406,33 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       const text = matchingFindings.length > 0
         ? matchingFindings.map((f: any) => `• ${f.title}: ${f.explanation}`).join("\n\n")
         : (NO_FINDINGS_SYNTHESIS[lang] || NO_FINDINGS_SYNTHESIS.sk)
-      const isSelf = normalizedMetadata.reviewerRole === "self"
-      const criterionScore = matchingFindings.length > 0 ? computeScoreFromFindings(matchingFindings) : undefined
+      const criterionScore = applyEctsGrading && matchingFindings.length > 0
+        ? computeScoreFromFindings(matchingFindings)
+        : undefined
       const criterionGrade = criterionScore !== undefined ? calculateGradeRange(criterionScore).grade : undefined
       return {
         id: c.id,
         sectionId: c.id,
         criterionId: c.id,
         text,
-        rating: isSelf ? ("pending" as const) : (criterionGrade ?? "pending"),
-        numericScore: isSelf ? undefined : criterionScore,
+        rating: applyEctsGrading ? (criterionGrade ?? "pending") : ("pending" as const),
+        numericScore: applyEctsGrading ? criterionScore : undefined,
         suggestions: matchingFindings.map((f: any) => f.recommendation).filter(Boolean),
       }
     })
 
     calibratedDefenseQuestions = normalizeDefenseQuestions(agentic.synthesis.defenseQuestions as any)
+    const agenticScore = computeScoreFromFindings(agentic.allFindings)
+    const agenticGradeRange = applyEctsGrading ? calculateGradeRange(agenticScore) : null
     professionalResult = {
-      grade: normalizedMetadata.reviewerRole === "self" ? null : (agentic.synthesis.grade || "B"),
+      grade: agenticGradeRange?.grade ?? null,
       recommendation: agentic.synthesis.recommendation,
       summary: agentic.synthesis.summary,
       strengths: agentic.synthesis.strengths,
       anchoredFindings: agentic.allFindings,
       sourceRevision,
-      proposedGradeRange: calculateGradeRange(computeScoreFromFindings(agentic.allFindings)).range,
-      derivedScore: computeScoreFromFindings(agentic.allFindings),
+      proposedGradeRange: agenticGradeRange?.range ?? null,
+      derivedScore: agenticScore,
       defenseQuestions: calibratedDefenseQuestions,
       contextCoverage: { totalChars: ragContext.totalChars, selectedChars, truncated },
       reportingGuidelineChecks: [],
@@ -413,7 +440,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     }
     result = {
       sections,
-      overallGrade: normalizedMetadata.reviewerRole === "self" ? null : (professionalResult.grade || "B"),
+      overallGrade: applyEctsGrading ? (professionalResult.grade ?? null) : null,
       recommendation: professionalResult.recommendation,
       defenseQuestions: calibratedDefenseQuestions,
       citationIssues: [],
@@ -428,9 +455,9 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       sourceFileId: body.sourceFileId,
       documentTitle: body.thesisMetadata.thesisTitle,
       authorName: body.thesisMetadata.studentName,
-      reviewKind: body.thesisMetadata.reviewKind,
-      thesisType: body.thesisMetadata.thesisType,
-      detailedThesisType: classification.thesisType,
+      reviewKind,
+      thesisType: isThesisReview ? body.thesisMetadata.thesisType : undefined,
+      detailedThesisType: rubricDocumentType,
       reviewerRole: body.thesisMetadata.reviewerRole,
       reviewTone: effectiveReviewTone,
       targetVenue: body.thesisMetadata.targetVenue,
@@ -463,23 +490,24 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       const text = matchingFindings.length > 0
         ? matchingFindings.map((f: any) => `• ${f.title}: ${f.explanation}`).join("\n\n")
         : (NO_FINDINGS_SYNTHESIS[lang] || NO_FINDINGS_SYNTHESIS.sk)
-      const isSelf = normalizedMetadata.reviewerRole === "self"
-      const criterionScore = matchingFindings.length > 0 ? computeScoreFromFindings(matchingFindings) : undefined
+      const criterionScore = applyEctsGrading && matchingFindings.length > 0
+        ? computeScoreFromFindings(matchingFindings)
+        : undefined
       const criterionGrade = criterionScore !== undefined ? calculateGradeRange(criterionScore).grade : undefined
       return {
         id: c.id,
         sectionId: c.id,
         criterionId: c.id,
         text,
-        rating: isSelf ? ("pending" as const) : (criterionGrade ?? "pending"),
-        numericScore: isSelf ? undefined : criterionScore,
+        rating: applyEctsGrading ? (criterionGrade ?? "pending") : ("pending" as const),
+        numericScore: applyEctsGrading ? criterionScore : undefined,
         suggestions: matchingFindings.map((f: any) => f.recommendation).filter(Boolean),
       }
     })
 
     result = {
       sections,
-      overallGrade: normalizedMetadata.reviewerRole === "self" ? null : (professionalResult.grade || "B"),
+      overallGrade: applyEctsGrading ? (professionalResult.grade ?? null) : null,
       recommendation: professionalResult.recommendation,
       defenseQuestions: calibratedDefenseQuestions,
       citationIssues: [],
@@ -514,10 +542,13 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     }
   }
 
-  // Recommendation / triage
-  if (normalizedMetadata.reviewerRole === "self") {
+  // Recommendation / triage. Paper and grant reviews use publication verdicts
+  // only; ECTS fields are deterministically cleared regardless of model output.
+  if (!applyEctsGrading) {
     result.overallGrade = null
-    result.recommendation = result.recommendation || (lang === "sk" ? "Predkonzultačný rozbor konceptu práce." : lang === "cs" ? "Předkonzultační rozbor konceptu práce." : "Pre-consultation draft triage.")
+    if (normalizedMetadata.reviewerRole === "self") {
+      result.recommendation = result.recommendation || (lang === "sk" ? "Predkonzultačný rozbor konceptu práce." : lang === "cs" ? "Předkonzultační rozbor konceptu práce." : "Pre-consultation draft triage.")
+    }
     if (professionalResult) {
       professionalResult.grade = null
       professionalResult.proposedGradeRange = null
@@ -546,14 +577,14 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       reviewerName: body.thesisMetadata.reviewerName ?? null,
       institution: body.thesisMetadata.institution ?? null,
       department: body.thesisMetadata.department ?? null,
-      grade: result.overallGrade ?? null,
-      suggestedGrade: professionalResult?.grade ?? result.overallGrade ?? null,
+      grade: applyEctsGrading ? (result.overallGrade ?? null) : null,
+      suggestedGrade: applyEctsGrading ? (professionalResult?.grade ?? result.overallGrade ?? null) : null,
       recommendation: result.recommendation,
       suggestedRecommendation: professionalResult?.recommendation ?? result.recommendation ?? null,
       sections: JSON.stringify(result.sections),
       defenseQuestions: JSON.stringify(calibratedDefenseQuestions ?? result.defenseQuestions),
       citationIssues: JSON.stringify([...result.citationIssues, ...(citationAuditSummary ? [citationAuditSummary] : [])]),
-      reviewKind: body.thesisMetadata.reviewKind || "thesis",
+      reviewKind,
       targetVenue: body.thesisMetadata.targetVenue ?? null,
       summary: professionalResult?.summary ?? null,
       strengths: professionalResult?.strengths ? JSON.stringify(professionalResult.strengths) : null,
@@ -561,7 +592,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       sourceRevision: professionalResult?.sourceRevision ?? sourceRevision,
       rubricVersion: "sk-academic-v1",
       discipline: body.thesisMetadata.targetVenue ?? null,
-      proposedGradeRange: professionalResult?.proposedGradeRange ?? null,
+      proposedGradeRange: applyEctsGrading ? (professionalResult?.proposedGradeRange ?? null) : null,
       confidence: 0.88,
       limitationsSummary: null,
       reportingStandard: effectiveReportingStandard,
@@ -579,7 +610,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
   const responsePayload = {
     id: saved.id,
     ...result,
-    reviewKind: body.thesisMetadata.reviewKind,
+    reviewKind,
     targetVenue: body.thesisMetadata.targetVenue,
     summary: professionalResult?.summary,
     strengths: professionalResult?.strengths ?? [],

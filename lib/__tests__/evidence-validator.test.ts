@@ -1,8 +1,22 @@
 import { describe, it, expect } from "vitest"
-import { verifyEvidenceQuote, validateAndCalibrateFindings } from "@/lib/ai/evidence-validator"
+import {
+  stableEvidenceAnchor,
+  verifyEvidenceQuote,
+  validateAndCalibrateFindings,
+} from "@/lib/ai/evidence-validator"
 import { anchorEvidenceQuotes } from "@/lib/ai/review-engine"
 import type { ThesisRAGContext } from "@/lib/ai/thesis-context"
 import type { ReviewFinding } from "@/lib/ai/review-types"
+
+describe("stable RAG evidence anchors", () => {
+  it("is deterministic, opaque, and independent of retrieval order", () => {
+    const first = stableEvidenceAnchor("chunk/database-id:123")
+    expect(first).toBe(stableEvidenceAnchor("chunk/database-id:123"))
+    expect(first).not.toBe(stableEvidenceAnchor("chunk/database-id:124"))
+    expect(first).toMatch(/^c-[a-f0-9]{16}$/)
+    expect(first).not.toContain("database-id")
+  })
+})
 
 describe("Evidence Validator & Epistemic Calibration", () => {
   const sourceText = `
@@ -86,6 +100,32 @@ Dosiahnuté Dice skóre segmentácie dosiahlo hodnotu 0.912 ± 0.005.
     expect(validated[1].epistemicStatus).toBe("REQUIRES_HUMAN_VERIFICATION")
     expect(validated[1].evidence[0].verified).toBe(false)
     expect(validated[1].confidence).toBeLessThan(0.6)
+    expect(validated[1].decisionStatus).toBe("needs_human_review")
+    expect(validated[1].includeInExport).toBe(false)
+  })
+
+  it("withholds unsupported missing-content claims until human approval", () => {
+    const finding: ReviewFinding = {
+      id: "f-missing",
+      category: "methodology",
+      title: "Missing controls",
+      findingType: "missing_evidence",
+      explanation: "The manuscript does not provide a control group.",
+      recommendation: "Add controls.",
+      includeInExport: true,
+      severity: "major",
+      confidence: 0.9,
+      epistemicStatus: "MISSING_EVIDENCE",
+      evidence: [],
+      status: "unreviewed",
+      decisionStatus: "open",
+      createdBy: "ai",
+    }
+
+    const [validated] = validateAndCalibrateFindings([finding], sourceText).validatedFindings
+    expect(validated.includeInExport).toBe(false)
+    expect(validated.decisionStatus).toBe("needs_human_review")
+    expect(validated.confidence).toBeLessThanOrEqual(0.4)
   })
 })
 

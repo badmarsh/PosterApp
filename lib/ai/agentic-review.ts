@@ -18,15 +18,20 @@ import { z } from "zod"
 import { generateAIResponse } from "./client"
 import { resolveAiModel } from "./models"
 import { retrieveForCriterion, getThesisCriterionQueryExpansion, resolveThesisDomainContext } from "./vector-rag"
-import { validateAndCalibrateFindings, type CitedChunk } from "./evidence-validator"
+import {
+  stableEvidenceAnchor,
+  validateAndCalibrateFindings,
+  type CitedChunk,
+} from "./evidence-validator"
 import { ReviewFindingContractSchema } from "./contracts"
 import { SK_ACADEMIC_RUBRIC_V1, calculateGradeRange } from "./rubric-engine"
 import { getApplicableCriteriaForThesisType } from "./rubric-engine"
 import { sortFindingsByPriority } from "./review-priorities"
 import { computeScoreFromFindings } from "./review-engine"
 import type { ReviewLanguage, ThesisType } from "./thesis-rubric"
-import type { ReviewFinding } from "./review-types"
+import type { ReviewFinding, ReviewKind } from "./review-types"
 import type { DetailedThesisType } from "./document-understanding"
+import { shouldApplyEctsGrading } from "./thesis-review-policy"
 
 export interface CriterionCriterion {
   id: string
@@ -77,8 +82,8 @@ const criterionCache = new Map<string, CacheEntry>()
 const CACHE_TTL_MS = 60 * 60 * 1000
 const CACHE_MAX = 500
 
-function cacheKey(workspaceId: string, sourceRevision: string, criterionId: string): string {
-  return `${workspaceId}|${sourceRevision}|${criterionId}`
+function cacheKey(workspaceId: string, sourceRevision: string, criterionId: string, reviewKind: ReviewKind): string {
+  return `${workspaceId}|${sourceRevision}|${reviewKind}|${criterionId}`
 }
 
 /** Test helper. */
@@ -100,6 +105,7 @@ export async function reviewCriterionWithEvidence(
     sourceFileId?: string
     documentTitle: string
     language: ReviewLanguage
+    reviewKind?: ReviewKind
     thesisType: ThesisType
     domainContext: string
     sourceRevision: string
@@ -107,7 +113,8 @@ export async function reviewCriterionWithEvidence(
     signal2?: never
   }
 ): Promise<AgenticCriterionResult> {
-  const key = cacheKey(ctx.workspaceId, ctx.sourceRevision, criterion.id)
+  const reviewKind = ctx.reviewKind ?? "thesis"
+  const key = cacheKey(ctx.workspaceId, ctx.sourceRevision, criterion.id, reviewKind)
   const cached = criterionCache.get(key)
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
     return { ...cached.result, cached: true }
@@ -126,10 +133,10 @@ export async function reviewCriterionWithEvidence(
     lang: ctx.language,
   })
 
-  // Stable per-criterion anchors c1..cN.
-  const evidenceChunks: Array<CitedChunk & { anchor: string }> = chunks.map((c, i) => ({
+  // Stable anchors derive from chunk identity, not retrieval rank.
+  const evidenceChunks: Array<CitedChunk & { anchor: string }> = chunks.map((c) => ({
     id: c.id,
-    anchor: `c${i + 1}`,
+    anchor: stableEvidenceAnchor(c.id),
     heading: c.heading,
     content: c.content.slice(0, PER_CRITERION_EVIDENCE_BUDGET_CHARS / Math.max(1, chunks.length)),
     kind: c.kind,
@@ -140,7 +147,8 @@ export async function reviewCriterionWithEvidence(
     .join("\n\n")
 
   // 2. Per-criterion grounded generation.
-  const sys = `You are an academic thesis evaluator assessing ONE evaluation criterion of a ${ctx.thesisType} thesis.
+  const manuscriptLabel = reviewKind === "thesis" ? `${ctx.thesisType} thesis` : "scientific paper"
+  const sys = `You are an academic ${reviewKind === "thesis" ? "thesis evaluator" : "peer reviewer"} assessing ONE evaluation criterion of a ${manuscriptLabel}.
 - Judge strictly the criterion: "${criterion.label}".
 - Ground EVERY finding in the retrieved evidence passages below. Each evidence item MUST copy a quote character-for-character from one passage and set "chunkId" to that passage's anchor (e.g. "c2").
 - If the evidence is insufficient to judge, return few findings and use epistemicStatus "REQUIRES_HUMAN_VERIFICATION" or "MISSING_EVIDENCE" — do NOT invent issues.
@@ -148,7 +156,7 @@ export async function reviewCriterionWithEvidence(
 - Set criterionId on every finding to "${criterion.id}".
 Respond as JSON: {"findings":[...]} with each finding matching the provided schema (title, explanation, recommendation, severity critical|major|minor|suggestion, findingType, epistemicStatus, evidence:[{quote,chunkId,sectionHeading}]).`
 
-  const user = `Thesis: "${ctx.documentTitle}"
+  const user = `${reviewKind === "thesis" ? "Thesis" : "Paper"}: "${ctx.documentTitle}"
 Criterion: ${criterion.label}
 Guidance: ${criterion.guidance}
 
@@ -225,6 +233,7 @@ export async function runAgenticPerCriterionReview(opts: {
   sourceFileId?: string
   documentTitle: string
   language: ReviewLanguage
+  reviewKind?: ReviewKind
   thesisType: ThesisType
   detailedThesisType?: DetailedThesisType
   sourceRevision: string
@@ -269,6 +278,7 @@ export async function runAgenticPerCriterionReview(opts: {
           sourceFileId: opts.sourceFileId,
           documentTitle: opts.documentTitle,
           language: opts.language,
+          reviewKind: opts.reviewKind,
           thesisType: opts.thesisType,
           domainContext,
           sourceRevision: opts.sourceRevision,
@@ -282,8 +292,10 @@ export async function runAgenticPerCriterionReview(opts: {
   }
 
   const allFindings = results.flatMap((r) => r.findings)
-  const allEvidenceChunks = results.flatMap((r) =>
-    r.evidenceChunks.map((c) => ({ ...c, anchor: `${r.criterionId}:${c.anchor}` }))
+  const allEvidenceChunks = Array.from(
+    new Map(
+      results.flatMap((result) => result.evidenceChunks).map((chunk) => [chunk.id, chunk])
+    ).values()
   )
   const totalCalls = results.filter((r) => !r.cached).reduce((n, r) => n + r.calls, 0) + 1
 
@@ -294,14 +306,15 @@ export async function runAgenticPerCriterionReview(opts: {
     .map((f, i) => `[${i + 1}] (${f.severity}/${f.criterionId ?? "general"}) ${f.title}: ${(f.explanation ?? "").slice(0, 220)}`)
     .join("\n")
 
-  const synthesisSys = `You are the lead reviewer synthesising per-criterion findings of a ${opts.thesisType} thesis into a final assessment.
-Write in language "${opts.language}". Produce: a 4-8 sentence summary, 3-6 concrete strengths, 5-10 targeted defense questions, a recommendation (accept|minor_revisions|major_revisions|reject), and an ECTS grade (A-FX) justified by the severity distribution.`
-  const synthesisUser = `Thesis: "${opts.documentTitle}"
+  const applyEctsGrading = shouldApplyEctsGrading(opts.reviewKind)
+  const synthesisSys = `You are the lead reviewer synthesising per-criterion findings of a ${opts.reviewKind === "paper" ? "scientific paper" : `${opts.thesisType} thesis`} into a final assessment.
+Write in language "${opts.language}". Produce: a 4-8 sentence summary, 3-6 concrete strengths, 5-10 targeted ${opts.reviewKind === "paper" ? "questions for the authors" : "defense questions"}, and a recommendation (accept|minor_revisions|major_revisions|reject)${applyEctsGrading ? ", plus an ECTS grade (A-FX) justified by the severity distribution" : ". Do not assign an ECTS or academic grade"}.`
+  const synthesisUser = `${opts.reviewKind === "paper" ? "Paper" : "Thesis"}: "${opts.documentTitle}"
 
 Per-criterion findings:
 ${findingsDigest || "(no findings were produced)"}
 
-Respond as JSON: {"summary": "...", "strengths": ["..."], "defenseQuestions": ["..."], "recommendation": "...", "grade": "A|B|C|D|E|FX"}`
+Respond as JSON: {"summary": "...", "strengths": ["..."], "defenseQuestions": ["..."], "recommendation": "..."${applyEctsGrading ? ', "grade": "A|B|C|D|E|FX"' : ""}}`
 
   let synthesis: z.infer<typeof SynthesisSchema>
   try {
@@ -323,7 +336,7 @@ Respond as JSON: {"summary": "...", "strengths": ["..."], "defenseQuestions": ["
       strengths: [],
       defenseQuestions: [],
       recommendation: "minor_revisions",
-      grade: calculateGradeRange(score).grade,
+      grade: applyEctsGrading ? calculateGradeRange(score).grade : undefined,
     }
   }
 

@@ -9,6 +9,7 @@
  *  - Stale evidence detection via sourceRevision
  */
 
+import { createHash } from "crypto"
 import type {
   EvidenceReference,
   EvidenceState,
@@ -28,6 +29,11 @@ export interface CitedChunk {
   content: string
   kind?: string
   documentId?: string
+}
+
+/** Stable, opaque display anchor derived solely from the persistent chunk ID. */
+export function stableEvidenceAnchor(chunkId: string): string {
+  return `c-${createHash("sha256").update(chunkId, "utf8").digest("hex").slice(0, 16)}`
 }
 
 function normalize(s: string): string {
@@ -307,6 +313,8 @@ export function validateAndCalibrateFindings(
     let confidence = finding.confidence ?? 0.85
     let title = finding.title
     let explanation = finding.explanation
+    let includeInExport = finding.includeInExport
+    let decisionStatus = finding.decisionStatus
 
     if (epistemicStatus === "SUPPORTED_FACT") {
       if (!hasAnyVerifiedEvidence) {
@@ -324,10 +332,36 @@ export function validateAndCalibrateFindings(
         diagnostics.push(`Interpretácia "${title}" bola znížená na REVIEWER_JUDGMENT (chýba verifikovaný zdrojový podklad).`)
       }
     } else if (epistemicStatus === "MISSING_EVIDENCE") {
-      // Ensure cautious phrasing
+      // Absence is not established by a failed search. Keep the wording
+      // conditional until a reviewer verifies the complete source.
       if (!explanation.toLowerCase().includes("nebolo možné jednoznačne") && !explanation.toLowerCase().includes("chýba") && !explanation.toLowerCase().includes("v texte sa nenachádza")) {
         explanation = `V analyzovanom texte nebolo možné jednoznačne overiť: ${explanation}`
       }
+    }
+
+    const humanApproved =
+      finding.createdBy === "reviewer" ||
+      finding.status === "accepted" ||
+      finding.status === "edited" ||
+      finding.status === "resolved" ||
+      finding.decisionStatus === "accepted" ||
+      finding.decisionStatus === "edited"
+    const isAdverse =
+      finding.findingType !== "strength" &&
+      finding.severity !== "info"
+    const unsupportedAdverseAiClaim =
+      finding.createdBy === "ai" &&
+      isAdverse &&
+      !humanApproved &&
+      (!hasAnyVerifiedEvidence || epistemicStatus === "MISSING_EVIDENCE")
+
+    if (unsupportedAdverseAiClaim) {
+      // Unsupported adverse claims remain visible in the review workspace for
+      // human triage, but cannot leak into exports or automated grades.
+      includeInExport = false
+      decisionStatus = "needs_human_review"
+      confidence = Math.min(confidence, 0.4)
+      diagnostics.push(`Nepodložené negatívne zistenie "${title}" bolo vyradené z exportu a automatického hodnotenia.`)
     }
 
     return {
@@ -336,6 +370,8 @@ export function validateAndCalibrateFindings(
       confidence,
       title,
       explanation,
+      includeInExport,
+      decisionStatus,
       evidence: verifiedEvidenceList,
       sourceRevision: currentRevision,
     }

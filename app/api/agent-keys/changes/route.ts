@@ -3,6 +3,17 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { wrapUntrustedContext } from "@/lib/security"
 
+// Keep this route type-safe even when Prisma's generated declarations are not
+// present in a constrained build environment. The shape mirrors the selected
+// relations below without changing the serialized API response.
+type AgentChangeWithContext = {
+  rationale: string | null
+  workspaceId: string
+  apiKey?: { name: string } | null
+  workspace?: { name: string } | null
+  [key: string]: unknown
+}
+
 export async function GET() {
   try {
     const { userId } = await auth()
@@ -26,7 +37,7 @@ export async function GET() {
       },
     })
 
-    const sanitized = changes.map((c) => ({
+    const sanitized = (changes as AgentChangeWithContext[]).map((c) => ({
       ...c,
       rationale: c.rationale ? wrapUntrustedContext(c.rationale, "agent-rationale") : null,
       apiKeyName: c.apiKey?.name || "Agent",

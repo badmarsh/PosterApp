@@ -1,0 +1,26 @@
+
+> posterapp@0.2.0 build /home/user/PosterApp
+> cross-env NODE_OPTIONS="--max-old-space-size=8192" next build
+
+▲ Next.js 16.2.11 (Turbopack)
+- Experiments (use with caution):
+  · proxyClientMaxBodySize: "210mb"
+  · serverActions
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 31.1s
+  Running TypeScript ...
+Failed to type check.
+
+./app/api/agent-keys/changes/route.ts:29:36
+Type error: Parameter 'c' implicitly has an 'any' type.
+
+  [90m27 |[0m     })
+  [90m28 |[0m
+[31m[1m>[0m [90m29 |[0m     [36mconst[0m sanitized = changes.map((c) => ({
+  [90m   |[0m                                    [31m[1m^[0m
+  [90m30 |[0m       ...c,
+  [90m31 |[0m       rationale: c.rationale ? wrapUntrustedContext(c.rationale, [32m"agent-rationale"[0m) : [36mnull[0m,
+  [90m32 |[0m       apiKeyName: c.apiKey?.name || [32m"Agent"[0m,
+Next.js build worker exited with code: 1 and signal: null
+ ELIFECYCLE  Command failed with exit code 1.

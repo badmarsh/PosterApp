@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest"
 import { TikzPosterGenerator } from "../generator-poster"
 import { StandardPaperGenerator } from "../generator-paper"
 import { BeamerSlidesGenerator } from "../generator-slides"
+import { ensureMissingGraphicsFallback, generateFullTemplate } from "../generator"
 import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 
 function createMockProject(card: Card, outputType: "poster" | "paper" | "slides", templateId: string): { project: Project; output: OutputConfig } {
@@ -206,5 +207,45 @@ describe("Figure Generation in Slides", () => {
     expect(tex).toContain("keepaspectratio")
     expect(tex).toContain("assets/slide_fig.png")
     expect(tex).toContain("Overall System")
+  })
+})
+
+describe("Missing graphics hardening", () => {
+  it("wraps generated figures so a stale asset renders a placeholder instead of aborting", () => {
+    const card: Card = {
+      id: "card_missing",
+      title: "Missing figure",
+      pattern: "section-figure",
+      column: 1,
+      order: 1,
+      content: "The asset was deleted after assignment.",
+      figures: [{ id: "fig_missing", url: "/api/workspaces/ws_test_figs/assets/deleted.png", caption: "Expected result" }],
+      figureLayout: "single",
+      table: { hasHeader: false, caption: "", rows: [] },
+      validation: "valid",
+    }
+    const { project, output } = createMockProject(card, "paper", "article-single")
+    const tex = generateFullTemplate(project, output, "ws_test_figs")
+
+    expect(tex).toContain("\\providecommand{\\PosterIncludeGraphics}")
+    expect(tex).toContain("\\IfFileExists{#2}")
+    expect(tex).toContain("\\PosterIncludeGraphics[width=\\linewidth,keepaspectratio]{assets/deleted.png}")
+    expect(tex).toContain("Image unavailable")
+  })
+
+  it("hardens all figure occurrences once, including template-level logos", () => {
+    const src = String.raw`\documentclass{article}
+\usepackage{graphicx}
+\begin{document}
+\includegraphics[width=1cm]{missing-a.png}
+\includegraphics{missing-b.pdf}
+\end{document}
+`
+    const once = ensureMissingGraphicsFallback(src)
+    const twice = ensureMissingGraphicsFallback(once)
+
+    expect((once.match(/\\providecommand\{\\PosterIncludeGraphics\}/g) ?? [])).toHaveLength(1)
+    expect((once.match(/\\PosterIncludeGraphics(?:\[|\{)/g) ?? [])).toHaveLength(2)
+    expect(twice).toBe(once)
   })
 })

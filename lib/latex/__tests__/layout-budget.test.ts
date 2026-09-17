@@ -6,7 +6,11 @@ import {
   estimateHeightBreakdown,
   suggestReductions,
 } from "@/lib/latex/layout"
-import { validateCard } from "@/lib/latex/validation"
+import {
+  estimatePosterColumnOccupancy,
+  validateCard,
+  validatePosterColumns,
+} from "@/lib/latex/validation"
 import type { Card } from "@/lib/poster-types"
 
 function makeCard(patch: Partial<Card> = {}): Card {
@@ -70,6 +74,16 @@ describe("estimateHeightBreakdown", () => {
     expect(b.prose).toBe(0)
   })
 
+  it("accounts for paper, slide, and two-column structural patterns", () => {
+    expect(estimateHeightBreakdown(makeCard({ pattern: "section-figure" })).figures).toBeGreaterThan(0)
+    expect(estimateHeightBreakdown(makeCard({ pattern: "section-two-figures" })).figures).toBeGreaterThan(0)
+    expect(estimateHeightBreakdown(makeCard({ pattern: "section-table" })).table).toBeGreaterThan(0)
+    expect(estimateHeightBreakdown(makeCard({ pattern: "figure-slide" })).figures).toBeGreaterThan(0)
+    expect(estimateHeightBreakdown(makeCard({ pattern: "two-column" })).chrome).toBeGreaterThan(
+      estimateHeightBreakdown(makeCard({ pattern: "bullets" })).chrome,
+    )
+  })
+
   it("tolerates a malformed content field without throwing", () => {
     const bad = makeCard({ content: undefined as never })
     expect(() => estimateHeightBreakdown(bad)).not.toThrow()
@@ -128,9 +142,40 @@ describe("validateCard budget integration", () => {
     expect(msg!.message).toMatch(/by \d+u/)
   })
 
+  it("honors an explicit per-card height target", () => {
+    const card = makeCard({ content: "x".repeat(1000), heightBudget: 200 })
+    const msg = validateCard(card, "atlas").find((m) => m.message.includes("exceeds"))
+    expect(msg?.message).toContain("card budget 200u")
+  })
+
   it("keeps the no-template signature working (portrait default)", () => {
     expect(() => validateCard(bigCard)).not.toThrow()
     const msg = validateCard(bigCard).find((m) => m.message.includes("exceeds"))
     expect(msg!.message).toContain(`${COLUMN_BUDGET}u`)
+  })
+})
+
+describe("aggregate poster column validation", () => {
+  const first = makeCard({ id: "card_first", column: 1, content: "x".repeat(2000) })
+  const second = makeCard({ id: "card_second", column: 1, content: "y".repeat(2000) })
+  const cards = [first, second]
+
+  it("detects overflow made up of individually valid cards", () => {
+    expect(validateCard(first, "atlas").some((m) => m.message.includes("exceeds"))).toBe(false)
+
+    const occupancy = estimatePosterColumnOccupancy(cards, "atlas").find((result) => result.column === 1)
+    expect(occupancy?.overflow).toBeGreaterThan(0)
+
+    const errors = validatePosterColumns(cards, "atlas")
+    expect(errors).toEqual([
+      expect.objectContaining({ level: "error", field: "column-1" }),
+    ])
+  })
+
+  it("propagates the document-level failure when sibling context is supplied", () => {
+    const messages = validateCard(first, "atlas", cards)
+    expect(messages).toContainEqual(
+      expect.objectContaining({ level: "error", field: "column-1" }),
+    )
   })
 })
