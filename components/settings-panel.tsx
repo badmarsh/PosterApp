@@ -17,9 +17,11 @@ import {
   Loader2,
   Shield,
   ShieldCheck,
+  Folders,
 } from "lucide-react"
 import { toast } from "sonner"
 import { AgentIntegrationPanel } from "@/components/settings/agent-integration-panel"
+import { ManageWorkspaces } from "@/components/manage-workspaces"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -83,6 +85,7 @@ type SettingsTab =
   | "theme"
   | "appearance"
   | "editor"
+  | "workspaces"
   | "language"
   | "ai"
   | "shortcuts"
@@ -165,6 +168,7 @@ export function SettingsPanel() {
     { id: "theme" as const, icon: Palette, label: "Theme" },
     { id: "appearance" as const, icon: Monitor, label: "Appearance" },
     { id: "editor" as const, icon: Settings2, label: "Editor" },
+    { id: "workspaces" as const, icon: Folders, label: "Workspaces" },
     { id: "language" as const, icon: Languages, label: "Language" },
     { id: "ai" as const, icon: Bot, label: "AI Models" },
     { id: "shortcuts" as const, icon: Keyboard, label: "Shortcuts" },
@@ -349,6 +353,7 @@ export function SettingsPanel() {
             </div>
           </div>
         )}
+        {tab === "workspaces" && <ManageWorkspaces />}
         {tab === "data" && (
           <DataSettings
             workspaceId={project.id}

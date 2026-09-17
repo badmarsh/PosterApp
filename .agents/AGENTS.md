@@ -145,6 +145,12 @@ Schema at `prisma/schema.prisma`. Key notes:
 (None currently)
 
 ### Fixed in This Session (2026-09-17)
+- ✅ **Workspace Deletion in Settings & Manage Account**:
+  - **Replaced Portaled Dialog with Inline Confirmation**: In `ManageWorkspaces` (`components/manage-workspaces.tsx`), replaced the Base UI portaled `Dialog` (which was rendered with `z-50` underneath Clerk's `<UserProfile>` modal at `z-99999`, causing the confirmation modal to be completely invisible and appear to do nothing) with a responsive inline confirmation directly within the workspace row card.
+  - **Added Workspaces Tab to Settings Panel**: Added a dedicated `Workspaces` tab to `SettingsPanel` (`components/settings-panel.tsx`), allowing users to inspect, switch, and delete workspaces directly from the main Settings dialog as well as from Clerk's "Manage account" profile page.
+  - **Foreign Key Cascading Safety**: In `prisma/schema.prisma`, added `onDelete: SetNull` to `Asset.assignedCard` and proactively nullified `assignedCardId` on assets before workspace deletion in `app/api/workspaces/[id]/route.ts` to prevent any foreign key RESTRICT constraint violations.
+  - **Active Workspace Cleanup**: When the currently loaded workspace is deleted, `ManageWorkspaces` automatically resets `lastWorkspaceId: null`, clears local store cache, and cleanly navigates to `/`.
+  - **Regression Tested**: Verified in `__tests__/api/workspace-by-id.test.ts` (16 passing tests).
 - ✅ **Bundled Conference & Journal LaTeX Styles (No Missing Class Warnings)**:
   - **Bundled Assets in `public/latex-styles/`**: Vendored all conference and journal `.sty`, `.cls`, `.clo`, and `.bst` files directly into `public/latex-styles/`: `acl.sty`, `acl_natbib.bst`, `neurips_2026.sty`, `icml2026.sty`, `icml2026.bst`, `algorithm.sty`, `algorithmic.sty`, `iclr2026_conference.sty`, `iclr2026_conference.bst`, `cvpr.sty`, `ieeenat_fullname.bst`, `aaai2026.sty`, `aaai2026.bst`, `webofc.cls`, `woc.bst`, `iopart.cls`, `iopart10.clo`, `iopart12.clo`, `iopart-num.bst` (alongside existing `jinstpub.sty`, `pos.sty`, `JHEP.bst`).
   - **Eliminated UI Missing-Class Warning**: Removed `requiresClass` from all templates (`epj-woc`, `iopart`, `neurips`, `icml`, `iclr`, `acl`, `cvpr`, `aaai`) in `lib/output-types.ts`, removing the warning "Requires X — not bundled with PosterApp. If your compiler image lacks it, the build will fail. Upload the file to the workspace root to vendor it."

@@ -22,6 +22,7 @@ vi.mock('@/lib/prisma', () => ({
       findMany: vi.fn(),
       upsert: vi.fn(),
       deleteMany: vi.fn(),
+      updateMany: vi.fn(),
     },
     ingestFile: {
       findMany: vi.fn(),
@@ -181,6 +182,30 @@ describe('DELETE /api/workspaces/[id]', () => {
     const req = new Request('http://localhost/api/workspaces/other-ws', { method: 'DELETE' })
     const res = await DELETE(req, makeParams('other-ws'))
     expect(res.status).toBe(404)
+  })
+
+  it('successfully deletes an owned workspace and cleans up relations', async () => {
+    ;(mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce({
+      id: 'ws-delete-me',
+      userId: 'user_123',
+      members: [],
+    })
+    ;(mockPrisma.asset.updateMany as any).mockResolvedValueOnce({ count: 2 })
+    ;(mockPrisma.workspace.delete as any).mockResolvedValueOnce({ id: 'ws-delete-me' })
+
+    const req = new Request('http://localhost/api/workspaces/ws-delete-me', { method: 'DELETE' })
+    const res = await DELETE(req, makeParams('ws-delete-me'))
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.ok).toBe(true)
+    expect(mockPrisma.asset.updateMany).toHaveBeenCalledWith({
+      where: { workspaceId: 'ws-delete-me' },
+      data: { assignedCardId: null },
+    })
+    expect(mockPrisma.workspace.delete).toHaveBeenCalledWith({
+      where: { id: 'ws-delete-me' },
+    })
   })
 })
 

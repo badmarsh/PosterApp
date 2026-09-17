@@ -617,6 +617,11 @@ export async function DELETE(
   try {
     // Owner-only: editors must not be able to destroy a workspace (MED-02 fix)
     await requireWorkspaceOwner(id)
+    // Proactively nullify assignedCardId on assets so Card cascade delete cannot hit RESTRICT constraints
+    await prisma.asset.updateMany({
+      where: { workspaceId: id },
+      data: { assignedCardId: null },
+    }).catch(() => undefined)
     await prisma.workspace.delete({ where: { id } })
     // Remove on-disk artefacts (uploads, compiled PDFs, staged sources) so
     // user data does not outlive the workspace record. workspacePath() guards
