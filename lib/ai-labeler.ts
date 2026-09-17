@@ -20,7 +20,7 @@ Do not use punctuation at the end. Return ONLY the label string. Do not use quot
       systemPrompt,
       userPrompt,
       temperature: 0.1,
-      maxTokens: 15,
+      maxTokens: 256,
       signal: AbortSignal.timeout(AI_TIMEOUTS.labeler),
     })
 

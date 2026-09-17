@@ -292,7 +292,12 @@ async function requestCompletion(
   }
 
   const content = data.choices[0].message?.content
-  if (!content) throw new Error("Empty response from AI")
+  if (!content) {
+    if (data.choices[0].finish_reason === "length") {
+      throw new Error(`AI response was cut off before content could be generated (max_tokens: ${options.maxTokens ?? DEFAULT_AI_MAX_TOKENS} too low for model reasoning)`)
+    }
+    throw new Error("Empty response from AI")
+  }
   // Return the content together with the truncation flag — callers need the
   // content itself to decide on a repair, so we must not throw here.
   return { content, truncated: data.choices[0].finish_reason === "length" }
