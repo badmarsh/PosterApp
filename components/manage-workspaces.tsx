@@ -36,11 +36,9 @@ export function ManageWorkspaces() {
   const [isDeleting, setIsDeleting] = useState(false)
 
   const { user } = useUser()
-  const { activeWorkspaceId, switchProject, setLastWorkspaceId } = useEditor((s) => ({
-    activeWorkspaceId: s.project?.id,
-    switchProject: s.switchProject,
-    setLastWorkspaceId: s.setLastWorkspaceId,
-  }))
+  const activeWorkspaceId = useEditor((s) => s.project?.id)
+  const switchProject = useEditor((s) => s.switchProject)
+  const setLastWorkspaceId = useEditor((s) => s.setLastWorkspaceId)
 
   const fetchWorkspaces = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)

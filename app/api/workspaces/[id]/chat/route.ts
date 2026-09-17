@@ -6,7 +6,7 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { generateAITextResponse } from "@/lib/ai/client"
 import { loadSourceContext } from "@/lib/ai/context"
 import { validateCard } from "@/lib/latex/validation"
-import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, parseAiApiKey, AI_TIMEOUTS } from "@/lib/ai/models"
 import { buildCitationInstruction, wrapUntrustedContext } from "@/lib/ai/prompts"
 import type { Card } from "@/lib/poster-types"
 
@@ -261,12 +261,14 @@ This will allow the user to apply the fix automatically with one click.`
     }
 
     const modelOverrides = parseAiModelOverrides(req.headers)
+    const clientApiKey = parseAiApiKey(req.headers)
     const selectedModel = hasImages
       ? resolveAiModelWithOverrides("vision", modelOverrides)
       : resolveAiModelWithOverrides("chat", modelOverrides)
     const assistantContent = await generateAITextResponse("chat", {
       role: hasImages ? "vision" : "chat",
       model: selectedModel,
+      apiKey: clientApiKey,
       systemPrompt,
       userPrompt: historyMessages.length > 0 ? historyMessages : [{ role: "user", content: "Hello" }],
       temperature: 0.7,
@@ -285,9 +287,15 @@ This will allow the user to apply the fix automatically with one click.`
   } catch (error: unknown) {
     if (error instanceof Response) return error
     console.error("Chat route error:", error)
+    const status = (error as { status?: number })?.status || 500
+    const message = error instanceof Error ? error.message : "Failed to generate chat response"
     return NextResponse.json(
-      { error: "Failed to generate chat response" },
-      { status: 500 }
+      {
+        error: message,
+        role: "assistant",
+        content: `⚠️ **AI Provider Notice:** ${message}`,
+      },
+      { status: status >= 400 && status < 600 ? status : 500 }
     )
   }
 }

@@ -115,6 +115,19 @@ export function parseAiModelOverrides(headers: Headers): Partial<Record<AiModelR
   }
 }
 
+export const AI_API_KEY_HEADER = "X-Gemini-Api-Key"
+
+/**
+ * Parse client-supplied Gemini or custom AI API key from request headers.
+ */
+export function parseAiApiKey(headers: Headers): string | undefined {
+  const geminiKey = headers.get("x-gemini-api-key")?.trim()
+  if (geminiKey) return geminiKey
+  const customKey = headers.get("x-ai-api-key")?.trim()
+  if (customKey) return customKey
+  return undefined
+}
+
 /**
  * Resolve AI model for a given role, checking for user overrides first.
  * If overrides are provided, they take precedence over env vars.

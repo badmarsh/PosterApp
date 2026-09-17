@@ -4,7 +4,7 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { loadSourceContext } from "@/lib/ai/context"
 import { generateAIResponse } from "@/lib/ai/client"
 import { CardGenerationSchema } from "@/lib/ai/contracts"
-import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, parseAiApiKey, AI_TIMEOUTS } from "@/lib/ai/models"
 import { buildCitationInstruction, buildGroundingInstruction, wrapUntrustedContext } from "@/lib/ai/prompts"
 import { buildTopicFocusedSourceContext } from "@/lib/ai/card-context"
 
@@ -109,10 +109,12 @@ export async function POST(
 
     // Parse AI model overrides from request headers
     const modelOverrides = parseAiModelOverrides(req.headers)
+    const clientApiKey = parseAiApiKey(req.headers)
 
     const model = resolveAiModelWithOverrides("generation", modelOverrides)
     let parsedData = await generateAIResponse("generate-card", {
       model,
+      apiKey: clientApiKey,
       userPrompt: prompt,
       schema: CardGenerationSchema,
       temperature: 0.2, // grounded generation — not the 0.7 chat default

@@ -11,6 +11,7 @@ import * as fs from "fs"
 import * as path from "path"
 import type { ThesisMetadata, ReviewLanguage } from "./thesis-rubric"
 import { WORKSPACES_ROOT } from "@/lib/workspace-files"
+import { prisma } from "@/lib/prisma"
 
 // ---------------------------------------------------------------------------
 // Context Budgets
@@ -769,9 +770,52 @@ export async function loadThesisContext(options: {
 
   if (sourceFileId) {
     const cleanId = sourceFileId.replace(/\.(md|pdf)$/i, "")
-    const matched = mdFiles.filter((f) => f.replace(/\.md$/i, "") === cleanId || f.includes(cleanId))
-    if (matched.length > 0) {
-      mdFiles = matched
+    let matched = mdFiles.filter((f) => f.replace(/\.md$/i, "") === cleanId || f.includes(cleanId))
+
+    if (matched.length === 0) {
+      try {
+        const ingest = await prisma.ingestFile.findFirst({
+          where: {
+            workspaceId,
+            OR: [
+              { id: cleanId },
+              { name: sourceFileId },
+              { name: { contains: cleanId, mode: "insensitive" } },
+            ],
+          },
+          select: { id: true },
+        })
+        if (ingest) {
+          matched = mdFiles.filter((f) => f === `${ingest.id}.md` || f.includes(ingest.id))
+        }
+      } catch (e) {
+        console.warn("[loadThesisContext] IngestFile lookup failed:", e)
+      }
+    }
+
+    // CRITICAL: When a specific sourceFileId is requested, only load that file.
+    // If not matched, do NOT fall back to loading all files in the directory!
+    mdFiles = matched
+  } else if (mdFiles.length > 1) {
+    // If no sourceFileId specified, pick a single primary file rather than concatenating independent theses
+    try {
+      const ingest = await prisma.ingestFile.findFirst({
+        where: { workspaceId },
+        orderBy: { id: "asc" },
+        select: { id: true },
+      })
+      if (ingest) {
+        const single = mdFiles.filter((f) => f === `${ingest.id}.md`)
+        if (single.length > 0) {
+          mdFiles = single
+        } else {
+          mdFiles = [mdFiles[0]]
+        }
+      } else {
+        mdFiles = [mdFiles[0]]
+      }
+    } catch {
+      mdFiles = [mdFiles[0]]
     }
   }
 

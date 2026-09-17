@@ -128,7 +128,7 @@ export function cleanTitleFromFilename(filename?: string): {
   } else if (/(?:diplom|master|magister|\bing\b|\bmgr\b)/i.test(baseLower)) {
     hintType = "master"
     hintKind = "thesis"
-  } else if (/(?:paper|article|[cč]l[aá]nok|[cč]l[aá]nek|preprint|peer[_\s-]*review)/i.test(baseLower)) {
+  } else if (/(?:paper|article|[cč]l[aá]nok|[cč]l[aá]nek|preprint|peer[_\s-]*review|probability[_\s]+function|distribution[_\s]+function|cross[_\s]+section|measurement[_\s]+of)/i.test(baseLower)) {
     hintKind = "paper"
   }
 
@@ -144,6 +144,12 @@ export function cleanTitleFromFilename(filename?: string): {
     }
   }
 
+  // 2b. Check if the entire base is just a generic label (e.g. "PhD Thesis 2", "Diplomova praca", "Final Thesis 1")
+  const GENERIC_FILENAME_RE = /^(?:phd[_\s]+t(?:h)?esis|doctoral[_\s]+(?:thesis|dissertation)|doktorsk[aá][_\s]+pr[aá]ca|dizerta[cč]n[aá][_\s]+pr[aá]ca|diserta[cč]n[ií][_\s]+pr[aá]ce|diplomov[aá][_\s]+pr[aá]ca|diplomov[aá][_\s]+pr[aá]ce|master[_\s]+thesis|mgr[_\s]+thesis|ing[_\s]+thesis|bakal[aá]rsk[aá][_\s]+pr[aá]ca|bakal[aá][rř]sk[aá][_\s]+pr[aá]ce|bachelor[_\s]+thesis|bc[_\s]+thesis|z[aá]vere[cč]n[aá][_\s]+pr[aá]ca|z[aá]v[eě]re[cč]n[aá][_\s]+pr[aá]ce|final[_\s]+thesis|paper|article|[cč]l[aá]nok|[cč]l[aá]nek|manuscript|preprint)(?:[\s:._-]+\d+)?$/i
+  if (GENERIC_FILENAME_RE.test(base)) {
+    return { title: "", hintType, hintKind, hintAuthor }
+  }
+
   // 3. Strip leading prefixes denoting document types
   // Handles: "phd_tesis_", "phd thesis ", "PhD Thesis 2", "Diplomova_praca_", "Bakalarska praca - ", etc.
   const PREFIX_RE = /^(?:phd[_\s]+t(?:h)?esis(?:\s+\d+)?|doctoral[_\s]+(?:thesis|dissertation)|doktorsk[aá][_\s]+pr[aá]ca|dizerta[cč]n[aá][_\s]+pr[aá]ca|diserta[cč]n[ií][_\s]+pr[aá]ce|diplomov[aá][_\s]+pr[aá]ca|diplomov[aá][_\s]+pr[aá]ce|master[_\s]+thesis|mgr[_\s]+thesis|ing[_\s]+thesis|bakal[aá]rsk[aá][_\s]+pr[aá]ca|bakal[aá][rř]sk[aá][_\s]+pr[aá]ce|bachelor[_\s]+thesis|bc[_\s]+thesis|z[aá]vere[cč]n[aá][_\s]+pr[aá]ca|z[aá]v[eě]re[cč]n[aá][_\s]+pr[aá]ce|final[_\s]+thesis|paper|article|[cč]l[aá]nok|[cč]l[aá]nek|manuscript|preprint)[\s:._-]+/i
@@ -155,7 +161,11 @@ export function cleanTitleFromFilename(filename?: string): {
 
   // 5. Clean up underscores into spaces (while preserving hyphens like Bose-Einstein)
   const formatted = base.replace(/_+/g, " ").trim()
-  const cleanTitle = formatCleanThesisTitle(formatted)
+  let cleanTitle = formatCleanThesisTitle(formatted)
+
+  if (cleanTitle.length <= 2 || /^\d+$/.test(cleanTitle) || /^(?:final|draft|v\d+|thesis|praca|paper)$/i.test(cleanTitle)) {
+    cleanTitle = ""
+  }
 
   return { title: cleanTitle, hintType, hintKind, hintAuthor }
 }
@@ -223,10 +233,17 @@ export function extractSmartThesisMetadata(text: string, filename?: string) {
     }
 
     // D. English thesis author patterns: "by John Doe" or "submitted by John Doe"
+    const INVALID_AUTHOR_WORDS = /^(?:several|different|various|following|these|those|using|means|experimental|correlation|correlations|momentum|distribution|atlas|collider|physics|quantum|bose|einstein|contents|introduction|chapter|section|figure|table|equation|university|faculty|department|institute|results|analysis|data|monte|carlo)\b/i
+
     if (!studentName) {
-      const englishAuthorMatch = frontMatter.match(/(?:submitted by|presented by|prepared by|\bby)\s*[:]?\s*(?:(?:Mr\.|Ms\.|Mrs\.)\s+)?([A-ZÁČĎÉÍĽĹŇÓÔŔŘŠŤÚÝŽ][a-záčďéíľĺňóôŕřšťúýž]+(?:\s+[A-ZÁČĎÉÍĽĹŇÓÔŔŘŠŤÚÝŽ]\.?)?\s+[A-ZÁČĎÉÍĽĹŇÓÔŔŘŠŤÚÝŽ][a-záčďéíľĺňóôŕřšťúýž]+)/i)
+      // Must be at the start of a line or after an explicit author prompt, and name parts must be Title Case (no /i flag)
+      const englishAuthorMatch = frontMatter.match(/(?:(?:^|\n)\s*(?:by|written by|authored by|submitted by|presented by|prepared by)\s*[:]?|(?:Author|Author\(s\)|Student)\s*[:])\s*(?:(?:Mr\.|Ms\.|Mrs\.|Dr\.)\s+)?([A-ZÁČĎÉÍĽĹŇÓÔŔŘŠŤÚÝŽ][a-záčďéíľĺňóôŕřšťúýž]+(?:\s+[A-ZÁČĎÉÍĽĹŇÓÔŔŘŠŤÚÝŽ]\.?)?\s+[A-ZÁČĎÉÍĽĹŇÓÔŔŘŠŤÚÝŽ][a-záčďéíľĺňóôŕřšťúýž]+)/)
       if (englishAuthorMatch) {
-        studentName = englishAuthorMatch[1].trim()
+        const candidate = englishAuthorMatch[1].trim()
+        const parts = candidate.split(/\s+/)
+        if (!INVALID_AUTHOR_WORDS.test(parts[0]) && (!parts[1] || !INVALID_AUTHOR_WORDS.test(parts[1]))) {
+          studentName = candidate
+        }
       }
     }
 
@@ -257,6 +274,18 @@ export function extractSmartThesisMetadata(text: string, filename?: string) {
         if (cleanH.length > 8 && cleanH.split(/\s+/).length >= 3) {
           title = formatCleanThesisTitle(cleanH)
           break
+        }
+      }
+
+      // If title is still empty or too short, check for first numbered chapter or section in TOC or body
+      // e.g. "1 Bose-Einstein correlations in 7 TeV proton-proton collisions in the ATLAS experiment"
+      if (!title || title.length <= 2) {
+        const chapterMatch = frontMatter.match(/(?:^|\n)(?:1|Chapter\s+1|Kapitola\s+1)\s*[:.-]?\s*([A-ZÁČĎÉÍĽĹŇÓÔŔŘŠŤÚÝŽ][^\n\r]{6,120})/i)
+        if (chapterMatch) {
+          const candidate = chapterMatch[1].replace(/\s*\.{3,}\s*\d+$/, "").replace(/[*_#`]/g, "").trim()
+          if (candidate.length > 5 && !JUNK_HEADING_RE.test(candidate)) {
+            title = formatCleanThesisTitle(candidate)
+          }
         }
       }
     }
@@ -298,38 +327,30 @@ export function extractSmartThesisMetadata(text: string, filename?: string) {
     const isBachelor = /(?:bakalársk[áé]|bakalářsk[áé])\s+prác[ae]|bachelor'?s?\s+thesis|\bbakalár\b/i.test(frontLower)
     const isMaster = /(?:diplomov[áé]|magistersk[áé])\s+prác[ae]|master'?s?\s+thesis/i.test(frontLower)
     const isPhd = /(?:dizertačn[áé]|disertačn[íé])\s+prác[ae]|doctoral\s+(?:thesis|dissertation)|phd\s+(?:thesis|dissertation)|doctor of philosophy|proefschrift/i.test(frontLower)
-    const isExplicitThesis = isBachelor || isMaster || isPhd || /záverečn[áé]\s+prác[ae]/i.test(frontLower)
+    const isExplicitThesis = Boolean(fileHints.hintType) || isBachelor || isMaster || isPhd || /záverečn[áé]\s+prác[ae]|\bin this thesis\b/i.test(frontLower)
 
     // Scientific Paper / Peer Review markers
     const isPaperDoc = !isExplicitThesis && (
       fileHints.hintKind === "paper" ||
       /(?:arxiv:\d+\.\d+|doi:\s*10\.\d+|issn\s*\d+|journal\s+of|proceedings\s+of|submitted\s+to|peer\s+review)/i.test(frontLower) ||
-      (frontLower.includes("abstract") && frontLower.includes("introduction") && !frontLower.includes("vedúci práce") && !frontLower.includes("školiteľ"))
+      (frontLower.includes("abstract") && frontLower.includes("introduction") && !frontLower.includes("vedúci práce") && !frontLower.includes("školiteľ")) ||
+      (!frontLower.includes("univerzita") && !frontLower.includes("university") && !frontLower.includes("vedúci") && !frontLower.includes("supervisor") && (frontLower.includes("distribution function") || frontLower.includes("cross section") || frontLower.includes("probability function") || frontLower.includes("particles") || frontLower.includes("experiment")))
     )
 
     if (isPaperDoc) {
       reviewKind = "paper"
       reviewerRole = "reviewer"
-    } else if (isBachelor) {
-      thesisType = "bachelor"
-      reviewKind = "thesis"
-    } else if (isMaster) {
-      thesisType = "master"
-      reviewKind = "thesis"
-    } else if (isPhd) {
-      thesisType = "phd"
-      reviewKind = "thesis"
     } else if (fileHints.hintType) {
       thesisType = fileHints.hintType
       reviewKind = fileHints.hintKind || "thesis"
-    } else if (lower.includes("bakalársk") || lower.includes("bachelor")) {
+    } else if (isPhd) {
+      thesisType = "phd"
+      reviewKind = "thesis"
+    } else if (isBachelor) {
       thesisType = "bachelor"
       reviewKind = "thesis"
-    } else if (lower.includes("diplomov") || lower.includes("master thesis") || lower.includes("magistersk")) {
+    } else if (isMaster || /záverečn[áé]\s+prác[ae]|rozširujúce štúdium/i.test(frontLower)) {
       thesisType = "master"
-      reviewKind = "thesis"
-    } else if (lower.includes("dizertač") || lower.includes("disertač") || lower.includes("dissertation") || lower.includes("phd")) {
-      thesisType = "phd"
       reviewKind = "thesis"
     }
 
@@ -337,6 +358,24 @@ export function extractSmartThesisMetadata(text: string, filename?: string) {
     const yearMatch = frontMatter.match(/(?:máj|jún|január|február|marec|apríl|júl|august|september|október|november|december)?\s*\b(202[0-9](?:\/202[0-9])?)\b/i)
     if (yearMatch) {
       academicYear = yearMatch[0].trim()
+    }
+  }
+
+  // Cross-document mismatch guard: prevent text leakage from unrelated files
+  if (filename) {
+    const fnLow = filename.toLowerCase()
+    const textLow = (title + " " + institution + " " + department + " " + studentName).toLowerCase()
+    const isPhysicsDoc = /boson|bose-einstein|atlas|proton|quark|hadron/i.test(fnLow)
+    const isChemistryDoc = /ch[eé]mi[ea]|pedagogick|u[cč]ite[lľ]stvo|ke[lľ]ov[aá]/i.test(textLow)
+    const isPhdFilename = /phd|doctoral|dissertation|dizert/i.test(fnLow)
+    const isKelovaText = /ke[lľ]ov[aá]|hodnotenie vo výučbe chémie/i.test(textLow)
+    if ((isPhysicsDoc && isChemistryDoc) || (isPhdFilename && isKelovaText)) {
+      studentName = fileHints.hintAuthor || ""
+      title = fileHints.title || ""
+      reviewerName = ""
+      institution = ""
+      department = ""
+      academicYear = ""
     }
   }
 
@@ -383,12 +422,6 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
   const activeFile = ingestFiles.find((f) => f.id === activeFileId) || ingestFiles[0]
   const isParsing = ingestFiles.some((f) => f.status === "parsing" || f.status === "queued")
 
-  // Synchronize selectedFileId in store if files exist and none selected
-  useEffect(() => {
-    if (ingestFiles.length > 0 && !selectedFileId) {
-      setSelectedFileId(ingestFiles[0].id)
-    }
-  }, [ingestFiles, selectedFileId, setSelectedFileId])
 
   // Smart auto-fill from document text and/or filename
   const applyExtraction = useCallback((text: string, filename?: string) => {

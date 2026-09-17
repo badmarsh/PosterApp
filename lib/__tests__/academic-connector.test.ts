@@ -10,10 +10,12 @@ import * as semanticScholarService from "@/lib/services/semantic-scholar-service
 import * as arxivService from "@/lib/services/arxiv-service"
 import * as openalexService from "@/lib/services/openalex-service"
 import * as crossrefService from "@/lib/services/crossref-service"
+import * as tavilyService from "@/lib/services/tavily-service"
 
 describe("Academic Connector Service", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    vi.spyOn(tavilyService, "searchTavily").mockResolvedValue([])
   })
 
   it("prioritizes direct DOI lookup before fuzzy title search", async () => {

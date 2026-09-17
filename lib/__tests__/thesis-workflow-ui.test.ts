@@ -185,5 +185,61 @@ Bratislava, máj 2026`
     expect(extracted.reviewerName).toContain("Jarmila Kmeťová")
     expect(extracted.institution).toContain("Univerzita Mateja Bela")
   })
+
+  it("handles generic 'PhD Thesis 2.pdf' without setting title to '2' and avoids matching 'several experiments' as author", () => {
+    const phdText = [
+      "# Contents",
+      "",
+      "1 Introduction 1",
+      "2 Measurement 15",
+      "",
+      "# 1 Bose-Einstein correlations in 7 TeV proton-proton collisions in the ATLAS experiment",
+      "",
+      "Bose-Einstein correlations have been observed by several experiments in high-energy physics.",
+      "The ATLAS detector at the Large Hadron Collider was used to measure correlation functions.",
+    ].join("\n")
+
+    const extracted = extractSmartThesisMetadata(phdText, "PhD Thesis 2.pdf")
+    // Title must not be "2"
+    expect(extracted.title).not.toBe("2")
+    expect(extracted.title).toContain("Bose-Einstein correlations")
+    // Must NOT match "several experiments" as student/author
+    expect(extracted.studentName).not.toContain("several")
+    expect(extracted.studentName).not.toContain("experiments")
+    expect(extracted.thesisType).toBe("phd")
+    expect(extracted.reviewKind).toBe("thesis")
+  })
+
+  it("blocks Slovak chemistry / Kelova metadata contamination when document is a physics paper or thesis", () => {
+    // Leaked text from another file in cache
+    const contaminatedText = [
+      "Mgr. Margaréta Keľová",
+      "Hodnotenie vo výučbe chémie. Záverečná práca.",
+      "doc. RNDr. Jarmila Kmeťová, PhD.",
+      "Bose-Einstein correlations in ATLAS",
+    ].join("\n")
+
+    const extracted = extractSmartThesisMetadata(contaminatedText, "PhD Thesis 2.pdf")
+    // Must discard the Slovak chemistry author and title
+    expect(extracted.studentName).not.toBe("Margaréta Keľová")
+    expect(extracted.studentName).toBe("")
+    expect(extracted.title).not.toContain("výučbe chémie")
+  })
+
+  it("extracts boson paper metadata correctly without assigning student name or misclassifying type", () => {
+    const bosonText = [
+      "# The distribution function of bosons momentum in a moving system",
+      "",
+      "We consider a system of identical bosons in relativistic heavy-ion collisions.",
+      "The two-particle correlation function is analyzed with pT and eta cuts.",
+    ].join("\n")
+
+    const filename = "boson probability function for the moving system for 13 TeV 2026 including pT and eta cuts.pdf"
+    const extracted = extractSmartThesisMetadata(bosonText, filename)
+    expect(extracted.title).toContain("distribution function of bosons")
+    expect(extracted.studentName).toBe("")
+    expect(extracted.reviewKind).toBe("paper")
+  })
 })
+
 

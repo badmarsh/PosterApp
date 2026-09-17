@@ -237,10 +237,31 @@ async function requestCompletion(
   const durationMs = Date.now() - startTime
 
   if (!response.ok) {
-    console.error(`[AI ${operationName}] Provider failed: HTTP ${response.status} (${durationMs}ms)`)
+    let upstreamMessage = ""
+    try {
+      const errJson = await response.json()
+      upstreamMessage = errJson?.error?.message || errJson?.message || ""
+    } catch {
+      try {
+        upstreamMessage = (await response.text()).slice(0, 300)
+      } catch {}
+    }
+
+    const failureReason = upstreamMessage
+      ? `AI API failed: HTTP ${response.status} - ${upstreamMessage}`
+      : `AI API failed: HTTP ${response.status}`
+
+    console.error(`[AI ${operationName}] Provider failed: HTTP ${response.status} (${durationMs}ms)${upstreamMessage ? ` - ${upstreamMessage}` : ""}`)
     if (response.status >= 500 || response.status === 429) reportCircuitFailure(apiUrl)
     recordAiUsage({ at: new Date().toISOString(), operation: operationName, model: options.model, provider: providerSource, apiUrl, promptTokens: null, completionTokens: null, totalTokens: null, durationMs, ok: false, status: response.status })
-    throw new AIProviderError(response.status, `AI API failed: HTTP ${response.status}`)
+
+    if (response.status === 402) {
+      throw new AIProviderError(
+        402,
+        `AI credits exhausted (HTTP 402). ${upstreamMessage || "Account credit balance is 0"}. Please add credits to your OpenRouter account, or enter a free Google Gemini API Key in Settings → AI Models.`
+      )
+    }
+    throw new AIProviderError(response.status, failureReason)
   }
 
   const data = await response.json()

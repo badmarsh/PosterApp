@@ -93,9 +93,54 @@ export async function GET(
 
       if (requestedFileId) {
         const cleanId = requestedFileId.replace(/\.(md|pdf)$/i, "")
-        const matched = mdFiles.filter((f) => f.replace(/\.md$/i, "") === cleanId || f.includes(cleanId))
-        if (matched.length > 0) {
-          mdFiles = matched
+        let matched = mdFiles.filter((f) => f.replace(/\.md$/i, "") === cleanId || f.includes(cleanId))
+
+        // If not matched directly by filename, check database for matching IngestFile
+        if (matched.length === 0) {
+          try {
+            const ingest = await prisma.ingestFile.findFirst({
+              where: {
+                workspaceId,
+                OR: [
+                  { id: cleanId },
+                  { name: requestedFileId },
+                  { name: { contains: cleanId, mode: "insensitive" } },
+                ],
+              },
+              select: { id: true },
+            })
+            if (ingest) {
+              matched = mdFiles.filter((f) => f === `${ingest.id}.md` || f.includes(ingest.id))
+            }
+          } catch (e) {
+            console.warn("[source-document GET] IngestFile lookup failed:", e)
+          }
+        }
+
+        // CRITICAL: When a specific file is requested, only load that file.
+        // If not matched, do NOT fall back to loading all files in the directory!
+        mdFiles = matched
+      } else if (mdFiles.length > 1) {
+        // If no fileId was specified, do not concatenate independent theses.
+        // Pick the first/active ingest file.
+        try {
+          const ingest = await prisma.ingestFile.findFirst({
+            where: { workspaceId },
+            orderBy: { id: "asc" },
+            select: { id: true },
+          })
+          if (ingest) {
+            const single = mdFiles.filter((f) => f === `${ingest.id}.md`)
+            if (single.length > 0) {
+              mdFiles = single
+            } else {
+              mdFiles = [mdFiles[0]]
+            }
+          } else {
+            mdFiles = [mdFiles[0]]
+          }
+        } catch {
+          mdFiles = [mdFiles[0]]
         }
       }
 
@@ -130,9 +175,19 @@ export async function GET(
       if (textSnippets.trim()) {
         fullText = textSnippets
       } else {
+        const ingestWhere = requestedFileId
+          ? {
+              workspaceId,
+              OR: [
+                { id: requestedFileId.replace(/\.(md|pdf)$/i, "") },
+                { name: requestedFileId },
+              ],
+            }
+          : { workspaceId }
         const ingestFiles = await prisma.ingestFile.findMany({
-          where: { workspaceId },
+          where: ingestWhere,
           select: { name: true },
+          take: 1,
         })
         if (ingestFiles.length > 0) {
           fullText = `# Dokument: ${ingestFiles[0].name}\n\n(Text dokumentu bol spracovaný cez MinerU pipeline)`

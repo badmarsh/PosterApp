@@ -491,7 +491,7 @@ function createThesisReviewStore(
               for (const [key, otherStore] of reviewStoreRegistry.entries()) {
                 if (key !== outputKey && key.startsWith(workspaceId + ":")) {
                   otherStore.setState((otherState) => {
-                    const sameFile = !s.selectedFileId || !otherState.selectedFileId || s.selectedFileId === otherState.selectedFileId
+                    const sameFile = s.selectedFileId === otherState.selectedFileId
                     if (!sameFile) return
 
                     let changed = false
