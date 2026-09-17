@@ -204,6 +204,7 @@ export function EvidenceViewer({
             </div>
 
             <SourceMarkdownView
+              workspaceId={workspaceId}
               markdown={sourceMarkdown}
               highlightQuote={selectedEvidence?.quote}
               searchQuery={searchQuery}
