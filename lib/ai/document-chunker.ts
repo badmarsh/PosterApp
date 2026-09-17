@@ -17,10 +17,198 @@ import { generateLocalEmbedding } from "@/lib/ai/local-embeddings"
 import { extractAndStoreGraphEntities } from "./graph-extractor"
 import { classifySectionKind, type SectionKind } from "@/lib/ai/thesis-context"
 import { resolveChunkSize, CHUNK_OVERLAP, type ChunkKind } from "./chunking-config"
-import { splitIntoSubchunks, splitIntoStructuralSegments, buildTableEmbeddingText } from "./text-splitter"
+import { splitIntoSubchunks, splitIntoStructuralSegments, buildTableEmbeddingText, describeTableChunk } from "./text-splitter"
 
 export type { SectionKind }
 export type { ChunkKind }
+
+// ---------------------------------------------------------------------------
+// Contextual Retrieval (Anthropic-style chunk enrichment)
+// ---------------------------------------------------------------------------
+
+/** Supported languages for the contextual prefix (matches review languages). */
+export type ContextLang = "sk" | "cs" | "en"
+
+export interface ChunkContextInput {
+  /** Document title (IngestFile.name / thesis title). */
+  documentTitle?: string | null
+  /** Research domain, e.g. "Informatika, AI a dátové vedy". */
+  domain?: string | null
+  /** Immediate section heading. */
+  heading?: string | null
+  /** Full hierarchical section path, e.g. "Kapitola 3: Metodika > 3.2 Štatistická analýza". */
+  headingPath?: string | null
+  /** Classified section kind (drives the section-objective sentence). */
+  sectionKind?: SectionKind | null
+  /** Structural kind of the chunk (table chunks get a flattened description instead). */
+  kind?: ChunkKind | null
+  /** Language for the prefix text (default "sk" — Slovak theses). */
+  lang?: ContextLang
+}
+
+const SECTION_OBJECTIVES: Record<SectionKind, Record<ContextLang, string>> = {
+  preamble: {
+    sk: "predstavuje dokument a jeho štruktúru",
+    cs: "představuje dokument a jeho strukturu",
+    en: "introduces the document and its structure",
+  },
+  introduction: {
+    sk: "uvádza do problematiky, motivuje tému a stanovuje ciele práce",
+    cs: "uvádí do problematiky, motivuje tému a stanovuje cíle práce",
+    en: "introduces the problem, motivates the topic and states the objectives",
+  },
+  literature: {
+    sk: "rešíruje súčasný stav poznania a súvisiace vedecké práce",
+    cs: "rešeršuje současný stav poznání a související vědecké práce",
+    en: "surveys the state of the art and related work",
+  },
+  methodology: {
+    sk: "popisuje metodiku, postupy, dáta a experimentálny návrh",
+    cs: "popisuje metodiku, postupy, data a experimentální návrh",
+    en: "describes the methodology, procedures, data and experimental design",
+  },
+  results: {
+    sk: "prezentuje výsledky experimentov a ich vyhodnotenie vrátane štatistických údajov",
+    cs: "prezentuje výsledky experimentů a jejich vyhodnocení včetně statistických údajů",
+    en: "presents experimental results and their evaluation including statistical data",
+  },
+  discussion: {
+    sk: "interpretuje výsledky, porovnáva ich s existujúcimi riešeniami a diskutuje limitácie",
+    cs: "interpretuje výsledky, porovnává je s existujícími řešeními a diskutuje limitace",
+    en: "interprets the results, compares them with existing work and discusses limitations",
+  },
+  conclusion: {
+    sk: "sumarizuje závery a prínos práce pre odbornú verejnosť",
+    cs: "sumarizuje závěry a přínos práce pro odbornou veřejnost",
+    en: "summarises the conclusions and the contribution of the work",
+  },
+  references: {
+    sk: "obsahuje zoznam citovanej literatúry",
+    cs: "obsahuje seznam citované literatury",
+    en: "contains the list of cited literature",
+  },
+  appendix: {
+    sk: "obsahuje prílohy a doplnkový materiál",
+    cs: "obsahuje přílohy a doplňkový materiál",
+    en: "contains appendices and supplementary material",
+  },
+  unknown: {
+    sk: "rozvíja hlavnú tému práce",
+    cs: "rozvíjí hlavní téma práce",
+    en: "develops the main topic of the work",
+  },
+}
+
+/** LaTeX symbol names that make equation chunks findable by natural-language queries. */
+const EQUATION_SYMBOL_LABELS: Array<[RegExp, string]> = [
+  [/\\alpha|\balpha\b/i, "alpha (α)"],
+  [/\\beta|\bbeta\b/i, "beta (β)"],
+  [/\\gamma|\bgamma\b|\\Gamma/i, "gamma (γ)"],
+  [/\\delta|\bdelta\b|\\Delta/i, "delta (δ/Δ)"],
+  [/\\sigma|\bsigma\b|\\Sigma/i, "sigma (σ)"],
+  [/\\lambda|\blambda\b|\\Lambda/i, "lambda (λ)"],
+  [/\\mu|\bmu\b/i, "mu (μ)"],
+  [/\\theta|\btheta\b/i, "theta (θ)"],
+  [/\\pi|\bpi\b/i, "pi (π)"],
+  [/\\epsilon|\bvarepsilon|\bvarepsilon\b/i, "epsilon (ε)"],
+  [/\\sum\b|\\sum_/i, "sum"],
+  [/\\int\b|\\oint/i, "integral"],
+  [/\\nabla/i, "nabla (gradient)"],
+  [/\\partial/i, "parciálna derivácia (partial derivative)"],
+  [/[√\\sqrt]/, "odmocnina (square root)"],
+  [/\\leq|\\le\b|≤/, "nerovnosť (inequality ≤)"],
+  [/\\approx|≈/, "približne rovné (approximately equal)"],
+]
+
+/**
+ * Builds a 1–2 sentence Anthropic-style contextual prefix for a chunk.
+ *
+ * Isolated 1,200–1,800-char chunks (statistical paragraphs, equations, table
+ * fragments) lose the document/section framing needed for queries that
+ * reference the overarching hypothesis or methodology ("Aká bola hypotéza
+ * práce?", "…v kapitole 3.2"). The prefix re-attaches that framing:
+ *   document title → research domain → hierarchical section path → objective.
+ *
+ * The prefix is stored SEPARATELY (`DocumentChunk.contextPrefix`) and only
+ * fed to the embedding model and the FTS tsvector — `content` keeps the
+ * verbatim source text so evidence validation ([c-anchor] quote checks)
+ * continues to match the original document word-for-word.
+ */
+export function buildContextualPrefix(ctx: ChunkContextInput): string {
+  const lang: ContextLang = ctx.lang ?? "sk"
+  const sentences: string[] = []
+
+  const title = (ctx.documentTitle || "").trim()
+  const domain = (ctx.domain || "").trim()
+  const sectionPath = (ctx.headingPath || ctx.heading || "").trim()
+
+  // Sentence 1 — where this chunk lives.
+  if (lang === "en") {
+    sentences.push(
+      `Excerpt from ${title ? `the work "${trimTitle(title)}"` : "an academic work"}${domain ? ` (field: ${domain})` : ""}${sectionPath ? `, section "${sectionPath}"` : ""}.`
+    )
+  } else if (lang === "cs") {
+    sentences.push(
+      `Úryvek z ${title ? `práce „${trimTitle(title)}“` : "akademické práce"}${domain ? ` (obor: ${domain})` : ""}${sectionPath ? `, sekce „${sectionPath}“` : ""}.`
+    )
+  } else {
+    sentences.push(
+      `Úryvok z ${title ? `práce „${trimTitle(title)}“` : "akademickej práce"}${domain ? ` (odbor: ${domain})` : ""}${sectionPath ? `, sekcia „${sectionPath}“` : ""}.`
+    )
+  }
+
+  // Sentence 2 — what this section is about (objective), unless the path
+  // already makes it obvious and the section is the whole path.
+  const objective = SECTION_OBJECTIVES[ctx.sectionKind ?? "unknown"][lang]
+  const structuralNote = structuralPrefixNote(ctx.kind, lang)
+  if (lang === "en") {
+    sentences.push(`This section ${objective}${structuralNote ? `; ${structuralNote}` : ""}.`)
+  } else {
+    sentences.push(`Táto časť ${objective}${structuralNote ? `; ${structuralNote}` : ""}.`)
+  }
+
+  return sentences.join(" ")
+}
+
+function trimTitle(t: string): string {
+  // Strip file extensions from IngestFile names ("thesis_final.pdf" → "thesis_final").
+  return t.replace(/\.(pdf|md|markdown|docx?|tex)$/i, "").slice(0, 120)
+}
+
+function structuralPrefixNote(kind: ChunkKind | null | undefined, lang: ContextLang): string {
+  if (kind === "table") {
+    return lang === "en"
+      ? "it is a data table — questions about specific values are answered by it"
+      : "ide o dátovú tabuľku — otázky na konkrétne hodnoty sa zodpovedajú z nej"
+  }
+  if (kind === "equation") {
+    return lang === "en"
+      ? "it is a mathematical equation block"
+      : "ide o matematický vzorec"
+  }
+  if (kind === "figure_caption") {
+    return lang === "en"
+      ? "it is a figure/table caption"
+      : "ide o popis obrázka alebo tabuľky"
+  }
+  return ""
+}
+
+/**
+ * Natural-language label for an equation chunk: heading + symbol inventory so
+ * keyword queries ("rovnica pre gradient", "alfa parameter") can match without
+ * containing raw LaTeX. Pure function — unit-testable.
+ */
+export function describeEquationChunk(content: string, heading: string | null): string {
+  const symbols = EQUATION_SYMBOL_LABELS.filter(([re]) => re.test(content)).map(([, label]) => label)
+  const parts: string[] = []
+  if (heading) parts.push(heading)
+  parts.push("matematický vzorec / equation")
+  if (symbols.length > 0) parts.push(`obsahuje: ${symbols.slice(0, 8).join(", ")}`)
+  // Keep a short verbatim tail so exact LaTeX tokens are still embeddable.
+  parts.push(content.replace(/\s+/g, " ").slice(0, 300))
+  return parts.join(". ")
+}
 
 // ---------------------------------------------------------------------------
 // GraphRAG extraction guards
@@ -78,6 +266,12 @@ export interface DocumentChunkInput {
   tokens: number
   /** Structural chunk kind — table/equation/figure_caption blocks are never split. */
   kind: ChunkKind
+  /**
+   * Anthropic-style contextual prefix (document title, domain, section path,
+   * section objective). Indexed for embedding + FTS but NEVER merged into
+   * `content`, which stays verbatim for evidence quote validation.
+   */
+  contextPrefix?: string | null
 }
 
 /** Split markdown text into semantic chunks based on heading hierarchy. */
@@ -238,19 +432,35 @@ function runGraphExtractionQueue(
  * Ingest a MinerU-parsed Markdown file into DocumentChunk table with embeddings.
  * Called after successful MinerU parse in the ingestion pipeline.
  *
+ * Every chunk is enriched with an Anthropic-style contextual prefix (document
+ * title, research domain, hierarchical section path, section objective) that is
+ * embedded and FTS-indexed, while `content` keeps the verbatim source text.
+ *
  * Uses concurrency control to avoid OOM on large dissertations.
  * Returns `graphQueued` — number of chunks queued for background GraphRAG
  * entity extraction (runs detached; not part of the synchronous return path).
  *
- * @param opts.ingestFileId  Optional IngestFile.id to track vectorStatus in DB.
- *                           When provided, status is updated:
- *                           pending → indexing (on start), then ready/error (on finish).
+ * @param opts.ingestFileId   Optional IngestFile.id to track vectorStatus in DB.
+ *                            When provided, status is updated:
+ *                            pending → indexing (on start), then ready/error (on finish).
+ * @param opts.documentTitle  Human document title used in the contextual prefix.
+ *                            Falls back to the IngestFile.name looked up in DB.
+ * @param opts.domainContext  Research domain for the contextual prefix
+ *                            (defaults to resolveThesisDomainContext's fallback).
+ * @param opts.lang           Prefix language (default "sk").
  */
 export async function ingestDocumentChunks(
   workspaceId: string,
   documentId: string,
   markdown: string,
-  opts: { maxChunkChars?: number; concurrency?: number; ingestFileId?: string } = {}
+  opts: {
+    maxChunkChars?: number
+    concurrency?: number
+    ingestFileId?: string
+    documentTitle?: string
+    domainContext?: string
+    lang?: ContextLang
+  } = {}
 ): Promise<{ chunksCreated: number; skipped: number; graphQueued: number }> {
   const concurrency = opts.concurrency ?? 3
 
@@ -264,12 +474,27 @@ export async function ingestDocumentChunks(
     } catch { /* non-fatal */ }
   }
 
+  // Document title for the contextual prefix — explicit opt wins, otherwise a
+  // single cheap DB lookup (non-fatal: chunking must work without it).
+  let documentTitle = opts.documentTitle?.trim() || null
+  if (!documentTitle && opts.ingestFileId) {
+    try {
+      const file = await prisma.ingestFile.findFirst({
+        where: { id: opts.ingestFileId, workspaceId },
+        select: { name: true },
+      })
+      documentTitle = file?.name ?? null
+    } catch { /* non-fatal */ }
+  }
+  const domainContext = opts.domainContext?.trim() || "Akademický výskum, STEM a aplikované vedy"
+  const lang: ContextLang = opts.lang ?? "sk"
+
   const rawChunks = chunkMarkdown(markdown, documentId, opts)
 
   let chunksCreated = 0
   let skipped = 0
   const graphCandidates: Array<{ sectionKind: string; content: string }> = []
-  const prepared: Array<{ heading: string | null; content: string; tokens: number; kind: ChunkKind; embeddingStr: string }> = []
+  const prepared: Array<{ heading: string | null; content: string; tokens: number; kind: ChunkKind; contextPrefix: string | null; embeddingStr: string }> = []
 
   // Phase 1 — embed everything first (WASM, slow). The old chunks stay in
   // place meanwhile, so a review started during a reindex still retrieves
@@ -280,25 +505,37 @@ export async function ingestDocumentChunks(
       batch.map(async (chunk) => {
         try {
           const contextHeading = chunk.headingPath || chunk.heading
+          const contextual = buildContextualPrefix({
+            documentTitle,
+            domain: domainContext,
+            heading: chunk.heading,
+            headingPath: chunk.headingPath,
+            sectionKind: chunk.sectionKind,
+            kind: chunk.kind,
+            lang,
+          })
+
           // Structural kinds get specialised embedding text:
-          //  - tables: "heading + column names + row text" (raw pipe scaffolding
-          //    wastes the embedding window on |---|---|)
-          //  - equations/figures: content plus a natural-language label so they
-          //    match keyword queries that don't contain LaTeX
+          //  - tables: full retrieval description (columns, flattened rows,
+          //    notable/extreme values, p-values) — raw pipe scaffolding wastes
+          //    the embedding window and never matches natural-language questions
+          //  - equations: symbol inventory + heading so they match keyword
+          //    queries that don't contain LaTeX
+          //  - figures: content plus heading context
+          // The contextual prefix ALWAYS leads the embedding text (Anthropic-style:
+          // context before content) and is stored separately for the FTS index.
           let embedText: string
           if (chunk.kind === "table") {
-            embedText = buildTableEmbeddingText(chunk.content, contextHeading)
+            embedText = `${contextual} ${describeTableChunk(chunk.content, contextHeading)}`
           } else if (chunk.kind === "equation") {
-            embedText = contextHeading
-              ? `${contextHeading}: matematický vzorec / equation. ${chunk.content.slice(0, 600)}`
-              : `matematický vzorec / equation: ${chunk.content.slice(0, 600)}`
+            embedText = `${contextual} ${describeEquationChunk(chunk.content, contextHeading)}`
           } else if (chunk.kind === "figure_caption") {
             embedText = contextHeading
-              ? `${contextHeading}: ${chunk.content}`
-              : chunk.content
+              ? `${contextual} ${contextHeading}: ${chunk.content}`
+              : `${contextual} ${chunk.content}`
           } else {
             // Prepend hierarchical heading path for rich contextual semantic embedding
-            embedText = contextHeading ? `${contextHeading}: ${chunk.content}` : chunk.content
+            embedText = contextHeading ? `${contextual} ${contextHeading}: ${chunk.content}` : `${contextual} ${chunk.content}`
           }
           const embedding = await generateLocalEmbedding(embedText)
           prepared.push({
@@ -306,6 +543,14 @@ export async function ingestDocumentChunks(
             content: chunk.content,
             tokens: chunk.tokens,
             kind: chunk.kind,
+            // Tables/equations get the retrieval description as their prefix so
+            // the FTS tsvector also covers headers, notable values and symbols.
+            contextPrefix:
+              chunk.kind === "table"
+                ? `${contextual} ${describeTableChunk(chunk.content, contextHeading)}`
+                : chunk.kind === "equation"
+                ? `${contextual} ${describeEquationChunk(chunk.content, contextHeading)}`
+                : contextual,
             embeddingStr: `[${embedding.join(",")}]`,
           })
           if (GRAPH_RAG_ENABLED && chunk.content.length >= GRAPH_EXTRACTION_MIN_CHARS) {
@@ -328,10 +573,10 @@ export async function ingestDocumentChunks(
       for (let i = 0; i < prepared.length; i += INSERT_BATCH) {
         const slice = prepared.slice(i, i + INSERT_BATCH)
         const values = slice.map(
-          (c) => Prisma.sql`(gen_random_uuid(), ${workspaceId}, ${documentId}, ${c.heading}, ${c.content}, ${c.tokens}, ${c.embeddingStr}::vector, NOW(), ${c.kind})`
+          (c) => Prisma.sql`(gen_random_uuid(), ${workspaceId}, ${documentId}, ${c.heading}, ${c.content}, ${c.tokens}, ${c.embeddingStr}::vector, NOW(), ${c.kind}, ${c.contextPrefix})`
         )
         await tx.$executeRaw`
-          INSERT INTO "DocumentChunk" (id, "workspaceId", "documentId", heading, content, tokens, embedding, "createdAt", kind)
+          INSERT INTO "DocumentChunk" (id, "workspaceId", "documentId", heading, content, tokens, embedding, "createdAt", kind, "contextPrefix")
           VALUES ${Prisma.join(values)}
         `
         chunksCreated += slice.length

@@ -180,3 +180,44 @@ export function indent(s: string, n = 2): string {
     .map((l) => (l ? pad + l : l))
     .join("\n")
 }
+
+// ---------------------------------------------------------------------------
+// Height-unit ↔ character budget conversion (first-pass layout budgeting)
+// ---------------------------------------------------------------------------
+// estimateHeight's model costs prose at 14u per ~60 characters and each bullet
+// at BULLET_UNIT (10u) plus its text. The auto-fill API needs the inverse
+// mapping: given a card's height budget in units, how many characters of
+// bullet text may the model produce? Keeping the coefficients here — next to
+// estimateHeight itself — guarantees the two directions can never diverge.
+
+/** Height units per character of prose (inverse of 60 chars / 14u). */
+export const HEIGHT_UNITS_PER_CHAR = 14 / 60
+/** Characters of prose per height unit. */
+export const CHARS_PER_HEIGHT_UNIT = 60 / 14
+
+/**
+ * Converts a height budget (units) minus fixed non-text costs into a maximum
+ * character count for the AI text budget.
+ *
+ * @param budgetUnits   Total height budget for the card (units of estimateHeight).
+ * @param reservedUnits Height already spent on non-text parts (figures, tables,
+ *                      block chrome). Defaults to 0; pass estimateHeightBreakdown(card)
+ *                      fields to exclude them from the text budget.
+ * @returns Character budget; never negative.
+ */
+export function heightUnitsToCharacters(budgetUnits: number, reservedUnits = 0): number {
+  if (!Number.isFinite(budgetUnits) || budgetUnits <= 0) return 0
+  const textUnits = budgetUnits - Math.max(0, reservedUnits)
+  if (textUnits <= 0) return 0
+  return Math.floor(textUnits * CHARS_PER_HEIGHT_UNIT)
+}
+
+/**
+ * Inverse of heightUnitsToCharacters: how many height units a character count
+ * of prose text will occupy (bullet chrome NOT included — add BULLET_UNIT per
+ * bullet when composing a full estimate).
+ */
+export function charactersToHeightUnits(chars: number): number {
+  if (!Number.isFinite(chars) || chars <= 0) return 0
+  return Math.ceil(chars * HEIGHT_UNITS_PER_CHAR)
+}
