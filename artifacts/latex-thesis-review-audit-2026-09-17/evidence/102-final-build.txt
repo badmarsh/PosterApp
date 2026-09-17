@@ -1,0 +1,116 @@
+
+> posterapp@0.2.0 build /home/user/PosterApp
+> cross-env NODE_OPTIONS="--max-old-space-size=8192" next build
+
+▲ Next.js 16.2.11 (Turbopack)
+- Experiments (use with caution):
+  · proxyClientMaxBodySize: "210mb"
+  · serverActions
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 46s
+  Running TypeScript ...
+  Finished TypeScript in 28.0s ...
+  Collecting page data using 1 worker ...
+◇ injected env (0) from .env.local // tip: ⌘ override existing { override: true }
+◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+◇ injected env (0) from .env.local // tip: ⌘ override existing { override: true }
+◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+  Generating static pages using 1 worker (0/13) ...
+  Generating static pages using 1 worker (3/13) 
+  Generating static pages using 1 worker (6/13) 
+  Generating static pages using 1 worker (9/13) 
+✓ Generating static pages using 1 worker (13/13) in 576ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/academic/search
+├ ƒ /api/agent-keys
+├ ƒ /api/agent-keys/[id]
+├ ƒ /api/agent-keys/audit
+├ ƒ /api/agent-keys/changes
+├ ƒ /api/agent/manifest
+├ ƒ /api/agent/mcp
+├ ƒ /api/agent/workspaces
+├ ƒ /api/agent/workspaces/[id]
+├ ƒ /api/agent/workspaces/[id]/assets
+├ ƒ /api/agent/workspaces/[id]/assets/[assetId]
+├ ƒ /api/agent/workspaces/[id]/bibliography
+├ ƒ /api/agent/workspaces/[id]/bibliography/[entryId]
+├ ƒ /api/agent/workspaces/[id]/cards
+├ ƒ /api/agent/workspaces/[id]/cards/[cardId]
+├ ƒ /api/agent/workspaces/[id]/compile
+├ ƒ /api/agent/workspaces/[id]/compile/[jobId]
+├ ƒ /api/agent/workspaces/[id]/ingestion
+├ ƒ /api/agent/workspaces/[id]/rag/query
+├ ƒ /api/agent/workspaces/[id]/review
+├ ƒ /api/agent/workspaces/[id]/review/latest
+├ ƒ /api/agent/workspaces/[id]/snapshot
+├ ƒ /api/ingestion/image-edit
+├ ƒ /api/ingestion/import-url
+├ ƒ /api/ingestion/parse
+├ ƒ /api/system/settings
+├ ƒ /api/workspaces
+├ ƒ /api/workspaces/[id]
+├ ƒ /api/workspaces/[id]/agent-changes
+├ ƒ /api/workspaces/[id]/agent-changes/[changeId]/approve
+├ ƒ /api/workspaces/[id]/agent-changes/[changeId]/reject
+├ ƒ /api/workspaces/[id]/assets
+├ ƒ /api/workspaces/[id]/assets/[...filename]
+├ ƒ /api/workspaces/[id]/assets/backfill-captions
+├ ƒ /api/workspaces/[id]/assets/upload
+├ ƒ /api/workspaces/[id]/autofix-compile
+├ ƒ /api/workspaces/[id]/bib
+├ ƒ /api/workspaces/[id]/bib/lookup
+├ ƒ /api/workspaces/[id]/bib/suggest
+├ ƒ /api/workspaces/[id]/cards/[cardId]
+├ ƒ /api/workspaces/[id]/cards/[cardId]/generate
+├ ƒ /api/workspaces/[id]/cards/[cardId]/shrink
+├ ƒ /api/workspaces/[id]/cards/convert
+├ ƒ /api/workspaces/[id]/chat
+├ ƒ /api/workspaces/[id]/collaboration-ticket
+├ ƒ /api/workspaces/[id]/compile
+├ ƒ /api/workspaces/[id]/deerflow/estimate
+├ ƒ /api/workspaces/[id]/deerflow/runs
+├ ƒ /api/workspaces/[id]/deerflow/runs/[runId]
+├ ƒ /api/workspaces/[id]/deerflow/runs/[runId]/apply
+├ ƒ /api/workspaces/[id]/deerflow/runs/[runId]/stream
+├ ƒ /api/workspaces/[id]/deerflow/threads
+├ ƒ /api/workspaces/[id]/deerflow/threads/[threadId]
+├ ƒ /api/workspaces/[id]/equations
+├ ƒ /api/workspaces/[id]/export
+├ ƒ /api/workspaces/[id]/history
+├ ƒ /api/workspaces/[id]/history/[snapId]
+├ ƒ /api/workspaces/[id]/ingest-files/[fileId]
+├ ƒ /api/workspaces/[id]/members
+├ ƒ /api/workspaces/[id]/ocr
+├ ƒ /api/workspaces/[id]/pdf
+├ ƒ /api/workspaces/[id]/qr
+├ ƒ /api/workspaces/[id]/review
+├ ƒ /api/workspaces/[id]/review-layout
+├ ƒ /api/workspaces/[id]/structure/generate
+├ ƒ /api/workspaces/[id]/thesis-review
+├ ƒ /api/workspaces/[id]/thesis-review/[reviewId]
+├ ƒ /api/workspaces/[id]/thesis-review/[reviewId]/export
+├ ƒ /api/workspaces/[id]/thesis-review/[reviewId]/regenerate-criterion
+├ ƒ /api/workspaces/[id]/thesis-review/analysis-plan
+├ ƒ /api/workspaces/[id]/thesis-review/build-communities
+├ ƒ /api/workspaces/[id]/thesis-review/chunks
+├ ƒ /api/workspaces/[id]/thesis-review/citation-network
+├ ƒ /api/workspaces/[id]/thesis-review/jobs/[jobId]
+├ ƒ /api/workspaces/[id]/thesis-review/jobs/[jobId]/stream
+├ ƒ /api/workspaces/[id]/thesis-review/novelty
+├ ƒ /api/workspaces/[id]/thesis-review/rag-stats
+├ ƒ /api/workspaces/[id]/thesis-review/reindex
+├ ƒ /api/workspaces/[id]/thesis-review/source-document
+├ ƒ /sign-in/[[...sign-in]]
+└ ƒ /sign-up/[[...sign-up]]
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

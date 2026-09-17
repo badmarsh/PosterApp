@@ -1,0 +1,11 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.9 [39m[90m/home/user/PosterApp[39m
+
+ [32m✓[39m lib/latex/__tests__/layout-budget.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/validation.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m2 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m26 passed[39m[22m[90m (26)[39m
+[2m   Start at [22m 20:06:09
+[2m   Duration [22m 427ms[2m (transform 107ms, setup 0ms, import 137ms, tests 21ms, environment 0ms)[22m
+

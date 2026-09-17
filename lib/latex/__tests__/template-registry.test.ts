@@ -57,9 +57,13 @@ describe("Template registry", () => {
         id: "out_1", outputType: t.outputType, templateId: t.id, title: "Doc Title", cards,
       } as never)
 
-      expect(tex).toContain("\\documentclass")
-      expect(tex).toContain("\\begin{document}")
-      expect(tex).toContain("\\end{document}")
+      // A valid control sequence starts with exactly one backslash. A previous
+      // regression emitted `\\\\documentclass` from several templates; the
+      // loose toContain check below matched at its second slash and missed it.
+      expect(tex).toMatch(/^\\documentclass(?:\[[^\n]*\])?\{[^}]+\}$/m)
+      expect(tex).toMatch(/^\\begin\{document\}$/m)
+      expect(tex).toMatch(/^\\end\{document\}$/m)
+      expect(tex).not.toMatch(/^\\\\(?:documentclass|usepackage|begin|end|title|author)/m)
       // Braces must balance, or the compile aborts.
       const open = (tex.match(/(?<!\\)\{/g) ?? []).length
       const close = (tex.match(/(?<!\\)\}/g) ?? []).length

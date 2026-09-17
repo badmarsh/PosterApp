@@ -53,7 +53,12 @@ import {
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { StatusIcon } from "@/components/status"
-import { columnBudgetFor, estimateHeight, generateFullTemplate } from "@/lib/latex"
+import {
+  columnBudgetFor,
+  estimateHeight,
+  estimatePosterColumnOccupancy,
+  generateFullTemplate,
+} from "@/lib/latex"
 import type { Card, ColumnIndex, OutputConfig, Project } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 import { apiFetch } from "@/lib/api-fetch"
@@ -932,8 +937,9 @@ function PosterColumn({ column }: { column: ColumnIndex }) {
   const cards = (activeOut?.cards ?? [])
     .filter((c) => c.column === column)
     .sort((a, b) => a.order - b.order)
-  const total = cards.reduce((s, c) => s + estimateHeight(c), 0)
-  const pct = Math.round((total / columnBudgetFor(activeOut?.templateId)) * 100)
+  const occupancy = estimatePosterColumnOccupancy(activeOut?.cards ?? [], activeOut?.templateId)
+    .find((result) => result.column === column)!
+  const pct = Math.round((occupancy.estimatedHeight / occupancy.budget) * 100)
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">

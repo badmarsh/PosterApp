@@ -1,0 +1,2 @@
+els "\\documentclass[preprint,12pt]{elsarticle}"
+land "\\documentclass[a0paper,landscape, blockverticalspace=2em, colspace=2em]{tikzposter}"

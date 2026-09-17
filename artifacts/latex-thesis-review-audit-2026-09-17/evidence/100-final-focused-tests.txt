@@ -1,0 +1,44 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.9 [39m[90m/home/user/PosterApp[39m
+
+ [32m✓[39m lib/__tests__/professional-mode-default.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 257[2mms[22m[39m
+ [32m✓[39m __tests__/lib/docx-confidential.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 171[2mms[22m[39m
+[90mstderr[2m | lib/__tests__/phd-enrichment-institution.test.ts[2m > [22m[2mTask 6: Institution-aware PhD enrichment (sk/cs/en)[2m > [22m[2mskips statutory clause for non-Slovak/Czech institutions
+[22m[39m[review-engine] section routing failed, using manuscript prefix: Cannot read properties of undefined (reading 'includes')
+
+[90mstderr[2m | lib/__tests__/phd-enrichment-institution.test.ts[2m > [22m[2mTask 6: Institution-aware PhD enrichment (sk/cs/en)[2m > [22m[2mincludes Slovak clause for Slovak institutions
+[22m[39m[review-engine] section routing failed, using manuscript prefix: Cannot read properties of undefined (reading 'includes')
+
+[90mstderr[2m | lib/__tests__/phd-enrichment-institution.test.ts[2m > [22m[2mTask 6: Institution-aware PhD enrichment (sk/cs/en)[2m > [22m[2mincludes Czech clause for Czech institutions
+[22m[39m[review-engine] section routing failed, using manuscript prefix: Cannot read properties of undefined (reading 'includes')
+
+[90mstderr[2m | lib/__tests__/phd-enrichment-institution.test.ts[2m > [22m[2mTask 6: Institution-aware PhD enrichment (sk/cs/en)[2m > [22m[2mdoes not apply thesis grading or PhD enrichment to a scientific paper
+[22m[39m[review-engine] section routing failed, using manuscript prefix: Cannot read properties of undefined (reading 'includes')
+
+[90mstderr[2m | lib/__tests__/phd-enrichment-institution.test.ts[2m > [22m[2mTask 6: Institution-aware PhD enrichment (sk/cs/en)[2m > [22m[2mincludes Slovak clause for sk language regardless of institution
+[22m[39m[review-engine] section routing failed, using manuscript prefix: Cannot read properties of undefined (reading 'includes')
+
+ [32m✓[39m lib/__tests__/phd-enrichment-institution.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 215[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/template-registry.test.ts [2m([22m[2m38 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/generator-thesis-review.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m lib/__tests__/review-composer.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m lib/__tests__/academic-checks.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/layout-budget.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/figure-generation.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+[90mstdout[2m | lib/__tests__/vector-rag-pipeline.test.ts
+[22m[39m◇ injected env (0) from .env.local // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+ [32m✓[39m lib/__tests__/vector-rag-pipeline.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m __tests__/api/workspace-isolation.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/parser.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m lib/__tests__/review-engine-grading.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/generator.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m lib/__tests__/evidence-validator.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m lib/latex/__tests__/encoding-preamble.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m16 passed[39m[22m[90m (16)[39m
+[2m      Tests [22m [1m[32m214 passed[39m[22m[90m (214)[39m
+[2m   Start at [22m 21:07:43
+[2m   Duration [22m 4.96s[2m (transform 716ms, setup 0ms, import 1.90s, tests 861ms, environment 2ms)[22m
+

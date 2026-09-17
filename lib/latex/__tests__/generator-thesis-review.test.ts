@@ -80,6 +80,36 @@ describe("Thesis Review LaTeX Generator", () => {
     expect(tex).toContain("\\ratingsymbol{A}")
   })
 
+  it("uses peer-review terminology and suppresses thesis grading for papers", () => {
+    const tex = generateThesisReviewLatex({
+      reviewKind: "paper",
+      studentName: "Jane Researcher",
+      thesisTitle: "A Reproducible Scientific Result",
+      thesisType: "master",
+      reviewerRole: "reviewer",
+      grade: "A",
+      recommendation: "Major revisions",
+      sections: [{
+        id: "s1",
+        sectionId: "methodology",
+        criterionId: "methodology",
+        text: "The protocol requires clarification.",
+        rating: "C",
+        suggestions: [],
+      }],
+      defenseQuestions: ["How was the protocol preregistered?"],
+      citationIssues: [],
+      language: "en",
+      template: "posudok-en",
+    })
+
+    expect(tex).toContain("SCIENTIFIC PAPER PEER REVIEW")
+    expect(tex).toContain("QUESTIONS FOR THE AUTHORS")
+    expect(tex).toContain("PUBLICATION RECOMMENDATION")
+    expect(tex).toContain("AI Assistance Disclosure")
+    expect(tex).not.toMatch(/THESIS ASSESSMENT|Thesis title|Proposed grade|DEFENSE QUESTIONS|\\ratingsymbol\{[AC]\}/)
+  })
+
   it("generates English review with English header and labels", () => {
     const tex = generateThesisReviewLatex({
       studentName: "John Doe",

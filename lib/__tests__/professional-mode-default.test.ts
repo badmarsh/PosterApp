@@ -3,7 +3,11 @@ import { extractDocumentStructure } from "@/lib/ai/document-understanding"
 import { checkObjectiveAlignment, auditCitationConsistency } from "@/lib/ai/academic-checks"
 import { buildPreGenerationGrounding } from "@/lib/ai/review-engine"
 import { RUBRIC_CRITERIA_MAP } from "@/lib/ai/rubric-engine"
-import { shouldUseProfessionalMode } from "@/lib/ai/thesis-review-policy"
+import {
+  shouldApplyEctsGrading,
+  shouldRunPhdEnrichment,
+  shouldUseProfessionalMode,
+} from "@/lib/ai/thesis-review-policy"
 
 describe("Task 11: shouldUseProfessionalMode and Path A defaults", () => {
   describe("shouldUseProfessionalMode: auto-elevation rules", () => {
@@ -44,6 +48,21 @@ describe("Task 11: shouldUseProfessionalMode and Path A defaults", () => {
     it("forces professionalMode to true when reviewerRole is self", () => {
       expect(shouldUseProfessionalMode(false, "thesis", "none", "bachelor", "self")).toBe(true)
       expect(shouldUseProfessionalMode(undefined, undefined, undefined, undefined, "self")).toBe(true)
+    })
+  })
+
+  describe("paper/thesis outcome separation", () => {
+    it("applies ECTS only to non-self thesis reviews", () => {
+      expect(shouldApplyEctsGrading("thesis", "opponent")).toBe(true)
+      expect(shouldApplyEctsGrading("thesis", "self")).toBe(false)
+      expect(shouldApplyEctsGrading("paper", "reviewer")).toBe(false)
+      expect(shouldApplyEctsGrading("grant", "reviewer")).toBe(false)
+    })
+
+    it("never runs PhD enrichment merely because a paper request carries phd metadata", () => {
+      expect(shouldRunPhdEnrichment("thesis", "phd", "opponent")).toBe(true)
+      expect(shouldRunPhdEnrichment("paper", "phd", "opponent")).toBe(false)
+      expect(shouldRunPhdEnrichment("thesis", "master", "opponent")).toBe(false)
     })
   })
 

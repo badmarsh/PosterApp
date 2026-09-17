@@ -7,6 +7,22 @@
 // Starting value; needs empirical tuning
 export const AUTO_APPLY_CONFIDENCE_THRESHOLD = 0.8
 
+type ReviewKind = "thesis" | "paper" | "grant" | undefined
+
+/** ECTS ratings and thesis-level checks never apply to journal/conference peer review. */
+export function shouldApplyEctsGrading(reviewKind: ReviewKind, reviewerRole?: string): boolean {
+  return (reviewKind === "thesis" || reviewKind === undefined) && reviewerRole !== "self"
+}
+
+/** Doctoral enrichment is meaningful only for an actual doctoral thesis opponent review. */
+export function shouldRunPhdEnrichment(
+  reviewKind: ReviewKind,
+  thesisType?: "bachelor" | "master" | "phd",
+  reviewerRole?: string,
+): boolean {
+  return (reviewKind === "thesis" || reviewKind === undefined) && thesisType === "phd" && reviewerRole === "opponent"
+}
+
 export function shouldUseProfessionalMode(
   professionalMode: boolean | undefined,
   reviewKind: "thesis" | "paper" | "grant" | undefined,

@@ -112,4 +112,21 @@ describe("DOCX generator — confidential comments separation (regression)", () 
     const xml = await getDocXml(blob)
     expect(xml).not.toContain(CONFIDENTIAL_TEXT)
   })
+
+  it("uses paper terminology, suppresses grades, and discloses AI assistance", async () => {
+    const blob = await generateThesisReviewDocx({
+      ...mockReview,
+      reviewKind: "paper",
+      reviewerRole: "reviewer",
+      recommendation: "major_revisions",
+    })
+    const xml = await getDocXml(blob)
+
+    expect(xml).toContain("ODBORNÁ RECENZIA VEDECKÉHO ČLÁNKU")
+    expect(xml).toContain("Publikačné odporúčanie")
+    expect(xml).toContain("Otázky pre autorov")
+    expect(xml).toContain("AI Assistance Disclosure")
+    expect(xml).not.toContain("Klasifikácia / Grade")
+    expect(xml).not.toContain("Otázky k obhajobe")
+  })
 })

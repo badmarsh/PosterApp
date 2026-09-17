@@ -42,9 +42,10 @@ export function reportLanguageFor(template: ThesisReviewTemplate): ReportLanguag
   return TEMPLATE_TO_LANG[template] ?? "sk"
 }
 
-export function getThesisReviewPreamble(template: ThesisReviewTemplate): string {
+export function getThesisReviewPreamble(template: ThesisReviewTemplate, runningTitle?: string): string {
   const lang = reportLanguageFor(template)
   const labels = THESIS_REVIEW_LABELS[lang]
+  const headerTitle = runningTitle ?? labels.title
 
   const babel: Record<ReportLanguage, string> = {
     sk: "\\usepackage[slovak]{babel}",
@@ -86,7 +87,7 @@ ${babel[lang]}
 \\pagestyle{fancy}
 \\fancyhf{}
 \\rhead{\\small\\thepage\\ / \\pageref{LastPage}}
-\\lhead{\\small ${labels.title}}
+\\lhead{\\small ${headerTitle}}
 \\renewcommand{\\headrulewidth}{0.4pt}
 
 %% Custom commands

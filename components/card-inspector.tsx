@@ -975,7 +975,8 @@ function ValidationTab({ card }: { card: Card }) {
     )
   }
 
-  const msgs = validateCard(card, project.outputs?.find((o) => o.id === project.activeOutputId)?.templateId)
+  const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
+  const msgs = validateCard(card, activeOutput?.templateId, activeOutput?.cards)
   const level = levelFromMessages(msgs)
   const safety = msgs.filter((m) => m.message.includes("LaTeX"))
   const overflow = msgs.filter((m) => m.message.includes("height"))

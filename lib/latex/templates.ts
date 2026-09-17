@@ -622,25 +622,25 @@ export function getElsarticleTemplate(project: Project): string {
   const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside an Elsevier elsarticle document.
-% Use standard \\\\section{}, \\\\subsection{} commands.
-% Figures use \\\\begin{figure}[htbp]; this is a single-column layout.
-\\\\documentclass[preprint,12pt]{elsarticle}
-\\\\usepackage[utf8]{inputenc}
-\\\\usepackage{graphicx}
-\\\\usepackage{amsmath}
-\\\\usepackage{amssymb}
-\\\\usepackage{booktabs}
+% Use standard \\section{}, \\subsection{} commands.
+% Figures use \\begin{figure}[htbp]; this is a single-column layout.
+\\documentclass[preprint,12pt]{elsarticle}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{booktabs}
 
 ${FITMATH_MACRO}
 
-\\\\journal{${venue || "Preprint submitted to Elsevier"}}
+\\journal{${venue || "Preprint submitted to Elsevier"}}
 
-\\\\begin{document}
+\\begin{document}
 
-\\\\begin{frontmatter}
-\\\\title{${title}}
-\\\\author{${authors}}
-\\\\end{frontmatter}
+\\begin{frontmatter}
+\\title{${title}}
+\\author{${authors}}
+\\end{frontmatter}
 `
 }
 
@@ -652,21 +652,21 @@ export function getRevtexTemplate(project: Project): string {
   const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside an APS REVTeX 4.2 two-column document.
-% Use standard \\\\section{}, \\\\subsection{} commands.
-% For wide figures spanning both columns use \\\\begin{figure*} ... \\\\end{figure*}.
-\\\\documentclass[reprint,amsmath,amssymb,aps,prd]{revtex4-2}
-\\\\usepackage{graphicx}
-\\\\usepackage{booktabs}
+% Use standard \\section{}, \\subsection{} commands.
+% For wide figures spanning both columns use \\begin{figure*} ... \\end{figure*}.
+\\documentclass[reprint,amsmath,amssymb,aps,prd]{revtex4-2}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
 
 ${FITMATH_MACRO}
 
-\\\\begin{document}
+\\begin{document}
 
-\\\\title{${title}}
-\\\\author{${authors}}
-\\\\affiliation{${venue}}
+\\title{${title}}
+\\author{${authors}}
+\\affiliation{${venue}}
 
-\\\\maketitle
+\\maketitle
 `
 }
 
@@ -678,23 +678,23 @@ export function getEpjWocTemplate(project: Project): string {
   const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside an EPJ Web of Conferences document.
-% Use standard \\\\section{}, \\\\subsection{} commands.
-\\\\documentclass[option]{webofc}
-\\\\usepackage[varg]{txfonts}
-\\\\usepackage{graphicx}
-\\\\usepackage{booktabs}
+% Use standard \\section{}, \\subsection{} commands.
+\\documentclass[option]{webofc}
+\\usepackage[varg]{txfonts}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
 
 ${FITMATH_MACRO}
 
-\\\\begin{document}
+\\begin{document}
 
-\\\\title{${title}}
-\\\\author{\\\\firstname{} \\\\lastname{${authors}}\\\\inst{1}\\\\fnsep\\\\thanks{\\\\email{}}}
-\\\\institute{${venue}}
+\\title{${title}}
+\\author{\\firstname{} \\lastname{${authors}}\\inst{1}\\fnsep\\thanks{\\email{}}}
+\\institute{${venue}}
 
-\\\\abstract{%
+\\abstract{%
 }
-\\\\maketitle
+\\maketitle
 `
 }
 
@@ -706,21 +706,21 @@ export function getIopartTemplate(project: Project): string {
   const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside an IOP iopart document.
-% Use standard \\\\section{}, \\\\subsection{} commands.
-\\\\documentclass[12pt]{iopart}
-\\\\usepackage{graphicx}
-\\\\usepackage{amsmath}
-\\\\usepackage{booktabs}
+% Use standard \\section{}, \\subsection{} commands.
+\\documentclass[12pt]{iopart}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{booktabs}
 
 ${FITMATH_MACRO}
 
-\\\\begin{document}
+\\begin{document}
 
-\\\\title{${title}}
-\\\\author{${authors}}
-\\\\address{${venue}}
+\\title{${title}}
+\\author{${authors}}
+\\address{${venue}}
 
-\\\\maketitle
+\\maketitle
 `
 }
 
@@ -736,24 +736,24 @@ export function getNeurIPSTemplate(project: Project): string {
   const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside a NeurIPS document (single column).
-% Use standard \\\\section{}, \\\\subsection{} commands.
-% Figures use \\\\begin{figure}[htbp]; do NOT use figure* (single-column layout).
-\\\\documentclass{article}
-\\\\usepackage[final]{neurips_2026}
-\\\\usepackage[utf8]{inputenc}
-\\\\usepackage[T1]{fontenc}
-\\\\usepackage{graphicx}
-\\\\usepackage{amsmath}
-\\\\usepackage{amssymb}
-\\\\usepackage{booktabs}
+% Use standard \\section{}, \\subsection{} commands.
+% Figures use \\begin{figure}[htbp]; do NOT use figure* (single-column layout).
+\\documentclass{article}
+\\usepackage[final]{neurips_2026}
+\\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{booktabs}
 
 ${FITMATH_MACRO}
 
-\\\\title{${title}}
-\\\\author{${authors}\\\\\\\\ ${venue}}
+\\title{${title}}
+\\author{${authors}\\\\ ${venue}}
 
-\\\\begin{document}
-\\\\maketitle
+\\begin{document}
+\\maketitle
 `
 }
 
@@ -764,31 +764,31 @@ export function getICMLTemplate(project: Project): string {
   const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside an ICML two-column document.
-% Use standard \\\\section{}, \\\\subsection{} commands.
-% For wide figures spanning both columns use \\\\begin{figure*} ... \\\\end{figure*}.
-\\\\documentclass{article}
-\\\\usepackage[accepted]{icml2026}
-\\\\usepackage[utf8]{inputenc}
-\\\\usepackage[T1]{fontenc}
-\\\\usepackage{graphicx}
-\\\\usepackage{amsmath}
-\\\\usepackage{amssymb}
-\\\\usepackage{booktabs}
+% Use standard \\section{}, \\subsection{} commands.
+% For wide figures spanning both columns use \\begin{figure*} ... \\end{figure*}.
+\\documentclass{article}
+\\usepackage[accepted]{icml2026}
+\\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{booktabs}
 
 ${FITMATH_MACRO}
 
-\\\\icmltitlerunning{${title}}
+\\icmltitlerunning{${title}}
 
-\\\\begin{document}
+\\begin{document}
 
-\\\\twocolumn[
-\\\\icmltitle{${title}}
-\\\\icmlsetsymbol{equal}{*}
-\\\\begin{icmlauthorlist}
-\\\\icmlauthor{${authors}}{inst1}
-\\\\end{icmlauthorlist}
-\\\\icmlaffiliation{inst1}{${venue}}
-\\\\vskip 0.3in
+\\twocolumn[
+\\icmltitle{${title}}
+\\icmlsetsymbol{equal}{*}
+\\begin{icmlauthorlist}
+\\icmlauthor{${authors}}{inst1}
+\\end{icmlauthorlist}
+\\icmlaffiliation{inst1}{${venue}}
+\\vskip 0.3in
 ]
 `
 }
@@ -800,23 +800,23 @@ export function getICLRTemplate(project: Project): string {
   const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside an ICLR document (single column).
-% Use standard \\\\section{}, \\\\subsection{} commands.
-% Figures use \\\\begin{figure}[htbp]; do NOT use figure* (single-column layout).
-\\\\documentclass{article}
-\\\\usepackage{iclr2026_conference,times}
-\\\\usepackage[utf8]{inputenc}
-\\\\usepackage{graphicx}
-\\\\usepackage{amsmath}
-\\\\usepackage{amssymb}
-\\\\usepackage{booktabs}
+% Use standard \\section{}, \\subsection{} commands.
+% Figures use \\begin{figure}[htbp]; do NOT use figure* (single-column layout).
+\\documentclass{article}
+\\usepackage{iclr2026_conference,times}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{booktabs}
 
 ${FITMATH_MACRO}
 
-\\\\title{${title}}
-\\\\author{${authors}\\\\\\\\ ${venue}}
+\\title{${title}}
+\\author{${authors}\\\\ ${venue}}
 
-\\\\begin{document}
-\\\\maketitle
+\\begin{document}
+\\maketitle
 `
 }
 
@@ -827,24 +827,24 @@ export function getACLTemplate(project: Project): string {
   const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside an ACL two-column document.
-% Use standard \\\\section{}, \\\\subsection{} commands.
-% For wide figures spanning both columns use \\\\begin{figure*} ... \\\\end{figure*}.
-\\\\documentclass[11pt]{article}
-\\\\usepackage[final]{acl}
-\\\\usepackage[T1]{fontenc}
-\\\\usepackage[utf8]{inputenc}
-\\\\usepackage{graphicx}
-\\\\usepackage{amsmath}
-\\\\usepackage{booktabs}
-\\\\usepackage{microtype}
+% Use standard \\section{}, \\subsection{} commands.
+% For wide figures spanning both columns use \\begin{figure*} ... \\end{figure*}.
+\\documentclass[11pt]{article}
+\\usepackage[final]{acl}
+\\usepackage[T1]{fontenc}
+\\usepackage[utf8]{inputenc}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{booktabs}
+\\usepackage{microtype}
 
 ${FITMATH_MACRO}
 
-\\\\title{${title}}
-\\\\author{${authors} \\\\\\\\ ${venue}}
+\\title{${title}}
+\\author{${authors} \\\\ ${venue}}
 
-\\\\begin{document}
-\\\\maketitle
+\\begin{document}
+\\maketitle
 `
 }
 
@@ -856,24 +856,24 @@ export function getCVPRTemplate(project: Project): string {
   const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside a CVPR two-column document.
-% Use standard \\\\section{}, \\\\subsection{} commands.
-% For wide figures spanning both columns use \\\\begin{figure*} ... \\\\end{figure*}.
-\\\\documentclass[10pt,twocolumn,letterpaper]{article}
-\\\\usepackage[final]{cvpr}
-\\\\usepackage[utf8]{inputenc}
-\\\\usepackage[T1]{fontenc}
-\\\\usepackage{graphicx}
-\\\\usepackage{amsmath}
-\\\\usepackage{amssymb}
-\\\\usepackage{booktabs}
+% Use standard \\section{}, \\subsection{} commands.
+% For wide figures spanning both columns use \\begin{figure*} ... \\end{figure*}.
+\\documentclass[10pt,twocolumn,letterpaper]{article}
+\\usepackage[final]{cvpr}
+\\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{booktabs}
 
 ${FITMATH_MACRO}
 
-\\\\title{${title}}
-\\\\author{${authors}\\\\\\\\ ${venue}}
+\\title{${title}}
+\\author{${authors}\\\\ ${venue}}
 
-\\\\begin{document}
-\\\\maketitle
+\\begin{document}
+\\maketitle
 `
 }
 
@@ -885,30 +885,30 @@ export function getAAAITemplate(project: Project): string {
   const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside an AAAI two-column document.
-% Use standard \\\\section{}, \\\\subsection{} commands.
-% For wide figures spanning both columns use \\\\begin{figure*} ... \\\\end{figure*}.
+% Use standard \\section{}, \\subsection{} commands.
+% For wide figures spanning both columns use \\begin{figure*} ... \\end{figure*}.
 % NOTE: AAAI style forbids hyperref/geometry/fancyhdr — do not add them.
-\\\\documentclass[letterpaper]{article}
-\\\\usepackage{aaai2026}
-\\\\usepackage{times}
-\\\\usepackage{helvet}
-\\\\usepackage{courier}
-\\\\usepackage[hyphens]{url}
-\\\\usepackage{graphicx}
-\\\\usepackage{amsmath}
-\\\\usepackage{booktabs}
-\\\\urlstyle{rm}
-\\\\frenchspacing
-\\\\setlength{\\\\pdfpagewidth}{8.5in}
-\\\\setlength{\\\\pdfpageheight}{11in}
+\\documentclass[letterpaper]{article}
+\\usepackage{aaai2026}
+\\usepackage{times}
+\\usepackage{helvet}
+\\usepackage{courier}
+\\usepackage[hyphens]{url}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{booktabs}
+\\urlstyle{rm}
+\\frenchspacing
+\\setlength{\\pdfpagewidth}{8.5in}
+\\setlength{\\pdfpageheight}{11in}
 
 ${FITMATH_MACRO}
 
-\\\\title{${title}}
-\\\\author{${authors}\\\\\\\\ ${venue}}
+\\title{${title}}
+\\author{${authors}\\\\ ${venue}}
 
-\\\\begin{document}
-\\\\maketitle
+\\begin{document}
+\\maketitle
 `
 }
 
@@ -929,50 +929,50 @@ export function getLandscapeTemplate(project: Project, themeColor?: string): str
   const { title, authors, venue } = getMeta(project)
   return `
 % [AI-CONTEXT] You are inside a LANDSCAPE tikzposter poster template.
-% Use \\\\block{Title}{Content} for each card section.
-% Enclose blocks within \\\\column{width} commands (e.g. \\\\column{0.33}).
+% Use \\block{Title}{Content} for each card section.
+% Enclose blocks within \\column{width} commands (e.g. \\column{0.33}).
 % Columns are WIDER and SHORTER than portrait: prefer wide tables and
 % side-by-side figures; avoid very long single-column bullet runs.
-\\\\documentclass[a0paper,landscape, blockverticalspace=2em, colspace=2em]{tikzposter}
-\\\\tikzposterlatexaffectionproofoff
-\\\\usepackage{graphicx}
-\\\\usepackage{amsmath}
-\\\\usepackage{amssymb}
-\\\\usepackage{multicol}
-\\\\usetikzlibrary{calc}
+\\documentclass[a0paper,landscape, blockverticalspace=2em, colspace=2em]{tikzposter}
+\\tikzposterlatexaffectionproofoff
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{multicol}
+\\usetikzlibrary{calc}
 
 ${FITMATH_MACRO}
 
-\\\\newcommand{\\\\looseitems}{\\\\begin{itemize}\\\\setlength{\\\\itemsep}{0.3em}}
-\\\\newcommand{\\\\tightitems}{\\\\begin{itemize}\\\\setlength{\\\\itemsep}{0.15em}}
-\\\\newcommand{\\\\captiontext}[1]{#1}
+\\newcommand{\\looseitems}{\\begin{itemize}\\setlength{\\itemsep}{0.3em}}
+\\newcommand{\\tightitems}{\\begin{itemize}\\setlength{\\itemsep}{0.15em}}
+\\newcommand{\\captiontext}[1]{#1}
 
-\\\\usetheme{Default}
+\\usetheme{Default}
 
-\\\\definecolor{maincolor}{HTML}{2B4B9E}
-\\\\definecolor{secondarycolor}{RGB}{43, 75, 158}
-\\\\definecolor{lightblue}{RGB}{199, 215, 237}
+\\definecolor{maincolor}{HTML}{2B4B9E}
+\\definecolor{secondarycolor}{RGB}{43, 75, 158}
+\\definecolor{lightblue}{RGB}{199, 215, 237}
 ${override}
-\\\\definecolorstyle{landscapecolors}{
-    \\\\colorlet{backgroundcolor}{white}
-    \\\\colorlet{titlefgcolor}{white}
-    \\\\colorlet{titlebgcolor}{maincolor}
-    \\\\colorlet{blocktitlefgcolor}{white}
-    \\\\colorlet{blocktitlebgcolor}{maincolor}
-    \\\\colorlet{blockbodyfgcolor}{black}
-    \\\\colorlet{blockbodybgcolor}{lightblue!25}
+\\definecolorstyle{landscapecolors}{
+    \\colorlet{backgroundcolor}{white}
+    \\colorlet{titlefgcolor}{white}
+    \\colorlet{titlebgcolor}{maincolor}
+    \\colorlet{blocktitlefgcolor}{white}
+    \\colorlet{blocktitlebgcolor}{maincolor}
+    \\colorlet{blockbodyfgcolor}{black}
+    \\colorlet{blockbodybgcolor}{lightblue!25}
 }{}
-\\\\usecolorstyle{landscapecolors}
+\\usecolorstyle{landscapecolors}
 
-\\\\title{\\\\parbox{0.82\\\\linewidth}{\\\\centering\\\\huge
-    ${title}\\\\\\\\[1mm]
+\\title{\\parbox{0.82\\linewidth}{\\centering\\huge
+    ${title}\\\\[1mm]
     }}
-\\\\author{\\\\Large ${authors}}
-\\\\institute{\\\\normalsize ${venue}}
-\\\\date{}
+\\author{\\Large ${authors}}
+\\institute{\\normalsize ${venue}}
+\\date{}
 
-\\\\begin{document}
-\\\\maketitle
+\\begin{document}
+\\maketitle
 `
 }
 
@@ -994,45 +994,45 @@ export function getBetterPosterTemplate(project: Project, themeColor?: string): 
 % sentence in very large type. Keep it under ~140 characters.
 % Columns 1 and 3 are narrow supporting detail (methods, data, references)
 % and should use short bullets, not paragraphs.
-\\\\documentclass[a0paper,landscape, blockverticalspace=2em, colspace=1.5em]{tikzposter}
-\\\\tikzposterlatexaffectionproofoff
-\\\\usepackage{graphicx}
-\\\\usepackage{amsmath}
-\\\\usepackage{amssymb}
-\\\\usepackage{multicol}
-\\\\usetikzlibrary{calc}
+\\documentclass[a0paper,landscape, blockverticalspace=2em, colspace=1.5em]{tikzposter}
+\\tikzposterlatexaffectionproofoff
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{multicol}
+\\usetikzlibrary{calc}
 
 ${FITMATH_MACRO}
 
-\\\\newcommand{\\\\looseitems}{\\\\begin{itemize}\\\\setlength{\\\\itemsep}{0.3em}}
-\\\\newcommand{\\\\tightitems}{\\\\begin{itemize}\\\\setlength{\\\\itemsep}{0.15em}}
-\\\\newcommand{\\\\captiontext}[1]{#1}
+\\newcommand{\\looseitems}{\\begin{itemize}\\setlength{\\itemsep}{0.3em}}
+\\newcommand{\\tightitems}{\\begin{itemize}\\setlength{\\itemsep}{0.15em}}
+\\newcommand{\\captiontext}[1]{#1}
 
-\\\\usetheme{Default}
+\\usetheme{Default}
 
-\\\\definecolor{maincolor}{HTML}{1F2937}
-\\\\definecolor{secondarycolor}{RGB}{31, 41, 55}
-\\\\definecolor{lightblue}{RGB}{243, 244, 246}
+\\definecolor{maincolor}{HTML}{1F2937}
+\\definecolor{secondarycolor}{RGB}{31, 41, 55}
+\\definecolor{lightblue}{RGB}{243, 244, 246}
 ${override}
-\\\\definecolorstyle{bettercolors}{
-    \\\\colorlet{backgroundcolor}{white}
-    \\\\colorlet{titlefgcolor}{white}
-    \\\\colorlet{titlebgcolor}{maincolor}
-    \\\\colorlet{blocktitlefgcolor}{maincolor}
-    \\\\colorlet{blocktitlebgcolor}{white}
-    \\\\colorlet{blockbodyfgcolor}{black}
-    \\\\colorlet{blockbodybgcolor}{lightblue}
+\\definecolorstyle{bettercolors}{
+    \\colorlet{backgroundcolor}{white}
+    \\colorlet{titlefgcolor}{white}
+    \\colorlet{titlebgcolor}{maincolor}
+    \\colorlet{blocktitlefgcolor}{maincolor}
+    \\colorlet{blocktitlebgcolor}{white}
+    \\colorlet{blockbodyfgcolor}{black}
+    \\colorlet{blockbodybgcolor}{lightblue}
 }{}
-\\\\usecolorstyle{bettercolors}
+\\usecolorstyle{bettercolors}
 
-\\\\title{\\\\parbox{0.82\\\\linewidth}{\\\\centering\\\\huge
-    ${title}\\\\\\\\[1mm]
+\\title{\\parbox{0.82\\linewidth}{\\centering\\huge
+    ${title}\\\\[1mm]
     }}
-\\\\author{\\\\Large ${authors}}
-\\\\institute{\\\\normalsize ${venue}}
-\\\\date{}
+\\author{\\Large ${authors}}
+\\institute{\\normalsize ${venue}}
+\\date{}
 
-\\\\begin{document}
-\\\\maketitle
+\\begin{document}
+\\maketitle
 `
 }

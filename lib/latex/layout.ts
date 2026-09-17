@@ -74,7 +74,12 @@ const BULLET_UNIT = 10
 const TABLE_ROW_UNIT = 26
 
 export function estimateHeightBreakdown(card: Card): HeightBreakdown {
-  const chrome = 70 // title + block chrome
+  // Pattern containers such as Beamer columns have measurable overhead even
+  // when their textual contents are empty. Keep this in `chrome` so all
+  // existing consumers continue to receive a stable breakdown shape.
+  let chrome = 70 // title + block chrome
+  if (card.pattern === "two-column") chrome += 20
+  if (card.pattern === "title-slide") chrome += 30
 
   if (card.pattern === "references") {
     return { total: chrome + 150, chrome, prose: 0, bullets: 0, table: 0, figures: 150 }
@@ -86,15 +91,20 @@ export function estimateHeightBreakdown(card: Card): HeightBreakdown {
   const bullets = bulletCount * BULLET_UNIT
 
   let table = 0
-  if (card.pattern === "bullets-table") {
+  if (card.pattern === "bullets-table" || card.pattern === "section-table") {
     table = 30 + (Array.isArray(card.table?.rows) ? card.table.rows.length : 0) * TABLE_ROW_UNIT
   }
 
   let figures = 0
-  if (card.pattern === "bullets-image" || card.pattern === "image-focused") {
-    figures = card.pattern === "image-focused" ? 260 : 190
+  if (
+    card.pattern === "bullets-image" ||
+    card.pattern === "section-figure" ||
+    card.pattern === "figure-slide" ||
+    card.pattern === "image-focused"
+  ) {
+    figures = card.pattern === "image-focused" || card.pattern === "figure-slide" ? 260 : 190
   }
-  if (card.pattern === "bullets-two-images") figures = 150
+  if (card.pattern === "bullets-two-images" || card.pattern === "section-two-figures") figures = 150
 
   return {
     total: chrome + prose + bullets + table + figures,

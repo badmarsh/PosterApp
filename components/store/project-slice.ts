@@ -115,7 +115,8 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
   getStatus: (card) => {
     if (get().generatingIds.includes(card.id)) return "generating"
     if (card.validation === "pending") return "pending"
-    return levelFromMessages(validateCard(card, activeOutput(get().project)?.templateId))
+    const output = activeOutput(get().project)
+    return levelFromMessages(validateCard(card, output?.templateId, output?.cards))
   },
 
   updateProject: (patch) => set((s) => {
@@ -384,7 +385,8 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     const card = (activeOutput(get().project)?.cards ?? []).find((c) => c.id === id)
     if (!card) return
     const evId = get().pushEvent({ kind: "validate", status: "running", title: `Validating — ${id}` })
-    const msgs = validateCard(card, activeOutput(get().project)?.templateId)
+    const output = activeOutput(get().project)
+    const msgs = validateCard(card, output?.templateId, output?.cards)
     const level = levelFromMessages(msgs)
     window.setTimeout(() => {
       get().updateEvent(evId, {
@@ -403,7 +405,8 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     const workspaceId = get().project.id
     const card = (activeOutput(get().project)?.cards ?? []).find((c) => c.id === id)
     if (!card) return
-    const msgs = validateCard(card, activeOutput(get().project)?.templateId)
+    const output = activeOutput(get().project)
+    const msgs = validateCard(card, output?.templateId, output?.cards)
     if (levelFromMessages(msgs) === "invalid") {
       get().pushEvent({ kind: "generate", status: "error", title: `Generation blocked — ${id}`, detail: "Fix input errors first." })
       return
