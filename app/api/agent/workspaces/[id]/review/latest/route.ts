@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAgentKey, requireAgentWorkspaceAccess, AgentAuthError } from '@/lib/agent-auth'
+import { verifyAgentKey, requireScope, requireAgentWorkspaceAccess, AgentAuthError } from '@/lib/agent-auth'
 import { logToolCall } from '@/lib/agent-audit'
 import { prisma } from '@/lib/prisma'
 import { parseBibKeys, extractCiteKeys } from '@/lib/bib-parser'
+
+function parseJsonValue(value: string | null) {
+  if (!value) return null
+  try {
+    return JSON.parse(value)
+  } catch {
+    return null
+  }
+}
 
 export async function GET(
   req: NextRequest,
@@ -12,6 +21,7 @@ export async function GET(
   try {
     const { id } = await params
     const ctx = await verifyAgentKey(req)
+    requireScope(ctx, 'review:run')
     await requireAgentWorkspaceAccess(ctx, id, false)
 
     const workspace = await prisma.workspace.findUnique({
@@ -19,8 +29,19 @@ export async function GET(
       include: {
         outputs: { include: { cards: true } },
         thesisReviews: {
-          orderBy: { id: 'desc' },
+          orderBy: { createdAt: 'desc' },
           take: 1,
+          select: {
+            id: true,
+            reviewKind: true,
+            status: true,
+            suggestedGrade: true,
+            finalGrade: true,
+            recommendation: true,
+            defenseQuestions: true,
+            findings: true,
+            createdAt: true,
+          },
         },
       },
     })
@@ -50,6 +71,25 @@ export async function GET(
 
     const orphanCitations = bibKeys.filter((k) => !usedCitations.has(k))
 
+    const latestReview = workspace.thesisReviews[0]
+    const defenseQuestions = latestReview ? parseJsonValue(latestReview.defenseQuestions) : null
+    const findings = latestReview ? parseJsonValue(latestReview.findings) : null
+    // Keep the REST projection aligned with the canonical review.latest tool:
+    // no reviewer identity, confidential remarks, or raw finding narratives.
+    const safeLatestReview = latestReview
+      ? {
+          id: latestReview.id,
+          reviewKind: latestReview.reviewKind,
+          status: latestReview.status,
+          suggestedGrade: latestReview.suggestedGrade,
+          finalGrade: latestReview.finalGrade,
+          recommendation: latestReview.recommendation,
+          defenseQuestions,
+          findingsCount: Array.isArray(findings) ? findings.length : 0,
+          createdAt: latestReview.createdAt,
+        }
+      : null
+
     const result = {
       score: Math.max(0, 100 - missingCitations.length * 10),
       flaggedCards: flaggedCardIds,
@@ -58,7 +98,7 @@ export async function GET(
         missingCitations,
         orphanCitations,
       },
-      latestThesisReview: workspace.thesisReviews[0] || null,
+      latestThesisReview: safeLatestReview,
       checkedAt: new Date().toISOString(),
     }
 

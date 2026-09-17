@@ -4,6 +4,7 @@ import { verifyAgentKey, requireScope, requireAgentWorkspaceAccess, AgentAuthErr
 import { logToolCall } from '@/lib/agent-audit'
 import { searchHybrid } from '@/lib/ai/vector-rag'
 import { prisma } from '@/lib/prisma'
+import { resolveAgentRagDocumentIds } from '@/lib/agent-restrictions'
 import { z } from 'zod'
 
 const querySchema = z.object({
@@ -23,25 +24,42 @@ export async function POST(
     const ctx = await verifyAgentKey(req)
     requireScope(ctx, 'rag:query')
     await requireAgentWorkspaceAccess(ctx, id, false)
+    const rateLimit = await rateLimitAsync(`agent:${ctx.apiKeyId}:${id}:read`, 60, 60_000)
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded', retryAfterMs: rateLimit.retryAfterMs },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(rateLimit.retryAfterMs / 1000)) } }
+      )
+    }
 
     const raw = await req.json()
     const body = querySchema.parse(raw)
 
     let results: Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; similarity: number }> = []
+    const documentIds = await resolveAgentRagDocumentIds(id, ctx.restrictCardIds)
 
-    try {
-      results = await searchHybrid(id, body.query, body.topK)
-    } catch (searchErr) {
-      console.warn('[agent RAG] searchHybrid fallback to text search:', searchErr)
-      const fallbackChunks = await prisma.documentChunk.findMany({
-        where: {
-          workspaceId: id,
-          content: { contains: body.query, mode: 'insensitive' },
-        },
-        take: body.topK,
-        select: { id: true, heading: true, content: true, tokens: true, kind: true },
-      })
-      results = fallbackChunks.map((c) => ({ ...c, similarity: 0.75 }))
+    // A restricted key with no source IDs must not fall back to the complete
+    // workspace corpus when vector search is unavailable.
+    if (documentIds !== null && documentIds.length === 0) {
+      results = []
+    } else {
+      try {
+        results = await searchHybrid(id, body.query, body.topK, "STEM, Fyzika", undefined, {
+          documentIds: documentIds ?? undefined,
+        })
+      } catch (searchErr) {
+        console.warn('[agent RAG] searchHybrid fallback to text search:', searchErr)
+        const fallbackChunks = await prisma.documentChunk.findMany({
+          where: {
+            workspaceId: id,
+            ...(documentIds !== null ? { documentId: { in: documentIds } } : {}),
+            content: { contains: body.query, mode: 'insensitive' },
+          },
+          take: body.topK,
+          select: { id: true, heading: true, content: true, tokens: true, kind: true },
+        })
+        results = fallbackChunks.map((c) => ({ ...c, similarity: 0.75 }))
+      }
     }
 
     if (body.threshold > 0) {

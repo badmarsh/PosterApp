@@ -11,7 +11,7 @@ const createKeySchema = z.object({
   name: z.string().trim().min(1).max(64),
   scopes: z.array(z.string()).min(1),
   workspaceId: z.string().trim().nullable().optional(),
-  restrictCardIds: z.array(z.string()).optional().default([]),
+  restrictCardIds: z.array(z.string().trim().min(1)).max(1000).optional().default([]),
   expiresInDays: z.number().min(1).max(365).optional().default(30),
 })
 
@@ -75,6 +75,26 @@ export async function POST(req: NextRequest) {
           { status: 403 }
         )
       }
+
+      // A scoped restriction must never be allowed to reference a card from a
+      // different workspace. The same validation also makes launch-time
+      // restrictions deterministic instead of silently producing an empty key.
+      if (body.restrictCardIds.length > 0) {
+        const requestedCardIds = Array.from(new Set(body.restrictCardIds))
+        const cards = await prisma.card.findMany({
+          where: {
+            id: { in: requestedCardIds },
+            output: { workspaceId: body.workspaceId },
+          },
+          select: { id: true },
+        })
+        if (cards.length !== requestedCardIds.length) {
+          return NextResponse.json(
+            { error: "One or more restricted cards do not belong to the target workspace" },
+            { status: 400 }
+          )
+        }
+      }
     }
 
     // Generate secure random key: pa_<base64url> (§6)
@@ -88,7 +108,7 @@ export async function POST(req: NextRequest) {
         userId,
         scopes: body.scopes,
         workspaceId: body.workspaceId || null,
-        restrictCardIds: body.restrictCardIds,
+        restrictCardIds: Array.from(new Set(body.restrictCardIds)),
         expiresAt: body.expiresInDays
           ? new Date(Date.now() + body.expiresInDays * 86_400_000)
           : null,

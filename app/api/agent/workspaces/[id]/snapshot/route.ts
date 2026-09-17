@@ -19,10 +19,18 @@ export async function POST(
     }
     await requireAgentWorkspaceAccess(ctx, id, false)
 
+    const rateLimit = await rateLimitAsync(`agent:${ctx.apiKeyId}:${id}:job`, 10, 60_000)
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded', retryAfterMs: rateLimit.retryAfterMs },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(rateLimit.retryAfterMs / 1000)) } }
+      )
+    }
+
     const body = await req.json().catch(() => ({}))
     const reason = typeof body.reason === 'string' ? body.reason : 'agent:snapshot'
 
-    const snap = await createWorkspaceSnapshot(id, reason)
+    const snap = await createWorkspaceSnapshot(id, reason, { source: "agent" })
 
     const result = {
       snapshotId: snap.id,

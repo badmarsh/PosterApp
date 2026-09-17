@@ -117,6 +117,17 @@ export function requireScopes(ctx: AgentContext, requiredScopes: string[]) {
   }
 }
 
+/**
+ * Restricted-context keys may read only the explicitly selected cards. Keep
+ * this check in the shared auth module so legacy REST adapters cannot silently
+ * diverge from the canonical MCP registry policy.
+ */
+export function requireAgentCardAccess(ctx: AgentContext, cardId: string) {
+  if (ctx.restrictCardIds.length > 0 && !ctx.restrictCardIds.includes(cardId)) {
+    throw new AgentAuthError("Access to card is restricted by key policy", 403)
+  }
+}
+
 export async function requireAgentWorkspaceAccess(
   ctx: AgentContext,
   workspaceId: string,

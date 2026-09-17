@@ -295,11 +295,17 @@ async function retrieveSingleQuery(
   queryEmbeddingStr: string,
   queryText: string,
   limit: number,
-  documentId?: string
+  documentId?: string,
+  documentIds?: string[]
 ): Promise<Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; similarity: number }>> {
-  const docCondition = documentId
-    ? Prisma.sql`AND "documentId" = ${documentId}`
-    : Prisma.empty
+  const docCondition =
+    documentIds !== undefined
+      ? documentIds.length > 0
+        ? Prisma.sql`AND "documentId" IN (${Prisma.join(documentIds)})`
+        : Prisma.sql`AND 1 = 0`
+      : documentId
+      ? Prisma.sql`AND "documentId" = ${documentId}`
+      : Prisma.empty
   const ftsQuery = buildFtsQuery(queryText) || queryText
 
   // HNSW evaluates the index *before* the workspaceId/documentId filter with
@@ -393,6 +399,8 @@ export async function searchHybrid(
     lang?: ReviewLanguage
     /** LLM-written hypothetical passage (see generateHypotheses); takes precedence over the template HyDE. */
     hypothesis?: string
+    /** Restrict retrieval to these ingest/document IDs. An empty array returns no hits. */
+    documentIds?: string[]
   }
 ): Promise<Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; similarity: number }>> {
   const useHyDE = opts?.useHyDE ?? true
@@ -420,7 +428,7 @@ export async function searchHybrid(
       // Use the corresponding query text for FTS (not the HyDE doc); the HyDE
       // slot gets the criterion expansion keywords so it is not a 4th identical FTS query
       const ftsQuery = i < queryVariants.length ? queryVariants[i] : (criterionExpansion || query)
-      return retrieveSingleQuery(workspaceId, embStr, ftsQuery, limit, documentId)
+      return retrieveSingleQuery(workspaceId, embStr, ftsQuery, limit, documentId, opts?.documentIds)
     })
   )
 
@@ -776,6 +784,8 @@ export async function retrieveForCriterion(
     /** LLM-generated hypothetical passage for this criterion (HyDE). */
     hypothesis?: string
     lang?: ReviewLanguage
+    /** Restrict retrieval to these ingest/document IDs. */
+    documentIds?: string[]
   } = {}
 ): Promise<{
   chunks: Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; relevanceScore: number }>
@@ -799,6 +809,7 @@ export async function retrieveForCriterion(
     useHyDE: opts.useHyDE ?? true,
     hypothesis: opts.hypothesis,
     lang: opts.lang,
+    documentIds: opts.documentIds,
   })
 
   if (rawChunks.length === 0) {

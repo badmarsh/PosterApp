@@ -1,7 +1,8 @@
 import { z } from "zod"
 import { zodToJsonSchema } from "zod-to-json-schema"
 import { prisma } from "@/lib/prisma"
-import { AgentAuthError, type AgentContext } from "@/lib/agent-auth"
+import { AgentAuthError, type AgentContext, requireAgentCardAccess } from "@/lib/agent-auth"
+import { resolveAgentRagDocumentIds, isAllowedAgentIngestionUrl, isSafeAgentAssetFilename } from "@/lib/agent-restrictions"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 
 export type AgentToolKind = "read" | "write" | "job"
@@ -250,9 +251,7 @@ const cardsGetTool: AgentTool = {
     citationKeys: z.array(z.string()),
   }),
   handler: async (ctx, args: { workspaceId: string; cardId: string }) => {
-    if (ctx.restrictCardIds.length > 0 && !ctx.restrictCardIds.includes(args.cardId)) {
-      throw new AgentAuthError("Access to card is restricted by key policy", 403)
-    }
+    requireAgentCardAccess(ctx, args.cardId)
     const card = await prisma.card.findFirst({
       where: { id: args.cardId, output: { workspaceId: args.workspaceId } },
       select: {
@@ -442,10 +441,19 @@ const ragQueryTool: AgentTool = {
       })
     ),
   }),
-  handler: async (_ctx, args: { workspaceId: string; query: string; topK?: number }) => {
+  handler: async (ctx, args: { workspaceId: string; query: string; topK?: number }) => {
     const { retrieveForCriterion } = await import("@/lib/ai/vector-rag")
     const topK = args.topK ?? 5
-    const { chunks } = await retrieveForCriterion(args.workspaceId, args.query, { topK })
+    const documentIds = await resolveAgentRagDocumentIds(args.workspaceId, ctx.restrictCardIds)
+    // An empty result is intentional for a restricted key whose selected cards
+    // have no indexed source documents. Never fall back to workspace-wide RAG.
+    const { chunks } =
+      documentIds !== null && documentIds.length === 0
+        ? { chunks: [] }
+        : await retrieveForCriterion(args.workspaceId, args.query, {
+            topK,
+            documentIds: documentIds ?? undefined,
+          })
     return {
       query: args.query,
       results: chunks.map((c) => ({
@@ -680,23 +688,18 @@ const ingestionTriggerTool: AgentTool = {
     status: z.string(),
   }),
   handler: async (_ctx, args: { workspaceId: string; sourceUrl?: string; assetId?: string }) => {
-    if (args.sourceUrl) {
-      const url = new URL(args.sourceUrl)
-      const host = url.hostname.toLowerCase()
-      const allowed =
-        host.endsWith("arxiv.org") ||
-        host.endsWith("doi.org") ||
-        host.endsWith("semanticscholar.org") ||
-        host.endsWith("openalex.org") ||
-        host.includes(".ac.") ||
-        host.includes(".edu.") ||
-        host.endsWith(".edu")
-      if (!allowed) {
-        throw new AgentAuthError(
-          `Domain ${host} is not in the ingestion allow-list (allowed: arxiv.org, doi.org, semanticscholar.org, openalex.org, .ac., .edu)`,
-          403
-        )
-      }
+    if (args.sourceUrl && !isAllowedAgentIngestionUrl(args.sourceUrl)) {
+      const host = (() => {
+        try {
+          return new URL(args.sourceUrl!).hostname.toLowerCase()
+        } catch {
+          return "invalid URL"
+        }
+      })()
+      throw new AgentAuthError(
+        `Domain ${host} is not in the HTTPS ingestion allow-list (allowed: arxiv.org, doi.org, semanticscholar.org, openalex.org, .ac., .edu)`,
+        403
+      )
     }
     const fileId = `ingest_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`
     return { fileId, status: "indexing" }
@@ -880,7 +883,11 @@ const assetsUploadTool: AgentTool = {
   rateLimit: { limit: 10, windowMs: 60_000 },
   input: z.object({
     workspaceId: z.string().min(1),
-    filename: z.string().min(1),
+    filename: z
+      .string()
+      .min(1)
+      .max(255)
+      .refine(isSafeAgentAssetFilename, "filename must be a single safe path component"),
     mimeType: z.string().min(1),
     contentBase64: z.string().max(14_000_000),
     caption: z.string().optional(),

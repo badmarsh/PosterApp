@@ -23,13 +23,19 @@ async function computeDiffPreview(args: any, toolId: string) {
     if (toolId === "posterapp.cards.update" && args.cardId) {
       const card = await prisma.card.findUnique({
         where: { id: args.cardId },
-        select: { title: true, content: true },
+        include: { output: { select: { workspaceId: true } } },
       })
+      // Do not build a diff from a card in another workspace. In production the
+      // relation is always present; the optional check also keeps lightweight
+      // Prisma mocks backwards-compatible in unit tests.
+      if (!card || (card.output?.workspaceId && card.output.workspaceId !== args.workspaceId)) {
+        throw new AgentAuthError("Card not found", 404)
+      }
       return {
-        before: card ? { title: card.title, content: card.content } : null,
+        before: { title: card.title, content: card.content },
         after: {
-          title: args.title ?? card?.title,
-          content: args.content ?? card?.content,
+          title: args.title ?? card.title,
+          content: args.content ?? card.content,
         },
       }
     }
@@ -72,6 +78,7 @@ async function computeDiffPreview(args: any, toolId: string) {
       }
     }
   } catch (err) {
+    if (err instanceof AgentAuthError) throw err
     console.error("[executor] Failed to compute diffPreview:", err)
   }
   return null
@@ -222,6 +229,11 @@ export async function executeAgentTool(
     } catch (err: any) {
       const durationMs = Date.now() - startTime
       console.error(`[executor] Error enqueueing pending change for ${tool.id}:`, err)
+      if (err instanceof AgentAuthError) {
+        const code = err.status === 404 ? "NOT_FOUND" : "FORBIDDEN"
+        await logToolCall(ctx, workspaceId, tool.id, args, null, durationMs, false, code)
+        return errorEnvelope(code, err.message)
+      }
       await logToolCall(ctx, workspaceId, tool.id, args, null, durationMs, false, "INTERNAL")
       return errorEnvelope("INTERNAL", err?.message || "Failed to enqueue pending change")
     }

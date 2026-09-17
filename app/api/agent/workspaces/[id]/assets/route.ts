@@ -1,4 +1,4 @@
-import { rateLimitAsync } from "@/lib/rate-limit"
+// Mutating calls use the canonical executeAgentTool rateLimitAsync chain exactly once.
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAgentKey, requireScope, requireAgentWorkspaceAccess, AgentAuthError } from '@/lib/agent-auth'
 import { logToolCall } from '@/lib/agent-audit'
@@ -12,11 +12,14 @@ export async function GET(
   try {
     const { id } = await params
     const ctx = await verifyAgentKey(req)
-    const hasScope = ctx.scopes.includes('*') || ctx.scopes.includes('assets:read') || ctx.scopes.includes('workspace:read')
-    if (!hasScope) {
-      return NextResponse.json({ error: 'Scope required: assets:read' }, { status: 403 })
-    }
+    requireScope(ctx, 'assets:read')
     await requireAgentWorkspaceAccess(ctx, id, false)
+    if (ctx.restrictCardIds.length > 0) {
+      return NextResponse.json(
+        { error: 'Restricted-context key cannot access assets' },
+        { status: 403 }
+      )
+    }
 
     const assets = await prisma.asset.findMany({
       where: { workspaceId: id },

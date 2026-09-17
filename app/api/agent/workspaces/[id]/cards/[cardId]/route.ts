@@ -1,8 +1,7 @@
-import { rateLimitAsync } from "@/lib/rate-limit"
+// Mutating calls use the canonical executeAgentTool rateLimitAsync chain exactly once.
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAgentKey, requireScope, requireAgentWorkspaceAccess, AgentAuthError } from '@/lib/agent-auth'
+import { verifyAgentKey, requireScope, requireAgentWorkspaceAccess, requireAgentCardAccess, AgentAuthError } from '@/lib/agent-auth'
 import { logToolCall } from '@/lib/agent-audit'
-import { createWorkspaceSnapshot } from '@/lib/agent-snapshot'
 import { prisma } from '@/lib/prisma'
 import { extractCiteKeys } from '@/lib/bib-parser'
 
@@ -16,6 +15,7 @@ export async function GET(
     const ctx = await verifyAgentKey(req)
     requireScope(ctx, 'workspace:read')
     await requireAgentWorkspaceAccess(ctx, id, false)
+    requireAgentCardAccess(ctx, cardId)
 
     const card = await prisma.card.findUnique({
       where: { id: cardId },
