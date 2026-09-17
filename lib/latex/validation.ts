@@ -1,5 +1,45 @@
-import type { Card, ValidationMessage } from "@/lib/poster-types"
+import type { Card, ColumnIndex, ValidationMessage } from "@/lib/poster-types"
 import { columnBudgetFor, estimateHeight, suggestReductions } from "./layout"
+
+export interface PosterColumnOccupancy {
+  column: ColumnIndex
+  estimatedHeight: number
+  budget: number
+  overflow: number
+}
+
+/** Shared aggregate model used by validation, review linting, and the editor. */
+export function estimatePosterColumnOccupancy(
+  cards: Card[],
+  templateId?: string | null,
+): PosterColumnOccupancy[] {
+  const budget = columnBudgetFor(templateId)
+  return ([1, 2, 3] as ColumnIndex[]).map((column) => {
+    const estimatedHeight = cards
+      .filter((card) => card.column === column)
+      .reduce((total, card) => total + estimateHeight(card), 0)
+    return {
+      column,
+      estimatedHeight,
+      budget,
+      overflow: Math.max(0, estimatedHeight - budget),
+    }
+  })
+}
+
+/** Aggregate overflow is a document-level validation error, not only a meter. */
+export function validatePosterColumns(
+  cards: Card[],
+  templateId?: string | null,
+): ValidationMessage[] {
+  return estimatePosterColumnOccupancy(cards, templateId)
+    .filter((result) => result.overflow > 0)
+    .map((result) => ({
+      level: "error" as const,
+      field: `column-${result.column}`,
+      message: `Column ${result.column} estimated height ${result.estimatedHeight}u exceeds its ${result.budget}u budget by ${result.overflow}u.`,
+    }))
+}
 
 const DANGEROUS_LATEX_COMMANDS = [
   "\\write",
@@ -85,8 +125,14 @@ export function hasUnsafeLatex(input: string): string[] {
  * @param templateId Active template. Column geometry differs per template
  *   (portrait vs landscape vs Better Poster), so the overflow budget does
  *   too. Omitted -> the portrait default, matching previous behaviour.
+ * @param siblingCards Optional document context. When supplied, aggregate
+ *   poster-column overflow is a validation error on every card in that column.
  */
-export function validateCard(card: Card, templateId?: string | null): ValidationMessage[] {
+export function validateCard(
+  card: Card,
+  templateId?: string | null,
+  siblingCards?: Card[],
+): ValidationMessage[] {
   const msgs: ValidationMessage[] = []
 
   if (!card.title.trim()) {
@@ -100,7 +146,11 @@ export function validateCard(card: Card, templateId?: string | null): Validation
     })
   }
 
-  const needsContent = card.pattern !== "image-focused" && card.pattern !== "references" && card.pattern !== "figure-slide"
+  const needsContent =
+    card.pattern !== "image-focused" &&
+    card.pattern !== "references" &&
+    card.pattern !== "figure-slide" &&
+    card.pattern !== "title-slide"
   if (needsContent && !card.content.trim()) {
     msgs.push({
       level: "error",
@@ -118,7 +168,7 @@ export function validateCard(card: Card, templateId?: string | null): Validation
     })
   }
 
-  const needsTable = card.pattern === "bullets-table"
+  const needsTable = card.pattern === "bullets-table" || card.pattern === "section-table"
   if (needsTable) {
     if (!Array.isArray(card.table?.rows) || card.table.rows.length < 1) {
       msgs.push({ level: "error", field: "table", message: "Table has no rows." })
@@ -148,7 +198,13 @@ export function validateCard(card: Card, templateId?: string | null): Validation
     })
   }
 
-  const budget = columnBudgetFor(templateId)
+  const columnBudget = columnBudgetFor(templateId)
+  const explicitBudget =
+    typeof card.heightBudget === "number" && card.heightBudget > 0
+      ? card.heightBudget
+      : null
+  const budget = explicitBudget ?? columnBudget
+  const budgetLabel = explicitBudget ? "card budget" : "column budget"
   const height = estimateHeight(card)
   if (height > budget) {
     // Name the concrete edits that close the gap rather than leaving the
@@ -158,14 +214,20 @@ export function validateCard(card: Card, templateId?: string | null): Validation
     msgs.push({
       level: "warning",
       field: "content",
-      message: `Estimated height ${height}u exceeds column budget ${budget}u by ${height - budget}u — likely overflow.${advice}`,
+      message: `Estimated height ${height}u exceeds ${budgetLabel} ${budget}u by ${height - budget}u — likely overflow.${advice}`,
     })
   } else if (height > budget * 0.85) {
     msgs.push({
       level: "info",
       field: "content",
-      message: `Estimated height ${height}u is close to the column budget (${budget}u).`,
+      message: `Estimated height ${height}u is close to the ${budgetLabel} (${budget}u).`,
     })
+  }
+
+  if (siblingCards && card.column !== null) {
+    const aggregate = validatePosterColumns(siblingCards, templateId)
+      .find((message) => message.field === `column-${card.column}`)
+    if (aggregate) msgs.push(aggregate)
   }
 
   return msgs

@@ -30,8 +30,56 @@ export function generateFullTemplate(project: Project, outputConfig: OutputConfi
   const generator = getGenerator(outputConfig.outputType, outputConfig.templateId)
   const tex = generator.generateDocument(project, outputConfig, workspaceId)
   // The thesis-review generator already emits its own babel/fontenc block.
-  if (outputConfig.outputType === "thesis-review") return tex
-  return ensureEncodingPreamble(tex, detectDocumentLanguage(tex))
+  const encoded = outputConfig.outputType === "thesis-review"
+    ? tex
+    : ensureEncodingPreamble(tex, detectDocumentLanguage(tex))
+  return ensureMissingGraphicsFallback(encoded)
+}
+
+const MISSING_GRAPHICS_COMMAND = String.raw`% --- missing asset fallback (auto) ---
+\providecommand{\PosterIncludeGraphics}[2][]{%
+  \IfFileExists{#2}{\includegraphics[#1]{#2}}{%
+    \begingroup
+    \setlength{\fboxsep}{2mm}%
+    \fbox{\parbox[c][3cm][c]{0.85\linewidth}{\centering\itshape Image unavailable}}%
+    \endgroup
+  }%
+}
+`
+
+/**
+ * Make generated documents resilient to stale/deleted workspace assets.
+ *
+ * `graphicx` aborts the whole compile when an `\includegraphics` target is
+ * missing. Asset records and files are updated independently, so a stale URL
+ * must degrade to a visible placeholder instead. This final-document pass also
+ * covers template-level logos, not only figures emitted by card generators.
+ */
+export function ensureMissingGraphicsFallback(tex: string): string {
+  if (!tex.includes("\\includegraphics")) return tex
+  if (tex.includes("\\providecommand{\\PosterIncludeGraphics}")) return tex
+
+  const rewritten = tex.replace(
+    /\\includegraphics(?=\s*(?:\[[^\]\r\n]*\])?\s*\{)/g,
+    "\\PosterIncludeGraphics"
+  )
+
+  // Insert after graphicx when possible. The fallback body may safely mention
+  // \includegraphics before this point, but placing it after the package also
+  // keeps standalone .tex inspection intuitive.
+  const graphicx = /\\usepackage(?:\[[^\]]*\])?\{graphicx\}[^\n]*\n/g
+  let match: RegExpExecArray | null = null
+  let last: RegExpExecArray | null = null
+  while ((match = graphicx.exec(rewritten)) !== null) last = match
+  if (last?.index !== undefined) {
+    const insertAt = last.index + last[0].length
+    return rewritten.slice(0, insertAt) + MISSING_GRAPHICS_COMMAND + rewritten.slice(insertAt)
+  }
+
+  const docclass = rewritten.match(/\\documentclass(\[[^\]]*\])?\{[^}]+\}[^\n]*\n/)
+  if (!docclass || docclass.index === undefined) return rewritten
+  const insertAt = docclass.index + docclass[0].length
+  return rewritten.slice(0, insertAt) + MISSING_GRAPHICS_COMMAND + rewritten.slice(insertAt)
 }
 
 /**

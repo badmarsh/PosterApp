@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest"
-import { reconcileGrade, checkContributionCoverage } from "@/lib/ai/review-engine"
+import {
+  reconcileGrade,
+  checkContributionCoverage,
+  computeScoreFromFindings,
+} from "@/lib/ai/review-engine"
 import type { ReviewFinding } from "@/lib/ai/review-types"
 
 // ---------------------------------------------------------------------------
@@ -72,6 +76,19 @@ const makeFinding = (overrides: Partial<ReviewFinding> = {}): ReviewFinding => (
   ...overrides,
 })
 
+describe("computeScoreFromFindings evidence gate", () => {
+  it("does not let withheld or human-verification findings reduce the grade", () => {
+    expect(computeScoreFromFindings([
+      makeFinding({ severity: "critical", includeInExport: false }),
+      makeFinding({ id: "f-2", severity: "major", decisionStatus: "needs_human_review" }),
+    ])).toBe(100)
+  })
+
+  it("still applies supported export-eligible findings", () => {
+    expect(computeScoreFromFindings([makeFinding({ severity: "major" })])).toBe(92)
+  })
+})
+
 describe("checkContributionCoverage", () => {
   it("returns null for thesisType master regardless of findings", () => {
     expect(checkContributionCoverage([], "master", "en")).toBeNull()
@@ -105,6 +122,7 @@ describe("checkContributionCoverage", () => {
     expect(guard!.criterionId).toBe("originality")
     expect(guard!.id).toBe("contribution-coverage-check")
     expect(guard!.epistemicStatus).toBe("REQUIRES_HUMAN_VERIFICATION")
+    expect(guard!.includeInExport).toBe(false)
   })
 
   it("returns Slovak text for sk language", () => {

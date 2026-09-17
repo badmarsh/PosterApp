@@ -9,12 +9,13 @@ import { ReviewTipsSchema } from "@/lib/ai/contracts"
 import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 import { AI_CONFIG } from "@/lib/config/ai"
+import { estimateHeight, validatePosterColumns } from "@/lib/latex"
 
 const MAX_CARD_CHARS = 3_000
 const MAX_ALL_CARDS_CHARS = 40_000
 const MAX_BIB_CHARS = 20_000
 
-function buildLintReport(cards: Card[], bibKeys: string[]) {
+function buildLintReport(cards: Card[], bibKeys: string[], templateId?: string | null) {
   const missingCites = new Set<string>()
   const usedCites = new Set<string>()
 
@@ -57,20 +58,24 @@ function buildLintReport(cards: Card[], bibKeys: string[]) {
       }
     }
 
-    // Audit Layout
+    // Audit Layout with the same structural model used by the editor. This
+    // includes figures, tables, bullets, and explicit per-card targets.
     if (!card.content || card.content.trim() === "") {
       emptyCards.push(card.id)
-    } else if (card.heightBudget) {
-      // Rough heuristic: 60 chars per line, 14 units per line
-      const estimatedHeight = Math.ceil(card.content.length / 60) * 14
+    }
+    if (typeof card.heightBudget === "number" && card.heightBudget > 0) {
+      const estimatedHeight = estimateHeight(card)
       if (estimatedHeight > card.heightBudget) {
         layoutOverflows.push(
-          `${card.id}: ${card.content.length} chars vs budget of ~${Math.floor(
-            (card.heightBudget / 14) * 60
-          )} chars`
+          `${card.id}: estimated ${estimatedHeight}u vs card budget ${card.heightBudget}u`
         )
       }
     }
+  }
+
+  // A collection of individually small cards can still overflow its column.
+  for (const message of validatePosterColumns(cards, templateId)) {
+    layoutOverflows.push(message.message)
   }
 
   const unusedBibKeys = bibKeys.filter((k) => !usedCites.has(k))
@@ -115,9 +120,9 @@ export async function POST(
 
   try {
     const body = await req.json()
-    const { bibContent, bibKeys = [], cards = [], title, authors, venue } = body
+    const { bibContent, bibKeys = [], cards = [], title, authors, venue, templateName } = body
 
-    const lintReport = buildLintReport(cards, bibKeys)
+    const lintReport = buildLintReport(cards, bibKeys, templateName)
 
     // Load source markdown from disk deterministically (capped at 60k chars)
     const sourceSnippets = await loadSourceContext({ workspaceId, maxChars: AI_CONFIG.review.maxSourceChars })

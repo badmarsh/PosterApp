@@ -101,6 +101,24 @@ describe("Task 6: Institution-aware PhD enrichment (sk/cs/en)", () => {
     expect(result.phdEnrichment.statutoryClause).toContain("111/1998")
   })
 
+  it("does not apply thesis grading or PhD enrichment to a scientific paper", async () => {
+    const result = await generateProfessionalReview({
+      workspaceId: "test-ws",
+      sourceFileId: "test-file",
+      documentTitle: "Test Paper",
+      authorName: "Test Author",
+      reviewKind: "paper",
+      thesisType: "phd",
+      reviewerRole: "opponent",
+      language: "en",
+      institution: "Slovak University",
+    })
+
+    expect(result.grade).toBeUndefined()
+    expect(result.proposedGradeRange).toBe("")
+    expect(result.phdEnrichment).toBeNull()
+  })
+
   it("includes Slovak clause for sk language regardless of institution", async () => {
     const result = await generateProfessionalReview({
       workspaceId: "test-ws",

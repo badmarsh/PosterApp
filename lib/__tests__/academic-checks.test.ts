@@ -54,6 +54,39 @@ Použili sme metódu z práce [?] a taktiež vzťah (cit. chyba).
     expect(audit.isCitationIntegrityOk).toBe(false)
   })
 
+  it("matches numbered citations against bibliography labels and reports both directions", () => {
+    const markdown = `
+# Results
+Prior work established the baseline [1, 3], while a later claim uses [4].
+
+# References
+[1] Alpha, A. (2020). First study.
+[2] Beta, B. (2021). Unused study.
+[3] Gamma, G. (2022). Third study.
+`
+    const audit = auditCitationConsistency(extractDocumentStructure(markdown), markdown, "en")
+
+    expect(audit.unmatchedInTextCitations).toEqual(["[4]"])
+    expect(audit.unmatchedReferences).toEqual([expect.stringContaining("[2]")])
+    expect(audit.isCitationIntegrityOk).toBe(false)
+  })
+
+  it("matches author-year citations without counting bibliography text as citations", () => {
+    const markdown = `
+# Discussion
+Smith (2020) supports the method, but Jones (2024) reports a different result.
+
+# Bibliography
+Smith, J. (2020). Supported study.
+Brown, T. (2022). Uncited study.
+`
+    const audit = auditCitationConsistency(extractDocumentStructure(markdown), markdown, "en")
+
+    expect(audit.unmatchedInTextCitations).toEqual(["Jones (2024)"])
+    expect(audit.unmatchedReferences).toEqual([expect.stringContaining("Brown")])
+    expect(audit.inTextCitationsDetected).toBe(2)
+  })
+
   it("generates 5-12 calibrated defense questions prioritized by severity", () => {
     const questions = generateCalibratedDefenseQuestions(sampleMarkdown, [], "master", "sk")
 
@@ -77,13 +110,16 @@ Použili sme metódu z práce [?] a taktiež vzťah (cit. chyba).
       recommendation: `Fix issue ${i + 1}`,
       severity: i < 3 ? "critical" : i < 6 ? "major" : "minor",
       category: "methodology",
-      evidence: [{ id: `ev-${i + 1}` }],
+      includeInExport: true,
+      evidence: [{ id: `ev-${i + 1}`, quote: `Verified source passage ${i + 1}`, verified: true, state: "verified-exact" }],
     }))
 
     const scaledQuestions = generateCalibratedDefenseQuestions(sampleMarkdown, mockFindings, "master", "sk")
     // 5 base + 7 finding-derived = 12 (capped at 12)
     expect(scaledQuestions.length).toBe(12)
-    expect(scaledQuestions.some((q) => q.question.includes("Finding issue 1"))).toBe(true)
+    expect(scaledQuestions[0].question).toContain("Verified source passage 1")
+    expect(scaledQuestions[0].requiresHumanVerification).toBe(false)
     expect(scaledQuestions.some((q) => q.question.includes("Finding issue 2"))).toBe(true)
+    expect(scaledQuestions.at(-1)?.requiresHumanVerification).toBe(true)
   })
 })

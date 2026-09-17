@@ -1,0 +1,26 @@
+
+> posterapp@0.2.0 build /home/user/PosterApp
+> cross-env NODE_OPTIONS="--max-old-space-size=8192" next build
+
+▲ Next.js 16.2.11 (Turbopack)
+- Experiments (use with caution):
+  · proxyClientMaxBodySize: "210mb"
+  · serverActions
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 46s
+  Running TypeScript ...
+Failed to type check.
+
+./app/api/agent/workspaces/[id]/bibliography/route.ts:47:50
+Type error: Parameter 'o' implicitly has an 'any' type.
+
+  [90m45 |[0m     }
+  [90m46 |[0m
+[31m[1m>[0m [90m47 |[0m     [36mconst[0m activeOutput = workspace.outputs.find((o) => o.isActive) || workspace.outputs[[35m0[0m]
+  [90m   |[0m                                                  [31m[1m^[0m
+  [90m48 |[0m     [36mif[0m (activeOutput) {
+  [90m49 |[0m       [36mfor[0m ([36mconst[0m card [36mof[0m activeOutput.cards) {
+  [90m50 |[0m         [36mconst[0m found = extractCiteKeys(card.content || [32m''[0m)
+Next.js build worker exited with code: 1 and signal: null
+ ELIFECYCLE  Command failed with exit code 1.
