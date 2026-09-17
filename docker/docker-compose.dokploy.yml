@@ -1,0 +1,126 @@
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------------------
+  # Optional self-hosted PostgreSQL + pgvector
+  # (Ignored if DATABASE_URL points to Supabase Cloud)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-posterapp}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-posterapp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  # ---------------------------------------------------------------------------
+  # Database schema sync & migration service
+  # Runs 'prisma db push' on startup, then exits (code 0)
+  # ---------------------------------------------------------------------------
+  db-init:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: builder
+    restart: "no"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/posterapp}
+      DIRECT_URL: ${DIRECT_URL:-postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/posterapp}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo '==> [1/1] Prisma database schema sync...' &&
+        npx prisma db push --skip-generate &&
+        echo '==> Database schema is up to date.'
+      "
+    networks:
+      - internal
+
+  # ---------------------------------------------------------------------------
+  # PosterApp Web Application & Yjs Collaboration Server
+  # Serves Next.js on port 3333 AND WebSocket at /api/yjs
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: runner
+    restart: unless-stopped
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      PORT: 3333
+      HOSTNAME: "0.0.0.0"
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/posterapp}
+      DIRECT_URL: ${DIRECT_URL:-postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/posterapp}
+      # Clerk Authentication
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: ${NEXT_PUBLIC_CLERK_SIGN_IN_URL:-/sign-in}
+      NEXT_PUBLIC_CLERK_SIGN_UP_URL: ${NEXT_PUBLIC_CLERK_SIGN_UP_URL:-/sign-up}
+      NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: ${NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL:-/}
+      NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: ${NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL:-/}
+      # Yjs Collaboration WebSocket (wss://domain/api/yjs)
+      NEXT_PUBLIC_YJS_WS_URL: ${NEXT_PUBLIC_YJS_WS_URL}
+      # OpenRouter & AI Providers
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      AI_MODEL: ${AI_MODEL:-gemini-3.1-pro-preview}
+      AI_API_URL: ${AI_API_URL}
+      AI_API_KEY: ${AI_API_KEY}
+      AI_VISION_MODEL: ${AI_VISION_MODEL:-qwen3-vl-flash}
+      AI_VISION_API_URL: ${AI_VISION_API_URL}
+      AI_VISION_API_KEY: ${AI_VISION_API_KEY}
+      # MinerU Document Parsing Sidecar
+      MINERU_API_URL: ${MINERU_API_URL}
+      # Academic & Research Connectors
+      SEMANTIC_SCHOLAR_API_KEY: ${SEMANTIC_SCHOLAR_API_KEY}
+      OPENALEX_API_KEY: ${OPENALEX_API_KEY}
+      TAVILY_API_KEY: ${TAVILY_API_KEY}
+      EXA_API_KEY: ${EXA_API_KEY}
+      SERPER_API_KEY: ${SERPER_API_KEY}
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY}
+      # Storage & Persistence
+      WORKSPACES_DIR: workspaces
+      YPERSISTENCE: ./tmp/yjs
+      RATE_LIMIT_ALLOW_IN_MEMORY: ${RATE_LIMIT_ALLOW_IN_MEMORY:-1}
+      AUTH_SECRET: ${AUTH_SECRET:-change-me-in-production}
+    volumes:
+      - posterapp_workspaces:/app/workspaces
+      - posterapp_yjs:/app/tmp/yjs
+      - posterapp_cache:/app/.cache
+    networks:
+      - internal
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.posterapp-web.rule=Host(`${DOMAIN:-poster.dev.significa.sk}`)"
+      - "traefik.http.routers.posterapp-web.entrypoints=websecure"
+      - "traefik.http.routers.posterapp-web.tls=true"
+      - "traefik.http.routers.posterapp-web.tls.certresolver=letsencrypt"
+      - "traefik.http.services.posterapp-web.loadbalancer.server.port=3333"
+
+networks:
+  internal:
+    driver: bridge
+  dokploy-network:
+    external: true
+
+volumes:
+  posterapp_workspaces:
+  posterapp_yjs:
+  posterapp_cache:
+  postgres_data:
