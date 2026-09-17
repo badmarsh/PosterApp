@@ -10,6 +10,7 @@ import {
   Info,
   HelpCircle,
   Lightbulb,
+  Wand2,
   Loader2,
   Clock,
   Play,
@@ -47,11 +48,21 @@ import { Textarea } from "@/components/ui/textarea"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import { StatusBadge } from "@/components/status"
+import { notify } from "@/lib/notify"
 import {
   generateLatexForCard,
   levelFromMessages,
   validateCard,
 } from "@/lib/latex"
+import {
+  estimateHeightBreakdown,
+  columnBudgetFor,
+} from "@/lib/latex/layout"
+import {
+  deriveQuickFixes,
+  findDanglingCiteKeys,
+  findDanglingRefKeys,
+} from "@/lib/latex/quick-fixes"
 import {
   BLOCK_PATTERNS,
   type Card,
@@ -100,6 +111,72 @@ function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: stri
       <span className="uppercase tracking-wide">{children}</span>
       {hint && <span className="font-mono text-[10px] normal-case">{hint}</span>}
     </Label>
+  )
+}
+
+/**
+ * Live column-budget meter for the Content tab: renders the same
+ * estimateHeightBreakdown model that validation uses, so the bar and the
+ * overflow warning can never disagree. Soft threshold at 85%, hard at 100%.
+ */
+function HeightMeter({ card, templateId }: { card: Card; templateId?: string | null }) {
+  const breakdown = estimateHeightBreakdown(card)
+  const budget = columnBudgetFor(templateId)
+  const target = card.heightBudget && card.heightBudget > 0 ? card.heightBudget : null
+  const effectiveBudget = target ?? budget
+  const ratio = Math.min(breakdown.total / effectiveBudget, 1)
+  const percent = Math.round((breakdown.total / effectiveBudget) * 100)
+  const overSoft = breakdown.total > effectiveBudget * 0.85
+  const overHard = breakdown.total > effectiveBudget
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between">
+        <FieldLabel hint={`column max ${budget}u`}>Height budget usage</FieldLabel>
+        <span
+          className={cn(
+            "font-mono text-[10px]",
+            overHard ? "text-destructive" : overSoft ? "text-warning" : "text-success",
+          )}
+        >
+          {breakdown.total}u / {effectiveBudget}u ({percent}%)
+        </span>
+      </div>
+      <div
+        role="meter"
+        aria-valuenow={Math.min(percent, 999)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Card height usage relative to column budget"
+        className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+      >
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-150",
+            overHard ? "bg-destructive" : overSoft ? "bg-warning" : "bg-success",
+          )}
+          style={{ width: `${Math.max(ratio * 100, breakdown.total > 0 ? 3 : 0)}%` }}
+        />
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        {overHard ? (
+          <>
+            Over budget by {breakdown.total - effectiveBudget}u — likely overflow.
+            {target && effectiveBudget !== budget ? ` Custom target (${target}u) is stricter than the ${templateId ?? "default"} column (${budget}u).` : ""}
+          </>
+        ) : overSoft ? (
+          <>Close to the {effectiveBudget}u budget — the validation tab will warn above 85%.</>
+        ) : (
+          <>
+            {breakdown.prose > 0 && `${breakdown.prose}u prose`}
+            {breakdown.bullets > 0 && `${breakdown.prose > 0 ? " · " : ""}${breakdown.bullets}u bullets`}
+            {breakdown.table > 0 && `${breakdown.prose + breakdown.bullets > 0 ? " · " : ""}${breakdown.table}u table`}
+            {breakdown.figures > 0 && `${breakdown.total - breakdown.prose - breakdown.bullets - breakdown.table > 0 ? " · " : ""}${breakdown.figures}u figures`}
+            {breakdown.total <= 70 && "empty — add content"}
+          </>
+        )}
+      </p>
+    </div>
   )
 }
 
@@ -407,6 +484,11 @@ function ContentTab({ card }: { card: Card }) {
           </p>
         </div>
       )}
+
+      {!disabled && (() => {
+        const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
+        return <HeightMeter card={card} templateId={activeOutput?.templateId} />
+      })()}
 
       {!disabled && ingestFiles.length > 0 && (() => {
         const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
@@ -859,14 +941,31 @@ function Section({ title, items }: { title: string; items: ValidationMessage[] }
 
 function ValidationTab({ card }: { card: Card }) {
   const project = useEditor((s) => s.project)
+  const updateCard = useEditor((s) => s.updateCard)
+  const bibKeys = useEditor((s) => s.bibKeys)
+
+  const allCardContents = (project.outputs?.find((o) => o.id === project.activeOutputId)?.cards ?? []).map((c) => c.content)
+  const quickFixes = deriveQuickFixes(card)
+  const danglingCites = findDanglingCiteKeys(card.content, bibKeys)
+  const danglingRefs = findDanglingRefKeys(card.content, allCardContents)
+
+  function applyFix(fixId: string) {
+    const fix = quickFixes.find((f) => f.id === fixId)
+    if (!fix) return
+    const next = fix.apply(card.content)
+    updateCard(card.id, { content: next })
+    notify.success("Quick fix applied", {
+      description: `${fix.label} — review the result in the Content tab.`,
+    })
+  }
 
   if (card.validation === "pending") {
     return (
       <div className="flex flex-col gap-3 p-3">
-        <div className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-2">
-          <Clock className="size-4 text-amber-500 shrink-0" />
+        <div className="flex items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-2.5 py-2">
+          <Clock className="size-4 text-warning shrink-0" />
           <div>
-            <p className="text-[12px] font-medium text-amber-500">Placeholder Card</p>
+            <p className="text-[12px] font-medium text-warning">Placeholder Card</p>
             <p className="text-[11px] text-muted-foreground">
               This card is a pending experiment placeholder. It will become validated once an agent proposes results or you edit it manually.
             </p>
@@ -911,10 +1010,49 @@ function ValidationTab({ card }: { card: Card }) {
               : "Blocking errors — fix before generation."}
         </span>
       </div>
+      {(quickFixes.length > 0 || danglingCites.length > 0 || danglingRefs.length > 0) && (
+        <div className="flex flex-col gap-1.5 rounded-md border border-primary/20 bg-primary/5 p-2.5">
+          <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
+            <Lightbulb className="size-3.5" />
+            Quick fixes
+          </span>
+          {quickFixes.map((fix) => (
+            <div key={fix.id} className="flex flex-col gap-1 rounded-md border border-border bg-card px-2 py-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[12px] font-medium">{fix.label}</span>
+                <Button
+                  size="xs"
+                  variant="outline"
+                  className="gap-1 border-primary/30 text-primary hover:bg-primary/10"
+                  onClick={() => applyFix(fix.id)}
+                  aria-label={`Apply quick fix: ${fix.label}`}
+                >
+                  <Wand2 className="size-3" /> Apply
+                </Button>
+              </div>
+              <p className="text-[10px] leading-snug text-muted-foreground">{fix.description}</p>
+            </div>
+          ))}
+          {danglingCites.length > 0 && (
+            <p className="text-[11px] leading-snug text-muted-foreground">
+              <AlertTriangle className="mr-1 inline size-3 text-warning" />
+              Citation key{danglingCites.length === 1 ? "" : "s"} not in references.bib:{" "}
+              <span className="font-mono">{danglingCites.join(", ")}</span> — add them in the Bibliography dialog or remove the citations.
+            </p>
+          )}
+          {danglingRefs.length > 0 && (
+            <p className="text-[11px] leading-snug text-muted-foreground">
+              <AlertTriangle className="mr-1 inline size-3 text-warning" />
+              Cross-reference{danglingRefs.length === 1 ? "" : "s"} without a matching{" "}
+              <span className="font-mono">\label</span>: <span className="font-mono">{danglingRefs.join(", ")}</span> — they will render as “??”.
+            </p>
+          )}
+        </div>
+      )}
       <Section title="Field validation" items={other} />
       <Section title="LaTeX safety" items={safety} />
       <Section title="Overflow estimate" items={overflow} />
-      {!msgs.length && (
+      {!msgs.length && !quickFixes.length && !danglingCites.length && !danglingRefs.length && (
         <p className="text-center text-[11px] text-muted-foreground">No issues found.</p>
       )}
     </div>

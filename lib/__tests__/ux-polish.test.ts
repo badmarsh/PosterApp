@@ -65,3 +65,34 @@ describe("UX Polish — design token alignment", () => {
     expect(src).toContain("Compile / Recompile PDF")
   })
 })
+
+describe("UX Polish — error lens & quick fixes (2026-09-17 audit)", () => {
+  it("pdf-sidebar renders the structured error lens, not only the raw log", async () => {
+    const src = await fs.readFile("components/pdf-sidebar.tsx", "utf-8")
+    expect(src).toContain("parseCompileLog")
+    expect(src).toContain("attributeIssuesToCards")
+    expect(src).toContain("Show raw log")
+    expect(src).toContain("setInspectorTab")
+  })
+
+  it("CardInspector surfaces quick fixes and the height meter", async () => {
+    const src = await fs.readFile("components/card-inspector.tsx", "utf-8")
+    expect(src).toContain("deriveQuickFixes")
+    expect(src).toContain("findDanglingCiteKeys")
+    expect(src).toContain("findDanglingRefKeys")
+    expect(src).toContain("HeightMeter")
+    expect(src).toContain("estimateHeightBreakdown")
+  })
+
+  it("CardInspector uses semantic warning tokens (no hardcoded amber)", async () => {
+    const src = await fs.readFile("components/card-inspector.tsx", "utf-8")
+    expect(src).not.toContain("amber-500")
+  })
+
+  it("quick fixes and log parser are unit-tested", async () => {
+    const qf = await fs.readFile("lib/latex/__tests__/quick-fixes.test.ts", "utf-8")
+    expect(qf).toContain("deriveQuickFixes")
+    const lp = await fs.readFile("lib/latex/__tests__/log-parser.test.ts", "utf-8")
+    expect(lp).toContain("parseCompileLog")
+  })
+})
