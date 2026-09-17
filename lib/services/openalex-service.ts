@@ -23,6 +23,8 @@ export interface OpenAlexWork {
   openAccessPdfUrl?: string
   landingPageUrl?: string
   topics?: string[]
+  /** OpenAlex `is_retracted` — surfaced as a hard warning in search UI. */
+  isRetracted?: boolean
 }
 
 /**
@@ -85,6 +87,7 @@ function parseOpenAlexWork(item: any): OpenAlexWork {
     openAccessPdfUrl,
     landingPageUrl,
     topics,
+    isRetracted: Boolean(item.is_retracted),
   }
 }
 

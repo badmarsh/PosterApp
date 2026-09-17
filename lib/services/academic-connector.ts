@@ -56,6 +56,8 @@ export interface AcademicPaperResult {
   citationCount?: number
   influentialCitationCount?: number
   topics?: string[]
+  /** True when any provider reports the paper as retracted. */
+  isRetracted?: boolean
 }
 
 export interface AuthorProfile {
@@ -150,6 +152,7 @@ function openAlexWorkToResult(w: OpenAlexWork): AcademicPaperResult {
     openAccessPdfUrl: w.openAccessPdfUrl,
     citationCount: w.citedByCount,
     topics: w.topics,
+    isRetracted: w.isRetracted,
   }
 }
 
@@ -194,6 +197,8 @@ function mergePaperRecords(primary: AcademicPaperResult, secondary: AcademicPape
     topics: primary.topics || secondary.topics,
     authors: primary.authors.length > 0 ? primary.authors : secondary.authors,
     year: primary.year || secondary.year,
+    // A retraction reported by any provider must survive the merge.
+    isRetracted: primary.isRetracted || secondary.isRetracted || undefined,
   }
 }
 
