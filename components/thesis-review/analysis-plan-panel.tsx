@@ -62,9 +62,9 @@ export function AnalysisPlanPanel({
   }
 
   const qualityBadge = {
-    high: <Badge variant="outline" className="bg-success/100/10 text-success dark:text-success border-success/40 dark:border-success/40 text-[11px] font-semibold">Vysoká kvalita extrakcie</Badge>,
-    medium: <Badge variant="outline" className="bg-warning/100/10 text-warning dark:text-warning border-warning/40 dark:border-warning/40 text-[11px] font-semibold">Stredná kvalita</Badge>,
-    low: <Badge variant="outline" className="bg-destructive/100/10 text-destructive dark:text-destructive border-destructive/40 dark:border-destructive/40 text-[11px] font-semibold">Nízky rozsah textu</Badge>,
+    high: <Badge variant="outline" className="bg-success/10 text-success dark:text-success border-success/40 dark:border-success/40 text-[11px] font-semibold">Vysoká kvalita extrakcie</Badge>,
+    medium: <Badge variant="outline" className="bg-warning/10 text-warning dark:text-warning border-warning/40 dark:border-warning/40 text-[11px] font-semibold">Stredná kvalita</Badge>,
+    low: <Badge variant="outline" className="bg-destructive/10 text-destructive dark:text-destructive border-destructive/40 dark:border-destructive/40 text-[11px] font-semibold">Nízky rozsah textu</Badge>,
   }[plan.extractionQuality]
 
   const metrics = plan.metrics
@@ -189,8 +189,8 @@ export function AnalysisPlanPanel({
                       variant="outline"
                       className={`text-[10px] ${
                         metrics?.balance.status === "balanced"
-                          ? "bg-success/100/10 text-success dark:text-success border-success/40"
-                          : "bg-warning/100/10 text-warning dark:text-warning border-warning/40"
+                          ? "bg-success/10 text-success dark:text-success border-success/40"
+                          : "bg-warning/10 text-warning dark:text-warning border-warning/40"
                       }`}
                     >
                       {metrics?.balance.status === "balanced" ? "Optimálne" : metrics?.balance.status === "theory_heavy" ? "Prevaha teórie" : "Silná prax"}
@@ -210,7 +210,7 @@ export function AnalysisPlanPanel({
                           title={`Teória: ${Math.round(metrics.balance.theoryRatio * 100)}%`}
                         />
                         <div
-                          className="bg-emerald-500 transition-all"
+                          className="bg-success transition-all"
                           style={{ width: `${Math.max(5, Math.min(95, metrics.balance.practicalRatio * 100))}%` }}
                           title={`Prax / Výsledky: ${Math.round(metrics.balance.practicalRatio * 100)}%`}
                         />
@@ -235,10 +235,10 @@ export function AnalysisPlanPanel({
                       variant="outline"
                       className={`text-[10px] ${
                         metrics?.citations.recencyStatus === "fresh"
-                          ? "bg-success/100/10 text-success dark:text-success border-success/40"
+                          ? "bg-success/10 text-success dark:text-success border-success/40"
                           : metrics?.citations.recencyStatus === "adequate"
-                          ? "bg-info/100/10 text-info dark:text-info border-info/40"
-                          : "bg-warning/100/10 text-warning dark:text-warning border-warning/40"
+                          ? "bg-info/10 text-info dark:text-info border-info/40"
+                          : "bg-warning/10 text-warning dark:text-warning border-warning/40"
                       }`}
                     >
                       {metrics?.citations.recencyStatus === "fresh" ? "Aktuálna rešerš" : metrics?.citations.recencyStatus === "adequate" ? "Priemerná" : "Staršie zdroje"}
@@ -282,8 +282,8 @@ export function AnalysisPlanPanel({
                       variant="outline"
                       className={`text-[10px] ${
                         (metrics?.crossReferencing.integrityScore || 100) >= 90
-                          ? "bg-success/100/10 text-success dark:text-success border-success/40"
-                          : "bg-warning/100/10 text-warning dark:text-warning border-warning/40"
+                          ? "bg-success/10 text-success dark:text-success border-success/40"
+                          : "bg-warning/10 text-warning dark:text-warning border-warning/40"
                       }`}
                     >
                       Integrita {metrics?.crossReferencing.integrityScore ?? 100}%
@@ -422,7 +422,7 @@ export function AnalysisPlanPanel({
             <div className="p-3.5 rounded-xl border bg-muted/20 space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <CheckCircle2 className="size-3.5 text-emerald-500" />
+                  <CheckCircle2 className="size-3.5 text-success" />
                   Kontrola fáz vedeckej metodológie (IMRaD)
                 </span>
                 <Badge variant="outline" className="text-[10px] font-semibold bg-card">
@@ -436,9 +436,9 @@ export function AnalysisPlanPanel({
                     key={p.key}
                     className={`p-2 rounded-lg border text-[10px] flex flex-col justify-between ${
                       p.status === "complete"
-                        ? "bg-success/100/10 border-success/40 text-success dark:text-success"
+                        ? "bg-success/10 border-success/40 text-success dark:text-success"
                         : p.status === "partial"
-                        ? "bg-warning/100/10 border-warning/40 text-warning dark:text-warning"
+                        ? "bg-warning/10 border-warning/40 text-warning dark:text-warning"
                         : "bg-muted/40 border-dashed text-muted-foreground opacity-60"
                     }`}
                   >
@@ -584,9 +584,9 @@ export function AnalysisPlanPanel({
                         variant="outline"
                         className={`text-[8px] py-0 px-1 ${
                           c.applicability === "applicable"
-                            ? "bg-success/100/10 text-success dark:text-success border-success/40"
+                            ? "bg-success/10 text-success dark:text-success border-success/40"
                             : c.applicability === "partially_applicable"
-                            ? "bg-warning/100/10 text-warning dark:text-warning border-warning/40"
+                            ? "bg-warning/10 text-warning dark:text-warning border-warning/40"
                             : "bg-muted text-muted-foreground"
                         }`}
                       >
@@ -649,11 +649,11 @@ function TOCNodeRow({
   const isExpanded = expandedNodes[node.id] ?? false
 
   const kindColors: Record<string, string> = {
-    introduction: "text-info dark:text-info bg-info/100/10 border-info/30",
-    literature: "text-status-ambiguous dark:text-status-ambiguous bg-status-ambiguous/100/10 border-status-ambiguous/30",
-    methodology: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+    introduction: "text-info dark:text-info bg-info/10 border-info/30",
+    literature: "text-status-ambiguous dark:text-status-ambiguous bg-status-ambiguous/10 border-status-ambiguous/30",
+    methodology: "text-success bg-success/10 border-success/20",
     results: "text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
-    discussion: "text-warning dark:text-warning bg-warning/100/10 border-warning/30",
+    discussion: "text-warning dark:text-warning bg-warning/10 border-warning/30",
     conclusion: "text-teal-600 dark:text-teal-400 bg-teal-500/10 border-teal-500/20",
     references: "text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
     appendix: "text-muted-foreground dark:text-muted-foreground bg-muted/40 border-muted/40",

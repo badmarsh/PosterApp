@@ -96,3 +96,34 @@ describe("UX Polish — error lens & quick fixes (2026-09-17 audit)", () => {
     expect(lp).toContain("parseCompileLog")
   })
 })
+
+describe("UX Polish — design token sweep (2026-09-17 audit, friction #5)", () => {
+  const FILES = [
+    "components/structure-sidebar.tsx",
+    "components/agent-panel.tsx",
+    "components/agent/approval-inbox.tsx",
+    "components/settings/agent-integration-panel.tsx",
+    "components/poster-preview.tsx",
+    "components/research-lab-templates.tsx",
+    "components/equation-registry-dialog.tsx",
+    "components/header-inspector.tsx",
+    "components/thesis-review/analysis-plan-panel.tsx",
+    "components/thesis-review/defense-prep-panel.tsx",
+    "components/academic-search-dialog.tsx",
+  ]
+
+  it.each(FILES)("semantic-only tokens in %s (no amber/emerald/green/blue/red-500)", async (file) => {
+    const src = await fs.readFile(file, "utf-8")
+    expect(src).not.toMatch(/(?:bg|text|border)-(?:amber|emerald|green|blue|red)-500/)
+    expect(src).not.toContain("/100/10")
+  })
+
+  it("compile status and defense verdicts use semantic tokens", async () => {
+    const preview = await fs.readFile("components/poster-preview.tsx", "utf-8")
+    expect(preview).toContain('"text-success"')
+    const panel = await fs.readFile("components/thesis-review/defense-prep-panel.tsx", "utf-8")
+    expect(panel).toContain("bg-success/10")
+    expect(panel).toContain("RehearsalTimer")
+    expect(panel).toContain("buildDefensePackMarkdown")
+  })
+})

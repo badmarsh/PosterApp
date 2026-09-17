@@ -306,7 +306,7 @@ export function EquationRegistryDialog() {
                         {formulaValidation.error}
                       </span>
                     ) : formFormula.trim() ? (
-                      <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                      <span className="flex items-center gap-1 text-[10px] text-success font-medium">
                         <CheckCircle2 className="size-3" />
                         Valid KaTeX Syntax
                       </span>
@@ -449,7 +449,7 @@ export function EquationRegistryDialog() {
                               aria-label={`Copy LaTeX for ${eq.key}`}
                               title="Copy LaTeX Formula"
                             >
-                              {copiedId === eq.id ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
+                              {copiedId === eq.id ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
                               {copiedId === eq.id ? "Copied" : "Copy"}
                             </Button>
 

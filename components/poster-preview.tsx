@@ -1447,7 +1447,7 @@ export function PosterPreview() {
                 autoCompile 
                   ? "bg-primary/10 text-primary hover:bg-primary/20" 
                   : "bg-card text-foreground hover:bg-muted",
-                (!autoCompile && compileOk === true) && "text-emerald-600 dark:text-emerald-400",
+                (!autoCompile && compileOk === true) && "text-success",
                 (!autoCompile && compileOk === false) && "text-destructive"
               )}
             >

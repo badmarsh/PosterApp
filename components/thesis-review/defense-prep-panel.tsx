@@ -247,7 +247,7 @@ export function DefensePrepPanel({
                 >
                   {copiedId === item.id ? (
                     <>
-                      <CheckCircle2 className="size-3.5 text-emerald-500" />
+                      <CheckCircle2 className="size-3.5 text-success" />
                       Skopírované
                     </>
                   ) : (

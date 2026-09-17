@@ -1229,7 +1229,7 @@ export function ResearchLabTemplates({
                   className="h-8 gap-1.5 text-xs"
                   onClick={() => handleCopy(selectedTask.prompt)}
                 >
-                  {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
+                  {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
                   {copied ? "Copied Prompt" : "Copy Prompt"}
                 </Button>
                 <Button

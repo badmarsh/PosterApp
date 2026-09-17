@@ -332,13 +332,13 @@ export function ApprovalInbox({ workspaceId, onApplySuccess }: ApprovalInboxProp
             const isPending = change.status === "pending"
             const toolIcon =
               change.targetType === "card" ? (
-                <FileText className="size-3.5 text-blue-500" />
+                <FileText className="size-3.5 text-status-info" />
               ) : change.targetType === "bibliography" ? (
-                <BookOpen className="size-3.5 text-purple-500" />
+                <BookOpen className="size-3.5 text-primary" />
               ) : change.targetType === "asset" ? (
-                <ImageIcon className="size-3.5 text-emerald-500" />
+                <ImageIcon className="size-3.5 text-success" />
               ) : (
-                <Cpu className="size-3.5 text-amber-500" />
+                <Cpu className="size-3.5 text-warning" />
               )
 
             return (

@@ -265,8 +265,8 @@ export function AgentIntegrationPanel() {
       </div>
 
       {/* Migration Notice */}
-      <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-3.5 flex items-start gap-3">
-        <Lock className="size-4 text-blue-500 shrink-0 mt-0.5" />
+      <div className="rounded-lg bg-status-info/10 border border-status-info/30 p-3.5 flex items-start gap-3">
+        <Lock className="size-4 text-status-info shrink-0 mt-0.5" />
         <div className="text-xs text-muted-foreground leading-relaxed">
           <span className="font-semibold text-foreground">Hardened Credential Storage:</span>{" "}
           API keys are hashed with SHA-256; raw keys are never stored in the database and are
@@ -348,7 +348,7 @@ export function AgentIntegrationPanel() {
               }`}
             >
               <div className="font-semibold text-xs flex items-center gap-1.5">
-                <Shield className="size-3.5 text-emerald-500" />
+                <Shield className="size-3.5 text-success" />
                 Research + Propose
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">
@@ -487,16 +487,16 @@ export function AgentIntegrationPanel() {
 
       {/* One-time key display */}
       {newKey && (
-        <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-4 space-y-3">
+        <div className="rounded-lg bg-warning/10 border border-warning/30 p-4 space-y-3">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-sm font-semibold text-amber-500 flex items-center gap-1.5">
+              <p className="text-sm font-semibold text-warning flex items-center gap-1.5">
                 <AlertCircle className="size-4" />
                 Copy this key now — it will never be displayed again
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Set this key as{" "}
-                <code className="font-mono text-amber-400 bg-amber-500/10 px-1 py-0.5 rounded">
+                <code className="font-mono text-warning bg-warning/10 px-1 py-0.5 rounded">
                   POSTERAPP_AGENT_KEY
                 </code>{" "}
                 in your DeerFlow <code className="font-mono">.env</code> or config.
@@ -504,7 +504,7 @@ export function AgentIntegrationPanel() {
             </div>
             <Button size="sm" variant="secondary" onClick={handleCopy} className="shrink-0 gap-1.5">
               {copied ? (
-                <Check className="size-3.5 text-emerald-500" />
+                <Check className="size-3.5 text-success" />
               ) : (
                 <Copy className="size-3.5" />
               )}
@@ -694,7 +694,7 @@ export function AgentIntegrationPanel() {
                       {log.ok ? (
                         <Badge
                           variant="secondary"
-                          className="text-[10px] bg-emerald-500/10 text-emerald-500"
+                          className="text-[10px] bg-success/10 text-success"
                         >
                           Success
                         </Badge>
@@ -738,17 +738,17 @@ export function AgentIntegrationPanel() {
                         {new Date(change.createdAt).toLocaleDateString()}
                       </span>
                       {change.status === "pending" && (
-                        <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-500">
+                        <Badge variant="outline" className="text-[10px] border-warning text-warning">
                           Pending
                         </Badge>
                       )}
                       {change.status === "applied" && (
-                        <Badge variant="outline" className="text-[10px] border-emerald-500 text-emerald-500">
+                        <Badge variant="outline" className="text-[10px] border-success text-success">
                           Applied
                         </Badge>
                       )}
                       {change.status === "rejected" && (
-                        <Badge variant="outline" className="text-[10px] border-red-500 text-red-500">
+                        <Badge variant="outline" className="text-[10px] border-destructive text-destructive">
                           Rejected
                         </Badge>
                       )}
