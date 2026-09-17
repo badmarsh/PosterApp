@@ -145,6 +145,10 @@ Schema at `prisma/schema.prisma`. Key notes:
 (None currently)
 
 ### Fixed in This Session (2026-09-17)
+- ✅ **Bundled Conference & Journal LaTeX Styles (No Missing Class Warnings)**:
+  - **Bundled Assets in `public/latex-styles/`**: Vendored all conference and journal `.sty`, `.cls`, `.clo`, and `.bst` files directly into `public/latex-styles/`: `acl.sty`, `acl_natbib.bst`, `neurips_2026.sty`, `icml2026.sty`, `icml2026.bst`, `algorithm.sty`, `algorithmic.sty`, `iclr2026_conference.sty`, `iclr2026_conference.bst`, `cvpr.sty`, `ieeenat_fullname.bst`, `aaai2026.sty`, `aaai2026.bst`, `webofc.cls`, `woc.bst`, `iopart.cls`, `iopart10.clo`, `iopart12.clo`, `iopart-num.bst` (alongside existing `jinstpub.sty`, `pos.sty`, `JHEP.bst`).
+  - **Eliminated UI Missing-Class Warning**: Removed `requiresClass` from all templates (`epj-woc`, `iopart`, `neurips`, `icml`, `iclr`, `acl`, `cvpr`, `aaai`) in `lib/output-types.ts`, removing the warning "Requires X — not bundled with PosterApp. If your compiler image lacks it, the build will fail. Upload the file to the workspace root to vendor it."
+  - **Automatic Compile Ingestion**: The compilation route (`app/api/workspaces/[id]/compile/route.ts`) copies all files from `public/latex-styles/` directly into the pdflatex build staging directory, ensuring zero compile failures due to missing classes.
 - ✅ **Automatic Metadata Prefill on Source Document Selection (Fields 2, 3, 4)**:
   - **Immediate & Async Two-Stage Prefill**: Selecting a source document in `ThesisMetadataPanel` immediately pre-fills (2) Title, (3) Author, (4) Document Type from filename hints, and as soon as the source document markdown resolves (from cache or API), automatically enriches the fields with the parsed text metadata.
   - **Filename Prefix Stripping & Type Inference**: Added `cleanTitleFromFilename` which strips document prefixes (`phd_tesis_`, `phd thesis `, `diplomova_praca_`, `bakalarska_praca_`, `final_thesis_`, etc.) so filenames like `phd_tesis_Bose-Einstein correlations...` yield clean titles (`Bose-Einstein correlations...`) and correctly prefill `thesisType = "phd"` instead of defaulting to master thesis.

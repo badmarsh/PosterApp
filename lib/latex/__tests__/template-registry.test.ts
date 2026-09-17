@@ -83,9 +83,14 @@ describe("Template registry", () => {
   })
 
   it("requiresClass only names classes not vendored in public/latex-styles", () => {
-    // jinstpub.sty / pos.sty / JHEP.bst are vendored and copied into the
-    // staging dir at compile time, so they must NOT be declared as missing.
-    const vendored = ["jinstpub", "pos.sty", "JHEP.bst"]
+    // All conference and proceedings classes/styles are now vendored in public/latex-styles/
+    // and copied into the staging dir at compile time, so none should be declared as missing.
+    const vendored = [
+      "jinstpub", "pos.sty", "JHEP.bst",
+      "webofc", "iopart",
+      "neurips_2026.sty", "icml2026.sty", "iclr2026_conference.sty",
+      "acl.sty", "cvpr.sty", "aaai2026.sty"
+    ]
     for (const t of TEMPLATE_REGISTRY) {
       for (const req of t.requiresClass ?? []) {
         expect(vendored, `${t.id} declares vendored ${req}`).not.toContain(req)
