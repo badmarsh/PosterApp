@@ -63,10 +63,15 @@ export async function runSandboxedLatex({ stage, buildCmd, timeoutMs = 60_000, i
   // Direct local runner on Linux (in-container or Linux server)
   if (process.platform === "linux") {
     try {
-      return await run("sh", ["-c", `ulimit -t 55 -v 1048576 -f 51200; ${hardenedCmd}`], stage, timeoutMs)
+      return await run("sh", ["-c", `ulimit -t 55 2>/dev/null || true; ulimit -f 51200 2>/dev/null || true; ${hardenedCmd}`], stage, timeoutMs)
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : String(err)
-      if (msg.includes("not found") || msg.includes("ENOENT") || msg.includes("127")) {
+      if (
+        msg.includes("pdflatex: not found") ||
+        msg.includes("pdflatex: 127") ||
+        msg.includes("pdflatex: command not found") ||
+        (msg.includes("127") && !msg.includes("LaTeX"))
+      ) {
         throw new Error("COMPILER_UNAVAILABLE")
       }
       throw err

@@ -13,6 +13,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-latex-extra \
     texlive-pictures \
     texlive-fonts-recommended \
+    texlive-fonts-extra \
+    texlive-science \
+    texlive-bibtex-extra \
+    texlive-lang-czechslovak \
+    texlive-lang-european \
+    lmodern \
+    cm-super \
+    ghostscript \
+    qpdf \
     && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
