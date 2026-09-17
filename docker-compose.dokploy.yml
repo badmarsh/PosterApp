@@ -29,7 +29,7 @@ services:
   # ---------------------------------------------------------------------------
   db-init:
     build:
-      context: ..
+      context: .
       dockerfile: Dockerfile
       target: builder
     restart: "no"
@@ -52,7 +52,7 @@ services:
   # ---------------------------------------------------------------------------
   web:
     build:
-      context: ..
+      context: .
       dockerfile: Dockerfile
       target: runner
     restart: unless-stopped
@@ -85,8 +85,11 @@ services:
       AI_API_URL: ${AI_API_URL}
       AI_API_KEY: ${AI_API_KEY}
       AI_VISION_MODEL: ${AI_VISION_MODEL:-qwen3-vl-flash}
+      AI_VISION_FALLBACK_MODELS: ${AI_VISION_FALLBACK_MODELS}
       AI_VISION_API_URL: ${AI_VISION_API_URL}
       AI_VISION_API_KEY: ${AI_VISION_API_KEY}
+      AI_REVIEW_LAYOUT_MODEL: ${AI_REVIEW_LAYOUT_MODEL:-qwen3-vl-flash}
+      AI_AUTOFIX_MODEL: ${AI_AUTOFIX_MODEL:-gemini-3.7-flash}
       # MinerU Document Parsing Sidecar
       MINERU_API_URL: ${MINERU_API_URL}
       # Academic & Research Connectors
@@ -100,7 +103,8 @@ services:
       WORKSPACES_DIR: workspaces
       YPERSISTENCE: ./tmp/yjs
       RATE_LIMIT_ALLOW_IN_MEMORY: ${RATE_LIMIT_ALLOW_IN_MEMORY:-1}
-      AUTH_SECRET: ${AUTH_SECRET:-change-me-in-production}
+      AUTH_SECRET: ${AUTH_SECRET}
+      NEXT_TELEMETRY_DISABLED: 1
     volumes:
       - posterapp_workspaces:/app/workspaces
       - posterapp_yjs:/app/tmp/yjs
