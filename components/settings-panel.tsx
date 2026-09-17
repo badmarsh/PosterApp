@@ -673,9 +673,10 @@ function AiModelRow({
         <Label className="w-28 shrink-0 text-xs">{AI_ROLE_LABELS[role]}</Label>
         <input
           type="text"
+          list={`model-suggestions-${role}`}
           defaultValue={effectiveModel}
           placeholder={defaultModel}
-          className="h-7 flex-1 rounded border border-border bg-background px-2 text-xs"
+          className="h-7 flex-1 rounded border border-border bg-background px-2 text-xs font-mono"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               const val = (e.target as HTMLInputElement).value.trim()
@@ -692,6 +693,13 @@ function AiModelRow({
           }}
           autoFocus
         />
+        <datalist id={`model-suggestions-${role}`}>
+          <option value="gemini-2.5-flash" label="Gemini 2.5 Flash (Fast, Recommended)" />
+          <option value="gemini-3.8-flash" label="Gemini 3.8 Flash (Latest)" />
+          <option value="gemini-3.6-flash" label="Gemini 3.6 Flash" />
+          <option value="qwen3-vl-flash" label="Qwen3 VL Flash (Vision/Layout)" />
+          <option value="qwen-vl-max" label="Qwen VL Max (High-precision Vision)" />
+        </datalist>
         {isOverridden && (
           <Button variant="ghost" size="sm" onClick={onClear} className="h-7 px-2 text-xs">
             <RotateCcw className="size-3" />
