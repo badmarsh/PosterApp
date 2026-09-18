@@ -32,12 +32,22 @@ export function pickOutputMeta(o: OutputConfig): Pick<OutputConfig, OutputMetaKe
 
 export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
   let retryTimer: ReturnType<typeof setTimeout> | null = null
-  const scheduleRetry = () => {
+  let retryAttempt = 0
+  const cancelRetry = () => {
+    if (retryTimer) {
+      clearTimeout(retryTimer)
+      retryTimer = null
+    }
+    retryAttempt = 0
+  }
+  const scheduleRetry = (delayMs?: number) => {
     if (retryTimer) clearTimeout(retryTimer)
+    const delay = delayMs ?? Math.min(30_000, 3_000 * Math.pow(2, retryAttempt))
+    retryAttempt++
     retryTimer = setTimeout(() => {
       retryTimer = null
-      void get().saveProject()
-    }, 3_000)
+      void get().saveProject(false)
+    }, delay)
   }
 
   return ({
@@ -1100,7 +1110,18 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     if (isDemoProject(get().project.id)) {
       // The demo project only exists in memory — do not hammer the API with 404s.
       set((s) => { s.isDirty = false })
-      get().pushEvent({ kind: "info", status: "warning", title: "Demo project is read-only", detail: "Create or open a workspace (⌘K → Switch Workspace) to save your work." })
+      get().pushEvent({
+        kind: "info",
+        status: "warning",
+        title: "Demo project is read-only",
+        detail: "Create or duplicate a workspace (⌘K → Switch Workspace) to save your work.",
+      })
+      if (manual) {
+        notify.info("Demo workspace is read-only", {
+          description: "Duplicate this workspace or create a new one to save your changes.",
+          action: { label: "Duplicate", onClick: () => void get().duplicateProject() },
+        })
+      }
       return
     }
     if (get().isSaving) {
@@ -1109,11 +1130,14 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     }
     const workspaceId = get().project.id
     let conflict = false
+    let isRetryable = false
+    let retryDelayMs: number | undefined
     set((s) => { s.isSaving = true; s.isDirty = false })
     try {
       const proj = get().project
-      const agentEvents = get().agentEvents
-      const chatMessages = get().chatMessages
+      // Bound history arrays before sending to prevent oversized payloads / schema overflow
+      const agentEvents = (get().agentEvents || []).slice(-200)
+      const chatMessages = (get().chatMessages || []).slice(-100)
 
       const res = await apiFetch(`/api/workspaces/${proj.id}`, {
         method: "PUT",
@@ -1124,12 +1148,43 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
           chatMessages,
         }),
       })
+
       if (res.status === 409) {
         conflict = true
-        throw new Error("This workspace changed in another session. Reload it before saving again.")
+        throw Object.assign(new Error("This workspace changed in another session. Reload it before saving again."), { code: "CONFLICT", status: 409 })
       }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+      if (res.status === 401) {
+        throw Object.assign(new Error("Sign in required to save changes."), { code: "UNAUTHENTICATED", status: 401 })
+      }
+
+      if (res.status === 403) {
+        throw Object.assign(new Error("You have read-only access to this workspace."), { code: "READ_ONLY", status: 403 })
+      }
+
+      if (res.status === 404) {
+        throw Object.assign(new Error("Workspace not found on server."), { code: "NOT_FOUND", status: 404 })
+      }
+
+      if (res.status === 400) {
+        const errDetails = await res.json().catch(() => null)
+        console.error("[saveProject] Validation failed on server:", errDetails)
+        throw Object.assign(new Error("Server rejected workspace data format."), { code: "VALIDATION_ERROR", status: 400, details: errDetails })
+      }
+
+      if (res.status === 429) {
+        isRetryable = true
+        retryDelayMs = 15_000
+        throw Object.assign(new Error("Saving is temporarily throttled."), { code: "RATE_LIMITED", status: 429 })
+      }
+
+      if (!res.ok) {
+        isRetryable = true
+        throw new Error(`HTTP ${res.status}`)
+      }
+
       const result = await res.json() as { revision?: number }
+      retryAttempt = 0
       // Ignore a completion belonging to a workspace that was switched away.
       set((s) => {
         if (s.project.id !== workspaceId) return
@@ -1141,14 +1196,15 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         notify.success("Saved", { description: `Workspace saved at ${new Date().toLocaleTimeString()}.` })
       }
     } catch (err: unknown) {
-      // Keep the snapshot dirty so a transient failure cannot silently strand
-      // user changes. The retry timer is de-duplicated by scheduleRetry.
+      const errObj = err as { code?: string; status?: number; message?: string }
+      // Keep dirty flag so user edits are not silently lost
       set((s) => {
         if (s.project.id === workspaceId) {
           s.isSaving = false
           s.isDirty = true
         }
       })
+
       if (conflict) {
         get().pushEvent({
           kind: "info",
@@ -1159,22 +1215,86 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         notify.error("Save conflict", {
           description: "This workspace changed in another session. Reload it before saving again.",
         })
+      } else if (errObj.status === 401 || errObj.code === "UNAUTHENTICATED") {
+        get().pushEvent({
+          kind: "info",
+          status: "warning",
+          title: "Authentication Required",
+          detail: "Your session has expired. Sign in to save your changes.",
+        })
+        notify.error("Sign in required", {
+          description: "Your session has expired. Changes are kept locally — please sign in to save.",
+          action: {
+            label: "Sign in",
+            onClick: () => {
+              if (typeof window !== "undefined") {
+                window.location.href = `/sign-in?redirect_url=${encodeURIComponent(window.location.href)}`
+              }
+            }
+          }
+        })
+      } else if (errObj.status === 403 || errObj.code === "READ_ONLY") {
+        get().pushEvent({
+          kind: "info",
+          status: "warning",
+          title: "Read-only Workspace",
+          detail: "You do not have write access to this workspace. Duplicate it to save your changes.",
+        })
+        notify.error("Read-only workspace", {
+          description: "You have view-only access. Duplicate this workspace to save your changes.",
+          action: { label: "Duplicate", onClick: () => void get().duplicateProject() },
+        })
+      } else if (errObj.status === 404 || errObj.code === "NOT_FOUND") {
+        get().pushEvent({
+          kind: "info",
+          status: "warning",
+          title: "Workspace Not Found",
+          detail: "This workspace does not exist on the server. Save it as a new copy.",
+        })
+        notify.error("Workspace not found", {
+          description: "This workspace is not stored on the server. Duplicate it to save a new copy.",
+          action: { label: "Save as new", onClick: () => void get().duplicateProject() },
+        })
+      } else if (errObj.status === 400 || errObj.code === "VALIDATION_ERROR") {
+        get().pushEvent({
+          kind: "info",
+          status: "error",
+          title: "Save Rejected",
+          detail: "The server rejected the workspace data format.",
+        })
+        notify.error("Save failed", {
+          description: "Server rejected the data format. Check console for details.",
+        })
+      } else if (errObj.status === 429 || errObj.code === "RATE_LIMITED") {
+        get().pushEvent({
+          kind: "info",
+          status: "warning",
+          title: "Save Throttled",
+          detail: "Saving throttled by server. Will retry shortly.",
+        })
+        if (manual) {
+          notify.warning("Rate limited", {
+            description: "Saving too frequently. Changes will be saved automatically in a few seconds.",
+          })
+        }
       } else {
+        // General network drop or 5xx server error
+        isRetryable = true
         get().pushEvent({
           kind: "info",
           status: "warning",
           title: "Auto-save Pending",
-          detail: "Save will retry automatically.",
+          detail: "Network issue. Save will retry automatically.",
         })
-        notify.error("Save failed", {
-          description: "Your changes are kept locally and the save will retry automatically.",
-        })
+        if (manual || retryAttempt <= 1) {
+          notify.error("Save failed", {
+            description: "Connection issue. Your changes are kept locally and will retry automatically.",
+          })
+        }
       }
     } finally {
-      // If an edit arrived while the save was in-flight, isDirty will be true.
-      // Schedule a retry so the edit is never permanently stranded.
-      if (get().isDirty && !conflict) {
-        scheduleRetry()
+      if (get().isDirty && !conflict && isRetryable) {
+        scheduleRetry(retryDelayMs)
       }
     }
   },

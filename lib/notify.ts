@@ -55,4 +55,8 @@ export const notify = {
     if (typeof window === "undefined") return
     sonnerToast.warning(title, options)
   },
+  info(title: string, options?: NotifyOptions): void {
+    if (typeof window === "undefined") return
+    sonnerToast.info(title, options)
+  },
 }
