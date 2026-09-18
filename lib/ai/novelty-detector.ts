@@ -89,16 +89,26 @@ const claimsSchema = z.object({
   ).max(MAX_CLAIMS),
 })
 
+export interface NoveltyOptions {
+  apiKey?: string
+  model?: string
+}
+
 /**
  * Uses LLM to extract atomic, testable factual claims from thesis text.
  * Claims are suitable for embedding-based academic literature search.
  */
-export async function extractClaims(thesisText: string, maxClaims = MAX_CLAIMS): Promise<ExtractedClaim[]> {
+export async function extractClaims(
+  thesisText: string,
+  maxClaims = MAX_CLAIMS,
+  options?: NoveltyOptions
+): Promise<ExtractedClaim[]> {
   // Sample at most 40k chars to keep LLM cost bounded
   const sample = thesisText.slice(0, 40000)
 
   const result = await generateAIResponse("NoveltyDetector-ClaimExtraction", {
-    model: process.env.AI_MODEL || "gemini-3.7-flash",
+    model: options?.model || process.env.AI_MODEL || "gemini-2.5-flash",
+    apiKey: options?.apiKey,
     systemPrompt: `You are an expert academic reviewer. Extract the ${maxClaims} most important, specific, and testable factual claims from the following thesis excerpt. 
 Focus on:
 - Empirical findings ("We found that X achieves Y%...")
@@ -275,10 +285,11 @@ function isInBibliography(
  */
 export async function detectNovelty(
   thesisText: string,
-  bibContent: string = ""
+  bibContent: string = "",
+  options?: NoveltyOptions
 ): Promise<NoveltyReport> {
   // Step 1: Extract claims
-  const claims = await extractClaims(thesisText)
+  const claims = await extractClaims(thesisText, MAX_CLAIMS, options)
   if (claims.length === 0) {
     return {
       claimsExtracted: 0,
