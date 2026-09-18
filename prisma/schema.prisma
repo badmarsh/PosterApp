@@ -17,6 +17,8 @@ model DocumentChunk {
   documentId  String
   heading     String?
   content     String
+  /// Token count. This IS the `tokenCount` of the evidence-first data model; the
+  /// historical column name is kept so existing rows and queries stay valid.
   tokens      Int
   embedding   Unsupported("vector(384)")?
   /// Structural chunk kind: "prose" | "table" | "equation" | "figure_caption".
@@ -27,13 +29,240 @@ model DocumentChunk {
   /// full-text search, but NEVER merged into `content`, which stays verbatim
   /// for evidence quote validation. NULL for chunks indexed before this column.
   contextPrefix String?
+
+  // -------------------------------------------------------------------------
+  // Evidence-first hierarchy (chunker v2). Every column is nullable or has a
+  // default, so rows written by the v1 chunker remain readable and no existing
+  // document has to be re-parsed for the migration to succeed.
+  // -------------------------------------------------------------------------
+
+  /// Fine-grained element type: "paragraph" | "table" | "equation" |
+  /// "figure_caption" | "citation" | "section". `kind` is the coarse legacy view.
+  chunkType   String                 @default("paragraph")
+  /// Position in the emitted chunk sequence (document order).
+  ordinal     Int                    @default(0)
+  /// 1-based page range. NULL when the parser supplied no page anchors —
+  /// page numbers are never synthesised.
+  pageStart   Int?
+  pageEnd     Int?
+  chapter     String?
+  section     String?
+  subsection  String?
+  /// Full heading breadcrumb, e.g. "Kapitola 3 > 3.1 Návrh > 3.1.1 Tréning".
+  sectionPath String?
+  /// Deterministic ids of the structural document elements this chunk covers.
+  sourceElementIds String[]          @default([])
+  /// Section-level reading unit this retrieval unit belongs to.
+  parentChunkId  String?
+  previousChunkId String?
+  nextChunkId    String?
+  characterCount Int?
+  /// True when an atomic element (table/equation) exceeded the token budget and
+  /// was emitted whole rather than split.
+  oversized      Boolean             @default(false)
+  /// SHA-256 of `content`; makes reindex idempotency checkable.
+  contentHash    String?
+  /// Provenance versions — a change in any of them means the index is stale.
+  parserVersion        String?
+  chunkerVersion       String?
+  embeddingModelVersion String?
+  schemaVersion        String?       @default("1.0")
+
   createdAt   DateTime               @default(now())
   workspace   Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  evidence    Evidence[]
+  claims      ThesisClaim[]
 
   @@index([workspaceId])
   @@index([workspaceId, documentId])
+  @@index([workspaceId, documentId, ordinal])
   @@index([embedding], map: "document_chunk_embedding_hnsw")
   @@index([workspaceId, kind])
+  @@index([workspaceId, chunkType])
+  @@index([workspaceId, parentChunkId])
+  @@index([workspaceId, pageStart])
+}
+
+/// A verbatim, page-anchored span of a source document that a finding may cite.
+///
+/// Findings must reference Evidence rows, not free text: that is what makes
+/// "every factual claim carries a source reference" enforceable rather than
+/// aspirational. `quote` is copied verbatim from `DocumentChunk.content`.
+model Evidence {
+  id          String        @id @default(cuid())
+  workspaceId String
+  documentId  String
+  chunkId     String
+  /// 1-based page, copied from the chunk. NULL when the parser had no page info.
+  page        Int?
+  sectionPath String?
+  /// "paragraph" | "table" | "equation" | "figure_caption" | "citation" | "section" | "graph" | "scholarly"
+  elementType String        @default("paragraph")
+  /// Id of the underlying object (chunk id, element id, graph edge id, paper id).
+  elementId   String?
+  quote       String
+  /// Character offsets of `quote` inside the chunk content.
+  startOffset Int?
+  endOffset   Int?
+  /// Who/what produced this evidence row.
+  origin      String        @default("retrieval")
+  createdAt   DateTime      @default(now())
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  chunk       DocumentChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+  claims      ThesisClaim[] @relation("ClaimEvidence")
+
+  @@index([workspaceId, documentId])
+  @@index([chunkId])
+  @@index([workspaceId, elementType])
+}
+
+/// Claim type as classified by the extraction pipeline.
+/// Stored as text (not an enum) so new types never require a migration.
+model ThesisClaim {
+  id             String        @id @default(cuid())
+  workspaceId    String
+  documentId     String
+  chunkId        String?
+  /// Deterministic: `claim-<sha256(normalizedText)[:16]>`. Re-extraction is idempotent.
+  claimKey       String
+  text           String
+  normalizedText String
+  /// "contribution" | "methodological" | "empirical" | "theoretical" |
+  /// "performance" | "novelty" | "causal" | "generalization"
+  claimType      String        @default("empirical")
+  /// 0.0 – 1.0
+  importance     Float         @default(0.5)
+  chapter        String?
+  section        String?
+  page           Int?
+  /// 0.0 – 1.0 confidence of the extraction itself (not of the claim's truth).
+  confidence     Float         @default(0.5)
+  /// Verification verdict: SUPPORTED | PARTIALLY_SUPPORTED | UNSUPPORTED |
+  /// CONTRADICTED | UNCERTAIN. NULL until verified.
+  verificationStatus String?
+  /// Structured verification record (supporting/contradicting evidence ids,
+  /// reasoning, whether the conclusion outruns the evidence).
+  verification   Json?
+  /// ScholarlyPaper ids whose content was compared against this claim.
+  citedPaperIds  String[]      @default([])
+  extractorVersion String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  workspace      Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  chunk          DocumentChunk? @relation(fields: [chunkId], references: [id], onDelete: SetNull)
+  evidence       Evidence[]    @relation("ClaimEvidence")
+
+  @@unique([workspaceId, claimKey])
+  @@index([workspaceId, documentId])
+  @@index([workspaceId, claimType])
+  @@index([workspaceId, verificationStatus])
+}
+
+/// Canonical scholarly document, merged across providers.
+///
+/// A citation is NOT a string: it is a record with DOI, authors, venue, dates
+/// and provider provenance, connectable to the exact place it occurs in the
+/// thesis (CitationOccurrence) and to the prior-art analysis of a claim.
+model ScholarlyPaper {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  /// Normalised DOI (lowercase, `10.` prefix kept). Null when no DOI is known.
+  doi            String?
+  /// Normalised title key used for deduplication across providers.
+  titleKey       String
+  title          String
+  authors        String[]  @default([])
+  year           Int?
+  /// ISO date when the provider exposed one; used by the temporal novelty logic.
+  publicationDate DateTime?
+  venue          String?
+  abstract       String?
+  citationCount  Int?
+  /// "semantic-scholar" | "openalex" | "crossref" | "arxiv" | "bibliography" | "merged"
+  sourceProvider String    @default("merged")
+  /// Per-provider raw records that were merged into this one.
+  provenance     Json?
+  externalId     String?
+  retrievedAt    DateTime  @default(now())
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  occurrences    CitationOccurrence[]
+
+  @@unique([workspaceId, titleKey])
+  @@index([workspaceId, doi])
+  @@index([workspaceId, year])
+}
+
+/// One in-text occurrence of a citation, anchored to the chunk where it appears.
+model CitationOccurrence {
+  id           String          @id @default(cuid())
+  workspaceId  String
+  documentId   String
+  paperId      String
+  chunkId      String?
+  page         Int?
+  /// Verbatim sentence the citation appears in — the "citation context".
+  context      String?
+  /// "supports" | "contradicts" | "extends" | "compares_with" | "background" | "unknown"
+  relation     String          @default("unknown")
+  startOffset  Int?
+  endOffset    Int?
+  createdAt    DateTime        @default(now())
+  workspace    Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  paper        ScholarlyPaper  @relation(fields: [paperId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, documentId])
+  @@index([paperId])
+  @@index([workspaceId, chunkId])
+}
+
+/// Structured observability record for one retrieval/reasoning request.
+///
+/// Stores counts, scores, model versions and per-stage latencies — never the
+/// retrieved text itself, so a trace cannot leak manuscript content.
+model RetrievalTrace {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  reviewId      String?
+  /// Criterion id or query category this trace belongs to.
+  criterion     String?
+  queryCategory String?
+  query         String?
+  /// Which retrieval route was taken ("dense+lexical", "drift", …).
+  route         String?
+  /// { source: candidateCount } per generator.
+  candidateCounts Json?
+  /// Fused / reranked scores of the selected evidence (ids + numbers only).
+  ranking        Json?
+  selectedEvidenceIds String[] @default([])
+  graphNodeIds   String[]  @default([])
+  communityIds   String[]  @default([])
+  promptTokens   Int?
+  modelVersions  Json?
+  stageLatencyMs Json?
+  totalLatencyMs Int?
+  degraded       Json?
+  createdAt      DateTime  @default(now())
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@index([workspaceId, criterion])
+}
+
+/// One evaluation / ablation / model-benchmark run.
+model EvalRun {
+  id          String    @id @default(cuid())
+  workspaceId String?
+  /// "retrieval" | "ablation" | "model-benchmark" | "novelty" | "evidence" | "review"
+  kind        String
+  name        String
+  config      Json?
+  metrics     Json?
+  status      String    @default("completed")
+  error       String?
+  durationMs  Int?
+  createdAt   DateTime  @default(now())
+
+  @@index([kind, createdAt(sort: Desc)])
 }
 
 model Workspace {
@@ -67,6 +296,11 @@ model Workspace {
   snapshots           WorkspaceSnapshot[]
   agentApiKeys        AgentApiKey[]
   agentPendingChanges AgentPendingChange[]
+  evidence            Evidence[]
+  thesisClaims        ThesisClaim[]
+  scholarlyPapers     ScholarlyPaper[]
+  citationOccurrences CitationOccurrence[]
+  retrievalTraces     RetrievalTrace[]
 
   @@index([userId])
 }
@@ -321,9 +555,17 @@ model GraphNode {
   id          String      @id @default(cuid())
   workspaceId String
   documentId  String
+  /// Entity type. v1 emitted 7 labels; v2 adds ResearchQuestion, Method, Variable,
+  /// Experiment, Claim, Limitation, Conclusion, Paper, Figure, Table.
   label       String
   name        String
   description String?
+  /// Canonical lookup key (diacritics folded, lowercased) used for dedup.
+  canonicalKey String?
+  /// Where the entity first appears — provenance for the node itself.
+  page        Int?
+  chunkId     String?
+  extractorVersion String?
   createdAt   DateTime    @default(now())
   sourceEdges GraphEdge[] @relation("SourceNode")
   targetEdges GraphEdge[] @relation("TargetNode")
@@ -332,6 +574,7 @@ model GraphNode {
   @@unique([workspaceId, label, name])
   @@index([workspaceId])
   @@index([workspaceId, documentId])
+  @@index([workspaceId, label])
 }
 
 model GraphEdge {
@@ -339,9 +582,20 @@ model GraphEdge {
   workspaceId String
   sourceId    String
   targetId    String
+  /// Canonical relation: TESTS, SUPPORTS, CONTRADICTS, USES, EVALUATES, MEASURES,
+  /// PRODUCES, DEPENDS_ON, CITES, EXTENDS, COMPARES_WITH, REFUTES, DERIVED_FROM, …
   relation    String
   evidence    String?
   documentId  String?
+  /// Full provenance: which chunk, which page, how much to trust the extraction.
+  /// Confidence-aware traversal refuses to build an argument on low-confidence
+  /// edges unless nothing better exists.
+  chunkId     String?
+  page        Int?
+  /// 0.0 – 1.0 extractor confidence. NULL = extracted before this column existed
+  /// and must be treated as "unknown", NOT as "reliable".
+  confidence  Float?
+  extractorVersion String?
   createdAt   DateTime  @default(now())
   source      GraphNode @relation("SourceNode", fields: [sourceId], references: [id], onDelete: Cascade)
   target      GraphNode @relation("TargetNode", fields: [targetId], references: [id], onDelete: Cascade)
@@ -350,6 +604,8 @@ model GraphEdge {
   @@index([workspaceId])
   @@index([sourceId])
   @@index([targetId])
+  @@index([workspaceId, relation])
+  @@index([workspaceId, chunkId])
 }
 
 /// Louvain-detected semantic community of graph nodes for cross-chapter synthesis.
@@ -363,11 +619,25 @@ model GraphCommunity {
   /// LLM-generated narrative summary of what this community of concepts represents
   summary       String?
   nodeCount     Int       @default(0)
+  /// Hierarchy level (0 = finest). Enables global → local drill-down.
+  level         Int       @default(0)
+  parentCommunityId String?
+  /// Evidence ids backing the summary — a community report is not authoritative
+  /// unless it can point at the text it summarises.
+  evidenceIds   Json?
+  /// Embedding of `summary`, so community retrieval can be query-aware instead
+  /// of "top N by nodeCount". Nullable; width follows DocumentChunk.embedding.
+  summaryEmbedding Unsupported("vector(384)")?
+  extractorVersion String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  children      GraphCommunity[] @relation("CommunityHierarchy")
+  parent        GraphCommunity?  @relation("CommunityHierarchy", fields: [parentCommunityId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId])
+  @@index([workspaceId, level])
+  @@index([parentCommunityId])
 }
 
 model AgentApiKey {

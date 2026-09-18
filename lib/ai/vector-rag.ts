@@ -270,24 +270,14 @@ export async function generateHypotheses(
 // Stage 3 — Hybrid RRF Retrieval (pgvector + FTS)
 // ---------------------------------------------------------------------------
 
-/**
- * Builds a PostgreSQL `websearch_to_tsquery` string from free text: keeps the
- * most informative tokens (length > 3, de-duplicated, max `maxTerms`) and
- * OR-joins them. `plainto_tsquery` ANDs every term, which never matches for a
- * 30–45-word criterion query — this makes the keyword leg of the hybrid
- * search actually contribute.
+/*
+ * Shared retrieval SQL moved to `lib/ai/retrieval-sql.ts` so the individual candidate
+ * generators (`lib/ai/retrievers/*`) reuse the exact same isolation filters, pgvector session
+ * tuning and FTS query builder instead of growing private copies. Re-exported here so every
+ * existing import path (`@/lib/ai/vector-rag`) keeps working unchanged.
  */
-export function buildFtsQuery(text: string, maxTerms = 8): string {
-  const seen = new Set<string>()
-  const terms: string[] = []
-  for (const raw of text.toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
-    if (raw.length <= 3 || seen.has(raw)) continue
-    seen.add(raw)
-    terms.push(raw)
-    if (terms.length >= maxTerms) break
-  }
-  return terms.join(" OR ")
-}
+export { buildFtsQuery, efSearchFor, retrievalJoin, applyHnswSessionTuning, inTransaction } from "./retrieval-sql"
+export type { RetrievalFilter } from "./retrieval-sql"
 
 /** A chunk as returned by the retrieval legs of the pipeline. */
 export interface RetrievedChunk {
@@ -300,57 +290,12 @@ export interface RetrievedChunk {
   /** Anthropic-style contextual prefix (indexed for FTS; never part of content). */
   contextPrefix?: string | null
 }
+// Re-export alone does NOT bind the symbol in this module, so import them explicitly too.
+import { buildFtsQuery, efSearchFor, retrievalJoin } from "./retrieval-sql"
+import type { RetrievalFilter } from "./retrieval-sql"
+import { applyMMR as sharedApplyMMR } from "./retrieval-ranking"
+export { mmrSelect, detectNoveltyDrift, rerankCandidates, cosineSimilarity } from "./retrieval-ranking"
 
-/** Filters applied to every retrieval leg (vector, FTS, exact fallback). */
-export interface RetrievalFilter {
-  /** Restrict retrieval to a single ingest/document ID. */
-  documentId?: string
-  /** Restrict retrieval to these ingest/document IDs. An empty array matches nothing. */
-  documentIds?: string[]
-  /** Restrict retrieval to structural chunk kinds, e.g. ["table"] or ["table","equation"]. */
-  kinds?: string[]
-}
-
-/**
- * ef_search for a retrieval query, scaled to the requested candidate count.
- * HNSW evaluates the index *before* the workspace/document filter, so the
- * default 40 can prune candidate branches before small workspaces fill their
- * result set in a large multi-tenant table. We scale with `limit * 8`
- * (bounded 40–1000) via SET LOCAL — transaction-scoped, so PgBouncer
- * transaction pooling (Supabase port 6543) never leaks the setting.
- */
-export function efSearchFor(limit: number): number {
-  return Math.min(1000, Math.max(40, limit * 8))
-}
-
-/**
- * Builds the shared parameterized WHERE fragment for retrieval queries.
- *
- * Everything that reaches this function is either a Prisma-bound parameter or
- * a structural fragment assembled with `Prisma.sql` / `Prisma.join` — no user
- * input is ever string-interpolated, which keeps the query both
- * injection-proof and (for the vector leg) eligible for the HNSW index plan.
- *
- * Returns `Prisma.empty` when no filter applies. An explicitly provided empty
- * `documentIds` array compiles to `AND 1 = 0` (must match nothing) rather than
- * silently dropping the isolation filter.
- */
-export function retrievalJoin(filter: RetrievalFilter = {}): Prisma.Sql {
-  const parts: Prisma.Sql[] = []
-  if (filter.documentIds !== undefined) {
-    parts.push(
-      filter.documentIds.length > 0
-        ? Prisma.sql`AND "documentId" IN (${Prisma.join(filter.documentIds)})`
-        : Prisma.sql`AND 1 = 0`
-    )
-  } else if (filter.documentId) {
-    parts.push(Prisma.sql`AND "documentId" = ${filter.documentId}`)
-  }
-  if (filter.kinds && filter.kinds.length > 0) {
-    parts.push(Prisma.sql`AND kind IN (${Prisma.join(filter.kinds)})`)
-  }
-  return parts.length > 0 ? Prisma.join(parts, " ") : Prisma.empty
-}
 
 /** Exact (non-indexed) nearest-neighbour scan, scoped by the same isolation filters. */
 function exactScanSql(
@@ -652,67 +597,12 @@ export async function fetchChunksByIds(
  * Relevance MUST be on a [0,1] scale (searchHybrid normalises RRF scores) so that
  * it is commensurable with the Jaccard penalty.
  */
-export function applyMMR(
-  chunks: Array<{ id: string; content: string; heading: string | null; similarity?: number }>,
+export function applyMMR<T extends { id: string; content: string; heading: string | null; similarity?: number }>(
+  chunks: T[],
   topK: number,
   lambda = 0.7
-): typeof chunks {
-  if (chunks.length <= topK) return chunks
-
-  // Pre-tokenize chunks into word bigrams, trigrams, and character 4-grams
-  function tokenize(text: string): Set<string> {
-    const clean = text.toLowerCase()
-    const words = clean.split(/\s+/).filter((w) => w.length > 2)
-    const ngrams = new Set<string>()
-    for (let i = 0; i < words.length - 1; i++) {
-      ngrams.add(`w2:${words[i]} ${words[i + 1]}`)
-      if (i < words.length - 2) {
-        ngrams.add(`w3:${words[i]} ${words[i + 1]} ${words[i + 2]}`)
-      }
-    }
-    const condensed = clean.replace(/\s+/g, " ")
-    for (let i = 0; i < Math.min(condensed.length - 3, 500); i += 2) {
-      ngrams.add(`c4:${condensed.slice(i, i + 4)}`)
-    }
-    return ngrams
-  }
-
-  function jaccard(a: Set<string>, b: Set<string>): number {
-    if (a.size === 0 || b.size === 0) return 0
-    let inter = 0
-    for (const t of a) if (b.has(t)) inter++
-    return inter / (a.size + b.size - inter)
-  }
-
-  const tokenSets = chunks.map((c) => tokenize(c.content))
-  const relevanceScores = chunks.map((c) => c.similarity ?? 0)
-
-  const selected: number[] = []
-  const remaining = new Set(chunks.map((_, i) => i))
-
-  while (selected.length < topK && remaining.size > 0) {
-    let bestIdx = -1
-    let bestScore = -Infinity
-
-    for (const idx of remaining) {
-      const relevance = relevanceScores[idx]
-      let maxSim = 0
-      for (const selIdx of selected) {
-        maxSim = Math.max(maxSim, jaccard(tokenSets[idx], tokenSets[selIdx]))
-      }
-      const mmrScore = lambda * relevance - (1 - lambda) * maxSim
-      if (mmrScore > bestScore) {
-        bestScore = mmrScore
-        bestIdx = idx
-      }
-    }
-
-    if (bestIdx === -1) break
-    selected.push(bestIdx)
-    remaining.delete(bestIdx)
-  }
-
-  return selected.map((i) => chunks[i])
+): T[] {
+  return sharedApplyMMR(chunks, topK, lambda)
 }
 
 // ---------------------------------------------------------------------------
@@ -927,6 +817,19 @@ export function compressChunks(
  * @param opts.criterionExpansion  Query expansion terms for this criterion
  * @param opts.documentId  Restrict retrieval to a specific document
  */
+/**
+ * Multi-source retrieval is the default; `RETRIEVAL_PIPELINE=legacy` (or `vector-rag`) restores
+ * the single-statement hybrid search in this module.
+ *
+ * Duplicated from `hybrid-retrieval.ts` on purpose: reading the flag here must not create a
+ * module cycle, and the two must agree — `lib/__tests__/retrieval-pipeline-flag.test.ts` asserts it.
+ */
+export function isMultiSourceRetrievalEnabled(): boolean {
+  const v = process.env.RETRIEVAL_PIPELINE
+  if (v === undefined) return true
+  return v !== "legacy" && v !== "vector-rag" && v !== "false" && v !== "0"
+}
+
 export async function retrieveForCriterion(
   workspaceId: string,
   query: string,
@@ -960,6 +863,60 @@ export async function retrieveForCriterion(
   const lambda = opts.lambda ?? 0.7
   const domainContext = opts.domainContext ?? "STEM, Fyzika"
   const compress = opts.compress ?? true
+
+  // ---------------------------------------------------------------------
+  // Multi-source retrieval (default).
+  //
+  // The candidate-generator pipeline (`hybrid-retrieval.ts`) adds criterion routing, extra
+  // retrieval legs (graph / citation / metadata / community), weighted fusion, honest reranker
+  // labelling and parent/neighbour expansion on top of what this module does. It is imported
+  // dynamically: `hybrid-retrieval` statically imports the query-transform helpers from here, so
+  // a static import in the other direction would be a module cycle.
+  //
+  // Any failure degrades to the legacy single-statement search below rather than failing the
+  // review — and the reason is recorded in the trace so the degradation is visible.
+  // ---------------------------------------------------------------------
+  if (isMultiSourceRetrievalEnabled()) {
+    try {
+      const { retrieveEvidence, persistRetrievalTrace } = await import("./hybrid-retrieval")
+      const result = await retrieveEvidence({
+        workspaceId,
+        query,
+        criterionId: opts.criterionId ?? null,
+        documentId: opts.documentId,
+        documentIds: opts.documentIds,
+        topK,
+        lang: opts.lang,
+        ablation: { lambda: opts.lambda, disableQueryTransform: opts.useHyDE === false && !opts.criterionExpansion },
+      })
+      if (result.evidence.length > 0 || opts.topK === 0) {
+        await persistRetrievalTrace(workspaceId, {
+          query,
+          criterionId: opts.criterionId ?? null,
+          trace: result.trace,
+          selectedEvidenceIds: result.evidence.map((e) => e.id),
+        }).catch(() => null)
+        return {
+          chunks: result.evidence.map((e) => ({
+            id: e.id,
+            heading: e.heading,
+            content: e.content,
+            tokens: e.tokens,
+            kind: e.kind,
+            relevanceScore: e.rerankScore ?? e.score,
+            contextPrefix: e.contextPrefix,
+          })),
+          communityContext: result.globalContext.join("\n\n"),
+        }
+      }
+      console.warn("[vector-rag] multi-source retrieval returned no evidence; falling back to the legacy hybrid search")
+    } catch (err) {
+      console.warn(
+        "[vector-rag] multi-source retrieval failed; falling back to the legacy hybrid search:",
+        err instanceof Error ? err.message : err
+      )
+    }
+  }
 
   // Community context fetch (LightRAG global retrieval) — run in parallel with chunk retrieval
   const communityContextPromise = opts.includeCommunityContext

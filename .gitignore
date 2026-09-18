@@ -53,6 +53,8 @@ lint.json
 output.json
 *.sql
 !prisma/migrations/**/*.sql
+# Operator-run maintenance scripts (referenced from migration comments); not run by Prisma.
+!prisma/scripts/**/*.sql
 tmp/
 *.log
 vitest-out.log

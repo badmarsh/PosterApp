@@ -49,6 +49,8 @@ vi.mock("@prisma/client", () => ({
   Prisma: {
     sql: sqlTag,
     empty: { text: "", values: [] },
+    // Prisma.raw inlines a trusted literal fragment without adding a bound parameter.
+    raw: (text: string): FakeSql => ({ text, values: [] }),
     // Prisma.join treats raw entries as bound parameters and inlines Sql fragments,
     // renumbering their placeholders after the values collected so far.
     join: (parts: unknown[], sep = ","): FakeSql => {
@@ -364,6 +366,10 @@ describe("contextPrefix plumb-through", () => {
   })
 
   it("retrieveForCriterion passes contextPrefix through to its output chunks", async () => {
+    // This pins the *legacy* single-statement pipeline. The multi-source pipeline
+    // (hybrid-retrieval.ts) has its own contract test in multi-source-retrieval.test.ts.
+    const prevPipeline = process.env.RETRIEVAL_PIPELINE
+    process.env.RETRIEVAL_PIPELINE = "legacy"
     vi.doMock("@/lib/prisma", () => ({
       prisma: {
         $queryRaw: vi.fn(async () => [
@@ -379,10 +385,15 @@ describe("contextPrefix plumb-through", () => {
     }))
 
     const { retrieveForCriterion } = await import("@/lib/ai/vector-rag")
-    const { chunks } = await retrieveForCriterion("ws-1", "výsledky experimentov", { topK: 2, useHyDE: false, compress: false })
-    expect(chunks.length).toBeGreaterThan(0)
-    expect(chunks[0].contextPrefix).toContain("Úryvok z práce")
-    // content stays verbatim (no prefix leakage)
-    expect(chunks[0].content).toBe("F1 92.4%")
+    try {
+      const { chunks } = await retrieveForCriterion("ws-1", "výsledky experimentov", { topK: 2, useHyDE: false, compress: false })
+      expect(chunks.length).toBeGreaterThan(0)
+      expect(chunks[0].contextPrefix).toContain("Úryvok z práce")
+      // content stays verbatim (no prefix leakage)
+      expect(chunks[0].content).toBe("F1 92.4%")
+    } finally {
+      if (prevPipeline === undefined) delete process.env.RETRIEVAL_PIPELINE
+      else process.env.RETRIEVAL_PIPELINE = prevPipeline
+    }
   })
 })
