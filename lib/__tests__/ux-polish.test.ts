@@ -31,6 +31,8 @@ describe("UX Polish — design token alignment", () => {
     expect(css).toContain("--success")
     expect(css).toContain("--destructive")
     expect(css).toContain("--status-info")
+    expect(css).toContain("--destructive-foreground")
+    expect(css).toContain("--risk-foreground")
     expect(css).toContain("--background")
     expect(css).toContain("--foreground")
   })
@@ -75,13 +77,14 @@ describe("UX Polish — error lens & quick fixes (2026-09-17 audit)", () => {
     expect(src).toContain("setInspectorTab")
   })
 
-  it("CardInspector surfaces quick fixes and the height meter", async () => {
-    const src = await fs.readFile("components/card-inspector.tsx", "utf-8")
-    expect(src).toContain("deriveQuickFixes")
-    expect(src).toContain("findDanglingCiteKeys")
-    expect(src).toContain("findDanglingRefKeys")
-    expect(src).toContain("HeightMeter")
-    expect(src).toContain("estimateHeightBreakdown")
+  it("CardInspector surfaces modular quick fixes and the height meter", async () => {
+    const inspector = await fs.readFile("components/card-inspector.tsx", "utf-8")
+    const quickFixes = await fs.readFile("components/card-inspector/quick-fixes-panel.tsx", "utf-8")
+    expect(inspector).toContain("HeightMeter")
+    expect(inspector).toContain("estimateHeightBreakdown")
+    expect(quickFixes).toContain("deriveQuickFixes")
+    expect(quickFixes).toContain("findDanglingCiteKeys")
+    expect(quickFixes).toContain("findDanglingRefKeys")
   })
 
   it("CardInspector uses semantic warning tokens (no hardcoded amber)", async () => {
@@ -121,6 +124,7 @@ describe("UX Polish — grounding, preview decomposition and responsive chrome",
     const content = await fs.readFile("components/card-inspector/content-tab.tsx", "utf-8")
     const canvas = await fs.readFile("components/poster-preview.tsx", "utf-8")
     const math = await fs.readFile("components/preview/inline-card-content.tsx", "utf-8")
+    const sourceMarkdown = await fs.readFile("components/thesis-review/source-markdown-view.tsx", "utf-8")
     expect(content).toContain("EvidenceChip")
     expect(content).toContain("SuggestedAssetsTray")
     expect(content).toContain("autoShrinkCardAction")
@@ -128,6 +132,8 @@ describe("UX Polish — grounding, preview decomposition and responsive chrome",
     expect(canvas).toContain("InlineCardContent")
     expect(math).toContain("remarkMath")
     expect(math).not.toContain("dangerouslySetInnerHTML")
+    expect(sourceMarkdown).toContain("rehypeSanitize")
+    expect(sourceMarkdown).toContain("trust: false")
   })
 
   it("provides one complete UI dictionary for Slovak, Czech and English", async () => {
@@ -170,8 +176,8 @@ describe("UX Polish — design token sweep (2026-09-17 audit, friction #5)", () 
   })
 
   it("compile status and defense verdicts use semantic tokens", async () => {
-    const preview = await fs.readFile("components/poster-preview.tsx", "utf-8")
-    expect(preview).toContain('"text-success"')
+    const preview = await fs.readFile("components/preview/preview-toolbar.tsx", "utf-8")
+    expect(preview).toContain("text-success")
     const panel = await fs.readFile("components/thesis-review/defense-prep-panel.tsx", "utf-8")
     expect(panel).toContain("bg-success/10")
     expect(panel).toContain("RehearsalTimer")

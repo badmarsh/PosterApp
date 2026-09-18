@@ -63,11 +63,11 @@ export const EVIDENCE_CLASSES: Record<EvidenceState, string> = {
  * original thesis-criteria-card.tsx RATING_COLORS.
  */
 export const RATING_CLASSES: Record<CriterionRating, string> = {
-  A: "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-200",
-  B: "bg-lime-100 text-lime-800 border-lime-300 dark:bg-lime-900/30 dark:text-lime-200",
-  C: "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-200",
-  D: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-200",
-  E: "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-100",
-  FX: "bg-red-200 text-red-900 border-red-400 dark:bg-red-900/50 dark:text-red-100",
+  A: "bg-success text-success-foreground border-success dark:bg-success/30 dark:text-success",
+  B: "bg-success text-success-foreground border-success dark:bg-success/30 dark:text-success",
+  C: "bg-warning text-warning-foreground border-warning dark:bg-warning/30 dark:text-warning",
+  D: "bg-warning text-warning-foreground border-warning dark:bg-warning/30 dark:text-warning",
+  E: "bg-destructive/10 text-destructive border-destructive/30 dark:bg-destructive/20 dark:text-destructive",
+  FX: "bg-destructive/10 text-destructive border-destructive/30 dark:bg-destructive/30 dark:text-destructive",
   pending: "bg-muted text-muted-foreground border-border",
 }

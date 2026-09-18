@@ -304,7 +304,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                   </div>
 
                   {isReadyToGenerate ? (
-                    <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold text-xs py-1 px-2.5 shrink-0 self-start sm:self-center">
+                    <Badge variant="outline" className="border-success/30 bg-success/10 text-success dark:text-success font-semibold text-xs py-1 px-2.5 shrink-0 self-start sm:self-center">
                       <FileCheck2 className="size-3.5 mr-1" />
                       Pripravené
                     </Badge>
@@ -545,7 +545,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
                           </Badge>
                         )}
                         {rev.status === "final" || rev.confirmedAt ? (
-                          <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600 bg-emerald-500/10 dark:text-emerald-400 px-2 py-0">
+                          <Badge variant="outline" className="text-[10px] border-success/40 text-success bg-success/10 dark:text-success px-2 py-0">
                             Potvrdený
                           </Badge>
                         ) : (

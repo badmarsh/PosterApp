@@ -205,7 +205,7 @@ export function AnalysisPlanPanel({
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted overflow-hidden flex">
                         <div
-                          className="bg-info/100 transition-all"
+                          className="bg-info transition-all"
                           style={{ width: `${Math.max(5, Math.min(95, metrics.balance.theoryRatio * 100))}%` }}
                           title={`Teória: ${Math.round(metrics.balance.theoryRatio * 100)}%`}
                         />
@@ -326,10 +326,10 @@ export function AnalysisPlanPanel({
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-foreground flex items-center gap-1.5 text-[11px]">
-                      <Type className="size-3.5 text-indigo-500" />
+                      <Type className="size-3.5 text-primary" />
                       Lexika & Akademický štýl
                     </span>
-                    <Badge variant="outline" className="text-[10px] bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-400/30">
+                    <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary dark:text-primary border-primary/30">
                       TTR: {metrics?.lexical.typeTokenRatio ?? 0.4}
                     </Badge>
                   </div>
@@ -358,10 +358,10 @@ export function AnalysisPlanPanel({
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-foreground flex items-center gap-1.5 text-[11px]">
-                      <Code2 className="size-3.5 text-rose-500" />
+                      <Code2 className="size-3.5 text-risk" />
                       Technická formalizácia
                     </span>
-                    <Badge variant="outline" className="text-[10px] bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-400/30">
+                    <Badge variant="outline" className="text-[10px] bg-risk/10 text-risk dark:text-risk border-risk/30">
                       {metrics?.formalization.technicalRigorLevel === "high" ? "Vysoká formalizácia" : metrics?.formalization.technicalRigorLevel === "medium" ? "Stredná formalizácia" : "Textový charakter"}
                     </Badge>
                   </div>
@@ -390,7 +390,7 @@ export function AnalysisPlanPanel({
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-foreground flex items-center gap-1.5 text-[11px]">
-                      <FileText className="size-3.5 text-cyan-500" />
+                      <FileText className="size-3.5 text-info" />
                       Rozsah & Objem textu
                     </span>
                     <Badge variant="outline" className="text-[10px] font-mono">
@@ -573,7 +573,7 @@ export function AnalysisPlanPanel({
                       c.applicability === "not_applicable"
                         ? "bg-muted/20 border-dashed opacity-60"
                         : c.applicability === "partially_applicable"
-                        ? "bg-warning/100/5 border-warning/30"
+                        ? "bg-warning/5 border-warning/30"
                         : "bg-card/60"
                     }`}
                   >
@@ -601,7 +601,7 @@ export function AnalysisPlanPanel({
 
           {/* Limitations & Warnings */}
           {plan.limitations.length > 0 && (
-            <div className="p-3 rounded-xl border border-warning/40 bg-warning/100/5 space-y-1">
+            <div className="p-3 rounded-xl border border-warning/40 bg-warning/5 space-y-1">
               <div className="flex items-center gap-1.5 font-semibold text-[11px] text-warning dark:text-warning">
                 <AlertTriangle className="size-3.5" />
                 <span>Identifikované limitácie a chýbajúce sekcie</span>
@@ -652,10 +652,10 @@ function TOCNodeRow({
     introduction: "text-info dark:text-info bg-info/10 border-info/30",
     literature: "text-status-ambiguous dark:text-status-ambiguous bg-status-ambiguous/10 border-status-ambiguous/30",
     methodology: "text-success bg-success/10 border-success/20",
-    results: "text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
+    results: "text-primary dark:text-primary bg-primary/10 border-primary/20",
     discussion: "text-warning dark:text-warning bg-warning/10 border-warning/30",
-    conclusion: "text-teal-600 dark:text-teal-400 bg-teal-500/10 border-teal-500/20",
-    references: "text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+    conclusion: "text-info dark:text-info bg-info/10 border-info/20",
+    references: "text-info dark:text-info bg-info/10 border-info/20",
     appendix: "text-muted-foreground dark:text-muted-foreground bg-muted/40 border-muted/40",
     preamble: "text-muted-foreground bg-muted border-border",
     unknown: "text-muted-foreground bg-muted border-border",

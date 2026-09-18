@@ -75,35 +75,35 @@ export function EvidenceViewer({
 
     if (st === "verified-exact" || st === "verified") {
       return (
-        <Badge variant="outline" className="text-[10px] text-emerald-600 dark:text-emerald-400 border-emerald-500/40 gap-1 bg-emerald-500/10 font-semibold shrink-0">
+        <Badge variant="outline" className="text-[10px] text-success dark:text-success border-success/40 gap-1 bg-success/10 font-semibold shrink-0">
           <CheckCircle2 className="h-3 w-3" /> Overený dôkaz
         </Badge>
       )
     }
     if (st === "verified-normalized") {
       return (
-        <Badge variant="outline" className="text-[10px] text-emerald-600 dark:text-emerald-400 border-emerald-500/40 gap-1 bg-emerald-500/10 font-semibold shrink-0">
+        <Badge variant="outline" className="text-[10px] text-success dark:text-success border-success/40 gap-1 bg-success/10 font-semibold shrink-0">
           <CheckCircle2 className="h-3 w-3" /> Overený (normalizovaný)
         </Badge>
       )
     }
     if (st === "approximate") {
       return (
-        <Badge variant="outline" className="text-[10px] text-warning dark:text-warning border-warning/40 gap-1 bg-warning/100/10 font-semibold shrink-0">
+        <Badge variant="outline" className="text-[10px] text-warning dark:text-warning border-warning/40 gap-1 bg-warning/10 font-semibold shrink-0">
           <HelpCircle className="h-3 w-3" /> Približná zhoda
         </Badge>
       )
     }
     if (st === "ambiguous") {
       return (
-        <Badge variant="outline" className="text-[10px] text-status-ambiguous dark:text-status-ambiguous border-status-ambiguous/40 gap-1 bg-status-ambiguous/100/10 font-semibold shrink-0">
+        <Badge variant="outline" className="text-[10px] text-status-ambiguous dark:text-status-ambiguous border-status-ambiguous/40 gap-1 bg-status-ambiguous/10 font-semibold shrink-0">
           <HelpCircle className="h-3 w-3" /> Viacnásobný výskyt
         </Badge>
       )
     }
     if (st === "stale") {
       return (
-        <Badge variant="outline" className="text-[10px] text-destructive dark:text-destructive border-destructive/40 gap-1 bg-destructive/100/10 font-semibold shrink-0">
+        <Badge variant="outline" className="text-[10px] text-destructive dark:text-destructive border-destructive/40 gap-1 bg-destructive/10 font-semibold shrink-0">
           <AlertCircle className="h-3 w-3" /> Zmenený text
         </Badge>
       )

@@ -38,9 +38,9 @@ export const REVIEW_ROLE_META: Record<ReviewerRole, RoleMeta> = {
     skSub: "Nezávislé kritické hodnotenie s návrhom výsledku obhajoby",
     csSub: "Nezávislé kritické hodnocení s návrhem výsledku obhajoby",
     enSub: "Independent critical assessment with a defense outcome recommendation",
-    banner: "border-rose-300/60 bg-rose-50 dark:bg-rose-950/25 text-rose-900 dark:text-rose-100",
-    badge: "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-800",
-    accent: "text-rose-600 dark:text-rose-400",
+    banner: "border-risk/60 bg-risk text-risk-foreground dark:bg-risk/25 dark:text-risk",
+    badge: "bg-risk/15 text-risk border-risk/40 dark:bg-risk/25 dark:text-risk dark:border-risk/60",
+    accent: "text-risk dark:text-risk",
   },
   supervisor: {
     icon: GraduationCap,

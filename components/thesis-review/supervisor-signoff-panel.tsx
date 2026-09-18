@@ -213,7 +213,7 @@ export function SupervisorSignoffPanel({
               />
             </div>
 
-            <div className="space-y-1.5 bg-warning/100/5 p-3 rounded-lg border border-warning/30">
+            <div className="space-y-1.5 bg-warning/5 p-3 rounded-lg border border-warning/30">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-warning dark:text-warning">
                 <Info className="size-3.5" />
                 Dôverné poznámky školiteľa pre oponenta a komisiu

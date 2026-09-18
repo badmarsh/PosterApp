@@ -224,7 +224,7 @@ function AiReviewIllustration() {
       <line x1="8" y1="16" x2="48" y2="28" stroke="#10B981" strokeWidth="1" strokeDasharray="3 2" className="opacity-70" />
 
       {/* Check badge */}
-      <circle cx="39" cy="11" r="4.5" className="fill-emerald-500/20 stroke-emerald-500" strokeWidth="1" />
+      <circle cx="39" cy="11" r="4.5" className="fill-success/20 stroke-success" strokeWidth="1" />
       <path d="M37.5 11L38.5 12L40.5 10" stroke="#10B981" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
 
       {/* Sparkle */}

@@ -96,9 +96,9 @@ interface SearchResult {
 }
 
 const CHUNK_KIND_LABELS: Record<string, { sk: string; className: string }> = {
-  table: { sk: "Tabuľka", className: "border-sky-400/40 bg-sky-500/10 text-sky-600 dark:text-sky-300" },
-  equation: { sk: "Rovnica", className: "border-status-ambiguous/40 bg-status-ambiguous/100/10 text-status-ambiguous dark:text-status-ambiguous" },
-  figure_caption: { sk: "Obrázok", className: "border-warning/40 bg-warning/100/10 text-warning dark:text-warning" },
+  table: { sk: "Tabuľka", className: "border-info/40 bg-info/10 text-info dark:text-info" },
+  equation: { sk: "Rovnica", className: "border-status-ambiguous/40 bg-status-ambiguous/10 text-status-ambiguous dark:text-status-ambiguous" },
+  figure_caption: { sk: "Obrázok", className: "border-warning/40 bg-warning/10 text-warning dark:text-warning" },
   prose: { sk: "Text", className: "border-border/70 bg-muted/40 text-muted-foreground" },
 }
 
@@ -256,7 +256,7 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
       )
     return (
       <Badge variant="outline" className="text-[11px] font-normal text-muted-foreground border-border/70 bg-muted/40 gap-1.5 py-0.5 px-2">
-        <span className="size-1.5 rounded-full bg-emerald-500/80 shrink-0 inline-block" />
+        <span className="size-1.5 rounded-full bg-success/80 shrink-0 inline-block" />
         {stats.totalChunks} {pluralizeSk(stats.totalChunks, "chunk", "chunky", "chunkov")} · {stats.totalDocuments} {pluralizeSk(stats.totalDocuments, "dokument", "dokumenty", "dokumentov")} · HNSW
       </Badge>
     )
@@ -424,7 +424,7 @@ export function RagIndexStatusPanel({ workspaceId, onRefresh }: Props) {
                       {/* Embedding progress bar */}
                       <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-emerald-500/70 dark:bg-emerald-400/70 transition-all duration-300"
+                          className="h-full rounded-full bg-success/70 dark:bg-success/70 transition-all duration-300"
                           style={{ width: `${pct}%` }}
                         />
                       </div>

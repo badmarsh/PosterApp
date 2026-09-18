@@ -72,7 +72,7 @@ function inferQuestionType(q: string, idx: number, lang: ReviewLanguage): { tag:
   if (idx === 0) {
     return {
       tag: lang === "sk" ? "Základná / Ciele" : lang === "cs" ? "Základní / Cíle" : "Fundamental",
-      color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 border-emerald-200",
+      color: "bg-success text-success-foreground dark:bg-success/30 dark:text-success border-success/30",
     }
   }
   return {

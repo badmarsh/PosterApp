@@ -15,6 +15,7 @@ import remarkMath from "remark-math"
 import remarkGfm from "remark-gfm"
 import rehypeKaTeX from "rehype-katex"
 import rehypeRaw from "rehype-raw"
+import rehypeSanitize from "rehype-sanitize"
 import "katex/dist/katex.min.css"
 import {
   ExternalLink,
@@ -412,7 +413,7 @@ export function SourceMarkdownView({
     <div className="source-markdown-view text-[13px] sm:text-sm [&_.katex]:text-foreground/90 [&_.katex]:font-normal">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeRaw, [rehypeKaTeX, { throwOnError: false, strict: false, trust: true }]]}
+        rehypePlugins={[rehypeRaw, rehypeSanitize, [rehypeKaTeX, { throwOnError: false, strict: false, trust: false }]]}
         components={components}
       >
         {cleanMarkdown}
