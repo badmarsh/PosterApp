@@ -8,7 +8,7 @@ import * as fs from "fs/promises"
 import * as os from "os"
 import { runSandboxedLatex } from "@/lib/latex/compiler-runner"
 import type { Card } from "@/lib/poster-types"
-import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, parseAiApiKey, AI_TIMEOUTS } from "@/lib/ai/models"
 import { workspacePath } from "@/lib/workspace-files"
 
 const MAX_PAGES_TO_REVIEW = 25
@@ -161,14 +161,15 @@ STRICT CALIBRATION:
 - NEVER include entries with "No issues detected", "None", or "Clean".`
 
     const modelOverrides = parseAiModelOverrides(req.headers)
-    const geminiHeaderKey = req.headers.get("x-gemini-api-key")?.trim() || undefined
+    const clientApiKey = parseAiApiKey(req.headers)
     const requestedModel = resolveAiModelWithOverrides("reviewLayout", modelOverrides)
 
     // Fallback chain for VLM review: requested model first, then resilient vision models
     const candidateModels = Array.from(new Set([
       requestedModel,
-      "gemini-3.5-flash",
+      "gemini-2.5-flash",
       "gemini-2.5-flash-lite",
+      "gemini-1.5-flash",
       "gemini-3.1-flash-lite",
       "gemini-3.8-flash",
     ])).filter(Boolean)
@@ -180,7 +181,7 @@ STRICT CALIBRATION:
       try {
         parsedData = await generateAIResponse("review-layout", {
           model,
-          apiKey: geminiHeaderKey,
+          apiKey: clientApiKey,
           systemPrompt,
           userPrompt,
           schema: LayoutWarningsSchema,

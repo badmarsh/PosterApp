@@ -12,7 +12,7 @@
 import { prisma } from "@/lib/prisma"
 import { generateAIResponse, getLastServedProvider, type AIProviderSource } from "./client"
 import { ThesisReviewGenerationSchema, validateGeneratedSections } from "./contracts"
-import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "./models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, parseAiApiKey, AI_TIMEOUTS } from "./models"
 import {
   loadThesisContext,
   buildThesisContextHeader,
@@ -234,6 +234,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
   report("retrieval", `retrieval 0/${activeCriteria.length}`)
   const domainContext = resolveThesisDomainContext(normalizedMetadata)
   const modelOverrides = parseAiModelOverrides(params.headers)
+  const clientApiKey = parseAiApiKey(params.headers)
   const criterionVectorContextParts = new Map<string, string>()
   const retrievedChunkMap = new Map<string, { anchor: string; heading: string | null; content: string; kind?: string }>()
   let retrievalDone = 0
@@ -245,6 +246,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
         domainContext,
         lang,
         model: resolveAiModelWithOverrides("thesis", modelOverrides),
+        apiKey: clientApiKey,
         workspaceId,
       }
     )
@@ -386,6 +388,8 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       sourceRevision,
       signal,
       onProgress: (stage, detail) => report(stage as ReviewStage, detail),
+      apiKey: clientApiKey,
+      modelOverrides,
     })
 
     // Map findings onto sections (same attribution logic as monolithic path).
@@ -470,6 +474,8 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       evidenceChunks: evidenceChunks.length > 0 ? evidenceChunks : undefined,
       onProgress: (stage: string, detail?: string) => report(stage as ReviewStage, detail),
       signal,
+      apiKey: clientApiKey,
+      modelOverrides,
     })
     calibratedDefenseQuestions = normalizeDefenseQuestions(professionalResult.defenseQuestions)
 

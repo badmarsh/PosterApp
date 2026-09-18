@@ -235,7 +235,7 @@ export async function generateHypotheticalDocument(
  */
 export async function generateHypotheses(
   criteria: Array<{ id: string; label: string; guidance: string }>,
-  ctx: { thesisTitle?: string; domainContext: string; lang: ReviewLanguage; model: string; workspaceId?: string }
+  ctx: { thesisTitle?: string; domainContext: string; lang: ReviewLanguage; model: string; workspaceId?: string; apiKey?: string }
 ): Promise<Record<string, string>> {
   if (process.env.AI_HYDE_LLM === "false" || criteria.length === 0) return {}
   if (process.env.VITEST) return {}
@@ -244,6 +244,7 @@ export async function generateHypotheses(
   try {
     const res = await generateAIResponse<z.infer<typeof schema>>("hyde-hypotheses", {
       model: ctx.model,
+      apiKey: ctx.apiKey,
       systemPrompt: `You write hypothetical thesis passages used only as retrieval queries (HyDE). For each criterion write 2–3 sentences in ${langName}, in the voice of the thesis itself (first-person plural academic style), using concrete domain vocabulary that such a passage would contain. Do NOT evaluate; do NOT mention criteria or reviewers. Respond as JSON: {"hypotheses": {"<criterionId>": "<passage>"}}.`,
       userPrompt: `Thesis title: ${ctx.thesisTitle || "(unknown)"}\nDomain: ${ctx.domainContext}\n\nCriteria:\n${criteria.map((c) => `- ${c.id}: ${c.label} — ${c.guidance.slice(0, 200)}`).join("\n")}`,
       schema,

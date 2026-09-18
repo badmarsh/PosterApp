@@ -11,9 +11,9 @@ export const DEFAULT_AI_MODELS = {
   convert: "gemini-2.5-flash",
   shrink: "gemini-2.5-flash",
   review: "gemini-2.5-flash",
-  reviewLayout: "gemini-3.5-flash",
-  vision: "gemini-3.5-flash",
-  ocr: "gemini-3.5-flash",
+  reviewLayout: "gemini-2.5-flash",
+  vision: "gemini-2.5-flash",
+  ocr: "gemini-2.5-flash",
   chat: "gemini-2.5-flash",
   bibtex: "gemini-2.5-flash",
   labeler: "gemini-2.5-flash",
@@ -37,8 +37,9 @@ export const AI_TIMEOUTS = {
 } as const
 
 export const DEFAULT_FALLBACK_VISION_MODELS: readonly string[] = [
-  "gemini-3.5-flash",
+  "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
+  "gemini-1.5-flash",
   "gemini-3.1-flash-lite",
   "gemini-3.8-flash",
   "gemini-3.6-flash",

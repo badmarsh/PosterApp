@@ -10,7 +10,7 @@
  */
 
 import { generateAIResponse } from "@/lib/ai/client"
-import { resolveAiModel } from "@/lib/ai/models"
+import { resolveAiModel, resolveAiModelWithOverrides, type AiModelRole } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 import { z } from "zod"
 import {
@@ -110,6 +110,8 @@ export interface GenerateProfessionalReviewOptions {
   onProgress?: (stage: string, detail?: string) => void
   /** Cancellation signal from the review job manager. */
   signal?: AbortSignal
+  apiKey?: string
+  modelOverrides?: Partial<Record<AiModelRole, string>>
 }
 
 /**
@@ -315,7 +317,7 @@ async function generateSelfCritique(
   documentTitle: string,
   language: ReviewLanguage,
   model: string,
-  tools?: { workspaceId?: string; signal?: AbortSignal }
+  tools?: { workspaceId?: string; signal?: AbortSignal; apiKey?: string }
 ): Promise<{ adjustedFindings: ReviewFinding[]; critiqueLog: string }> {
   // Give the critic the same evidence the primary pass anchored on, so it can
   // judge "overstated relative to the evidence" against actual quotes rather
@@ -402,6 +404,7 @@ Respond with this JSON structure:
   try {
     const critiqueResult = await generateAIResponse<SelfCritiqueResult>("peer-review-critique", {
       model,
+      apiKey: tools?.apiKey,
       systemPrompt: critiqueSysPrompt,
       userPrompt: critiqueUserPrompt,
       schema: SelfCritiqueSchema,
@@ -869,11 +872,12 @@ Respond with a valid JSON object matching this structure:
   "grade": ${isThesisReview ? '"A | B | C | D | E | FX"' : "null"}
 }`
 
-  const model = resolveAiModel("thesis")
+  const model = resolveAiModelWithOverrides("thesis", options.modelOverrides ?? {})
   options.onProgress?.("primary_review", "primary review generation")
   throwIfCancelled()
   const validated = await generateAIResponse<ProfessionalReviewGenerationResult>("peer-review", {
     model,
+    apiKey: options.apiKey,
     systemPrompt,
     userPrompt,
     schema: ProfessionalReviewGenerationSchema,
@@ -933,6 +937,12 @@ Respond with a valid JSON object matching this structure:
       options.evidenceChunks
         ? {
             workspaceId: options.workspaceId,
+            signal: options.signal,
+            apiKey: options.apiKey,
+          }
+        : options.apiKey
+        ? {
+            apiKey: options.apiKey,
             signal: options.signal,
           }
         : undefined

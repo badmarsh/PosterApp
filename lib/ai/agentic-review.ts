@@ -16,7 +16,7 @@
 
 import { z } from "zod"
 import { generateAIResponse } from "./client"
-import { resolveAiModel } from "./models"
+import { resolveAiModel, resolveAiModelWithOverrides, type AiModelRole } from "./models"
 import { retrieveForCriterion, getThesisCriterionQueryExpansion, resolveThesisDomainContext } from "./vector-rag"
 import {
   stableEvidenceAnchor,
@@ -110,6 +110,8 @@ export async function reviewCriterionWithEvidence(
     domainContext: string
     sourceRevision: string
     signal?: AbortSignal
+    apiKey?: string
+    modelOverrides?: Partial<Record<AiModelRole, string>>
     signal2?: never
   }
 ): Promise<AgenticCriterionResult> {
@@ -169,7 +171,8 @@ Return the JSON object now.`
   let calls = 1
   try {
     const res = await generateAIResponse<z.infer<typeof PerCriterionSchema>>(`peer-review-criterion-${criterion.id}`, {
-      model: resolveAiModel("thesis"),
+      model: resolveAiModelWithOverrides("thesis", ctx.modelOverrides ?? {}),
+      apiKey: ctx.apiKey,
       systemPrompt: sys,
       userPrompt: user,
       schema: PerCriterionSchema,
@@ -241,6 +244,8 @@ export async function runAgenticPerCriterionReview(opts: {
   onProgress?: AgenticReviewProgress
   /** Max parallel criterion calls (keeps WASM/API pressure bounded). */
   concurrency?: number
+  apiKey?: string
+  modelOverrides?: Partial<Record<AiModelRole, string>>
 }): Promise<{
   criterionResults: AgenticCriterionResult[]
   allFindings: ReviewFinding[]
@@ -283,6 +288,8 @@ export async function runAgenticPerCriterionReview(opts: {
           domainContext,
           sourceRevision: opts.sourceRevision,
           signal: opts.signal,
+          apiKey: opts.apiKey,
+          modelOverrides: opts.modelOverrides,
         })
       )
     )
@@ -319,7 +326,8 @@ Respond as JSON: {"summary": "...", "strengths": ["..."], "defenseQuestions": ["
   let synthesis: z.infer<typeof SynthesisSchema>
   try {
     synthesis = await generateAIResponse("peer-review-synthesis", {
-      model: resolveAiModel("thesis"),
+      model: resolveAiModelWithOverrides("thesis", opts.modelOverrides ?? {}),
+      apiKey: opts.apiKey,
       systemPrompt: synthesisSys,
       userPrompt: synthesisUser,
       schema: SynthesisSchema,
