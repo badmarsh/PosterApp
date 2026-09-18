@@ -551,15 +551,32 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
     }
   }, [ingestFiles.length, activeFileId, handleDocumentSelect, updateFormMetadata])
 
+  // When activeFile finishes parsing (status === "done"), load parsed source document and extract metadata from full text
+  useEffect(() => {
+    if (!activeFileId || !activeFile) return
+    if (activeFile.status === "done") {
+      void (async () => {
+        const text = await loadSourceDocument(workspaceId, activeFileId)
+        if (text) {
+          applyExtraction(text, activeFile.name)
+          lastExtractedDocRef.current = activeFileId
+        }
+      })()
+    }
+  }, [activeFileId, activeFile?.status, activeFile?.name, loadSourceDocument, applyExtraction, workspaceId])
+
   const handleFileUpload = (files: FileList | File[] | null) => {
     if (!files || files.length === 0) return
     const pdfFiles = Array.from(files).filter((f) => f.name.toLowerCase().endsWith(".pdf") || f.type.includes("pdf"))
     if (pdfFiles.length > 0) {
-      lastExtractedDocRef.current = null
-      uploadFiles(pdfFiles)
-      // Immediately prefill from newly uploaded file
-      applyExtraction("", pdfFiles[0].name)
-      loadSourceDocument(workspaceId)
+      const created = uploadFiles(pdfFiles)
+      const primary = created?.[0]
+      if (primary) {
+        setSelectedFileId(primary.id)
+        lastExtractedDocRef.current = null
+        // Immediately prefill from newly uploaded filename
+        applyExtraction("", primary.name)
+      }
     }
   }
 

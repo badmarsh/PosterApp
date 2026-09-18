@@ -426,8 +426,10 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     })
 
     calibratedDefenseQuestions = normalizeDefenseQuestions(agentic.synthesis.defenseQuestions as any)
+    const hasEvaluatedCriteria = sections.some((s) => s.rating && s.rating !== "pending")
     const agenticScore = computeScoreFromFindings(agentic.allFindings)
-    const agenticGradeRange = applyEctsGrading ? calculateGradeRange(agenticScore) : null
+    const hasEvaluationSignals = agentic.allFindings.length > 0 || hasEvaluatedCriteria
+    const agenticGradeRange = applyEctsGrading && hasEvaluationSignals ? calculateGradeRange(agenticScore) : null
     professionalResult = {
       grade: agenticGradeRange?.grade ?? null,
       recommendation: agentic.synthesis.recommendation,
@@ -511,9 +513,11 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       }
     })
 
+    const hasEvaluatedCriteria = sections.some((s) => s.rating && s.rating !== "pending")
+    const hasEvaluationSignals = (professionalResult.anchoredFindings || []).length > 0 || hasEvaluatedCriteria || Boolean(professionalResult.grade)
     result = {
       sections,
-      overallGrade: applyEctsGrading ? (professionalResult.grade ?? null) : null,
+      overallGrade: applyEctsGrading && hasEvaluationSignals ? (professionalResult.grade ?? null) : null,
       recommendation: professionalResult.recommendation,
       defenseQuestions: calibratedDefenseQuestions,
       citationIssues: [],
@@ -547,6 +551,49 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
         targetSec.suggestions = Array.from(new Set([...(targetSec.suggestions || []), f.recommendation]))
       }
     }
+
+    // In Path A, ensure summary and strengths are never empty
+    if (!result.summary && result.sections?.length > 0) {
+      const topSec = result.sections.find((s: any) => s.id === "objectives_clarity" || s.id === "problem_relevance") || result.sections[0]
+      result.summary = topSec?.text?.slice(0, 500) || ""
+    }
+    if (!result.strengths || result.strengths.length === 0) {
+      result.strengths = result.sections
+        ?.filter((s: any) => s.rating === "A" || s.rating === "B")
+        ?.map((s: any) => s.text?.split("\n")[0]?.replace(/^[•\-\*]\s*/, ""))
+        ?.filter(Boolean)
+        ?.slice(0, 4) || []
+    }
+    if (!result.findings || result.findings.length === 0) {
+      result.findings = [
+        ...alignmentResult.findings.map((f, idx) => ({
+          id: `f-align-${idx + 1}`,
+          criterionId: f.criterionId,
+          category: "methodology" as const,
+          title: f.title,
+          explanation: f.explanation,
+          recommendation: f.recommendation,
+          severity: f.severity,
+          status: "unreviewed" as const,
+          includeInExport: true,
+          createdBy: "ai" as const,
+          evidence: [],
+        })),
+        ...citationAuditResult.findings.map((f, idx) => ({
+          id: `f-cite-${idx + 1}`,
+          criterionId: "citations_quality",
+          category: "literature" as const,
+          title: f.title,
+          explanation: f.explanation,
+          recommendation: f.recommendation,
+          severity: f.severity,
+          status: "unreviewed" as const,
+          includeInExport: true,
+          createdBy: "ai" as const,
+          evidence: [],
+        })),
+      ]
+    }
   }
 
   // Recommendation / triage. Paper and grant reviews use publication verdicts
@@ -572,6 +619,10 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     finalDebateLog = finalDebateLog ? `${finalDebateLog}\n${fallbackNote}` : fallbackNote
   }
 
+  const finalSummary = professionalResult?.summary ?? result.summary ?? null
+  const finalStrengths = professionalResult?.strengths ?? result.strengths ?? []
+  const finalFindings = professionalResult?.anchoredFindings ?? result.findings ?? []
+
   // 9. Persist
   report("persisting", "saving review")
   const saved = await prisma.thesisReview.create({
@@ -593,9 +644,9 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       citationIssues: JSON.stringify([...result.citationIssues, ...(citationAuditSummary ? [citationAuditSummary] : [])]),
       reviewKind,
       targetVenue: body.thesisMetadata.targetVenue ?? null,
-      summary: professionalResult?.summary ?? null,
-      strengths: professionalResult?.strengths ? JSON.stringify(professionalResult.strengths) : null,
-      findings: professionalResult?.anchoredFindings ? JSON.stringify(professionalResult.anchoredFindings) : null,
+      summary: finalSummary,
+      strengths: finalStrengths.length > 0 ? JSON.stringify(finalStrengths) : null,
+      findings: finalFindings.length > 0 ? JSON.stringify(finalFindings) : null,
       sourceRevision: professionalResult?.sourceRevision ?? sourceRevision,
       rubricVersion: "sk-academic-v1",
       discipline: body.thesisMetadata.targetVenue ?? null,
@@ -619,9 +670,9 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     ...result,
     reviewKind,
     targetVenue: body.thesisMetadata.targetVenue,
-    summary: professionalResult?.summary,
-    strengths: professionalResult?.strengths ?? [],
-    findings: professionalResult?.anchoredFindings ?? [],
+    summary: finalSummary,
+    strengths: finalStrengths,
+    findings: finalFindings,
     sourceRevision: professionalResult?.sourceRevision ?? sourceRevision,
     rubricVersion: "sk-academic-v1",
     proposedGradeRange: professionalResult?.proposedGradeRange,

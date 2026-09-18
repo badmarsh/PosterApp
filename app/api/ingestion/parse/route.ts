@@ -14,6 +14,7 @@ import { detectedPdf, MAX_UPLOAD_BYTES, SAFE_FILE_ID, SAFE_FILENAME, workspacePa
 import { fetchMinerU, resolveMinerUUrl, ensureMinerUBridge } from "@/lib/services/mineru-bridge"
 import { parseHtmlTable } from "@/lib/table-parser"
 import { decodeHtmlEntities } from "@/lib/utils"
+import { parsePdfWithFallback } from "@/lib/services/pdf-fallback-parser"
 
 // ---------------------------------------------------------------------------
 // Types for the MinerU response
@@ -169,9 +170,11 @@ export async function POST(req: Request) {
       mineruForm.append("return_images", "true")
       mineruForm.append("return_middle_json", "true")
 
-      let mineruResponse: Response
-      // MinerU can take minutes on long theses. Emit a heartbeat so the client
-      // bar keeps moving and the user sees elapsed time instead of a frozen 20%.
+      let results: { md_content?: string; images?: Record<string, string>; middle_json?: unknown } | undefined
+      const rawBasename = path.basename(uploadedFile.name, path.extname(uploadedFile.name))
+      const basename = rawBasename.replace(/[^a-zA-Z0-9_-]/g, "_")
+
+      let mineruResponse: Response | null = null
       const MINERU_TIMEOUT_MS = 300_000
       const parseStartedAt = Date.now()
       const heartbeat = setInterval(() => {
@@ -183,6 +186,7 @@ export async function POST(req: Request) {
           progress: pct,
         })
       }, 10_000)
+
       try {
         mineruResponse = await fetchMinerU("/file_parse", {
           method: "POST",
@@ -191,76 +195,61 @@ export async function POST(req: Request) {
         })
       } catch (err) {
         clearInterval(heartbeat)
-        const message = err instanceof Error ? err.message : String(err)
-        const isTimeout = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")
-        if (isTimeout) {
-          await sendEvent({
-            type: "error",
-            error: "MinerU parsing timed out after 5 minutes",
-            detail: `${uploadedFile.name} is too large or complex for a single pass. Try splitting the PDF (e.g. one chapter at a time) or reducing scanned-image pages, then retry.`,
-          })
-          return
-        }
-        const currentUrl = await resolveMinerUUrl().catch(() => "http://127.0.0.1:8001")
-        await sendEvent({
-          type: "error",
-          error: "MinerU document parsing service is unavailable",
-          detail: `Could not connect to MinerU at ${currentUrl} (${message}). Please ensure the service is running (e.g. via start-mineru.bat).`,
-        })
-        return
+        console.warn("[Ingestion] MinerU service unavailable, switching to local PDF fallback:", err)
       }
       clearInterval(heartbeat)
 
-      if (!mineruResponse.ok) {
-        const body = await mineruResponse.text().catch(() => "")
-        await sendEvent({
-          type: "error",
-          error: "MinerU returned an error",
-          detail: body || `HTTP ${mineruResponse.status}`,
-        })
-        return
+      if (mineruResponse && mineruResponse.ok) {
+        try {
+          const mineruData: { results?: Record<string, { md_content?: string; images?: Record<string, string>; middle_json?: unknown }> } = await mineruResponse.json()
+          const resultsMap = mineruData.results ?? {}
+          const resultsKeys = Object.keys(resultsMap)
+          results =
+            resultsMap[rawBasename] ??
+            resultsMap[basename] ??
+            (resultsKeys.length === 1 ? resultsMap[resultsKeys[0]] : undefined) ??
+            resultsMap[
+              resultsKeys.find(
+                (k) => k.toLowerCase() === rawBasename.toLowerCase() || k.toLowerCase() === basename.toLowerCase()
+              ) || ""
+            ]
+        } catch (jsonErr) {
+          console.warn("[Ingestion] Failed to parse MinerU JSON:", jsonErr)
+        }
       }
 
-      let mineruData: { results?: Record<string, { md_content?: string; images?: Record<string, string>; middle_json?: unknown }> }
-      try {
-        mineruData = await mineruResponse.json()
-      } catch {
+      // If MinerU is offline, timed out, or produced no result, run the built-in PDF fallback parser!
+      if (!results || !results.md_content) {
         await sendEvent({
-          type: "error",
-          error: "Failed to parse MinerU JSON response",
+          type: "progress",
+          stage: "MinerU sidecar offline; parsing document layout and text via built-in PDF engine...",
+          progress: 40,
         })
-        return
+
+        try {
+          const buffer = Buffer.from(await uploadedFile.arrayBuffer())
+          const fallback = await parsePdfWithFallback(buffer, uploadedFile.name)
+          results = {
+            md_content: fallback.md_content,
+            images: {},
+          }
+          console.log(`[Ingestion] Built-in PDF parser extracted ${fallback.pageCount} pages (${fallback.md_content.length} chars) for ${uploadedFile.name}`)
+        } catch (fallbackErr) {
+          console.error("[Ingestion] Both MinerU and PDF fallback parser failed:", fallbackErr)
+          await sendEvent({
+            type: "error",
+            error: "Document parsing failed",
+            detail: `Could not parse ${uploadedFile.name}: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`,
+          })
+          return
+        }
       }
 
       await sendEvent({
         type: "progress",
-        stage: "MinerU parse completed. Processing layout and markdown...",
+        stage: "Document parsing completed. Processing layout and markdown...",
         progress: 50,
       })
-
-      // Parse MinerU API format
-      const rawBasename = path.basename(uploadedFile.name, path.extname(uploadedFile.name))
-      const basename = rawBasename.replace(/[^a-zA-Z0-9_-]/g, "_")
-      const resultsMap = mineruData.results ?? {}
-      const resultsKeys = Object.keys(resultsMap)
-      const results =
-        resultsMap[rawBasename] ??
-        resultsMap[basename] ??
-        (resultsKeys.length === 1 ? resultsMap[resultsKeys[0]] : undefined) ??
-        resultsMap[
-          resultsKeys.find(
-            (k) => k.toLowerCase() === rawBasename.toLowerCase() || k.toLowerCase() === basename.toLowerCase()
-          ) || ""
-        ]
-
-      if (!results) {
-        await sendEvent({
-          type: "error",
-          error: "MinerU parsed the file but returned no matching result",
-          detail: `Expected "${rawBasename}", available keys: [${resultsKeys.join(", ")}]`,
-        })
-        return
-      }
 
       // Map to hold extracted table rows and titles by their original image_path
       const tableMap = new Map<string, { rows: string[][]; title?: string }>()
@@ -366,11 +355,23 @@ export async function POST(req: Request) {
         // This prevents the review route from silently generating with zero RAG if the
         // user clicks "Generate Review" before the background job finishes.
         try {
-          await prisma.ingestFile.updateMany({
-            where: { id: parsedIdForChunking, workspaceId },
-            data: { vectorStatus: "indexing" },
+          await prisma.ingestFile.upsert({
+            where: { id: parsedIdForChunking },
+            create: {
+              id: parsedIdForChunking,
+              workspaceId,
+              name: uploadedFile.name,
+              size: uploadedFile.size,
+              method: "pdf-parser",
+              status: "parsing",
+              progress: 60,
+              vectorStatus: "indexing",
+            },
+            update: {
+              vectorStatus: "indexing",
+            },
           })
-        } catch { /* non-fatal: IngestFile row may not exist yet */ }
+        } catch { /* non-fatal */ }
 
         setImmediate(async () => {
           try {

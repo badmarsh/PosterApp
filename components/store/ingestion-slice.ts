@@ -44,7 +44,7 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
     closeIngestion: () => set((s) => { s.ingestionOpen = false }),
 
     uploadFiles: (files) => {
-      if (!files.length) return
+      if (!files.length) return []
       const created: IngestFile[] = files.map((f) => ({
         id: `file_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
         name: f.name,
@@ -86,6 +86,7 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
             })
           })
       })
+      return created
     },
 
     processFile: async (id) => {

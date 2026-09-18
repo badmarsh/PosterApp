@@ -208,6 +208,8 @@ ${evidenceRules[lang]}
 
 Return EXACTLY this JSON structure (no markdown):
 {
+  "summary": "<2-4 sentences executive summary of the thesis and primary novelty in ${lang}>",
+  "strengths": ["<key strength 1>", "<key strength 2>", "<key strength 3>"],
   "sections": [
     {
       "sectionId": "<criterionId>",

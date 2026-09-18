@@ -117,6 +117,9 @@ export function parseAiModelOverrides(headers: Headers): Partial<Record<AiModelR
 }
 
 export const AI_API_KEY_HEADER = "X-Gemini-Api-Key"
+export const AI_CUSTOM_KEY_HEADER = "X-AI-Api-Key"
+export const AI_BASE_URL_HEADER = "X-AI-Base-Url"
+export const AI_ENDPOINTS_HEADER = "X-AI-Endpoints"
 
 /**
  * Parse client-supplied Gemini or custom AI API key from request headers.
@@ -127,6 +130,61 @@ export function parseAiApiKey(headers: Headers): string | undefined {
   const customKey = headers.get("x-ai-api-key")?.trim()
   if (customKey) return customKey
   return undefined
+}
+
+/**
+ * Parse client-supplied AI base URL from request headers.
+ */
+export function parseAiBaseUrl(headers: Headers): string | undefined {
+  const baseUrl = headers.get("x-ai-base-url")?.trim()
+  return baseUrl || undefined
+}
+
+/**
+ * Parse client-supplied AI endpoints configuration from request headers.
+ */
+export function parseAiEndpointsHeader(headers: Headers): Array<{
+  id: string
+  name: string
+  baseUrl: string
+  apiKey?: string
+  enabled?: boolean
+  models?: string[]
+}> {
+  const raw = headers.get("x-ai-endpoints")
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) return parsed
+  } catch {}
+  return []
+}
+
+/**
+ * Resolve the matching AI endpoint (base URL and API key) from request headers.
+ * If model is specified, matches the endpoint that contains that model.
+ */
+export function parseAiEndpoint(
+  headers: Headers,
+  model?: string
+): { apiUrl?: string; apiKey?: string } {
+  const endpoints = parseAiEndpointsHeader(headers)
+  if (model && endpoints.length > 0) {
+    const matching = endpoints.find(
+      (e) => e.enabled !== false && Array.isArray(e.models) && e.models.includes(model)
+    )
+    if (matching?.baseUrl) {
+      return {
+        apiUrl: matching.baseUrl,
+        apiKey: matching.apiKey,
+      }
+    }
+  }
+
+  const baseUrl = parseAiBaseUrl(headers) || endpoints[0]?.baseUrl
+  const apiKey = parseAiApiKey(headers) || endpoints[0]?.apiKey
+
+  return { apiUrl: baseUrl, apiKey }
 }
 
 /**

@@ -59,62 +59,73 @@ function withDefaultTimeout(signal?: AbortSignal): AbortSignal {
 
 type AIRequestOptions = Omit<AIClientOptions<any>, "schema">
 
-export const GOOGLE_GEMINI_OPENAI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-export const DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+import {
+  getStoredAiEndpoints,
+  resolveEndpointForModel,
+  normalizeChatCompletionsUrl,
+} from "./endpoints"
 
-export function normalizeChatCompletionsUrl(url: string): string {
-  const trimmed = url.trim().replace(/\/+$/, "")
-  if (trimmed.endsWith("/chat/completions")) return trimmed
-  if (trimmed.endsWith("/v1")) return `${trimmed}/chat/completions`
-  return trimmed
-}
+export { normalizeChatCompletionsUrl }
 
-function resolveProvider(options: Pick<AIRequestOptions, "role" | "model" | "apiUrl" | "apiKey">) {
-  // If explicitly provided via options with both url and key, use them directly
-  if (options.apiUrl && options.apiKey) {
-    return { apiUrl: normalizeChatCompletionsUrl(options.apiUrl), apiKey: options.apiKey }
+async function resolveProvider(options: Pick<AIRequestOptions, "role" | "model" | "apiUrl" | "apiKey">) {
+  // If explicitly provided via options, use directly
+  if (options.apiUrl) {
+    return {
+      apiUrl: normalizeChatCompletionsUrl(options.apiUrl),
+      apiKey: options.apiKey || "",
+    }
+  }
+
+  // Check endpoints configured strictly in Settings -> AI Models (persisted in DB)
+  try {
+    const storedEndpoints = await getStoredAiEndpoints()
+    if (storedEndpoints && storedEndpoints.length > 0) {
+      const ep = resolveEndpointForModel(options.model, storedEndpoints)
+      if (ep && ep.baseUrl?.trim()) {
+        return {
+          apiUrl: normalizeChatCompletionsUrl(ep.baseUrl),
+          apiKey: (options.apiKey || ep.apiKey || "").trim(),
+        }
+      }
+    }
+  } catch {
+    // DB query failed or not initialized; continue to fallbacks
   }
 
   const explicitKey = options.apiKey
-  const isDirectGeminiKey = typeof explicitKey === "string" && (explicitKey.startsWith("AQ.") || explicitKey.startsWith("AIza"))
-  const geminiKey = isDirectGeminiKey ? explicitKey : (process.env.GEMINI_API_KEY || (explicitKey && (options.model.startsWith("gemini") || options.model.includes("gemini")) ? explicitKey : undefined))
-  const geminiUrl = process.env.GEMINI_API_URL || GOOGLE_GEMINI_OPENAI_URL
-  const isGeminiModel = options.model.startsWith("gemini") || options.model.includes("gemini")
+  const isDirectGeminiKey =
+    typeof explicitKey === "string" &&
+    (explicitKey.startsWith("AQ.") || explicitKey.startsWith("AIza"))
+  const geminiKey = isDirectGeminiKey
+    ? explicitKey
+    : (explicitKey && (options.model.startsWith("gemini") || options.model.includes("gemini"))
+        ? explicitKey
+        : undefined)
 
-  // If calling a Gemini model or using a direct Gemini key, route directly to Google Gemini OpenAI endpoint
-  if (geminiKey && (isGeminiModel || isDirectGeminiKey) && !options.apiUrl) {
-    return { apiUrl: geminiUrl, apiKey: geminiKey }
+  // Direct Gemini key with official OpenAI endpoint
+  if (geminiKey && !options.apiUrl) {
+    return {
+      apiUrl: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      apiKey: geminiKey,
+    }
   }
 
-  const isVision = options.role === "vision" || options.model.includes("omni") || options.model.includes("vl")
-  let apiUrl = options.apiUrl || (isVision && process.env.AI_VISION_API_URL ? process.env.AI_VISION_API_URL : process.env.AI_API_URL)
-  let apiKey = options.apiKey || (isVision && process.env.AI_VISION_API_KEY ? process.env.AI_VISION_API_KEY : process.env.AI_API_KEY)
-
-  // Fallback to OPENROUTER_API_KEY and OPENROUTER_BASE_URL
-  const openRouterKey = process.env.OPENROUTER_API_KEY
-  if (!apiKey && openRouterKey) {
-    apiKey = openRouterKey
-  }
-  if (!apiUrl && apiKey && (apiKey.startsWith("sk-or-") || (openRouterKey && apiKey === openRouterKey))) {
-    const base = (process.env.OPENROUTER_BASE_URL || DEFAULT_OPENROUTER_BASE_URL).trim().replace(/\/+$/, "")
-    apiUrl = `${base}/chat/completions`
+  // Vitest / Unit-test environment stubs fallback
+  if (process.env.AI_API_URL) {
+    const testUrl = normalizeChatCompletionsUrl(process.env.AI_API_URL)
+    const testKey = options.apiKey || process.env.AI_API_KEY || "test-key"
+    return { apiUrl: testUrl, apiKey: testKey }
   }
 
-  // Fallback to GEMINI_API_KEY if primary API key is missing
-  if (!apiKey && geminiKey) {
-    apiKey = geminiKey
-    apiUrl = apiUrl || geminiUrl
+  if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_BASE_URL) {
+    const base = process.env.OPENROUTER_BASE_URL.trim().replace(/\/+$/, "")
+    return {
+      apiUrl: `${base}/chat/completions`,
+      apiKey: process.env.OPENROUTER_API_KEY,
+    }
   }
 
-  if (apiUrl) {
-    apiUrl = normalizeChatCompletionsUrl(apiUrl)
-  }
-
-  if (!apiUrl || !apiKey) {
-    throw new Error("AI API configuration missing (AI_API_URL or AI_API_KEY)")
-  }
-
-  return { apiUrl, apiKey }
+  throw new Error("AI API configuration missing (AI_API_URL or AI_API_KEY)")
 }
 
 function retryDelayMs(response: Response | null, attempt: number): number {
@@ -353,13 +364,29 @@ export function getLastServedProvider(): AIProviderSource {
   return lastServedProvider
 }
 
-function resolveFallbackProvider(): { apiUrl: string; apiKey: string } | null {
-  const apiUrl = process.env.AI_API_URL_FALLBACK
-  const apiKey = process.env.AI_API_KEY_FALLBACK || process.env.AI_API_KEY
-  if (!apiUrl || !apiKey) {
-    return null
+async function resolveFallbackProvider(options?: AIRequestOptions): Promise<{ apiUrl: string; apiKey: string } | null> {
+  // 1. Vitest test fallback if stubbed
+  if (process.env.AI_API_URL_FALLBACK && (process.env.AI_API_KEY_FALLBACK || process.env.AI_API_KEY)) {
+    return {
+      apiUrl: normalizeChatCompletionsUrl(process.env.AI_API_URL_FALLBACK),
+      apiKey: process.env.AI_API_KEY_FALLBACK || process.env.AI_API_KEY || "",
+    }
   }
-  return { apiUrl, apiKey }
+
+  // 2. Secondary configured endpoint from Settings
+  try {
+    const endpoints = await getStoredAiEndpoints()
+    const enabled = endpoints.filter((e) => e.enabled !== false && Boolean(e.baseUrl?.trim()))
+    if (enabled.length > 1) {
+      const fallbackEp = enabled[1]
+      return {
+        apiUrl: normalizeChatCompletionsUrl(fallbackEp.baseUrl),
+        apiKey: fallbackEp.apiKey || "",
+      }
+    }
+  } catch {}
+
+  return null
 }
 
 function recordProviderSource(
@@ -375,8 +402,8 @@ async function executeWithProviderFallback<R>(
   options: AIRequestOptions,
   operationFn: (apiUrl: string, apiKey: string) => Promise<R>
 ): Promise<R> {
-  const { apiUrl: primaryUrl, apiKey: primaryKey } = resolveProvider(options)
-  const fallback = resolveFallbackProvider()
+  const { apiUrl: primaryUrl, apiKey: primaryKey } = await resolveProvider(options)
+  const fallback = await resolveFallbackProvider(options)
 
   try {
     const result = await operationFn(primaryUrl, primaryKey)

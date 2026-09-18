@@ -981,10 +981,11 @@ Respond with a valid JSON object matching this structure:
   // recommendations and severity triage, but never synthesize an academic grade.
   const applyEctsGrading = shouldApplyEctsGrading(options.reviewKind, options.reviewerRole)
   const derivedScore = computeScoreFromFindings(finalFindings)
-  const gradeRangeInfo = applyEctsGrading
+  const hasEvaluationSignals = finalFindings.length > 0 || Boolean(validated.grade)
+  const gradeRangeInfo = (applyEctsGrading && hasEvaluationSignals)
     ? calculateGradeRange(derivedScore)
     : { grade: undefined as any, range: "", minScore: derivedScore, maxScore: derivedScore }
-  const { grade: reconciledGrade, note: gradeReconciliationNote } = applyEctsGrading
+  const { grade: reconciledGrade, note: gradeReconciliationNote } = (applyEctsGrading && hasEvaluationSignals)
     ? reconcileGrade(
         validated.grade,
         derivedScore,

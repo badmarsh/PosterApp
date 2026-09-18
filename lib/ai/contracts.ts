@@ -298,7 +298,12 @@ export const ThesisReviewGenerationSchema = z.preprocess((raw: any) => {
     const sections = raw.sections || raw.criteria || raw.evaluations || []
     const gradeRaw = raw.overallGrade || raw.grade || raw.overall
     const normalizedGrade = typeof gradeRaw === "string" ? gradeRaw.trim().toUpperCase() : undefined
+    const strengths = Array.isArray(raw.strengths)
+      ? raw.strengths.map((s: any) => String(s).trim()).filter(Boolean)
+      : typeof raw.strengths === "string" ? [raw.strengths.trim()] : []
     return {
+      summary: String(raw.summary || raw.overview || raw.executiveSummary || "").trim(),
+      strengths,
       sections: Array.isArray(sections) ? sections : [],
       overallGrade: normalizedGrade && ["A", "B", "C", "D", "E", "FX"].includes(normalizedGrade) ? normalizedGrade : undefined,
       recommendation: String(raw.recommendation || raw.verdict || "").trim(),
@@ -312,6 +317,8 @@ export const ThesisReviewGenerationSchema = z.preprocess((raw: any) => {
   }
   return raw
 }, z.object({
+  summary: z.string().optional().default(""),
+  strengths: z.array(z.string()).default([]),
   sections: z.array(ThesisReviewSectionSchema),
   overallGrade: EctsGradeSchema.optional(),
   recommendation: z.string(),

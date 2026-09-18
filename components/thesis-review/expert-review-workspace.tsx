@@ -75,6 +75,7 @@ import { composeFullReviewNarrative } from "@/lib/ai/review-composer"
 import { cn } from "@/lib/utils"
 import { sortFindingsByPriority, calculateFindingPriority } from "@/lib/ai/review-priorities"
 import { THESIS_CRITERIA, type ThesisSection, type ReviewLanguage } from "@/lib/ai/thesis-rubric"
+import { SK_ACADEMIC_RUBRIC_V1 } from "@/lib/ai/rubric-engine"
 import type { ReviewFinding, ReviewSeverity, FindingStatus, FindingAudience } from "@/lib/ai/review-types"
 
 interface Props {
@@ -650,7 +651,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 <FileCheck className="h-5 w-5 text-primary" />
                 <h3 className="text-sm font-bold">1. Zhrnutie práce a hlavný prínos</h3>
               </div>
-              {activeReview.grade && (
+              {activeReview.grade && activeReview.grade !== "pending" && (
                 <Badge variant="outline" className="font-bold text-xs">
                   ECTS: {activeReview.grade}
                 </Badge>
@@ -1010,20 +1011,30 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Hodnotenie kritérií záverečnej práce
               </h3>
-              {THESIS_CRITERIA.filter((c) => c.category !== "defense").map((criterion) => {
-                const sec = activeReview.sections.find(
-                  (s) => s.criterionId === criterion.id || s.sectionId === criterion.id
-                ) ?? {
-                  id: criterion.id,
-                  sectionId: criterion.id,
-                  criterionId: criterion.id,
-                  text: "",
-                  rating: "pending" as any,
-                  suggestions: [],
-                }
+              {activeReview.sections.map((sec) => {
+                const criterionId = sec.criterionId || sec.id
+                const skCrit = SK_ACADEMIC_RUBRIC_V1.criteria.find(
+                  (c) => c.id === criterionId || c.key === criterionId
+                )
+                const thesisCrit = THESIS_CRITERIA.find((c) => c.id === criterionId)
+
+                const criterion = thesisCrit ?? (skCrit ? {
+                  id: skCrit.id,
+                  category: (skCrit.category === "formal" ? "formal" : "content") as any,
+                  weight: skCrit.weight,
+                  labels: skCrit.labels,
+                  guidance: skCrit.description,
+                } : {
+                  id: criterionId,
+                  category: "content" as const,
+                  weight: 10,
+                  labels: { sk: criterionId, cs: criterionId, en: criterionId },
+                  guidance: { sk: "", cs: "", en: "" },
+                })
+
                 return (
                   <ThesisCriteriaCard
-                    key={criterion.id}
+                    key={sec.id || criterionId}
                     criterion={criterion}
                     section={sec}
                     lang={lang}
@@ -1031,7 +1042,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                     reviewId={activeReview.id}
                     onUpdate={(updates) => {
                       const updatedSections = activeReview.sections.map((s) =>
-                        s.criterionId === criterion.id ? { ...s, ...updates } : s
+                        (s.id === sec.id || s.criterionId === sec.criterionId) ? { ...s, ...updates } : s
                       )
                       updateReviewLocally({ sections: updatedSections })
                     }}

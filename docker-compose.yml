@@ -36,7 +36,6 @@ services:
       DEERFLOW_SERVICE_TOKEN: ${DEERFLOW_SERVICE_TOKEN:-}
       # Model provider for the agent (OpenAI-compatible).
       OPENAI_API_KEY: ${AI_API_KEY:-}
-      OPENAI_BASE_URL: ${AI_API_URL:-https://openrouter.ai/api/v1}
       OPENAI_MODEL: ${AI_MODEL:-}
     volumes:
       - deerflow_data:/app/.deer-flow
