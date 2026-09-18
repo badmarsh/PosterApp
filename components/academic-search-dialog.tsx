@@ -211,7 +211,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby={undefined} className="sm:max-w-4xl max-w-[96vw] w-full h-[88vh] max-h-[850px] flex flex-col p-0 overflow-hidden shadow-2xl border bg-background gap-0">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-4xl max-w-[96vw] w-full h-[85vh] max-h-[85vh] flex flex-col p-0 overflow-hidden shadow-2xl border bg-background gap-0">
         <DialogHeader className="shrink-0 sticky top-0 z-10 px-6 pt-5 pb-4 border-b bg-card shadow-xs">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-2xs">

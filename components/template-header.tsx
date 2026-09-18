@@ -68,7 +68,7 @@ export function TemplateHeader({ variant = "poster", className }: TemplateHeader
       title="Click to edit header in right sidebar"
     >
       {/* Header text content */}
-      <p className="text-balance text-[13px] font-bold leading-tight group-hover:text-primary transition-colors">
+      <p className="text-balance text-sm font-bold leading-tight group-hover:text-primary transition-colors">
         {metadata.title}
       </p>
       <p className="mt-0.5 text-[10px] text-muted-foreground">

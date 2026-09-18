@@ -187,7 +187,7 @@ export function ContentTab({ card }: { card: Card }) {
               }}
               onKeyDown={(e) => { if (e.key === "Escape") setCitationMenu(null) }}
               placeholder="Use - or * for bulleted lists... Type \\cite{ or [ for citations"
-              className="min-h-[16rem] resize-y border-0 text-[13px] shadow-none focus-visible:ring-0"
+              className="min-h-[16rem] resize-y border-0 text-sm shadow-none focus-visible:ring-0"
             />
             {citationMenu && filteredCitationEntries.length > 0 && (
               <div className="absolute left-2 right-2 top-full z-20 mt-1 overflow-hidden rounded-md border border-border bg-popover p-1 shadow-lg" role="listbox" aria-label="Bibliography autocomplete">
@@ -233,7 +233,7 @@ export function ContentTab({ card }: { card: Card }) {
           <FieldLabel>Insert cite key</FieldLabel>
           <select
             aria-label="Insert citation key"
-            className="h-8 w-full rounded-md border border-input bg-background px-2 text-[12px] text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             defaultValue=""
             onChange={(e) => {
               insertCiteKey(e.target.value)

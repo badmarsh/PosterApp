@@ -131,7 +131,7 @@ export function TableTab({ card }: { card: Card }) {
       </div>
 
       <div className="overflow-x-auto rounded-md border border-border">
-        <table className="w-full border-collapse text-[12px]">
+        <table className="w-full border-collapse text-xs">
           <tbody>
             {table.rows.map((row, r) => (
               <tr
@@ -179,7 +179,7 @@ export function TableTab({ card }: { card: Card }) {
           value={table.caption}
           onChange={(e) => updateCard(card.id, { table: { ...table, caption: e.target.value } })}
           placeholder="Table caption"
-          className="h-8 text-[13px]"
+          className="h-8 text-sm"
         />
       </div>
     </div>

@@ -408,7 +408,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
             onClick={() => setActiveReview(null)}
             className="text-xs h-7 shrink-0"
           >
-            ← Späť
+            ← Späť na prehľad
           </Button>
           <div className="h-4 w-px bg-border shrink-0" />
           <div className="min-w-0">

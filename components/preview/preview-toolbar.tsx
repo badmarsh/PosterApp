@@ -26,7 +26,7 @@ export function PreviewToolbar({
   const copy = getUiCopy(useEditor((state) => state.language))
   return (
     <div className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-card px-3">
-      <span className="text-[12px] font-semibold text-foreground">{copy.structure}</span>
+      <span className="text-xs font-semibold text-foreground">{copy.structure}</span>
       <div className="flex h-7 items-center overflow-hidden rounded border border-border bg-card shadow-sm">
         <Button
           type="button"

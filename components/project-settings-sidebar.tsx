@@ -145,7 +145,7 @@ export function ProjectSettingsSidebar() {
               id="internalName"
               value={project.name}
               onChange={(e) => updateProject({ name: e.target.value })}
-              className="h-8 text-[12px]"
+              className="h-8 text-xs"
             />
           </div>
 
@@ -156,7 +156,7 @@ export function ProjectSettingsSidebar() {
               value={project.posterTitle ?? ""}
               onChange={(e) => updateProject({ posterTitle: e.target.value })}
               placeholder="e.g. Advanced Layouts & Latent Dynamics"
-              className="min-h-16 resize-none text-[12px] font-medium leading-tight"
+              className="min-h-16 resize-none text-xs font-medium leading-tight"
             />
           </div>
 

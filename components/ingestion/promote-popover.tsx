@@ -68,7 +68,7 @@ export function PromotePopover({ asset }: { asset: ExtractedAsset }) {
       />
       <PopoverContent align="end" className="w-64">
         <PopoverHeader>
-          <PopoverTitle className="text-[12px]">Promote to card slot</PopoverTitle>
+          <PopoverTitle className="text-xs">Promote to card slot</PopoverTitle>
         </PopoverHeader>
 
         <div className="flex flex-col gap-1">

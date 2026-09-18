@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from "react"
-import { X, Clock, RotateCcw, Tag, Trash2, AlertTriangle, AlertCircle } from "lucide-react"
+import { X, Clock, RotateCcw, Tag, Trash2, AlertTriangle, AlertCircle, Plus } from "lucide-react"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -28,12 +29,13 @@ type Snapshot = {
 }
 
 export function HistoryPanel() {
-  const { isHistoryOpen, setIsHistoryOpen, project, pushEvent } = useEditor(
+  const { isHistoryOpen, setIsHistoryOpen, project, pushEvent, saveProject } = useEditor(
     useShallow((s) => ({
       isHistoryOpen: s.isHistoryOpen,
       setIsHistoryOpen: s.setIsHistoryOpen,
       project: s.project,
       pushEvent: s.pushEvent,
+      saveProject: s.saveProject,
     }))
   )
 
@@ -207,11 +209,24 @@ export function HistoryPanel() {
               ))}
             </div>
           ) : snapshots.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
-              <Clock className="size-8 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">No saves yet.</p>
-              <p className="text-xs text-muted-foreground">Save your project to create a history entry.</p>
-            </div>
+            <EmptyState
+              icon={Clock}
+              title="No snapshots in history"
+              description="Save your project or create a manual checkpoint to create your first history snapshot."
+              action={
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    await saveProject(true)
+                    fetchHistory()
+                  }}
+                  className="mt-2 h-8 text-xs gap-1.5 shadow-xs"
+                >
+                  <Plus className="size-3.5" />
+                  Create First Snapshot
+                </Button>
+              }
+            />
           ) : (
             snapshots.map((snap, i) => (
               <div

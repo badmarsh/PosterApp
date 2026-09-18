@@ -320,7 +320,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
 
   return (
     <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
-      <DialogContent aria-describedby={undefined} showCloseButton className="w-[95vw] sm:max-w-4xl md:max-w-5xl h-[88vh] p-0 overflow-hidden flex flex-col shadow-2xl border border-border bg-background gap-0">
+      <DialogContent aria-describedby={undefined} showCloseButton className="w-[95vw] sm:max-w-4xl md:max-w-5xl h-[85vh] max-h-[85vh] p-0 overflow-hidden flex flex-col shadow-2xl border border-border bg-background gap-0">
         {/* Header — sticky */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-b border-border bg-card shrink-0 pr-12 sticky top-0 z-10">
           <div className="space-y-1">
@@ -430,7 +430,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                     <p className="text-sm font-semibold text-foreground">
                       Upload, capture photo, or paste image
                     </p>
-                    <p className="text-[12px] text-muted-foreground mt-1 max-w-sm">
+                    <p className="text-xs text-muted-foreground mt-1 max-w-sm">
                       Click to choose an image, or press <kbd className="px-1.5 py-0.5 font-mono text-[10px] bg-muted rounded border">Ctrl+V</kbd> anywhere to paste from clipboard.
                     </p>
 
@@ -484,7 +484,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                         type="button"
                         onClick={() => setOcrMode(mode.id as OcrMode)}
                         className={cn(
-                          "flex items-center justify-between px-3 py-2 rounded-md border text-left text-[12px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          "flex items-center justify-between px-3 py-2 rounded-md border text-left text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           ocrMode === mode.id
                             ? "border-primary bg-primary/10 text-primary font-semibold"
                             : "border-border hover:bg-muted/50 text-foreground"
@@ -513,7 +513,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                       }
                     }}
                     aria-label="Custom OCR instruction"
-                    className="text-[12px] h-8"
+                    className="text-xs h-8"
                   />
                 </div>
 
@@ -532,7 +532,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                 <Button
                   onClick={runOcr}
                   disabled={!imagePreview || isProcessing}
-                  className="w-full h-9 text-[12px] gap-2 mt-auto shadow-md transition-colors duration-150"
+                  className="w-full h-9 text-xs gap-2 mt-auto shadow-md transition-colors duration-150"
                 >
                   {isProcessing ? (
                     <>
@@ -613,7 +613,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                     !ocrResult.text && (
                       <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border px-6 py-12 text-center">
                         <p className="text-sm font-medium text-foreground">No structured content detected</p>
-                        <p className="max-w-sm text-[12px] text-muted-foreground">
+                        <p className="max-w-sm text-xs text-muted-foreground">
                           No equations, tables, or text were extracted from this image.
                           Try a sharper photo or a different scan mode, or retry the scan.
                         </p>
@@ -644,7 +644,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                                     {eq.key}
                                   </span>
                                 )}
-                                <span className="text-[12px] font-semibold text-foreground">
+                                <span className="text-xs font-semibold text-foreground">
                                   {eq.name || `Equation ${i + 1}`}
                                 </span>
                               </div>
@@ -710,7 +710,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                         {ocrResult.tables.map((t, i) => (
                           <div key={i} className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-2">
                             <div className="flex items-center justify-between">
-                              <span className="text-[12px] font-semibold text-foreground">
+                              <span className="text-xs font-semibold text-foreground">
                                 {t.caption || `Table ${i + 1}`}
                               </span>
                               <Button
@@ -753,7 +753,7 @@ Please analyze this content and suggest how to incorporate it into my ${project.
                         </Button>
                       </div>
 
-                      <div className="rounded-lg border border-border bg-card p-4 text-[12px] leading-relaxed font-mono whitespace-pre-wrap select-all">
+                      <div className="rounded-lg border border-border bg-card p-4 text-xs leading-relaxed font-mono whitespace-pre-wrap select-all">
                         {ocrResult.text}
                       </div>
                     </div>

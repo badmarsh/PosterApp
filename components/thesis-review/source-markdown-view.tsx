@@ -410,7 +410,7 @@ export function SourceMarkdownView({
   )
 
   return (
-    <div className="source-markdown-view text-[13px] sm:text-sm [&_.katex]:text-foreground/90 [&_.katex]:font-normal">
+    <div className="source-markdown-view text-sm sm:text-sm [&_.katex]:text-foreground/90 [&_.katex]:font-normal">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeRaw, rehypeSanitize, [rehypeKaTeX, { throwOnError: false, strict: false, trust: false }]]}

@@ -278,7 +278,7 @@ export function EquationRegistryDialog() {
                       value={formKey}
                       onChange={(e) => setFormKey(e.target.value)}
                       placeholder="eq:gain_variance"
-                      className="font-mono text-[12px] h-8"
+                      className="font-mono text-xs h-8"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -290,7 +290,7 @@ export function EquationRegistryDialog() {
                       value={formName}
                       onChange={(e) => setFormName(e.target.value)}
                       placeholder="PMT Anode Current Gain"
-                      className="text-[12px] h-8"
+                      className="text-xs h-8"
                     />
                   </div>
                 </div>
@@ -318,7 +318,7 @@ export function EquationRegistryDialog() {
                     onChange={(e) => setFormFormula(e.target.value)}
                     placeholder="I_C = I_S \left( e^{\frac{V_{BE}}{V_T}} - 1 \right)"
                     className={cn(
-                      "font-mono text-[12px] min-h-[90px] leading-relaxed",
+                      "font-mono text-xs min-h-[90px] leading-relaxed",
                       !formulaValidation.valid && "border-destructive focus-visible:ring-destructive"
                     )}
                   />
@@ -341,7 +341,7 @@ export function EquationRegistryDialog() {
                     value={formDescription}
                     onChange={(e) => setFormDescription(e.target.value)}
                     placeholder="Relates collector current to base-emitter voltage where V_T is thermal voltage."
-                    className="text-[12px] h-8"
+                    className="text-xs h-8"
                   />
                 </div>
 
@@ -359,10 +359,10 @@ export function EquationRegistryDialog() {
                 </div>
 
                 <div className="flex items-center gap-2 pt-3 border-t border-border">
-                  <Button onClick={handleSave} disabled={!formFormula.trim() || !formulaValidation.valid} aria-label="Save equation (⌘+Enter)" className="h-8 text-[12px] px-5 transition-colors duration-150">
+                  <Button onClick={handleSave} disabled={!formFormula.trim() || !formulaValidation.valid} aria-label="Save equation (⌘+Enter)" className="h-8 text-xs px-5 transition-colors duration-150">
                     {isAddingNew ? "Add to Library" : "Save Changes"}
                   </Button>
-                  <Button variant="ghost" onClick={cancelForm} className="h-8 text-[12px]">
+                  <Button variant="ghost" onClick={cancelForm} className="h-8 text-xs">
                     Cancel
                   </Button>
                 </div>
@@ -387,7 +387,7 @@ export function EquationRegistryDialog() {
                     }}
                     placeholder="Search by key, formula, or title… (Esc to clear)"
                     aria-label="Search equations"
-                    className="pl-8 h-8 text-[12px] bg-muted/30 focus-visible:ring-2"
+                    className="pl-8 h-8 text-xs bg-muted/30 focus-visible:ring-2"
                   />
                 </div>
               </div>
@@ -405,7 +405,7 @@ export function EquationRegistryDialog() {
                     }
                     action={
                       equations.length === 0 ? (
-                        <Button size="sm" onClick={startAddNew} className="mt-1 h-8 text-[12px] gap-1.5 shadow-xs transition-colors duration-150">
+                        <Button size="sm" onClick={startAddNew} className="mt-1 h-8 text-xs gap-1.5 shadow-xs transition-colors duration-150">
                           <Plus className="size-3.5" />
                           Create First Equation
                         </Button>
@@ -429,7 +429,7 @@ export function EquationRegistryDialog() {
                             <span className="font-mono text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
                               {eq.key}
                             </span>
-                            <span className="text-[13px] font-bold text-foreground truncate">
+                            <span className="text-sm font-bold text-foreground truncate">
                               {eq.name}
                             </span>
                             {eq.page && (

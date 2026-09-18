@@ -253,7 +253,7 @@ export function BibliographyDialog() {
   return (
     <>
     <Dialog open={isBibManagerOpen} onOpenChange={setIsBibManagerOpen}>
-      <DialogContent aria-describedby={undefined} showCloseButton className="w-[95vw] sm:max-w-4xl md:max-w-5xl h-[88vh] p-0 overflow-hidden flex flex-col shadow-2xl border border-border bg-background gap-0">
+      <DialogContent aria-describedby={undefined} showCloseButton className="w-[95vw] sm:max-w-4xl md:max-w-5xl h-[85vh] max-h-[85vh] p-0 overflow-hidden flex flex-col shadow-2xl border border-border bg-background gap-0">
         {/* Header — sticky so Tabs/actions stay reachable while list scrolls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-b border-border bg-card shrink-0 pr-12 sticky top-0 z-10">
           <div className="space-y-1">
