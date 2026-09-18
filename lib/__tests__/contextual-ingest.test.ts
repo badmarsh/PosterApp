@@ -39,6 +39,8 @@ vi.mock("@prisma/client", () => ({
   Prisma: {
     sql: sqlTag,
     empty: { text: "", values: [] },
+    // Raw SQL fragment (used for the constant column list and gen_random_uuid()).
+    raw: (text: string): FakeSql => ({ text, values: [] }),
     join: (parts: unknown[], sep = ","): FakeSql => {
       let text = ""
       const values: unknown[] = []
@@ -202,6 +204,12 @@ $$\\alpha = \\frac{p}{q}$$
         captured.embedTexts.push(text)
         return new Array(384).fill(0.1)
       }),
+      // Chunker v2 embeds in one batched registry call instead of per chunk.
+      generateLocalEmbeddings: vi.fn(async (texts: string[]) => {
+        captured.embedTexts.push(...texts)
+        return texts.map(() => new Array(384).fill(0.1))
+      }),
+      getEmbeddingModelId: vi.fn(() => "test-embedding-model"),
     }))
     vi.doMock("@/lib/ai/graph-extractor", () => ({
       extractAndStoreGraphEntities: vi.fn(async () => ({ nodes: 0, edges: 0 })),
@@ -227,13 +235,21 @@ $$\\alpha = \\frac{p}{q}$$
     expect(res.chunksCreated).toBeGreaterThan(0)
     expect(res.skipped).toBe(0)
 
-    // INSERT writes the contextPrefix column…
-    expect(captured.insertSql.join(" ")).toContain('"contextPrefix"')
-    // …one row per chunk, each with [workspaceId, documentId, heading, content, tokens, embedding, kind, contextPrefix].
-    // (The mocked Prisma.join flattens all bound values → regroup by row width 8.)
+    // INSERT writes the contextPrefix column. The column list is a developer-controlled
+    // constant interpolated with Prisma.raw, so assert on the shared list (which is what
+    // actually reaches the database) rather than on the captured SQL text.
+    expect(captured.insertSql.join(" ")).toContain("INSERT INTO \"DocumentChunk\"")
+    const { DOCUMENT_CHUNK_INSERT_COLUMNS } = await import("@/lib/ai/document-chunker")
+    expect(DOCUMENT_CHUNK_INSERT_COLUMNS).toContain('"contextPrefix"')
+    expect(DOCUMENT_CHUNK_INSERT_COLUMNS).toContain('"chunkType"')
+    expect(DOCUMENT_CHUNK_INSERT_COLUMNS).toContain('"parentChunkId"')
+    expect(DOCUMENT_CHUNK_INSERT_COLUMNS).toContain("ordinal")
+    // …one row per chunk. The mocked Prisma.join flattens all bound values, so
+    // regroup by the shared row width exported by the writer.
+    const { DOCUMENT_CHUNK_INSERT_BIND_COUNT: ROW_WIDTH } = await import("@/lib/ai/document-chunker")
     const flat = captured.insertValues.flatMap((v) => v.values)
     const rows: unknown[][] = []
-    for (let i = 0; i < flat.length; i += 8) rows.push(flat.slice(i, i + 8))
+    for (let i = 0; i < flat.length; i += ROW_WIDTH) rows.push(flat.slice(i, i + ROW_WIDTH))
     expect(rows.length).toBe(res.chunksCreated)
 
     const proseRow = rows.find((r) => typeof r[3] === "string" && (r[3] as string).startsWith("Parametre modelu"))
@@ -249,7 +265,11 @@ $$\\alpha = \\frac{p}{q}$$
     expect(prefix).toContain("Kapitola 3: Metodika > 3.2 Štatistická analýza")
 
     // Table chunk: prefix folds in the retrieval description (headers/extremes/p-values).
-    const tableRow = rows.find((r) => typeof r[3] === "string" && (r[3] as string).includes("| Model |"))
+    // Selected by its structural chunkType (index 8), not by substring: the section-level
+    // parent chunk also mentions the table in its structural summary.
+    const tableRow = rows.find((r) => r[8] === "table")
+    expect(tableRow).toBeDefined()
+    expect(tableRow![3]).toContain("| Model | Presnosť | p-hodnota |")
     expect(tableRow).toBeDefined()
     const tablePrefix = tableRow![7] as string
     expect(tablePrefix).toContain("Úryvok z práce")
@@ -274,9 +294,10 @@ $$\\alpha = \\frac{p}{q}$$
     })
     expect(captured.ingestFileQueries[0]).toEqual({ id: "file-ctx", workspaceId: "ws-ctx" })
     // Extension stripped from the file name in the prefix.
+    const { DOCUMENT_CHUNK_INSERT_BIND_COUNT: ROW_WIDTH } = await import("@/lib/ai/document-chunker")
     const flatValues = captured.insertValues.flatMap((v) => v.values)
     const rowsForLookup: unknown[][] = []
-    for (let i = 0; i < flatValues.length; i += 8) rowsForLookup.push(flatValues.slice(i, i + 8))
+    for (let i = 0; i < flatValues.length; i += ROW_WIDTH) rowsForLookup.push(flatValues.slice(i, i + ROW_WIDTH))
     const prefixRow = rowsForLookup.find((r) => typeof r[7] === "string")
     expect(prefixRow![7]).toContain("Kapitola 3 návrh")
     expect(prefixRow![7]).not.toContain(".pdf")
@@ -290,9 +311,10 @@ $$\\alpha = \\frac{p}{q}$$
     const res = await ingestDocumentChunks("ws-ctx", "doc-ctx", "# A\n" + "Obsah. ".repeat(60), {})
     expect(res.chunksCreated).toBeGreaterThan(0)
     expect(captured.ingestFileQueries).toHaveLength(0)
+    const { DOCUMENT_CHUNK_INSERT_BIND_COUNT: ROW_WIDTH } = await import("@/lib/ai/document-chunker")
     const flatValues = captured.insertValues.flatMap((v) => v.values)
     const rowsForLookup: unknown[][] = []
-    for (let i = 0; i < flatValues.length; i += 8) rowsForLookup.push(flatValues.slice(i, i + 8))
+    for (let i = 0; i < flatValues.length; i += ROW_WIDTH) rowsForLookup.push(flatValues.slice(i, i + ROW_WIDTH))
     const prefixRow = rowsForLookup.find((r) => typeof r[7] === "string")
     expect(prefixRow![7]).toContain("Úryvok z akademickej práce")
   })
