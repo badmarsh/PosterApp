@@ -98,7 +98,7 @@ Respond EXACTLY in this JSON format:
       signal: AbortSignal.timeout(AI_TIMEOUTS.shrink),
     })
 
-    const isOverBudget = targetCharacters > 0 && parsedData.content.length > targetCharacters * 1.4
+    const isOverBudget = targetCharacters > 0 && (parsedData.content?.length ?? 0) > targetCharacters * 1.4
 
     return NextResponse.json({
       ...parsedData,
