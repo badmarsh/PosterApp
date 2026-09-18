@@ -304,6 +304,16 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         s.project.assets = s.project.assets.filter((a) => a.fileId !== id)
       })
       get().saveProject()
+      try {
+        const workspaceId = get().project.id
+        if (workspaceId && !workspaceId.startsWith("demo-")) {
+          await apiFetch(`/api/workspaces/${workspaceId}/ingest-files/${id}`, {
+            method: "DELETE",
+          })
+        }
+      } catch (e) {
+        console.warn("[removeFile] Could not delete ingest file via API:", e)
+      }
       if (removedFile) {
         notify.success("File removed", {
           description: removedFile.name,

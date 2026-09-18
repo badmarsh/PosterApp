@@ -125,6 +125,12 @@ describe('ingestion-slice', () => {
     expect(store.getState().project.assets.find((a) => a.id === 'asset_1')).toBeUndefined()
     // Assets from other files should remain
     expect(store.getState().project.assets.find((a) => a.id === 'asset_2')).toBeDefined()
+    // apiFetch should have been called to delete on the server
+    const { apiFetch } = await import('@/lib/api-fetch')
+    expect(apiFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/ingest-files/file_abc'),
+      expect.objectContaining({ method: 'DELETE' })
+    )
   })
 
   it('discardAsset removes a specific asset', () => {

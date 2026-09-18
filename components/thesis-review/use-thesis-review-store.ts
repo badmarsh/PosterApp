@@ -300,6 +300,29 @@ export function parseOutputKey(outputKey?: string | null): { workspaceId: string
 // In-memory cache for source document markdown by workspace + fileId
 const sourceDocCache = new Map<string, string>()
 
+export function clearSourceDocCache(workspaceId?: string, fileId?: string): void {
+  if (!workspaceId) {
+    sourceDocCache.clear()
+    return
+  }
+  if (!fileId) {
+    for (const key of sourceDocCache.keys()) {
+      if (key.startsWith(`${workspaceId}:`)) {
+        sourceDocCache.delete(key)
+      }
+    }
+    return
+  }
+  sourceDocCache.delete(`${workspaceId}:${fileId}`)
+  sourceDocCache.delete(`${workspaceId}:all`)
+
+  const shared = workspaceSharedThesisMap.get(workspaceId)
+  if (shared && shared.selectedFileId === fileId) {
+    shared.selectedFileId = ""
+    shared.sourceMarkdown = ""
+  }
+}
+
 function createThesisReviewStore(
   outputKey?: string | null,
   initialShared?: Partial<SharedThesisContext>,
@@ -525,11 +548,19 @@ function createThesisReviewStore(
       setMultiAgentDebate: (debate) => set((s) => { s.multiAgentDebate = debate }),
       setProfessionalModeOverride: (enabled) => set((s) => { s.professionalModeOverride = enabled }),
       setSelectedFileId: (fileId) => {
-        set((s) => { s.selectedFileId = fileId })
+        set((s) => {
+          s.selectedFileId = fileId
+          if (!fileId) {
+            s.sourceMarkdown = ""
+          }
+        })
         if (workspaceId) {
           let shared = workspaceSharedThesisMap.get(workspaceId)
           if (shared) {
             shared.selectedFileId = fileId
+            if (!fileId) {
+              shared.sourceMarkdown = ""
+            }
           }
         }
       },

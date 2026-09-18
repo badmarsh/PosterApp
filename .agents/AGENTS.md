@@ -145,6 +145,13 @@ Schema at `prisma/schema.prisma`. Key notes:
 (None currently)
 
 ### Fixed in This Session (2026-09-17 / 2026-09-18)
+- ✅ **Thesis Source Document Deletion & Cascade Cleanup**:
+  - **Active Document Deletion**: Added direct `Trash2` deletion affordances to both multi-document dropdown and single-document card views in `ThesisMetadataPanel` (`components/thesis-review/thesis-metadata-panel.tsx`), guarded by `ConfirmDialog` warning that parsed markdown and RAG chunks will be removed while existing reviews remain intact.
+  - **"Spravovať súbory" Management Modal**: Added a file manager dialog with "Aktívny" status badges, active document switcher ("Vybrať"), inline delete confirmation bars per row to prevent nested dialog z-index issues, and quick file upload trigger.
+  - **Cascading Backend & Disk Cleanup**: Integrated `DELETE /api/workspaces/[id]/ingest-files/[fileId]` route inside `removeFile` (`components/store/ingestion-slice.ts`) to delete `IngestFile`, cascade delete `DocumentChunk` and `GraphNode` records, and unlink `workspaces/<id>/sources/<fileId>.md` from disk.
+  - **Store Invalidation & Seamless Fallback**: Exported `clearSourceDocCache(workspaceId, fileId)` in `use-thesis-review-store.ts` to invalidate parsed markdown cache. Seamlessly switches to next available document and auto-extracts metadata, or resets form fields if 0 documents remain.
+  - **Autofix & UI Polish**: Forwarded client AI API keys in `autofix-compile/route.ts` and memoized `allCardContents` in `quick-fixes-panel.tsx`.
+  - **Comprehensive Verification**: 144 test suites (1,374 passing tests, 1 skipped), 0 TypeScript errors, clean production build.
 - ✅ **Save Failure & Infinite Retry Loop Elimination ("Your changes are kept locally...")**:
   - **Eliminated Infinite Retry Loops**: Previously, any save failure (`PUT /api/workspaces/[id]`) with a non-409 error (such as 401 Unauthorized, 403 Forbidden, 404 Not Found, 400 Validation Error) blindly set `isDirty = true` and scheduled `scheduleRetry()` every 3 seconds, spamming the user with *"Your changes are kept locally and the save will retry automatically."*
   - **Differentiated HTTP Error Lifecycle in `saveProject`** (`components/store/project-slice.ts`):
