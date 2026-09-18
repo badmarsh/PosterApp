@@ -400,7 +400,7 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
         <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-border shrink-0 bg-card">
           <div>
             <DialogTitle className="text-base font-semibold">Add Output</DialogTitle>
-            <DialogDescription className="text-[12px] text-muted-foreground mt-0.5">
+            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
               Choose a format and template for this workspace.
             </DialogDescription>
           </div>
@@ -411,7 +411,7 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
                 key={t}
                 onClick={() => handleTypeChange(t)}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg border px-3.5 py-1.5 text-[12px] font-medium transition-all",
+                  "flex items-center gap-2 rounded-lg border px-3.5 py-1.5 text-xs font-medium transition-all",
                   selectedType === t
                     ? "border-primary bg-primary/10 text-primary shadow-xs"
                     : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground",
@@ -445,7 +445,7 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
                 <LayoutDiagram kind={tmpl.layoutPreview} color={tmpl.colors[0]?.hex ?? "#2563EB"} />
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className={cn("text-[12px] font-semibold truncate", selectedTemplate === tmpl.id ? "text-primary font-bold" : "")}>
+                    <span className={cn("text-xs font-semibold truncate", selectedTemplate === tmpl.id ? "text-primary font-bold" : "")}>
                       {tmpl.label}
                     </span>
                     {tmpl.category === "institutional" && (
@@ -487,7 +487,7 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
                       {activeTmpl.latexClass}
                     </span>
                   </div>
-                  <p className="text-[12px] text-muted-foreground leading-relaxed">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     {activeTmpl.description}
                   </p>
                 </div>
@@ -517,7 +517,7 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
                   </p>
                   <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {activeTmpl.detailFeatures.map((f, i) => (
-                      <li key={i} className="flex items-start gap-2 text-[12px] text-foreground/90 bg-muted/30 p-2 rounded-md border border-border/50">
+                      <li key={i} className="flex items-start gap-2 text-xs text-foreground/90 bg-muted/30 p-2 rounded-md border border-border/50">
                         <span className="mt-1 shrink-0 size-2 rounded-full" style={{ backgroundColor: activeTmpl.colors[0]?.hex ?? "#2563EB" }} />
                         <span className="leading-snug">{f}</span>
                       </li>
@@ -559,7 +559,7 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
           </p>
           <button
             onClick={handleCreate}
-            className="rounded-lg bg-primary px-6 py-2 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90 transition-all shadow-xs"
+            className="rounded-lg bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-all shadow-xs"
           >
             Create Output
           </button>
@@ -816,12 +816,12 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
                     onChange={(e) => setInlineDraft(e.target.value)}
                     onBlur={commitInlineEdit}
                     onKeyDown={(e) => { if (e.key === "Enter") commitInlineEdit(); if (e.key === "Escape") setInlineEdit(null) }}
-                    className="min-w-0 w-full rounded border border-primary bg-background px-1 text-[12px] font-semibold leading-tight outline-none"
+                    className="min-w-0 w-full rounded border border-primary bg-background px-1 text-xs font-semibold leading-tight outline-none"
                     aria-label="Inline card title editor"
                   />
                 ) : (
                   <span
-                    className="truncate text-[12px] font-semibold leading-tight cursor-text"
+                    className="truncate text-xs font-semibold leading-tight cursor-text"
                     title="Double-click to edit"
                     onDoubleClick={(e) => { e.stopPropagation(); setInlineDraft(card.title); setInlineEdit("title") }}
                   >
@@ -1187,7 +1187,7 @@ const SlideCard = memo(function SlideCard({ card, index, overlay }: { card: Card
       <div className="flex min-w-0 flex-1 flex-col gap-0.5 px-2 py-2">
         <div className="flex items-center gap-1.5">
           <StatusIcon level={"valid"} className="size-3 shrink-0" />
-          <span className="truncate text-[12px] font-semibold">{card.title || "Untitled Slide"}</span>
+          <span className="truncate text-xs font-semibold">{card.title || "Untitled Slide"}</span>
         </div>
         {preview && (
           <p className="line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">{preview}</p>
@@ -1253,7 +1253,7 @@ const PaperSection = memo(function PaperSection({ card, overlay }: { card: Card;
       {/* Content */}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5 px-2 py-2">
         <div className="flex items-center gap-1.5">
-          <span className="truncate text-[12px] font-semibold">{card.title || "Untitled Section"}</span>
+          <span className="truncate text-xs font-semibold">{card.title || "Untitled Section"}</span>
         </div>
         {preview && (
           <p className="line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">{preview}</p>

@@ -52,7 +52,7 @@ export function EmptyState({
       <div className="flex flex-col items-center gap-0.5">
         <p className={cn("font-medium text-foreground", compact ? "text-[11px]" : "text-sm")}>{title}</p>
         {description && (
-          <p className={cn("max-w-[18rem] leading-relaxed text-muted-foreground", compact ? "text-[10px]" : "text-[12px]")}>
+          <p className={cn("max-w-[18rem] leading-relaxed text-muted-foreground", compact ? "text-[10px]" : "text-xs")}>
             {description}
           </p>
         )}

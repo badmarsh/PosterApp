@@ -707,7 +707,7 @@ export function AssetList() {
                     className="flex flex-1 items-center gap-2 overflow-hidden rounded text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40"
                     onClick={() => setOpenSection(isOpen ? null : g.file.id)}
                   >
-                    <span className="truncate text-[12px] font-medium">{g.file.name}</span>
+                    <span className="truncate text-xs font-medium">{g.file.name}</span>
                     <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                       {g.items.length} items
                     </span>
@@ -797,7 +797,7 @@ export function AssetList() {
                   className="flex flex-1 items-center gap-2 overflow-hidden text-left"
                   onClick={() => setOpenSection(openSection === "legacy" ? null : "legacy")}
                 >
-                  <span className="text-[12px] font-medium">Other Assets</span>
+                  <span className="text-xs font-medium">Other Assets</span>
                   <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                     {legacyAssets.length} items
                   </span>

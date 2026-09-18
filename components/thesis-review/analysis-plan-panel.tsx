@@ -618,7 +618,7 @@ export function AnalysisPlanPanel({
         {/* Action Footer */}
         <div className="p-4 pt-3 pb-3 border-t bg-muted/10 flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={onCancel} disabled={isGenerating} className="text-xs">
-            Späť k úpravám
+            ← Späť na prehľad
           </Button>
 
           <Button

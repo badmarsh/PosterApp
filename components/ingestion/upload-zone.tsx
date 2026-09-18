@@ -320,7 +320,7 @@ export function UploadZone() {
           <DocProcessingIllustration dragging={dragging} />
           
           <div className="space-y-1">
-            <p className="text-[12px] font-medium text-foreground">
+            <p className="text-xs font-medium text-foreground">
               Drop documents here or{" "}
               <span className="text-primary underline-offset-2 hover:underline">
                 browse

@@ -29,6 +29,7 @@ import { RubricTemplateModal } from "./rubric-template-modal"
 import { ReviewerCalibrationPanel } from "./reviewer-calibration-panel"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ErrorBoundary } from "@/components/error-boundary"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   GraduationCap,
   Trash2,
@@ -597,15 +598,26 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
             </div>
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed p-8 text-center space-y-3">
-            <div className="flex size-12 items-center justify-center rounded-full bg-muted mx-auto text-muted-foreground">
-              <GraduationCap className="h-6 w-6" />
-            </div>
-            <h3 className="text-base font-semibold">Žiadny vypracovaný posudok</h3>
-            <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              Vyplňte formulár vľavo s údajmi o rukopise. Systém načíta text z nahraného PDF a vytvorí podrobný odborný posudok s overením dôkazov v texte.
-            </p>
-          </div>
+          <EmptyState
+            icon={GraduationCap}
+            title={isPaper ? "Žiadne recenzie článku" : "Žiadne vypracované posudky"}
+            description={
+              isPaper
+                ? "Systém preverí metodiku a experimenty voči dôkazom a pripraví štruktúrované zistenia."
+                : "Vyplňte údaje o rukopise a spustite automatické vyhodnotenie voči akademickej rubrike."
+            }
+            action={
+              <Button
+                size="sm"
+                onClick={handleGenerate}
+                disabled={!isReadyToGenerate || isGenerating || isGeneratingPlan}
+                className="mt-2 h-8 text-xs gap-1.5 shadow-xs"
+              >
+                <Sparkles className="size-3.5" />
+                Start AI Evaluation
+              </Button>
+            }
+          />
         )}
       </div>
 

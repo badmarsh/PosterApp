@@ -354,12 +354,12 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
           value={focus}
           onChange={(e) => setFocus(e.target.value)}
           placeholder="Čo má agent preskúmať? (min. 10 znakov)"
-          className="min-h-[64px] resize-none text-[12px]"
+          className="min-h-[64px] resize-none text-xs"
         />
 
         <div className="grid grid-cols-2 gap-2">
           <UiSelect value={language} onValueChange={(v) => setLanguage(v as Language)}>
-            <SelectTrigger size="sm" className="text-[12px]">
+            <SelectTrigger size="sm" className="text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -369,7 +369,7 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
             </SelectContent>
           </UiSelect>
           <UiSelect value={depth} onValueChange={(v) => setDepth(v as Depth)}>
-            <SelectTrigger size="sm" className="text-[12px]">
+            <SelectTrigger size="sm" className="text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -438,7 +438,7 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Návrh výskumu
               </p>
-              <p className="text-[12px] leading-relaxed">{proposal.summary}</p>
+              <p className="text-xs leading-relaxed">{proposal.summary}</p>
             </div>
 
             <div className="space-y-1">
@@ -448,7 +448,7 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
               <div className="space-y-1.5">
                 {proposal.sectionDrafts.map((draft, i) => (
                   <div key={i} className="rounded-md border border-border p-2">
-                    <p className="text-[12px] font-medium">{draft.title}</p>
+                    <p className="text-xs font-medium">{draft.title}</p>
                     <ul className="mt-1 list-disc pl-4 text-[11px] text-muted-foreground">
                       {draft.bullets.map((bullet, j) => (
                         <li key={j} className="truncate" title={bullet}>

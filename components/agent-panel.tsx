@@ -155,7 +155,7 @@ const EventRow = memo(function EventRow({
       <div className="min-w-0 flex-1 pb-3">
         <div className="flex items-center gap-1.5">
           <Icon className="size-3 shrink-0 text-muted-foreground" />
-          <span className="truncate text-[12px] font-medium leading-tight">
+          <span className="truncate text-xs font-medium leading-tight">
             {event.title}
           </span>
         </div>
@@ -445,7 +445,7 @@ function StatusStrip({
 function UserMessageBubble() {
   return (
     <MessagePrimitive.Root className="flex justify-end px-3 py-1">
-      <div className="max-w-[85%] rounded-xl rounded-tr-sm bg-primary/10 px-3 py-2 text-[12px] leading-relaxed text-foreground">
+      <div className="max-w-[85%] rounded-xl rounded-tr-sm bg-primary/10 px-3 py-2 text-xs leading-relaxed text-foreground">
         <MessagePrimitive.Content
           components={{
             Text: UserTextContent,
@@ -485,7 +485,7 @@ function AssistantMessageBubble() {
           </span>
         )}
       </div>
-      <div className="max-w-[92%] rounded-xl rounded-tl-sm bg-muted/60 px-3 py-2 text-[12px] leading-relaxed text-foreground">
+      <div className="max-w-[92%] rounded-xl rounded-tl-sm bg-muted/60 px-3 py-2 text-xs leading-relaxed text-foreground">
         <MessagePrimitive.Content
           components={{
             Text: AssistantTextContent,
@@ -546,7 +546,7 @@ function AssistantTextContent() {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="prose prose-sm dark:prose-invert prose-p:leading-relaxed prose-pre:bg-card prose-pre:border prose-pre:border-border max-w-none text-[12px]">
+      <div className="prose prose-sm dark:prose-invert prose-p:leading-relaxed prose-pre:bg-card prose-pre:border prose-pre:border-border max-w-none text-xs">
         <ReactMarkdown
           remarkPlugins={[remarkMath, remarkGfm]}
           rehypePlugins={[rehypeKatex]}
@@ -669,7 +669,7 @@ function ChatComposer() {
         rows={1}
         autoComplete="off"
         className={cn(
-          "min-h-[40px] w-full resize-none bg-transparent px-3 py-2.5 text-[12px] leading-relaxed placeholder:text-muted-foreground",
+          "min-h-[40px] w-full resize-none bg-transparent px-3 py-2.5 text-xs leading-relaxed placeholder:text-muted-foreground",
           "focus:outline-none",
           "max-h-[120px] overflow-y-auto"
         )}
@@ -736,7 +736,7 @@ function ChatThread() {
         <ThreadPrimitive.Empty>
           <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
             <Sparkles className="size-5 text-muted-foreground/50" />
-            <p className="text-[12px] font-medium text-muted-foreground">
+            <p className="text-xs font-medium text-muted-foreground">
               Ask AI anything about your poster
             </p>
             <p className="text-[11px] text-muted-foreground">

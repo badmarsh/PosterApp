@@ -340,7 +340,7 @@ export function CardInspector() {
           <GripVertical className="size-5 text-muted-foreground" />
         </div>
         <p className="mt-3 text-sm font-medium">No card selected</p>
-        <p className="mt-1 max-w-[16rem] text-[12px] text-muted-foreground">
+        <p className="mt-1 max-w-[16rem] text-xs text-muted-foreground">
           Select a block from the structure tree or the poster preview to edit its
           content.
         </p>
@@ -379,12 +379,12 @@ export function CardInspector() {
 
       <Tabs value={inspectorTab} onValueChange={(v) => setInspectorTab(v as "basics" | "content" | "validation")} className="flex min-h-0 flex-1 flex-col gap-0">
         <TabsList variant="line" className="h-9 shrink-0 justify-start gap-0.5 overflow-x-auto overflow-y-hidden border-b border-border px-2">
-          <TabsTrigger value="basics" className="px-2 text-[12px]">Basics</TabsTrigger>
-          <TabsTrigger value="content" className="px-2 text-[12px]">Content</TabsTrigger>
-          <TabsTrigger value="table" className="px-2 text-[12px]">Table</TabsTrigger>
-          <TabsTrigger value="figures" className="px-2 text-[12px]">Figures</TabsTrigger>
-          <TabsTrigger value="validation" className="px-2 text-[12px]">Validation</TabsTrigger>
-          <TabsTrigger value="output" className="px-2 text-[12px]">Output</TabsTrigger>
+          <TabsTrigger value="basics" className="px-2 text-xs">Basics</TabsTrigger>
+          <TabsTrigger value="content" className="px-2 text-xs">Content</TabsTrigger>
+          <TabsTrigger value="table" className="px-2 text-xs">Table</TabsTrigger>
+          <TabsTrigger value="figures" className="px-2 text-xs">Figures</TabsTrigger>
+          <TabsTrigger value="validation" className="px-2 text-xs">Validation</TabsTrigger>
+          <TabsTrigger value="output" className="px-2 text-xs">Output</TabsTrigger>
         </TabsList>
 
         <ScrollArea className="min-h-0 flex-1">

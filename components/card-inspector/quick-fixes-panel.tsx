@@ -26,7 +26,7 @@ export function QuickFixesPanel({ card }: { card: Card }) {
       {quickFixes.map((fix) => (
         <div key={fix.id} className="flex flex-col gap-1 rounded-md border border-border bg-card px-2 py-1.5">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[12px] font-medium">{fix.label}</span>
+            <span className="text-xs font-medium">{fix.label}</span>
             <Button
               size="xs"
               variant="outline"

@@ -108,7 +108,7 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
     >
       <div className="flex items-center gap-1.5">
         <StatusIcon level={status} />
-        <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-tight">
+        <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">
           {card.title || "Untitled"}
         </span>
         {status === "pending" && (
@@ -220,13 +220,13 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
         </span>
       </div>
     </ContextMenuTrigger>
-    <ContextMenuContent className="w-48 text-[12px]">
+    <ContextMenuContent className="w-48 text-xs">
       <ContextMenuItem onClick={() => reorderCard(card.id, -1)}>Move up</ContextMenuItem>
       <ContextMenuItem onClick={() => reorderCard(card.id, 1)}>Move down</ContextMenuItem>
       <ContextMenuSeparator />
       <ContextMenuSub>
         <ContextMenuSubTrigger>Move to column</ContextMenuSubTrigger>
-        <ContextMenuSubContent className="text-[12px]">
+        <ContextMenuSubContent className="text-xs">
           <ContextMenuItem onClick={() => moveColumn(card.id, 1)} disabled={card.column === 1}>Column 1</ContextMenuItem>
           <ContextMenuItem onClick={() => moveColumn(card.id, 2)} disabled={card.column === 2}>Column 2</ContextMenuItem>
           <ContextMenuItem onClick={() => moveColumn(card.id, 3)} disabled={card.column === 3}>Column 3</ContextMenuItem>

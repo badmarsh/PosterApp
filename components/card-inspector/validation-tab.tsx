@@ -30,7 +30,7 @@ function Section({ title, items }: { title: string; items: ValidationMessage[] }
             <Icon className={cn("mt-0.5 size-3.5 shrink-0", className)} />
             <div className="min-w-0">
               <span className="font-mono text-[11px] text-muted-foreground">{m.field}</span>
-              <p className="text-[12px] leading-snug">{m.message}</p>
+              <p className="text-xs leading-snug">{m.message}</p>
             </div>
           </div>
         )
@@ -47,7 +47,7 @@ export function ValidationTab({ card }: { card: Card }) {
         <div className="flex items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-2.5 py-2">
           <Clock className="size-4 text-warning shrink-0" />
           <div>
-            <p className="text-[12px] font-medium text-warning">Placeholder Card</p>
+            <p className="text-xs font-medium text-warning">Placeholder Card</p>
             <p className="text-[11px] text-muted-foreground">
               This card is a pending experiment placeholder. It will become validated once an agent proposes results or you edit it manually.
             </p>
@@ -85,7 +85,7 @@ export function ValidationTab({ card }: { card: Card }) {
         ) : (
           <XCircle className="size-4 text-destructive" />
         )}
-        <span className="text-[12px] font-medium">
+        <span className="text-xs font-medium">
           {level === "valid"
             ? "Card input is well-formed and ready to generate."
             : level === "warning"

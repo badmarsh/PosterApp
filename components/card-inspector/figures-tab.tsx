@@ -6,6 +6,8 @@ import { useEditor } from "@/components/editor-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { EmptyState } from "@/components/ui/empty-state"
+import { ImageIcon, FolderOpen } from "lucide-react"
 import type { Card } from "@/lib/poster-types"
 
 export function FiguresTab({ card }: { card: Card }) {
@@ -121,16 +123,33 @@ export function FiguresTab({ card }: { card: Card }) {
               )}
             </div>
 
-            <div className="flex h-28 items-center justify-center overflow-hidden rounded border border-dashed border-border bg-muted/40">
+            <div className="flex min-h-28 items-center justify-center overflow-hidden rounded border border-dashed border-border bg-muted/40 p-2">
               {fig?.url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={fig.url || "/placeholder.svg"}
                   alt={fig.caption || "figure preview"}
-                  className="h-full w-full object-contain"
+                  className="h-28 w-full object-contain"
                 />
               ) : (
-                <span className="text-[11px] text-muted-foreground">No image</span>
+                <EmptyState
+                  icon={ImageIcon}
+                  compact
+                  variant="inline"
+                  title="No figure attached"
+                  description="Upload an image file or pick from extracted assets in your project."
+                  action={
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      className="gap-1 mt-1 text-[11px]"
+                      onClick={() => fileRefs.current[i]?.click()}
+                    >
+                      <Upload className="size-3" /> Upload Figure
+                    </Button>
+                  }
+                  className="border-0 p-1"
+                />
               )}
             </div>
 
@@ -165,7 +184,7 @@ export function FiguresTab({ card }: { card: Card }) {
               value={fig?.caption ?? ""}
               onChange={(e) => setFigure(i, { caption: e.target.value })}
               placeholder="Caption"
-              className="h-7 text-[12px]"
+              className="h-7 text-xs"
             />
           </div>
         )
