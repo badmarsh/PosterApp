@@ -249,12 +249,12 @@ export function SettingsPanel() {
   ]
 
   return (
-    <div className="flex h-full min-h-[400px]">
+    <div className="flex h-full min-h-0 w-full overflow-hidden">
       {/* Vertical tab sidebar */}
       <div
         role="tablist"
         aria-label="Settings sections"
-        className="flex w-52 shrink-0 flex-col gap-1 border-r border-border bg-muted/20 p-2"
+        className="flex w-52 shrink-0 flex-col gap-1 border-r border-border bg-muted/20 p-2 overflow-y-auto"
       >
         {tabs.map((t) => {
           const Icon = t.icon
@@ -275,7 +275,7 @@ export function SettingsPanel() {
       </div>
 
       {/* Content area */}
-      <div className="min-w-0 flex-1 overflow-y-auto p-6">
+      <div className="min-w-0 flex-1 h-full min-h-0 overflow-y-auto p-6 pb-16">
         {tab === "theme" && (
           <ThemeSettings
             mounted={mounted}
@@ -780,7 +780,7 @@ function AiModelSettings({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-6">
       {/* 1. PRIMARY APPLICATION MODEL CARD */}
       <div className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/5 via-card to-background p-4 shadow-xs space-y-3.5">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">

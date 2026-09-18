@@ -511,8 +511,8 @@ export function TopBar({
       <HelpModal open={isHelpOpen} onOpenChange={setIsHelpOpen} />
       <ShareWorkspaceDialog open={shareOpen} onOpenChange={setShareOpen} workspaceId={project.id} workspaceName={project.name} />
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl max-h-[90vh] h-[85vh] flex flex-col p-0 gap-0 overflow-hidden bg-background">
-          <div className="border-b border-border bg-muted/20 p-6 pb-4">
+        <DialogContent className="w-[95vw] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl max-h-[90vh] h-[85vh] grid grid-rows-[auto_1fr] p-0 gap-0 overflow-hidden bg-background">
+          <div className="border-b border-border bg-muted/20 p-6 pb-4 shrink-0">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold flex items-center gap-2">
                 <SettingsIcon className="size-5 text-primary" />
@@ -524,7 +524,7 @@ export function TopBar({
               </DialogDescription>
             </DialogHeader>
           </div>
-          <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="min-h-0 h-full w-full overflow-hidden">
             <SettingsPanel />
           </div>
         </DialogContent>
