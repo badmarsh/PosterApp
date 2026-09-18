@@ -162,15 +162,42 @@ STRICT CALIBRATION:
 
     const modelOverrides = parseAiModelOverrides(req.headers)
     const geminiHeaderKey = req.headers.get("x-gemini-api-key")?.trim() || undefined
-    const parsedData = await generateAIResponse("review-layout", {
-      model: resolveAiModelWithOverrides("reviewLayout", modelOverrides),
-      apiKey: geminiHeaderKey,
-      systemPrompt,
-      userPrompt,
-      schema: LayoutWarningsSchema,
-      temperature: 0.1,
-      signal: AbortSignal.timeout(AI_TIMEOUTS.review),
-    })
+    const requestedModel = resolveAiModelWithOverrides("reviewLayout", modelOverrides)
+
+    // Fallback chain for VLM review: requested model first, then resilient vision models
+    const candidateModels = Array.from(new Set([
+      requestedModel,
+      "gemini-3.5-flash",
+      "gemini-2.5-flash-lite",
+      "gemini-3.1-flash-lite",
+      "gemini-3.8-flash",
+    ])).filter(Boolean)
+
+    let parsedData: any = null
+    let lastError: unknown = null
+
+    for (const model of candidateModels) {
+      try {
+        parsedData = await generateAIResponse("review-layout", {
+          model,
+          apiKey: geminiHeaderKey,
+          systemPrompt,
+          userPrompt,
+          schema: LayoutWarningsSchema,
+          temperature: 0.1,
+          signal: AbortSignal.timeout(AI_TIMEOUTS.review),
+        })
+        if (parsedData) break
+      } catch (err: unknown) {
+        lastError = err
+        console.warn(`[review-layout] Model "${model}" failed, attempting next candidate... Error:`, err instanceof Error ? err.message : String(err))
+        if (err instanceof Error && err.name === "AbortError") throw err
+      }
+    }
+
+    if (!parsedData) {
+      throw lastError || new Error("All candidate VLM layout review models failed")
+    }
 
     // Filter out any hallucinated "no issue" or "none" items
     const isFalseWarning = (w: { issue?: string; recommendation?: string }) => {
@@ -182,7 +209,7 @@ STRICT CALIBRATION:
       )
     }
 
-    const validWarnings = (parsedData.warnings || []).filter((w) => !isFalseWarning(w))
+    const validWarnings = (parsedData.warnings || []).filter((w: any) => !isFalseWarning(w))
 
     // Map the returned card titles back to stable cardIds
     const warningsWithRealIds = []
@@ -229,8 +256,9 @@ STRICT CALIBRATION:
   } catch (err: unknown) {
     if (err instanceof Response) return err
     console.error("VLM Review Error:", err)
+    const message = err instanceof Error ? err.message : "Failed to run VLM layout review"
     return NextResponse.json(
-      { error: "Failed to run VLM layout review" },
+      { error: message },
       { status: 500 }
     )
   } finally {

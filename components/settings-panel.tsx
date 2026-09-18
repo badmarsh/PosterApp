@@ -1093,7 +1093,10 @@ function AiModelRow({
   }
 
   const isMultimodal = role === "vision" || role === "ocr" || role === "reviewLayout"
-  const inheritedModel = isMultimodal ? defaultModel : (primaryModel || defaultModel)
+  const primarySupportsMultimodal = Boolean(
+    primaryModel && (primaryModel.startsWith("gemini-") || primaryModel.includes("vl") || primaryModel.includes("omni"))
+  )
+  const inheritedModel = (isMultimodal && !primarySupportsMultimodal) ? defaultModel : (primaryModel || defaultModel)
   const isOverridden = Boolean(currentOverride && currentOverride !== inheritedModel)
   const effectiveModel = currentOverride || inheritedModel
 
