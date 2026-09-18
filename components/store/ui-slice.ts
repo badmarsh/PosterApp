@@ -3,6 +3,7 @@ import type { AgentEvent } from "@/lib/poster-types"
 import { apiFetch } from "@/lib/api-fetch"
 import { notify } from "@/lib/notify"
 import { safeRandomUUID } from "@/lib/utils"
+import type { UiLanguage } from "@/lib/i18n/ui"
 
 /** Upper bounds so the event feed / chat history (persisted on every save) stay small. */
 const MAX_AGENT_EVENTS = 200
@@ -23,6 +24,8 @@ function makeEvent(e: Omit<AgentEvent, "id" | "ts" | "createdAt">): AgentEvent {
 }
 
 export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
+  language: "sk",
+  setLanguage: (language: UiLanguage) => set({ language }),
   agentEvents: [
     {
       id: "init",

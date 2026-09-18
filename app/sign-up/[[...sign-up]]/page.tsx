@@ -14,10 +14,10 @@ export default async function SignUpPage() {
     return (
       <main className="flex min-h-screen items-center justify-center p-4 bg-muted/20">
         <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm text-center">
-          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-warning/10 text-warning dark:text-warning">
             <UserX className="size-6" />
           </div>
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300 mb-3">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-warning/20 bg-warning/10 px-2.5 py-0.5 text-xs font-semibold text-warning dark:text-warning mb-3">
             <ShieldAlert className="size-3.5" />
             Registrácia je pozastavená
           </div>

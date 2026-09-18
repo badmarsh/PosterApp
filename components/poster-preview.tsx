@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useCallback, memo, useMemo, useEffect } from "react"
-import { ChevronDown, ChevronUp, ImageIcon, List, Table2, FileDown, Loader2, ChevronDown as ChevronDownIcon, Plus, GripVertical, Settings2, LayoutTemplate, FileText, Sparkles, RefreshCw, Play, MonitorPlay, BookOpen, PanelTopOpen, GraduationCap, X } from "lucide-react"
-import { Switch } from "@/components/ui/switch"
+import { AlertTriangle, ImageIcon, List, Table2, Plus, GripVertical, FileText, Sparkles, MonitorPlay, BookOpen, PanelTopOpen, GraduationCap, X } from "lucide-react"
 import {
   DndContext,
   closestCenter,
@@ -31,12 +30,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
@@ -47,7 +40,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useEditor } from "@/components/editor-store"
@@ -56,19 +48,25 @@ import { StatusIcon } from "@/components/status"
 import {
   columnBudgetFor,
   estimateHeight,
-  estimatePosterColumnOccupancy,
   generateFullTemplate,
 } from "@/lib/latex"
 import type { Card, ColumnIndex, OutputConfig, Project } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
-import { apiFetch } from "@/lib/api-fetch"
 import type { OutputType } from "@/lib/output-types"
-import { TemplateHeader } from "@/components/template-header"
 import { OUTPUT_TYPE_LABELS, TEMPLATE_REGISTRY, getTemplatesForType } from "@/lib/output-types"
 import { ThesisReviewPanel } from "@/components/thesis-review/thesis-review-panel"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { getExistingThesisReviewStore } from "@/components/thesis-review/use-thesis-review-store"
+import { PosterCanvas } from "@/components/preview/poster-canvas"
+import { SlideDeckView } from "@/components/preview/slide-deck-view"
+import { PaperDocumentView } from "@/components/preview/paper-document-view"
+import { PreviewToolbar } from "@/components/preview/preview-toolbar"
+import { EvidenceChip } from "@/components/grounding/evidence-chip"
+import { SuggestedAssetsTray } from "@/components/grounding/suggested-assets-tray"
+import { LayoutTruthBanner } from "@/components/grounding/layout-truth-banner"
+import { parseCompileLog, attributeIssuesToCards } from "@/lib/latex/log-parser"
+import { InlineCardContent } from "@/components/preview/inline-card-content"
 
 // ---------------------------------------------------------------------------
 // OutputTypeIcon — maps output type to a small icon
@@ -684,22 +682,28 @@ function summarize(card: Card): string {
 }
 
 const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overlay?: boolean }) {
-  const { selectedCardId, selectCard, getStatus, project, deleteCard, validateCardAction, autoFillCardAction, generateLatexForCardAction, setInspectorTab, setPendingAiPrompt } =
+  const { selectedCardId, selectCard, updateCard, getStatus, project, deleteCard, validateCardAction, autoFillCardAction, autoShrinkCardAction, attachSuggestedAsset, generateLatexForCardAction, setInspectorTab, setPendingAiPrompt, compileLog } =
     useEditor(
       useShallow((s) => ({
         selectedCardId: s.selectedCardId,
         selectCard: s.selectCard,
+        updateCard: s.updateCard,
         getStatus: s.getStatus,
         project: s.project,
         deleteCard: s.deleteCard,
         validateCardAction: s.validateCardAction,
         autoFillCardAction: s.autoFillCardAction,
+        autoShrinkCardAction: s.autoShrinkCardAction,
+        attachSuggestedAsset: s.attachSuggestedAsset,
         generateLatexForCardAction: s.generateLatexForCardAction,
+        compileLog: s.compileLog,
         setInspectorTab: s.setInspectorTab,
         setPendingAiPrompt: s.setPendingAiPrompt,
       }))
     )
   const active = card.id === selectedCardId
+  const [inlineEdit, setInlineEdit] = useState<"title" | "content" | null>(null)
+  const [inlineDraft, setInlineDraft] = useState("")
   const status = getStatus(card)
   const height = estimateHeight(card)
   const budget = columnBudgetFor(project.outputs?.find((o) => o.id === project.activeOutputId)?.templateId)
@@ -734,6 +738,15 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
     [project.outputs, project.activeOutputId, card.column]
   )
   const idx = colCards.findIndex((c) => c.id === card.id)
+  const compileIssue = compileLog
+    ? attributeIssuesToCards(parseCompileLog(compileLog).issues, [card]).find((issue) => issue.cardId === card.id && issue.severity === "error")
+    : undefined
+  const commitInlineEdit = () => {
+    if (inlineEdit && inlineDraft.trim() !== (inlineEdit === "title" ? card.title.trim() : card.content.trim())) {
+      updateCard(card.id, inlineEdit === "title" ? { title: inlineDraft } : { content: inlineDraft })
+    }
+    setInlineEdit(null)
+  }
 
   const handleAreaClick = useCallback((e: React.MouseEvent, tab: import("@/components/store/types").InspectorTab) => {
     e.stopPropagation()
@@ -763,9 +776,11 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
               "group relative rounded-md border bg-card p-2 text-left shadow-sm transition-all hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               active
                 ? "border-primary ring-1 ring-primary"
-                : status === "invalid"
-                  ? "border-destructive/50"
-                  : "border-border hover:border-muted-foreground/40",
+                : compileIssue
+                  ? "border-destructive/60 ring-1 ring-destructive/30"
+                  : status === "invalid"
+                    ? "border-destructive/50"
+                    : "border-border hover:border-muted-foreground/40",
               overlay && "shadow-xl border-primary/50 cursor-grabbing rotate-2 scale-105"
             )}
           >
@@ -792,23 +807,67 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
               )}
             />
             <div className="flex items-start justify-between gap-1.5 pl-1.5">
-              <div className="flex min-w-0 items-center gap-1.5">
+              <div className="flex min-w-0 items-center gap-1.5 pointer-events-auto">
                 <StatusIcon level={status} className="size-3" />
-                <span className="truncate text-[12px] font-semibold leading-tight">
-                  {card.title || "Untitled"}
-                </span>
+                {inlineEdit === "title" ? (
+                  <input
+                    autoFocus
+                    value={inlineDraft}
+                    onChange={(e) => setInlineDraft(e.target.value)}
+                    onBlur={commitInlineEdit}
+                    onKeyDown={(e) => { if (e.key === "Enter") commitInlineEdit(); if (e.key === "Escape") setInlineEdit(null) }}
+                    className="min-w-0 w-full rounded border border-primary bg-background px-1 text-[12px] font-semibold leading-tight outline-none"
+                    aria-label="Inline card title editor"
+                  />
+                ) : (
+                  <span
+                    className="truncate text-[12px] font-semibold leading-tight cursor-text"
+                    title="Double-click to edit"
+                    onDoubleClick={(e) => { e.stopPropagation(); setInlineDraft(card.title); setInlineEdit("title") }}
+                  >
+                    {card.title || "Untitled"}
+                  </span>
+                )}
               </div>
               <div className="flex shrink-0 flex-col opacity-40 transition-opacity group-hover:opacity-100">
                 <GripVertical className="size-4 text-muted-foreground" />
               </div>
             </div>
 
-            <p 
-              className="mt-1 line-clamp-4 pl-1.5 text-[11px] leading-relaxed text-muted-foreground pointer-events-auto cursor-pointer hover:bg-muted/50 rounded transition-colors"
-              onClick={(e) => handleAreaClick(e, "content")}
-            >
-              {summarize(card)}
-            </p>
+            {inlineEdit === "content" ? (
+              <textarea
+                autoFocus
+                value={inlineDraft}
+                onChange={(e) => setInlineDraft(e.target.value)}
+                onBlur={commitInlineEdit}
+                onKeyDown={(e) => { if (e.key === "Escape") setInlineEdit(null); if ((e.metaKey || e.ctrlKey) && e.key === "Enter") commitInlineEdit() }}
+                className="pointer-events-auto mt-1 min-h-16 w-full resize-y rounded border border-primary bg-background p-1.5 text-[11px] leading-relaxed text-foreground outline-none"
+                aria-label="Inline card content editor"
+              />
+            ) : (
+              <div
+                className="pointer-events-auto mt-1 cursor-text rounded pl-1.5 transition-colors hover:bg-muted/50"
+                onClick={(e) => handleAreaClick(e, "content")}
+                onDoubleClick={(e) => { e.stopPropagation(); setInlineDraft(card.content); setInlineEdit("content") }}
+                title="Double-click to quick-edit"
+              >
+                <InlineCardContent content={summarize(card)} />
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {(card.grounding?.citations ?? []).filter((citation) => citation.bulletIndex === 0).map((citation) => (
+                    <EvidenceChip key={citation.chunkIds.join("-")} citation={citation} compact />
+                  ))}
+                </div>
+              </div>
+            )}
+            {compileIssue && (
+              <button
+                type="button"
+                className="pointer-events-auto mt-1 flex items-center gap-1 text-[10px] font-medium text-destructive hover:underline"
+                onClick={(e) => handleAreaClick(e, "validation")}
+              >
+                <AlertTriangle className="size-3" /> Error in line {compileIssue.line ?? "?"} · inspect
+              </button>
+            )}
 
             {(card.pattern === "bullets-image" ||
               card.pattern === "bullets-two-images" ||
@@ -838,6 +897,20 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
                 </div>
               </div>
             )}
+
+            <div className="mt-1.5 space-y-1.5 pl-1.5 pointer-events-auto">
+              <LayoutTruthBanner
+                layout={card.grounding?.layout}
+                compact
+                onAutoShrink={() => void autoShrinkCardAction(card.id)}
+              />
+              <SuggestedAssetsTray
+                assets={card.grounding?.suggestedAssets ?? []}
+                attachedIds={card.figures.map((figure) => figure.id)}
+                onAttach={(assetId) => attachSuggestedAsset(card.id, assetId)}
+                className="p-2"
+              />
+            </div>
 
             <div className="mt-1.5 flex items-center justify-between gap-2 pl-1.5">
               <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -924,61 +997,6 @@ const MiniBlock = memo(function MiniBlock({ card, overlay }: { card: Card, overl
 })
 
 // ---------------------------------------------------------------------------
-// PosterColumn — 3-column poster layout column
-// ---------------------------------------------------------------------------
-function PosterColumn({ column }: { column: ColumnIndex }) {
-  const { project, addCard } = useEditor(
-    useShallow((s) => ({
-      project: s.project,
-      addCard: s.addCard,
-    }))
-  )
-  const activeOut = project.outputs?.find(o => o.id === project.activeOutputId)
-  const cards = (activeOut?.cards ?? [])
-    .filter((c) => c.column === column)
-    .sort((a, b) => a.order - b.order)
-  const occupancy = estimatePosterColumnOccupancy(activeOut?.cards ?? [], activeOut?.templateId)
-    .find((result) => result.column === column)!
-  const pct = Math.round((occupancy.estimatedHeight / occupancy.budget) * 100)
-
-  return (
-    <div className="flex min-w-0 flex-1 flex-col">
-      <div className="mb-1.5 flex items-center justify-between border-b border-dashed border-border pb-1">
-        <span className="font-mono text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          Col {column}
-        </span>
-        <span
-          className={cn(
-            "font-mono text-[10px]",
-            pct > 100 ? "text-destructive" : "text-muted-foreground",
-          )}
-        >
-          {pct}% fill
-        </span>
-      </div>
-      <div className="flex flex-col gap-2 min-h-[100px] rounded-md p-1 -mx-1">
-        <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
-          {cards.length ? (
-            cards.map((c) => <CardBoundary key={c.id} card={c}><MiniBlock card={c} /></CardBoundary>)
-          ) : (
-            <div className="rounded-md border border-dashed border-border px-2 py-6 text-center text-[10px] leading-snug text-muted-foreground">
-              Drop cards here
-            </div>
-          )}
-        </SortableContext>
-        <button
-          onClick={() => addCard(column)}
-          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/50 hover:text-primary mt-1"
-        >
-          <Plus className="size-3.5" />
-          Add Card
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // PosterSkeleton
 // ---------------------------------------------------------------------------
 function PosterSkeleton() {
@@ -1013,11 +1031,12 @@ function PosterSkeleton() {
 // StructureView (poster 3-column DnD, poster-only)
 // ---------------------------------------------------------------------------
 function PosterStructureView() {
-  const { project, isSwitchingProject, moveCard } = useEditor(
+  const { project, isSwitchingProject, moveCard, addCard } = useEditor(
     useShallow((s) => ({
       project: s.project,
       isSwitchingProject: s.isSwitchingProject,
       moveCard: s.moveCard,
+      addCard: s.addCard,
     }))
   )
   
@@ -1090,19 +1109,21 @@ function PosterStructureView() {
           onDragEnd={handleDragEnd}
         >
           <div className="mx-auto w-full max-w-5xl p-5 pb-20">
-          <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
-            {/* fixed header area */}
-            <TemplateHeader variant="poster" />
-
-            {/* three columns */}
-            <div className="flex gap-3 p-3">
-              <PosterColumn column={1} />
-              <div className="w-px shrink-0 bg-border" />
-              <PosterColumn column={2} />
-              <div className="w-px shrink-0 bg-border" />
-              <PosterColumn column={3} />
-            </div>
-          </div>
+            <PosterCanvas
+              cards={project.outputs?.find((output) => output.id === project.activeOutputId)?.cards ?? []}
+              templateId={project.outputs?.find((output) => output.id === project.activeOutputId)?.templateId}
+              renderCard={(card) => <CardBoundary key={card.id} card={card}><MiniBlock card={card} /></CardBoundary>}
+              renderColumn={(column, columnCards) => (
+                <SortableContext items={columnCards.map((card) => card.id)} strategy={verticalListSortingStrategy}>
+                  {columnCards.length ? columnCards.map((card) => (
+                    <CardBoundary key={card.id} card={card}><MiniBlock card={card} /></CardBoundary>
+                  )) : (
+                    <div className="rounded-md border border-dashed border-border px-2 py-6 text-center text-[10px] leading-snug text-muted-foreground">Drop cards here</div>
+                  )}
+                </SortableContext>
+              )}
+              onAddCard={(column) => addCard(column)}
+            />
           </div>
           
           <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.4" } } }) }}>
@@ -1284,26 +1305,16 @@ function SlidesView() {
   return (
     <ScrollArea className="min-h-0 flex-1">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="mx-auto w-full max-w-2xl px-5 py-6 pb-20 flex flex-col gap-2">
-          <TemplateHeader variant="slides" />
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MonitorPlay className="size-4 text-primary" />
-              <span className="text-[13px] font-bold">Slides</span>
-              <span className="rounded-full bg-muted px-2 py-px text-[10px] font-mono text-muted-foreground">{cards.length}</span>
-            </div>
-          </div>
-          <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
-            {cards.map((c, i) => <CardBoundary key={c.id} card={c}><SlideCard card={c} index={i} /></CardBoundary>)}
-          </SortableContext>
-          <button
-            onClick={() => addCard(null)}
-            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border py-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/50 hover:text-primary mt-1"
-          >
-            <Plus className="size-3.5" />
-            Add Slide
-          </button>
-        </div>
+        <SlideDeckView
+          cards={cards}
+          renderCard={(card, index) => <CardBoundary key={card.id} card={card}><SlideCard card={card} index={index} /></CardBoundary>}
+          renderContent={() => (
+            <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
+              {cards.map((card, index) => <CardBoundary key={card.id} card={card}><SlideCard card={card} index={index} /></CardBoundary>)}
+            </SortableContext>
+          )}
+          onAdd={() => addCard(null)}
+        />
         <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.4" } } }) }}>
           {activeCard ? <SlideCard card={activeCard} index={cards.findIndex(c => c.id === activeCard.id)} overlay /> : null}
         </DragOverlay>
@@ -1349,26 +1360,16 @@ function PaperView() {
   return (
     <ScrollArea className="min-h-0 flex-1">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="mx-auto w-full max-w-2xl px-5 py-6 pb-20 flex flex-col gap-2">
-          <TemplateHeader variant="paper" />
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BookOpen className="size-4 text-primary" />
-              <span className="text-[13px] font-bold">Paper Sections</span>
-              <span className="rounded-full bg-muted px-2 py-px text-[10px] font-mono text-muted-foreground">{cards.length}</span>
-            </div>
-          </div>
-          <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
-            {cards.map((c) => <CardBoundary key={c.id} card={c}><PaperSection card={c} /></CardBoundary>)}
-          </SortableContext>
-          <button
-            onClick={() => addCard(null)}
-            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border py-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted/50 hover:text-primary mt-1"
-          >
-            <Plus className="size-3.5" />
-            Add Section
-          </button>
-        </div>
+        <PaperDocumentView
+          cards={cards}
+          renderCard={(card) => <CardBoundary key={card.id} card={card}><PaperSection card={card} /></CardBoundary>}
+          renderContent={() => (
+            <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
+              {cards.map((card) => <CardBoundary key={card.id} card={card}><PaperSection card={card} /></CardBoundary>)}
+            </SortableContext>
+          )}
+          onAdd={() => addCard(null)}
+        />
         <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.4" } } }) }}>
           {activeCard ? <PaperSection card={activeCard} overlay /> : null}
         </DragOverlay>
@@ -1398,9 +1399,8 @@ function StructureView() {
 // PosterPreview (main export)
 // ---------------------------------------------------------------------------
 export function PosterPreview() {
-  const { isSwitchingProject, compiling, compileOk, compileProject, project, autoCompile, setAutoCompile, lastCompileFormat, setLastCompileFormat, showLatexSource } = useEditor(
+  const { compiling, compileOk, compileProject, project, autoCompile, setAutoCompile, lastCompileFormat, setLastCompileFormat, showLatexSource } = useEditor(
     useShallow((s) => ({
-      isSwitchingProject: s.isSwitchingProject,
       compiling: s.compiling,
       compileOk: s.compileOk,
       compileProject: s.compileProject,
@@ -1433,69 +1433,16 @@ export function PosterPreview() {
       {/* Output type tab bar */}
       <OutputTabBar />
       
-      {/* Header bar (only for poster, slides, paper) */}
+      {/* Compile controls are a reusable preview toolbar so the poster, slide, and paper surfaces share the same affordances. */}
       {activeOutputType !== "thesis-review" && (
-        <div className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-card px-3">
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] font-semibold text-foreground">Structure</span>
-          </div>
-
-          {/* Right side: compile button */}
-          <div className="flex items-center h-7 rounded border border-border bg-card shadow-sm overflow-hidden">
-            <button
-              onClick={() => {
-                if (autoCompile) {
-                  setAutoCompile(false)
-                } else {
-                  compileProject(lastCompileFormat)
-                }
-              }}
-              disabled={compiling && !autoCompile}
-              className={cn(
-                "flex items-center gap-1.5 px-3 h-full text-[11px] font-semibold transition-colors disabled:opacity-50",
-                autoCompile 
-                  ? "bg-primary/10 text-primary hover:bg-primary/20" 
-                  : "bg-card text-foreground hover:bg-muted",
-                (!autoCompile && compileOk === true) && "text-success",
-                (!autoCompile && compileOk === false) && "text-destructive"
-              )}
-            >
-              {autoCompile ? (
-                <>
-                  <RefreshCw className={cn("size-3", compiling && "animate-spin")} />
-                  Live Preview
-                </>
-              ) : (
-                <>
-                  {compiling ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />}
-                  Compile
-                </>
-              )}
-            </button>
-            <div className="w-[1px] h-full bg-border" />
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                disabled={compiling || isSwitchingProject}
-                className={cn(
-                  "flex items-center justify-center px-1.5 h-full transition-colors",
-                  autoCompile ? "bg-primary/10 text-primary hover:bg-primary/20" : "bg-card hover:bg-muted text-muted-foreground"
-                )}
-              >
-                <ChevronDownIcon className="size-3" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => setAutoCompile(true)} className="gap-2">
-                  <RefreshCw className="size-3 text-muted-foreground" />
-                  Live Preview Mode
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setAutoCompile(false)} className="gap-2">
-                  <Play className="size-3 text-muted-foreground" />
-                  Manual Compile Mode
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
+        <PreviewToolbar
+          format={lastCompileFormat}
+          compiling={compiling}
+          autoCompile={autoCompile}
+          compileOk={compileOk}
+          onCompile={handleCompile}
+          onSetAutoCompile={setAutoCompile}
+        />
       )}
 
       {/* Tab content */}

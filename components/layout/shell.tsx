@@ -26,6 +26,7 @@ import { AcademicSearchDialog } from "@/components/academic-search-dialog"
 import { CommandPalette } from "@/components/command-palette"
 import { ThesisReviewStoreProvider } from "@/components/thesis-review/thesis-review-provider"
 import { DEMO_PROJECT_ID } from "@/lib/mock-data"
+import { getUiCopy } from "@/lib/i18n/ui"
 
 
 type MobilePane = "structure" | "preview" | "editor" | "agent"
@@ -174,6 +175,7 @@ function MobileShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () 
     }))
   )
   const busy = isSwitchingProject || generatingIds.length > 0
+  const ui = getUiCopy(useEditor((s) => s.language))
   const [pane, setPane] = useState<MobilePane>("preview")
   const [paletteOpen, setPaletteOpen] = useState(false)
 
@@ -235,7 +237,7 @@ function MobileShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () 
       >
         <MobileNavButton
           active={pane === "structure"}
-          label="Structure"
+          label={ui.structure}
           badge={(project.outputs?.find((o) => o.id === project.activeOutputId)?.cards || []).length}
           onClick={() => setPane("structure")}
         >
@@ -243,21 +245,21 @@ function MobileShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () 
         </MobileNavButton>
         <MobileNavButton
           active={pane === "preview"}
-          label="Preview"
+          label={ui.preview}
           onClick={() => setPane("preview")}
         >
           <LayoutGrid className="size-5" />
         </MobileNavButton>
         <MobileNavButton
           active={pane === "editor"}
-          label="Editor"
+          label={ui.editor}
           onClick={() => setPane("editor")}
         >
           <SquarePen className="size-5" />
         </MobileNavButton>
         <MobileNavButton
           active={pane === "agent"}
-          label="Agent"
+          label={ui.agent}
           badge={agentEvents.length}
           pulse={busy}
           onClick={() => setPane("agent")}

@@ -41,12 +41,11 @@ import {
   ShieldAlert,
 } from "lucide-react"
 import { toast } from "sonner"
-import { useSettings } from "@/lib/settings-store"
 import { getAcademicSearchStrings } from "@/lib/i18n/academic-search"
 import type { AcademicPaperResult } from "@/lib/services/academic-connector"
 import { credibilityAssessment, type CredibilityAssessment } from "@/lib/services/search-quality"
 import { academicPaperToBibEntry } from "@/lib/bib-types"
-import { useEditorStoreInstance } from "@/components/editor-store"
+import { useEditor, useEditorStoreInstance } from "@/components/editor-store"
 import { useCopyFeedback } from "@/hooks/use-copy-feedback"
 
 interface Props {
@@ -109,7 +108,7 @@ function CredibilityPill({ assessment }: { assessment: CredibilityAssessment }) 
 }
 
 export function AcademicSearchDialog({ open, onOpenChange }: Props) {
-  const uiLanguage = useSettings((s) => s.defaultReviewLanguage)
+  const uiLanguage = useEditor((s) => s.language)
   const t = getAcademicSearchStrings(uiLanguage)
   const [query, setQuery] = useState("")
   const [domain, setDomain] = useState("all")

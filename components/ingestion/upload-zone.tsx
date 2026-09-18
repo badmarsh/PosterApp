@@ -139,8 +139,8 @@ function DocProcessingIllustration({ dragging = false }: { dragging?: boolean })
         <rect x="6.5" y="19.4" width="24" height="1" rx="0.3" className="fill-muted-foreground/25" />
 
         {/* Small subtle checkmark */}
-        <circle cx="34" cy="4" r="2.8" className="fill-emerald-500/20 stroke-emerald-500/60" strokeWidth="0.6" />
-        <path d="M32.8 4L33.6 4.8L35.2 3.2" stroke="currentColor" strokeWidth="0.6" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600 dark:text-emerald-400" />
+        <circle cx="34" cy="4" r="2.8" className="fill-success/20 stroke-success/60" strokeWidth="0.6" />
+        <path d="M32.8 4L33.6 4.8L35.2 3.2" stroke="currentColor" strokeWidth="0.6" strokeLinecap="round" strokeLinejoin="round" className="text-success dark:text-success" />
       </g>
     </svg>
   )

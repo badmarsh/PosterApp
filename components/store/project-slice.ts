@@ -2,7 +2,7 @@ import type { EditorSlice, ProjectSlice } from "./types"
 import { sampleProjects, isDemoProject } from "@/lib/mock-data"
 import { columnBudgetFor, estimateHeight, generateLatexForCard, hasUnsafeLatex, levelFromMessages, validateCard } from "@/lib/latex"
 import type { Project, OutputConfig, BlockPattern, Card, Figure } from "@/lib/poster-types"
-import type { ExtractedAsset as Asset } from "@/lib/ingestion"
+import type { ExtractedAsset as Asset, AssignSlot } from "@/lib/ingestion"
 import { apiFetch } from "@/lib/api-fetch"
 import { notify } from "@/lib/notify"
 import type { OutputType } from "@/lib/output-types"
@@ -204,6 +204,81 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       s.isDirty = true
     }
   }),
+
+  attachSuggestedAsset: (cardId, assetId) => {
+    const asset = get().project.assets.find((candidate) => candidate.id === assetId)
+    if (!asset) return
+    const card = syncActiveCards(get().project).find((candidate) => candidate.id === cardId)
+    if (!card) return
+
+    // Reuse the canonical ingestion assignment path so one-click suggestions
+    // behave exactly like a manually promoted figure/table.
+    const slot = asset.kind === "table"
+      ? "table"
+      : asset.kind === "equation"
+        ? "equation"
+        : card.figures?.some((figure) => !figure?.url?.trim()) ? "figure1" : "figure1"
+    get().promoteAsset(assetId, cardId, slot as AssignSlot)
+    get().pushEvent({
+      kind: "info",
+      status: "done",
+      title: "Suggested asset attached",
+      detail: `${asset.caption || asset.filename || asset.kind} → ${card.title || card.id}`,
+    })
+  },
+
+  autoShrinkCardAction: async (cardId) => {
+    const workspaceId = get().project.id
+    const card = syncActiveCards(get().project).find((candidate) => candidate.id === cardId)
+    if (!card) return
+    const layout = card.grounding?.layout
+    const targetCharacters = layout?.budget && layout.estimatedHeight && layout.estimatedHeight > layout.budget
+      ? Math.max(80, Math.floor(card.content.length * layout.budget / layout.estimatedHeight))
+      : Math.max(80, Math.floor(card.content.length * 0.72))
+    const eventId = get().pushEvent({
+      kind: "generate",
+      status: "running",
+      title: `Auto-shrinking — ${card.title || card.id}`,
+      detail: layout?.suggestions?.join(" · ") || "Applying the server layout reduction pass…",
+    })
+
+    try {
+      const res = await apiFetch(`/api/workspaces/${workspaceId}/cards/${cardId}/shrink?revision=${get().project.revision ?? ""}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: card.content,
+          warning: layout?.suggestions?.join("; ") || "Reduce content to fit the card layout budget.",
+          targetCharacters,
+          sourceIds: card.sourceIds,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || typeof data.content !== "string") throw new Error(data.error || `HTTP ${res.status}`)
+      if (get().project.id !== workspaceId) return
+      const current = syncActiveCards(get().project).find((candidate) => candidate.id === cardId)
+      if (!current) return
+      const nextHeight = estimateHeight({ ...current, content: data.content })
+      const budget = current.grounding?.layout?.budget ?? null
+      get().updateCard(cardId, {
+        content: data.content,
+        grounding: current.grounding ? {
+          ...current.grounding,
+          layout: current.grounding.layout ? {
+            ...current.grounding.layout,
+            estimatedHeight: nextHeight,
+            overBudget: budget !== null ? nextHeight > budget : Boolean(data.overBudget),
+            delta: budget !== null ? Math.max(0, nextHeight - budget) : 0,
+          } : undefined,
+        } : undefined,
+      })
+      get().updateEvent(eventId, { status: "done", title: "Content auto-shrunk", detail: `Target ${targetCharacters} characters · ${nextHeight}u estimated height.` })
+      notify.success("Content auto-shrunk", { description: "The reduction pass was applied. Review the card before compiling." })
+    } catch (err) {
+      get().updateEvent(eventId, { status: "error", title: "Auto-shrink failed", detail: err instanceof Error ? err.message : String(err) })
+      notify.error("Auto-shrink failed", { description: err instanceof Error ? err.message : String(err) })
+    }
+  },
 
   addCard: (column = null) => set((s) => {
     const activeOutput = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
@@ -561,11 +636,37 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
               }
             })
           }
+
+          // Keep the server's evidence anchors and layout truth beside the
+          // generated text. This is persisted with the card so a reload does
+          // not erase the provenance UI.
+          if (Array.isArray(data.citations) || Array.isArray(data.suggestedAssets) || data.layout) {
+            const rawLayout = data.layout && typeof data.layout === "object" ? data.layout : undefined
+            const budget = typeof rawLayout?.budget === "number" ? rawLayout.budget : null
+            const estimatedHeight = typeof rawLayout?.estimatedHeight === "number" ? rawLayout.estimatedHeight : null
+            c.grounding = {
+              citations: Array.isArray(data.citations) ? data.citations : [],
+              suggestedAssets: Array.isArray(data.suggestedAssets) ? data.suggestedAssets : [],
+              grounded: Boolean(data.grounded),
+              generatedAt: new Date().toISOString(),
+              layout: rawLayout ? {
+                budget,
+                estimatedHeight,
+                overBudget: Boolean(rawLayout.overBudget),
+                delta: typeof rawLayout.delta === "number" ? rawLayout.delta : budget !== null && estimatedHeight !== null ? Math.max(0, estimatedHeight - budget) : 0,
+                suggestions: Array.isArray(rawLayout.suggestions) ? rawLayout.suggestions : [],
+                pattern: typeof rawLayout.pattern === "string" ? rawLayout.pattern : undefined,
+              } : undefined,
+            }
+          }
         }
       })
 
       const notes: string[] = [`Filled ${data.bullets?.length || 0} bullets.`]
-      if (data.overBudget) notes.push("Content exceeds this card's character budget by >40% — expect overflow; use \"Shrink\" or edit before compiling.")
+      if (data.overBudget) {
+        const delta = typeof data.layout?.delta === "number" ? ` (+${data.layout.delta}u over budget)` : ""
+        notes.push(`Content exceeds this card's layout budget${delta} — use Auto-Shrink Content or edit before compiling.`)
+      }
       if (droppedAssets > 0) notes.push(`${droppedAssets} suggested figure${droppedAssets === 1 ? "" : "s"} referenced an unknown asset and ${droppedAssets === 1 ? "was" : "were"} skipped.`)
       if (droppedCites > 0) notes.push(`${droppedCites} citation${droppedCites === 1 ? "" : "s"} not found in your .bib ${droppedCites === 1 ? "was" : "were"} removed.`)
       get().updateEvent(evId, {

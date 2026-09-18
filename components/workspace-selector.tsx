@@ -492,7 +492,7 @@ export function WorkspaceSelector({
                       <div className="flex items-center justify-between gap-2 mt-0.5">
                         <p className="text-xs text-muted-foreground truncate">{ws.id} · {ws.templateName}</p>
                         {Boolean(ws.pendingChangesCount && ws.pendingChangesCount > 0) && (
-                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-500 border border-amber-500/40 shrink-0">
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-warning/20 text-warning border border-warning/40 shrink-0">
                             {ws.pendingChangesCount} pending
                           </span>
                         )}
@@ -598,8 +598,8 @@ export function WorkspaceSelector({
           </DialogHeader>
 
           <div className="space-y-4 my-2 overflow-y-auto pr-1">
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200 flex flex-col gap-1">
-              <div className="font-semibold flex items-center gap-1.5 text-amber-100">
+            <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs text-warning flex flex-col gap-1">
+              <div className="font-semibold flex items-center gap-1.5 text-warning">
                 <span>⚠️</span> Scoped One-Time API Key Minted
               </div>
               <p>
@@ -610,12 +610,12 @@ export function WorkspaceSelector({
                   type="text"
                   readOnly
                   value={launchedTaskBundle.rawKey}
-                  className="flex-1 bg-black/40 border border-amber-500/40 rounded px-2.5 py-1 text-xs font-mono text-amber-100 select-all"
+                  className="flex-1 bg-black/40 border border-warning/40 rounded px-2.5 py-1 text-xs font-mono text-warning select-all"
                 />
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-7 text-xs border-amber-500/40 hover:bg-amber-500/20 text-amber-100 gap-1"
+                  className="h-7 text-xs border-warning/40 hover:bg-warning/20 text-warning gap-1"
                   onClick={() => {
                     navigator.clipboard.writeText(launchedTaskBundle.rawKey)
                     setHasCopiedKey(true)
@@ -623,7 +623,7 @@ export function WorkspaceSelector({
                     toast.success("API key copied to clipboard")
                   }}
                 >
-                  {hasCopiedKey ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3" />}
+                  {hasCopiedKey ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
                   {hasCopiedKey ? "Copied" : "Copy Key"}
                 </Button>
               </div>
@@ -645,7 +645,7 @@ export function WorkspaceSelector({
                     toast.success("Launch bundle copied to clipboard")
                   }}
                 >
-                  {hasCopiedBundle ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3" />}
+                  {hasCopiedBundle ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
                   {hasCopiedBundle ? "Copied Bundle" : "Copy Bundle"}
                 </Button>
               </div>

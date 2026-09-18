@@ -27,9 +27,9 @@ interface Props {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
-  compliant: { label: "Splnené", color: "bg-success/100/15 text-success dark:text-success border-success/40", icon: CheckCircle2 },
-  partial: { label: "Čiastočne", color: "bg-warning/100/15 text-warning dark:text-warning border-warning/40", icon: AlertCircle },
-  missing: { label: "Chýba", color: "bg-destructive/100/15 text-destructive dark:text-destructive border-destructive/40", icon: XCircle },
+  compliant: { label: "Splnené", color: "bg-success/15 text-success dark:text-success border-success/40", icon: CheckCircle2 },
+  partial: { label: "Čiastočne", color: "bg-warning/15 text-warning dark:text-warning border-warning/40", icon: AlertCircle },
+  missing: { label: "Chýba", color: "bg-destructive/15 text-destructive dark:text-destructive border-destructive/40", icon: XCircle },
   not_applicable: { label: "Nerelevantné", color: "bg-muted text-muted-foreground border-muted-foreground/30", icon: HelpCircle },
 }
 

@@ -291,6 +291,7 @@ export async function PUT(
                 validation: card.validation || "valid",
                 generatedLatex: card.generatedLatex,
                 slideNotes: card.slideNotes,
+                grounding: card.grounding ?? undefined,
               }
               await tx.card.upsert({
                 where: { id: card.id },
@@ -391,6 +392,7 @@ export async function PUT(
             validation: card.validation || "valid",
             generatedLatex: card.generatedLatex,
             slideNotes: card.slideNotes,
+            grounding: card.grounding ?? undefined,
           }
           await tx.card.upsert({
             where: { id: card.id },

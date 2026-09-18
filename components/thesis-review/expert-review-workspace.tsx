@@ -483,7 +483,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
           {auditError ? (
             <Badge
               variant="outline"
-              className="text-[10px] font-mono border-warning/40 text-warning dark:text-warning hidden xl:inline-flex gap-1 items-center bg-warning/100/5 py-1 px-2"
+              className="text-[10px] font-mono border-warning/40 text-warning dark:text-warning hidden xl:inline-flex gap-1 items-center bg-warning/5 py-1 px-2"
               title="Záznam kryptografického auditu sa nepodarilo vytvoriť. Rozhodnutie bolo uložené, ale bez overenia integrity."
             >
               <AlertCircle className="h-3 w-3 text-warning" />
@@ -492,10 +492,10 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
           ) : (activeReview.confirmedAt || latestAuditHash) && (
             <Badge
               variant="outline"
-              className="text-[10px] font-mono border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hidden xl:inline-flex gap-1 items-center bg-emerald-500/5 py-1 px-2"
+              className="text-[10px] font-mono border-success/30 text-success dark:text-success hidden xl:inline-flex gap-1 items-center bg-success/5 py-1 px-2"
               title={`Kryptografický audit integrity posudku: ${latestAuditHash || "SHA-256 overené"}`}
             >
-              <ShieldCheck className="h-3 w-3 text-emerald-500" />
+              <ShieldCheck className="h-3 w-3 text-success" />
               Audit: {latestAuditHash ? `${latestAuditHash.slice(0, 8)}...` : "SHA-256 ✓"}
             </Badge>
           )}
@@ -507,8 +507,8 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
             className={cn(
               "text-xs h-8 px-3 gap-1.5 font-medium rounded-lg shadow-2xs transition-all",
               activeReview.confirmedAt
-                ? "border-emerald-500/40 text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20"
-                : "border-warning/40 text-warning dark:text-warning bg-warning/100/10 hover:bg-warning/100/20"
+                ? "border-success/40 text-success dark:text-success bg-success/10 hover:bg-success/20"
+                : "border-warning/40 text-warning dark:text-warning bg-warning/10 hover:bg-warning/20"
             )}
           >
             <Award className={cn("h-3.5 w-3.5", activeReview.confirmedAt ? "text-success" : "text-warning dark:text-warning")} />
@@ -575,7 +575,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 {copiedNotification ? "Skopírované! ✓" : "Kopírovať text do schránky"}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleDownloadMarkdown}>
-                <FileDown className="h-4 w-4 mr-2 text-emerald-600" />
+                <FileDown className="h-4 w-4 mr-2 text-success" />
                 {activeReview.reviewerRole === "self" ? "Stiahnuť štruktúrovaný rozbor (.MD)" : "Stiahnuť Markdown (.MD)"}
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -598,7 +598,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
 
       {/* Diagnostics Alert Banner if recovery fallbacks were applied */}
       {activeReview.diagnostics && activeReview.diagnostics.corruptedFields.length > 0 && (
-        <div className="bg-warning/100/10 border-b border-warning/40 px-4 py-2 text-xs flex items-center justify-between text-warning dark:text-warning">
+        <div className="bg-warning/10 border-b border-warning/40 px-4 py-2 text-xs flex items-center justify-between text-warning dark:text-warning">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
             <span>
@@ -822,7 +822,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 <span>Na posúdenie</span>
                 <span className={cn(
                   "px-1.5 py-0.5 rounded-full text-[10px] font-mono",
-                  activeTab === "unreviewed" ? "bg-warning/100/15 text-warning dark:text-warning font-semibold" : "bg-muted text-muted-foreground"
+                  activeTab === "unreviewed" ? "bg-warning/15 text-warning dark:text-warning font-semibold" : "bg-muted text-muted-foreground"
                 )}>
                   {unreviewedCount}
                 </span>
@@ -858,7 +858,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 <span>Chýbajúci dôkaz</span>
                 <span className={cn(
                   "px-1.5 py-0.5 rounded-full text-[10px] font-mono",
-                  activeTab === "missing_evidence" ? "bg-status-ambiguous/100/15 text-status-ambiguous dark:text-status-ambiguous" : "bg-muted text-muted-foreground"
+                  activeTab === "missing_evidence" ? "bg-status-ambiguous/15 text-status-ambiguous dark:text-status-ambiguous" : "bg-muted text-muted-foreground"
                 )}>
                   {missingEvidenceCount}
                 </span>
@@ -899,14 +899,14 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5",
                   activeTab === "resolved"
-                    ? "bg-background text-emerald-700 dark:text-emerald-300 font-semibold shadow-2xs border border-emerald-500/30"
+                    ? "bg-background text-success dark:text-success font-semibold shadow-2xs border border-success/30"
                     : "text-muted-foreground hover:text-foreground hover:bg-background/40"
                 )}
               >
                 <span>Vyriešené</span>
                 <span className={cn(
                   "px-1.5 py-0.5 rounded-full text-[10px] font-mono",
-                  activeTab === "resolved" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-muted text-muted-foreground"
+                  activeTab === "resolved" ? "bg-success/15 text-success dark:text-success" : "bg-muted text-muted-foreground"
                 )}>
                   {resolvedCount}
                 </span>
@@ -929,7 +929,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="critical" className="text-xs font-bold text-destructive">Kritická (Critical)</SelectItem>
-                        <SelectItem value="major" className="text-xs font-bold text-orange-600">Zásadná (Major)</SelectItem>
+                        <SelectItem value="major" className="text-xs font-bold text-warning">Zásadná (Major)</SelectItem>
                         <SelectItem value="minor" className="text-xs font-bold text-info">Drobná (Minor)</SelectItem>
                         <SelectItem value="suggestion" className="text-xs text-muted-foreground">Návrh (Suggestion)</SelectItem>
                       </SelectContent>

@@ -545,13 +545,13 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
       </div>
 
       {activeReview && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between shadow-2xs">
+        <div className="rounded-xl border border-success/30 bg-success/10 p-2.5 text-xs text-success dark:text-success flex items-center justify-between shadow-2xs">
           <div className="flex items-center gap-2 min-w-0">
-            <FileCheck2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <FileCheck2 className="size-4 shrink-0 text-success dark:text-success" />
             <span className="truncate">Posudok: <strong>{activeReview.studentName}</strong></span>
           </div>
           {activeReview.grade && (
-            <Badge variant="outline" className="font-bold border-emerald-500/40 text-emerald-700 dark:text-emerald-300 shrink-0 ml-1.5">
+            <Badge variant="outline" className="font-bold border-success/40 text-success dark:text-success shrink-0 ml-1.5">
               {activeReview.grade}
             </Badge>
           )}
@@ -631,14 +631,14 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
             </Button>
 
             {autoExtractedSuccess && (
-              <div className="flex items-center gap-1.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 animate-fade-in pl-0.5">
+              <div className="flex items-center gap-1.5 text-[10px] font-medium text-success dark:text-success animate-fade-in pl-0.5">
                 <Sparkles className="size-3" />
                 <span>Údaje úspešne načítané z dokumentu</span>
               </div>
             )}
 
             {isParsing && (
-              <div className="flex items-center gap-2 text-xs text-warning dark:text-warning bg-warning/100/10 p-2.5 rounded-lg border border-warning/30">
+              <div className="flex items-center gap-2 text-xs text-warning dark:text-warning bg-warning/10 p-2.5 rounded-lg border border-warning/30">
                 <Loader2 className="size-3.5 animate-spin shrink-0" />
                 <span>MinerU spracováva PDF…</span>
               </div>
@@ -671,7 +671,7 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
       {isComplete && isFormCollapsed ? (
         <div className="rounded-xl border bg-muted/20 p-3 space-y-2 transition-all shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+            <span className="text-xs font-semibold flex items-center gap-1.5 text-success dark:text-success">
               <FileCheck2 className="size-4" />
               Metadáta pripravené
             </span>

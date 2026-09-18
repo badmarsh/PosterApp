@@ -611,7 +611,7 @@ function LanguageSettings({
       <SectionHeader
         icon={Languages}
         title="Language"
-        description="Used for new thesis reviews, the academic search dialog and generated review documents. The poster editor itself is currently English-only."
+        description="Used for new thesis reviews and generated review documents. Change the editor chrome language from the visible language switcher in the top bar."
       />
       <Select value={currentLanguage} onValueChange={(val) => val && onLanguageChange(val as ReviewLanguage)}>
         <SelectTrigger className="w-full" aria-label="Review language">
@@ -669,25 +669,25 @@ function getCategoryBadge(category: AiRoleMeta["category"]) {
   switch (category) {
     case "Content":
       return (
-        <span className="inline-flex items-center rounded border border-blue-500/30 bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-500">
+        <span className="inline-flex items-center rounded border border-info/30 bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info">
           Content
         </span>
       )
     case "Vision":
       return (
-        <span className="inline-flex items-center rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-500">
+        <span className="inline-flex items-center rounded border border-success/30 bg-success/10 px-1.5 py-0.5 text-[10px] font-medium text-success">
           Vision
         </span>
       )
     case "Review":
       return (
-        <span className="inline-flex items-center rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-500">
+        <span className="inline-flex items-center rounded border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">
           Review
         </span>
       )
     case "Academic":
       return (
-        <span className="inline-flex items-center rounded border border-purple-500/30 bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium text-purple-500">
+        <span className="inline-flex items-center rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
           Academic
         </span>
       )
@@ -863,7 +863,7 @@ function AiModelSettings({
                       variant={preset.tagVariant === "success" ? "outline" : "secondary"}
                       className={cn(
                         "text-[9px] px-1 py-0 h-4",
-                        preset.tagVariant === "success" && "border-emerald-500/30 text-emerald-500 bg-emerald-500/10"
+                        preset.tagVariant === "success" && "border-success/30 text-success bg-success/10"
                       )}
                     >
                       {preset.tag}
@@ -940,14 +940,14 @@ function AiModelSettings({
       <div className="rounded-lg border border-border bg-card p-3.5 space-y-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-500">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-success/10 text-success">
               <Key className="size-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <p className="text-xs font-semibold text-foreground">Google Gemini API Key</p>
                 {geminiApiKey ? (
-                  <Badge variant="outline" className="border-emerald-500/30 text-emerald-500 bg-emerald-500/10 text-[10px]">
+                  <Badge variant="outline" className="border-success/30 text-success bg-success/10 text-[10px]">
                     User Key Active
                   </Badge>
                 ) : (
@@ -957,7 +957,7 @@ function AiModelSettings({
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Direct Google Gemini API key (<code className="font-mono text-[10px]">AIzaSy*</code> or <code className="font-mono text-[10px]">AQ.*</code>) routing directly to Google's official endpoint.
+                Direct Google Gemini API key (<code className="font-mono text-[10px]">AIzaSy*</code> or <code className="font-mono text-[10px]">AQ.*</code>) routing directly to Google&apos;s official endpoint.
               </p>
             </div>
           </div>
@@ -1501,9 +1501,9 @@ function AccessSettings() {
               {settings?.envDefault === null ? (
                 <span>Premenná <code>ALLOW_REGISTRATION</code> nie je nastavená (predvolene: povolená)</span>
               ) : settings?.envDefault ? (
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">ALLOW_REGISTRATION=true</span>
+                <span className="text-success dark:text-success font-medium">ALLOW_REGISTRATION=true</span>
               ) : (
-                <span className="text-amber-600 dark:text-amber-400 font-medium">ALLOW_REGISTRATION=false</span>
+                <span className="text-warning dark:text-warning font-medium">ALLOW_REGISTRATION=false</span>
               )}
             </div>
 

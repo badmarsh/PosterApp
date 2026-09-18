@@ -117,9 +117,9 @@ describe("POST /cards/[cardId]/generate — RAG grounding", () => {
     // Response contract: citation mapping with chunk IDs, markers stripped.
     expect(json.grounded).toBe(true)
     expect(json.ragChunkIds).toEqual(["chunk-a", "chunk-b"])
-    expect(json.citations).toEqual([
-      { bulletIndex: 0, chunkIds: ["chunk-a"] },
-      { bulletIndex: 1, chunkIds: ["chunk-b"] },
+    expect(json.citations).toMatchObject([
+      { bulletIndex: 0, chunkIds: ["chunk-a"], evidence: [{ chunkId: "chunk-a", anchor: "source-chunk-a" }] },
+      { bulletIndex: 1, chunkIds: ["chunk-b"], evidence: [{ chunkId: "chunk-b", anchor: "source-chunk-b" }] },
     ])
     expect(json.bullets[0]).toBe("Navrhovaný model dosiahol presnosť 94.2 %")
     expect(json.bullets[1]).toBe("Zlepšenie ovoľ baseline je štatisticky významné")

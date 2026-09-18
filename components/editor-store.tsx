@@ -40,6 +40,7 @@ export function createEditorStore() {
           agentPanelOpenOnLoad: state.agentPanelOpenOnLoad,
           structurePanelOpenOnLoad: state.structurePanelOpenOnLoad,
           inspectorDefaultTab: state.inspectorDefaultTab,
+          language: state.language,
         }),
       }
     )

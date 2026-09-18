@@ -115,9 +115,11 @@ export async function PUT(
       figures: card.figures === null || card.figures === undefined ? Prisma.DbNull : (card.figures as Prisma.InputJsonValue),
       figureLayout: card.figureLayout || "single",
       sourceIds: card.sourceIds === null || card.sourceIds === undefined ? Prisma.DbNull : (card.sourceIds as Prisma.InputJsonValue),
+      grounding: card.grounding === null || card.grounding === undefined ? Prisma.DbNull : (card.grounding as Prisma.InputJsonValue),
       heightBudget: card.heightBudget,
       validation: card.validation || "valid",
       generatedLatex: card.generatedLatex,
+      slideNotes: card.slideNotes,
     }
 
     const [, updatedWorkspace] = await prisma.$transaction([

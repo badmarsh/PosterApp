@@ -186,8 +186,8 @@ export function RubricTemplateModal({
                 className={cn(
                   "font-bold font-mono px-2 py-0.5 rounded",
                   validation.isValid
-                    ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
-                    : "text-warning dark:text-warning bg-warning/100/10"
+                    ? "text-success dark:text-success bg-success/10"
+                    : "text-warning dark:text-warning bg-warning/10"
                 )}
               >
                 {validation.totalWeight}% / 100%
@@ -197,7 +197,7 @@ export function RubricTemplateModal({
               value={Math.min(100, validation.totalWeight)}
               className={cn(
                 "h-2",
-                validation.isValid ? "[&>div]:bg-emerald-500" : "[&>div]:bg-warning/100"
+                validation.isValid ? "[&>div]:bg-success" : "[&>div]:bg-warning"
               )}
             />
             {!validation.isValid && (

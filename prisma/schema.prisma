@@ -161,6 +161,8 @@ model Card {
   table          Json?
   figures        Json?
   sourceIds      Json?
+  /// Quote anchors, suggested assets and layout truth from grounded auto-fill.
+  grounding      Json?
   assignedAssets Asset[]
   output         Output  @relation(fields: [outputId], references: [id], onDelete: Cascade)
 
