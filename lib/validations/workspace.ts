@@ -9,7 +9,7 @@ export const FigureSchema = z.object({
 export const CardTableSchema = z.object({
   hasHeader: z.boolean().optional(),
   caption: z.string().nullable().optional(),
-  rows: z.array(z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])).max(64)).max(500).optional(),
+  rows: z.array(z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])).max(64)).max(500).nullable().optional(),
 })
 
 /** Bounded, non-executable metadata returned by grounded card generation. */
@@ -23,8 +23,8 @@ export const CardGroundingSchema = z.object({
       quote: z.string().max(4_000),
       heading: z.string().max(500).nullable().optional(),
       documentId: z.string().max(256).optional(),
-    })).max(20),
-  })).max(200).optional().default([]),
+    })).max(50),
+  })).max(200).nullable().optional().default([]),
   suggestedAssets: z.array(z.object({
     id: z.string().max(256),
     kind: z.string().max(64),
@@ -33,15 +33,15 @@ export const CardGroundingSchema = z.object({
     snippet: z.string().max(4_000).optional(),
     section: z.string().max(500).nullable().optional(),
     score: z.number().finite().min(0).max(10),
-  })).max(20).optional().default([]),
+  })).max(50).nullable().optional().default([]),
   layout: z.object({
-    budget: z.number().finite().nullable(),
-    estimatedHeight: z.number().finite().nullable(),
-    overBudget: z.boolean(),
-    delta: z.number().finite().default(0),
-    suggestions: z.array(z.string().max(500)).max(20),
-    pattern: z.string().max(80).optional(),
-  }).optional(),
+    budget: z.number().finite().nullable().optional(),
+    estimatedHeight: z.number().finite().nullable().optional(),
+    overBudget: z.boolean().optional().default(false),
+    delta: z.number().finite().nullable().optional().default(0),
+    suggestions: z.array(z.string().max(500)).max(50).optional().default([]),
+    pattern: z.string().max(80).nullable().optional(),
+  }).nullable().optional(),
   grounded: z.boolean().optional(),
   generatedAt: z.string().max(64).optional(),
 })
@@ -49,7 +49,7 @@ export const CardGroundingSchema = z.object({
 export const CardSchema = z.object({
   id: z.string(),
   title: z.string().optional(),
-  column: z.number().int().min(1).max(3).nullable().optional(),
+  column: z.number().int().min(1).max(10).nullable().optional(),
   order: z.number().int().min(0),
   pattern: z.string(),
   content: z.string().optional(),
@@ -57,7 +57,7 @@ export const CardSchema = z.object({
   figures: z.array(FigureSchema).nullable().optional(),
   figureLayout: z.string().optional(),
   sourceIds: z.array(z.string()).nullable().optional(),
-  heightBudget: z.number().nullable().optional(),
+  heightBudget: z.number().finite().nullable().optional(),
   validation: z.string().optional(),
   generatedLatex: z.string().nullable().optional(),
   slideNotes: z.string().nullable().optional(),
@@ -155,8 +155,8 @@ export const WorkspaceSchema = z.object({
   // Shared workspace data
   assets: z.array(AssetSchema).optional(),
   ingestFiles: z.array(IngestFileSchema).optional(),
-  agentEvents: z.array(AgentEventSchema).max(500).nullable().optional(),
-  chatMessages: z.array(ChatMessageSchema).max(500).nullable().optional(),
+  agentEvents: z.array(AgentEventSchema).max(1000).nullable().optional(),
+  chatMessages: z.array(ChatMessageSchema).max(1000).nullable().optional(),
 })
 
 export const WorkspaceCreateSchema = z.object({
