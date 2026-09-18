@@ -254,7 +254,7 @@ export function SettingsPanel() {
       <div
         role="tablist"
         aria-label="Settings sections"
-        className="flex w-48 shrink-0 flex-col gap-1 border-r border-border bg-muted/20 p-2"
+        className="flex w-52 shrink-0 flex-col gap-1 border-r border-border bg-muted/20 p-2"
       >
         {tabs.map((t) => {
           const Icon = t.icon
