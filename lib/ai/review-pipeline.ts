@@ -523,6 +523,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     report("primary_review", "standard review generation")
     result = await generateAIResponse("thesis-review", {
       model: resolveAiModelWithOverrides("thesis", modelOverrides),
+      apiKey: clientApiKey,
       systemPrompt,
       userPrompt,
       schema: ThesisReviewGenerationSchema,
