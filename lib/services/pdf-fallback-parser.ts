@@ -11,24 +11,98 @@ export interface ParsedPdfDocument {
   pageCount: number
 }
 
-export async function parsePdfWithFallback(
-  pdfData: Uint8Array | Buffer,
-  filename: string
-): Promise<ParsedPdfDocument> {
+async function initPdfJs() {
+  // Ensure the fake worker handler is attached to globalThis in Node runtime
+  // so pdfjs never tries to dynamically import relative './pdf.worker.mjs' from the bundled chunk path.
+  if (!(globalThis as any).pdfjsWorker) {
+    try {
+      const workerModule = await import("pdfjs-dist/legacy/build/pdf.worker.mjs").catch(
+        () => import("pdfjs-dist/build/pdf.worker.mjs")
+      )
+      ;(globalThis as any).pdfjsWorker = workerModule
+    } catch (err) {
+      console.warn("[pdf-fallback-parser] Could not pre-bind pdf.worker.mjs to globalThis:", err)
+    }
+  }
+
   const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.mjs").catch(
     () => import("pdfjs-dist/build/pdf.mjs")
   )
 
-  const data = pdfData instanceof Uint8Array
-    ? new Uint8Array(pdfData.buffer, pdfData.byteOffset, pdfData.byteLength)
-    : new Uint8Array(pdfData)
-  const loadingTask = pdfjs.getDocument({
-    data,
-    useSystemFonts: true,
-    disableFontFace: true,
-  })
+  try {
+    const { pathToFileURL } = await import("node:url")
+    const { createRequire } = await import("node:module")
+    const req = createRequire(import.meta.url)
+    const workerPath = req.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs")
+    if (pdfjs.GlobalWorkerOptions) {
+      pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href
+    }
+  } catch {
+    // Ignore if require.resolve is unavailable
+  }
 
-  const doc = await loadingTask.promise
+  return pdfjs
+}
+
+async function extractWithPdftotext(
+  pdfData: Uint8Array | Buffer,
+  filename: string
+): Promise<ParsedPdfDocument | null> {
+  try {
+    const fs = await import("node:fs/promises")
+    const path = await import("node:path")
+    const os = await import("node:os")
+    const { execFile } = await import("node:child_process")
+    const { promisify } = await import("node:util")
+    const execFileAsync = promisify(execFile)
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "pdf-extract-"))
+    const tmpPdf = path.join(tmpDir, "input.pdf")
+    await fs.writeFile(tmpPdf, pdfData)
+
+    try {
+      const cmd = process.platform === "win32" ? "wsl" : "pdftotext"
+      const args = process.platform === "win32"
+        ? ["pdftotext", "-layout", tmpPdf.replace(/\\/g, "/").replace(/^([A-Za-z]):/, (_, drive) => `/mnt/${drive.toLowerCase()}`), "-"]
+        : ["-layout", tmpPdf, "-"]
+
+      const { stdout } = await execFileAsync(cmd, args, { timeout: 20_000, maxBuffer: 15 * 1024 * 1024 })
+      if (stdout && stdout.trim().length > 0) {
+        const titleHint = filename.replace(/\.pdf$/i, "").replace(/[_-]+/g, " ")
+        const pages = stdout.split("\f").filter((p, idx, arr) => idx < arr.length - 1 || p.trim().length > 0)
+        const mdPages = pages.map((pageText, idx) => `\n\n<!-- Page ${idx + 1} -->\n\n` + pageText.trim()).join("\n")
+        return {
+          md_content: `# ${titleHint}\n\n` + mdPages.trim(),
+          pageCount: Math.max(1, pages.length),
+        }
+      }
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+    }
+  } catch {
+    // pdftotext unavailable or failed
+  }
+  return null
+}
+
+export async function parsePdfWithFallback(
+  pdfData: Uint8Array | Buffer,
+  filename: string
+): Promise<ParsedPdfDocument> {
+  try {
+    const pdfjs = await initPdfJs()
+
+    const data = pdfData instanceof Uint8Array
+      ? new Uint8Array(pdfData.buffer, pdfData.byteOffset, pdfData.byteLength)
+      : new Uint8Array(pdfData)
+    const loadingTask = pdfjs.getDocument({
+      data,
+      useSystemFonts: true,
+      disableFontFace: true,
+      verbosity: 0,
+    })
+
+    const doc = await loadingTask.promise
   const pageCount = doc.numPages
   const markdownPages: string[] = []
 
@@ -120,4 +194,12 @@ export async function parsePdfWithFallback(
     md_content: markdownPages.join("\n").trim(),
     pageCount,
   }
+} catch (pdfjsErr) {
+  console.warn(`[pdf-fallback-parser] pdfjs-dist parsing failed (${pdfjsErr instanceof Error ? pdfjsErr.message : String(pdfjsErr)}), attempting pdftotext utility...`)
+  const pdftotextResult = await extractWithPdftotext(pdfData, filename)
+  if (pdftotextResult && pdftotextResult.md_content.length > 50) {
+    return pdftotextResult
+  }
+  throw pdfjsErr
+}
 }

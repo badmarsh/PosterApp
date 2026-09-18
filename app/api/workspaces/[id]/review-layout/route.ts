@@ -83,8 +83,8 @@ export async function POST(
     try {
       await runSandboxedLatex({ stage, buildCmd, timeoutMs: 30_000 })
     } catch (err: any) {
-      if (err.message === "COMPILER_UNAVAILABLE") {
-        return NextResponse.json({ error: { code: "PDF_TOOLS_UNAVAILABLE", message: "PDF layout review requires compiler tools in production" } }, { status: 503 })
+      if (err.message?.includes("COMPILER_UNAVAILABLE")) {
+        return NextResponse.json({ error: { code: "PDF_TOOLS_UNAVAILABLE", message: "PDF layout review requires compiler tools in production", details: err.message } }, { status: 503 })
       }
       throw new Error(`pdftoppm failed: ${err.message}`)
     }

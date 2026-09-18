@@ -167,7 +167,19 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({}),
         })
-        if (!res.ok && res.status !== 422) throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => "")}`)
+        if (!res.ok && res.status !== 422) {
+          const rawText = await res.text().catch(() => "")
+          let formattedError = `HTTP ${res.status}: ${rawText}`
+          try {
+            const parsed = JSON.parse(rawText)
+            if (parsed?.error?.message) {
+              formattedError = parsed.error.message
+            } else if (parsed?.error && typeof parsed.error === "string") {
+              formattedError = parsed.error
+            }
+          } catch {}
+          throw new Error(formattedError)
+        }
         const data: { ok: boolean; log: string } = await res.json()
 
         if (get().project.id !== capturedWorkspaceId) {

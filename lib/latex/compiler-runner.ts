@@ -34,36 +34,52 @@ const TEX_HARDENING_ENV = "openin_any=p openout_any=p shell_escape=f"
 
 export async function runSandboxedLatex({ stage, buildCmd, timeoutMs = 60_000, image = process.env.LATEX_COMPILER_IMAGE }: RunSandboxedLatexOptions) {
   const hardenedCmd = `export ${TEX_HARDENING_ENV}; ${buildCmd}`
+
+  // Tier 1: Containerized isolated runner (if LATEX_COMPILER_IMAGE is provided and Docker is functional)
   if (image) {
-    // Production worker: an isolated container with no network, dropped capabilities, and read-only root with staging mount.
-    return await run(
-      "docker",
-      [
-        "run",
-        "--rm",
-        "--network", "none",
-        "--user", "1000:1000",
-        "--cpus", "1",
-        "--memory", "512m",
-        "--pids-limit", "64",
-        "--security-opt", "no-new-privileges",
-        "--cap-drop=ALL",
-        "--read-only",
-        "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
-        "-v", `${stage}:/work`,
-        "-w", "/work",
-        image,
-        "sh", "-c", hardenedCmd,
-      ],
-      stage,
-      timeoutMs
-    )
+    try {
+      return await run(
+        "docker",
+        [
+          "run",
+          "--rm",
+          "--network", "none",
+          "--user", "1000:1000",
+          "--cpus", "1",
+          "--memory", "512m",
+          "--pids-limit", "64",
+          "--security-opt", "no-new-privileges",
+          "--cap-drop=ALL",
+          "--read-only",
+          "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
+          "-v", `${stage}:/work`,
+          "-w", "/work",
+          image,
+          "sh", "-c", hardenedCmd,
+        ],
+        stage,
+        timeoutMs
+      )
+    } catch (dockerErr: any) {
+      const dMsg = dockerErr instanceof Error ? dockerErr.message : String(dockerErr)
+      console.warn(`[compiler-runner] Docker runner (${image}) failed: ${dMsg.slice(0, 300)}. Falling back to local compiler...`)
+      // Fall through to local compiler tiers below
+    }
   }
 
-  // Direct local runner on Linux (in-container or Linux server)
+  // Tier 2: Direct local runner on Linux (in-container or Linux server)
   if (process.platform === "linux") {
+    const linuxEnv = [
+      'export PATH="/usr/local/texlive/2026/bin/x86_64-linux:/usr/local/texlive/2025/bin/x86_64-linux:/usr/local/texlive/2024/bin/x86_64-linux:/usr/local/bin:/usr/bin:/bin:$PATH"',
+      'ulimit -t 55 2>/dev/null || true',
+      'ulimit -f 1048576 2>/dev/null || true',
+      `export ${TEX_HARDENING_ENV}`,
+      process.env.HOME ? "" : "export HOME=/tmp",
+      "export TEXMFVAR=${TEXMFVAR:-/tmp/.texmf-var} TEXMFCACHE=${TEXMFCACHE:-/tmp/.texmf-cache}",
+    ].filter(Boolean).join("; ")
+
     try {
-      return await run("sh", ["-c", `ulimit -t 55 2>/dev/null || true; ulimit -f 51200 2>/dev/null || true; ${hardenedCmd}`], stage, timeoutMs)
+      return await run("sh", ["-c", `${linuxEnv}; ${buildCmd}`], stage, timeoutMs)
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : String(err)
       if (
@@ -72,16 +88,61 @@ export async function runSandboxedLatex({ stage, buildCmd, timeoutMs = 60_000, i
         msg.includes("pdflatex: command not found") ||
         (msg.includes("127") && !msg.includes("LaTeX"))
       ) {
-        throw new Error("COMPILER_UNAVAILABLE")
+        throw new Error(`COMPILER_UNAVAILABLE: pdflatex not found on Linux host (${msg})`)
       }
       throw err
     }
   }
 
-  // Development-only WSL fallback for Windows hosts
-  if (process.env.NODE_ENV !== "production") {
-    return await run("wsl", ["--cd", stage, "bash", "-lc", `ulimit -t 55 -v 524288 -f 20480; ${hardenedCmd}`], stage, timeoutMs)
+  // Tier 3: Direct local runner on macOS (Darwin)
+  if (process.platform === "darwin") {
+    const macEnv = [
+      'export PATH="/Library/TeX/texbin:/usr/local/bin:/opt/homebrew/bin:$PATH"',
+      'ulimit -t 55 2>/dev/null || true',
+      `export ${TEX_HARDENING_ENV}`,
+    ].join("; ")
+
+    try {
+      return await run("sh", ["-c", `${macEnv}; ${buildCmd}`], stage, timeoutMs)
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes("pdflatex: not found") || msg.includes("127")) {
+        throw new Error(`COMPILER_UNAVAILABLE: pdflatex not found on macOS host (${msg})`)
+      }
+      throw err
+    }
   }
 
-  throw new Error("COMPILER_UNAVAILABLE")
+  // Tier 4: Windows hosts (WSL or native Windows pdflatex)
+  if (process.platform === "win32") {
+    // 4A: Try WSL (standard developer & Windows deployment environment)
+    try {
+      return await run(
+        "wsl",
+        ["--cd", stage, "bash", "-lc", `ulimit -t 55 -v 524288 -f 1048576 2>/dev/null || true; ${hardenedCmd}`],
+        stage,
+        timeoutMs
+      )
+    } catch (wslErr: any) {
+      const wslMsg = wslErr instanceof Error ? wslErr.message : String(wslErr)
+
+      // If WSL succeeded in invoking pdflatex and pdflatex produced a normal LaTeX error, throw that LaTeX error directly
+      if (wslMsg.includes("LaTeX") || wslMsg.includes("Emergency stop") || wslMsg.includes("Fatal error") || wslMsg.includes("Transcript written")) {
+        throw wslErr
+      }
+
+      // 4B: Try native Windows pdflatex (e.g. MiKTeX or TeX Live installed on Windows)
+      try {
+        return await run("cmd.exe", ["/d", "/s", "/c", buildCmd], stage, timeoutMs)
+      } catch (nativeErr: any) {
+        const natMsg = nativeErr instanceof Error ? nativeErr.message : String(nativeErr)
+        if (natMsg.includes("LaTeX") || natMsg.includes("Emergency stop") || natMsg.includes("Fatal error") || natMsg.includes("Transcript written")) {
+          throw nativeErr
+        }
+        throw new Error(`COMPILER_UNAVAILABLE: Neither WSL nor native pdflatex could be executed on Windows (WSL error: ${wslMsg.slice(0, 150)}; Native error: ${natMsg.slice(0, 150)})`)
+      }
+    }
+  }
+
+  throw new Error(`COMPILER_UNAVAILABLE: Unsupported platform ${process.platform} with no available LaTeX compiler`)
 }

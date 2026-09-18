@@ -143,7 +143,7 @@ export async function POST(
     if (error instanceof Response) return error
     const msg = error instanceof Error ? error.message : "Unknown error"
     if (msg.includes("COMPILER_UNAVAILABLE")) {
-      return NextResponse.json({ error: "LaTeX compiler not configured" }, { status: 503 })
+      return NextResponse.json({ error: "LaTeX compiler not configured", details: safeLog(msg) }, { status: 503 })
     }
     console.error("[thesis-review export] Error:", msg.slice(0, 500))
     return NextResponse.json({ error: "PDF compilation failed", log: safeLog(msg) }, { status: 422 })

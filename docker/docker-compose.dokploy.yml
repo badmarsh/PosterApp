@@ -102,6 +102,8 @@ services:
       AI_API_KEY: ${AI_API_KEY}
       AI_VISION_MODEL: ${AI_VISION_MODEL:-gemini-3.8-flash}
       AI_VISION_API_KEY: ${AI_VISION_API_KEY}
+      # LaTeX Compilation (built-in texlive in image; optional isolated worker container override)
+      LATEX_COMPILER_IMAGE: ${LATEX_COMPILER_IMAGE:-}
       # MinerU Document Parsing Sidecar
       MINERU_API_URL: ${MINERU_API_URL:-http://mineru-api-wsl:8000}
       MINERU_API_KEY: ${MINERU_API_KEY}
