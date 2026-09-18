@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { apiFetch } from "@/lib/api-fetch"
-import { Trash2, AlertTriangle, Loader2, FolderOpen, RefreshCw, CheckCircle2, ShieldAlert } from "lucide-react"
+import { Trash2, AlertTriangle, Loader2, FolderOpen, RefreshCw, CheckCircle2, ShieldAlert, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -39,6 +39,7 @@ export function ManageWorkspaces() {
   const activeWorkspaceId = useEditor((s) => s.project?.id)
   const switchProject = useEditor((s) => s.switchProject)
   const setLastWorkspaceId = useEditor((s) => s.setLastWorkspaceId)
+  const openWorkspaceSelector = useEditor((s) => s.openWorkspaceSelector)
 
   const fetchWorkspaces = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -141,16 +142,27 @@ export function ManageWorkspaces() {
           <h2 className="text-lg font-bold text-foreground">Manage Workspaces</h2>
           <p className="text-xs text-muted-foreground">View, switch between, and delete your workspaces.</p>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => void fetchWorkspaces(true)}
-          disabled={refreshing}
-          className="gap-1.5 text-xs text-muted-foreground"
-        >
-          <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openWorkspaceSelector(true)}
+            className="gap-1.5 text-xs"
+          >
+            <Plus className="size-3.5" />
+            New Workspace
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void fetchWorkspaces(true)}
+            disabled={refreshing}
+            className="gap-1.5 text-xs text-muted-foreground"
+          >
+            <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3">

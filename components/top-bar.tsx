@@ -68,7 +68,7 @@ type TopBarProps = {
   agentOpen: boolean
   onToggleStructure: () => void
   onToggleAgent: () => void
-  onOpenWorkspaceSelector: () => void
+  onOpenWorkspaceSelector: (createMode?: boolean) => void
   onOpenCommandPalette: () => void
 }
 
@@ -235,10 +235,10 @@ export function TopBar({
             <DropdownMenuItem onClick={duplicateProject} className="cursor-pointer">
               Duplicate workspace
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={newProject} className="cursor-pointer">
+            <DropdownMenuItem onClick={() => onOpenWorkspaceSelector(true)} className="cursor-pointer">
               New workspace
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onOpenWorkspaceSelector} className="cursor-pointer">
+            <DropdownMenuItem onClick={() => onOpenWorkspaceSelector(false)} className="cursor-pointer">
               View all workspaces...
             </DropdownMenuItem>
           </DropdownMenuContent>

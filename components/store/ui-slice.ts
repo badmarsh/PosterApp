@@ -109,6 +109,16 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
   setIsScannerOpen: (v) => set({ isScannerOpen: v }),
   isAcademicSearchOpen: false,
   setIsAcademicSearchOpen: (v) => set({ isAcademicSearchOpen: v }),
+  isWorkspaceSelectorOpen: false,
+  workspaceSelectorCreating: false,
+  openWorkspaceSelector: (createMode = false) => set({
+    isWorkspaceSelectorOpen: true,
+    workspaceSelectorCreating: Boolean(createMode),
+  }),
+  closeWorkspaceSelector: () => set({
+    isWorkspaceSelectorOpen: false,
+    workspaceSelectorCreating: false,
+  }),
   scannerImage: null,
   setScannerImage: (img) => set({ scannerImage: img }),
   openScannerWithImage: (img) => set({ scannerImage: img, isScannerOpen: true }),

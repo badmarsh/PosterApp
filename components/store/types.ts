@@ -173,6 +173,10 @@ export interface UiSlice {
   setIsScannerOpen: (v: boolean) => void
   isAcademicSearchOpen: boolean
   setIsAcademicSearchOpen: (v: boolean) => void
+  isWorkspaceSelectorOpen: boolean
+  workspaceSelectorCreating: boolean
+  openWorkspaceSelector: (createMode?: boolean) => void
+  closeWorkspaceSelector: () => void
   scannerImage: string | null
   setScannerImage: (img: string | null) => void
   openScannerWithImage: (img: string) => void

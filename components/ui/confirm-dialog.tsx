@@ -44,7 +44,7 @@ export function ConfirmDialog({
             {destructive && <AlertTriangle className="size-4 shrink-0" />}
             <DialogTitle className={destructive ? "text-destructive" : undefined}>{title}</DialogTitle>
           </div>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogDescription render={<div />}>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter className="-mx-4 -mb-4">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={busy} autoFocus>

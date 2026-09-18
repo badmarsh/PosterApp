@@ -31,7 +31,7 @@ import { getUiCopy } from "@/lib/i18n/ui"
 
 type MobilePane = "structure" | "preview" | "editor" | "agent"
 
-function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () => void }) {
+function DesktopShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: (createMode?: boolean) => void }) {
   const editorStore = useEditorStoreInstance()
   // Panel visibility on load is a user preference (Settings → Editor).
   const [structureOpen, setStructureOpen] = useState(() => editorStore.getState().structurePanelOpenOnLoad)
@@ -164,7 +164,7 @@ function MobileNavButton({
   )
 }
 
-function MobileShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: () => void }) {
+function MobileShell({ onOpenWorkspaceSelector }: { onOpenWorkspaceSelector: (createMode?: boolean) => void }) {
   const { selectedCardId, project, agentEvents, isSwitchingProject, generatingIds } = useEditor(
     useShallow((s) => ({
       selectedCardId: s.selectedCardId,
@@ -322,7 +322,10 @@ export function Shell() {
   const isAcademicSearchOpen = useEditor((s) => s.isAcademicSearchOpen)
   const setIsAcademicSearchOpen = useEditor((s) => s.setIsAcademicSearchOpen)
 
-  const [showSelector, setShowSelector] = useState(false)
+  const isWorkspaceSelectorOpen = useEditor((s) => s.isWorkspaceSelectorOpen)
+  const workspaceSelectorCreating = useEditor((s) => s.workspaceSelectorCreating)
+  const openWorkspaceSelector = useEditor((s) => s.openWorkspaceSelector)
+  const closeWorkspaceSelector = useEditor((s) => s.closeWorkspaceSelector)
   const [hasAutoLoaded, setHasAutoLoaded] = useState(false)
 
   // Autosave is off by design; warn before the tab closes with unsaved edits.
@@ -348,22 +351,30 @@ export function Shell() {
       } else if (lastWorkspaceId && lastWorkspaceId !== DEMO_PROJECT_ID) {
         switchProject(lastWorkspaceId)
       } else {
-        setShowSelector(true)
+        openWorkspaceSelector(false)
       }
       setHasAutoLoaded(true)
     } else if (project.id === DEMO_PROJECT_ID && !isSwitchingProject) {
-      setShowSelector(true)
+      openWorkspaceSelector(false)
     }
-  }, [project.id, lastWorkspaceId, hasAutoLoaded, isSwitchingProject, switchProject])
+  }, [project.id, lastWorkspaceId, hasAutoLoaded, isSwitchingProject, switchProject, openWorkspaceSelector])
 
   if (!mounted) return <AppSkeleton />
   return (
     <>
       <CollaboratorsLayer />
-      {!isSwitchingProject && showSelector && (
-        <WorkspaceSelector onSelect={(id) => { switchProject(id); setShowSelector(false) }} onClose={() => setShowSelector(false)} />
+      {!isSwitchingProject && isWorkspaceSelectorOpen && (
+        <WorkspaceSelector
+          initialCreating={workspaceSelectorCreating}
+          onSelect={(id) => { switchProject(id); closeWorkspaceSelector() }}
+          onClose={closeWorkspaceSelector}
+        />
       )}
-      {isDesktop ? <DesktopShell onOpenWorkspaceSelector={() => setShowSelector(true)} /> : <MobileShell onOpenWorkspaceSelector={() => setShowSelector(true)} />}
+      {isDesktop ? (
+        <DesktopShell onOpenWorkspaceSelector={(createMode) => openWorkspaceSelector(Boolean(createMode))} />
+      ) : (
+        <MobileShell onOpenWorkspaceSelector={(createMode) => openWorkspaceSelector(Boolean(createMode))} />
+      )}
       <ErrorBoundary name="Ingestion Drawer">
         <IngestionDrawer />
       </ErrorBoundary>

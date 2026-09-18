@@ -9,6 +9,7 @@ vi.mock('@/lib/prisma', () => ({
   prisma: {
     workspace: {
       findMany: vi.fn(),
+      findUnique: vi.fn(),
       create: vi.fn(),
     },
   },
@@ -225,6 +226,23 @@ describe('POST /api/workspaces', () => {
     expect(res.headers.get('content-type')).toContain('application/json')
     const json = await res.json()
     expect(json.error).toBe('Unauthorized')
+  })
+
+  it('returns 409 when workspace ID already exists', async () => {
+    (mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.findUnique as any).mockResolvedValueOnce({ id: 'ws-duplicate' } as any)
+
+    const req = new Request('http://localhost/api/workspaces', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 'ws-duplicate', name: 'Duplicate Name' }),
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(409)
+    const json = await res.json()
+    expect(json.error).toContain('already exists')
+    expect(mockPrisma.workspace.create).not.toHaveBeenCalled()
   })
 })
 

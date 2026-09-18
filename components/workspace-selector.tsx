@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api-fetch"
 import { TEMPLATE_REGISTRY as TEMPLATES } from "@/lib/output-types"
-import { FolderOpen, Plus, FlaskConical, Copy, Check } from "lucide-react"
+import { FolderOpen, Plus, FlaskConical, Copy, Check, AlertCircle } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -32,9 +32,11 @@ import {
 export function WorkspaceSelector({
   onSelect,
   onClose,
+  initialCreating = false,
 }: {
   onSelect: (id: string) => void
   onClose: () => void
+  initialCreating?: boolean
 }) {
   const [activeTab, setActiveTab] = useState<"workspaces" | "research-lab">("workspaces")
   const [workspaces, setWorkspaces] = useState<any[]>([])
@@ -42,7 +44,13 @@ export function WorkspaceSelector({
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
 
-  const [isCreating, setIsCreating] = useState(false)
+  const [isCreating, setIsCreating] = useState(initialCreating)
+
+  useEffect(() => {
+    if (initialCreating) {
+      setIsCreating(true)
+    }
+  }, [initialCreating])
   const [newId, setNewId] = useState("")
   const [newName, setNewName] = useState("")
   const [newOutputType, setNewOutputType] = useState<"poster" | "slides" | "paper" | "thesis-review">("poster")
@@ -117,12 +125,19 @@ export function WorkspaceSelector({
     e.preventDefault()
     setCreateError(null)
 
-    if (!/^[a-zA-Z0-9_-]{3,32}$/.test(newId)) {
-      setCreateError("ID must be 3-32 characters, alphanumeric and dashes only")
+    const trimmedName = newName.trim()
+    let effectiveId = newId.trim()
+    if (!effectiveId && trimmedName) {
+      effectiveId = slugify(trimmedName)
+      setNewId(effectiveId)
+    }
+
+    if (!trimmedName) {
+      setCreateError("Project name is required")
       return
     }
-    if (!newName.trim()) {
-      setCreateError("Name is required")
+    if (!/^[a-zA-Z0-9_-]{3,32}$/.test(effectiveId)) {
+      setCreateError("ID must be 3-32 characters, alphanumeric and dashes only")
       return
     }
 
@@ -131,7 +146,7 @@ export function WorkspaceSelector({
       const res = await apiFetch("/api/workspaces", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: newId, name: newName, outputType: newOutputType, templateId: newTemplate || undefined }),
+        body: JSON.stringify({ id: effectiveId, name: trimmedName, outputType: newOutputType, templateId: newTemplate || undefined }),
       })
       const contentType = res.headers.get("content-type") || ""
       if (!res.ok) {
@@ -148,7 +163,8 @@ export function WorkspaceSelector({
       if (!contentType.includes("application/json")) {
         throw new Error("Invalid response format from server")
       }
-      onSelect(newId)
+      toast.success("Workspace created")
+      onSelect(effectiveId)
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : String(err))
       setIsSubmitting(false)
@@ -522,7 +538,24 @@ export function WorkspaceSelector({
             {!isDbDown && (
               isCreating ? (
                 <form onSubmit={handleCreate} className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4">
-                  <p className="text-sm font-medium">New Workspace</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold">New Workspace</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setIsCreating(false); setCreateError(null); }}
+                      className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Back to list
+                    </Button>
+                  </div>
+                  {createError && (
+                    <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center gap-2">
+                      <AlertCircle className="size-3.5 shrink-0" />
+                      <span>{createError}</span>
+                    </div>
+                  )}
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="ws-name">Project Name</Label>
                     <Input id="ws-name" autoFocus value={newName} onChange={(e) => handleNameChange(e.target.value)} placeholder="My Cool Project" disabled={isSubmitting} />
