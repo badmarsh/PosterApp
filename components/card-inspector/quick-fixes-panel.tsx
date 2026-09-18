@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { AlertTriangle, Lightbulb, Wand2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { notify } from "@/lib/notify"
@@ -11,7 +12,8 @@ import { useEditor } from "@/components/editor-store"
 export function QuickFixesPanel({ card }: { card: Card }) {
   const updateCard = useEditor((s) => s.updateCard)
   const bibKeys = useEditor((s) => s.bibKeys)
-  const allCardContents = useEditor((s) => (s.project.outputs?.find((o) => o.id === s.project.activeOutputId)?.cards ?? []).map((c) => c.content))
+  const cards = useEditor((s) => s.project.outputs?.find((o) => o.id === s.project.activeOutputId)?.cards)
+  const allCardContents = useMemo(() => (cards ?? []).map((c) => c.content), [cards])
   const quickFixes = deriveQuickFixes(card)
   const danglingCites = findDanglingCiteKeys(card.content, bibKeys)
   const danglingRefs = findDanglingRefKeys(card.content, allCardContents)

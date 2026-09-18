@@ -246,14 +246,23 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
         } else {
           if (attempts < MAX_ATTEMPTS && get().compileAutoFixEnabled) {
             get().updateEvent(evId, { detail: `Attempt ${attempts}/${MAX_ATTEMPTS} failed. Requesting LLM autofix...` })
-            const autofixRes = await apiFetch(`/api/workspaces/${project.id}/autofix-compile?revision=${revision}`, {
-               method: "POST",
-               headers: { "Content-Type": "application/json" },
-               body: JSON.stringify({ log: data.log, cards: activeOutput.cards }),
-            })
-            if (!autofixRes.ok) throw new Error(`HTTP ${autofixRes.status}: ${await autofixRes.text().catch(() => "")}`)
-            const autofixData = await autofixRes.json()
-            const fixes: Array<{ id: string; content: string }> = Array.isArray(autofixData.fixes) ? autofixData.fixes : []
+            let autofixData: { fixes?: Array<{ id: string; content: string }>; explanation?: string } | null = null
+            try {
+              const autofixRes = await apiFetch(`/api/workspaces/${project.id}/autofix-compile?revision=${revision}`, {
+                 method: "POST",
+                 headers: { "Content-Type": "application/json" },
+                 body: JSON.stringify({ log: data.log, cards: activeOutput.cards }),
+              })
+              if (autofixRes.ok) {
+                autofixData = await autofixRes.json()
+              } else {
+                const errText = await autofixRes.text().catch(() => "")
+                console.warn(`[compile] LLM autofix HTTP ${autofixRes.status}: ${errText}`)
+              }
+            } catch (afErr) {
+              console.warn("[compile] LLM autofix request failed:", afErr)
+            }
+            const fixes: Array<{ id: string; content: string }> = Array.isArray(autofixData?.fixes) ? autofixData.fixes : []
             if (fixes.length > 0) {
                // Auto-apply the patches (they were already validated server-side for
                // unsafe LaTeX and card-id membership), snapshot for undo, then loop
@@ -275,7 +284,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
                get().updateEvent(evId, {
                  status: "running",
                  title: `Compile failed — applied ${fixes.length} autofix patch${fixes.length === 1 ? "" : "es"}, retrying`,
-                 detail: `${autofixData.explanation || "AI patched the Markdown that produced invalid LaTeX."} (attempt ${attempts}/${MAX_ATTEMPTS})`,
+                 detail: `${autofixData?.explanation || "AI patched the Markdown that produced invalid LaTeX."} (attempt ${attempts}/${MAX_ATTEMPTS})`,
                  fixes,
                  fixesApplied: true,
                  undoMany: snapshot,

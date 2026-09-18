@@ -4,7 +4,7 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { generateAIResponse } from "@/lib/ai/client"
 import { CompileFixesSchema } from "@/lib/ai/contracts"
 import type { Card } from "@/lib/poster-types"
-import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, parseAiApiKey, AI_TIMEOUTS } from "@/lib/ai/models"
 import { hasUnsafeLatex } from "@/lib/latex/validation"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 
@@ -114,9 +114,11 @@ Respond EXACTLY in this JSON format (no markdown wrappers):
 
     // Parse AI model overrides from request headers
     const modelOverrides = parseAiModelOverrides(req.headers)
+    const clientApiKey = parseAiApiKey(req.headers)
 
     const parsedData = await generateAIResponse("autofix-compile", {
       model: resolveAiModelWithOverrides("autofix", modelOverrides),
+      apiKey: clientApiKey,
       systemPrompt,
       userPrompt,
       schema: CompileFixesSchema,
@@ -162,7 +164,10 @@ Respond EXACTLY in this JSON format (no markdown wrappers):
     if (error instanceof Response) return error
     console.error("Error in AI Autofix:", error)
     return NextResponse.json(
-      { error: "Failed to autofix compilation errors" },
+      {
+        error: "Failed to autofix compilation errors",
+        detail: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     )
   }
