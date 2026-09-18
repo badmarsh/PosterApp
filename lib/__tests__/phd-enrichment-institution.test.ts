@@ -79,8 +79,13 @@ describe("Task 6: Institution-aware PhD enrichment (sk/cs/en)", () => {
     })
 
     expect(result.phdEnrichment).toBeDefined()
-    expect(result.phdEnrichment.statutoryClause).toContain("§ 54")
+    // § 54 of Act 131/2002 regulates habilitation/professorship proceedings;
+    // doctoral theses are governed by § 67 — citing § 54 would be a legal error.
+    expect(result.phdEnrichment.statutoryClause).toContain("§ 67")
     expect(result.phdEnrichment.statutoryClause).toContain("131/2002")
+    expect(result.phdEnrichment.statutoryClause).not.toContain("§ 54")
+    expect(result.phdEnrichment.statutoryClause).toContain("udelenie akademického titulu")
+    expect(result.phdEnrichment.statutoryClause).toContain("PhD")
   })
 
   it("includes Czech clause for Czech institutions", async () => {
@@ -97,8 +102,9 @@ describe("Task 6: Institution-aware PhD enrichment (sk/cs/en)", () => {
     })
 
     expect(result.phdEnrichment).toBeDefined()
-    expect(result.phdEnrichment.statutoryClause).toContain("§ 54")
+    expect(result.phdEnrichment.statutoryClause).toContain("§ 54a")
     expect(result.phdEnrichment.statutoryClause).toContain("111/1998")
+    expect(result.phdEnrichment.statutoryClause).toContain("udělení akademického titulu")
   })
 
   it("does not apply thesis grading or PhD enrichment to a scientific paper", async () => {
@@ -133,7 +139,12 @@ describe("Task 6: Institution-aware PhD enrichment (sk/cs/en)", () => {
     })
 
     expect(result.phdEnrichment).toBeDefined()
-    expect(result.phdEnrichment.statutoryClause).toContain("§ 54")
+    // § 54 of Act 131/2002 regulates habilitation/professorship proceedings;
+    // doctoral theses are governed by § 67 — citing § 54 would be a legal error.
+    expect(result.phdEnrichment.statutoryClause).toContain("§ 67")
     expect(result.phdEnrichment.statutoryClause).toContain("131/2002")
+    expect(result.phdEnrichment.statutoryClause).not.toContain("§ 54")
+    expect(result.phdEnrichment.statutoryClause).toContain("udelenie akademického titulu")
+    expect(result.phdEnrichment.statutoryClause).toContain("PhD")
   })
 })

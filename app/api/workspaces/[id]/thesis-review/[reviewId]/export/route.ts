@@ -23,6 +23,7 @@ import { deserializeThesisReview } from "@/lib/ai/review-serializer"
 import { safeContentDisposition, sanitizeFilename } from "@/lib/security"
 import { WORKSPACES_ROOT, workspacePath } from "@/lib/workspace-files"
 import { safeLog, runSandboxedLatex } from "@/lib/latex/compiler-runner"
+import { checkExportCompleteness, completenessHeadersFrom } from "@/lib/ai/review-export-check"
 
 export async function POST(
   req: NextRequest,
@@ -66,11 +67,15 @@ export async function POST(
   // Parse body for optional template override and audience / confidentiality flags
   let template: ThesisReviewTemplate = "posudok-sk"
   let includeConfidential = false
+  // `strict` refuses to export a doctoral posudok that lacks the statutory
+  // content; the default is to export but advertise the gaps via headers.
+  let strict = false
   try {
     const body = await req.json().catch(() => ({}))
     if (body.includeConfidential === true || body.audience === "committee" || body.audience === "supervisor") {
       includeConfidential = true
     }
+    if (body.strict === true) strict = true
     if (body.template) template = body.template as ThesisReviewTemplate
     else if (review.language === "en") template = "posudok-en"
     else if (review.language === "cs") template = "posudok-cs"
@@ -108,7 +113,22 @@ export async function POST(
       template,
       confidentialComments: review.confidentialComments,
       includeConfidential,
+      phdEnrichment: deserialized.phdEnrichment ?? null,
     })
+
+    // Statutory completeness check (doctoral opponent reviews under SK/CZ law).
+    const completeness = checkExportCompleteness(deserialized)
+    if (!completeness.ok && strict) {
+      return NextResponse.json(
+        {
+          error: "POSUDOK_INCOMPLETE",
+          message: "Posudok nespĺňa zákonné náležitosti oponentského posudku.",
+          problems: completeness.problems,
+          missing: completeness.missing,
+        },
+        { status: 422 }
+      )
+    }
 
     // Create temp directory
     stage = await fs.mkdtemp(path.join(os.tmpdir(), `posudok-${reviewId}-`))
@@ -140,6 +160,7 @@ export async function POST(
         "Content-Type": "application/pdf",
         "Content-Disposition": safeContentDisposition(pdfFilename, "attachment"),
         "Content-Length": String(pdfBuffer.length),
+        ...completenessHeadersFrom(completeness),
       },
     })
   } catch (error) {
@@ -192,6 +213,7 @@ export async function GET(
     }
     const { generateThesisReviewDocx } = await import("@/lib/docx/generator-review")
     const deserialized = deserializeThesisReview(review)
+    const completeness = checkExportCompleteness(deserialized)
     const blob = await generateThesisReviewDocx(deserialized as any, { includeConfidential })
     const arrayBuffer = await blob.arrayBuffer()
     const docxPrefix = deserialized.reviewKind === "paper" ? "peer-review" : "posudok"
@@ -201,6 +223,7 @@ export async function GET(
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "Content-Disposition": safeContentDisposition(docxFilename, "attachment"),
+        ...completenessHeadersFrom(completeness),
       },
     })
   }

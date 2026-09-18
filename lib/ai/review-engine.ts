@@ -10,6 +10,7 @@
  */
 
 import { generateAIResponse } from "@/lib/ai/client"
+import { buildDoctoralStatutoryClause } from "@/lib/ai/review-bucketing"
 import { resolveAiModel, resolveAiModelWithOverrides, type AiModelRole } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 import { z } from "zod"
@@ -1109,12 +1110,12 @@ Respond with a valid JSON object matching this structure:
       if (options.language === "sk" || 
           institutionLower.includes("slovak") || 
           institutionLower.includes("slovensk")) {
-        statutoryClause = "Práca spĺňa všetky požiadavky kladené na dizertačné práce v zmysle § 54 ods. 3 Zákona č. 131/2002 Z. z. o vysokých školách a o zmene a doplnení niektorých zákonov."
+        statutoryClause = buildDoctoralStatutoryClause({ language: options.language, institution: options.institution })
       } else if (options.language === "cs" ||
                  institutionLower.includes("czech") ||
                  institutionLower.includes("česk") ||
                  institutionLower.includes("morav")) {
-        statutoryClause = "Práce splňuje všechny požadavky kladené na dizertační práce v souladu s § 54 odst. 3 zákona č. 111/1998 Sb., o vysokých školách."
+        statutoryClause = buildDoctoralStatutoryClause({ language: "cs", institution: options.institution })
       }
       // Otherwise: no statutory clause (non-Slovak/Czech institution)
 

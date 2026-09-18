@@ -16,6 +16,7 @@ import {
 import { THESIS_CRITERIA, type ThesisSection, type ReviewLanguage } from "@/lib/ai/thesis-rubric"
 import type { ReviewKind, ReviewFinding } from "@/lib/ai/review-types"
 import { getEligibleFindings } from "@/lib/ai/review-composer"
+import { bucketFindings } from "@/lib/ai/review-bucketing"
 import { mapUnicodeToLatex, parseMarkdownToLatex } from "./parser"
 
 // ---------------------------------------------------------------------------
@@ -181,91 +182,114 @@ ${section.suggestions.map((s) => `  \\item ${escapeProse(s)}`).join("\n")}
   return rows.join("\n\n")
 }
 
-function buildSummaryAndStrengths(
-  summary: string | null | undefined,
-  strengths: string[] | undefined,
-  lang: ReportLanguage,
+type EvaluationBlock = { heading: string; body: string }
+
+/**
+ * Localised, unnumbered headings for the evaluation blocks. Numbering is
+ * applied later, so that a block appearing or disappearing never leaves a gap
+ * in the sequence (the previous hard-coded "3." / "4." headings vanished with
+ * their section and silently shifted the whole review).
+ */
+function buildEvaluationBlocks(
+  input: ThesisReviewGeneratorInput,
   reviewKind: ReviewKind
-): string {
-  const parts: string[] = []
+): EvaluationBlock[] {
+  const lang = input.language
   const isPaper = reviewKind === "paper"
+  const L = (sk: string, cs: string, en: string) => (lang === "sk" ? sk : lang === "cs" ? cs : en)
+  const blocks: EvaluationBlock[] = []
 
-  if (summary && summary.trim()) {
-    const title = lang === "sk"
-      ? (isPaper ? "1. Zhrnutie rukopisu (Manuscript Summary)" : "1. Zhrnutie práce a hlavný prínos (Executive Summary)")
-      : lang === "cs"
-        ? (isPaper ? "1. Shrnutí rukopisu (Manuscript Summary)" : "1. Shrnutí práce a hlavní přínos (Executive Summary)")
-        : (isPaper ? "1. Manuscript Summary" : "1. Executive Summary")
-
-    parts.push(`\\Needspace{6\\baselineskip}
-\\subsection*{${escapeLatex(title)}}
-${escapeProse(nl2par(summary))}`)
+  if (input.summary && input.summary.trim()) {
+    blocks.push({
+      heading: L(
+        isPaper ? "Zhrnutie rukopisu (Manuscript Summary)" : "Zhrnutie práce a hlavný prínos (Executive Summary)",
+        isPaper ? "Shrnutí rukopisu (Manuscript Summary)" : "Shrnutí práce a hlavní přínos (Executive Summary)",
+        isPaper ? "Manuscript Summary" : "Executive Summary"
+      ),
+      body: escapeProse(nl2par(input.summary)),
+    })
   }
 
-  if (strengths && strengths.length > 0) {
-    const title = lang === "sk"
-      ? (isPaper ? "2. Podložené silné stránky rukopisu (Evidence-Grounded Strengths)" : "2. Silné stránky práce (Key Strengths)")
-      : lang === "cs"
-        ? (isPaper ? "2. Podložené silné stránky rukopisu (Evidence-Grounded Strengths)" : "2. Silné stránky práce (Key Strengths)")
-        : (isPaper ? "2. Evidence-Grounded Strengths" : "2. Key Strengths")
+  const eligible = input.findings && input.findings.length > 0
+    ? getEligibleFindings(input.findings, input.includeConfidential ? "editor" : "author")
+    : []
+  const buckets = bucketFindings(eligible)
 
-    parts.push(`\\Needspace{6\\baselineskip}
-\\subsection*{${escapeLatex(title)}}
-\\begin{itemize}[leftmargin=*,itemsep=2pt]
-${strengths.map((s) => `  \\item ${escapeProse(s)}`).join("\n")}
-\\end{itemize}`)
+  // Strengths: verified strengths found while reviewing merge with the
+  // reviewer-confirmed list. A strength is never a "concern" and therefore
+  // never belongs to the minor-concerns bucket.
+  const findingStrengths = isPaper
+    ? []
+    : buckets.strengths
+        .filter((f) => f.evidence?.some((e) => e.verified))
+        .map((f) => f.explanation || f.title)
+  const strengths = [...new Set([...(input.strengths || []), ...findingStrengths])].filter(Boolean)
+  if (strengths.length > 0) {
+    const items = strengths.map((s) => "  \\item " + escapeProse(s)).join("\n")
+    blocks.push({
+      heading: L(
+        isPaper ? "Podložené silné stránky rukopisu (Evidence-Grounded Strengths)" : "Silné stránky práce (Key Strengths)",
+        isPaper ? "Podložené silné stránky rukopisu (Evidence-Grounded Strengths)" : "Silné stránky práce (Key Strengths)",
+        isPaper ? "Evidence-Grounded Strengths" : "Key Strengths"
+      ),
+      body: "\\begin{itemize}[leftmargin=*,itemsep=2pt]\n" + items + "\n\\end{itemize}",
+    })
   }
 
-  return parts.join("\n\n")
-}
+  const recPrefix = L("Odporúčaná náprava:", "Doporučená náprava:", "Recommended fix:")
+  const evidencePrefix = L("Dôkaz v texte:", "Důkaz v textu:", "Evidence in text:")
 
-function buildFindingsBlock(
-  labels: ThesisReviewLabels,
-  findings: ReviewFinding[],
-  lang: ReportLanguage,
-  audience: "author" | "editor" = "author"
-): string {
-  const eligible = getEligibleFindings(findings, audience)
-  if (eligible.length === 0) return ""
-
-  const major = eligible.filter((f) => f.severity === "critical" || f.severity === "major")
-  const minor = eligible.filter((f) => f.severity === "minor" || f.severity === "suggestion")
-
-  const parts: string[] = []
-
-  const majorTitle = lang === "sk" ? "3. Zásadné pripomienky (Major Concerns)" : lang === "cs" ? "3. Zásadní připomínky (Major Concerns)" : "3. Major Concerns"
-  const minorTitle = lang === "sk" ? "4. Drobné pripomienky (Minor Concerns)" : lang === "cs" ? "4. Drobné připomínky (Minor Concerns)" : "4. Minor Concerns"
-  const recPrefix = lang === "sk" ? "Odporúčaná náprava:" : lang === "cs" ? "Doporučená náprava:" : "Recommended fix:"
-  const evidencePrefix = lang === "sk" ? "Dôkaz v texte:" : lang === "cs" ? "Důkaz v textu:" : "Evidence in text:"
-
-  if (major.length > 0) {
-    parts.push(`\\Needspace{8\\baselineskip}
-\\subsection*{${escapeLatex(majorTitle)}}`)
-    for (const f of major) {
-      const cat = (f.category || "general").toUpperCase()
-      const title = `[${cat}] ${f.title}`
-      const expl = nl2par(f.explanation || "")
-      const rec = f.recommendation ? `\\par\\noindent\\textit{\\textbf{${escapeLatex(recPrefix)}} ${escapeProse(f.recommendation)}}` : ""
-      const ev = f.evidence?.[0]?.quote ? `\\par\\noindent{\\small\\color{gray}\\textit{${escapeLatex(evidencePrefix)} \`\`${escapeProse(f.evidence[0].quote)}''}}` : ""
-
-      parts.push(`\\Needspace{5\\baselineskip}
-\\subsubsection*{${escapeLatex(title)}}
-${escapeProse(expl)}${rec}${ev}`)
-    }
+  const renderFinding = (f: ReviewFinding) => {
+    const cat = (f.category || "general").toUpperCase()
+    const title = `[${cat}] ${f.title}`
+    const expl = nl2par(f.explanation || "")
+    const rec = f.recommendation
+      ? "\\par\\noindent\\textit{\\textbf{" + escapeLatex(recPrefix) + "} " + escapeProse(f.recommendation) + "}"
+      : ""
+    const ev = f.evidence?.[0]?.quote
+      ? "\\par\\noindent{\\small\\color{gray}\\textit{" + escapeLatex(evidencePrefix) + " ``" + escapeProse(f.evidence[0].quote) + "''}}"
+      : ""
+    return "\\Needspace{5\\baselineskip}\n\\subsubsection*{" + escapeLatex(title) + "}\n" + escapeProse(expl) + rec + ev
   }
 
-  if (minor.length > 0) {
-    parts.push(`\\Needspace{8\\baselineskip}
-\\subsection*{${escapeLatex(minorTitle)}}
-\\begin{itemize}[leftmargin=*,itemsep=4pt]
-${minor.map((f) => {
-  const cat = (f.category || "general").toUpperCase()
-  return `  \\item \\textbf{[${escapeLatex(cat)}]} \\textbf{${escapeLatex(f.title)}}: ${escapeProse(f.explanation || "")}`
-}).join("\n")}
-\\end{itemize}`)
+  if (buckets.major.length > 0) {
+    blocks.push({
+      heading: L("Zásadné pripomienky (Major Concerns)", "Zásadní připomínky (Major Concerns)", "Major Concerns"),
+      body: buckets.major.map(renderFinding).join("\n\n"),
+    })
   }
 
-  return parts.join("\n\n")
+  if (buckets.minor.length > 0) {
+    const items = buckets.minor
+      .map((f) => {
+        const cat = (f.category || "general").toUpperCase()
+        return (
+          "  \\item \\textbf{[" + escapeLatex(cat) + "]} \\textbf{" + escapeLatex(f.title) + "}: " +
+          escapeProse(f.explanation || "")
+        )
+      })
+      .join("\n")
+    blocks.push({
+      heading: L("Drobné pripomienky (Minor Concerns)", "Drobné připomínky (Minor Concerns)", "Minor Concerns"),
+      body: "\\begin{itemize}[leftmargin=*,itemsep=4pt]\n" + items + "\n\\end{itemize}",
+    })
+  }
+
+  // Slovak/Czech doctoral opponent reviews carry a statutory clause; render it
+  // explicitly so the exported posudok contains the § 67 / § 54a wording.
+  const statutoryClause = input.phdEnrichment?.statutoryClause
+  if (reviewKind === "thesis" && input.thesisType === "phd" && input.reviewerRole === "opponent" && statutoryClause?.trim()) {
+    blocks.push({
+      heading: L(
+        "Zákonné podmienky doktorského študijného programu",
+        "Zákonné podmínky doktorského studijního programu",
+        "Statutory Requirements of the Doctoral Study Programme"
+      ),
+      body: escapeProse(statutoryClause),
+    })
+  }
+
+  return blocks
 }
 
 
@@ -384,6 +408,8 @@ export interface ThesisReviewGeneratorInput {
   /** Report language. Wider than ReviewLanguage: de/pl/hu are render-only. */
   language: ReportLanguage
   template: ThesisReviewTemplate
+  /** Optional statutory enrichment (e.g. the § 67 clause) rendered as its own block. */
+  phdEnrichment?: { statutoryClause?: string } | null
   confidentialComments?: string | null
   includeConfidential?: boolean
 }
@@ -398,13 +424,27 @@ export function generateThesisReviewLatex(input: ThesisReviewGeneratorInput): st
   const preamble = getThesisReviewPreamble(input.template, labels.title)
 
   const metaBlock = buildMetadataBlock(labels, input)
-  const summaryAndStrengthsBlock = buildSummaryAndStrengths(input.summary, input.strengths, lang, reviewKind)
-  const findingsBlock = input.findings && input.findings.length > 0
-    ? buildFindingsBlock(labels, input.findings, lang, input.includeConfidential ? "editor" : "author")
-    : ""
   const criteriaBlock = buildCriteriaTable(labels, input.sections, lang, reviewKind === "thesis")
 
-  const evaluationContent = [summaryAndStrengthsBlock, findingsBlock, criteriaBlock].filter(Boolean).join("\n\n\\vspace{0.4cm}\n\n")
+  // Numbered evaluation blocks (summary, strengths, concerns, statutory
+  // clause) followed by the per-criterion assessment. Numbers are assigned
+  // here so they stay sequential whatever subset of blocks is present.
+  const blocks = buildEvaluationBlocks(input, reviewKind)
+  const isThesis = reviewKind !== "paper"
+  let blockIndex = 0
+  const numbered = blocks.map((b) => {
+    const prefix = isThesis ? `${++blockIndex}. ` : ""
+    return `\\Needspace{6\\baselineskip}
+\\subsection*{${escapeLatex(prefix + b.heading)}}
+${b.body}`
+  })
+  if (criteriaBlock) {
+    // Per-criterion assessment, numbered in the same sequence as the blocks above.
+    numbered.push(`\\Needspace{6\\baselineskip}
+\\subsection*{${escapeLatex(isThesis ? `${++blockIndex}. ${labels.gradingLabel}` : labels.gradingLabel)}}
+${criteriaBlock}`)
+  }
+  const evaluationContent = numbered.filter(Boolean).join("\n\n\\vspace{0.4cm}\n\n")
 
   // Defense questions — may be in sections or top-level
   const defenseSection = input.sections.find((s) => s.criterionId === "defense_questions")
@@ -440,9 +480,7 @@ ${metaBlock}
 \\hrule
 \\vspace{0.5cm}
 
-\\section{${escapeLatex(labels.gradingLabel)}}
-
-${evaluationContent}
+${criteriaBlock ? `\\section{${escapeLatex(labels.gradingLabel)}}\n\n` : ""}${evaluationContent}
 
 
 ${defenseBlock}

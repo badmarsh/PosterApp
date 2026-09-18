@@ -407,6 +407,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       language: lang,
       reviewKind,
       thesisType: body.thesisMetadata.thesisType,
+      reviewerRole: body.thesisMetadata.reviewerRole,
       detailedThesisType: rubricDocumentType,
       sourceRevision,
       signal,
@@ -633,6 +634,25 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
   } else if (!result.recommendation && result.overallGrade) {
     const { gradeToRecommendation } = await import("./thesis-rubric")
     result.recommendation = gradeToRecommendation(result.overallGrade, lang)
+  }
+
+  // Doctoral opponent reviews must close with the conclusive statement. When
+  // the model produced none, attach the statutory clause (if available) and
+  // mark the verdict as pending so it can never look like an AI verdict.
+  const isDoctoralOpponent =
+    reviewKind !== "paper" && body.thesisMetadata.thesisType === "phd" && normalizedMetadata.reviewerRole === "opponent"
+  const statutoryClause: string | undefined = professionalResult?.phdEnrichment?.statutoryClause
+  if (isDoctoralOpponent) {
+    if (!result.recommendation) {
+      result.recommendation =
+        lang === "sk"
+          ? "Záverečné stanovisko (odporúčanie na obhajobu a návrh titulu PhD) doplní a podpíše recenzent."
+          : lang === "cs"
+            ? "Závěrečné stanovisko (doporučení k obhajobě a návrh titulu) doplní a podepíše recenzent."
+            : "The conclusive statement (recommendation for defence and proposed title) must be added and signed by the reviewer."
+    } else if (statutoryClause && !result.recommendation.includes("§")) {
+      result.recommendation = `${result.recommendation} ${statutoryClause}`
+    }
   }
 
   const providerProvenance = reviewProvenance.source ?? getLastServedProvider()
