@@ -155,4 +155,42 @@ describe("OpenXML DOCX Structure & Plain Text / Markdown Deep Verification", () 
     expect(txt).toContain("[METHODOLOGY] Metodologická pripomienka k augmentácii dát")
     expect(txt).not.toContain("Vynechaná interná poznámka")
   })
+
+  it("renders math and table evidence cleanly as Unicode in DOCX XML", async () => {
+    const reviewWithMathEvidence: ThesisReviewRecord = {
+      ...completeReview,
+      id: "rev-math-1",
+      findings: [
+        {
+          id: "f-math",
+          category: "results",
+          title: "Inkonzistentné parametre fitovania",
+          explanation: "Hodnoty Lévyho parametra α vykazujú systematickú odchýlku.",
+          recommendation: "Overiť systematické neistoty.",
+          severity: "major",
+          confidence: 0.9,
+          evidence: [
+            {
+              quote: "$\\alpha$    $\\equiv 2$    $\\equiv 1$    $0.81 \\pm 0.01 \\pm 0.18$",
+              verified: true,
+              state: "verified-exact",
+            },
+          ],
+          status: "accepted",
+          includeInExport: true,
+          createdBy: "ai",
+        },
+      ],
+    }
+
+    const blob = await generateThesisReviewDocx(reviewWithMathEvidence)
+    const arrayBuffer = await blob.arrayBuffer()
+    const zip = await JSZip.loadAsync(arrayBuffer)
+    const docXml = await zip.file("word/document.xml")!.async("string")
+
+    // Must contain prettified Unicode characters rather than raw unrendered LaTeX
+    expect(docXml).toContain("α ≡ 2 ≡ 1 0.81 ± 0.01 ± 0.18")
+    expect(docXml).toContain("Dôkaz v texte:")
+    expect(docXml).not.toContain("$\\alpha$")
+  })
 })

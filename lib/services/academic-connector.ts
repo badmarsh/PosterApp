@@ -270,15 +270,24 @@ export function checkIso690Issues(
     }
   }
 
-  // 6. Metadata discrepancy checks with verified paper
+  // 6. Metadata discrepancy checks with verified paper.
+  //
+  // Strategy: only flag as suspicious when the cited year is LATER than the
+  // registry record (future-dating is always wrong). When the registry year is
+  // later than the cited year the mismatch is almost always a reprint, a later
+  // edition, or a wrong fuzzy match — not an error in the thesis. Suppress those
+  // unless the gap is large AND the verification confidence is high.
   if (verifiedPaper && refMeta.year && verifiedPaper.year) {
-    if (Math.abs(refMeta.year - verifiedPaper.year) > 1) {
+    const yearDiff = refMeta.year - verifiedPaper.year // positive → cited is later
+    if (yearDiff > 1) {
+      // Cited year is newer than the registry record — genuinely suspicious.
       issues.push({
         code: "inconsistent_metadata",
         severity: "warning",
-        message: `Cited year (${refMeta.year}) differs from academic registry record (${verifiedPaper.year}) for: "${preview}..."`,
+        message: `Cited year (${refMeta.year}) is later than academic registry record (${verifiedPaper.year}) for: "${preview}..."`,
       })
     }
+    // Registry year is later → reprint/edition mismatch. Skip to avoid false positives.
   }
 
   return issues

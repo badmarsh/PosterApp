@@ -26,6 +26,7 @@ import {
 import type { ThesisReviewRecord } from "@/components/thesis-review/use-thesis-review-store"
 import { sanitizeXmlString } from "@/lib/security"
 import { getEligibleFindings } from "@/lib/ai/review-composer"
+import { stripLatexForPlainText } from "@/lib/thesis-review/latex-utils"
 
 export async function generateThesisReviewDocx(
   review: ThesisReviewRecord,
@@ -236,15 +237,19 @@ export async function generateThesisReviewDocx(
         )
       }
       if (f.evidence?.[0]?.quote) {
+        const rawQuote = f.evidence[0].quote
+        const plainQuote = sanitizeXmlString(stripLatexForPlainText(rawQuote))
         children.push(
           new Paragraph({
             children: [
-              new TextRun({ text: sanitizeXmlString(`Dôkaz v texte: "${f.evidence[0].quote}"`), italics: true, color: "555555" }),
+              new TextRun({ text: "Dôkaz v texte: ", bold: true, italics: true, color: "555555" }),
+              new TextRun({ text: `"${plainQuote}"`, italics: true, color: "555555" }),
             ],
             spacing: { after: 100 },
           })
         )
       }
+
     }
   }
 

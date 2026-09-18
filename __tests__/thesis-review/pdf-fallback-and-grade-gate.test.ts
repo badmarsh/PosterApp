@@ -35,8 +35,8 @@ describe("False Grade A and 0 findings protection", () => {
 
   it("calculates properly degraded score when findings are present", () => {
     const findings: any[] = [
-      { id: "1", severity: "major", status: "unreviewed", includeInExport: true },
-      { id: "2", severity: "minor", status: "unreviewed", includeInExport: true },
+      { id: "1", severity: "major", category: "methodology", status: "unreviewed", includeInExport: true },
+      { id: "2", severity: "minor", category: "results", status: "unreviewed", includeInExport: true },
     ]
     // 100 - 8 (major) - 2 (minor) = 90
     expect(computeScoreFromFindings(findings)).toBe(90)

@@ -5,7 +5,7 @@
  * severity triage (Major vs. Minor), audience routing, and reviewer annotation.
  */
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, memo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -43,6 +43,7 @@ import type {
 } from "@/lib/ai/review-types"
 import type { ReviewLanguage } from "@/lib/ai/thesis-rubric"
 import { StatusBadge } from "./status-badge"
+import { EvidenceQuoteViewer } from "./evidence-quote-viewer"
 import { SEVERITY_CLASSES, EPISTEMIC_CLASSES, EVIDENCE_CLASSES } from "@/lib/thesis-review/badge-styles"
 
 interface Props {
@@ -71,6 +72,7 @@ const EVIDENCE_ICONS: Record<EvidenceState, any> = {
   ambiguous: HelpCircle,
   stale: AlertCircle,
   unverified: AlertCircle,
+  "context-only": HelpCircle,
   verified: CheckCircle2,
 }
 
@@ -162,6 +164,7 @@ const LABELS: Record<ReviewLanguage, FindingCardLabels> = {
       ambiguous: "Viacero výskytov ⧉",
       stale: "Zmenená verzia ⚠",
       unverified: "Neoverený",
+      "context-only": "Kontextový úryvok",
       verified: "Presný citát ✓",
     },
     epistemic: {
@@ -236,6 +239,7 @@ const LABELS: Record<ReviewLanguage, FindingCardLabels> = {
       ambiguous: "Více výskytů ⧉",
       stale: "Změněná verze ⚠",
       unverified: "Neověřeno",
+      "context-only": "Kontextový úryvek",
       verified: "Přesná citace ✓",
     },
     epistemic: {
@@ -310,6 +314,7 @@ const LABELS: Record<ReviewLanguage, FindingCardLabels> = {
       ambiguous: "Multiple occurrences ⧉",
       stale: "Changed version ⚠",
       unverified: "Unverified",
+      "context-only": "Context-only",
       verified: "Exact quote ✓",
     },
     epistemic: {
@@ -330,7 +335,7 @@ const LABELS: Record<ReviewLanguage, FindingCardLabels> = {
   },
 }
 
-export function FindingCard({
+export const FindingCard = memo(function FindingCard({
   finding,
   lang = "sk",
   isSelected = false,
@@ -579,9 +584,13 @@ export function FindingCard({
 
       {/* Evidence Anchor Box */}
       {primaryEvidence?.quote && (
-        <div className="rounded bg-muted/30 border p-2.5 space-y-1 text-xs">
+        <div
+          onClick={() => onSelectEvidence(primaryEvidence)}
+          className="rounded bg-muted/30 hover:bg-muted/50 border hover:border-primary/40 p-2.5 space-y-1 text-xs transition-colors cursor-pointer group/evidence"
+          title={L.viewInDocument}
+        >
           <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground group-hover/evidence:text-foreground transition-colors">
               <Quote className="h-3 w-3 text-primary" /> {L.evidenceLabel}
               {primaryEvidence.chunkId && (
                 <span
@@ -597,15 +606,21 @@ export function FindingCard({
               size="sm"
               variant="ghost"
               className="h-5 px-2 text-[10px] font-semibold gap-1 text-primary hover:bg-primary/10"
-              onClick={() => onSelectEvidence(primaryEvidence)}
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelectEvidence(primaryEvidence)
+              }}
             >
               <Search className="h-3 w-3" />
               {L.viewInDocument}
             </Button>
           </div>
-          <p className="italic font-serif text-[11px] text-foreground/80 pl-2 border-l-2 border-primary/40 line-clamp-2">
-            &ldquo;{primaryEvidence.quote}&rdquo;
-          </p>
+          <div className="pl-2 border-l-2 border-primary/40 group-hover/evidence:border-primary transition-colors">
+            <EvidenceQuoteViewer
+              quote={primaryEvidence.quote}
+              className="italic font-serif text-[11px] text-foreground/85 group-hover/evidence:text-foreground transition-colors line-clamp-3"
+            />
+          </div>
         </div>
       )}
 
@@ -673,4 +688,4 @@ export function FindingCard({
       </div>
     </div>
   )
-}
+})

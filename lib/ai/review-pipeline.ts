@@ -216,12 +216,35 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       const audit = await auditThesisCitations(ragContext.referencesTitles.slice(0, 20))
       const issues = audit.results
         .filter((r) => !r.verification.found || r.iso690Issues.length > 0)
-        .map((r) => {
-          const msgs = r.iso690Issues.length > 0
-            ? r.iso690Issues.map((iss) => (typeof iss === "string" ? iss : iss.message)).join("; ")
-            : `Unverified: "${r.citedText.slice(0, 60)}"`
-          return msgs
+        .flatMap((r) => {
+          if (r.iso690Issues.length === 0) {
+            // Genuinely not found in any database — report as unverified.
+            return [`Unverified: "${r.citedText.slice(0, 60)}"`]
+          }
+          // Filter individual issues to suppress false positives:
+          //  • missing_author / missing_year on low-confidence matches → parse failure artifact
+          //  • inconsistent_metadata where registry year > cited year → reprint/edition mismatch
+          const actionable = r.iso690Issues.filter((iss) => {
+            if (typeof iss === "string") return true
+            if (
+              (iss.code === "missing_author" || iss.code === "missing_year") &&
+              r.verification.confidence !== "high"
+            ) {
+              return false // Not a real issue — just a parse failure on the title fragment
+            }
+            // "inconsistent_metadata" with registry year > cited year = reprint false positive.
+            // The year-mismatch in checkIso690Issues now only fires when cited > registry,
+            // so this guard is a belt-and-suspenders safety net.
+            if (iss.code === "inconsistent_metadata") {
+              const paper = r.verification.paper
+              const refYear = r.enriched?.year
+              if (paper?.year && refYear && paper.year > refYear) return false
+            }
+            return true
+          })
+          return actionable.map((iss) => (typeof iss === "string" ? iss : iss.message))
         })
+        .filter(Boolean)
       if (issues.length > 0) {
         citationAuditSummary = `\nCitation audit found ${audit.unverified} unverified references:\n` + issues.join("\n")
       }

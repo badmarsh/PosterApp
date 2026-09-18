@@ -109,6 +109,8 @@ export async function reviewCriterionWithEvidence(
     thesisType: ThesisType
     domainContext: string
     sourceRevision: string
+    /** Pre-fetched GraphRAG subgraph serialized text (shared across criteria). */
+    graphContext?: string
     signal?: AbortSignal
     apiKey?: string
     modelOverrides?: Partial<Record<AiModelRole, string>>
@@ -152,18 +154,26 @@ export async function reviewCriterionWithEvidence(
   const manuscriptLabel = reviewKind === "thesis" ? `${ctx.thesisType} thesis` : "scientific paper"
   const sys = `You are an academic ${reviewKind === "thesis" ? "thesis evaluator" : "peer reviewer"} assessing ONE evaluation criterion of a ${manuscriptLabel}.
 - Judge strictly the criterion: "${criterion.label}".
-- Ground EVERY finding in the retrieved evidence passages below. Each evidence item MUST copy a quote character-for-character from one passage and set "chunkId" to that passage's anchor (e.g. "c2").
+- Ground substantive findings in the retrieved evidence passages below. When citing evidence, copy a quote character-for-character from one passage and set "chunkId" to that passage's anchor (e.g. "c2").
+- If reporting a missing element or section that appears absent from the retrieved excerpts, do NOT attach an unrelated quote as fake evidence of absence. Instead set "evidence": [] and use epistemicStatus "REQUIRES_HUMAN_VERIFICATION" (or "MISSING_EVIDENCE").
+- Positive merits and well-validated methods MUST be classified as findingType: "strength", severity: "suggestion", recommendation: "None" or "Pokračovať v tomto postupe". Do NOT classify strengths as weaknesses.
+- Academic roles on title pages (Rector, Dekan, Promotor, Supervisor, Committee members) are university authorities, NOT conflicting authors. NEVER flag university officials on title pages as author inconsistencies.
+- Do NOT penalize OCR or text extraction artifacts (e.g. LaTeX apostrophe diacritics like 'byt\'', 'vol\'nym', or dense merged multi-author physics bibliographies) as student academic errors.
 - If the evidence is insufficient to judge, return few findings and use epistemicStatus "REQUIRES_HUMAN_VERIFICATION" or "MISSING_EVIDENCE" — do NOT invent issues.
 - Write all text in language code "${ctx.language}".
 - Set criterionId on every finding to "${criterion.id}".
 Respond as JSON: {"findings":[...]} with each finding matching the provided schema (title, explanation, recommendation, severity critical|major|minor|suggestion, findingType, epistemicStatus, evidence:[{quote,chunkId,sectionHeading}]).`
+
+  const graphBlock = ctx.graphContext
+    ? `\n--- KNOWLEDGE GRAPH (entity relationships — use for multi-hop reasoning) ---\n${ctx.graphContext}`
+    : ""
 
   const user = `${reviewKind === "thesis" ? "Thesis" : "Paper"}: "${ctx.documentTitle}"
 Criterion: ${criterion.label}
 Guidance: ${criterion.guidance}
 
 --- RETRIEVED EVIDENCE (cite via chunkId anchors) ---
-${evidenceBlock || "(no evidence retrieved for this criterion)"}
+${evidenceBlock || "(no evidence retrieved for this criterion)"}${graphBlock}
 
 Return the JSON object now.`
 
@@ -267,6 +277,22 @@ export async function runAgenticPerCriterionReview(opts: {
   const domainContext = resolveThesisDomainContext({ thesisTitle: opts.documentTitle })
   const concurrency = opts.concurrency ?? 3
 
+  // Fetch the GraphRAG knowledge graph once — shared across all criteria.
+  // Query combines the thesis title with all active criterion labels so the
+  // BFS seed entity linking covers the broadest relevant subgraph.
+  let sharedGraphContext: string | undefined
+  try {
+    const { retrieveGraphContext } = await import("@/lib/ai/graph-rag")
+    const graphQuery = [opts.documentTitle, ...criteria.map((c) => c.label)].join(" ").slice(0, 600)
+    const subgraph = await retrieveGraphContext(opts.workspaceId, graphQuery, {
+      charBudget: 3000,
+      documentId: opts.sourceFileId,
+    })
+    if (subgraph) sharedGraphContext = subgraph.serialized
+  } catch (graphErr) {
+    console.warn("[agentic-review] GraphRAG prefetch skipped:", graphErr)
+  }
+
   const results: AgenticCriterionResult[] = []
   let completed = 0
   for (let i = 0; i < criteria.length; i += concurrency) {
@@ -287,6 +313,7 @@ export async function runAgenticPerCriterionReview(opts: {
           thesisType: opts.thesisType,
           domainContext,
           sourceRevision: opts.sourceRevision,
+          graphContext: sharedGraphContext,
           signal: opts.signal,
           apiKey: opts.apiKey,
           modelOverrides: opts.modelOverrides,

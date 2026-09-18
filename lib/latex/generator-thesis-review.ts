@@ -14,7 +14,8 @@ import {
   type ThesisReviewLabels,
 } from "./templates-thesis"
 import { THESIS_CRITERIA, type ThesisSection, type ReviewLanguage } from "@/lib/ai/thesis-rubric"
-import type { ReviewKind } from "@/lib/ai/review-types"
+import type { ReviewKind, ReviewFinding } from "@/lib/ai/review-types"
+import { getEligibleFindings } from "@/lib/ai/review-composer"
 import { mapUnicodeToLatex, parseMarkdownToLatex } from "./parser"
 
 // ---------------------------------------------------------------------------
@@ -180,6 +181,94 @@ ${section.suggestions.map((s) => `  \\item ${escapeProse(s)}`).join("\n")}
   return rows.join("\n\n")
 }
 
+function buildSummaryAndStrengths(
+  summary: string | null | undefined,
+  strengths: string[] | undefined,
+  lang: ReportLanguage,
+  reviewKind: ReviewKind
+): string {
+  const parts: string[] = []
+  const isPaper = reviewKind === "paper"
+
+  if (summary && summary.trim()) {
+    const title = lang === "sk"
+      ? (isPaper ? "1. Zhrnutie rukopisu (Manuscript Summary)" : "1. Zhrnutie práce a hlavný prínos (Executive Summary)")
+      : lang === "cs"
+        ? (isPaper ? "1. Shrnutí rukopisu (Manuscript Summary)" : "1. Shrnutí práce a hlavní přínos (Executive Summary)")
+        : (isPaper ? "1. Manuscript Summary" : "1. Executive Summary")
+
+    parts.push(`\\Needspace{6\\baselineskip}
+\\subsection*{${escapeLatex(title)}}
+${escapeProse(nl2par(summary))}`)
+  }
+
+  if (strengths && strengths.length > 0) {
+    const title = lang === "sk"
+      ? (isPaper ? "2. Podložené silné stránky rukopisu (Evidence-Grounded Strengths)" : "2. Silné stránky práce (Key Strengths)")
+      : lang === "cs"
+        ? (isPaper ? "2. Podložené silné stránky rukopisu (Evidence-Grounded Strengths)" : "2. Silné stránky práce (Key Strengths)")
+        : (isPaper ? "2. Evidence-Grounded Strengths" : "2. Key Strengths")
+
+    parts.push(`\\Needspace{6\\baselineskip}
+\\subsection*{${escapeLatex(title)}}
+\\begin{itemize}[leftmargin=*,itemsep=2pt]
+${strengths.map((s) => `  \\item ${escapeProse(s)}`).join("\n")}
+\\end{itemize}`)
+  }
+
+  return parts.join("\n\n")
+}
+
+function buildFindingsBlock(
+  labels: ThesisReviewLabels,
+  findings: ReviewFinding[],
+  lang: ReportLanguage,
+  audience: "author" | "editor" = "author"
+): string {
+  const eligible = getEligibleFindings(findings, audience)
+  if (eligible.length === 0) return ""
+
+  const major = eligible.filter((f) => f.severity === "critical" || f.severity === "major")
+  const minor = eligible.filter((f) => f.severity === "minor" || f.severity === "suggestion")
+
+  const parts: string[] = []
+
+  const majorTitle = lang === "sk" ? "3. Zásadné pripomienky (Major Concerns)" : lang === "cs" ? "3. Zásadní připomínky (Major Concerns)" : "3. Major Concerns"
+  const minorTitle = lang === "sk" ? "4. Drobné pripomienky (Minor Concerns)" : lang === "cs" ? "4. Drobné připomínky (Minor Concerns)" : "4. Minor Concerns"
+  const recPrefix = lang === "sk" ? "Odporúčaná náprava:" : lang === "cs" ? "Doporučená náprava:" : "Recommended fix:"
+  const evidencePrefix = lang === "sk" ? "Dôkaz v texte:" : lang === "cs" ? "Důkaz v textu:" : "Evidence in text:"
+
+  if (major.length > 0) {
+    parts.push(`\\Needspace{8\\baselineskip}
+\\subsection*{${escapeLatex(majorTitle)}}`)
+    for (const f of major) {
+      const cat = (f.category || "general").toUpperCase()
+      const title = `[${cat}] ${f.title}`
+      const expl = nl2par(f.explanation || "")
+      const rec = f.recommendation ? `\\par\\noindent\\textit{\\textbf{${escapeLatex(recPrefix)}} ${escapeProse(f.recommendation)}}` : ""
+      const ev = f.evidence?.[0]?.quote ? `\\par\\noindent{\\small\\color{gray}\\textit{${escapeLatex(evidencePrefix)} \`\`${escapeProse(f.evidence[0].quote)}''}}` : ""
+
+      parts.push(`\\Needspace{5\\baselineskip}
+\\subsubsection*{${escapeLatex(title)}}
+${escapeProse(expl)}${rec}${ev}`)
+    }
+  }
+
+  if (minor.length > 0) {
+    parts.push(`\\Needspace{8\\baselineskip}
+\\subsection*{${escapeLatex(minorTitle)}}
+\\begin{itemize}[leftmargin=*,itemsep=4pt]
+${minor.map((f) => {
+  const cat = (f.category || "general").toUpperCase()
+  return `  \\item \\textbf{[${escapeLatex(cat)}]} \\textbf{${escapeLatex(f.title)}}: ${escapeProse(f.explanation || "")}`
+}).join("\n")}
+\\end{itemize}`)
+  }
+
+  return parts.join("\n\n")
+}
+
+
 function buildDefenseQuestions(labels: ThesisReviewLabels, questions: string[]): string {
   if (!questions.length) return ""
   return `\\Needspace{8\\baselineskip}
@@ -287,6 +376,9 @@ export interface ThesisReviewGeneratorInput {
   grade?: string | null
   recommendation?: string | null
   sections: ThesisSection[]
+  findings?: ReviewFinding[]
+  summary?: string | null
+  strengths?: string[]
   defenseQuestions: string[]
   citationIssues: string[]
   /** Report language. Wider than ReviewLanguage: de/pl/hu are render-only. */
@@ -306,7 +398,13 @@ export function generateThesisReviewLatex(input: ThesisReviewGeneratorInput): st
   const preamble = getThesisReviewPreamble(input.template, labels.title)
 
   const metaBlock = buildMetadataBlock(labels, input)
+  const summaryAndStrengthsBlock = buildSummaryAndStrengths(input.summary, input.strengths, lang, reviewKind)
+  const findingsBlock = input.findings && input.findings.length > 0
+    ? buildFindingsBlock(labels, input.findings, lang, input.includeConfidential ? "editor" : "author")
+    : ""
   const criteriaBlock = buildCriteriaTable(labels, input.sections, lang, reviewKind === "thesis")
+
+  const evaluationContent = [summaryAndStrengthsBlock, findingsBlock, criteriaBlock].filter(Boolean).join("\n\n\\vspace{0.4cm}\n\n")
 
   // Defense questions — may be in sections or top-level
   const defenseSection = input.sections.find((s) => s.criterionId === "defense_questions")
@@ -344,7 +442,8 @@ ${metaBlock}
 
 \\section{${escapeLatex(labels.gradingLabel)}}
 
-${criteriaBlock}
+${evaluationContent}
+
 
 ${defenseBlock}
 

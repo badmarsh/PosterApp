@@ -321,4 +321,63 @@ describe("Report languages beyond the AI rubric (de/pl/hu)", () => {
       expect(tex).not.toMatch(/[χαβ≤≥→]/)
     }
   })
+
+  it("renders structured findings, executive summary, strengths, and math evidence in LaTeX", () => {
+    const tex = generateThesisReviewLatex({
+      ...base,
+      language: "sk",
+      template: "posudok-sk",
+      summary: "Práca analyzuje Bose-Einsteinove korelácie na experimente ATLAS.",
+      strengths: ["Dôkladná analýza systematických chýb", "Validácia s experimentom CMS"],
+      findings: [
+        {
+          id: "f-1",
+          category: "methodology",
+          title: "Inkonzistentné parametre fitovania",
+          explanation: "Hodnoty Lévyho parametra $\\alpha$ vykazujú systematickú odchýlku $0.81 \\pm 0.01$.",
+          recommendation: "Overiť systematické neistoty pre parameter $R_2(Q)$.",
+          severity: "major",
+          confidence: 0.9,
+          evidence: [
+            {
+              quote: "$\\alpha$ \\equiv 2 \\equiv 1 $0.81 \\pm 0.01 \\pm 0.18$",
+              verified: true,
+              state: "verified-exact",
+            },
+          ],
+          status: "accepted",
+          includeInExport: true,
+          createdBy: "ai",
+        },
+        {
+          id: "f-2",
+          category: "formal",
+          title: "Drobné typografické nedostatky",
+          explanation: "Chýbajúce nezlomiteľné medzery v tabuľkách.",
+          recommendation: "",
+          severity: "minor",
+          confidence: 0.95,
+          evidence: [],
+          status: "accepted",
+          includeInExport: true,
+          createdBy: "ai",
+        },
+      ],
+      sections: [],
+    })
+
+    // Verify sections and content
+    expect(tex).toContain("1. Zhrnutie práce a hlavný prínos")
+    expect(tex).toContain("Bose-Einsteinove korelácie")
+    expect(tex).toContain("2. Silné stránky práce")
+    expect(tex).toContain("Validácia s experimentom CMS")
+
+    // Verify major finding with LaTeX math preserved
+    expect(tex).toContain("3. Zásadné pripomienky")
+    expect(tex).toContain("[METHODOLOGY] Inkonzistentné parametre fitovania")
+    expect(tex).toContain("Dôkaz v texte:")
+    expect(tex).toContain("4. Drobné pripomienky")
+    expect(tex).toContain("\\textbf{[FORMAL]} \\textbf{Drobné typografické nedostatky}")
+  })
 })
+

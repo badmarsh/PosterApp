@@ -605,6 +605,9 @@ function createThesisReviewStore(
         const cacheKey = `${workspaceId}:${fileId || "all"}`
         const cached = sourceDocCache.get(cacheKey)
         if (cached) {
+          if (get().sourceMarkdown === cached && !get().isLoadingSource) {
+            return cached
+          }
           set((s) => {
             s.sourceMarkdown = cached
             s.isLoadingSource = false
@@ -1279,5 +1282,7 @@ export function clearThesisReviewStoreRegistry() {
 
 if (typeof window !== "undefined") {
   ;(window as any).__thesisReviewStore = useThesisReviewStore
+  ;(window as any).__getThesisReviewStore = getThesisReviewStore
+  ;(window as any).__reviewStoreRegistry = reviewStoreRegistry
 }
 

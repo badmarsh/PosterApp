@@ -28,6 +28,15 @@ import {
 import type { EvidenceReference } from "@/lib/ai/review-types"
 import { formatDocumentDisplayName } from "@/lib/ingestion"
 import { SourceMarkdownView } from "./source-markdown-view"
+import {
+  locateAndHighlightEvidence,
+  highlightSearchQuery,
+} from "@/lib/thesis-review/evidence-dom-locator"
+import {
+  InlineMathRenderer,
+  formatPreviewSnippet,
+  parseTableFromText,
+} from "./evidence-quote-viewer"
 
 interface Props {
   workspaceId: string
@@ -48,15 +57,71 @@ export function EvidenceViewer({
   const [selectedText, setSelectedText] = useState("")
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to the first evidence match after rendering.
+  // Auto-scroll and highlight the evidence match after rendering.
   useEffect(() => {
-    if (!selectedEvidence?.quote) return
+    if (!selectedEvidence?.quote || !containerRef.current) return
+
+    let active = true
+    let t2: ReturnType<typeof setTimeout> | null = null
+    let t3: ReturnType<typeof setTimeout> | null = null
+
+    const runLocate = () => {
+      if (!active || !containerRef.current) return false
+      const matched = locateAndHighlightEvidence(
+        containerRef.current,
+        selectedEvidence.quote,
+        selectedEvidence.sectionHeading
+      )
+      if (matched) {
+        if (t2) clearTimeout(t2)
+        if (t3) clearTimeout(t3)
+        return true
+      }
+      return false
+    }
+
+    // Try at staggered intervals only if earlier attempts failed to find the target element
+    const t1 = setTimeout(() => {
+      const found = runLocate()
+      if (!found && active) {
+        t2 = setTimeout(() => {
+          const found2 = runLocate()
+          if (!found2 && active) {
+            t3 = setTimeout(runLocate, 400)
+          }
+        }, 150)
+      }
+    }, 50)
+
+    return () => {
+      active = false
+      clearTimeout(t1)
+      if (t2) clearTimeout(t2)
+      if (t3) clearTimeout(t3)
+    }
+  }, [selectedEvidence?.quote, selectedEvidence?.sectionHeading, sourceMarkdown])
+
+  // Listen to custom source-jump event
+  useEffect(() => {
+    const handleSourceJump = (event: Event) => {
+      const detail = (event as CustomEvent<{ quote?: string; sectionHeading?: string }>).detail
+      if (!detail?.quote || !containerRef.current) return
+      locateAndHighlightEvidence(containerRef.current, detail.quote, detail.sectionHeading)
+    }
+    window.addEventListener("posterapp:source-jump", handleSourceJump)
+    return () => window.removeEventListener("posterapp:source-jump", handleSourceJump)
+  }, [])
+
+  // Handle free-text search inside manuscript
+  useEffect(() => {
+    if (!containerRef.current) return
     const t = setTimeout(() => {
-      const el = containerRef.current?.querySelector("[data-evidence-match]")
-      el?.scrollIntoView({ behavior: "smooth", block: "center" })
-    }, 60)
+      if (containerRef.current) {
+        highlightSearchQuery(containerRef.current, searchQuery)
+      }
+    }, 150)
     return () => clearTimeout(t)
-  }, [selectedEvidence, sourceMarkdown])
+  }, [searchQuery, sourceMarkdown])
 
   const handleMouseUp = () => {
     const selection = window.getSelection()
@@ -108,6 +173,13 @@ export function EvidenceViewer({
         </Badge>
       )
     }
+    if (st === "context-only") {
+      return (
+        <Badge variant="outline" className="text-[10px] text-muted-foreground border-border gap-1 bg-muted/40 font-semibold shrink-0">
+          <HelpCircle className="h-3 w-3" /> Kontextový úryvok (neoveruje absenciu)
+        </Badge>
+      )
+    }
     return (
       <Badge variant="outline" className="text-[10px] text-muted-foreground gap-1 shrink-0">
         <AlertCircle className="h-3 w-3" /> Neoverený
@@ -156,27 +228,46 @@ export function EvidenceViewer({
         </div>
       </div>
 
-      {/* Floating selection action bar */}
-      {selectedText && onAddFindingFromSelection && (
-        <div className="bg-primary text-primary-foreground px-4 py-2 flex items-center justify-between shadow-lg text-xs z-20 animate-in fade-in slide-in-from-top-1 border-b border-primary/20">
-          <div className="flex items-center gap-2 truncate pr-2">
-            <Highlighter className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate max-w-sm italic font-serif">&ldquo;{selectedText.slice(0, 75)}...&rdquo;</span>
+      {/* Floating selection action bar with live math & table typesetting */}
+      {selectedText && onAddFindingFromSelection && (() => {
+        const { snippet, isTruncated } = formatPreviewSnippet(selectedText, 95)
+        const isTable = parseTableFromText(selectedText) !== null
+
+        return (
+          <div className="bg-primary text-primary-foreground px-3.5 py-2 flex items-center justify-between shadow-xl text-xs z-20 animate-in fade-in slide-in-from-top-1 border-b border-primary/20 gap-3">
+            <div className="flex items-center gap-2 min-w-0 pr-2">
+              <Highlighter className="h-3.5 w-3.5 shrink-0 text-primary-foreground/80" />
+              {isTable && (
+                <Badge
+                  variant="secondary"
+                  className="h-4.5 text-[9px] px-1.5 py-0 font-bold uppercase tracking-wider bg-primary-foreground/15 text-primary-foreground border-primary-foreground/20 shrink-0"
+                >
+                  Tabuľka
+                </Badge>
+              )}
+              <span className="truncate max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl italic font-serif inline-flex items-center gap-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] sm:text-xs text-primary-foreground">
+                <span className="shrink-0 font-sans font-normal">&ldquo;</span>
+                <span className="truncate inline-block max-w-full">
+                  <InlineMathRenderer text={snippet} />
+                </span>
+                <span className="shrink-0 font-sans font-normal">{isTruncated ? "…&rdquo;" : "&rdquo;"}</span>
+              </span>
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-6.5 text-[11px] font-bold gap-1.5 shrink-0 shadow-2xs cursor-pointer hover:bg-secondary/90 transition-all"
+              onClick={() => {
+                onAddFindingFromSelection(selectedText, selectedEvidence?.sectionHeading)
+                setSelectedText("")
+              }}
+            >
+              <PlusCircle className="h-3 w-3 text-primary" />
+              Vytvoriť pripomienku
+            </Button>
           </div>
-          <Button
-            size="sm"
-            variant="secondary"
-            className="h-6.5 text-[11px] font-bold gap-1.5 shrink-0 shadow-2xs cursor-pointer"
-            onClick={() => {
-              onAddFindingFromSelection(selectedText, selectedEvidence?.sectionHeading)
-              setSelectedText("")
-            }}
-          >
-            <PlusCircle className="h-3 w-3 text-primary" />
-            Vytvoriť pripomienku
-          </Button>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Main Document Content Canvas (Paper Sheet with Shadow) */}
       <div

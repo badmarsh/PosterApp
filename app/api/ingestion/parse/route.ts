@@ -579,6 +579,75 @@ export async function POST(req: Request) {
     }
 
     if (results.md_content) {
+      // Build a char-offset → page map from middle_json so we can assign correct
+      // page numbers to equations found via regex in md_content.
+      const mdPageBoundaries: number[] = [] // cumulative middle-space char offsets per page
+      if (results.middle_json) {
+        try {
+          const middle = typeof results.middle_json === "string" ? JSON.parse(results.middle_json) : results.middle_json
+          let cumOffset = 0
+          for (const p of middle.pdf_info || []) {
+            let pageChars = 0
+            const countChars = (node: unknown) => {
+              if (!node || typeof node !== "object") return
+              const n = node as Record<string, unknown>
+              if (typeof n.text === "string") pageChars += n.text.length
+              if (typeof n.latex === "string") pageChars += n.latex.length
+              for (const k of Object.keys(n)) countChars(n[k])
+            }
+            countChars(p)
+            cumOffset += Math.max(pageChars, 1)
+            mdPageBoundaries.push(cumOffset)
+          }
+        } catch { /* non-fatal */ }
+      }
+      const guessPageFromCharOffset = (charIdx: number): number => {
+        if (mdPageBoundaries.length === 0) return 1
+        const totalMiddleChars = mdPageBoundaries[mdPageBoundaries.length - 1]
+        const mdLen = results.md_content!.length
+        const scaledIdx = Math.round((charIdx / Math.max(1, mdLen)) * totalMiddleChars)
+        for (let pi = 0; pi < mdPageBoundaries.length; pi++) {
+          if (scaledIdx <= mdPageBoundaries[pi]) return pi + 1
+        }
+        return mdPageBoundaries.length
+      }
+      // Build high-accuracy anchor map from image & table occurrences in markdown
+      const anchors: { offset: number; page: number }[] = []
+      for (const [imgName, pNum] of pageMap.entries()) {
+        const idx = results.md_content!.indexOf(imgName)
+        if (idx !== -1) {
+          anchors.push({ offset: idx, page: pNum })
+        }
+      }
+      anchors.sort((a, b) => a.offset - b.offset)
+
+      const guessPage = (charIdx: number): number => {
+        if (anchors.length > 0) {
+          if (charIdx <= anchors[0].offset) return Math.max(1, anchors[0].page)
+          if (charIdx >= anchors[anchors.length - 1].offset) return anchors[anchors.length - 1].page
+          let low = 0, high = anchors.length - 1
+          while (low <= high) {
+            const mid = Math.floor((low + high) / 2)
+            if (anchors[mid].offset <= charIdx) low = mid + 1
+            else high = mid - 1
+          }
+          const prev = anchors[high]
+          const next = anchors[low]
+          if (!next) return prev.page
+          const ratio = (charIdx - prev.offset) / Math.max(1, next.offset - prev.offset)
+          return Math.max(1, Math.round(prev.page + ratio * (next.page - prev.page)))
+        }
+        return guessPageFromCharOffset(charIdx)
+      }
+
+      const getNearestHeading = (charIdx: number): string | undefined => {
+        const sub = results.md_content!.slice(0, charIdx)
+        const all = Array.from(sub.matchAll(/^#+\s+([^\n]+)/gm))
+        if (all.length === 0) return undefined
+        const last = all[all.length - 1][1].trim()
+        return last.replace(/^[*_#`]+|[*_#`]+$/g, '').slice(0, 40)
+      }
+
       const displayMathRegex = /\$\$([\s\S]+?)\$\$|\\begin\{(?:equation|align|gather|multline)\*?\}([\s\S]+?)\\end\{(?:equation|align|gather|multline)\*?\}/g
       let match
       let eqCount = extractedEquations.length + 1
@@ -594,7 +663,8 @@ export async function POST(req: Request) {
           )
           extractedEquations.push({
             formula: clean,
-            page: 1,
+            page: guessPage(matchIdx),
+            section: getNearestHeading(matchIdx),
             title: `Equation ${eqCount++}`,
             contextSnippet: contextSnippet.slice(0, 1000),
           })
@@ -638,7 +708,7 @@ export async function POST(req: Request) {
         heading: eqKey,
         caption: eq.title || `Equation: ${eq.formula.slice(0, 40)}`,
         snippet: eq.formula,
-        section: undefined,
+        section: eq.section,
         bbox: undefined,
         page: eq.page,
       })

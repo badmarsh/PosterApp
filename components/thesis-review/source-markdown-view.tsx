@@ -9,7 +9,7 @@
  *  5. Subscripts (<sub>), superscripts (<sup>), and synchronized evidence/query highlighting.
  */
 
-import React, { useEffect, useState, useMemo } from "react"
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
 import remarkMath from "remark-math"
 import remarkGfm from "remark-gfm"
@@ -74,52 +74,6 @@ export function preprocessMathAndHtml(markdown: string): string {
   processed = processed.replace(/([^\n])\n\$\$([^\$]+)\$\$\n([^\n])/g, (_, p1, p2, p3) => `${p1}\n\n$$\n${p2.trim()}\n$$\n\n${p3}`)
 
   return processed
-}
-
-/** Highlight every normalized match of `needle` in a rendered text node. */
-function highlightInText(text: string, needle: string | undefined): React.ReactNode {
-  if (!needle) return text
-  const normNeedle = normalizeStr(needle)
-  if (normNeedle.length < 3) return text
-  const normText = normalizeStr(text)
-  const idx = normText.indexOf(normNeedle)
-  if (idx === -1) return text
-
-  const origChars = [...text]
-  let normPos = 0
-  let startOrig = -1
-  let endOrig = -1
-  for (let i = 0; i < origChars.length; i++) {
-    if (/\s/.test(origChars[i])) continue
-    if (normPos === idx && startOrig === -1) startOrig = i
-    normPos++
-    if (normPos === idx + normNeedle.length) {
-      endOrig = i + 1
-      break
-    }
-  }
-  if (startOrig === -1 || endOrig === -1) return text
-  return (
-    <>
-      {text.slice(0, startOrig)}
-      <mark
-        data-evidence-match="true"
-        className="bg-primary/25 text-foreground border-b-2 border-primary font-medium rounded-md px-0.5"
-      >
-        {text.slice(startOrig, endOrig)}
-      </mark>
-      {text.slice(endOrig)}
-    </>
-  )
-}
-
-/** A text-node wrapper component that applies highlight across the rendered tree. */
-function makeTextComponent(needle: string | undefined): Components["text"] {
-  return function Text({ children }) {
-    if (typeof children !== "string") return <>{children}</>
-    const highlighted = highlightInText(children, needle)
-    return <span>{highlighted}</span>
-  }
 }
 
 /** Stateful manuscript image component with zoom lightbox and fallback */
@@ -255,6 +209,176 @@ function ManuscriptImage({
   )
 }
 
+export interface MarkdownChunk {
+  id: string
+  heading?: string
+  rawText: string
+}
+
+/**
+ * Splits manuscript markdown into logical section chunks (by headings or paragraph breaks)
+ * while preserving atomic blocks: display math ($$...$$), code blocks (```), and HTML tables.
+ */
+export function chunkManuscriptMarkdown(
+  markdown: string,
+  maxChunkChars = 12000
+): MarkdownChunk[] {
+  if (!markdown || !markdown.trim()) return []
+
+  const lines = markdown.split(/\r?\n/)
+  const chunks: MarkdownChunk[] = []
+
+  let currentLines: string[] = []
+  let currentHeading: string | undefined = undefined
+  let inCodeBlock = false
+  let inMathBlock = false
+  let inTableBlock = false
+  let chunkIndex = 0
+
+  const flushChunk = () => {
+    const text = currentLines.join("\n").trim()
+    if (text) {
+      chunks.push({
+        id: `chunk-${chunkIndex++}`,
+        heading: currentHeading,
+        rawText: text,
+      })
+    }
+    currentLines = []
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const trimmed = line.trim()
+
+    // Track fenced code blocks ``` or ~~~
+    if (/^(```|~~~)/.test(trimmed)) {
+      inCodeBlock = !inCodeBlock
+    }
+
+    // Track $$ display math blocks
+    if (/^\$\$/.test(trimmed)) {
+      if (trimmed === "$$") {
+        inMathBlock = !inMathBlock
+      } else if (trimmed.length > 2 && trimmed.endsWith("$$")) {
+        // Single-line $$ ... $$
+      } else {
+        inMathBlock = !inMathBlock
+      }
+    }
+
+    // Track HTML table blocks
+    if (/<table\b/i.test(trimmed)) inTableBlock = true
+    if (/<\/table>/i.test(trimmed)) inTableBlock = false
+
+    const isSafeBoundary = !inCodeBlock && !inMathBlock && !inTableBlock
+
+    // Split on Markdown headings (# Heading, ## Heading, ### Heading)
+    const isHeading = isSafeBoundary && /^#{1,4}\s+(.+)$/.test(line)
+
+    // Split on large size if empty line / paragraph break
+    const currentLength = currentLines.reduce((acc, l) => acc + l.length + 1, 0)
+    const isSizeOverflow = isSafeBoundary && currentLength >= maxChunkChars && trimmed === ""
+
+    if ((isHeading && currentLines.length > 0) || isSizeOverflow) {
+      flushChunk()
+      if (isHeading) {
+        const match = line.match(/^#{1,4}\s+(.+)$/)
+        currentHeading = match ? match[1].trim() : undefined
+      } else {
+        currentHeading = undefined
+      }
+    } else if (isHeading && currentLines.length === 0) {
+      const match = line.match(/^#{1,4}\s+(.+)$/)
+      currentHeading = match ? match[1].trim() : undefined
+    }
+
+    currentLines.push(line)
+  }
+
+  flushChunk()
+
+  if (chunks.length === 0 && markdown.trim()) {
+    return [{ id: "chunk-0", rawText: markdown.trim() }]
+  }
+
+  return chunks
+}
+
+interface MarkdownSectionChunkProps {
+  chunk: MarkdownChunk
+  components: Components
+  isVisible: boolean
+  onIntersect: (id: string) => void
+}
+
+const MarkdownSectionChunk = React.memo(function MarkdownSectionChunk({
+  chunk,
+  components,
+  isVisible,
+  onIntersect,
+}: MarkdownSectionChunkProps) {
+  const placeholderRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (isVisible) return
+    const el = placeholderRef.current
+    if (!el || typeof IntersectionObserver === "undefined") return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          onIntersect(chunk.id)
+        }
+      },
+      { rootMargin: "600px 0px" }
+    )
+
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [isVisible, chunk.id, onIntersect])
+
+  if (!isVisible) {
+    return (
+      <div
+        ref={placeholderRef}
+        data-chunk-id={chunk.id}
+        className="my-3 p-3.5 rounded-xl border border-dashed border-border/40 bg-muted/10 min-h-[80px] flex items-center justify-between text-muted-foreground transition-all"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <FileText className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+          <span className="text-xs font-medium text-foreground/75 truncate">
+            {chunk.heading || "Sekcia rukopisu"}
+          </span>
+        </div>
+        <span className="text-[10px] font-mono text-muted-foreground/70 shrink-0 ml-2">
+          ~{Math.round(chunk.rawText.length / 5)} slov
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      data-chunk-id={chunk.id}
+      className="markdown-chunk-rendered"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "0 350px" }}
+    >
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[
+          rehypeRaw,
+          rehypeSanitize,
+          [rehypeKaTeX, { throwOnError: false, strict: false, trust: false }],
+        ]}
+        components={components}
+      >
+        {chunk.rawText}
+      </ReactMarkdown>
+    </div>
+  )
+})
+
 interface Props {
   markdown: string
   workspaceId?: string
@@ -270,26 +394,151 @@ export function SourceMarkdownView({
   highlightQuote,
   searchQuery,
 }: Props) {
-  const [jumpQuote, setJumpQuote] = useState<string | undefined>(undefined)
+  const cleanMarkdown = useMemo(() => preprocessMathAndHtml(markdown), [markdown])
+  const chunks = useMemo(() => chunkManuscriptMarkdown(cleanMarkdown), [cleanMarkdown])
+
+  // Initialize first 3 chunks (or all if doc is small)
+  const [visibleChunkIds, setVisibleChunkIds] = useState<Set<string>>(() => {
+    const initial = new Set<string>()
+    const isSmall = cleanMarkdown.length <= 25_000
+    for (let i = 0; i < chunks.length; i++) {
+      if (isSmall || i < 3) {
+        initial.add(chunks[i].id)
+      }
+    }
+    return initial
+  })
+
+  // Reset when source text changes completely
   useEffect(() => {
-    const handleSourceJump = (event: Event) => {
-      const detail = (event as CustomEvent<{ quote?: string }>).detail
-      if (!detail?.quote) return
-      setJumpQuote(detail.quote)
-      window.setTimeout(() => {
-        document.querySelector("[data-evidence-match]")?.scrollIntoView({ behavior: "smooth", block: "center" })
-      }, 80)
+    const isSmall = cleanMarkdown.length <= 25_000
+    const initial = new Set<string>()
+    for (let i = 0; i < chunks.length; i++) {
+      if (isSmall || i < 3) {
+        initial.add(chunks[i].id)
+      }
+    }
+    setVisibleChunkIds(initial)
+  }, [cleanMarkdown, chunks])
+
+  const handleIntersect = useCallback((id: string) => {
+    setVisibleChunkIds((prev) => {
+      if (prev.has(id)) return prev
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
+  }, [])
+
+  // Idle progressive loader to reveal off-screen chunks in background without blocking UI
+  useEffect(() => {
+    if (visibleChunkIds.size >= chunks.length) return
+
+    let cancelled = false
+    let timerId: ReturnType<typeof setTimeout> | null = null
+    let idleHandle: number | null = null
+
+    const scheduleNext = () => {
+      if (cancelled) return
+      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+        idleHandle = (window as any).requestIdleCallback(renderNextBatch, { timeout: 200 })
+      } else {
+        timerId = setTimeout(renderNextBatch, 80)
+      }
+    }
+
+    const renderNextBatch = () => {
+      if (cancelled) return
+      setVisibleChunkIds((prev) => {
+        if (prev.size >= chunks.length) return prev
+        const next = new Set(prev)
+        let added = 0
+        for (const chunk of chunks) {
+          if (!next.has(chunk.id)) {
+            next.add(chunk.id)
+            added++
+            if (added >= 2) break
+          }
+        }
+        return next
+      })
+      scheduleNext()
+    }
+
+    scheduleNext()
+
+    return () => {
+      cancelled = true
+      if (timerId) clearTimeout(timerId)
+      if (idleHandle && typeof window !== "undefined" && "cancelIdleCallback" in window) {
+        (window as any).cancelIdleCallback(idleHandle)
+      }
+    }
+  }, [chunks, visibleChunkIds.size])
+
+  // Immediately reveal chunk matching active quote
+  useEffect(() => {
+    if (!highlightQuote || highlightQuote.trim().length < 4) return
+    const normQuote = highlightQuote.toLowerCase().trim()
+    const targetChunk = chunks.find((c) => c.rawText.toLowerCase().includes(normQuote))
+    if (targetChunk) {
+      setVisibleChunkIds((prev) => {
+        if (prev.has(targetChunk.id)) return prev
+        const next = new Set(prev)
+        next.add(targetChunk.id)
+        return next
+      })
+    }
+  }, [highlightQuote, chunks])
+
+  // Immediately reveal chunks matching search query
+  useEffect(() => {
+    if (!searchQuery || searchQuery.trim().length < 3) return
+    const normQ = searchQuery.toLowerCase().trim()
+    const matching = chunks.filter((c) => c.rawText.toLowerCase().includes(normQ))
+    if (matching.length > 0) {
+      setVisibleChunkIds((prev) => {
+        let changed = false
+        const next = new Set(prev)
+        for (const m of matching) {
+          if (!next.has(m.id)) {
+            next.add(m.id)
+            changed = true
+          }
+        }
+        return changed ? next : prev
+      })
+    }
+  }, [searchQuery, chunks])
+
+  // Immediately reveal chunk on source jump event
+  useEffect(() => {
+    const handleSourceJump = (e: Event) => {
+      const detail = (e as CustomEvent<{ quote?: string; sectionHeading?: string }>).detail
+      if (!detail) return
+      const targetText = (detail.quote || detail.sectionHeading || "").toLowerCase().trim()
+      if (targetText.length < 4) return
+
+      const target = chunks.find(
+        (c) =>
+          c.rawText.toLowerCase().includes(targetText) ||
+          (c.heading && c.heading.toLowerCase().includes(targetText))
+      )
+      if (target) {
+        setVisibleChunkIds((prev) => {
+          if (prev.has(target.id)) return prev
+          const next = new Set(prev)
+          next.add(target.id)
+          return next
+        })
+      }
     }
     window.addEventListener("posterapp:source-jump", handleSourceJump)
     return () => window.removeEventListener("posterapp:source-jump", handleSourceJump)
-  }, [])
-
-  const cleanMarkdown = useMemo(() => preprocessMathAndHtml(markdown), [markdown])
-  const activeHighlight = jumpQuote || highlightQuote
+  }, [chunks])
 
   const components = useMemo<Components>(
     () => ({
-      text: makeTextComponent(activeHighlight || searchQuery),
       h1: ({ children }) => (
         <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight pt-6 pb-2 border-b-2 border-border/60">
           {children}
@@ -406,18 +655,20 @@ export function SourceMarkdownView({
         />
       ),
     }),
-    [activeHighlight, searchQuery, workspaceId]
+    [workspaceId]
   )
 
   return (
-    <div className="source-markdown-view text-sm sm:text-sm [&_.katex]:text-foreground/90 [&_.katex]:font-normal">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeRaw, rehypeSanitize, [rehypeKaTeX, { throwOnError: false, strict: false, trust: false }]]}
-        components={components}
-      >
-        {cleanMarkdown}
-      </ReactMarkdown>
+    <div className="source-markdown-view text-sm sm:text-sm [&_.katex]:text-foreground/90 [&_.katex]:font-normal space-y-3">
+      {chunks.map((chunk) => (
+        <MarkdownSectionChunk
+          key={chunk.id}
+          chunk={chunk}
+          components={components}
+          isVisible={visibleChunkIds.has(chunk.id)}
+          onIntersect={handleIntersect}
+        />
+      ))}
     </div>
   )
 }

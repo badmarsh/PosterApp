@@ -23,7 +23,7 @@ const T = {
     confirmed: "Potvrdená známka recenzentom",
     noRating: "bez hodnotenia",
     weight: "váha",
-    deductions: "kritické −20 · závažné −8 · drobné −2 · návrhy −0,5 (len prijaté a upravené zistenia)",
+    deductions: "kritické −20 · závažné −8 · drobné −2 · návrhy 0 (len prijaté a upravené zistenia)",
     note: "Známka je návrh. Konečné rozhodnutie potvrdzuje recenzent tlačidlom „Potvrdiť známku“.",
     thresholds: "Prahy ECTS: A ≥ 90 · B ≥ 80 · C ≥ 70 · D ≥ 60 · E ≥ 50 · inak FX",
   },
@@ -37,7 +37,7 @@ const T = {
     confirmed: "Potvrzená známka recenzentem",
     noRating: "bez hodnocení",
     weight: "váha",
-    deductions: "kritická −20 · závažná −8 · drobná −2 · návrhy −0,5 (jen přijatá a upravená zjištění)",
+    deductions: "kritická −20 · závažná −8 · drobná −2 · návrhy 0 (jen přijatá a upravená zjištění)",
     note: "Známka je návrh. Konečné rozhodnutí potvrzuje recenzent tlačítkem „Potvrdit známku“.",
     thresholds: "Prahy ECTS: A ≥ 90 · B ≥ 80 · C ≥ 70 · D ≥ 60 · E ≥ 50 · jinak FX",
   },
@@ -51,18 +51,63 @@ const T = {
     confirmed: "Grade confirmed by reviewer",
     noRating: "not rated",
     weight: "weight",
-    deductions: "critical −20 · major −8 · minor −2 · suggestion −0.5 (accepted and edited findings only)",
+    deductions: "critical −20 · major −8 · minor −2 · suggestion 0 (accepted and edited findings only)",
     note: "The grade is a proposal. The reviewer confirms the final decision with “Confirm grade”.",
     thresholds: "ECTS thresholds: A ≥ 90 · B ≥ 80 · C ≥ 70 · D ≥ 60 · E ≥ 50 · otherwise FX",
   },
 } as const
 
 /** Mirrors computeScoreFromFindings in lib/ai/review-engine.ts (kept client-safe here). */
-const FINDING_DEDUCTIONS: Record<string, number> = { critical: 20, major: 8, minor: 2, suggestion: 0.5 }
+const FINDING_DEDUCTIONS: Record<string, number> = { critical: 20, major: 8, minor: 2, suggestion: 0 }
+const MAX_FORMAL_DEDUCTION = 8
+
 function scoreFromFindings(findings: ReviewFinding[]): number {
-  let score = 100
-  for (const f of findings) score -= FINDING_DEDUCTIONS[f.severity as string] ?? 0
-  return Math.min(100, Math.max(10, score))
+  let substantiveDeduction = 0
+  let formalDeduction = 0
+
+  for (const f of findings) {
+    if (f.findingType === "strength" || f.findingType === "question") continue
+
+    // Secondary heuristic guard for mislabeled praise (primary guard is findingType:"strength")
+    const recLower = (f.recommendation || "").toLowerCase()
+    const isPraise =
+      recLower === "žiadne" ||
+      recLower === "žiadne." ||
+      recLower === "none" ||
+      recLower === "none." ||
+      recLower.includes("postup je správny") ||
+      recLower.includes("pokračovať v tomto")
+    if (isPraise) continue
+
+    const severity = (f.severity as string) || "minor"
+    const rawDeduction = FINDING_DEDUCTIONS[severity] ?? 0
+    if (rawDeduction === 0) continue
+
+    // Inverted formal-cap: cap everything that is NOT a known substantive category.
+    // Fail-safe: unknown/mislabeled findings default to capped, not uncapped.
+    const isDefinitelySubstantive =
+      f.category === "methodology" ||
+      f.category === "results" ||
+      f.category === "statistics" ||
+      f.category === "ethics" ||
+      f.category === "reproducibility" ||
+      f.category === "literature" ||
+      f.criterionId === "methodology_rigor" ||
+      f.criterionId === "analytical_execution" ||
+      f.criterionId === "results_validity" ||
+      f.criterionId === "results_interpretation" ||
+      f.criterionId === "originality" ||
+      f.criterionId === "originality_contribution"
+
+    if (isDefinitelySubstantive) {
+      substantiveDeduction += rawDeduction
+    } else {
+      formalDeduction += Math.min(rawDeduction, MAX_FORMAL_DEDUCTION)
+    }
+  }
+
+  const cappedFormal = Math.min(formalDeduction, MAX_FORMAL_DEDUCTION)
+  return Math.min(100, Math.max(10, 100 - substantiveDeduction - cappedFormal))
 }
 
 export function GradeDerivationPopover({

@@ -12,6 +12,7 @@ import * as path from "path"
 import type { ThesisMetadata, ReviewLanguage } from "./thesis-rubric"
 import { WORKSPACES_ROOT } from "@/lib/workspace-files"
 import { prisma } from "@/lib/prisma"
+import { resolveCriterionFamily } from "./vector-rag"
 
 // ---------------------------------------------------------------------------
 // Context Budgets
@@ -362,28 +363,68 @@ export function extractStructuredReferences(markdown: string): ExtractedReferenc
     let title: string | undefined
     const authors: string[] = []
 
-    // ISO 690 style: AUTHOR, First. Year. Title.
-    // or Author, A. (Year) Title.
-    const titleMatch = raw.match(/(?:(?:19|20)\d{2}[a-z]?[\).:]\s*|\.\s+)(["'„]?([A-Z\p{Lu}][^.?!]{10,180}?)[.?!]["'“]?\s*(?:In:|Available|Dostupné|DOI|http|ISBN|pp\.|Vol\.))/u)
-    if (titleMatch && titleMatch[1]) {
-      title = titleMatch[1].replace(/^[„"']|[“"']$/g, "").trim()
-    } else {
-      // Fallback: take segment between first period/comma and publication year/container
-      const segMatch = raw.match(/^[^\.,]+[\.,]\s*([^.,]{10,150})/i)
-      if (segMatch) {
-        title = segMatch[1].trim()
-      } else {
-        title = raw.slice(0, 100).trim()
+    // 1. Quoted title check: "Title" or “Title” or „Title“
+    const quotedTitleMatch = raw.match(/["“„]([^"”„]{5,180})["”„]/)
+    if (quotedTitleMatch) {
+      title = quotedTitleMatch[1].trim()
+    }
+
+    // 2. ISO 690 style: AUTHOR, First. Year. Title. In:... or Author, A. (Year) Title.
+    if (!title) {
+      const titleMatch = raw.match(/(?:(?:19|20)\d{2}[a-z]?[\).:]\s*|\.\s+)(["'„]?([A-Z\p{Lu}][^.?!]{10,180}?)[.?!]["'“]?\s*(?:In:|Available|Dostupné|DOI|http|ISBN|pp\.|Vol\.))/u)
+      if (titleMatch && titleMatch[1]) {
+        title = titleMatch[1].replace(/^[„"']|[“"']$/g, "").trim()
       }
     }
 
-    // Authors heuristic: string before first year or period
-    const authorSeg = raw.split(/(?:19|20)\d{2}|\.\s+[A-Z]/)[0]
-    if (authorSeg && authorSeg.length < 80) {
+    // Authors heuristic: string before extracted title, year, or journal separator
+    let authorSeg = ""
+
+    if (title && raw.includes(title) && raw.indexOf(title) > 2) {
+      authorSeg = raw.slice(0, raw.indexOf(title))
+    } else {
+      // Check for common physics/APS patterns:
+      // A: "Author et al., Journal..."
+      const etAlMatch = raw.match(/^(.*?\bet\s+al\.?)(?:,\s*(.*))?$/i)
+      // B: "Author1 and Author2, Journal..."
+      const authorAndMatch = raw.match(/^([A-Z\p{L}][^,;:]*?(?:\band\b|\b&\b|\ba\b)[^,;:]*?),\s*(.*)$/u)
+      // C: "Initial. Initial. Surname, Journal..."
+      const initialsSurnameMatch = raw.match(/^((?:[A-Z]\.\s*)+[A-Z\p{L}][a-z\p{L}]+(?:,\s*(?:[A-Z]\.\s*)+[A-Z\p{L}][a-z\p{L}]+)*),\s*(.*)$/u)
+
+      if (etAlMatch) {
+        authorSeg = etAlMatch[1]
+        if (!title && etAlMatch[2]) title = etAlMatch[2].trim()
+      } else if (authorAndMatch) {
+        authorSeg = authorAndMatch[1]
+        if (!title && authorAndMatch[2]) title = authorAndMatch[2].trim()
+      } else if (initialsSurnameMatch) {
+        authorSeg = initialsSurnameMatch[1]
+        if (!title && initialsSurnameMatch[2]) title = initialsSurnameMatch[2].trim()
+      } else {
+        // Fallback: split on year or non-initial sentence period
+        authorSeg = raw.split(/(?:19|20)\d{2}|(?<!\b[A-Za-z])\.\s+(?=[A-Z][a-z]{2,})|["“][A-Z]/)[0]
+        if (!title) {
+          const rest = raw.slice(authorSeg.length).replace(/^[\(\)\[\]\.,;:\s]+/, "")
+          title = rest.slice(0, 120).trim() || raw.slice(0, 100).trim()
+        }
+      }
+    }
+
+    if (!title) {
+      title = raw.slice(0, 100).trim()
+    }
+
+    // Clean trailing punctuation and years that appear before title (e.g. "NOVÁK, Ján. 2024.")
+    authorSeg = authorSeg
+      .replace(/\b(?:19|20)\d{2}[a-z]?\b/g, "")
+      .replace(/[\(\)\[\]\.,;:\s]+$/, "")
+      .trim()
+
+    if (authorSeg && authorSeg.length < 120) {
       const parsedAuthors = authorSeg
-        .split(/;|\band\b|\ba\b/i)
+        .split(/;|\band\b|\ba\b|,\s+(?=[A-Z]\.)/i)
         .map((a) => a.trim().replace(/^[\[\(0-9\]\)\.\-\s]+/, ""))
-        .filter((a) => a.length > 2 && /[A-Za-z\p{L}]/u.test(a))
+        .filter((a) => a.length > 1 && /[A-Za-z\p{L}]/u.test(a))
       if (parsedAuthors.length > 0) {
         authors.push(...parsedAuthors)
       }
@@ -609,9 +650,14 @@ export function routeSectionsForCriterion(
     }
   }
 
-  const rule = CRITERION_RULES[criterionId] ?? {
-    primaryKinds: ["unknown"],
-    secondaryKinds: [],
+  // Family-aware fallback: if criterionId has no explicit rule, resolve it to a
+  // known retrieval family (e.g. "methodology_rigor" → "methodology") so that
+  // Slovak-language section headings are matched instead of using the raw English
+  // criterionId as a keyword.
+  const familyId = resolveCriterionFamily(criterionId) ?? criterionId
+  const rule = CRITERION_RULES[criterionId] ?? CRITERION_RULES[familyId] ?? {
+    primaryKinds: ["unknown"] as SectionKind[],
+    secondaryKinds: [] as SectionKind[],
     keywords: [criterionId],
   }
 
@@ -631,7 +677,38 @@ export function routeSectionsForCriterion(
   const chosenFiles: Set<string> = new Set()
   let truncated = false
 
+  // ── Introduction pre-injection for goals / objectives criteria ──────────────
+  // For dissertations with non-standard headings (e.g. "1. General Overview"
+  // instead of "Introduction"), the scored selection may miss the Introduction
+  // entirely and return a results chapter instead — the original root cause of
+  // the CERN FX incident. Pre-pin the first introduction/preamble section so
+  // the AI always sees at least some goal-bearing context, regardless of score.
+  const isGoalsCriterion =
+    familyId === "goals" ||
+    criterionId === "goal_definition" ||
+    criterionId === "objectives_clarity" ||
+    criterionId === "problem_relevance"
+
+  if (isGoalsCriterion) {
+    const pinnedIntro = sections.find(
+      (s) =>
+        s.kind === "introduction" ||
+        s.kind === "preamble" ||
+        /intro|úvod|ciel|motivation|abstract|summary|overview|problem/i.test(s.heading)
+    )
+    if (pinnedIntro) {
+      const needed = Math.min(pinnedIntro.content.length + 100, Math.floor(budgetChars * 0.4))
+      chosenSections.push(pinnedIntro)
+      chosenIds.push(pinnedIntro.id)
+      chosenFiles.add(pinnedIntro.sourceFile)
+      accumulatedChars += needed
+    }
+  }
+  // ────────────────────────────────────────────────────────────────────────────
+
   for (const item of scored) {
+    // Skip the section we already pinned above
+    if (chosenSections.includes(item.sec)) continue
     if (item.score <= -50 && chosenSections.length > 0) break // Skip penalized sections if we have matches
 
     const needed = budgetChars - accumulatedChars
@@ -858,8 +935,12 @@ export async function loadThesisContext(options: {
     : fullText
 
   const references = extractStructuredReferences(refText)
+  // Pass the full raw reference string (not just the extracted title) so that
+  // auditThesisCitations → verifySingleCitation → extractStructuredReferences
+  // can re-parse authors and year correctly. Using only r.title caused universal
+  // false-positive "missing_author" / "missing_year" ISO 690 violations.
   const referencesTitles = references
-    .map((r) => r.title ?? r.raw.slice(0, 100))
+    .map((r) => r.raw)
     .filter((t) => t.length > 5)
 
   return {

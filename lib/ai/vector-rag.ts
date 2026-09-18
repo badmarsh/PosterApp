@@ -139,7 +139,10 @@ export function getThesisCriterionQueryExpansion(criterionId: string, lang: Revi
       en: "bibliography references citations reference list citation style",
     },
   }
-  return expansions[family]?.[lang] || expansions[family]?.sk || ""
+  const exp = expansions[family]
+  if (!exp) return ""
+  if (lang === "en") return exp.en
+  return `${exp[lang] || exp.sk} ${exp.en}`
 }
 
 // ---------------------------------------------------------------------------
@@ -764,7 +767,7 @@ export async function rerankChunks(
         methodology: /metod|architekt|implement|experiment|návrh|model|meran|postup/i,
         results: /výsledk|diskus|evalu|graf|tabuľk|hodnoteni|porovnan|záver|conclusion|result/i,
         literature: /literat|stav|teoret|súvisiac|related|background|rešerš|východisk/i,
-        goals: /úvod|cieľ|zadanie|hypotéz|motiv|abstrakt|introduction/i,
+        goals: /úvod|cieľ|zadanie|hypotéz|motiv|abstrakt|introduction|objective|aim|scope|purpose|summary|overview/i,
         citations: /citáci|zoznam|bibliograph|referenc|literatúr/i,
         formal: /úvod|záver|obsah|zoznam|prílo/i,
         defense: /záver|diskus|limit|budúc|future/i,
