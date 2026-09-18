@@ -8,7 +8,7 @@ import { parseAiModelOverrides, resolveAiModelWithOverrides, parseAiApiKey, AI_T
 import { buildCitationInstruction, buildGroundingInstruction, wrapUntrustedContext } from "@/lib/ai/prompts"
 import { buildRagGroundedContext, suggestAssetsForChunks, type RagGroundedContext, type AssetCandidate } from "@/lib/ai/card-context"
 import { columnBudgetFor, estimateHeight, heightUnitsToCharacters, suggestReductions } from "@/lib/latex/layout"
-import type { BlockPattern, Card } from "@/lib/poster-types"
+import type { BlockPattern, Card, CardCitation } from "@/lib/poster-types"
 
 import { z } from "zod"
 
@@ -225,19 +225,33 @@ export async function POST(
     // IDs, then are stripped so poster text never shows internal anchors — even
     // when retrieval was unavailable and the model hallucinated a marker.
     const ragChunks = rag.fromRag ? rag.chunks : []
-    const citations: Array<{ bulletIndex: number; chunkIds: string[] }> = []
+    const citations: CardCitation[] = []
+    const buildCitation = (bulletIndex: number, chunkIds: string[]): CardCitation | null => {
+      const evidence = chunkIds
+        .map((chunkId) => ragChunks.find((chunk) => chunk.id === chunkId))
+        .filter((chunk): chunk is NonNullable<typeof chunk> => Boolean(chunk))
+        .map((chunk) => ({
+          // The chunk id is stable across retrievals and is also the DOM/source
+          // anchor consumed by the evidence chip jump action.
+          anchor: `source-${chunk.id}`,
+          chunkId: chunk.id,
+          quote: chunk.content.slice(0, 1_200).trim(),
+          heading: chunk.heading,
+          documentId: chunk.documentId,
+        }))
+      return evidence.length > 0 ? { bulletIndex, chunkIds, evidence } : null
+    }
+    const extractCitations = (bullets: string[]) => bullets.map((b, idx) => {
+      const { text, markerIds } = stripEvidenceMarkers(b)
+      const chunkIds = markerIds
+        .map((n) => ragChunks[n - 1]?.id)
+        .filter((cid): cid is string => Boolean(cid))
+      const citation = buildCitation(idx, chunkIds)
+      if (citation) citations.push(citation)
+      return text
+    })
     if (Array.isArray(parsedData.bullets) && parsedData.bullets.some((b) => /\[ev:\s*\d+\s*\]/i.test(b))) {
-      parsedData = {
-        ...parsedData,
-        bullets: parsedData.bullets.map((b, idx) => {
-          const { text, markerIds } = stripEvidenceMarkers(b)
-          const chunkIds = markerIds
-            .map((n) => ragChunks[n - 1]?.id)
-            .filter((cid): cid is string => Boolean(cid))
-          if (chunkIds.length > 0) citations.push({ bulletIndex: idx, chunkIds })
-          return text
-        }),
-      }
+      parsedData = { ...parsedData, bullets: extractCitations(parsedData.bullets) }
     }
 
     // 5. Length + layout checks: one server-side shrink retry before surfacing
@@ -281,13 +295,15 @@ export async function POST(
           totalLength = shrunkLen
           // Re-map citations after the shrink (bullet indices may have collapsed).
           if (ragChunks.length > 0) {
+            const previousCitations = citations.slice()
             citations.length = 0
             parsedData.bullets = (shrunk.bullets ?? []).map((b, idx) => {
               const { text, markerIds } = stripEvidenceMarkers(b)
-              const chunkIds = markerIds
-                .map((n) => ragChunks[n - 1]?.id)
-                .filter((cid): cid is string => Boolean(cid))
-              if (chunkIds.length > 0) citations.push({ bulletIndex: idx, chunkIds })
+              const chunkIds = markerIds.length > 0
+                ? markerIds.map((n) => ragChunks[n - 1]?.id).filter((cid): cid is string => Boolean(cid))
+                : (previousCitations[idx]?.chunkIds ?? [])
+              const citation = buildCitation(idx, chunkIds)
+              if (citation) citations.push(citation)
               return text
             })
             totalLength = bulletsLength(parsedData.bullets)
@@ -324,6 +340,9 @@ export async function POST(
         budget: layoutBudget,
         estimatedHeight: finalEstimatedHeight,
         overBudget: isLayoutOver,
+        delta: layoutBudget !== null && finalEstimatedHeight !== null
+          ? Math.max(0, finalEstimatedHeight - layoutBudget)
+          : 0,
         suggestions: layoutSuggestions,
         pattern: finalPattern,
       },

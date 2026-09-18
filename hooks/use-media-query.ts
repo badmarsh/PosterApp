@@ -24,8 +24,10 @@ export function useMediaQuery(query: string) {
   return { matches, mounted }
 }
 
-/** Tailwind `lg` breakpoint (1024px) and up. */
+/** Full multi-sidebar desktop layout only when 1280px is available. Below that
+ * the shell uses the responsive pane/drawer navigation so sidebars cannot
+ * compress the poster canvas into an unusable sliver. */
 export function useIsDesktop() {
-  const { matches, mounted } = useMediaQuery("(min-width: 1024px)")
+  const { matches, mounted } = useMediaQuery("(min-width: 1280px)")
   return { isDesktop: matches, mounted }
 }

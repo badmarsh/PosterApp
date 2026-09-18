@@ -9,7 +9,7 @@
  *  5. Subscripts (<sub>), superscripts (<sup>), and synchronized evidence/query highlighting.
  */
 
-import React, { useState, useMemo } from "react"
+import React, { useEffect, useState, useMemo } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
 import remarkMath from "remark-math"
 import remarkGfm from "remark-gfm"
@@ -269,11 +269,26 @@ export function SourceMarkdownView({
   highlightQuote,
   searchQuery,
 }: Props) {
+  const [jumpQuote, setJumpQuote] = useState<string | undefined>(undefined)
+  useEffect(() => {
+    const handleSourceJump = (event: Event) => {
+      const detail = (event as CustomEvent<{ quote?: string }>).detail
+      if (!detail?.quote) return
+      setJumpQuote(detail.quote)
+      window.setTimeout(() => {
+        document.querySelector("[data-evidence-match]")?.scrollIntoView({ behavior: "smooth", block: "center" })
+      }, 80)
+    }
+    window.addEventListener("posterapp:source-jump", handleSourceJump)
+    return () => window.removeEventListener("posterapp:source-jump", handleSourceJump)
+  }, [])
+
   const cleanMarkdown = useMemo(() => preprocessMathAndHtml(markdown), [markdown])
+  const activeHighlight = jumpQuote || highlightQuote
 
   const components = useMemo<Components>(
     () => ({
-      text: makeTextComponent(highlightQuote || searchQuery),
+      text: makeTextComponent(activeHighlight || searchQuery),
       h1: ({ children }) => (
         <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight pt-6 pb-2 border-b-2 border-border/60">
           {children}
@@ -390,7 +405,7 @@ export function SourceMarkdownView({
         />
       ),
     }),
-    [highlightQuote, searchQuery, workspaceId]
+    [activeHighlight, searchQuery, workspaceId]
   )
 
   return (

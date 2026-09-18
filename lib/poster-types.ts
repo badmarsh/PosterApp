@@ -118,6 +118,49 @@ export type Figure = {
   caption: string
 }
 
+/** A quote-grounded source anchor returned by card auto-fill. */
+export type CardCitation = {
+  bulletIndex: number
+  chunkIds: string[]
+  evidence: Array<{
+    anchor: string
+    chunkId: string
+    quote: string
+    heading?: string | null
+    documentId?: string
+  }>
+}
+
+/** A source asset ranked as relevant to the card topic. */
+export type SuggestedAsset = {
+  id: string
+  kind: string
+  filename?: string
+  caption?: string
+  snippet?: string
+  section?: string | null
+  score: number
+}
+
+export type CardLayoutTruth = {
+  budget: number | null
+  estimatedHeight: number | null
+  overBudget: boolean
+  /** Positive units by which the estimate exceeds the budget. */
+  delta: number
+  suggestions: string[]
+  pattern?: BlockPattern
+}
+
+/** Metadata produced by the grounded auto-fill endpoint and persisted with a card. */
+export type CardGrounding = {
+  citations: CardCitation[]
+  suggestedAssets: SuggestedAsset[]
+  layout?: CardLayoutTruth
+  grounded?: boolean
+  generatedAt?: string
+}
+
 export type CardTable = {
   hasHeader: boolean
   caption: string
@@ -174,6 +217,8 @@ export type Card = {
   generatedLatex?: string
   /** Speaker notes — only used for slides output type */
   slideNotes?: string
+  /** Grounding, suggested-asset and layout metadata from the latest auto-fill. */
+  grounding?: CardGrounding
 }
 
 /**

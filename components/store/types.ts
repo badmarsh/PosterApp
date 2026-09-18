@@ -44,6 +44,10 @@ export interface ProjectSlice {
   /** Remote output metadata (title/authors/venue/logos/theme) from Yjs; never echoes back. */
   _setOutputMetaFromYjs: (outputId: string, meta: Partial<OutputConfig>) => void
   updateCard: (id: string, patch: Partial<Card>) => void
+  /** Attach a grounded figure/table suggestion to a card in one action. */
+  attachSuggestedAsset: (cardId: string, assetId: string) => void
+  /** Run the server-side shrink pass using the card's layout truth. */
+  autoShrinkCardAction: (cardId: string) => Promise<void>
   addCard: (column?: ColumnOrNull) => void
   addOutput: (outputType: OutputType, templateId: string) => void
   deleteCard: (id: string) => void
@@ -113,6 +117,9 @@ export interface EquationSlice {
 }
 
 export interface UiSlice {
+  /** Visible UI language for the editor chrome; content and generated text remain unchanged. */
+  language: import("@/lib/i18n/ui").UiLanguage
+  setLanguage: (language: import("@/lib/i18n/ui").UiLanguage) => void
   agentEvents: AgentEvent[]
   generatingIds: string[]
   isAiStreaming: boolean

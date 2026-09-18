@@ -611,7 +611,7 @@ function LanguageSettings({
       <SectionHeader
         icon={Languages}
         title="Language"
-        description="Used for new thesis reviews, the academic search dialog and generated review documents. The poster editor itself is currently English-only."
+        description="Used for new thesis reviews and generated review documents. Change the editor chrome language from the visible language switcher in the top bar."
       />
       <Select value={currentLanguage} onValueChange={(val) => val && onLanguageChange(val as ReviewLanguage)}>
         <SelectTrigger className="w-full" aria-label="Review language">

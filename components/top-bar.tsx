@@ -60,6 +60,8 @@ import { useShallow } from "zustand/react/shallow"
 import { generateFullTemplate } from "@/lib/latex"
 import { cn } from "@/lib/utils"
 import { apiFetch } from "@/lib/api-fetch"
+import { LanguageSwitcher } from "@/components/language-switcher"
+import { getUiCopy } from "@/lib/i18n/ui"
 
 type TopBarProps = {
   structureOpen: boolean
@@ -147,6 +149,7 @@ export function TopBar({
   }
 
   const compactMode = useEditor((s) => s.compactMode)
+  const ui = getUiCopy(useEditor((s) => s.language))
 
   return (
     <header
@@ -287,7 +290,7 @@ export function TopBar({
               ) : (
                 <Check className="size-3.5 text-primary" />
               )}
-              <span>{isDirty ? "Save changes" : "Saved"}</span>
+              <span>{isDirty ? ui.save : ui.saved}</span>
             </Button>
           }
         />
@@ -457,6 +460,7 @@ export function TopBar({
       {/* Zone 6: Theme, Help, History, User Account */}
       <div className="flex items-center gap-1">
         <ThemePicker />
+        <LanguageSwitcher />
         <Tooltip>
           <TooltipTrigger
             render={

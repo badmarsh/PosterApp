@@ -1,0 +1,182 @@
+"use client"
+
+import { useRef } from "react"
+import { AlertTriangle, Info, Upload, X, XCircle } from "lucide-react"
+import { useEditor } from "@/components/editor-store"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import type { Card } from "@/lib/poster-types"
+
+export function FiguresTab({ card }: { card: Card }) {
+  const updateCard = useEditor((s) => s.updateCard)
+  const projectId = useEditor((s) => s.project.id)
+  const slots =
+    card.pattern === "bullets-two-images" || card.pattern === "section-two-figures"
+      ? 2
+      : card.pattern === "bullets-image" ||
+        card.pattern === "image-focused" ||
+        card.pattern === "figure-slide" ||
+        card.pattern === "section-figure"
+        ? 1
+        : 0
+  const fileRefs = useRef<(HTMLInputElement | null)[]>([])
+
+  function setFigure(i: number, patch: Partial<Card["figures"][number]>) {
+    const figures = [...(card.figures || [])]
+    for (let j = 0; j < i; j++) {
+      if (!figures[j]) {
+        figures[j] = {
+          // eslint-disable-next-line react-hooks/purity
+          id: `fig_${j}_${Date.now().toString(36)}`,
+          url: "",
+          caption: "",
+        }
+      }
+    }
+    figures[i] = {
+      // eslint-disable-next-line react-hooks/purity
+      id: figures[i]?.id ?? `fig_${i}_${Date.now().toString(36)}`,
+      url: figures[i]?.url ?? "",
+      caption: figures[i]?.caption ?? "",
+      ...patch,
+    }
+    updateCard(card.id, { figures })
+  }
+
+  async function onUpload(i: number, file?: File) {
+    if (!file) return
+    const blobUrl = URL.createObjectURL(file)
+    setFigure(i, { url: blobUrl })
+    
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      
+      const res = await fetch(`/api/workspaces/${projectId}/assets/upload`, {
+        method: "POST",
+        body: formData
+      })
+      const data = await res.json()
+      
+      if (!res.ok) throw new Error(data.error || "Upload failed")
+      
+      setFigure(i, { url: data.asset.url })
+    } catch (err) {
+      console.error(err)
+    } finally {
+      URL.revokeObjectURL(blobUrl)
+    }
+  }
+
+  if (slots === 0) {
+    return (
+      <div className="p-3">
+        <p className="rounded-md border border-dashed border-border bg-muted/40 px-2.5 py-3 text-center text-[11px] text-muted-foreground">
+          This block pattern has no figure slots. Choose an image pattern in Basics.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3 p-3">
+      {slots === 2 && (
+        <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
+          <span className="text-[11px] text-foreground">Layout</span>
+          <Select
+            value={card.figureLayout}
+            onValueChange={(v) => updateCard(card.id, { figureLayout: v as Card["figureLayout"] })}
+          >
+            <SelectTrigger size="sm" className="w-36" aria-label="Figure layout">
+              <SelectValue>
+                {card.figureLayout === "two-up" ? "Two-up figures" : "Single figure"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="single">Single figure</SelectItem>
+              <SelectItem value="two-up">Two-up figures</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {Array.from({ length: slots }).map((_, i) => {
+        const fig = card.figures[i]
+        return (
+          <div key={i} className="flex flex-col gap-2 rounded-md border border-border p-2.5">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                Slot {i + 1}
+              </span>
+              {fig?.url && (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="Clear image"
+                  onClick={() => setFigure(i, { url: "" })}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              )}
+            </div>
+
+            <div className="flex h-28 items-center justify-center overflow-hidden rounded border border-dashed border-border bg-muted/40">
+              {fig?.url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={fig.url || "/placeholder.svg"}
+                  alt={fig.caption || "figure preview"}
+                  className="h-full w-full object-contain"
+                />
+              ) : (
+                <span className="text-[11px] text-muted-foreground">No image</span>
+              )}
+            </div>
+
+            <div className="flex gap-1.5">
+              <input
+                ref={(el) => {
+                  fileRefs.current[i] = el
+                }}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => onUpload(i, e.target.files?.[0])}
+              />
+              <Button
+                variant="outline"
+                size="xs"
+                className="gap-1"
+                onClick={() => fileRefs.current[i]?.click()}
+              >
+                <Upload className="size-3" /> Upload
+              </Button>
+              <Input
+                aria-label={`Figure ${i + 1} URL`}
+                value={fig?.url ?? ""}
+                onChange={(e) => setFigure(i, { url: e.target.value })}
+                placeholder="or image URL / path"
+                className="h-7 flex-1 font-mono text-[11px]"
+              />
+            </div>
+            <Input
+              aria-label={`Figure ${i + 1} caption`}
+              value={fig?.caption ?? ""}
+              onChange={(e) => setFigure(i, { caption: e.target.value })}
+              placeholder="Caption"
+              className="h-7 text-[12px]"
+            />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+const LEVEL_ICON = {
+  error: { Icon: XCircle, className: "text-destructive" },
+  warning: { Icon: AlertTriangle, className: "text-chart-4" },
+  info: { Icon: Info, className: "text-muted-foreground" },
+} as const
+

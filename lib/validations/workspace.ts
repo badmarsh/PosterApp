@@ -12,6 +12,40 @@ export const CardTableSchema = z.object({
   rows: z.array(z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])).max(64)).max(500).optional(),
 })
 
+/** Bounded, non-executable metadata returned by grounded card generation. */
+export const CardGroundingSchema = z.object({
+  citations: z.array(z.object({
+    bulletIndex: z.number().int().min(0).max(200),
+    chunkIds: z.array(z.string().max(256)).max(20),
+    evidence: z.array(z.object({
+      anchor: z.string().max(256),
+      chunkId: z.string().max(256),
+      quote: z.string().max(4_000),
+      heading: z.string().max(500).nullable().optional(),
+      documentId: z.string().max(256).optional(),
+    })).max(20),
+  })).max(200).optional().default([]),
+  suggestedAssets: z.array(z.object({
+    id: z.string().max(256),
+    kind: z.string().max(64),
+    filename: z.string().max(500).optional(),
+    caption: z.string().max(2_000).optional(),
+    snippet: z.string().max(4_000).optional(),
+    section: z.string().max(500).nullable().optional(),
+    score: z.number().finite().min(0).max(10),
+  })).max(20).optional().default([]),
+  layout: z.object({
+    budget: z.number().finite().nullable(),
+    estimatedHeight: z.number().finite().nullable(),
+    overBudget: z.boolean(),
+    delta: z.number().finite().default(0),
+    suggestions: z.array(z.string().max(500)).max(20),
+    pattern: z.string().max(80).optional(),
+  }).optional(),
+  grounded: z.boolean().optional(),
+  generatedAt: z.string().max(64).optional(),
+})
+
 export const CardSchema = z.object({
   id: z.string(),
   title: z.string().optional(),
@@ -27,6 +61,7 @@ export const CardSchema = z.object({
   validation: z.string().optional(),
   generatedLatex: z.string().nullable().optional(),
   slideNotes: z.string().nullable().optional(),
+  grounding: CardGroundingSchema.nullable().optional(),
 })
 
 export const AssetSchema = z.object({
