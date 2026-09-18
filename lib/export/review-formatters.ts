@@ -7,6 +7,7 @@
 
 import type { ThesisReviewRecord } from "@/components/thesis-review/use-thesis-review-store"
 import type { ReviewFinding } from "@/lib/ai/review-types"
+import { bucketFindings } from "@/lib/ai/review-bucketing"
 
 export interface FormatOptions {
   anonymize?: boolean
@@ -36,59 +37,73 @@ export function formatReviewToMarkdown(
   lines.push(`**Dátum / Date:** ${new Date(review.updatedAt || review.createdAt).toLocaleDateString()}`)
   lines.push("")
 
-  // Executive Summary
-  if (review.summary) {
-    lines.push("## 1. Zhrnutie práce / Executive Summary")
-    lines.push(review.summary)
-    lines.push("")
-  }
-
-  // Strengths
-  if (review.strengths && review.strengths.length > 0) {
-    lines.push("## 2. Silné stránky práce / Key Strengths")
-    for (const str of review.strengths) {
-      lines.push(`- ${str}`)
-    }
-    lines.push("")
-  }
-
-  // Filtered Findings (Major vs Minor)
+  const isPaper = review.reviewKind === "paper"
   const allFindings = review.findings || []
   const activeFindings = options.excludeRejected
     ? allFindings.filter((f) => f.includeInExport && f.status !== "rejected")
     : allFindings.filter((f) => f.includeInExport)
+  const buckets = bucketFindings(activeFindings)
 
-  const majorFindings = activeFindings.filter((f) => f.severity === "critical" || f.severity === "major")
-  const minorFindings = activeFindings.filter((f) => f.severity === "minor" || f.severity === "suggestion")
+  // Numbering is assigned while blocks are emitted, so an empty block cannot
+  // leave a hole in the sequence.
+  const linesFor: { heading: string; body: string[] }[] = []
+  const push = (heading: string, body: string[]) => linesFor.push({ heading, body })
 
-  // Major Concerns
-  if (majorFindings.length > 0) {
-    lines.push("## 3. Zásadné pripomienky / Major Concerns")
-    for (const f of majorFindings) {
-      lines.push(`### [${(f.category || "general").toUpperCase()}] ${f.title}`)
-      lines.push(f.explanation)
-      if (f.recommendation) {
-        lines.push(`**Odporúčaná náprava:** ${f.recommendation}`)
-      }
-      if (f.evidence?.[0]?.quote) {
-        lines.push(`> *Dôkaz v texte:* "${f.evidence[0].quote}"`)
-      }
-      if (f.reviewerNotes) {
-        lines.push(`*Poznámka recenzenta:* ${f.reviewerNotes}`)
-      }
-      lines.push("")
+  if (review.summary) push(isPaper ? "Zhrnutie rukopisu" : "Zhrnutie práce", [review.summary])
+
+  const findingStrengths = isPaper
+    ? []
+    : buckets.strengths
+        .filter((f) => f.evidence?.some((e) => e.verified))
+        .map((f) => f.explanation || f.title)
+  const strengths = [...new Set([...(review.strengths || []), ...findingStrengths])].filter(Boolean)
+  if (strengths.length > 0) {
+    push(isPaper ? "Silné stránky rukopisu" : "Silné stránky práce", strengths.map((s) => `- ${s}`))
+  }
+
+  if (buckets.major.length > 0) {
+    const body: string[] = []
+    for (const f of buckets.major) {
+      body.push(`### [${(f.category || "general").toUpperCase()}] ${f.title}`)
+      body.push(f.explanation)
+      if (f.recommendation) body.push(`**Odporúčaná náprava:** ${f.recommendation}`)
+      if (f.evidence?.[0]?.quote) body.push(`> *Dôkaz v texte:* "${f.evidence[0].quote}"`)
+      if (f.reviewerNotes) body.push(`*Poznámka recenzenta:* ${f.reviewerNotes}`)
+      body.push("")
+    }
+    push("Zásadné pripomienky / Major Concerns", body)
+  }
+
+  if (buckets.minor.length > 0) {
+    const body: string[] = []
+    for (const f of buckets.minor) {
+      body.push(`- **${f.title}** (${f.category}): ${f.explanation}`)
+      if (f.recommendation) body.push(`  - *Náprava:* ${f.recommendation}`)
+    }
+    body.push("")
+    push("Drobné pripomienky / Minor Concerns", body)
+  }
+
+  // Slovak/Czech doctoral opponent reviews must state the statutory conditions
+  // and an explicit recommendation for the defence plus the proposed title.
+  const statutoryClause: string | undefined = review.phdEnrichment?.statutoryClause
+  if (!isPaper && review.thesisType === "phd" && review.reviewerRole === "opponent") {
+    if (statutoryClause?.trim()) {
+      push("Zákonné podmienky doktorského študijného programu", [statutoryClause, ""])
+    }
+    if (review.recommendation?.trim()) {
+      push(
+        "Záverečné stanovisko",
+        [review.recommendation.trim(), "", "Klasifikačný stupeň: .................. (prospel / neprospel)", ""]
+      )
     }
   }
 
-  // Minor Concerns
-  if (minorFindings.length > 0) {
-    lines.push("## 4. Drobné pripomienky / Minor Concerns")
-    for (const f of minorFindings) {
-      lines.push(`- **${f.title}** (${f.category}): ${f.explanation}`)
-      if (f.recommendation) {
-        lines.push(`  - *Náprava:* ${f.recommendation}`)
-      }
-    }
+  let sectionNo = 0
+  const numbered = (title: string) => (isPaper ? title : `${++sectionNo}. ${title}`)
+  for (const block of linesFor) {
+    lines.push(`## ${numbered(block.heading)}`)
+    lines.push(...block.body)
     lines.push("")
   }
 
@@ -107,7 +122,7 @@ export function formatReviewToMarkdown(
 
   // Reporting Guidelines
   if (review.reportingGuidelineChecks && review.reportingGuidelineChecks.length > 0) {
-    lines.push(`## 5. Reporting Guideline Compliance (${review.reportingStandard?.toUpperCase()})`)
+    lines.push(`## ${numbered(`Reporting Guideline Compliance (${review.reportingStandard?.toUpperCase()})`)}`)
     for (const chk of review.reportingGuidelineChecks) {
       lines.push(`- **[${chk.status.toUpperCase()}] ${chk.item}**: ${chk.notes}`)
     }
@@ -117,7 +132,7 @@ export function formatReviewToMarkdown(
   // Questions for Authors / Defense Questions
   const questions = review.questionsForAuthors || review.defenseQuestions || []
   if (questions.length > 0) {
-    lines.push("## 6. Otázky na autora / Questions for Authors")
+    lines.push(`## ${numbered("Otázky na autora / Questions for Authors")}`)
     questions.forEach((q: string, idx: number) => {
       lines.push(`${idx + 1}. ${q}`)
     })
@@ -126,7 +141,7 @@ export function formatReviewToMarkdown(
 
   // Confidential comments for editor
   if (options.includeConfidential && review.confidentialComments) {
-    lines.push("## 7. Dôverné komentáre pre editora / Confidential Comments for Editor")
+    lines.push(`## ${numbered("Dôverné komentáre pre editora / Confidential Comments for Editor")}`)
     lines.push(review.confidentialComments)
     lines.push("")
   }

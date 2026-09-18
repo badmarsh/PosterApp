@@ -61,7 +61,10 @@ const SynthesisSchema = z.object({
   summary: z.string().default(""),
   strengths: z.array(z.string()).default([]),
   defenseQuestions: z.array(z.string()).default([]),
-  recommendation: z.string().default("minor_revisions"),
+  // No default: a fabricated "minor_revisions" verdict must never be
+  // presented as a reviewer's recommendation, and for doctoral reviews the
+  // legally required statement is a text, not a journal enum.
+  recommendation: z.string().default(""),
   grade: z.string().optional(),
 })
 
@@ -248,6 +251,8 @@ export async function runAgenticPerCriterionReview(opts: {
   language: ReviewLanguage
   reviewKind?: ReviewKind
   thesisType: ThesisType
+  /** Needed to require the statutory conclusive statement for doctoral opponent reviews. */
+  reviewerRole?: string
   detailedThesisType?: DetailedThesisType
   sourceRevision: string
   signal?: AbortSignal
@@ -341,8 +346,17 @@ export async function runAgenticPerCriterionReview(opts: {
     .join("\n")
 
   const applyEctsGrading = shouldApplyEctsGrading(opts.reviewKind)
+  // A Slovak/Czech doctoral opponent review is a legally defined document: the
+  // recommendation field must carry the conclusive statement, not a journal
+  // verdict enum ("minor_revisions" has no legal meaning for a dizertačná práca).
+  const isDoctoralOpponentReview =
+    (opts.reviewKind ?? "thesis") === "thesis" && opts.thesisType === "phd" && opts.reviewerRole === "opponent"
+  const doctoralRecommendationRule = isDoctoralOpponentReview
+    ? `
+Recommendation rule (mandatory): the "recommendation" value must be a complete sentence in language "${opts.language}" stating that the thesis meets the conditions for the defence under the applicable Higher Education Act (§ 67 of Act No. 131/2002 Coll. in Slovakia; § 54a of Act No. 111/1998 Sb. in Czechia) and recommending award of the PhD title with a pass/fail classification. Never output the tokens accept, minor_revisions, major_revisions or reject for a doctoral thesis review.`
+    : ""
   const synthesisSys = `You are the lead reviewer synthesising per-criterion findings of a ${opts.reviewKind === "paper" ? "scientific paper" : `${opts.thesisType} thesis`} into a final assessment.
-Write in language "${opts.language}". Produce: a 4-8 sentence summary, 3-6 concrete strengths, 5-10 targeted ${opts.reviewKind === "paper" ? "questions for the authors" : "defense questions"}, and a recommendation (accept|minor_revisions|major_revisions|reject)${applyEctsGrading ? ", plus an ECTS grade (A-FX) justified by the severity distribution" : ". Do not assign an ECTS or academic grade"}.`
+Write in language "${opts.language}". Produce: a 4-8 sentence summary, 3-6 concrete strengths, 5-10 targeted ${opts.reviewKind === "paper" ? "questions for the authors" : "defense questions"}, and a recommendation (accept|minor_revisions|major_revisions|reject)${applyEctsGrading ? ", plus an ECTS grade (A-FX) justified by the severity distribution" : ". Do not assign an ECTS or academic grade"}.${doctoralRecommendationRule}`
   const synthesisUser = `${opts.reviewKind === "paper" ? "Paper" : "Thesis"}: "${opts.documentTitle}"
 
 Per-criterion findings:
@@ -370,7 +384,7 @@ Respond as JSON: {"summary": "...", "strengths": ["..."], "defenseQuestions": ["
       summary: "",
       strengths: [],
       defenseQuestions: [],
-      recommendation: "minor_revisions",
+      recommendation: "",
       grade: applyEctsGrading ? calculateGradeRange(score).grade : undefined,
     }
   }

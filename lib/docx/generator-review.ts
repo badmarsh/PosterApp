@@ -26,6 +26,7 @@ import {
 import type { ThesisReviewRecord } from "@/components/thesis-review/use-thesis-review-store"
 import { sanitizeXmlString } from "@/lib/security"
 import { getEligibleFindings } from "@/lib/ai/review-composer"
+import { bucketFindings } from "@/lib/ai/review-bucketing"
 import { stripLatexForPlainText } from "@/lib/thesis-review/latex-utils"
 
 export async function generateThesisReviewDocx(
@@ -147,59 +148,49 @@ export async function generateThesisReviewDocx(
 
   children.push(new Paragraph({ text: "", spacing: { after: 300 } }))
 
-  // Executive Summary
-  if (review.summary) {
-    children.push(
-      new Paragraph({
-        text: isPaper ? "1. Zhrnutie rukopisu (Manuscript Summary)" : "1. Zhrnutie práce a hlavný prínos (Executive Summary)",
-        heading: HeadingLevel.HEADING_2,
-        spacing: { before: 300, after: 150 },
-      })
-    )
-    children.push(
-      new Paragraph({
-        text: sanitizeXmlString(review.summary),
-        spacing: { after: 200 },
-      })
-    )
-  }
-
-  // Key Strengths
-  if (review.strengths && review.strengths.length > 0) {
-    children.push(
-      new Paragraph({
-        text: isPaper ? "2. Podložené silné stránky rukopisu (Evidence-Grounded Strengths)" : "2. Silné stránky práce (Key Strengths)",
-        heading: HeadingLevel.HEADING_2,
-        spacing: { before: 300, after: 150 },
-      })
-    )
-    for (const str of review.strengths) {
-      children.push(
-        new Paragraph({
-          text: sanitizeXmlString(`• ${str}`),
-          spacing: { after: 100 },
-        })
-      )
-    }
-  }
-
-  // Structured Findings (Major vs. Minor)
+  // Executive summary, strengths, concerns and the statutory clause. All four
+  // buckets are derived from the shared `bucketFindings` helper so that a
+  // strength can never be rendered as a "concern" (see lib/ai/review-bucketing)
+  // and so that section numbers stay sequential when a block is empty.
   const findings = getEligibleFindings(
     review.findings || [],
     options.includeConfidential ? "editor" : "author",
   )
-  const majorFindings = findings.filter((f) => f.severity === "critical" || f.severity === "major")
-  const minorFindings = findings.filter((f) => f.severity === "minor" || f.severity === "suggestion")
+  const buckets = bucketFindings(findings)
+  const isDoctoralOpponent = !isPaper && review.thesisType === "phd" && review.reviewerRole === "opponent"
+  const statutoryClause: string | undefined = review.phdEnrichment?.statutoryClause
+  const findingStrengths = isPaper
+    ? []
+    : buckets.strengths
+        .filter((f) => f.evidence?.some((e) => e.verified))
+        .map((f) => f.explanation || f.title)
+  const strengths: string[] = [...new Set([...(review.strengths || []), ...findingStrengths])].filter(Boolean)
 
-  if (majorFindings.length > 0) {
+  let sectionNo = 0
+  const heading = (title: string) =>
+    new Paragraph({
+      text: sanitizeXmlString(isPaper ? title : `${++sectionNo}. ${title}`),
+      heading: HeadingLevel.HEADING_2,
+      spacing: { before: 300, after: 150 },
+    })
+
+  if (review.summary) {
+    children.push(heading(isPaper ? "Zhrnutie rukopisu (Manuscript Summary)" : "Zhrnutie práce a hlavný prínos (Executive Summary)"))
+    children.push(new Paragraph({ text: sanitizeXmlString(review.summary), spacing: { after: 200 } }))
+  }
+
+  if (strengths.length > 0) {
     children.push(
-      new Paragraph({
-        text: "3. Zásadné pripomienky (Major Concerns)",
-        heading: HeadingLevel.HEADING_2,
-        spacing: { before: 300, after: 150 },
-      })
+      heading(isPaper ? "Podložené silné stránky rukopisu (Evidence-Grounded Strengths)" : "Silné stránky práce (Key Strengths)")
     )
-    for (const f of majorFindings) {
+    for (const str of strengths) {
+      children.push(new Paragraph({ text: sanitizeXmlString(`\u2022 ${str}`), spacing: { after: 100 } }))
+    }
+  }
+
+  if (buckets.major.length > 0) {
+    children.push(heading("Zásadné pripomienky (Major Concerns)"))
+    for (const f of buckets.major) {
       children.push(
         new Paragraph({
           children: [
@@ -208,12 +199,7 @@ export async function generateThesisReviewDocx(
           spacing: { before: 150, after: 50 },
         })
       )
-      children.push(
-        new Paragraph({
-          text: sanitizeXmlString(f.explanation),
-          spacing: { after: 50 },
-        })
-      )
+      children.push(new Paragraph({ text: sanitizeXmlString(f.explanation), spacing: { after: 50 } }))
       if (f.recommendation) {
         children.push(
           new Paragraph({
@@ -237,8 +223,7 @@ export async function generateThesisReviewDocx(
         )
       }
       if (f.evidence?.[0]?.quote) {
-        const rawQuote = f.evidence[0].quote
-        const plainQuote = sanitizeXmlString(stripLatexForPlainText(rawQuote))
+        const plainQuote = sanitizeXmlString(stripLatexForPlainText(f.evidence[0].quote))
         children.push(
           new Paragraph({
             children: [
@@ -249,26 +234,24 @@ export async function generateThesisReviewDocx(
           })
         )
       }
-
     }
   }
 
-  if (minorFindings.length > 0) {
-    children.push(
-      new Paragraph({
-        text: "4. Drobné pripomienky (Minor Concerns)",
-        heading: HeadingLevel.HEADING_2,
-        spacing: { before: 300, after: 150 },
-      })
-    )
-    for (const f of minorFindings) {
+  if (buckets.minor.length > 0) {
+    children.push(heading("Drobné pripomienky (Minor Concerns)"))
+    for (const f of buckets.minor) {
       children.push(
         new Paragraph({
-          text: sanitizeXmlString(`• [${f.category || "general"}] ${f.title}: ${f.explanation}`),
+          text: sanitizeXmlString(`\u2022 [${f.category || "general"}] ${f.title}: ${f.explanation}`),
           spacing: { after: 80 },
         })
       )
     }
+  }
+
+  if (isDoctoralOpponent && statutoryClause?.trim()) {
+    children.push(heading("Zákonné podmienky doktorského študijného programu"))
+    children.push(new Paragraph({ text: sanitizeXmlString(statutoryClause), spacing: { after: 200 } }))
   }
 
   // Criteria Sections (for standard thesis reviews)

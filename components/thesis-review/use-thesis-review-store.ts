@@ -197,6 +197,8 @@ export interface ThesisReviewState {
   generateError: string | null
   saveError: string | null
   exportError: string | null
+  /** Non-blocking statutory-completeness warnings from the last export. */
+  exportWarnings: string[]
   isPanelOpen: boolean
   isMetadataValid: boolean
   formMetadata: ThesisReviewFormMetadata
@@ -445,6 +447,7 @@ function createThesisReviewStore(
       generateError: null,
       saveError: null,
       exportError: null,
+      exportWarnings: [],
       isPanelOpen: false,
       isMetadataValid: isInitialValid,
       formMetadata: {
@@ -1083,7 +1086,7 @@ function createThesisReviewStore(
     },
 
     exportReviewPdf: async (workspaceId, reviewId) => {
-      set((s) => { s.isExporting = true; s.exportError = null })
+      set((s) => { s.isExporting = true; s.exportError = null; s.exportWarnings = [] })
       try {
         const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review/${reviewId}/export`, {
           method: "POST",
@@ -1094,6 +1097,17 @@ function createThesisReviewStore(
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}))
           throw new Error(errData.error ?? `HTTP ${res.status}`)
+        }
+
+        // The export route reports statutory completeness of a doctoral
+        // posudok via headers; surface it without blocking the download.
+        const missingItems = res.headers.get("X-Posudok-Missing-Items")
+        if (res.headers.get("X-Posudok-Completeness") === "incomplete" && missingItems) {
+          set((s) => {
+            s.exportWarnings = [
+              `Posudok neobsahuje všetky zákonom vyžadované náležitosti (chýba: ${missingItems}). Pred podpisom ich doplňte.`,
+            ]
+          })
         }
 
         // Trigger browser download
@@ -1147,6 +1161,7 @@ function createThesisReviewStore(
       s.generateError = null
       s.saveError = null
       s.exportError = null
+      s.exportWarnings = []
     }),
 
     _syncReviewFromYjs: (incoming) => {

@@ -13,6 +13,7 @@
  */
 
 import type { ThesisReviewRecord } from "@/components/thesis-review/use-thesis-review-store"
+import { hasConclusiveStatement } from "./review-bucketing"
 import type { ReviewFinding, FindingAudience, ReviewDefenseQuestion } from "./review-types"
 import type { ReviewLanguage } from "./thesis-rubric"
 
@@ -118,8 +119,14 @@ export function composePaperReviewNarrative(
   const strengths = isConfirmed
     ? review.strengths ?? []
     : verifiedStrengthFindings.map((finding) => finding.explanation || finding.title)
-  const major = findings.filter((finding) => finding.severity === "critical" || finding.severity === "major")
-  const minor = findings.filter((finding) => finding.severity === "minor" || finding.severity === "suggestion")
+  const major = findings.filter(
+    (finding) => finding.findingType !== "strength" && (finding.severity === "critical" || finding.severity === "major"),
+  )
+  // A merit is never a concern: strengths graded `severity: "suggestion"` must
+  // not leak into "Drobné pripomienky" (see lib/ai/review-bucketing).
+  const minor = findings.filter(
+    (finding) => finding.findingType !== "strength" && (finding.severity === "minor" || finding.severity === "suggestion"),
+  )
   const questions = review.questionsForAuthors?.length
     ? review.questionsForAuthors
     : review.defenseQuestions ?? []
@@ -372,7 +379,24 @@ export function composeFullReviewNarrative(
       ? `(Rozhodnutie explicitne potvrdené recenzentom dňa: ${new Date(review.confirmedAt!).toLocaleDateString()})`
       : "(Návrh hodnotenia generovaný asistentom — podlieha nezávislému rozhodnutiu posudzovateľa)",
   ].filter(Boolean).join("\n")
-  sections.push({ id: "evaluation_summary", title: sec12Title, content: sec12Lines })
+  // The conclusive statement is the one part of a doctoral posudok that has
+  // legal force; if neither the model nor the reviewer produced it, name the
+  // gap in the export instead of shipping a review that a committee would
+  // return to the dean.
+  let conclusivePlaceholder: string | null = null
+  if (
+    (review.reviewKind ?? "thesis") === "thesis" &&
+    review.thesisType === "phd" &&
+    review.reviewerRole === "opponent" &&
+    !hasConclusiveStatement(sec12Lines, review.language === "cs" ? "cz" : "sk")
+  ) {
+    conclusivePlaceholder = lang === "sk"
+      ? "\u00a1DOPNIŤ: Záverečné stanovisko (§ 67 zákona č. 131/2002 Z. z.) — veta o splnení podmienok, odporúčanie na obhajobu a návrh titulu PhD s klasifikačným stupňom."
+      : lang === "cs"
+        ? "\u00a1DOPNIŤ: Závěrečné stanovisko (§ 54a zákona č. 111/1998 Sb.) — věta o splnění podmínek, doporučení k obhajobě a návrh na udělení titulu."
+        : "\u00a1DOPNIŤ: Add the conclusive statement — the sentence on fulfilled conditions, the recommendation for defence and the proposed title with a pass/fail classification."
+  }
+  sections.push({ id: "evaluation_summary", title: sec12Title, content: [sec12Lines, conclusivePlaceholder].filter(Boolean).join("\n\n") })
 
   // 13. Limity AI asistovaného posúdenia
   const sec13Title = lang === "sk" ? "13. Transparentné vyhlásenie o AI asistencii" : "13. AI Assistance Disclosure & Boundaries"
