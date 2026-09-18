@@ -145,6 +145,23 @@ Schema at `prisma/schema.prisma`. Key notes:
 (None currently)
 
 ### Fixed in This Session (2026-09-17 / 2026-09-18)
+- ✅ **Save Failure & Infinite Retry Loop Elimination ("Your changes are kept locally...")**:
+  - **Eliminated Infinite Retry Loops**: Previously, any save failure (`PUT /api/workspaces/[id]`) with a non-409 error (such as 401 Unauthorized, 403 Forbidden, 404 Not Found, 400 Validation Error) blindly set `isDirty = true` and scheduled `scheduleRetry()` every 3 seconds, spamming the user with *"Your changes are kept locally and the save will retry automatically."*
+  - **Differentiated HTTP Error Lifecycle in `saveProject`** (`components/store/project-slice.ts`):
+    - **401 Unauthorized**: Stops retry loop, keeps edits safely in memory, and prompts the user with *"Sign in required — Your session has expired. Changes are kept locally — please sign in to save"* with a direct `"Sign in"` CTA button.
+    - **403 Forbidden**: Stops retry loop and displays *"Read-only workspace — You have view-only access. Duplicate this workspace to save your changes"* with a direct `"Duplicate"` CTA button.
+    - **404 Not Found**: Stops retry loop and notifies *"Workspace not found — Duplicate it to save a new copy"*.
+    - **400 Validation Error**: Logs the server validation details and notifies *"Save rejected by server (invalid data format)"* without looping.
+    - **429 Rate Limited**: Retries after 15 seconds instead of polling every 3 seconds.
+    - **Network & 5xx Server Errors**: Implemented exponential backoff with jitter (3s, 6s, 12s, max 30s) and suppressed noisy toasts on background retries, alerting only on manual saves or initial network drops.
+    - **Bound History Payloads**: Capped `agentEvents` (latest 200) and `chatMessages` (latest 100) before wire transmission.
+    - **Project Switching Cancellation**: `switchProject()` immediately calls `cancelRetry()` to prevent orphaned retries for previous workspaces.
+  - **Zod Schema Hardening** (`lib/validations/workspace.ts`):
+    - Made `CardTableSchema.rows` accept `.nullable().optional()`.
+    - Made `CardGroundingSchema.citations` and `suggestedAssets` accept `.nullable().optional()`.
+    - Made `CardGroundingSchema.layout.budget`, `estimatedHeight`, and `delta` safely `.nullable().optional()`.
+    - Increased `WorkspaceSchema.agentEvents` and `chatMessages` bounds to `max(1000)`.
+  - **Added Comprehensive Unit Tests**: Authored `__tests__/store/project-slice-save.test.ts` (6 tests) verifying clean lifecycle handling for demo projects, 401, 403, 404, 400, and 500 backoff recovery. All 141 test suites (1,365 tests) passing cleanly.
 - ✅ **LaTeX & Academic Review Hardening Audit (PR #9 / `arena/01a0b0ec-posterapp`)**:
   - **LaTeX Syntax & Template Escaping**: Repaired malformed doubled command prefixes (`\\documentclass`, `\\usepackage`, etc.) in registered venue templates (AAAI, CVPR, Landscape, Better Poster). Added strict template registry validation assertions preventing regression.
   - **Scientific Paper vs. Academic Thesis Decoupling**: Centralized policy guards in `lib/ai/thesis-review-policy.ts` (`shouldApplyEctsGrading`, `shouldRunPhdEnrichment`, `shouldUseProfessionalMode`). For scientific papers (`reviewKind === "paper"`), ECTS ratings/ranges are suppressed (`null`), defense terminology is converted to author feedback ("Otázky pre autorov", "Publikačné odporúčanie"), and the composer uses a dedicated peer-review narrative format.
