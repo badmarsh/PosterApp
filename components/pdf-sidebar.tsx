@@ -333,9 +333,50 @@ export function PdfSidebar() {
       {/* PDF render area */}
       <div className="relative min-h-0 flex-1 bg-muted/20">
         {compiling && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-background/70 backdrop-blur-sm" role="status" aria-live="polite">
-            <Loader2 className="size-6 animate-spin text-primary" />
-            <span className="text-[11px] text-muted-foreground">Compiling with pdflatex…</span>
+          <div
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-sm"
+            role="status"
+            aria-live="polite"
+          >
+            <div
+              className="relative flex items-center justify-center size-9"
+              style={{ willChange: "transform", transform: "translateZ(0)" }}
+            >
+              <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+              <div
+                className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin"
+                style={{
+                  animation: "spin 0.9s linear infinite",
+                  transformOrigin: "center",
+                  willChange: "transform",
+                }}
+              />
+              <Loader2
+                className="size-4 text-primary animate-spin"
+                style={{
+                  animation: "spin 1.4s linear infinite",
+                  transformOrigin: "center",
+                  willChange: "transform",
+                }}
+              />
+            </div>
+            <div className="flex flex-col items-center gap-1.5">
+              <span className="text-[11px] font-medium text-foreground/80">
+                Compiling with pdflatex…
+              </span>
+              <div
+                className="h-1 w-28 overflow-hidden rounded-full bg-muted"
+                aria-hidden="true"
+              >
+                <div
+                  className="h-full w-1/3 rounded-full bg-primary"
+                  style={{
+                    animation: "compile-shimmer 1.5s ease-in-out infinite",
+                    willChange: "transform",
+                  }}
+                />
+              </div>
+            </div>
             <span className="sr-only">Compiling PDF</span>
           </div>
         )}

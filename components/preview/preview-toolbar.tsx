@@ -35,7 +35,19 @@ export function PreviewToolbar({
           onClick={() => autoCompile ? onSetAutoCompile(false) : onCompile(format)}
           className={cn("h-full rounded-none gap-1.5 px-3 text-[11px] font-semibold", autoCompile ? "bg-primary/10 text-primary" : "text-foreground", !autoCompile && compileOk === true && "text-success", !autoCompile && compileOk === false && "text-destructive")}
         >
-          {autoCompile ? <RefreshCw className={cn("size-3", compiling && "animate-spin")} /> : compiling ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />}
+          {autoCompile ? (
+            <RefreshCw
+              className={cn("size-3", compiling && "animate-spin")}
+              style={compiling ? { animation: "spin 1s linear infinite", transformOrigin: "center" } : undefined}
+            />
+          ) : compiling ? (
+            <Loader2
+              className="size-3 animate-spin"
+              style={{ animation: "spin 1s linear infinite", transformOrigin: "center" }}
+            />
+          ) : (
+            <Play className="size-3" />
+          )}
           {autoCompile ? copy.livePreview : copy.compile}
         </Button>
         <div className="h-full w-px bg-border" />
