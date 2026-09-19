@@ -1,13 +1,25 @@
 # PosterApp Mathematical Benchmark and Simulation Suite
+#
+# NOTE (2026-09-19, empirical-evaluation rework): this script computes statistics
+# over artifacts/eval/raw-query-evaluations.json. It does NOT generate retrieval
+# results itself — every retrieval number it touches comes from that input file.
+# Its output therefore inherits the input's methodology: until the real-corpus
+# benchmark writes that file from measured runs, anything downstream of it is
+# only as real as the input. The input's self-declared "methodology" field is
+# propagated into both output artifacts so simulated vs empirical data cannot be
+# silently conflated.
 
 import os
 import json
 import math
+from datetime import datetime, timezone
 import numpy as np
 import scipy.stats as stats
 
 RANDOM_SEED = 42
 np.random.seed(RANDOM_SEED)
+
+RUN_TIMESTAMP = datetime.now(timezone.utc).isoformat()
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 RAW_EVAL_PATH = os.path.join(ROOT_DIR, 'artifacts', 'eval', 'raw-query-evaluations.json')
@@ -18,6 +30,12 @@ print(f'[Init] Seed={RANDOM_SEED}')
 
 with open(RAW_EVAL_PATH, 'r', encoding='utf-8') as f:
     raw_eval_data = json.load(f)
+
+# Propagate the input's own methodology declaration. Producers of the raw
+# artifact MUST set this field ("empirical" for measured runs; "simulated" for
+# synthetic ones). "unspecified" is kept visible rather than guessed.
+INPUT_METHODOLOGY = raw_eval_data.get('methodology', 'unspecified')
+print(f'[Init] Input methodology declaration: {INPUT_METHODOLOGY}')
 
 queries = raw_eval_data['queries']
 N_QUERIES = len(queries)
@@ -317,7 +335,7 @@ for d in DOMAINS:
         if base == 'posterapp-sota':
             continue
         wilcoxon_results['byDomain'][d]['ndcg10'][base] = compute_wilcoxon_exact(p_sota_ndcg[mask], arch_metrics[base]['ndcg10'][mask])
-        wilcoxon_results['byDomain'][d]['recall10'][base] = compute_wilcoxon_exact(p_sota_r10, arch_metrics[base]['r10'][mask])
+        wilcoxon_results['byDomain'][d]['recall10'][base] = compute_wilcoxon_exact(p_sota_r10[mask], arch_metrics[base]['r10'][mask])
 
 for l in LANGUAGES:
     mask = (query_langs == l)
@@ -325,9 +343,86 @@ for l in LANGUAGES:
         if base == 'posterapp-sota':
             continue
         wilcoxon_results['byLanguage'][l]['ndcg10'][base] = compute_wilcoxon_exact(p_sota_ndcg[mask], arch_metrics[base]['ndcg10'][mask])
-        wilcoxon_results['byLanguage'][l]['recall10'][base] = compute_wilcoxon_exact(p_sota_r10, arch_metrics[base]['r10'][mask])
+        wilcoxon_results['byLanguage'][l]['recall10'][base] = compute_wilcoxon_exact(p_sota_r10[mask], arch_metrics[base]['r10'][mask])
 
 print('[Wilcoxon] Wilcoxon tests complete.')
+
+# ==============================================================================
+# 4b. SUMMARY CONCLUSION — computed from the tests above, never hardcoded.
+#     The previous version wrote fixed strings asserting "p < 0.001 in all
+#     tests" regardless of what the tests actually returned; the conclusion is
+#     now derived from the computed results so it can no longer contradict
+#     the data.
+# ==============================================================================
+
+BASELINE_ARCH_IDS = [a for a in ARCH_IDS if a != 'posterapp-sota']
+
+def compute_summary_conclusion(arch_metrics, wilcoxon_results, mcnemar_results, input_methodology):
+    # 1. Does PosterApp actually lead on the raw means?
+    mean_r10 = {a: float(np.mean(arch_metrics[a]['r10'])) for a in ARCH_IDS}
+    mean_ndcg = {a: float(np.mean(arch_metrics[a]['ndcg10'])) for a in ARCH_IDS}
+    best_baseline = max(BASELINE_ARCH_IDS, key=lambda a: mean_r10[a])
+    posterapp_leads_recall = mean_r10['posterapp-sota'] > mean_r10[best_baseline]
+    posterapp_leads_ndcg = mean_ndcg['posterapp-sota'] > max(mean_ndcg[a] for a in BASELINE_ARCH_IDS)
+
+    # 2. Significance across the overall Wilcoxon tests (both metrics, all baselines)
+    wilcoxon_tests = []
+    for metric in ('ndcg10', 'recall10'):
+        for base, res in wilcoxon_results['overall'][metric].items():
+            wilcoxon_tests.append(res)
+    n_wilcoxon = len(wilcoxon_tests)
+    n_sig_005 = sum(1 for t in wilcoxon_tests if t['significantAtAlpha005'])
+    n_sig_001 = sum(1 for t in wilcoxon_tests if t['significantAtAlpha001'])
+    all_sig_001 = n_wilcoxon > 0 and n_sig_001 == n_wilcoxon
+
+    # 3. Significance across McNemar outcomes
+    mcnemar_tests = []
+    for outcome in mcnemar_results.values():
+        for res in outcome.values():
+            mcnemar_tests.append(res)
+    n_mcnemar = len(mcnemar_tests)
+    n_mc_sig_001 = sum(1 for t in mcnemar_tests if t['significantAtAlpha001'])
+    all_mc_sig_001 = n_mcnemar > 0 and n_mc_sig_001 == n_mcnemar
+
+    # 4. Effect sizes: Wilcoxon r against each baseline (recall10 + ndcg10, overall)
+    effect_sizes = [t['effectSizeR'] for t in wilcoxon_tests]
+    min_r = min(effect_sizes) if effect_sizes else 0.0
+    max_r = max(effect_sizes) if effect_sizes else 0.0
+
+    superiority = (
+        f"PosterApp SOTA mean Recall@10 = {mean_r10['posterapp-sota']:.4f} vs best baseline "
+        f"({best_baseline} = {mean_r10[best_baseline]:.4f}): "
+        + ("leads" if posterapp_leads_recall else "DOES NOT LEAD")
+        + f"; mean nDCG@10 = {mean_ndcg['posterapp-sota']:.4f}: "
+        + ("leads all baselines" if posterapp_leads_ndcg else "does not lead all baselines")
+        + f". Overall Wilcoxon tests: {n_sig_001}/{n_wilcoxon} significant at alpha=0.01 "
+        f"({n_sig_005}/{n_wilcoxon} at alpha=0.05). McNemar tests: {n_mc_sig_001}/{n_mcnemar} "
+        "significant at alpha=0.01. "
+        + ("All tests significant at alpha=0.01."
+           if (all_sig_001 and all_mc_sig_001)
+           else "NOT all tests are significant — any blanket superiority claim is unsupported by these data.")
+    )
+    large_effect_sizes = (
+        f"Wilcoxon effect size r ranges from {min_r:.3f} to {max_r:.3f} across the overall "
+        "baseline comparisons (recall@10 and nDCG@10)."
+    )
+    methodology_note = (
+        f"These conclusions describe the input artifact only (methodology: {input_methodology}). "
+        "They are statistics over the supplied per-query numbers, not a guarantee that those "
+        "numbers were measured on a real corpus."
+    )
+
+    return {
+        'superiority': superiority,
+        'largeEffectSizes': large_effect_sizes,
+        'methodologyNote': methodology_note,
+        'posterappMeanRecallAt10': round(mean_r10['posterapp-sota'], 4),
+        'bestBaselineId': best_baseline,
+        'bestBaselineMeanRecallAt10': round(mean_r10[best_baseline], 4),
+        'wilcoxonOverall': {'total': n_wilcoxon, 'significantAtAlpha001': n_sig_001, 'significantAtAlpha005': n_sig_005},
+        'mcnemar': {'total': n_mcnemar, 'significantAtAlpha001': n_mc_sig_001},
+        'effectSizeRange': [round(min_r, 4), round(max_r, 4)],
+    }
 
 # ==============================================================================
 # 5. CONCURRENCY & QUEUEING THEORY SIMULATION (1 to 20 Concurrent Users)
@@ -423,7 +518,10 @@ for concurrency in CONCURRENCY_LEVELS:
         'workerPoolUtilization': round(worker_utilization, 3),
         'dbPoolUtilization': round(db_utilization, 3),
         'saturationRatio': round(throughput_rps / (NUM_WORKERS / 0.026), 3),
-        'littlesLawConsistent': True
+        # Little's law check L = lambda * W. By construction of the closed-loop
+        # model (throughput = concurrency / cycle_time), this is consistent
+        # whenever the arithmetic holds; it is computed, not asserted.
+        'littlesLawConsistent': bool(abs(throughput_rps * cycle_time_sec - concurrency) < 0.01 * max(1, concurrency))
     })
 
 latencies = [c['meanResponseTimeMs'] for c in concurrency_simulation_results]
@@ -726,11 +824,14 @@ scaling_analysis = {
 print('[Export] Writing artifacts/eval/simulation-results.json and statistical-tests.json...')
 
 simulation_results_payload = {
-    'schemaVersion': '2.0-posterapp-simulation',
-    'timestamp': '2026-09-19T06:00:00.000Z',
+    'schemaVersion': '2.1-posterapp-simulation',
+    'timestamp': RUN_TIMESTAMP,
     'randomSeed': RANDOM_SEED,
+    'inputFile': RAW_EVAL_PATH,
+    'inputMethodology': INPUT_METHODOLOGY,
     'goldenDatasetQueriesCount': N_QUERIES,
     'concurrencySimulation': {
+        'methodology': 'simulated — closed-loop queueing model with assumed stage-time distributions; not a measurement of the deployed system',
         'protocol': 'Closed-loop queueing simulation with M/M/m and M/G/m stage dynamics',
         'concurrencyLevelsTested': CONCURRENCY_LEVELS,
         'requestsPerLevel': SIM_REQUESTS_PER_LEVEL,
@@ -738,10 +839,22 @@ simulation_results_payload = {
         'maxSustainableRps': max_sustainable_rps,
         'results': concurrency_simulation_results
     },
-    'reciprocalRankFusionStability': rrf_stability_analysis,
-    'graphDriftConvergenceBounds': graph_drift_analysis,
-    'claimVerificationPrecisionRecallCurve': claim_verification_analysis,
-    'complexityScalingAnalysis': scaling_analysis
+    'reciprocalRankFusionStability': {
+        'methodology': 'analytic/synthetic — closed-form RRF properties computed on random rank matrices; not a measurement of PosterApp',
+        **rrf_stability_analysis,
+    },
+    'graphDriftConvergenceBounds': {
+        'methodology': 'analytic PPR contraction bound plus synthetic random-graph frontier simulation; not a measurement of the production knowledge graph',
+        **graph_drift_analysis,
+    },
+    'claimVerificationPrecisionRecallCurve': {
+        'methodology': 'simulated — classifier scores drawn from Beta distributions; NOT an evaluation of lib/ai/claim-verifier.ts',
+        **claim_verification_analysis,
+    },
+    'complexityScalingAnalysis': {
+        'methodology': 'analytic model with assumed per-node/per-edge constants; not a measurement',
+        **scaling_analysis,
+    }
 }
 
 with open(SIM_RESULTS_PATH, 'w', encoding='utf-8') as f:
@@ -749,8 +862,10 @@ with open(SIM_RESULTS_PATH, 'w', encoding='utf-8') as f:
 print(f'[Export] Saved simulation results to: {SIM_RESULTS_PATH}')
 
 statistical_tests_payload = {
-    'schemaVersion': '2.0-posterapp-statistical-tests',
-    'timestamp': '2026-09-19T06:00:00.000Z',
+    'schemaVersion': '2.1-posterapp-statistical-tests',
+    'timestamp': RUN_TIMESTAMP,
+    'inputFile': RAW_EVAL_PATH,
+    'inputMethodology': INPUT_METHODOLOGY,
     'goldenDatasetQueriesCount': N_QUERIES,
     'bootstrapConfidenceIntervals': {
         'iterations': BOOTSTRAP_ITERATIONS,
@@ -767,11 +882,7 @@ statistical_tests_payload = {
         'description': 'Two-sided Wilcoxon signed-rank tests for nDCG@10 and Recall@10 across all queries, by academic domain, and by language',
         'tests': wilcoxon_results
     },
-    'summaryConclusion': {
-        'superiority': 'PosterApp SOTA demonstrates statistically significant superiority over all 6 baseline architectures across Recall@10, nDCG@10, and binary hit outcomes (p < 0.001 in all Wilcoxon and McNemar tests).',
-        'largeEffectSizes': 'Wilcoxon effect size r > 0.85 against all baseline architectures, demonstrating immense practical significance.',
-        'mathematicalRobustness': 'RRF k=60 provides optimal trade-off between rank noise stability and multi-source consensus reward.'
-    }
+    'summaryConclusion': compute_summary_conclusion(arch_metrics, wilcoxon_results, mcnemar_results, INPUT_METHODOLOGY)
 }
 
 with open(STAT_TESTS_PATH, 'w', encoding='utf-8') as f:
