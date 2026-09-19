@@ -50,6 +50,7 @@ export type EvidenceState =
   | "unverified"
   | "stale"
   | "ambiguous"
+  | "context-only"
   | "verified" // backward compat alias for verified-exact
 
 export type FindingAudience = "author" | "editor" | "committee" | "private"

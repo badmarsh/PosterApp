@@ -44,7 +44,7 @@ type CommandPaletteProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onToggleStructure: () => void
-  onOpenWorkspaceSelector: () => void
+  onOpenWorkspaceSelector: (createMode?: boolean) => void
 }
 
 export function CommandPalette({
@@ -171,11 +171,11 @@ export function CommandPalette({
             <Copy />
             Duplicate workspace
           </CommandItem>
-          <CommandItem onSelect={() => run(newProject)}>
+          <CommandItem onSelect={() => run(() => onOpenWorkspaceSelector(true))}>
             <Plus />
             New workspace
           </CommandItem>
-          <CommandItem onSelect={() => run(onOpenWorkspaceSelector)}>
+          <CommandItem onSelect={() => run(() => onOpenWorkspaceSelector(false))}>
             <Folders />
             View all workspaces…
           </CommandItem>

@@ -197,6 +197,8 @@ export interface ThesisReviewState {
   generateError: string | null
   saveError: string | null
   exportError: string | null
+  /** Non-blocking statutory-completeness warnings from the last export. */
+  exportWarnings: string[]
   isPanelOpen: boolean
   isMetadataValid: boolean
   formMetadata: ThesisReviewFormMetadata
@@ -299,6 +301,29 @@ export function parseOutputKey(outputKey?: string | null): { workspaceId: string
 
 // In-memory cache for source document markdown by workspace + fileId
 const sourceDocCache = new Map<string, string>()
+
+export function clearSourceDocCache(workspaceId?: string, fileId?: string): void {
+  if (!workspaceId) {
+    sourceDocCache.clear()
+    return
+  }
+  if (!fileId) {
+    for (const key of sourceDocCache.keys()) {
+      if (key.startsWith(`${workspaceId}:`)) {
+        sourceDocCache.delete(key)
+      }
+    }
+    return
+  }
+  sourceDocCache.delete(`${workspaceId}:${fileId}`)
+  sourceDocCache.delete(`${workspaceId}:all`)
+
+  const shared = workspaceSharedThesisMap.get(workspaceId)
+  if (shared && shared.selectedFileId === fileId) {
+    shared.selectedFileId = ""
+    shared.sourceMarkdown = ""
+  }
+}
 
 function createThesisReviewStore(
   outputKey?: string | null,
@@ -422,6 +447,7 @@ function createThesisReviewStore(
       generateError: null,
       saveError: null,
       exportError: null,
+      exportWarnings: [],
       isPanelOpen: false,
       isMetadataValid: isInitialValid,
       formMetadata: {
@@ -525,11 +551,19 @@ function createThesisReviewStore(
       setMultiAgentDebate: (debate) => set((s) => { s.multiAgentDebate = debate }),
       setProfessionalModeOverride: (enabled) => set((s) => { s.professionalModeOverride = enabled }),
       setSelectedFileId: (fileId) => {
-        set((s) => { s.selectedFileId = fileId })
+        set((s) => {
+          s.selectedFileId = fileId
+          if (!fileId) {
+            s.sourceMarkdown = ""
+          }
+        })
         if (workspaceId) {
           let shared = workspaceSharedThesisMap.get(workspaceId)
           if (shared) {
             shared.selectedFileId = fileId
+            if (!fileId) {
+              shared.sourceMarkdown = ""
+            }
           }
         }
       },
@@ -574,6 +608,9 @@ function createThesisReviewStore(
         const cacheKey = `${workspaceId}:${fileId || "all"}`
         const cached = sourceDocCache.get(cacheKey)
         if (cached) {
+          if (get().sourceMarkdown === cached && !get().isLoadingSource) {
+            return cached
+          }
           set((s) => {
             s.sourceMarkdown = cached
             s.isLoadingSource = false
@@ -1049,7 +1086,7 @@ function createThesisReviewStore(
     },
 
     exportReviewPdf: async (workspaceId, reviewId) => {
-      set((s) => { s.isExporting = true; s.exportError = null })
+      set((s) => { s.isExporting = true; s.exportError = null; s.exportWarnings = [] })
       try {
         const res = await fetch(`/api/workspaces/${workspaceId}/thesis-review/${reviewId}/export`, {
           method: "POST",
@@ -1060,6 +1097,17 @@ function createThesisReviewStore(
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}))
           throw new Error(errData.error ?? `HTTP ${res.status}`)
+        }
+
+        // The export route reports statutory completeness of a doctoral
+        // posudok via headers; surface it without blocking the download.
+        const missingItems = res.headers.get("X-Posudok-Missing-Items")
+        if (res.headers.get("X-Posudok-Completeness") === "incomplete" && missingItems) {
+          set((s) => {
+            s.exportWarnings = [
+              `Posudok neobsahuje všetky zákonom vyžadované náležitosti (chýba: ${missingItems}). Pred podpisom ich doplňte.`,
+            ]
+          })
         }
 
         // Trigger browser download
@@ -1113,6 +1161,7 @@ function createThesisReviewStore(
       s.generateError = null
       s.saveError = null
       s.exportError = null
+      s.exportWarnings = []
     }),
 
     _syncReviewFromYjs: (incoming) => {
@@ -1248,5 +1297,7 @@ export function clearThesisReviewStoreRegistry() {
 
 if (typeof window !== "undefined") {
   ;(window as any).__thesisReviewStore = useThesisReviewStore
+  ;(window as any).__getThesisReviewStore = getThesisReviewStore
+  ;(window as any).__reviewStoreRegistry = reviewStoreRegistry
 }
 

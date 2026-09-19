@@ -11,9 +11,9 @@ export const DEFAULT_AI_MODELS = {
   convert: "gemini-2.5-flash",
   shrink: "gemini-2.5-flash",
   review: "gemini-2.5-flash",
-  reviewLayout: "qwen3-vl-flash",
-  vision: "qwen3-vl-flash",
-  ocr: "qwen3-vl-flash",
+  reviewLayout: "gemini-2.5-flash",
+  vision: "gemini-2.5-flash",
+  ocr: "gemini-2.5-flash",
   chat: "gemini-2.5-flash",
   bibtex: "gemini-2.5-flash",
   labeler: "gemini-2.5-flash",
@@ -37,18 +37,19 @@ export const AI_TIMEOUTS = {
 } as const
 
 export const DEFAULT_FALLBACK_VISION_MODELS: readonly string[] = [
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-1.5-flash",
+  "gemini-3.1-flash-lite",
   "gemini-3.8-flash",
   "gemini-3.6-flash",
+  "qwen3-vl-flash",
+  "qwen3-vl-plus",
   "qwen-omni-turbo",
   "qwen3-omni-flash",
-  "qwen3-vl-plus",
-  "qwen3-vl-flash",
   "qwen-vl-max",
   "qwen-vl-plus",
   "qwen3-vl-235b-a22b-instruct",
-  "qwen3-omni-flash-2025-12-01",
-  "qwen3-vl-plus-2025-12-19",
-  "qwen3-vl-flash-2026-01-22",
 ] as const
 
 /** Max models tried per image (override with AI_VISION_MAX_CHAIN). */
@@ -116,6 +117,9 @@ export function parseAiModelOverrides(headers: Headers): Partial<Record<AiModelR
 }
 
 export const AI_API_KEY_HEADER = "X-Gemini-Api-Key"
+export const AI_CUSTOM_KEY_HEADER = "X-AI-Api-Key"
+export const AI_BASE_URL_HEADER = "X-AI-Base-Url"
+export const AI_ENDPOINTS_HEADER = "X-AI-Endpoints"
 
 /**
  * Parse client-supplied Gemini or custom AI API key from request headers.
@@ -126,6 +130,61 @@ export function parseAiApiKey(headers: Headers): string | undefined {
   const customKey = headers.get("x-ai-api-key")?.trim()
   if (customKey) return customKey
   return undefined
+}
+
+/**
+ * Parse client-supplied AI base URL from request headers.
+ */
+export function parseAiBaseUrl(headers: Headers): string | undefined {
+  const baseUrl = headers.get("x-ai-base-url")?.trim()
+  return baseUrl || undefined
+}
+
+/**
+ * Parse client-supplied AI endpoints configuration from request headers.
+ */
+export function parseAiEndpointsHeader(headers: Headers): Array<{
+  id: string
+  name: string
+  baseUrl: string
+  apiKey?: string
+  enabled?: boolean
+  models?: string[]
+}> {
+  const raw = headers.get("x-ai-endpoints")
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) return parsed
+  } catch {}
+  return []
+}
+
+/**
+ * Resolve the matching AI endpoint (base URL and API key) from request headers.
+ * If model is specified, matches the endpoint that contains that model.
+ */
+export function parseAiEndpoint(
+  headers: Headers,
+  model?: string
+): { apiUrl?: string; apiKey?: string } {
+  const endpoints = parseAiEndpointsHeader(headers)
+  if (model && endpoints.length > 0) {
+    const matching = endpoints.find(
+      (e) => e.enabled !== false && Array.isArray(e.models) && e.models.includes(model)
+    )
+    if (matching?.baseUrl) {
+      return {
+        apiUrl: matching.baseUrl,
+        apiKey: matching.apiKey,
+      }
+    }
+  }
+
+  const baseUrl = parseAiBaseUrl(headers) || endpoints[0]?.baseUrl
+  const apiKey = parseAiApiKey(headers) || endpoints[0]?.apiKey
+
+  return { apiUrl: baseUrl, apiKey }
 }
 
 /**
@@ -141,9 +200,14 @@ export function resolveAiModelWithOverrides(
   if (typeof override === "string" && override) return override
 
   // If a primary default override is configured, inherit it for general text-based tasks
+  // or multimodal tasks if the default model supports multimodal vision (e.g. gemini-*, vl, omni)
   if (role !== "default" && typeof overrides.default === "string" && overrides.default) {
     const isMultimodal = role === "vision" || role === "ocr" || role === "reviewLayout"
-    if (!isMultimodal) {
+    const defaultSupportsMultimodal =
+      overrides.default.startsWith("gemini-") ||
+      overrides.default.includes("vl") ||
+      overrides.default.includes("omni")
+    if (!isMultimodal || defaultSupportsMultimodal) {
       return overrides.default
     }
   }

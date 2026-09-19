@@ -1,0 +1,1382 @@
+{
+  "schemaVersion": "1.0",
+  "ranAt": "2026-09-19T04:28:45.293Z",
+  "environment": {
+    "flavor": "pglite",
+    "serverVersion": "18.3",
+    "pgvectorVersion": "0.8.1",
+    "caveats": [
+      "PGlite is PostgreSQL compiled to WebAssembly: the executor, index access methods and pgvector operators are the real ones, but throughput, memory and I/O characteristics are NOT representative of a native server.",
+      "PgBouncer / Supabase transaction-pooler behaviour cannot be exercised in-process; the SET LOCAL scoping check proves the SQL contract only.",
+      "ANN recall is only meaningful when the planner actually chooses document_chunk_embedding_hnsw. Every annRecall record carries indexUsed plus the EXPLAIN plan that produced it. When indexUsed is false the recall figure is exact-search recall (1.000 by construction) and is NOT an approximate-recall measurement; the ann-recall check reports skipped=true in that case rather than passing on a vacuous number. Approximate-recall at production data volume remains unverified-live."
+    ]
+  },
+  "migrations": [
+    {
+      "name": "20260823054246_postgres_migration_with_snapshots",
+      "ok": true,
+      "ms": 43
+    },
+    {
+      "name": "20260824090000_workspace_access_and_collab",
+      "ok": true,
+      "ms": 19
+    },
+    {
+      "name": "20260830080000_thesis_review_and_asset_unique",
+      "ok": true,
+      "ms": 9
+    },
+    {
+      "name": "20260830090000_thesis_review_decision_fields",
+      "ok": true,
+      "ms": 2
+    },
+    {
+      "name": "20260902120000_vector_graph_thesis",
+      "ok": true,
+      "ms": 46
+    },
+    {
+      "name": "20260903120000_indexes_and_integrity",
+      "ok": true,
+      "ms": 14
+    },
+    {
+      "name": "20260903180000_document_chunk_kind",
+      "ok": true,
+      "ms": 7
+    },
+    {
+      "name": "20260905000000_deerflow_threads",
+      "ok": true,
+      "ms": 10
+    },
+    {
+      "name": "20260917120000_document_chunk_context_prefix",
+      "ok": true,
+      "ms": 1
+    },
+    {
+      "name": "20260917133000_card_grounding_metadata",
+      "ok": true,
+      "ms": 1
+    },
+    {
+      "name": "20260918120000_evidence_first_retrieval",
+      "ok": true,
+      "ms": 109
+    },
+    {
+      "name": "20260919120000_index_representation_versions",
+      "ok": true,
+      "ms": 18
+    }
+  ],
+  "checks": [
+    {
+      "id": "migrations",
+      "title": "Every migration in prisma/migrations applies to a real PostgreSQL",
+      "ok": true,
+      "value": {
+        "applied": 12,
+        "total": 12
+      }
+    },
+    {
+      "id": "extension-version",
+      "title": "pgvector extension is installed and its version is known",
+      "ok": true,
+      "value": "0.8.1",
+      "detail": "iterative_scan requires pgvector >= 0.8; this server has 0.8.1"
+    },
+    {
+      "id": "hnsw-index-exists",
+      "title": "DocumentChunk.embedding has an HNSW index",
+      "ok": true,
+      "value": [
+        {
+          "name": "DocumentChunk_pkey",
+          "am": "btree"
+        },
+        {
+          "name": "DocumentChunk_workspaceId_idx",
+          "am": "btree"
+        },
+        {
+          "name": "document_chunk_embedding_hnsw",
+          "am": "hnsw"
+        },
+        {
+          "name": "DocumentChunk_workspaceId_documentId_idx",
+          "am": "btree"
+        },
+        {
+          "name": "DocumentChunk_workspaceId_kind_idx",
+          "am": "btree"
+        },
+        {
+          "name": "DocumentChunk_workspaceId_documentId_ordinal_idx",
+          "am": "btree"
+        },
+        {
+          "name": "DocumentChunk_workspaceId_chunkType_idx",
+          "am": "btree"
+        },
+        {
+          "name": "DocumentChunk_workspaceId_parentChunkId_idx",
+          "am": "btree"
+        },
+        {
+          "name": "DocumentChunk_workspaceId_pageStart_idx",
+          "am": "btree"
+        },
+        {
+          "name": "DocumentChunk_workspaceId_contentHash_idx",
+          "am": "btree"
+        },
+        {
+          "name": "DocumentChunk_workspaceId_indexVersion_idx",
+          "am": "btree"
+        },
+        {
+          "name": "DocumentChunk_workspaceId_embeddingModelVersion_idx",
+          "am": "btree"
+        }
+      ]
+    },
+    {
+      "id": "hnsw-opclass",
+      "title": "the HNSW index uses vector_cosine_ops (matching the `<=>` operator the code uses)",
+      "ok": true,
+      "value": "CREATE INDEX document_chunk_embedding_hnsw ON public.\"DocumentChunk\" USING hnsw (embedding vector_cosine_ops)"
+    },
+    {
+      "id": "distance-operators",
+      "title": "pgvector distance operators are registered for the vector type",
+      "ok": true,
+      "value": [
+        "<#>",
+        "<->",
+        "<=>"
+      ]
+    },
+    {
+      "id": "ef-search-readable",
+      "title": "hnsw.ef_search is a real GUC on this build",
+      "ok": true,
+      "value": "40"
+    },
+    {
+      "id": "set-local-transaction-scoped",
+      "title": "SET LOCAL hnsw.ef_search applies inside the transaction and does not leak after it",
+      "ok": true,
+      "value": {
+        "insideTransaction": "777",
+        "afterCommit": "40",
+        "default": "40"
+      }
+    },
+    {
+      "id": "iterative-scan",
+      "title": "hnsw.iterative_scan is available and settable to relaxed_order",
+      "ok": true,
+      "value": {
+        "available": true
+      }
+    },
+    {
+      "id": "iterative-scan-guard",
+      "title": "the guarded DO-block SET used by applyHnswSessionTuning is valid SQL",
+      "ok": true
+    },
+    {
+      "id": "ann-recall",
+      "title": "Filtered HNSW recall@10 in the shipped configuration is >= 0.95 against brute-force ground truth",
+      "ok": true,
+      "skipped": false,
+      "value": {
+        "productionConfiguration": {
+          "efSearch": 200,
+          "iterativeScan": "relaxed_order",
+          "measurements": 3,
+          "worstRecallAt10": 1,
+          "meanRecallAt10": 1
+        },
+        "worstRecallAcrossWholeSweep": 0.6,
+        "measurementsUsingHnsw": 24,
+        "measurementsTotal": 60,
+        "measurementsDiscardedForCircularGroundTruth": 0,
+        "bestSweptConfiguration": {
+          "iterativeScan": "off",
+          "worstRecallAt10": 0.6
+        },
+        "byIterativeScanMode": [
+          {
+            "iterativeScan": "off",
+            "measurements": 12,
+            "worstRecallAt10": 0.6,
+            "meanRecallAt10": 0.95,
+            "meanLatencyMs": 4.08,
+            "byEfSearch": [
+              {
+                "efSearch": 40,
+                "measurements": 3,
+                "meanRecallAt10": 0.833
+              },
+              {
+                "efSearch": 80,
+                "measurements": 3,
+                "meanRecallAt10": 0.967
+              },
+              {
+                "efSearch": 100,
+                "measurements": 3,
+                "meanRecallAt10": 1
+              },
+              {
+                "efSearch": 200,
+                "measurements": 3,
+                "meanRecallAt10": 1
+              },
+              {
+                "efSearch": 400,
+                "measurements": 0,
+                "meanRecallAt10": null
+              }
+            ]
+          },
+          {
+            "iterativeScan": "relaxed_order",
+            "measurements": 12,
+            "worstRecallAt10": 0.6,
+            "meanRecallAt10": 0.95,
+            "meanLatencyMs": 4.5,
+            "byEfSearch": [
+              {
+                "efSearch": 40,
+                "measurements": 3,
+                "meanRecallAt10": 0.833
+              },
+              {
+                "efSearch": 80,
+                "measurements": 3,
+                "meanRecallAt10": 0.967
+              },
+              {
+                "efSearch": 100,
+                "measurements": 3,
+                "meanRecallAt10": 1
+              },
+              {
+                "efSearch": 200,
+                "measurements": 3,
+                "meanRecallAt10": 1
+              },
+              {
+                "efSearch": 400,
+                "measurements": 0,
+                "meanRecallAt10": null
+              }
+            ]
+          }
+        ]
+      },
+      "detail": "shipped configuration (ef_search=200, iterative_scan=relaxed_order): worst recall@10=1.000, mean=1.000 over 3 probes. Swept curve: off[40:0.833 80:0.967 100:1 200:1 400:null]; relaxed_order[40:0.833 80:0.967 100:1 200:1 400:null]"
+    },
+    {
+      "id": "ann-index-valid",
+      "title": "document_chunk_embedding_hnsw is a valid, ready hnsw index (usable by the planner)",
+      "ok": true,
+      "value": {
+        "index": "document_chunk_embedding_hnsw",
+        "isValid": true,
+        "isReady": true,
+        "hnswIndexes": [
+          "document_chunk_embedding_hnsw",
+          "graph_community_summary_embedding_hnsw"
+        ]
+      }
+    },
+    {
+      "id": "filtered-recall-no-underfill",
+      "title": "A workspace-scoped ANN query returns the full LIMIT despite the multi-tenant filter",
+      "ok": true,
+      "value": {
+        "returned": 50,
+        "wanted": 50,
+        "scopeRows": 200
+      }
+    },
+    {
+      "id": "dense-generator-executes",
+      "title": "denseRetriever's production SQL executes against a real PostgreSQL and returns rows",
+      "ok": true,
+      "value": {
+        "candidates": 10
+      },
+      "ms": 6
+    },
+    {
+      "id": "lexical-generator-executes",
+      "title": "lexicalRetriever's production SQL (websearch_to_tsquery + ts_rank) executes",
+      "ok": true,
+      "value": {
+        "candidates": 0,
+        "ftsQuery": "bola OR presnosť OR navrhnutého OR modelu OR štatistická OR významnosť OR výsledkov"
+      },
+      "ms": 8
+    },
+    {
+      "id": "metadata-generator-executes",
+      "title": "metadataRetriever's production SQL executes",
+      "ok": true,
+      "value": {
+        "candidates": 10
+      },
+      "ms": 1
+    },
+    {
+      "id": "citation-generator-executes",
+      "title": "citationRetriever's production SQL executes",
+      "ok": true,
+      "value": {
+        "candidates": 0
+      },
+      "ms": 3
+    },
+    {
+      "id": "empty-documentids-matches-nothing",
+      "title": "retrievalJoin({documentIds: []}) compiles to `AND 1 = 0` and matches no rows",
+      "ok": true,
+      "value": {
+        "sql": "AND 1 = 0",
+        "rows": 0,
+        "scopeRows": 200
+      }
+    },
+    {
+      "id": "documentids-filter-still-matches",
+      "title": "retrievalJoin({documentIds: [id]}) still matches every row of that document",
+      "ok": true,
+      "value": {
+        "sql": "AND \"documentId\" IN ($1)",
+        "rows": 200,
+        "scopeRows": 200
+      }
+    },
+    {
+      "id": "ef-search-scaling",
+      "title": "efSearchFor scales with the requested limit and stays inside [100, 1000]",
+      "ok": true,
+      "value": {
+        "at1": 100,
+        "at10": 200,
+        "at1000": 1000,
+        "at10000": 1000
+      }
+    },
+    {
+      "id": "statements-executed",
+      "title": "Production retrieval statements were executed (not simulated)",
+      "ok": true,
+      "value": {
+        "statements": 6,
+        "sample": [
+          "SET LOCAL hnsw.ef_search = 300",
+          "DO $$ BEGIN PERFORM set_config('hnsw.iterative_scan', 'relaxed_order', true); EXCEPTION WHEN OTHERS THEN NULL; END $$;",
+          "\n          SELECT id, heading, content, tokens, kind, \"chunkType\", \"sectionPath\",\n       \"pageStart\", \"pageEnd\", \"parentChunkId\", \"previousChunkId\", \"nextChunkId\", \"documentId\", \"contextPrefix\",\n     "
+        ]
+      }
+    }
+  ],
+  "corpus": [
+    {
+      "spec": {
+        "name": "small",
+        "workspaces": 1,
+        "documentsPerWorkspace": 1,
+        "chunksPerDocument": 200
+      },
+      "rows": 200,
+      "ingestMs": 1117
+    },
+    {
+      "spec": {
+        "name": "medium",
+        "workspaces": 1,
+        "documentsPerWorkspace": 2,
+        "chunksPerDocument": 1500
+      },
+      "rows": 3000,
+      "ingestMs": 23811
+    }
+  ],
+  "annRecall": [
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 40,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 8,
+      "exactLatencyMs": 15,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 40,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 7,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 80,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 6,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 80,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 8,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 100,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 9,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 100,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 7,
+      "exactLatencyMs": 8,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 200,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 6,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 200,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 6,
+      "exactLatencyMs": 11,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 400,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 9,
+      "exactLatencyMs": 10,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 400,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 6,
+      "exactLatencyMs": 6,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 40,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 9,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 40,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 8,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 80,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 7,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 80,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 8,
+      "exactLatencyMs": 11,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 100,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 7,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 100,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 7,
+      "exactLatencyMs": 8,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 200,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 6,
+      "exactLatencyMs": 8,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 200,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 8,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 400,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 7,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 400,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 11,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 40,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 10,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 40,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 7,
+      "exactLatencyMs": 7,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 80,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 7,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 80,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 7,
+      "exactLatencyMs": 6,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 100,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 3,
+      "exactLatencyMs": 6,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 100,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 10,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 200,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 6,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 200,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 7,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 400,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 6,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "small",
+      "totalRows": 200,
+      "scopeRows": 200,
+      "efSearch": 400,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 7,
+      "indexUsed": false,
+      "plan": "Limit  (cost=69.97..69.99 rows=10 width=25) |   ->  Sort  (cost=69.97..70.47 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.14..65.64 rows=200 width=25) |               Index Cond: (\"workspaceId\" = 'ws-small-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=57.82..57.85 rows=10 width=25) |   ->  Sort  (cost=57.82..58.32 rows=200 width=25) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..53.50 rows=200 width=25) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-small-0'::text) AND (\"documentId\" = 'doc-small-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 40,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 3,
+      "exactLatencyMs": 6,
+      "indexUsed": true,
+      "plan": "Limit  (cost=443.85..485.35 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=443.85..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 40,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=443.85..485.35 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=443.85..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 80,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=750.89..790.21 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=750.89..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 80,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=750.89..790.21 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=750.89..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 100,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=895.18..933.48 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=895.18..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 100,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 6,
+      "exactLatencyMs": 9,
+      "indexUsed": true,
+      "plan": "Limit  (cost=895.18..933.48 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=895.18..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 200,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=1569.71..1603.21 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=1569.71..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 200,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=1569.71..1603.21 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=1569.71..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 400,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 5,
+      "indexUsed": false,
+      "plan": "Limit  (cost=2289.29..2289.31 rows=10 width=27) |   ->  Sort  (cost=2289.29..2292.80 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.28..2258.90 rows=1406 width=27) |               Index Cond: (\"workspaceId\" = 'ws-medium-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 400,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 6,
+      "indexUsed": false,
+      "plan": "Limit  (cost=2289.29..2289.31 rows=10 width=27) |   ->  Sort  (cost=2289.29..2292.80 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.28..2258.90 rows=1406 width=27) |               Index Cond: (\"workspaceId\" = 'ws-medium-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 40,
+      "k": 10,
+      "recall": 0.6,
+      "exactTopMatches": 6,
+      "annLatencyMs": 3,
+      "exactLatencyMs": 6,
+      "indexUsed": true,
+      "plan": "Limit  (cost=443.85..485.35 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=443.85..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 40,
+      "k": 10,
+      "recall": 0.6,
+      "exactTopMatches": 6,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=443.85..485.35 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=443.85..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 80,
+      "k": 10,
+      "recall": 0.9,
+      "exactTopMatches": 9,
+      "annLatencyMs": 6,
+      "exactLatencyMs": 9,
+      "indexUsed": true,
+      "plan": "Limit  (cost=750.89..790.21 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=750.89..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 80,
+      "k": 10,
+      "recall": 0.9,
+      "exactTopMatches": 9,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 8,
+      "indexUsed": true,
+      "plan": "Limit  (cost=750.89..790.21 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=750.89..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 100,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=895.18..933.48 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=895.18..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 100,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=895.18..933.48 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=895.18..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 200,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 6,
+      "indexUsed": true,
+      "plan": "Limit  (cost=1569.71..1603.21 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=1569.71..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 200,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 6,
+      "indexUsed": true,
+      "plan": "Limit  (cost=1569.71..1603.21 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=1569.71..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 400,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 5,
+      "indexUsed": false,
+      "plan": "Limit  (cost=2289.29..2289.31 rows=10 width=27) |   ->  Sort  (cost=2289.29..2292.80 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.28..2258.90 rows=1406 width=27) |               Index Cond: (\"workspaceId\" = 'ws-medium-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 400,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 6,
+      "indexUsed": false,
+      "plan": "Limit  (cost=2289.29..2289.31 rows=10 width=27) |   ->  Sort  (cost=2289.29..2292.80 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.28..2258.90 rows=1406 width=27) |               Index Cond: (\"workspaceId\" = 'ws-medium-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 40,
+      "k": 10,
+      "recall": 0.9,
+      "exactTopMatches": 9,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=443.85..485.35 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=443.85..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 40,
+      "k": 10,
+      "recall": 0.9,
+      "exactTopMatches": 9,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=443.85..485.35 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=443.85..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 80,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=750.89..790.21 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=750.89..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 80,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=750.89..790.21 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=750.89..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 100,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 3,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=895.18..933.48 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=895.18..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 100,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 6,
+      "indexUsed": true,
+      "plan": "Limit  (cost=895.18..933.48 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=895.18..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 200,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=1569.71..1603.21 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=1569.71..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 200,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 5,
+      "indexUsed": true,
+      "plan": "Limit  (cost=1569.71..1603.21 rows=10 width=27) |   ->  Index Scan using document_chunk_embedding_hnsw on \"DocumentChunk\"  (cost=1569.71..6279.52 rows=1406 width=27) |         Order By: (embedding <=> '<vector>'::vector) |         Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 400,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 4,
+      "exactLatencyMs": 6,
+      "indexUsed": false,
+      "plan": "Limit  (cost=2289.29..2289.31 rows=10 width=27) |   ->  Sort  (cost=2289.29..2292.80 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.28..2258.90 rows=1406 width=27) |               Index Cond: (\"workspaceId\" = 'ws-medium-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "off"
+    },
+    {
+      "corpus": "medium",
+      "totalRows": 3000,
+      "scopeRows": 1500,
+      "efSearch": 400,
+      "k": 10,
+      "recall": 1,
+      "exactTopMatches": 10,
+      "annLatencyMs": 5,
+      "exactLatencyMs": 5,
+      "indexUsed": false,
+      "plan": "Limit  (cost=2289.29..2289.31 rows=10 width=27) |   ->  Sort  (cost=2289.29..2292.80 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Index Scan using \"DocumentChunk_workspaceId_idx\" on \"DocumentChunk\"  (cost=0.28..2258.90 rows=1406 width=27) |               Index Cond: (\"workspaceId\" = 'ws-medium-0'::text) |               Filter: ((embedding IS NOT NULL) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "exactIsBruteForce": true,
+      "exactPlan": "Limit  (cost=881.90..881.92 rows=10 width=27) |   ->  Sort  (cost=881.90..885.41 rows=1406 width=27) |         Sort Key: ((embedding <=> '<vector>'::vector)) |         ->  Seq Scan on \"DocumentChunk\"  (cost=0.00..851.51 rows=1406 width=27) |               Filter: ((embedding IS NOT NULL) AND (\"workspaceId\" = 'ws-medium-0'::text) AND (\"documentId\" = 'doc-medium-0-0'::text))",
+      "iterativeScan": "relaxed_order"
+    }
+  ],
+  "statementsExecuted": 6,
+  "passed": 20,
+  "failed": 0,
+  "skipped": 0,
+  "ok": true
+}

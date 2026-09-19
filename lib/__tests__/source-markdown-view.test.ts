@@ -3,6 +3,7 @@ import {
   resolveManuscriptAssetUrl,
   preprocessMathAndHtml,
   normalizeStr,
+  chunkManuscriptMarkdown,
 } from "@/components/thesis-review/source-markdown-view"
 
 describe("SourceMarkdownView Helpers & Asset Resolution", () => {
@@ -76,6 +77,91 @@ describe("SourceMarkdownView Helpers & Asset Resolution", () => {
       expect(normalizeStr("  Hybridný   Párovací  Algoritmus \n\t ")).toBe(
         "hybridný párovací algoritmus"
       )
+    })
+  })
+
+  describe("chunkManuscriptMarkdown", () => {
+    it("handles empty or whitespace markdown safely", () => {
+      expect(chunkManuscriptMarkdown("")).toEqual([])
+      expect(chunkManuscriptMarkdown("   \n\n  ")).toEqual([])
+    })
+
+    it("splits markdown cleanly by ATX headings (#, ##, ###)", () => {
+      const doc = `# 1. Úvod
+Tento text patrí do úvodu práce.
+
+## 1.1 Motivácia
+Motiváciou pre prácu je zrýchlenie recenzného procesu.
+
+# 2. Metodika
+Tu popisujeme metódy a modely.`
+
+      const chunks = chunkManuscriptMarkdown(doc)
+      expect(chunks).toHaveLength(3)
+      expect(chunks[0].heading).toBe("1. Úvod")
+      expect(chunks[0].rawText).toContain("# 1. Úvod")
+      expect(chunks[0].rawText).toContain("Tento text patrí do úvodu")
+
+      expect(chunks[1].heading).toBe("1.1 Motivácia")
+      expect(chunks[1].rawText).toContain("## 1.1 Motivácia")
+
+      expect(chunks[2].heading).toBe("2. Metodika")
+      expect(chunks[2].rawText).toContain("# 2. Metodika")
+    })
+
+    it("does not split headings inside fenced code blocks", () => {
+      const doc = `# Skript
+\`\`\`python
+# Toto je komentár v kóde, nie nadpis sekcie
+x = 10
+\`\`\`
+Text po kóde.`
+
+      const chunks = chunkManuscriptMarkdown(doc)
+      expect(chunks).toHaveLength(1)
+      expect(chunks[0].heading).toBe("Skript")
+      expect(chunks[0].rawText).toContain("# Toto je komentár v kóde")
+    })
+
+    it("keeps multi-line $$...$$ display math blocks whole without splitting", () => {
+      const doc = `# Matematický model
+Rovnica straty:
+$$
+\\mathcal{L}(y, \\hat{y}) = -\\sum_{i=1}^n y_i \\log \\hat{y}_i
+$$
+Následná interpretácia.`
+
+      const chunks = chunkManuscriptMarkdown(doc)
+      expect(chunks).toHaveLength(1)
+      expect(chunks[0].rawText).toContain("\\mathcal{L}(y, \\hat{y})")
+    })
+
+    it("keeps HTML table blocks intact", () => {
+      const doc = `# Tabuľka výsledkov
+<table>
+<tr><th>Model</th><th>F1</th></tr>
+<tr><td>Baseline</td><td>0.82</td></tr>
+</table>
+Zhodnotenie tabuľky.`
+
+      const chunks = chunkManuscriptMarkdown(doc)
+      expect(chunks).toHaveLength(1)
+      expect(chunks[0].rawText).toContain("<table>")
+      expect(chunks[0].rawText).toContain("</table>")
+    })
+
+    it("splits large text without headings on paragraph boundaries when exceeding maxChunkChars", () => {
+      const p1 = "A".repeat(200)
+      const p2 = "B".repeat(200)
+      const p3 = "C".repeat(200)
+      const longDoc = `${p1}\n\n${p2}\n\n${p3}`
+
+      // Force low maxChunkChars to test paragraph split
+      const chunks = chunkManuscriptMarkdown(longDoc, 300)
+      expect(chunks.length).toBeGreaterThanOrEqual(2)
+      for (const chunk of chunks) {
+        expect(chunk.rawText.trim().length).toBeGreaterThan(0)
+      }
     })
   })
 })

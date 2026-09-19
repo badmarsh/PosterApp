@@ -243,7 +243,7 @@ async function summarizeCommunity(
     .join("\n")
 
   const result = await generateAIResponse("GraphCommunity-Summary", {
-    model: process.env.AI_MODEL || "gemini-3.7-flash",
+    model: process.env.AI_MODEL || "gemini-2.5-flash",
     systemPrompt:
       "You are an academic knowledge graph analyst. Given a cluster of related academic concepts extracted from a PhD thesis, produce a concise label and 2-4 sentence summary describing what this conceptual cluster represents. Be specific to the academic domain.",
     userPrompt: `Entities in this cluster:\n${nodeText}\n\nRelationships:\n${edgeText || "(none detected)"}`,
@@ -305,20 +305,92 @@ export async function buildGraphCommunities(workspaceId: string): Promise<BuildC
 
   let communitiesBuilt = 0
 
-  // Generate summary for each community (sequentially to avoid rate limits)
+  // Generate summary and embeddings for each level 0 community
+  const level0Records: Array<{ id: string; label: string; summary: string; memberIds: string[] }> = []
+
+  const { generateLocalEmbedding } = await import("./local-embeddings")
+
   for (const [, members] of groups) {
     if (members.length === 0) continue
     const { label, summary } = await summarizeCommunity(members, edges, nodeById)
-    await prisma.graphCommunity.create({
+    const memberIds = members.map((n) => n.id)
+
+    let emb: number[] | null = null
+    try {
+      if (summary) emb = await generateLocalEmbedding(`${label}: ${summary}`.slice(0, 1000))
+    } catch {
+      // Embedding optional
+    }
+
+    const created = await prisma.graphCommunity.create({
       data: {
         workspaceId,
         label,
         summary,
-        memberNodeIds: members.map((n) => n.id),
+        memberNodeIds: memberIds,
         nodeCount: members.length,
+        level: 0,
+        summaryEmbeddingModel: emb ? "xenova-minilm-l6-v2" : undefined,
       },
+      select: { id: true, label: true, summary: true },
     })
+
+    if (emb) {
+      const embStr = `[${emb.join(",")}]`
+      await prisma.$executeRawUnsafe(
+        `UPDATE "GraphCommunity" SET "summaryEmbedding" = $1::vector WHERE id = $2`,
+        embStr,
+        created.id
+      ).catch(() => undefined)
+    }
+
+    level0Records.push({ id: created.id, label, summary: summary || label, memberIds })
     communitiesBuilt++
+  }
+
+  // Hierarchical clustering: Level 1 Meta-Communities (group level 0 communities if >= 2)
+  if (level0Records.length >= 2) {
+    try {
+      const metaMembers = level0Records.map((r) => r.label).join(", ")
+      const metaSummary = `High-level conceptual overview linking communities: ${metaMembers}.`
+      let metaEmb: number[] | null = null
+      try {
+        metaEmb = await generateLocalEmbedding(metaSummary)
+      } catch {
+        // ignore
+      }
+
+      const metaCommunity = await prisma.graphCommunity.create({
+        data: {
+          workspaceId,
+          label: "Global Thematic Overview",
+          summary: metaSummary,
+          memberNodeIds: level0Records.flatMap((r) => r.memberIds),
+          nodeCount: level0Records.reduce((acc, r) => acc + r.memberIds.length, 0),
+          level: 1,
+          summaryEmbeddingModel: metaEmb ? "xenova-minilm-l6-v2" : undefined,
+        },
+        select: { id: true },
+      })
+
+      if (metaEmb) {
+        const metaEmbStr = `[${metaEmb.join(",")}]`
+        await prisma.$executeRawUnsafe(
+          `UPDATE "GraphCommunity" SET "summaryEmbedding" = $1::vector WHERE id = $2`,
+          metaEmbStr,
+          metaCommunity.id
+        ).catch(() => undefined)
+      }
+
+      // Link children
+      await prisma.graphCommunity.updateMany({
+        where: { id: { in: level0Records.map((r) => r.id) } },
+        data: { parentCommunityId: metaCommunity.id },
+      })
+      communitiesBuilt++
+    } catch (metaErr) {
+      console.warn("[graph-communities] Failed to build level 1 meta-community:", metaErr)
+    }
   }
 
   return { communitiesBuilt, nodesProcessed: nodes.length, skipped: false }

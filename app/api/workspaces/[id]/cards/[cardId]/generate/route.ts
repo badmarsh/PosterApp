@@ -280,6 +280,7 @@ export async function POST(
       try {
         const shrunk = await generateAIResponse("generate-card-shrink", {
           model,
+          apiKey: clientApiKey,
           systemPrompt: "You condense scientific text without adding or changing facts. Keep every number, unit, citation key and LaTeX expression exactly as given.",
           userPrompt: `The following JSON card content is ${totalLength} characters but must be at most ${effectiveCharBudget} characters in total (all "bullets" joined) to fit the card's layout budget. Shorten it — remove redundancy, keep all facts, prefer dropping whole bullets over vague phrasing. Return the SAME JSON shape with the same "title" and "assignedAssets".\n\n${JSON.stringify({ title: parsedData.title, bullets: parsedData.bullets, assignedAssets: parsedData.assignedAssets ?? [] })}`,
           schema: CardGenerationSchema,

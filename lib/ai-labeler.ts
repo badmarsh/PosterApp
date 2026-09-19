@@ -32,7 +32,23 @@ Do not use punctuation at the end. Return ONLY the label string. Do not use quot
         data: { label: cleanLabel },
       })
     }
-  } catch (err) {
-    console.error("[ai-labeler] Failed to generate label:", err)
+  } catch (err: any) {
+    const isRateLimit = err?.status === 429 || err?.message?.includes("429")
+    if (isRateLimit) {
+      console.warn(`[ai-labeler] Rate limit (429) hit, using fallback label`)
+    } else {
+      console.warn(`[ai-labeler] AI label generation failed, using fallback label:`, err?.message || err)
+    }
+    try {
+      const fallbackLabel = diff[0]
+        ? diff[0].replace(/^[-+*#\s]+/, "").slice(0, 40).trim()
+        : "Updated workspace"
+      await prisma.workspaceSnapshot.update({
+        where: { id: snapshotId },
+        data: { label: fallbackLabel },
+      })
+    } catch {
+      // ignore secondary persistence error
+    }
   }
 }

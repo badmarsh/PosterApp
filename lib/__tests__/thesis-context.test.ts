@@ -201,6 +201,35 @@ describe("Scored Criterion Routing", () => {
     expect(extracted[3].sourceType).toBe("web")
   })
 
+  it("extracts classic physics citations with author initials without losing authors or years", () => {
+    const rawRefs = `
+[1] R. Hanbury Brown and R.Q.Twiss, Phil. Mag. 45 (1954) 663.
+[2] W.G.Lynch et al., Phys. Rev. Lett. 51 (1983) 1850.
+[3] D.H.Boal and J.C.Shillcock, Phys. Rev. C33 (1986) 549.
+[4] R.M.Weiner, Phys. Rep. 327 (2000) 249-346.
+`
+    const extracted = extractStructuredReferences(rawRefs)
+    expect(extracted).toHaveLength(4)
+
+    // R. Hanbury Brown: initials preserved, year extracted
+    expect(extracted[0].year).toBe(1954)
+    expect(extracted[0].authors.length).toBeGreaterThanOrEqual(1)
+    expect(extracted[0].authors[0]).toContain("Hanbury Brown")
+
+    // W.G. Lynch: year 1983, author W.G.Lynch
+    expect(extracted[1].year).toBe(1983)
+    expect(extracted[1].authors.length).toBeGreaterThanOrEqual(1)
+    expect(extracted[1].authors[0]).toContain("Lynch")
+
+    // D.H. Boal: year 1986, authors Boal and Shillcock
+    expect(extracted[2].year).toBe(1986)
+    expect(extracted[2].authors.length).toBeGreaterThanOrEqual(2)
+
+    // R.M. Weiner: year 2000
+    expect(extracted[3].year).toBe(2000)
+    expect(extracted[3].authors[0]).toContain("Weiner")
+  })
+
   it("builds full generation context within budget", () => {
     const ragContext: ThesisRAGContext = {
       fullText: sampleSections.map((s) => s.content).join("\n\n"),
@@ -223,5 +252,44 @@ describe("Scored Criterion Routing", () => {
     expect(contextText).toContain("Evidence for Criterion [results]")
     expect(selectedChars).toBeLessThanOrEqual(THESIS_CONTEXT_BUDGETS.fullGeneration)
     expect(truncated).toBe(false)
+  })
+
+  it("pre-injects the Introduction section for goal_definition even when heading is non-standard", () => {
+    // Simulate: Chapter 1 heading is "1. General Overview" — classifySectionKind → "unknown", not "introduction"
+    // Without pre-injection, the results section (kind:"results") would outscore it for the goals criterion.
+    const sectionsWithNonstandardIntro: ThesisDocumentSection[] = [
+      {
+        id: "r1",
+        sourceFile: "thesis.md",
+        heading: "3. Výsledky meraní",
+        normalizedHeading: "vysledky merani",
+        level: 1,
+        startOffset: 0,
+        content: "First we fit R2(Q) for the entire sample. Then we investigate the dependence of the fit parameters on multiplicity.",
+        kind: "results",
+      },
+      {
+        id: "i1",
+        sourceFile: "thesis.md",
+        heading: "1. General Overview and Motivation",
+        normalizedHeading: "general overview and motivation",
+        level: 1,
+        startOffset: 500,
+        content: "The main objective of this thesis is to measure Bose-Einstein correlations. We formulate three research questions.",
+        kind: "unknown",
+      },
+    ]
+    const excerpt = routeSectionsForCriterion("goal_definition", sectionsWithNonstandardIntro, 3000)
+    // The intro must be included despite kind:"unknown" because the heading matches /motivation|overview/i
+    expect(excerpt.text).toContain("General Overview and Motivation")
+    expect(excerpt.sectionIds).toContain("i1")
+  })
+
+  it("family-aware fallback: methodology_rigor routes to methodology sections", () => {
+    // methodology_rigor is not in CRITERION_RULES directly; resolveCriterionFamily maps it to "methodology"
+    const excerpt = routeSectionsForCriterion("methodology_rigor", sampleSections, 3000)
+    expect(excerpt.evidenceAvailable).toBe(true)
+    expect(excerpt.text).toContain("ResNet-Transformer")
+    expect(excerpt.sectionIds).toContain("s3")
   })
 })

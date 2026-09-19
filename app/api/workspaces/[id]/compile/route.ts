@@ -117,7 +117,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const errorLog = initialError instanceof Error ? initialError.message : String(initialError)
       if (errorLog.includes("COMPILER_UNAVAILABLE")) {
         console.error("[compile] COMPILER_UNAVAILABLE details:", errorLog)
-        return NextResponse.json({ error: { code: "COMPILER_UNAVAILABLE", message: "The production compiler worker is not configured" } }, { status: 503 })
+        return NextResponse.json({
+          error: {
+            code: "COMPILER_UNAVAILABLE",
+            message: "The LaTeX compiler is not available. Please ensure TeX Live (pdflatex) is installed or LATEX_COMPILER_IMAGE is configured.",
+            details: safeLog(errorLog)
+          }
+        }, { status: 503 })
       }
 
       console.error("[compile] Compilation error:", errorLog.slice(0, 1000))

@@ -331,7 +331,23 @@ export function validateAndCalibrateFindings(
         downgradedClaimsCount++
         diagnostics.push(`Interpretácia "${title}" bola znížená na REVIEWER_JUDGMENT (chýba verifikovaný zdrojový podklad).`)
       }
-    } else if (epistemicStatus === "MISSING_EVIDENCE") {
+    } else if (
+      epistemicStatus === "MISSING_EVIDENCE" ||
+      title.toLowerCase().startsWith("chýbaj") ||
+      title.toLowerCase().startsWith("absencia") ||
+      explanation.toLowerCase().includes("v poskytnutých úryvkoch textu chýba") ||
+      explanation.toLowerCase().includes("v poskytnutých dátach chýba")
+    ) {
+      if (epistemicStatus !== "MISSING_EVIDENCE") {
+        epistemicStatus = "MISSING_EVIDENCE"
+      }
+      // Absence is not established by an incomplete RAG search or by quoting an unrelated passage.
+      // Any evidence quotes attached to an absence claim are at best illustrative context,
+      // NOT verified proofs that the entire document lacks the section.
+      for (const ev of verifiedEvidenceList) {
+        ev.verified = false
+        ev.state = "context-only"
+      }
       // Absence is not established by a failed search. Keep the wording
       // conditional until a reviewer verifies the complete source.
       if (!explanation.toLowerCase().includes("nebolo možné jednoznačne") && !explanation.toLowerCase().includes("chýba") && !explanation.toLowerCase().includes("v texte sa nenachádza")) {

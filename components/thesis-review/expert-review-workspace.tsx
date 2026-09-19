@@ -10,9 +10,11 @@
  */
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react"
+import { useShallow } from "zustand/react/shallow"
 import { useScopedThesisReviewStore } from "./thesis-review-provider"
 import { EvidenceViewer } from "./evidence-viewer"
 import { FindingCard } from "./finding-card"
+import { EvidenceQuoteViewer } from "./evidence-quote-viewer"
 import { ReviewRoleBanner, ReviewRoleBadge } from "./review-role-badge"
 import { GradeDerivationPopover } from "./grade-derivation-popover"
 import { ErrorBoundary } from "@/components/error-boundary"
@@ -74,8 +76,9 @@ import { generateThesisReviewDocx } from "@/lib/docx/generator-review"
 import { composeFullReviewNarrative } from "@/lib/ai/review-composer"
 import { cn } from "@/lib/utils"
 import { sortFindingsByPriority, calculateFindingPriority } from "@/lib/ai/review-priorities"
-import { THESIS_CRITERIA, type ThesisSection, type ReviewLanguage } from "@/lib/ai/thesis-rubric"
-import type { ReviewFinding, ReviewSeverity, FindingStatus, FindingAudience } from "@/lib/ai/review-types"
+import { THESIS_CRITERIA, type ThesisSection, type ThesisCriterion, type ReviewLanguage } from "@/lib/ai/thesis-rubric"
+import { SK_ACADEMIC_RUBRIC_V1 } from "@/lib/ai/rubric-engine"
+import type { ReviewFinding, ReviewSeverity, FindingStatus, FindingAudience, EvidenceReference } from "@/lib/ai/review-types"
 
 interface Props {
   workspaceId: string
@@ -84,12 +87,24 @@ interface Props {
 
 type FilterTab = "priority" | "unreviewed" | "major" | "missing_evidence" | "reporting" | "export" | "resolved" | "all"
 
+const CRITERIA_MAP = new Map<string, ThesisCriterion>()
+for (const c of THESIS_CRITERIA) {
+  CRITERIA_MAP.set(c.id, c)
+}
+for (const c of SK_ACADEMIC_RUBRIC_V1.criteria) {
+  CRITERIA_MAP.set(c.id, {
+    id: c.id,
+    category: (c.category === "formal" ? "formal" : "content") as any,
+    weight: c.weight,
+    labels: c.labels,
+    guidance: c.description,
+  })
+}
+
 export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Props) {
+  // Granular store subscriptions: stable action callbacks
   const {
-    activeReview,
-    sourceMarkdown: storeSourceMarkdown,
-    isLoadingSource,
-    selectedEvidence,
+    loadSourceDocument,
     setSelectedEvidence,
     updateReviewLocally,
     acceptFinding,
@@ -100,13 +115,56 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
     confirmFinalDecision,
     saveReview,
     exportReviewPdf,
+    setActiveReview,
+  } = useScopedThesisReviewStore(
+    useShallow((s) => ({
+      loadSourceDocument: s.loadSourceDocument,
+      setSelectedEvidence: s.setSelectedEvidence,
+      updateReviewLocally: s.updateReviewLocally,
+      acceptFinding: s.acceptFinding,
+      rejectFinding: s.rejectFinding,
+      editFinding: s.editFinding,
+      addCustomFinding: s.addCustomFinding,
+      toggleFindingExport: s.toggleFindingExport,
+      confirmFinalDecision: s.confirmFinalDecision,
+      saveReview: s.saveReview,
+      exportReviewPdf: s.exportReviewPdf,
+      setActiveReview: s.setActiveReview,
+    }))
+  )
+
+  // Status flags subscribed with useShallow
+  const {
+    isLoadingSource,
+    selectedFileId,
     isSaving,
     isReviewDirty,
     lastSavedAt,
     saveError,
     isExporting,
-    setActiveReview,
-  } = useScopedThesisReviewStore()
+  } = useScopedThesisReviewStore(
+    useShallow((s) => ({
+      isLoadingSource: s.isLoadingSource,
+      selectedFileId: s.selectedFileId,
+      isSaving: s.isSaving,
+      isReviewDirty: s.isReviewDirty,
+      lastSavedAt: s.lastSavedAt,
+      saveError: s.saveError,
+      isExporting: s.isExporting,
+    }))
+  )
+
+  // Specific state slices
+  const activeReview = useScopedThesisReviewStore((s) => s.activeReview)
+  const storeSourceMarkdown = useScopedThesisReviewStore((s) => s.sourceMarkdown)
+  const selectedEvidence = useScopedThesisReviewStore((s) => s.selectedEvidence)
+
+  // Guard against duplicate fetch on mount if markdown already passed as prop, in store, or already fetching
+  useEffect(() => {
+    if (!sourceMarkdown && !storeSourceMarkdown && !isLoadingSource && selectedFileId) {
+      void loadSourceDocument(workspaceId, selectedFileId)
+    }
+  }, [sourceMarkdown, storeSourceMarkdown, isLoadingSource, selectedFileId, loadSourceDocument, workspaceId])
 
   const [activeTab, setActiveTab] = useState<FilterTab>("priority")
   const [searchQuery, setSearchQuery] = useState("")
@@ -171,18 +229,55 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
   // Memoize findings
   const findings = useMemo(() => rawFindings ?? [], [rawFindings])
 
-  // Count stats for queue
-  const majorCount = findings.filter((f) => f.severity === "critical" || f.severity === "major").length
-  const unreviewedCount = findings.filter((f) => f.status === "unreviewed").length
-  const missingEvidenceCount = findings.filter(
-    (f) => f.evidenceState === "unverified" || f.evidenceState === "stale" || f.evidenceState === "ambiguous" || !f.evidence?.every((e) => e.verified)
-  ).length
-  const reportingCount = findings.filter((f) => f.category === "reproducibility" || f.category === "statistics").length
-  const exportCount = findings.filter((f) => f.includeInExport !== false && f.status !== "rejected").length
-  const resolvedCount = findings.filter((f) => f.status === "accepted" || f.status === "resolved" || f.status === "rejected").length
-  const openMajorBlockers = findings.filter(
-    (f) => (f.severity === "critical" || f.severity === "major") && f.status === "unreviewed"
-  ).length
+  // Count stats for queue (single-pass memoized)
+  const {
+    majorCount,
+    unreviewedCount,
+    missingEvidenceCount,
+    reportingCount,
+    exportCount,
+    resolvedCount,
+    openMajorBlockers,
+  } = useMemo(() => {
+    let major = 0
+    let unreviewed = 0
+    let missingEvidence = 0
+    let reporting = 0
+    let exp = 0
+    let resolved = 0
+    let blockers = 0
+
+    for (const f of findings) {
+      const isMajor = f.severity === "critical" || f.severity === "major"
+      const isUnreviewed = f.status === "unreviewed"
+      if (isMajor) major++
+      if (isUnreviewed) {
+        unreviewed++
+        if (isMajor) blockers++
+      }
+      if (
+        f.evidenceState === "unverified" ||
+        f.evidenceState === "stale" ||
+        f.evidenceState === "ambiguous" ||
+        !f.evidence?.every((e) => e.verified)
+      ) {
+        missingEvidence++
+      }
+      if (f.category === "reproducibility" || f.category === "statistics") reporting++
+      if (f.includeInExport !== false && f.status !== "rejected") exp++
+      if (f.status === "accepted" || f.status === "resolved" || f.status === "rejected") resolved++
+    }
+
+    return {
+      majorCount: major,
+      unreviewedCount: unreviewed,
+      missingEvidenceCount: missingEvidence,
+      reportingCount: reporting,
+      exportCount: exp,
+      resolvedCount: resolved,
+      openMajorBlockers: blockers,
+    }
+  }, [findings])
 
   // Filter and prioritize findings stream
   const filteredFindings = useMemo(() => {
@@ -239,6 +334,31 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
     return list
   }, [findings, activeTab, searchQuery, selectedCategory, selectedAudience, lang])
 
+  // Memoized handlers to keep FindingCard and ThesisCriteriaCard children from re-rendering
+  const handleSelectEvidence = useCallback(
+    (ev: EvidenceReference) => {
+      setSelectedEvidence(ev)
+      setMobileView("document")
+      window.dispatchEvent(
+        new CustomEvent("posterapp:source-jump", {
+          detail: { quote: ev.quote, sectionHeading: ev.sectionHeading },
+        })
+      )
+    },
+    [setSelectedEvidence]
+  )
+
+  const handleUpdateSection = useCallback(
+    (secIdOrCritId: string, updates: Partial<ThesisSection>) => {
+      if (!activeReview?.sections) return
+      const updatedSections = activeReview.sections.map((s) =>
+        s.id === secIdOrCritId || s.criterionId === secIdOrCritId ? { ...s, ...updates } : s
+      )
+      updateReviewLocally({ sections: updatedSections })
+    },
+    [activeReview?.sections, updateReviewLocally]
+  )
+
   // Keyboard navigation shortcuts
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -286,7 +406,14 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
         rejectFinding(current.id)
       } else if (e.key === "v" && current?.evidence?.[0]) {
         e.preventDefault()
-        setSelectedEvidence(current.evidence[0])
+        const ev = current.evidence[0]
+        setSelectedEvidence(ev)
+        setMobileView("document")
+        window.dispatchEvent(
+          new CustomEvent("posterapp:source-jump", {
+            detail: { quote: ev.quote, sectionHeading: ev.sectionHeading },
+          })
+        )
       }
     },
     [filteredFindings, selectedFindingIndex, acceptFinding, rejectFinding, setSelectedEvidence]
@@ -300,10 +427,16 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
   if (!activeReview) return null
 
   const handleCreateCustomFinding = () => {
-    if (!newTitle.trim() || !newExplanation.trim()) return
+    if (!newTitle.trim()) return
+    const explanation =
+      newExplanation.trim() ||
+      (selectedEvidence?.quote
+        ? "Odborná pripomienka recenzenta k označenému úryvku."
+        : "Pripomienka recenzenta.")
+
     addCustomFinding({
       title: newTitle.trim(),
-      explanation: newExplanation.trim(),
+      explanation,
       recommendation: newRecommendation.trim(),
       category: newCategory,
       severity: newSeverity,
@@ -625,7 +758,8 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
             onAddFindingFromSelection={(quote, heading) => {
               setSelectedEvidence({ quote, sectionHeading: heading, verified: true, state: "verified" })
               setIsAddingFinding(true)
-              setNewTitle(`Pripomienka k sekcii ${heading || "v texte"}`)
+              setNewTitle(heading ? `Pripomienka k sekcii: ${heading}` : "Odborná pripomienka k vybranému textu")
+              setMobileView("review")
             }}
           />
         </div>
@@ -650,7 +784,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 <FileCheck className="h-5 w-5 text-primary" />
                 <h3 className="text-sm font-bold">1. Zhrnutie práce a hlavný prínos</h3>
               </div>
-              {activeReview.grade && (
+              {activeReview.grade && activeReview.grade !== "pending" && (
                 <Badge variant="outline" className="font-bold text-xs">
                   ECTS: {activeReview.grade}
                 </Badge>
@@ -959,8 +1093,9 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 />
 
                 {selectedEvidence?.quote && (
-                  <div className="rounded bg-muted/40 p-2 text-[11px] italic font-serif border-l-2 border-primary">
-                    Dôkaz: &ldquo;{selectedEvidence.quote.slice(0, 120)}...&rdquo;
+                  <div className="rounded bg-muted/40 p-2 border-l-2 border-primary">
+                    <span className="text-[10px] font-semibold text-primary block mb-1">Dôkaz z textu:</span>
+                    <EvidenceQuoteViewer quote={selectedEvidence.quote} className="text-[11px] italic font-serif" />
                   </div>
                 )}
 
@@ -968,7 +1103,12 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                   <Button size="sm" variant="outline" onClick={() => setIsAddingFinding(false)} className="h-7 text-xs">
                     Zrušiť
                   </Button>
-                  <Button size="sm" onClick={handleCreateCustomFinding} className="h-7 text-xs font-semibold">
+                  <Button
+                    size="sm"
+                    onClick={handleCreateCustomFinding}
+                    disabled={!newTitle.trim()}
+                    className="h-7 text-xs font-semibold cursor-pointer"
+                  >
                     Pridať pripomienku
                   </Button>
                 </div>
@@ -988,7 +1128,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                     finding={finding}
                     lang={lang}
                     isSelected={idx === selectedFindingIndex}
-                    onSelectEvidence={(ev) => setSelectedEvidence(ev)}
+                    onSelectEvidence={handleSelectEvidence}
                     onAccept={acceptFinding}
                     onReject={rejectFinding}
                     onEdit={editFinding}
@@ -1010,31 +1150,25 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Hodnotenie kritérií záverečnej práce
               </h3>
-              {THESIS_CRITERIA.filter((c) => c.category !== "defense").map((criterion) => {
-                const sec = activeReview.sections.find(
-                  (s) => s.criterionId === criterion.id || s.sectionId === criterion.id
-                ) ?? {
-                  id: criterion.id,
-                  sectionId: criterion.id,
-                  criterionId: criterion.id,
-                  text: "",
-                  rating: "pending" as any,
-                  suggestions: [],
+              {activeReview.sections.map((sec) => {
+                const criterionId = sec.criterionId || sec.id
+                const criterion = CRITERIA_MAP.get(criterionId) ?? {
+                  id: criterionId,
+                  category: "content" as const,
+                  weight: 10,
+                  labels: { sk: criterionId, cs: criterionId, en: criterionId },
+                  guidance: { sk: "", cs: "", en: "" },
                 }
+
                 return (
                   <ThesisCriteriaCard
-                    key={criterion.id}
+                    key={sec.id || criterionId}
                     criterion={criterion}
                     section={sec}
                     lang={lang}
                     workspaceId={workspaceId}
                     reviewId={activeReview.id}
-                    onUpdate={(updates) => {
-                      const updatedSections = activeReview.sections.map((s) =>
-                        s.criterionId === criterion.id ? { ...s, ...updates } : s
-                      )
-                      updateReviewLocally({ sections: updatedSections })
-                    }}
+                    onUpdate={(updates) => handleUpdateSection(sec.id || criterionId, updates)}
                   />
                 )
               })}

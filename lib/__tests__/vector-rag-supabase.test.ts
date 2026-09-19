@@ -49,6 +49,8 @@ vi.mock("@prisma/client", () => ({
   Prisma: {
     sql: sqlTag,
     empty: { text: "", values: [] },
+    // Prisma.raw inlines a trusted literal fragment without adding a bound parameter.
+    raw: (text: string): FakeSql => ({ text, values: [] }),
     // Prisma.join treats raw entries as bound parameters and inlines Sql fragments,
     // renumbering their placeholders after the values collected so far.
     join: (parts: unknown[], sep = ","): FakeSql => {
@@ -75,16 +77,27 @@ vi.mock("@prisma/client", () => ({
 // ---------------------------------------------------------------------------
 
 describe("efSearchFor — HNSW ef_search scaling", () => {
-  it("scales with the requested limit (×8)", async () => {
+  it("scales with the requested limit (×20)", async () => {
     const { efSearchFor } = await import("@/lib/ai/vector-rag")
-    expect(efSearchFor(10)).toBe(80)
-    expect(efSearchFor(50)).toBe(400)
+    expect(efSearchFor(10)).toBe(200)
+    expect(efSearchFor(50)).toBe(1000)
   })
 
-  it("clamps to the [40, 1000] bounds", async () => {
+  it("clamps to the [100, 1000] bounds", async () => {
     const { efSearchFor } = await import("@/lib/ai/vector-rag")
-    expect(efSearchFor(1)).toBe(40)
+    expect(efSearchFor(1)).toBe(100)
     expect(efSearchFor(500)).toBe(1000)
+  })
+
+  // Regression guard for the measured defect: the previous ×8 / floor-40 formula asked for
+  // ef_search=80 at topK=10, which measured recall@10 = 0.933 against brute-force ground truth
+  // on PostgreSQL 18 + pgvector 0.8.1 (artifacts/eval/pgvector-live.json) — below the 0.95 the
+  // retrieval contract claims. ef_search=200 measured 1.000 on the same corpus.
+  it("never asks for an ef_search that measured below the 0.95 recall bar", async () => {
+    const { efSearchFor } = await import("@/lib/ai/vector-rag")
+    for (const limit of [1, 2, 5, 10, 20, 50, 100, 500, 1000]) {
+      expect(efSearchFor(limit), `limit=${limit}`).toBeGreaterThanOrEqual(100)
+    }
   })
 })
 
@@ -364,6 +377,10 @@ describe("contextPrefix plumb-through", () => {
   })
 
   it("retrieveForCriterion passes contextPrefix through to its output chunks", async () => {
+    // This pins the *legacy* single-statement pipeline. The multi-source pipeline
+    // (hybrid-retrieval.ts) has its own contract test in multi-source-retrieval.test.ts.
+    const prevPipeline = process.env.RETRIEVAL_PIPELINE
+    process.env.RETRIEVAL_PIPELINE = "legacy"
     vi.doMock("@/lib/prisma", () => ({
       prisma: {
         $queryRaw: vi.fn(async () => [
@@ -379,10 +396,15 @@ describe("contextPrefix plumb-through", () => {
     }))
 
     const { retrieveForCriterion } = await import("@/lib/ai/vector-rag")
-    const { chunks } = await retrieveForCriterion("ws-1", "výsledky experimentov", { topK: 2, useHyDE: false, compress: false })
-    expect(chunks.length).toBeGreaterThan(0)
-    expect(chunks[0].contextPrefix).toContain("Úryvok z práce")
-    // content stays verbatim (no prefix leakage)
-    expect(chunks[0].content).toBe("F1 92.4%")
+    try {
+      const { chunks } = await retrieveForCriterion("ws-1", "výsledky experimentov", { topK: 2, useHyDE: false, compress: false })
+      expect(chunks.length).toBeGreaterThan(0)
+      expect(chunks[0].contextPrefix).toContain("Úryvok z práce")
+      // content stays verbatim (no prefix leakage)
+      expect(chunks[0].content).toBe("F1 92.4%")
+    } finally {
+      if (prevPipeline === undefined) delete process.env.RETRIEVAL_PIPELINE
+      else process.env.RETRIEVAL_PIPELINE = prevPipeline
+    }
   })
 })

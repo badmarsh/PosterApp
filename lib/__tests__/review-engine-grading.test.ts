@@ -87,6 +87,33 @@ describe("computeScoreFromFindings evidence gate", () => {
   it("still applies supported export-eligible findings", () => {
     expect(computeScoreFromFindings([makeFinding({ severity: "major" })])).toBe(92)
   })
+
+  it("inverted cap: methodology/results/ethics deductions are uncapped even at critical severity", () => {
+    const findings: ReviewFinding[] = [
+      makeFinding({ id: "1", category: "methodology", severity: "critical" }), // -20
+      makeFinding({ id: "2", category: "results", severity: "critical" }),      // -20
+      makeFinding({ id: "3", category: "ethics", severity: "critical" }),       // -20
+    ]
+    // 100 - 60 = 40, clamped to min 10
+    expect(computeScoreFromFindings(findings)).toBe(40)
+  })
+
+  it("inverted cap: category:'formal' findings still hit the 8-pt pool cap", () => {
+    const findings: ReviewFinding[] = [
+      makeFinding({ id: "1", category: "formal", severity: "critical" }),
+      makeFinding({ id: "2", category: "formal", severity: "critical" }),
+    ]
+    // formal pool = min(2×8, 8) = 8 → 100 - 8 = 92
+    expect(computeScoreFromFindings(findings)).toBe(92)
+  })
+
+  it("literature category is treated as substantive, not capped", () => {
+    const findings: ReviewFinding[] = [
+      makeFinding({ id: "1", category: "literature", severity: "major" }), // -8
+      makeFinding({ id: "2", category: "literature", severity: "major" }), // -8
+    ]
+    expect(computeScoreFromFindings(findings)).toBe(84)
+  })
 })
 
 describe("checkContributionCoverage", () => {

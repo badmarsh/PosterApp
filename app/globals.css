@@ -641,13 +641,47 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
+    *:not(.animate-spin, .animate-spin *, [role="status"], [role="status"] *, .preserve-motion, .preserve-motion *),
+    *:not(.animate-spin, .animate-spin *, [role="status"], [role="status"] *, .preserve-motion, .preserve-motion *)::before,
+    *:not(.animate-spin, .animate-spin *, [role="status"], [role="status"] *, .preserve-motion, .preserve-motion *)::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
   }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes compile-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite !important;
+  transform-origin: center !important;
+}
+
+svg.animate-spin,
+.animate-spin svg {
+  transform-origin: center !important;
+  transform-box: fill-box;
 }
 
 .no-scrollbar::-webkit-scrollbar {

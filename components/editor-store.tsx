@@ -77,15 +77,17 @@ export function useEditorStoreInstance() {
   return store
 }
 
+const defaultEditorSelector = (state: EditorState) => state
+
 export function useEditor(): EditorState & { selectedCard: Card | null }
 export function useEditor<T>(selector: (state: EditorState) => T): T
 export function useEditor<T>(selector?: (state: EditorState) => T): T | (EditorState & { selectedCard: Card | null }) {
   const store = useContext(EditorStoreContext)
   if (!store) throw new Error("useEditor must be used within EditorProvider")
    
-  const state = useStore(store, selector ?? ((s) => s as unknown as T))
+  const state = useStore(store, (selector ?? defaultEditorSelector) as (state: EditorState) => T)
   if (!selector) {
-    const fullState = state as EditorState
+    const fullState = state as unknown as EditorState
     return {
       ...fullState,
       get selectedCard() {

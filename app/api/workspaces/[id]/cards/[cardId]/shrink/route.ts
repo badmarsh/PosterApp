@@ -4,7 +4,7 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { generateAIResponse } from "@/lib/ai/client"
 import { ShrinkContentSchema } from "@/lib/ai/contracts"
 import { loadSourceContext } from "@/lib/ai/context"
-import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, parseAiApiKey, AI_TIMEOUTS } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 
 import { z } from "zod"
@@ -85,18 +85,20 @@ Respond EXACTLY in this JSON format:
 }`
     )}`
 
-    // Parse AI model overrides from request headers
+    // Parse AI model overrides and optional client API key from request headers
     const modelOverrides = parseAiModelOverrides(req.headers)
+    const clientApiKey = parseAiApiKey(req.headers)
 
     const parsedData = await generateAIResponse("shrink", {
       model: resolveAiModelWithOverrides("shrink", modelOverrides),
+      apiKey: clientApiKey,
       systemPrompt,
       userPrompt,
       schema: ShrinkContentSchema,
       signal: AbortSignal.timeout(AI_TIMEOUTS.shrink),
     })
 
-    const isOverBudget = targetCharacters > 0 && parsedData.content.length > targetCharacters * 1.4
+    const isOverBudget = targetCharacters > 0 && (parsedData.content?.length ?? 0) > targetCharacters * 1.4
 
     return NextResponse.json({
       ...parsedData,
@@ -105,8 +107,10 @@ Respond EXACTLY in this JSON format:
   } catch (err: unknown) {
     if (err instanceof Response) return err
     console.error("Card shrink failed:", err)
+    const msg = err instanceof Error ? err.message : ""
+    const isConfigError = msg.includes("AI API configuration missing")
     return NextResponse.json(
-      { error: "Failed to shrink card content" },
+      { error: isConfigError ? msg : "Failed to shrink card content" },
       { status: 500 }
     )
   }

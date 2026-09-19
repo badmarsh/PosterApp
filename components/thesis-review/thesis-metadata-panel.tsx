@@ -13,9 +13,19 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -23,19 +33,23 @@ import {
   FileText,
   Sparkles,
   AlertCircle,
+  AlertTriangle,
   UploadCloud,
   FileCheck2,
   FileUp,
   GraduationCap,
   BookOpen,
+  Trash2,
+  Files,
 } from "lucide-react"
 import { useScopedThesisReviewStore } from "./thesis-review-provider"
-import { normalizeFormMetadataToThesisMetadata } from "./use-thesis-review-store"
+import { normalizeFormMetadataToThesisMetadata, clearSourceDocCache } from "./use-thesis-review-store"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
 import type { ThesisMetadata, ThesisType, ReviewerRole, ReviewLanguage } from "@/lib/ai/thesis-rubric"
 import type { ReviewKind, ReportingStandard } from "@/lib/ai/review-types"
 import { formatBytes, formatDocumentDisplayName } from "@/lib/ingestion"
+import { cn } from "@/lib/utils"
 
 interface Props {
   workspaceId: string
@@ -402,10 +416,11 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
     setSelectedFileId,
   } = useScopedThesisReviewStore()
 
-  const { ingestFiles, uploadFiles, updateActiveOutput } = useEditor(
+  const { ingestFiles, uploadFiles, removeFile, updateActiveOutput } = useEditor(
     useShallow((s) => ({
       ingestFiles: s.project?.ingestFiles ?? [],
       uploadFiles: s.uploadFiles,
+      removeFile: s.removeFile,
       updateActiveOutput: s.updateActiveOutput,
     }))
   )
@@ -413,6 +428,10 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
   const [isFormCollapsed, setIsFormCollapsed] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [autoExtractedSuccess, setAutoExtractedSuccess] = useState(false)
+  const [fileToDelete, setFileToDelete] = useState<{ id: string; name: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isManageOpen, setIsManageOpen] = useState(false)
+  const [confirmInlineDeleteId, setConfirmInlineDeleteId] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const lastExtractedDocRef = useRef<string | null>(null)
@@ -464,6 +483,44 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
     }
   }, [ingestFiles, setSelectedFileId, applyExtraction, loadSourceDocument, workspaceId])
 
+  const handleDeleteFile = useCallback(async (file: { id: string; name: string }) => {
+    setIsDeleting(true)
+    try {
+      const fileId = file.id
+      clearSourceDocCache(workspaceId, fileId)
+      await removeFile(fileId)
+
+      const remaining = ingestFiles.filter((f) => f.id !== fileId)
+      if (activeFileId === fileId) {
+        if (remaining.length > 0) {
+          const nextId = remaining[0].id
+          setSelectedFileId(nextId)
+          await handleDocumentSelect(nextId)
+        } else {
+          setSelectedFileId("")
+          lastExtractedDocRef.current = null
+          updateFormMetadata({
+            thesisTitle: "",
+            studentName: "",
+            reviewerName: "",
+            institution: "",
+            department: "",
+            academicYear: "",
+          })
+        }
+      }
+      setFileToDelete(null)
+      setConfirmInlineDeleteId(null)
+      if (remaining.length === 0) {
+        setIsManageOpen(false)
+      }
+    } catch (err) {
+      console.error("Failed to delete source file:", err)
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [activeFileId, handleDocumentSelect, ingestFiles, removeFile, setSelectedFileId, updateFormMetadata, workspaceId])
+
   // Synchronize selectedFileId in store if files exist and none selected
   useEffect(() => {
     if (ingestFiles.length > 0 && !selectedFileId) {
@@ -494,15 +551,32 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
     }
   }, [ingestFiles.length, activeFileId, handleDocumentSelect, updateFormMetadata])
 
+  // When activeFile finishes parsing (status === "done"), load parsed source document and extract metadata from full text
+  useEffect(() => {
+    if (!activeFileId || !activeFile) return
+    if (activeFile.status === "done") {
+      void (async () => {
+        const text = await loadSourceDocument(workspaceId, activeFileId)
+        if (text) {
+          applyExtraction(text, activeFile.name)
+          lastExtractedDocRef.current = activeFileId
+        }
+      })()
+    }
+  }, [activeFileId, activeFile?.status, activeFile?.name, loadSourceDocument, applyExtraction, workspaceId])
+
   const handleFileUpload = (files: FileList | File[] | null) => {
     if (!files || files.length === 0) return
     const pdfFiles = Array.from(files).filter((f) => f.name.toLowerCase().endsWith(".pdf") || f.type.includes("pdf"))
     if (pdfFiles.length > 0) {
-      lastExtractedDocRef.current = null
-      uploadFiles(pdfFiles)
-      // Immediately prefill from newly uploaded file
-      applyExtraction("", pdfFiles[0].name)
-      loadSourceDocument(workspaceId)
+      const created = uploadFiles(pdfFiles)
+      const primary = created?.[0]
+      if (primary) {
+        setSelectedFileId(primary.id)
+        lastExtractedDocRef.current = null
+        // Immediately prefill from newly uploaded filename
+        applyExtraction("", primary.name)
+      }
     }
   }
 
@@ -569,44 +643,89 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
 
       {/* 1. Document Selection (Always visible) */}
       <div className="space-y-2">
-        <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-          <BookOpen className="size-3.5 text-primary" />
-          Zdrojový dokument
-        </Label>
+        <div className="flex items-center justify-between">
+          <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+            <BookOpen className="size-3.5 text-primary" />
+            Zdrojový dokument
+          </Label>
+          {ingestFiles.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setIsManageOpen(true)}
+              className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <Files className="size-3 text-muted-foreground" />
+              Spravovať ({ingestFiles.length})
+            </button>
+          )}
+        </div>
 
         {ingestFiles.length > 0 ? (
           <div className="space-y-1.5">
             {ingestFiles.length > 1 ? (
-              <Select
-                value={activeFileId}
-                onValueChange={(val) => {
-                  if (val) {
-                    handleDocumentSelect(val)
-                  }
-                }}
-              >
-                <SelectTrigger className="h-8.5 text-xs w-full bg-card border-border/80 shadow-2xs font-medium rounded-lg px-3 hover:border-border transition-colors" aria-label={isPaper ? "Vyberte článok" : "Vyberte prácu"}>
-                  <SelectValue placeholder={isPaper ? "Vyberte článok..." : "Vyberte prácu..."}>
-                    {formatDocumentDisplayName(activeFile?.name)}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {ingestFiles.map((f) => {
-                    return (
-                      <SelectItem key={f.id} value={f.id} className="text-xs py-2">
-                        <div className="flex flex-col text-left">
-                          <span className="font-semibold text-foreground">
-                            {formatDocumentDisplayName(f.name)}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground font-mono">
-                            {formatBytes(f.size)}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    )
-                  })}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-1.5">
+                <div className="flex-1 min-w-0">
+                  <Select
+                    value={activeFileId}
+                    onValueChange={(val) => {
+                      if (val) {
+                        handleDocumentSelect(val)
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-8.5 text-xs w-full bg-card border-border/80 shadow-2xs font-medium rounded-lg px-3 hover:border-border transition-colors" aria-label={isPaper ? "Vyberte článok" : "Vyberte prácu"}>
+                      <SelectValue placeholder={isPaper ? "Vyberte článok..." : "Vyberte prácu..."}>
+                        {formatDocumentDisplayName(activeFile?.name)}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ingestFiles.map((f) => {
+                        return (
+                          <SelectItem key={f.id} value={f.id} className="text-xs py-2">
+                            <div className="flex flex-col text-left">
+                              <span className="font-semibold text-foreground">
+                                {formatDocumentDisplayName(f.name)}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground font-mono">
+                                {formatBytes(f.size)}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        )
+                      })}
+                      <SelectSeparator />
+                      <div className="p-1">
+                        <button
+                          type="button"
+                          onPointerDown={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setIsManageOpen(true)
+                          }}
+                          className="w-full flex items-center justify-center gap-1.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors cursor-pointer"
+                        >
+                          <Files className="size-3 text-muted-foreground" />
+                          Spravovať nahrané súbory...
+                        </button>
+                      </div>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {activeFile && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={isGenerating || isDeleting}
+                    onClick={() => setFileToDelete(activeFile)}
+                    title={isPaper ? "Odstrániť vybraný článok" : "Odstrániť vybranú prácu"}
+                    aria-label={isPaper ? "Odstrániť vybraný článok" : "Odstrániť vybranú prácu"}
+                    className="h-8.5 w-8.5 shrink-0 rounded-lg text-muted-foreground hover:text-destructive hover:border-destructive/30 hover:bg-destructive/10 transition-colors cursor-pointer shadow-2xs"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
+              </div>
             ) : (
               <div className="rounded-xl border bg-card/70 p-2.5 flex items-center justify-between text-xs shadow-2xs">
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -616,6 +735,20 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
                     <p className="text-[10px] text-muted-foreground font-mono truncate">{formatBytes(activeFile?.size || 0)}</p>
                   </div>
                 </div>
+                {activeFile && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    disabled={isGenerating || isDeleting}
+                    onClick={() => setFileToDelete(activeFile)}
+                    title={isPaper ? "Odstrániť článok" : "Odstrániť prácu"}
+                    aria-label={isPaper ? "Odstrániť článok" : "Odstrániť prácu"}
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 cursor-pointer"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
               </div>
             )}
 
@@ -889,6 +1022,181 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
             : "Doplňte názov práce a meno autora pre spustenie posudku."}
         </p>
       )}
+
+      {/* Confirmation Dialog for single/active file deletion */}
+      <ConfirmDialog
+        open={Boolean(fileToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) setFileToDelete(null)
+        }}
+        title={isPaper ? "Odstrániť zdrojový článok?" : "Odstrániť zdrojovú prácu?"}
+        description={
+          fileToDelete ? (
+            <div className="space-y-1.5 text-xs text-muted-foreground">
+              <p>
+                Naozaj chcete odstrániť súbor{" "}
+                <strong className="text-foreground">{fileToDelete.name}</strong>?
+              </p>
+              <p className="text-[11px]">
+                Týmto sa vymaže extrahovaný text dokumentu a súvisiace indexové dáta. Ak má práca existujúce vygenerované recenzie, recenzie ostanú zachované.
+              </p>
+            </div>
+          ) : null
+        }
+        confirmLabel="Odstrániť"
+        cancelLabel="Zrušiť"
+        destructive={true}
+        busy={isDeleting}
+        onConfirm={() => {
+          if (fileToDelete) {
+            return handleDeleteFile(fileToDelete)
+          }
+        }}
+      />
+
+      {/* Manage Source Documents Modal */}
+      <Dialog open={isManageOpen} onOpenChange={(o) => { if (!isDeleting) setIsManageOpen(o) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Files className="size-4 text-primary" />
+              Nahrané zdrojové dokumenty
+            </DialogTitle>
+            <DialogDescription>
+              Prehľad, výber a odstránenie PDF dokumentov v tomto projekte.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 max-h-80 overflow-y-auto pr-1 py-1">
+            {ingestFiles.map((f) => {
+              const isActive = f.id === activeFileId
+              const isConfirming = confirmInlineDeleteId === f.id
+              return (
+                <div
+                  key={f.id}
+                  className={cn(
+                    "flex flex-col gap-2 p-2.5 rounded-lg border text-xs transition-colors",
+                    isActive ? "border-primary/40 bg-primary/5" : "border-border bg-card/60 hover:bg-card"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <FileText className={cn("size-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} />
+                      <div className="min-w-0 flex-1 truncate">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-foreground truncate" title={f.name}>
+                            {formatDocumentDisplayName(f.name)}
+                          </span>
+                          {isActive && (
+                            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 bg-primary/10 text-primary border-0 shrink-0">
+                              Aktívny
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {formatBytes(f.size)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {!isConfirming && (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {!isActive && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="xs"
+                            disabled={isDeleting || isGenerating}
+                            onClick={() => {
+                              handleDocumentSelect(f.id)
+                              setIsManageOpen(false)
+                            }}
+                            className="h-7 text-[11px] cursor-pointer"
+                          >
+                            Vybrať
+                          </Button>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          disabled={isDeleting || isGenerating}
+                          onClick={() => setConfirmInlineDeleteId(f.id)}
+                          title="Odstrániť súbor"
+                          aria-label={`Odstrániť súbor ${f.name}`}
+                          className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Inline delete confirmation */}
+                  {isConfirming && (
+                    <div className="flex items-center justify-between gap-2 pt-2 mt-1 border-t border-destructive/20 bg-destructive/5 -mx-2.5 -mb-2.5 p-2 rounded-b-lg animate-fade-in">
+                      <div className="flex items-center gap-1.5 text-[11px] font-medium text-destructive truncate">
+                        <AlertTriangle className="size-3.5 shrink-0" />
+                        <span className="truncate">Naozaj zmazať tento súbor?</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="outline"
+                          onClick={() => setConfirmInlineDeleteId(null)}
+                          disabled={isDeleting}
+                          className="h-6 text-[10px] px-2 cursor-pointer"
+                        >
+                          Zrušiť
+                        </Button>
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="destructive"
+                          onClick={() => void handleDeleteFile(f)}
+                          disabled={isDeleting}
+                          className="h-6 text-[10px] px-2 cursor-pointer"
+                        >
+                          {isDeleting ? <Loader2 className="size-3 animate-spin" /> : "Zmazať"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          <DialogFooter className="flex items-center justify-between sm:justify-between pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsManageOpen(false)
+                fileInputRef.current?.click()
+              }}
+              className="gap-1.5 text-xs cursor-pointer"
+            >
+              <UploadCloud className="size-3.5 text-primary" />
+              Nahrať ďalší súbor
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setConfirmInlineDeleteId(null)
+                setIsManageOpen(false)
+              }}
+              className="text-xs cursor-pointer"
+            >
+              Zavrieť
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

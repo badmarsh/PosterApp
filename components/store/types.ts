@@ -8,7 +8,7 @@ import type {
   ValidationLevel,
 } from "@/lib/poster-types"
 import type { ThreadMessage } from "@assistant-ui/react"
-import type { AssignSlot, ParseLogEntry } from "@/lib/ingestion"
+import type { AssignSlot, ParseLogEntry, IngestFile } from "@/lib/ingestion"
 import type { OutputType } from "@/lib/output-types"
 import type { Job } from "@/lib/job-queue"
 
@@ -72,7 +72,7 @@ export interface IngestionSlice {
 
   openIngestion: () => void
   closeIngestion: () => void
-  uploadFiles: (files: File[]) => void
+  uploadFiles: (files: File[]) => IngestFile[]
   processFile: (id: string, workspaceId?: string) => Promise<void>
   retryFile: (id: string) => void
   removeFile: (id: string) => void
@@ -173,6 +173,10 @@ export interface UiSlice {
   setIsScannerOpen: (v: boolean) => void
   isAcademicSearchOpen: boolean
   setIsAcademicSearchOpen: (v: boolean) => void
+  isWorkspaceSelectorOpen: boolean
+  workspaceSelectorCreating: boolean
+  openWorkspaceSelector: (createMode?: boolean) => void
+  closeWorkspaceSelector: () => void
   scannerImage: string | null
   setScannerImage: (img: string | null) => void
   openScannerWithImage: (img: string) => void

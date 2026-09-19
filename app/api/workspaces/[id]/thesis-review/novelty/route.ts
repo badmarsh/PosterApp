@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { detectNovelty } from "@/lib/ai/novelty-detector"
+import { parseAiApiKey, parseAiModelOverrides, resolveAiModelWithOverrides } from "@/lib/ai/models"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import path from "path"
 import fs from "fs"
@@ -56,7 +57,13 @@ export async function POST(
   }
 
   try {
-    const report = await detectNovelty(thesisText, bibContent || "")
+    const modelOverrides = parseAiModelOverrides(req.headers)
+    const clientApiKey = parseAiApiKey(req.headers)
+    const model = resolveAiModelWithOverrides("thesis", modelOverrides)
+    const report = await detectNovelty(thesisText, bibContent || "", {
+      apiKey: clientApiKey,
+      model,
+    })
     return NextResponse.json(report)
   } catch (err) {
     console.error("[novelty] Error:", err)

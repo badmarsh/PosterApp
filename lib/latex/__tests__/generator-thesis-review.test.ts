@@ -321,4 +321,124 @@ describe("Report languages beyond the AI rubric (de/pl/hu)", () => {
       expect(tex).not.toMatch(/[χαβ≤≥→]/)
     }
   })
+
+  it("renders structured findings, executive summary, strengths, and math evidence in LaTeX", () => {
+    const tex = generateThesisReviewLatex({
+      ...base,
+      language: "sk",
+      template: "posudok-sk",
+      summary: "Práca analyzuje Bose-Einsteinove korelácie na experimente ATLAS.",
+      strengths: ["Dôkladná analýza systematických chýb", "Validácia s experimentom CMS"],
+      findings: [
+        {
+          id: "f-1",
+          category: "methodology",
+          title: "Inkonzistentné parametre fitovania",
+          explanation: "Hodnoty Lévyho parametra $\\alpha$ vykazujú systematickú odchýlku $0.81 \\pm 0.01$.",
+          recommendation: "Overiť systematické neistoty pre parameter $R_2(Q)$.",
+          severity: "major",
+          confidence: 0.9,
+          evidence: [
+            {
+              quote: "$\\alpha$ \\equiv 2 \\equiv 1 $0.81 \\pm 0.01 \\pm 0.18$",
+              verified: true,
+              state: "verified-exact",
+            },
+          ],
+          status: "accepted",
+          includeInExport: true,
+          createdBy: "ai",
+        },
+        {
+          id: "f-2",
+          category: "formal",
+          title: "Drobné typografické nedostatky",
+          explanation: "Chýbajúce nezlomiteľné medzery v tabuľkách.",
+          recommendation: "",
+          severity: "minor",
+          confidence: 0.95,
+          evidence: [],
+          status: "accepted",
+          includeInExport: true,
+          createdBy: "ai",
+        },
+      ],
+      sections: [],
+    })
+
+    // Verify sections and content
+    expect(tex).toContain("1. Zhrnutie práce a hlavný prínos")
+    expect(tex).toContain("Bose-Einsteinove korelácie")
+    expect(tex).toContain("2. Silné stránky práce")
+    expect(tex).toContain("Validácia s experimentom CMS")
+
+    // Verify major finding with LaTeX math preserved
+    expect(tex).toContain("3. Zásadné pripomienky")
+    expect(tex).toContain("[METHODOLOGY] Inkonzistentné parametre fitovania")
+    expect(tex).toContain("Dôkaz v texte:")
+    expect(tex).toContain("4. Drobné pripomienky")
+    expect(tex).toContain("\\textbf{[FORMAL]} \\textbf{Drobné typografické nedostatky}")
+  })
+
+  it("never renders strengths as minor concerns and keeps numbering gap-free", () => {
+    const tex = generateThesisReviewLatex({
+      ...base,
+      language: "sk",
+      template: "posudok-sk",
+      reviewKind: "thesis",
+      thesisType: "phd",
+      reviewerRole: "opponent",
+      summary: "Práca skúma Boseho-Einsteinove korelácie.",
+      findings: [
+        // A merit always carries the mild severity the schema prescribes.
+        {
+          id: "s-1",
+          category: "methodology",
+          findingType: "strength",
+          title: "Výborná štatistika",
+          explanation: "Analýza je štatisticky podložená.",
+          recommendation: "",
+          severity: "suggestion",
+          confidence: 0.95,
+          evidence: [{ quote: "fits were performed", verified: true, state: "verified-exact" }],
+          status: "accepted",
+          includeInExport: true,
+          createdBy: "ai",
+        },
+        {
+          id: "m-1",
+          category: "formal",
+          findingType: "weakness",
+          title: "Preklep v abstrakte",
+          explanation: "V abstrakte chýba medzera.",
+          recommendation: "Opraviť.",
+          severity: "minor",
+          confidence: 0.9,
+          evidence: [],
+          status: "accepted",
+          includeInExport: true,
+          createdBy: "ai",
+        },
+      ],
+      phdEnrichment: {
+        statutoryClause:
+          "Predložená dizertačná práca spĺňa podmienky podľa § 67 zákona č. 131/2002 Z. z.",
+      },
+    })
+
+    // The strength lands in the strengths section, not in "Drobné pripomienky".
+    expect(tex).toContain("2. Silné stránky práce")
+    expect(tex).toContain("Analýza je štatisticky podložená")
+    expect(tex).toContain("3. Drobné pripomienky")
+    const minorBlock = tex.slice(tex.indexOf("3. Drobné pripomienky"), tex.indexOf("4. Zákonné podmienky"))
+    expect(minorBlock).toContain("Preklep v abstrakte")
+    expect(minorBlock).not.toContain("štatisticky podložená")
+    // No "Zásadné pripomienky" section exists -> numbering must not skip 3.
+    expect(tex).not.toContain("4. Drobné pripomienky")
+    // The statutory clause is rendered for doctoral opponent reviews.
+    expect(tex).toContain("4. Zákonné podmienky doktorského študijného programu")
+    expect(tex).toContain("§ 67")
+    expect(tex).not.toContain("§ 54 ods")
+  })
 })
+

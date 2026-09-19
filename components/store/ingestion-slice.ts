@@ -44,7 +44,7 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
     closeIngestion: () => set((s) => { s.ingestionOpen = false }),
 
     uploadFiles: (files) => {
-      if (!files.length) return
+      if (!files.length) return []
       const created: IngestFile[] = files.map((f) => ({
         id: `file_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
         name: f.name,
@@ -86,6 +86,7 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
             })
           })
       })
+      return created
     },
 
     processFile: async (id) => {
@@ -304,6 +305,16 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         s.project.assets = s.project.assets.filter((a) => a.fileId !== id)
       })
       get().saveProject()
+      try {
+        const workspaceId = get().project.id
+        if (workspaceId && !workspaceId.startsWith("demo-")) {
+          await apiFetch(`/api/workspaces/${workspaceId}/ingest-files/${id}`, {
+            method: "DELETE",
+          })
+        }
+      } catch (e) {
+        console.warn("[removeFile] Could not delete ingest file via API:", e)
+      }
       if (removedFile) {
         notify.success("File removed", {
           description: removedFile.name,

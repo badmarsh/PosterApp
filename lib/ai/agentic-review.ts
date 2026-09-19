@@ -16,7 +16,7 @@
 
 import { z } from "zod"
 import { generateAIResponse } from "./client"
-import { resolveAiModel } from "./models"
+import { resolveAiModel, resolveAiModelWithOverrides, type AiModelRole } from "./models"
 import { retrieveForCriterion, getThesisCriterionQueryExpansion, resolveThesisDomainContext } from "./vector-rag"
 import {
   stableEvidenceAnchor,
@@ -61,7 +61,10 @@ const SynthesisSchema = z.object({
   summary: z.string().default(""),
   strengths: z.array(z.string()).default([]),
   defenseQuestions: z.array(z.string()).default([]),
-  recommendation: z.string().default("minor_revisions"),
+  // No default: a fabricated "minor_revisions" verdict must never be
+  // presented as a reviewer's recommendation, and for doctoral reviews the
+  // legally required statement is a text, not a journal enum.
+  recommendation: z.string().default(""),
   grade: z.string().optional(),
 })
 
@@ -109,7 +112,11 @@ export async function reviewCriterionWithEvidence(
     thesisType: ThesisType
     domainContext: string
     sourceRevision: string
+    /** Pre-fetched GraphRAG subgraph serialized text (shared across criteria). */
+    graphContext?: string
     signal?: AbortSignal
+    apiKey?: string
+    modelOverrides?: Partial<Record<AiModelRole, string>>
     signal2?: never
   }
 ): Promise<AgenticCriterionResult> {
@@ -150,18 +157,26 @@ export async function reviewCriterionWithEvidence(
   const manuscriptLabel = reviewKind === "thesis" ? `${ctx.thesisType} thesis` : "scientific paper"
   const sys = `You are an academic ${reviewKind === "thesis" ? "thesis evaluator" : "peer reviewer"} assessing ONE evaluation criterion of a ${manuscriptLabel}.
 - Judge strictly the criterion: "${criterion.label}".
-- Ground EVERY finding in the retrieved evidence passages below. Each evidence item MUST copy a quote character-for-character from one passage and set "chunkId" to that passage's anchor (e.g. "c2").
+- Ground substantive findings in the retrieved evidence passages below. When citing evidence, copy a quote character-for-character from one passage and set "chunkId" to that passage's anchor (e.g. "c2").
+- If reporting a missing element or section that appears absent from the retrieved excerpts, do NOT attach an unrelated quote as fake evidence of absence. Instead set "evidence": [] and use epistemicStatus "REQUIRES_HUMAN_VERIFICATION" (or "MISSING_EVIDENCE").
+- Positive merits and well-validated methods MUST be classified as findingType: "strength", severity: "suggestion", recommendation: "None" or "Pokračovať v tomto postupe". Do NOT classify strengths as weaknesses.
+- Academic roles on title pages (Rector, Dekan, Promotor, Supervisor, Committee members) are university authorities, NOT conflicting authors. NEVER flag university officials on title pages as author inconsistencies.
+- Do NOT penalize OCR or text extraction artifacts (e.g. LaTeX apostrophe diacritics like 'byt\'', 'vol\'nym', or dense merged multi-author physics bibliographies) as student academic errors.
 - If the evidence is insufficient to judge, return few findings and use epistemicStatus "REQUIRES_HUMAN_VERIFICATION" or "MISSING_EVIDENCE" — do NOT invent issues.
 - Write all text in language code "${ctx.language}".
 - Set criterionId on every finding to "${criterion.id}".
 Respond as JSON: {"findings":[...]} with each finding matching the provided schema (title, explanation, recommendation, severity critical|major|minor|suggestion, findingType, epistemicStatus, evidence:[{quote,chunkId,sectionHeading}]).`
+
+  const graphBlock = ctx.graphContext
+    ? `\n--- KNOWLEDGE GRAPH (entity relationships — use for multi-hop reasoning) ---\n${ctx.graphContext}`
+    : ""
 
   const user = `${reviewKind === "thesis" ? "Thesis" : "Paper"}: "${ctx.documentTitle}"
 Criterion: ${criterion.label}
 Guidance: ${criterion.guidance}
 
 --- RETRIEVED EVIDENCE (cite via chunkId anchors) ---
-${evidenceBlock || "(no evidence retrieved for this criterion)"}
+${evidenceBlock || "(no evidence retrieved for this criterion)"}${graphBlock}
 
 Return the JSON object now.`
 
@@ -169,7 +184,8 @@ Return the JSON object now.`
   let calls = 1
   try {
     const res = await generateAIResponse<z.infer<typeof PerCriterionSchema>>(`peer-review-criterion-${criterion.id}`, {
-      model: resolveAiModel("thesis"),
+      model: resolveAiModelWithOverrides("thesis", ctx.modelOverrides ?? {}),
+      apiKey: ctx.apiKey,
       systemPrompt: sys,
       userPrompt: user,
       schema: PerCriterionSchema,
@@ -235,12 +251,16 @@ export async function runAgenticPerCriterionReview(opts: {
   language: ReviewLanguage
   reviewKind?: ReviewKind
   thesisType: ThesisType
+  /** Needed to require the statutory conclusive statement for doctoral opponent reviews. */
+  reviewerRole?: string
   detailedThesisType?: DetailedThesisType
   sourceRevision: string
   signal?: AbortSignal
   onProgress?: AgenticReviewProgress
   /** Max parallel criterion calls (keeps WASM/API pressure bounded). */
   concurrency?: number
+  apiKey?: string
+  modelOverrides?: Partial<Record<AiModelRole, string>>
 }): Promise<{
   criterionResults: AgenticCriterionResult[]
   allFindings: ReviewFinding[]
@@ -262,6 +282,22 @@ export async function runAgenticPerCriterionReview(opts: {
   const domainContext = resolveThesisDomainContext({ thesisTitle: opts.documentTitle })
   const concurrency = opts.concurrency ?? 3
 
+  // Fetch the GraphRAG knowledge graph once — shared across all criteria.
+  // Query combines the thesis title with all active criterion labels so the
+  // BFS seed entity linking covers the broadest relevant subgraph.
+  let sharedGraphContext: string | undefined
+  try {
+    const { retrieveGraphContext } = await import("@/lib/ai/graph-rag")
+    const graphQuery = [opts.documentTitle, ...criteria.map((c) => c.label)].join(" ").slice(0, 600)
+    const subgraph = await retrieveGraphContext(opts.workspaceId, graphQuery, {
+      charBudget: 3000,
+      documentId: opts.sourceFileId,
+    })
+    if (subgraph) sharedGraphContext = subgraph.serialized
+  } catch (graphErr) {
+    console.warn("[agentic-review] GraphRAG prefetch skipped:", graphErr)
+  }
+
   const results: AgenticCriterionResult[] = []
   let completed = 0
   for (let i = 0; i < criteria.length; i += concurrency) {
@@ -282,7 +318,10 @@ export async function runAgenticPerCriterionReview(opts: {
           thesisType: opts.thesisType,
           domainContext,
           sourceRevision: opts.sourceRevision,
+          graphContext: sharedGraphContext,
           signal: opts.signal,
+          apiKey: opts.apiKey,
+          modelOverrides: opts.modelOverrides,
         })
       )
     )
@@ -307,8 +346,17 @@ export async function runAgenticPerCriterionReview(opts: {
     .join("\n")
 
   const applyEctsGrading = shouldApplyEctsGrading(opts.reviewKind)
+  // A Slovak/Czech doctoral opponent review is a legally defined document: the
+  // recommendation field must carry the conclusive statement, not a journal
+  // verdict enum ("minor_revisions" has no legal meaning for a dizertačná práca).
+  const isDoctoralOpponentReview =
+    (opts.reviewKind ?? "thesis") === "thesis" && opts.thesisType === "phd" && opts.reviewerRole === "opponent"
+  const doctoralRecommendationRule = isDoctoralOpponentReview
+    ? `
+Recommendation rule (mandatory): the "recommendation" value must be a complete sentence in language "${opts.language}" stating that the thesis meets the conditions for the defence under the applicable Higher Education Act (§ 67 of Act No. 131/2002 Coll. in Slovakia; § 54a of Act No. 111/1998 Sb. in Czechia) and recommending award of the PhD title with a pass/fail classification. Never output the tokens accept, minor_revisions, major_revisions or reject for a doctoral thesis review.`
+    : ""
   const synthesisSys = `You are the lead reviewer synthesising per-criterion findings of a ${opts.reviewKind === "paper" ? "scientific paper" : `${opts.thesisType} thesis`} into a final assessment.
-Write in language "${opts.language}". Produce: a 4-8 sentence summary, 3-6 concrete strengths, 5-10 targeted ${opts.reviewKind === "paper" ? "questions for the authors" : "defense questions"}, and a recommendation (accept|minor_revisions|major_revisions|reject)${applyEctsGrading ? ", plus an ECTS grade (A-FX) justified by the severity distribution" : ". Do not assign an ECTS or academic grade"}.`
+Write in language "${opts.language}". Produce: a 4-8 sentence summary, 3-6 concrete strengths, 5-10 targeted ${opts.reviewKind === "paper" ? "questions for the authors" : "defense questions"}, and a recommendation (accept|minor_revisions|major_revisions|reject)${applyEctsGrading ? ", plus an ECTS grade (A-FX) justified by the severity distribution" : ". Do not assign an ECTS or academic grade"}.${doctoralRecommendationRule}`
   const synthesisUser = `${opts.reviewKind === "paper" ? "Paper" : "Thesis"}: "${opts.documentTitle}"
 
 Per-criterion findings:
@@ -319,7 +367,8 @@ Respond as JSON: {"summary": "...", "strengths": ["..."], "defenseQuestions": ["
   let synthesis: z.infer<typeof SynthesisSchema>
   try {
     synthesis = await generateAIResponse("peer-review-synthesis", {
-      model: resolveAiModel("thesis"),
+      model: resolveAiModelWithOverrides("thesis", opts.modelOverrides ?? {}),
+      apiKey: opts.apiKey,
       systemPrompt: synthesisSys,
       userPrompt: synthesisUser,
       schema: SynthesisSchema,
@@ -335,7 +384,7 @@ Respond as JSON: {"summary": "...", "strengths": ["..."], "defenseQuestions": ["
       summary: "",
       strengths: [],
       defenseQuestions: [],
-      recommendation: "minor_revisions",
+      recommendation: "",
       grade: applyEctsGrading ? calculateGradeRange(score).grade : undefined,
     }
   }

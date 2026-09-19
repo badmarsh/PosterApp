@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useTheme } from "next-themes"
 import { useShallow } from "zustand/react/shallow"
 import {
@@ -21,7 +21,23 @@ import {
   Key,
   Check,
   SlidersHorizontal,
+  Server,
+  Globe,
+  Plus,
+  Trash2,
+  Edit2,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Search,
 } from "lucide-react"
+import {
+  type AiEndpointConfig,
+  type LoadedAiModel,
+  normalizeEndpointBaseUrl,
+} from "@/lib/ai/endpoints"
 import { toast } from "sonner"
 import { AgentIntegrationPanel } from "@/components/settings/agent-integration-panel"
 import { ManageWorkspaces } from "@/components/manage-workspaces"
@@ -217,6 +233,15 @@ export function SettingsPanel() {
     clearAllAiModelOverrides,
     geminiApiKey,
     setGeminiApiKey,
+    endpoints,
+    activeEndpointId,
+    setActiveEndpointId,
+    addEndpoint,
+    updateEndpoint,
+    removeEndpoint,
+    fetchModelsForEndpoint,
+    fetchAllEndpointModels,
+    isFetchingModels,
   } = useSettings(
     useShallow((s) => ({
       defaultReviewLanguage: s.defaultReviewLanguage,
@@ -228,6 +253,15 @@ export function SettingsPanel() {
       clearAllAiModelOverrides: s.clearAllAiModelOverrides,
       geminiApiKey: s.geminiApiKey,
       setGeminiApiKey: s.setGeminiApiKey,
+      endpoints: s.endpoints,
+      activeEndpointId: s.activeEndpointId,
+      setActiveEndpointId: s.setActiveEndpointId,
+      addEndpoint: s.addEndpoint,
+      updateEndpoint: s.updateEndpoint,
+      removeEndpoint: s.removeEndpoint,
+      fetchModelsForEndpoint: s.fetchModelsForEndpoint,
+      fetchAllEndpointModels: s.fetchAllEndpointModels,
+      isFetchingModels: s.isFetchingModels,
     }))
   )
 
@@ -386,6 +420,15 @@ export function SettingsPanel() {
             onClearAll={clearAllAiModelOverrides}
             geminiApiKey={geminiApiKey}
             onGeminiApiKeyChange={setGeminiApiKey}
+            endpoints={endpoints}
+            activeEndpointId={activeEndpointId}
+            onSetActiveEndpointId={setActiveEndpointId}
+            onAddEndpoint={addEndpoint}
+            onUpdateEndpoint={updateEndpoint}
+            onRemoveEndpoint={removeEndpoint}
+            onFetchModelsForEndpoint={fetchModelsForEndpoint}
+            onFetchAllEndpointModels={fetchAllEndpointModels}
+            isFetchingModels={isFetchingModels}
           />
         )}
         {tab === "shortcuts" && (
@@ -700,6 +743,34 @@ function getCategoryBadge(category: AiRoleMeta["category"]) {
   }
 }
 
+const ENDPOINT_PRESETS = [
+  {
+    name: "OpenRouter",
+    baseUrl: "https://openrouter.ai/api/v1",
+    desc: "Claude 3.5, GPT-4o, DeepSeek, Qwen, Gemini",
+  },
+  {
+    name: "Local Ollama",
+    baseUrl: "http://localhost:11434/v1",
+    desc: "Local server (Llama 3.2, Qwen 2.5, DeepSeek R1)",
+  },
+  {
+    name: "OpenAI Official",
+    baseUrl: "https://api.openai.com/v1",
+    desc: "Official OpenAI API (GPT-4o, GPT-4o-mini, o1, o3-mini)",
+  },
+  {
+    name: "LM Studio",
+    baseUrl: "http://localhost:1234/v1",
+    desc: "Local GUI model server (GGUF models)",
+  },
+  {
+    name: "Google Gemini",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    desc: "Official Google Gemini OpenAI-compatible endpoint",
+  },
+]
+
 function AiModelSettings({
   overrides,
   onOverride,
@@ -708,6 +779,15 @@ function AiModelSettings({
   onClearAll,
   geminiApiKey,
   onGeminiApiKeyChange,
+  endpoints = [],
+  activeEndpointId,
+  onSetActiveEndpointId,
+  onAddEndpoint,
+  onUpdateEndpoint,
+  onRemoveEndpoint,
+  onFetchModelsForEndpoint,
+  onFetchAllEndpointModels,
+  isFetchingModels = {},
 }: {
   overrides: Partial<Record<AiModelRole, string>>
   onOverride: (role: AiModelRole, model: string) => void
@@ -716,11 +796,30 @@ function AiModelSettings({
   onClearAll: () => void
   geminiApiKey: string
   onGeminiApiKeyChange: (key: string) => void
+  endpoints?: AiEndpointConfig[]
+  activeEndpointId?: string
+  onSetActiveEndpointId?: (id: string | undefined) => void
+  onAddEndpoint?: (endpoint: Omit<AiEndpointConfig, "id">) => string
+  onUpdateEndpoint?: (id: string, updates: Partial<AiEndpointConfig>) => void
+  onRemoveEndpoint?: (id: string) => void
+  onFetchModelsForEndpoint?: (id: string) => Promise<string[]>
+  onFetchAllEndpointModels?: () => Promise<void>
+  isFetchingModels?: Record<string, boolean>
 }) {
   const roles = Object.keys(DEFAULT_AI_MODELS) as AiModelRole[]
   const [selectedCategory, setSelectedCategory] = useState<string>("All")
   const [customPrimaryModel, setCustomPrimaryModel] = useState("")
   const [showCustomPrimaryInput, setShowCustomPrimaryInput] = useState(false)
+
+  // Endpoint form state
+  const [isAddingEndpoint, setIsAddingEndpoint] = useState(false)
+  const [editingEndpointId, setEditingEndpointId] = useState<string | null>(null)
+  const [endpointName, setEndpointName] = useState("")
+  const [endpointBaseUrl, setEndpointBaseUrl] = useState("")
+  const [endpointApiKey, setEndpointApiKey] = useState("")
+  const [showApiKey, setShowApiKey] = useState(false)
+  const [isTestingEndpoint, setIsTestingEndpoint] = useState(false)
+  const [modelSearchQuery, setModelSearchQuery] = useState("")
 
   const primaryModel = overrides.default || DEFAULT_AI_MODELS.default
   const isPrimaryOverridden = Boolean(overrides.default)
@@ -733,6 +832,41 @@ function AiModelSettings({
     if (selectedCategory === "All") return true
     return AI_ROLE_METADATA[role]?.category === selectedCategory
   })
+
+  // Aggregate all loaded models from all enabled endpoints
+  const allLoadedModels = useMemo<LoadedAiModel[]>(() => {
+    const list: LoadedAiModel[] = []
+    const seen = new Set<string>()
+    for (const ep of endpoints) {
+      if (ep.enabled === false) continue
+      for (const m of ep.models || []) {
+        const id = typeof m === "string" ? m : (m as any).id
+        const name = typeof m === "string" ? m : (m as any).name || (m as any).id
+        if (id && !seen.has(`${ep.id}:${id}`)) {
+          seen.add(`${ep.id}:${id}`)
+          list.push({
+            id,
+            name,
+            endpointId: ep.id,
+            endpointName: ep.name,
+            baseUrl: ep.baseUrl,
+          })
+        }
+      }
+    }
+    return list
+  }, [endpoints])
+
+  const filteredLoadedModels = useMemo(() => {
+    if (!modelSearchQuery.trim()) return allLoadedModels
+    const q = modelSearchQuery.toLowerCase()
+    return allLoadedModels.filter(
+      (m: LoadedAiModel) =>
+        m.id.toLowerCase().includes(q) ||
+        (m.name && m.name.toLowerCase().includes(q)) ||
+        m.endpointName.toLowerCase().includes(q)
+    )
+  }, [allLoadedModels, modelSearchQuery])
 
   const handleApplyToAllTasks = (model: string) => {
     const textRoles: AiModelRole[] = [
@@ -779,9 +913,398 @@ function AiModelSettings({
     toast.info("Všetky preťaženia úloh boli vyresetované na hlavný model")
   }
 
+  const handleStartAddEndpoint = () => {
+    setEditingEndpointId(null)
+    setEndpointName("")
+    setEndpointBaseUrl("")
+    setEndpointApiKey("")
+    setShowApiKey(false)
+    setIsAddingEndpoint(true)
+  }
+
+  const handleStartEditEndpoint = (ep: AiEndpointConfig) => {
+    setEditingEndpointId(ep.id)
+    setEndpointName(ep.name)
+    setEndpointBaseUrl(ep.baseUrl)
+    setEndpointApiKey(ep.apiKey || "")
+    setShowApiKey(false)
+    setIsAddingEndpoint(true)
+  }
+
+  const handleApplyPreset = (preset: typeof ENDPOINT_PRESETS[number]) => {
+    setEndpointName(preset.name)
+    setEndpointBaseUrl(preset.baseUrl)
+  }
+
+  const handleSaveEndpoint = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    const name = endpointName.trim() || "AI Endpoint"
+    const rawUrl = endpointBaseUrl.trim()
+    if (!rawUrl) {
+      toast.error("Zadajte platnú Base URL adresu endpointu")
+      return
+    }
+    const cleanBaseUrl = normalizeEndpointBaseUrl(rawUrl)
+    const apiKey = endpointApiKey.trim()
+
+    setIsTestingEndpoint(true)
+    try {
+      const res = await fetch("/api/ai/endpoints/models", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ baseUrl: cleanBaseUrl, apiKey }),
+      })
+      const data = await res.json()
+
+      const loadedModels: string[] = data.ok && Array.isArray(data.models) ? data.models : []
+      const status = data.ok ? ("connected" as const) : ("error" as const)
+      const errorMsg = data.ok ? undefined : data.error || `HTTP ${res.status}`
+
+      if (editingEndpointId) {
+        onUpdateEndpoint?.(editingEndpointId, {
+          name,
+          baseUrl: cleanBaseUrl,
+          apiKey,
+          models: loadedModels,
+          status,
+          errorMessage: errorMsg,
+          lastLoadedAt: new Date().toISOString(),
+        })
+        if (data.ok) {
+          toast.success(`Endpoint "${name}" aktualizovaný. Načítaných ${loadedModels.length} modelov.`)
+        } else {
+          toast.warning(`Endpoint "${name}" uložený, ale test zlyhal: ${errorMsg}`)
+        }
+      } else {
+        onAddEndpoint?.({
+          name,
+          baseUrl: cleanBaseUrl,
+          apiKey,
+          models: loadedModels,
+          status,
+          errorMessage: errorMsg,
+          enabled: true,
+          lastLoadedAt: new Date().toISOString(),
+        })
+        if (data.ok) {
+          toast.success(`Endpoint "${name}" pridaný! Načítaných ${loadedModels.length} modelov.`)
+        } else {
+          toast.warning(`Endpoint "${name}" pridaný, ale test zlyhal: ${errorMsg}`)
+        }
+      }
+
+      setIsAddingEndpoint(false)
+      setEditingEndpointId(null)
+      setEndpointName("")
+      setEndpointBaseUrl("")
+      setEndpointApiKey("")
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(`Chyba pri testovaní endpointu: ${msg}`)
+    } finally {
+      setIsTestingEndpoint(false)
+    }
+  }
+
+  const isAnyFetching = Object.values(isFetchingModels).some(Boolean)
+
   return (
     <div className="space-y-6 pb-6">
-      {/* 1. PRIMARY APPLICATION MODEL CARD */}
+      {/* 1. CONFIGURED ENDPOINTS (OPENAI-COMPATIBLE) */}
+      <div className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Server className="size-4" />
+              </div>
+              <h3 className="text-sm font-semibold text-foreground">AI Endpoints (OpenAI-Compatible)</h3>
+              <Badge variant="outline" className="text-[10px]">
+                {endpoints.length} {endpoints.length === 1 ? "endpoint" : "endpoints"}
+              </Badge>
+              {allLoadedModels.length > 0 && (
+                <Badge variant="secondary" className="text-[10px] bg-success/10 text-success border-success/30">
+                  {allLoadedModels.length} models loaded
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Configure your OpenAI-compatible API endpoints (Base URL and API Key). Models are loaded directly from these endpoints.
+              Endpoints are configured exclusively here in Settings.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {endpoints.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onFetchAllEndpointModels?.()}
+                disabled={isAnyFetching}
+                className="h-8 gap-1.5 text-xs font-medium"
+                title="Refresh loaded models from all configured endpoints"
+              >
+                <RefreshCw className={cn("size-3", isAnyFetching && "animate-spin")} />
+                Refresh All
+              </Button>
+            )}
+            <Button
+              variant={isAddingEndpoint ? "secondary" : "default"}
+              size="sm"
+              onClick={() => {
+                if (isAddingEndpoint) {
+                  setIsAddingEndpoint(false)
+                  setEditingEndpointId(null)
+                } else {
+                  handleStartAddEndpoint()
+                }
+              }}
+              className="h-8 gap-1.5 text-xs font-medium"
+            >
+              <Plus className="size-3.5" />
+              {isAddingEndpoint ? "Cancel" : "Add Endpoint"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Add/Edit Endpoint Form */}
+        {isAddingEndpoint && (
+          <form
+            onSubmit={handleSaveEndpoint}
+            className="rounded-lg border border-primary/30 bg-primary/5 p-3.5 space-y-3 transition-all"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Globe className="size-3.5 text-primary" />
+                {editingEndpointId ? "Edit Endpoint" : "Add OpenAI-Compatible Endpoint"}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                Supports Ollama, vLLM, OpenRouter, OpenAI, LM Studio, etc.
+              </span>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[10px] text-muted-foreground font-medium mr-1">Quick Presets:</span>
+              {ENDPOINT_PRESETS.map((p) => (
+                <button
+                  key={p.name}
+                  type="button"
+                  onClick={() => handleApplyPreset(p)}
+                  className="px-2 py-0.5 rounded text-[10px] font-medium bg-background border border-border text-foreground hover:bg-muted/80 transition-colors"
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <Label className="text-xs">Endpoint Name</Label>
+                <input
+                  type="text"
+                  value={endpointName}
+                  onChange={(e) => setEndpointName(e.target.value)}
+                  placeholder="e.g. Local Ollama, OpenRouter, OpenAI"
+                  required
+                  className="h-8 w-full rounded border border-border bg-background px-2.5 text-xs font-medium"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Base URL</Label>
+                <input
+                  type="text"
+                  value={endpointBaseUrl}
+                  onChange={(e) => setEndpointBaseUrl(e.target.value)}
+                  placeholder="http://localhost:11434/v1 or https://openrouter.ai/api/v1"
+                  required
+                  className="h-8 w-full rounded border border-border bg-background px-2.5 text-xs font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">API Key (Optional for local servers like Ollama)</Label>
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1"
+                >
+                  {showApiKey ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                  {showApiKey ? "Hide key" : "Show key"}
+                </button>
+              </div>
+              <input
+                type={showApiKey ? "text" : "password"}
+                value={endpointApiKey}
+                onChange={(e) => setEndpointApiKey(e.target.value)}
+                placeholder="sk-... or leave blank for local server"
+                className="h-8 w-full rounded border border-border bg-background px-2.5 text-xs font-mono"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsAddingEndpoint(false)
+                  setEditingEndpointId(null)
+                }}
+                className="h-7 px-2.5 text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isTestingEndpoint || !endpointBaseUrl.trim()}
+                className="h-7 px-3 text-xs gap-1.5"
+              >
+                {isTestingEndpoint ? (
+                  <>
+                    <Loader2 className="size-3 animate-spin" />
+                    Testing & Loading Models...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="size-3" />
+                    Test & Save Endpoint
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {/* Configured Endpoints List */}
+        {endpoints.length === 0 && !isAddingEndpoint ? (
+          <div className="rounded-lg border border-dashed border-border p-4 text-center space-y-2.5">
+            <Server className="size-8 mx-auto text-muted-foreground/50" />
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-foreground">No AI endpoints configured</p>
+              <p className="text-[11px] text-muted-foreground max-w-md mx-auto">
+                Add your OpenAI-compatible endpoint (such as OpenRouter, local Ollama, OpenAI, or LM Studio) to load available models.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+              {ENDPOINT_PRESETS.slice(0, 3).map((preset) => (
+                <Button
+                  key={preset.name}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    handleApplyPreset(preset)
+                    setIsAddingEndpoint(true)
+                  }}
+                  className="h-7 text-xs gap-1"
+                >
+                  <Plus className="size-3" />
+                  Add {preset.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {endpoints.map((ep) => {
+              const isFetching = Boolean(isFetchingModels[ep.id])
+              const modelCount = ep.models?.length || 0
+
+              return (
+                <div
+                  key={ep.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-lg border border-border bg-card/60 p-3 hover:border-border/80 transition-colors"
+                >
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-semibold text-foreground font-mono">
+                        {ep.name}
+                      </span>
+                      {ep.status === "connected" && (
+                        <Badge
+                          variant="outline"
+                          className="h-4.5 px-1.5 text-[10px] gap-1 border-success/30 bg-success/10 text-success"
+                        >
+                          <CheckCircle2 className="size-2.5" />
+                          Connected ({modelCount} {modelCount === 1 ? "model" : "models"})
+                        </Badge>
+                      )}
+                      {ep.status === "error" && (
+                        <Badge
+                          variant="outline"
+                          className="h-4.5 px-1.5 text-[10px] gap-1 border-destructive/30 bg-destructive/10 text-destructive"
+                          title={ep.errorMessage}
+                        >
+                          <AlertCircle className="size-2.5" />
+                          Connection error
+                        </Badge>
+                      )}
+                      {ep.status === "untested" && (
+                        <Badge variant="secondary" className="h-4.5 px-1.5 text-[10px]">
+                          Untested
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono truncate">
+                      <span className="truncate">{ep.baseUrl}</span>
+                      <span>•</span>
+                      <span>
+                        {ep.apiKey ? `Key: ${ep.apiKey.slice(0, 4)}...${ep.apiKey.slice(-3)}` : "No API key"}
+                      </span>
+                    </div>
+                    {ep.errorMessage && (
+                      <p className="text-[10px] text-destructive leading-tight">
+                        {ep.errorMessage}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onFetchModelsForEndpoint?.(ep.id)}
+                      disabled={isFetching}
+                      className="h-7 px-2.5 text-xs gap-1"
+                      title="Reload models from this endpoint"
+                    >
+                      <RefreshCw className={cn("size-3", isFetching && "animate-spin")} />
+                      {isFetching ? "Loading..." : "Load Models"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleStartEditEndpoint(ep)}
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                      title="Edit endpoint"
+                    >
+                      <Edit2 className="size-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        onRemoveEndpoint?.(ep.id)
+                        toast.info(`Endpoint "${ep.name}" bol odstránený`)
+                      }}
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                      title="Delete endpoint"
+                    >
+                      <Trash2 className="size-3" />
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 2. PRIMARY APPLICATION MODEL CARD */}
       <div className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/5 via-card to-background p-4 shadow-xs space-y-3.5">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
           <div className="space-y-1">
@@ -793,6 +1316,11 @@ function AiModelSettings({
               <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px]">
                 Global Default
               </Badge>
+              {allLoadedModels.length > 0 && (
+                <Badge variant="secondary" className="text-[10px]">
+                  {allLoadedModels.length} models loaded
+                </Badge>
+              )}
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
               The default AI model powering poster generation, card auto-fill, reviews, thesis evaluations, chat, and LaTeX autofix.
@@ -830,73 +1358,138 @@ function AiModelSettings({
           </div>
         </div>
 
-        {/* Preset Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          {PRIMARY_MODEL_PRESETS.map((preset) => {
-            const isSelected = primaryModel === preset.id && !showCustomPrimaryInput
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => {
-                  setShowCustomPrimaryInput(false)
-                  onOverride("default", preset.id)
-                  toast.success(`Hlavný model nastavený: ${preset.id}`)
-                }}
-                className={cn(
-                  "flex flex-col items-start p-2.5 rounded-lg border text-left transition-all",
-                  isSelected
-                    ? "border-primary bg-primary/10 ring-1 ring-primary shadow-xs"
-                    : "border-border bg-card/60 hover:border-border/80 hover:bg-muted/40"
-                )}
-              >
-                <div className="flex w-full items-center justify-between gap-1 mb-1">
-                  <span className="text-xs font-mono font-semibold text-foreground truncate">
-                    {preset.name}
-                  </span>
-                  {isSelected ? (
-                    <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px]">
-                      <Check className="size-2.5" />
-                    </span>
-                  ) : (
-                    <Badge
-                      variant={preset.tagVariant === "success" ? "outline" : "secondary"}
-                      className={cn(
-                        "text-[9px] px-1 py-0 h-4",
-                        preset.tagVariant === "success" && "border-success/30 text-success bg-success/10"
-                      )}
-                    >
-                      {preset.tag}
-                    </Badge>
+        {/* Loaded Models Selection Dropdown */}
+        {allLoadedModels.length > 0 ? (
+          <div className="space-y-2 pt-1">
+            <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+              <div className="relative flex-1">
+                <select
+                  value={primaryModel}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    if (val) {
+                      onOverride("default", val)
+                      toast.success(`Hlavný model nastavený: ${val}`)
+                    }
+                  }}
+                  className="w-full h-9 rounded-lg border border-primary/40 bg-card px-3 text-xs font-mono font-medium text-foreground shadow-xs focus:outline-hidden focus:ring-1 focus:ring-primary"
+                >
+                  <option value="" disabled>
+                    -- Select model from loaded endpoints --
+                  </option>
+                  {endpoints.map((ep) => {
+                    const epModels = allLoadedModels.filter((m: LoadedAiModel) => m.endpointId === ep.id)
+                    if (epModels.length === 0) return null
+                    return (
+                      <optgroup key={ep.id} label={`${ep.name} (${ep.baseUrl})`}>
+                        {epModels.map((m: LoadedAiModel) => (
+                          <option key={`${ep.id}-${m.id}`} value={m.id}>
+                            {m.id}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )
+                  })}
+                  {!allLoadedModels.some((m: LoadedAiModel) => m.id === primaryModel) && (
+                    <option value={primaryModel}>{primaryModel} (Current / Custom)</option>
                   )}
-                </div>
-                <p className="text-[11px] text-muted-foreground line-clamp-2 leading-snug">
-                  {preset.desc}
-                </p>
-              </button>
-            )
-          })}
-        </div>
+                </select>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCustomPrimaryInput(!showCustomPrimaryInput)}
+                className="h-9 px-3 text-xs shrink-0 text-muted-foreground hover:text-foreground"
+              >
+                {showCustomPrimaryInput ? "Hide Custom Input" : "Custom Model Identifier"}
+              </Button>
+            </div>
+
+            {/* Quick model pills for common loaded models */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <span className="text-[10px] text-muted-foreground font-medium">Quick Pick:</span>
+              {allLoadedModels.slice(0, 6).map((m: LoadedAiModel) => {
+                const isSelected = primaryModel === m.id
+                return (
+                  <button
+                    key={`${m.endpointId}-${m.id}`}
+                    type="button"
+                    onClick={() => {
+                      onOverride("default", m.id)
+                      toast.success(`Hlavný model nastavený: ${m.id}`)
+                    }}
+                    className={cn(
+                      "px-2 py-0.5 rounded text-[10px] font-mono transition-colors",
+                      isSelected
+                        ? "bg-primary text-primary-foreground font-semibold"
+                        : "bg-muted/80 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    {m.id}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          /* Preset Cards Fallback when no endpoints loaded yet */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+            {PRIMARY_MODEL_PRESETS.map((preset) => {
+              const isSelected = primaryModel === preset.id && !showCustomPrimaryInput
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => {
+                    setShowCustomPrimaryInput(false)
+                    onOverride("default", preset.id)
+                    toast.success(`Hlavný model nastavený: ${preset.id}`)
+                  }}
+                  className={cn(
+                    "flex flex-col items-start p-2.5 rounded-lg border text-left transition-all",
+                    isSelected
+                      ? "border-primary bg-primary/10 ring-1 ring-primary shadow-xs"
+                      : "border-border bg-card/60 hover:border-border/80 hover:bg-muted/40"
+                  )}
+                >
+                  <div className="flex w-full items-center justify-between gap-1 mb-1">
+                    <span className="text-xs font-mono font-semibold text-foreground truncate">
+                      {preset.name}
+                    </span>
+                    {isSelected ? (
+                      <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px]">
+                        <Check className="size-2.5" />
+                      </span>
+                    ) : (
+                      <Badge
+                        variant={preset.tagVariant === "success" ? "outline" : "secondary"}
+                        className={cn(
+                          "text-[9px] px-1 py-0 h-4",
+                          preset.tagVariant === "success" && "border-success/30 text-success bg-success/10"
+                        )}
+                      >
+                        {preset.tag}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground line-clamp-2 leading-snug">
+                    {preset.desc}
+                  </p>
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         {/* Custom primary model input toggle */}
         <div className="pt-0.5">
-          {!showCustomPrimaryInput && isKnownPreset ? (
-            <button
-              type="button"
-              onClick={() => {
-                setShowCustomPrimaryInput(true)
-                setCustomPrimaryModel(primaryModel)
-              }}
-              className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
-            >
-              + Use a custom model identifier (e.g. OpenRouter or custom proxy)
-            </button>
-          ) : (
+          {showCustomPrimaryInput && (
             <div className="flex items-center gap-2 p-2 rounded-lg border border-border bg-card">
               <span className="text-xs text-muted-foreground font-medium shrink-0">Custom Model:</span>
               <input
                 type="text"
-                value={showCustomPrimaryInput ? customPrimaryModel : primaryModel}
+                value={customPrimaryModel || primaryModel}
                 onChange={(e) => setCustomPrimaryModel(e.target.value)}
                 placeholder="e.g. google/gemini-2.5-flash or anthropic/claude-3.5-sonnet"
                 className="h-7 flex-1 rounded border border-border bg-background px-2 text-xs font-mono"
@@ -929,14 +1522,14 @@ function AiModelSettings({
                 onClick={() => setShowCustomPrimaryInput(false)}
                 className="h-7 px-2 text-xs text-muted-foreground"
               >
-                Cancel
+                Close
               </Button>
             </div>
           )}
         </div>
       </div>
 
-      {/* 2. GOOGLE GEMINI API KEY CARD */}
+      {/* 3. GOOGLE GEMINI API KEY CARD */}
       <div className="rounded-lg border border-border bg-card p-3.5 space-y-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -945,14 +1538,14 @@ function AiModelSettings({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-xs font-semibold text-foreground">Google Gemini API Key</p>
+                <p className="text-xs font-semibold text-foreground">Google Gemini Direct API Key</p>
                 {geminiApiKey ? (
                   <Badge variant="outline" className="border-success/30 text-success bg-success/10 text-[10px]">
                     User Key Active
                   </Badge>
                 ) : (
                   <Badge variant="secondary" className="text-[10px]">
-                    Default Server Key
+                    Optional
                   </Badge>
                 )}
               </div>
@@ -976,7 +1569,7 @@ function AiModelSettings({
               size="sm"
               onClick={() => {
                 onGeminiApiKeyChange("")
-                toast.info("Gemini API kľúč bol vymazaný (použije sa kľúč zo servera)")
+                toast.info("Gemini API kľúč bol vymazaný")
               }}
               className="h-8 px-2.5 text-xs"
             >
@@ -986,13 +1579,13 @@ function AiModelSettings({
         </div>
       </div>
 
-      {/* 3. PER-TASK MODEL OVERRIDES SECTION */}
+      {/* 4. PER-TASK MODEL OVERRIDES SECTION */}
       <div className="space-y-3 pt-2">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
           <SectionHeader
             icon={SlidersHorizontal}
             title="Per-Task Model Overrides"
-            description="Fine-tune specific models for individual tasks. Tasks without an override automatically use the Primary Application Model."
+            description="Fine-tune specific models for individual tasks from any configured endpoint. Tasks without an override automatically use the Primary Application Model."
           />
           <div className="flex items-center gap-2">
             {activeOverridesCount > 0 && (
@@ -1061,6 +1654,7 @@ function AiModelSettings({
               defaultModel={DEFAULT_AI_MODELS[role]}
               primaryModel={primaryModel}
               currentOverride={overrides[role]}
+              loadedModels={allLoadedModels}
               onOverride={(model) => onOverride(role, model)}
               onClear={() => onClear(role)}
             />
@@ -1076,6 +1670,7 @@ function AiModelRow({
   defaultModel,
   primaryModel,
   currentOverride,
+  loadedModels = [],
   onOverride,
   onClear,
 }: {
@@ -1083,6 +1678,7 @@ function AiModelRow({
   defaultModel: string
   primaryModel: string
   currentOverride?: string
+  loadedModels?: LoadedAiModel[]
   onOverride: (model: string) => void
   onClear: () => void
 }) {
@@ -1093,7 +1689,10 @@ function AiModelRow({
   }
 
   const isMultimodal = role === "vision" || role === "ocr" || role === "reviewLayout"
-  const inheritedModel = isMultimodal ? defaultModel : (primaryModel || defaultModel)
+  const primarySupportsMultimodal = Boolean(
+    primaryModel && (primaryModel.startsWith("gemini-") || primaryModel.includes("vl") || primaryModel.includes("omni"))
+  )
+  const inheritedModel = (isMultimodal && !primarySupportsMultimodal) ? defaultModel : (primaryModel || defaultModel)
   const isOverridden = Boolean(currentOverride && currentOverride !== inheritedModel)
   const effectiveModel = currentOverride || inheritedModel
 
@@ -1139,51 +1738,89 @@ function AiModelRow({
         </p>
       </div>
 
-      {/* Right: Explicit input + datalist + reset button */}
+      {/* Right: Loaded model select + input + reset button */}
       <div className="flex items-center gap-1.5 shrink-0">
-        <div className="relative w-full sm:w-56">
-          <input
-            type="text"
-            list={`model-suggestions-${role}`}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onBlur={(e) => handleCommit(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleCommit((e.target as HTMLInputElement).value)
-                ;(e.target as HTMLInputElement).blur()
-              } else if (e.key === "Escape") {
-                setInputValue(effectiveModel)
-                ;(e.target as HTMLInputElement).blur()
-              }
-            }}
-            placeholder={inheritedModel}
-            className={cn(
-              "h-8 w-full rounded-md border bg-background px-2.5 text-xs font-mono transition-colors",
-              isOverridden
-                ? "border-primary/50 text-foreground font-medium ring-1 ring-primary/20"
-                : "border-border text-muted-foreground hover:border-border/80 focus:text-foreground"
-            )}
-            title={`Active: ${effectiveModel} (Inherited: ${inheritedModel})`}
-          />
-          <datalist id={`model-suggestions-${role}`}>
-            {isMultimodal ? (
-              <>
-                <option value="qwen3-vl-flash" label="Qwen3 VL Flash (Default Vision)" />
-                <option value="qwen-vl-max" label="Qwen VL Max (High Precision)" />
-                <option value="gemini-2.5-flash" label="Gemini 2.5 Flash (Multimodal)" />
-                <option value="gemini-3.8-flash" label="Gemini 3.8 Flash (Multimodal)" />
-              </>
-            ) : (
-              <>
-                <option value="gemini-2.5-flash" label="Gemini 2.5 Flash (Recommended)" />
-                <option value="gemini-3.8-flash" label="Gemini 3.8 Flash (Latest)" />
-                <option value="gemini-3.6-flash" label="Gemini 3.6 Flash" />
-                <option value="gemini-3.1-pro-preview" label="Gemini 3.1 Pro (Deep Reasoning)" />
-              </>
-            )}
-          </datalist>
-        </div>
+        {loadedModels.length > 0 ? (
+          <div className="flex items-center gap-1.5 w-full sm:w-64">
+            <select
+              value={isOverridden ? effectiveModel : ""}
+              onChange={(e) => {
+                const val = e.target.value
+                if (val === "__INHERIT__" || !val) {
+                  onClear()
+                  setInputValue(inheritedModel)
+                  toast.info(`Resetovaný model pre "${meta.label}"`)
+                } else {
+                  handleCommit(val)
+                }
+              }}
+              className={cn(
+                "h-8 w-full rounded-md border bg-background px-2 text-xs font-mono transition-colors focus:outline-hidden focus:ring-1 focus:ring-primary",
+                isOverridden
+                  ? "border-primary/60 text-foreground font-semibold"
+                  : "border-border text-muted-foreground"
+              )}
+            >
+              <option value="__INHERIT__">
+                [Inherited: {inheritedModel}]
+              </option>
+              {loadedModels.map((m) => (
+                <option key={`${m.endpointId}-${m.id}`} value={m.id}>
+                  [{m.endpointName}] {m.id}
+                </option>
+              ))}
+              {isOverridden && !loadedModels.some((m) => m.id === effectiveModel) && (
+                <option value={effectiveModel}>
+                  [Custom] {effectiveModel}
+                </option>
+              )}
+            </select>
+          </div>
+        ) : (
+          <div className="relative w-full sm:w-56">
+            <input
+              type="text"
+              list={`model-suggestions-${role}`}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onBlur={(e) => handleCommit(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleCommit((e.target as HTMLInputElement).value)
+                  ;(e.target as HTMLInputElement).blur()
+                } else if (e.key === "Escape") {
+                  setInputValue(effectiveModel)
+                  ;(e.target as HTMLInputElement).blur()
+                }
+              }}
+              placeholder={inheritedModel}
+              className={cn(
+                "h-8 w-full rounded-md border bg-background px-2.5 text-xs font-mono transition-colors",
+                isOverridden
+                  ? "border-primary/50 text-foreground font-medium ring-1 ring-primary/20"
+                  : "border-border text-muted-foreground hover:border-border/80 focus:text-foreground"
+              )}
+              title={`Active: ${effectiveModel} (Inherited: ${inheritedModel})`}
+            />
+            <datalist id={`model-suggestions-${role}`}>
+              {isMultimodal ? (
+                <>
+                  <option value="qwen3-vl-flash" label="Qwen3 VL Flash (Default Vision)" />
+                  <option value="qwen-vl-max" label="Qwen VL Max (High Precision)" />
+                  <option value="gemini-2.5-flash" label="Gemini 2.5 Flash (Multimodal)" />
+                  <option value="gemini-3.8-flash" label="Gemini 3.8 Flash (Multimodal)" />
+                </>
+              ) : (
+                <>
+                  <option value="gemini-2.5-flash" label="Gemini 2.5 Flash (Recommended)" />
+                  <option value="gemini-3.8-flash" label="Gemini 3.8 Flash (Latest)" />
+                  <option value="gemini-3.6-flash" label="Gemini 3.6 Flash" />
+                  <option value="gemini-3.1-pro-preview" label="Gemini 3.1 Pro (Deep Reasoning)" />
+                </>
+              )}
+            </datalist>
+          </div>
+        )}
 
         {isOverridden && (
           <Button

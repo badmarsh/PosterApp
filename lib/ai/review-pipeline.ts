@@ -1,3 +1,4 @@
+import { persistFindingsEvidence } from "./evidence-persister"
 /**
  * Shared review-generation pipeline used by:
  *   - the synchronous POST /thesis-review route, and
@@ -12,7 +13,7 @@
 import { prisma } from "@/lib/prisma"
 import { generateAIResponse, getLastServedProvider, type AIProviderSource } from "./client"
 import { ThesisReviewGenerationSchema, validateGeneratedSections } from "./contracts"
-import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "./models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, parseAiApiKey, AI_TIMEOUTS } from "./models"
 import {
   loadThesisContext,
   buildThesisContextHeader,
@@ -216,12 +217,35 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       const audit = await auditThesisCitations(ragContext.referencesTitles.slice(0, 20))
       const issues = audit.results
         .filter((r) => !r.verification.found || r.iso690Issues.length > 0)
-        .map((r) => {
-          const msgs = r.iso690Issues.length > 0
-            ? r.iso690Issues.map((iss) => (typeof iss === "string" ? iss : iss.message)).join("; ")
-            : `Unverified: "${r.citedText.slice(0, 60)}"`
-          return msgs
+        .flatMap((r) => {
+          if (r.iso690Issues.length === 0) {
+            // Genuinely not found in any database — report as unverified.
+            return [`Unverified: "${r.citedText.slice(0, 60)}"`]
+          }
+          // Filter individual issues to suppress false positives:
+          //  • missing_author / missing_year on low-confidence matches → parse failure artifact
+          //  • inconsistent_metadata where registry year > cited year → reprint/edition mismatch
+          const actionable = r.iso690Issues.filter((iss) => {
+            if (typeof iss === "string") return true
+            if (
+              (iss.code === "missing_author" || iss.code === "missing_year") &&
+              r.verification.confidence !== "high"
+            ) {
+              return false // Not a real issue — just a parse failure on the title fragment
+            }
+            // "inconsistent_metadata" with registry year > cited year = reprint false positive.
+            // The year-mismatch in checkIso690Issues now only fires when cited > registry,
+            // so this guard is a belt-and-suspenders safety net.
+            if (iss.code === "inconsistent_metadata") {
+              const paper = r.verification.paper
+              const refYear = r.enriched?.year
+              if (paper?.year && refYear && paper.year > refYear) return false
+            }
+            return true
+          })
+          return actionable.map((iss) => (typeof iss === "string" ? iss : iss.message))
         })
+        .filter(Boolean)
       if (issues.length > 0) {
         citationAuditSummary = `\nCitation audit found ${audit.unverified} unverified references:\n` + issues.join("\n")
       }
@@ -234,6 +258,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
   report("retrieval", `retrieval 0/${activeCriteria.length}`)
   const domainContext = resolveThesisDomainContext(normalizedMetadata)
   const modelOverrides = parseAiModelOverrides(params.headers)
+  const clientApiKey = parseAiApiKey(params.headers)
   const criterionVectorContextParts = new Map<string, string>()
   const retrievedChunkMap = new Map<string, { anchor: string; heading: string | null; content: string; kind?: string }>()
   let retrievalDone = 0
@@ -245,6 +270,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
         domainContext,
         lang,
         model: resolveAiModelWithOverrides("thesis", modelOverrides),
+        apiKey: clientApiKey,
         workspaceId,
       }
     )
@@ -382,10 +408,13 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       language: lang,
       reviewKind,
       thesisType: body.thesisMetadata.thesisType,
+      reviewerRole: body.thesisMetadata.reviewerRole,
       detailedThesisType: rubricDocumentType,
       sourceRevision,
       signal,
       onProgress: (stage, detail) => report(stage as ReviewStage, detail),
+      apiKey: clientApiKey,
+      modelOverrides,
     })
 
     // Map findings onto sections (same attribution logic as monolithic path).
@@ -422,8 +451,10 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     })
 
     calibratedDefenseQuestions = normalizeDefenseQuestions(agentic.synthesis.defenseQuestions as any)
+    const hasEvaluatedCriteria = sections.some((s) => s.rating && s.rating !== "pending")
     const agenticScore = computeScoreFromFindings(agentic.allFindings)
-    const agenticGradeRange = applyEctsGrading ? calculateGradeRange(agenticScore) : null
+    const hasEvaluationSignals = agentic.allFindings.length > 0 || hasEvaluatedCriteria
+    const agenticGradeRange = applyEctsGrading && hasEvaluationSignals ? calculateGradeRange(agenticScore) : null
     professionalResult = {
       grade: agenticGradeRange?.grade ?? null,
       recommendation: agentic.synthesis.recommendation,
@@ -470,6 +501,8 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       evidenceChunks: evidenceChunks.length > 0 ? evidenceChunks : undefined,
       onProgress: (stage: string, detail?: string) => report(stage as ReviewStage, detail),
       signal,
+      apiKey: clientApiKey,
+      modelOverrides,
     })
     calibratedDefenseQuestions = normalizeDefenseQuestions(professionalResult.defenseQuestions)
 
@@ -505,9 +538,11 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       }
     })
 
+    const hasEvaluatedCriteria = sections.some((s) => s.rating && s.rating !== "pending")
+    const hasEvaluationSignals = (professionalResult.anchoredFindings || []).length > 0 || hasEvaluatedCriteria || Boolean(professionalResult.grade)
     result = {
       sections,
-      overallGrade: applyEctsGrading ? (professionalResult.grade ?? null) : null,
+      overallGrade: applyEctsGrading && hasEvaluationSignals ? (professionalResult.grade ?? null) : null,
       recommendation: professionalResult.recommendation,
       defenseQuestions: calibratedDefenseQuestions,
       citationIssues: [],
@@ -517,6 +552,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     report("primary_review", "standard review generation")
     result = await generateAIResponse("thesis-review", {
       model: resolveAiModelWithOverrides("thesis", modelOverrides),
+      apiKey: clientApiKey,
       systemPrompt,
       userPrompt,
       schema: ThesisReviewGenerationSchema,
@@ -540,6 +576,49 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
         targetSec.suggestions = Array.from(new Set([...(targetSec.suggestions || []), f.recommendation]))
       }
     }
+
+    // In Path A, ensure summary and strengths are never empty
+    if (!result.summary && result.sections?.length > 0) {
+      const topSec = result.sections.find((s: any) => s.id === "objectives_clarity" || s.id === "problem_relevance") || result.sections[0]
+      result.summary = topSec?.text?.slice(0, 500) || ""
+    }
+    if (!result.strengths || result.strengths.length === 0) {
+      result.strengths = result.sections
+        ?.filter((s: any) => s.rating === "A" || s.rating === "B")
+        ?.map((s: any) => s.text?.split("\n")[0]?.replace(/^[•\-\*]\s*/, ""))
+        ?.filter(Boolean)
+        ?.slice(0, 4) || []
+    }
+    if (!result.findings || result.findings.length === 0) {
+      result.findings = [
+        ...alignmentResult.findings.map((f, idx) => ({
+          id: `f-align-${idx + 1}`,
+          criterionId: f.criterionId,
+          category: "methodology" as const,
+          title: f.title,
+          explanation: f.explanation,
+          recommendation: f.recommendation,
+          severity: f.severity,
+          status: "unreviewed" as const,
+          includeInExport: true,
+          createdBy: "ai" as const,
+          evidence: [],
+        })),
+        ...citationAuditResult.findings.map((f, idx) => ({
+          id: `f-cite-${idx + 1}`,
+          criterionId: "citations_quality",
+          category: "literature" as const,
+          title: f.title,
+          explanation: f.explanation,
+          recommendation: f.recommendation,
+          severity: f.severity,
+          status: "unreviewed" as const,
+          includeInExport: true,
+          createdBy: "ai" as const,
+          evidence: [],
+        })),
+      ]
+    }
   }
 
   // Recommendation / triage. Paper and grant reviews use publication verdicts
@@ -558,12 +637,35 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     result.recommendation = gradeToRecommendation(result.overallGrade, lang)
   }
 
+  // Doctoral opponent reviews must close with the conclusive statement. When
+  // the model produced none, attach the statutory clause (if available) and
+  // mark the verdict as pending so it can never look like an AI verdict.
+  const isDoctoralOpponent =
+    reviewKind !== "paper" && body.thesisMetadata.thesisType === "phd" && normalizedMetadata.reviewerRole === "opponent"
+  const statutoryClause: string | undefined = professionalResult?.phdEnrichment?.statutoryClause
+  if (isDoctoralOpponent) {
+    if (!result.recommendation) {
+      result.recommendation =
+        lang === "sk"
+          ? "Záverečné stanovisko (odporúčanie na obhajobu a návrh titulu PhD) doplní a podpíše recenzent."
+          : lang === "cs"
+            ? "Závěrečné stanovisko (doporučení k obhajobě a návrh titulu) doplní a podepíše recenzent."
+            : "The conclusive statement (recommendation for defence and proposed title) must be added and signed by the reviewer."
+    } else if (statutoryClause && !result.recommendation.includes("§")) {
+      result.recommendation = `${result.recommendation} ${statutoryClause}`
+    }
+  }
+
   const providerProvenance = reviewProvenance.source ?? getLastServedProvider()
   let finalDebateLog = professionalResult?.debateLog ?? null
   if (providerProvenance === "fallback-provider") {
     const fallbackNote = `[Provider Fallback] Review generated via fallback provider.`
     finalDebateLog = finalDebateLog ? `${finalDebateLog}\n${fallbackNote}` : fallbackNote
   }
+
+  const finalSummary = professionalResult?.summary ?? result.summary ?? null
+  const finalStrengths = professionalResult?.strengths ?? result.strengths ?? []
+  const finalFindings = professionalResult?.anchoredFindings ?? result.findings ?? []
 
   // 9. Persist
   report("persisting", "saving review")
@@ -586,9 +688,9 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       citationIssues: JSON.stringify([...result.citationIssues, ...(citationAuditSummary ? [citationAuditSummary] : [])]),
       reviewKind,
       targetVenue: body.thesisMetadata.targetVenue ?? null,
-      summary: professionalResult?.summary ?? null,
-      strengths: professionalResult?.strengths ? JSON.stringify(professionalResult.strengths) : null,
-      findings: professionalResult?.anchoredFindings ? JSON.stringify(professionalResult.anchoredFindings) : null,
+      summary: finalSummary,
+      strengths: finalStrengths.length > 0 ? JSON.stringify(finalStrengths) : null,
+      findings: finalFindings.length > 0 ? JSON.stringify(finalFindings) : null,
       sourceRevision: professionalResult?.sourceRevision ?? sourceRevision,
       rubricVersion: "sk-academic-v1",
       discipline: body.thesisMetadata.targetVenue ?? null,
@@ -605,6 +707,20 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     },
   })
 
+  // Persist findings to first-class Evidence rows
+  try {
+    if (finalFindings && finalFindings.length > 0 && body.sourceFileId) {
+      await persistFindingsEvidence({
+        workspaceId,
+        documentId: body.sourceFileId,
+        findings: finalFindings,
+        reviewId: saved.id,
+      })
+    }
+  } catch (evErr) {
+    console.warn("[review-pipeline] Evidence persistence skipped or failed:", evErr)
+  }
+
   report("done", "review complete")
 
   const responsePayload = {
@@ -612,9 +728,9 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     ...result,
     reviewKind,
     targetVenue: body.thesisMetadata.targetVenue,
-    summary: professionalResult?.summary,
-    strengths: professionalResult?.strengths ?? [],
-    findings: professionalResult?.anchoredFindings ?? [],
+    summary: finalSummary,
+    strengths: finalStrengths,
+    findings: finalFindings,
     sourceRevision: professionalResult?.sourceRevision ?? sourceRevision,
     rubricVersion: "sk-academic-v1",
     proposedGradeRange: professionalResult?.proposedGradeRange,

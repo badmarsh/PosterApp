@@ -38,7 +38,7 @@ test.describe('Thesis Review Workflow & E2E Features', () => {
     await page.waitForLoadState('networkidle');
 
     // Verify metadata panel fields are present
-    await expect(page.getByText('Posudok záverečnej práce')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Posudok záverečnej práce', { exact: true })).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Meno autora/autorky *')).toBeVisible();
     await expect(page.getByText(/Názov práce/)).toBeVisible();
 

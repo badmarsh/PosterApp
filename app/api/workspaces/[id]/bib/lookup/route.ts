@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { generateAITextResponse } from "@/lib/ai/client"
-import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, parseAiApiKey, AI_TIMEOUTS } from "@/lib/ai/models"
 import { parseBibEntries } from "@/lib/bib-types"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 
@@ -64,8 +64,10 @@ Requirements:
 3. Respond ONLY with the raw BibTeX entry (e.g. @article{...}), no markdown code blocks, no explanations.`
 
     const modelOverrides = parseAiModelOverrides(req.headers)
+    const clientApiKey = parseAiApiKey(req.headers)
     const bibtex = await generateAITextResponse("bib-lookup", {
       model: resolveAiModelWithOverrides("bibtex", modelOverrides),
+      apiKey: clientApiKey,
       userPrompt: prompt,
       temperature: 0.1,
       signal: AbortSignal.timeout(AI_TIMEOUTS.bibtex),

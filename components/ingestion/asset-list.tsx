@@ -37,19 +37,24 @@ import {
 } from "@/components/ingestion/ingestion-badges"
 import { FigureEditor } from "@/components/ingestion/figure-editor"
 import { PromotePopover } from "@/components/ingestion/promote-popover"
+import { parseTableFromText } from "@/components/thesis-review/evidence-quote-viewer"
 
 export type IngestionTabFilter = "all" | "figure" | "table" | "equation" | "citation"
 
 const KIND_ORDER: AssetKind[] = ["figure", "table", "equation", "text"]
 
 function OriginLabel({ asset }: { asset: ExtractedAsset }) {
-  const parts = [`p.${asset.page}`]
+  const parts: string[] = []
+  if (asset.page && asset.page > 0) {
+    parts.push(`p.${asset.page}`)
+  }
   if (asset.section && asset.section.length <= 40 && !asset.section.includes("\n") && !asset.section.startsWith("#")) {
     parts.push(asset.section)
   }
   if (asset.bbox && (asset.bbox.startsWith("[") || asset.bbox.length <= 30) && !asset.bbox.includes("\n")) {
     parts.push(asset.bbox)
   }
+  if (parts.length === 0) return null
   return (
     <span className="font-mono text-[10px] font-normal text-muted-foreground">
       {parts.join(" · ")}
@@ -90,6 +95,39 @@ function EquationPreview({ formula }: { formula: string }) {
   )
 }
 
+function CellContent({ text }: { text: string }) {
+  // Split on inline math: $...$ or \(...\)
+  const parts = useMemo(() => {
+    const result: { kind: "text" | "math"; value: string }[] = []
+    const re = /\$([^$]+)\$|\\\(([^)]+)\\\)/g
+    let last = 0
+    let m: RegExpExecArray | null
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) result.push({ kind: "text", value: text.slice(last, m.index) })
+      result.push({ kind: "math", value: m[1] ?? m[2] ?? "" })
+      last = m.index + m[0].length
+    }
+    if (last < text.length) result.push({ kind: "text", value: text.slice(last) })
+    return result
+  }, [text])
+
+  if (parts.length === 1 && parts[0].kind === "text") return <>{text}</>
+
+  return (
+    <>
+      {parts.map((p, i) => {
+        if (p.kind === "text") return <span key={i}>{p.value}</span>
+        try {
+          const html = katex.renderToString(p.value, { throwOnError: false, displayMode: false })
+          return <span key={i} dangerouslySetInnerHTML={{ __html: html }} />
+        } catch {
+          return <span key={i}>{p.value}</span>
+        }
+      })}
+    </>
+  )
+}
+
 function TablePreview({ rows }: { rows: string[][] | string | undefined | null }) {
   let parsedRows: string[][] = []
   if (Array.isArray(rows)) {
@@ -106,6 +144,16 @@ function TablePreview({ rows }: { rows: string[][] | string | undefined | null }
       }
     } catch {
       parsedRows = []
+    }
+    if (parsedRows.length === 0) {
+      const tableData = parseTableFromText(rows)
+      if (tableData) {
+        if (tableData.headers.length > 0) {
+          parsedRows = [tableData.headers, ...tableData.rows]
+        } else {
+          parsedRows = tableData.rows
+        }
+      }
     }
   }
 
@@ -129,7 +177,7 @@ function TablePreview({ rows }: { rows: string[][] | string | undefined | null }
                   key={ci}
                   className="truncate border border-border px-1 py-0.5"
                 >
-                  {String(cell ?? "")}
+                  <CellContent text={String(cell ?? "")} />
                 </td>
               ))}
             </tr>

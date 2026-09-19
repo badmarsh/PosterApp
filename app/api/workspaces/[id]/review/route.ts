@@ -6,7 +6,7 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { loadSourceContext } from "@/lib/ai/context"
 import { generateAIResponse } from "@/lib/ai/client"
 import { ReviewTipsSchema } from "@/lib/ai/contracts"
-import { parseAiModelOverrides, resolveAiModelWithOverrides, AI_TIMEOUTS } from "@/lib/ai/models"
+import { parseAiModelOverrides, resolveAiModelWithOverrides, parseAiApiKey, AI_TIMEOUTS } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 import { AI_CONFIG } from "@/lib/config/ai"
 import { estimateHeight, validatePosterColumns } from "@/lib/latex"
@@ -214,8 +214,10 @@ Return EXACTLY (no markdown wrappers):
 
     try {
       const modelOverrides = parseAiModelOverrides(req.headers)
+      const clientApiKey = parseAiApiKey(req.headers)
       const parsedData = await generateAIResponse("review", {
         model: resolveAiModelWithOverrides("review", modelOverrides),
+        apiKey: clientApiKey,
         systemPrompt,
         userPrompt,
         schema: ReviewTipsSchema,

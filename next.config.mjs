@@ -1,7 +1,5 @@
 import path from "node:path"
 
-const aiOrigin = (() => { try { return new URL(process.env.AI_API_URL ?? "").origin } catch { return null } })()
-const aiFallbackOrigin = (() => { try { return new URL(process.env.AI_API_URL_FALLBACK ?? "").origin } catch { return null } })()
 const yjsOrigin = (() => {
   const wsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL
   if (!wsUrl) return null
@@ -21,8 +19,6 @@ const connectSrc = [
   "wss://*.dev.significa.sk",
   "wss://poster.dev.significa.sk",
   "ws://localhost:3333",
-  aiOrigin,
-  aiFallbackOrigin,
   yjsOrigin,
 ].filter(Boolean).join(" ")
 

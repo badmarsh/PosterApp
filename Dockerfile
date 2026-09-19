@@ -73,9 +73,14 @@ ENV WORKSPACES_DIR=workspaces
 ENV YPERSISTENCE=./tmp/yjs
 ENV CACHE_DIR=/app/.cache
 
-# Non-root system user
+# Non-root system user with writable home directory for TeX / font caches
 RUN groupadd --system --gid 1001 nodejs && \
-    useradd --system --uid 1001 -g nodejs nextjs
+    useradd --system --uid 1001 -g nodejs -m -d /home/nextjs nextjs && \
+    mkdir -p /home/nextjs/.texlive /home/nextjs/.texmf-var /home/nextjs/.cache && \
+    chown -R nextjs:nodejs /home/nextjs
+
+ENV HOME=/home/nextjs
+ENV PATH="/usr/local/bin:/usr/bin:/bin:${PATH}"
 
 # Create persistent storage directories
 RUN mkdir -p /app/workspaces /app/tmp/yjs /app/.cache && \

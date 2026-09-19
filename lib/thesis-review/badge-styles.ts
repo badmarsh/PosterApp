@@ -52,6 +52,7 @@ export const EVIDENCE_CLASSES: Record<EvidenceState, string> = {
   ambiguous: "text-status-ambiguous bg-status-ambiguous/10 border-status-ambiguous/30",
   stale: "text-destructive bg-destructive/10 border-destructive/30",
   unverified: "text-muted-foreground bg-muted border-border",
+  "context-only": "text-muted-foreground bg-muted/40 border-border",
   verified: "text-success bg-success/10 border-success/30", // backward-compat alias for verified-exact
 }
 

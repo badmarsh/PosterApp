@@ -48,6 +48,8 @@ export function ThesisReviewStoreProvider({
  * output tab. Falls back to the default singleton when rendered outside a
  * ThesisReviewStoreProvider.
  */
+const defaultThesisSelector = (state: ThesisReviewState) => state
+
 export function useScopedThesisReviewStore<T>(
   selector: (state: ThesisReviewState) => T
 ): T
@@ -58,6 +60,5 @@ export function useScopedThesisReviewStore<T>(
   const store = useContext(ThesisReviewStoreContext) ?? useThesisReviewStore
   // Always call useStore unconditionally with a stable selector so hook order
   // never changes between renders (react-hooks/rules-of-hooks).
-  const identity = (state: ThesisReviewState) => state as unknown as T
-  return useStore(store, selector ?? identity)
+  return useStore(store, (selector ?? defaultThesisSelector) as (state: ThesisReviewState) => T)
 }

@@ -95,17 +95,15 @@ services:
       NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: ${NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL:-/}
       # Yjs Collaboration WebSocket (wss://domain/api/yjs)
       NEXT_PUBLIC_YJS_WS_URL: ${NEXT_PUBLIC_YJS_WS_URL}
-      # OpenRouter & AI Providers
+      # OpenRouter & AI Providers (Endpoints configured in Settings -> AI Models)
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
-      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      GEMINI_API_URL: ${GEMINI_API_URL}
       AI_MODEL: ${AI_MODEL:-gemini-3.8-flash}
-      AI_API_URL: ${AI_API_URL}
       AI_API_KEY: ${AI_API_KEY}
       AI_VISION_MODEL: ${AI_VISION_MODEL:-gemini-3.8-flash}
-      AI_VISION_API_URL: ${AI_VISION_API_URL}
       AI_VISION_API_KEY: ${AI_VISION_API_KEY}
+      # LaTeX Compilation (built-in texlive in image; optional isolated worker container override)
+      LATEX_COMPILER_IMAGE: ${LATEX_COMPILER_IMAGE:-}
       # MinerU Document Parsing Sidecar
       MINERU_API_URL: ${MINERU_API_URL:-http://mineru-api-wsl:8000}
       MINERU_API_KEY: ${MINERU_API_KEY}

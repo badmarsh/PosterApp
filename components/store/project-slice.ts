@@ -1037,7 +1037,9 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     }
   },
 
-  newProject: () => get().pushEvent({ kind: "info", status: "done", title: "New project", detail: "Create a new project from the top bar workspace selector." }),
+  newProject: () => {
+    get().openWorkspaceSelector(true)
+  },
   duplicateProject: async () => {
     const src = get().project
     if (isDemoProject(src.id)) {

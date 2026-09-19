@@ -8,7 +8,7 @@
  * and single-criterion AI regeneration with custom instructions.
  */
 
-import { useState } from "react"
+import { useState, memo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -53,7 +53,7 @@ const SUGGESTIONS_LABELS: Record<ReviewLanguage, string> = {
   en: "Improvement suggestions",
 }
 
-export function ThesisCriteriaCard({
+export const ThesisCriteriaCard = memo(function ThesisCriteriaCard({
   criterion,
   section,
   lang,
@@ -67,8 +67,10 @@ export function ThesisCriteriaCard({
   const [showRegenPrompt, setShowRegenPrompt] = useState(false)
   const [userInstruction, setUserInstruction] = useState("")
 
-  const { regenerateCriterion, regeneratingCriterionId } = useScopedThesisReviewStore()
-  const isRegenerating = regeneratingCriterionId === criterion.id
+  const regenerateCriterion = useScopedThesisReviewStore((s) => s.regenerateCriterion)
+  const isRegenerating = useScopedThesisReviewStore(
+    (s) => s.regeneratingCriterionId === criterion.id
+  )
 
   const criterionLabel = criterion.labels[lang]
   const rating = section.rating && section.rating !== "pending" ? section.rating : null
@@ -314,4 +316,4 @@ export function ThesisCriteriaCard({
       )}
     </div>
   )
-}
+})

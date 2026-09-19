@@ -1,20 +1,27 @@
 "use client"
 
+import { useMemo } from "react"
 import { AlertTriangle, Lightbulb, Wand2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { notify } from "@/lib/notify"
 import type { Card } from "@/lib/poster-types"
 import { deriveQuickFixes, findDanglingCiteKeys, findDanglingRefKeys } from "@/lib/latex/quick-fixes"
 import { useEditor } from "@/components/editor-store"
+import { useShallow } from "zustand/react/shallow"
 
 /** Isolated, testable quick-fix surface shared by the validation tab. */
 export function QuickFixesPanel({ card }: { card: Card }) {
-  const updateCard = useEditor((s) => s.updateCard)
-  const bibKeys = useEditor((s) => s.bibKeys)
-  const allCardContents = useEditor((s) => (s.project.outputs?.find((o) => o.id === s.project.activeOutputId)?.cards ?? []).map((c) => c.content))
-  const quickFixes = deriveQuickFixes(card)
-  const danglingCites = findDanglingCiteKeys(card.content, bibKeys)
-  const danglingRefs = findDanglingRefKeys(card.content, allCardContents)
+  const { updateCard, bibKeys, cards } = useEditor(
+    useShallow((s) => ({
+      updateCard: s.updateCard,
+      bibKeys: s.bibKeys,
+      cards: s.project.outputs?.find((o) => o.id === s.project.activeOutputId)?.cards,
+    }))
+  )
+  const allCardContents = useMemo(() => (cards ?? []).map((c) => c.content), [cards])
+  const quickFixes = useMemo(() => deriveQuickFixes(card), [card])
+  const danglingCites = useMemo(() => findDanglingCiteKeys(card.content, bibKeys || []), [card.content, bibKeys])
+  const danglingRefs = useMemo(() => findDanglingRefKeys(card.content, allCardContents), [card.content, allCardContents])
 
   if (!quickFixes.length && !danglingCites.length && !danglingRefs.length) return null
 

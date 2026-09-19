@@ -18,6 +18,17 @@ import { extractAndStoreGraphEntities } from "./graph-extractor"
 import { classifySectionKind, type SectionKind } from "@/lib/ai/thesis-context"
 import { resolveChunkSize, CHUNK_OVERLAP, type ChunkKind } from "./chunking-config"
 import { splitIntoSubchunks, splitIntoStructuralSegments, buildTableEmbeddingText, describeTableChunk } from "./text-splitter"
+import { buildContextualPrefix, describeEquationChunk, type ContextLang } from "./chunk-context"
+import {
+  chunkDocument,
+  isHierarchicalChunkerEnabled,
+  CHUNKER_VERSION,
+  PARSER_VERSION,
+  type ChunkerOptions,
+  type PageAnchor,
+} from "./chunker-v2"
+import { generateLocalEmbeddings, getEmbeddingModelId } from "@/lib/ai/local-embeddings"
+import { assertVectorWidth, currentManifest, manifestKey, EMBEDDING_COLUMN_WIDTH_SQL } from "@/lib/ai/index-version"
 
 export type { SectionKind }
 export type { ChunkKind }
@@ -25,190 +36,10 @@ export type { ChunkKind }
 // ---------------------------------------------------------------------------
 // Contextual Retrieval (Anthropic-style chunk enrichment)
 // ---------------------------------------------------------------------------
-
-/** Supported languages for the contextual prefix (matches review languages). */
-export type ContextLang = "sk" | "cs" | "en"
-
-export interface ChunkContextInput {
-  /** Document title (IngestFile.name / thesis title). */
-  documentTitle?: string | null
-  /** Research domain, e.g. "Informatika, AI a dátové vedy". */
-  domain?: string | null
-  /** Immediate section heading. */
-  heading?: string | null
-  /** Full hierarchical section path, e.g. "Kapitola 3: Metodika > 3.2 Štatistická analýza". */
-  headingPath?: string | null
-  /** Classified section kind (drives the section-objective sentence). */
-  sectionKind?: SectionKind | null
-  /** Structural kind of the chunk (table chunks get a flattened description instead). */
-  kind?: ChunkKind | null
-  /** Language for the prefix text (default "sk" — Slovak theses). */
-  lang?: ContextLang
-}
-
-const SECTION_OBJECTIVES: Record<SectionKind, Record<ContextLang, string>> = {
-  preamble: {
-    sk: "predstavuje dokument a jeho štruktúru",
-    cs: "představuje dokument a jeho strukturu",
-    en: "introduces the document and its structure",
-  },
-  introduction: {
-    sk: "uvádza do problematiky, motivuje tému a stanovuje ciele práce",
-    cs: "uvádí do problematiky, motivuje tému a stanovuje cíle práce",
-    en: "introduces the problem, motivates the topic and states the objectives",
-  },
-  literature: {
-    sk: "rešíruje súčasný stav poznania a súvisiace vedecké práce",
-    cs: "rešeršuje současný stav poznání a související vědecké práce",
-    en: "surveys the state of the art and related work",
-  },
-  methodology: {
-    sk: "popisuje metodiku, postupy, dáta a experimentálny návrh",
-    cs: "popisuje metodiku, postupy, data a experimentální návrh",
-    en: "describes the methodology, procedures, data and experimental design",
-  },
-  results: {
-    sk: "prezentuje výsledky experimentov a ich vyhodnotenie vrátane štatistických údajov",
-    cs: "prezentuje výsledky experimentů a jejich vyhodnocení včetně statistických údajů",
-    en: "presents experimental results and their evaluation including statistical data",
-  },
-  discussion: {
-    sk: "interpretuje výsledky, porovnáva ich s existujúcimi riešeniami a diskutuje limitácie",
-    cs: "interpretuje výsledky, porovnává je s existujícími řešeními a diskutuje limitace",
-    en: "interprets the results, compares them with existing work and discusses limitations",
-  },
-  conclusion: {
-    sk: "sumarizuje závery a prínos práce pre odbornú verejnosť",
-    cs: "sumarizuje závěry a přínos práce pro odbornou veřejnost",
-    en: "summarises the conclusions and the contribution of the work",
-  },
-  references: {
-    sk: "obsahuje zoznam citovanej literatúry",
-    cs: "obsahuje seznam citované literatury",
-    en: "contains the list of cited literature",
-  },
-  appendix: {
-    sk: "obsahuje prílohy a doplnkový materiál",
-    cs: "obsahuje přílohy a doplňkový materiál",
-    en: "contains appendices and supplementary material",
-  },
-  unknown: {
-    sk: "rozvíja hlavnú tému práce",
-    cs: "rozvíjí hlavní téma práce",
-    en: "develops the main topic of the work",
-  },
-}
-
-/** LaTeX symbol names that make equation chunks findable by natural-language queries. */
-const EQUATION_SYMBOL_LABELS: Array<[RegExp, string]> = [
-  [/\\alpha|\balpha\b/i, "alpha (α)"],
-  [/\\beta|\bbeta\b/i, "beta (β)"],
-  [/\\gamma|\bgamma\b|\\Gamma/i, "gamma (γ)"],
-  [/\\delta|\bdelta\b|\\Delta/i, "delta (δ/Δ)"],
-  [/\\sigma|\bsigma\b|\\Sigma/i, "sigma (σ)"],
-  [/\\lambda|\blambda\b|\\Lambda/i, "lambda (λ)"],
-  [/\\mu|\bmu\b/i, "mu (μ)"],
-  [/\\theta|\btheta\b/i, "theta (θ)"],
-  [/\\pi|\bpi\b/i, "pi (π)"],
-  [/\\epsilon|\bvarepsilon|\bvarepsilon\b/i, "epsilon (ε)"],
-  [/\\sum\b|\\sum_/i, "sum"],
-  [/\\int\b|\\oint/i, "integral"],
-  [/\\nabla/i, "nabla (gradient)"],
-  [/\\partial/i, "parciálna derivácia (partial derivative)"],
-  [/[√\\sqrt]/, "odmocnina (square root)"],
-  [/\\leq|\\le\b|≤/, "nerovnosť (inequality ≤)"],
-  [/\\approx|≈/, "približne rovné (approximately equal)"],
-]
-
-/**
- * Builds a 1–2 sentence Anthropic-style contextual prefix for a chunk.
- *
- * Isolated 1,200–1,800-char chunks (statistical paragraphs, equations, table
- * fragments) lose the document/section framing needed for queries that
- * reference the overarching hypothesis or methodology ("Aká bola hypotéza
- * práce?", "…v kapitole 3.2"). The prefix re-attaches that framing:
- *   document title → research domain → hierarchical section path → objective.
- *
- * The prefix is stored SEPARATELY (`DocumentChunk.contextPrefix`) and only
- * fed to the embedding model and the FTS tsvector — `content` keeps the
- * verbatim source text so evidence validation ([c-anchor] quote checks)
- * continues to match the original document word-for-word.
- */
-export function buildContextualPrefix(ctx: ChunkContextInput): string {
-  const lang: ContextLang = ctx.lang ?? "sk"
-  const sentences: string[] = []
-
-  const title = (ctx.documentTitle || "").trim()
-  const domain = (ctx.domain || "").trim()
-  const sectionPath = (ctx.headingPath || ctx.heading || "").trim()
-
-  // Sentence 1 — where this chunk lives.
-  if (lang === "en") {
-    sentences.push(
-      `Excerpt from ${title ? `the work "${trimTitle(title)}"` : "an academic work"}${domain ? ` (field: ${domain})` : ""}${sectionPath ? `, section "${sectionPath}"` : ""}.`
-    )
-  } else if (lang === "cs") {
-    sentences.push(
-      `Úryvek z ${title ? `práce „${trimTitle(title)}“` : "akademické práce"}${domain ? ` (obor: ${domain})` : ""}${sectionPath ? `, sekce „${sectionPath}“` : ""}.`
-    )
-  } else {
-    sentences.push(
-      `Úryvok z ${title ? `práce „${trimTitle(title)}“` : "akademickej práce"}${domain ? ` (odbor: ${domain})` : ""}${sectionPath ? `, sekcia „${sectionPath}“` : ""}.`
-    )
-  }
-
-  // Sentence 2 — what this section is about (objective), unless the path
-  // already makes it obvious and the section is the whole path.
-  const objective = SECTION_OBJECTIVES[ctx.sectionKind ?? "unknown"][lang]
-  const structuralNote = structuralPrefixNote(ctx.kind, lang)
-  if (lang === "en") {
-    sentences.push(`This section ${objective}${structuralNote ? `; ${structuralNote}` : ""}.`)
-  } else {
-    sentences.push(`Táto časť ${objective}${structuralNote ? `; ${structuralNote}` : ""}.`)
-  }
-
-  return sentences.join(" ")
-}
-
-function trimTitle(t: string): string {
-  // Strip file extensions from IngestFile names ("thesis_final.pdf" → "thesis_final").
-  return t.replace(/\.(pdf|md|markdown|docx?|tex)$/i, "").slice(0, 120)
-}
-
-function structuralPrefixNote(kind: ChunkKind | null | undefined, lang: ContextLang): string {
-  if (kind === "table") {
-    return lang === "en"
-      ? "it is a data table — questions about specific values are answered by it"
-      : "ide o dátovú tabuľku — otázky na konkrétne hodnoty sa zodpovedajú z nej"
-  }
-  if (kind === "equation") {
-    return lang === "en"
-      ? "it is a mathematical equation block"
-      : "ide o matematický vzorec"
-  }
-  if (kind === "figure_caption") {
-    return lang === "en"
-      ? "it is a figure/table caption"
-      : "ide o popis obrázka alebo tabuľky"
-  }
-  return ""
-}
-
-/**
- * Natural-language label for an equation chunk: heading + symbol inventory so
- * keyword queries ("rovnica pre gradient", "alfa parameter") can match without
- * containing raw LaTeX. Pure function — unit-testable.
- */
-export function describeEquationChunk(content: string, heading: string | null): string {
-  const symbols = EQUATION_SYMBOL_LABELS.filter(([re]) => re.test(content)).map(([, label]) => label)
-  const parts: string[] = []
-  if (heading) parts.push(heading)
-  parts.push("matematický vzorec / equation")
-  if (symbols.length > 0) parts.push(`obsahuje: ${symbols.slice(0, 8).join(", ")}`)
-  // Keep a short verbatim tail so exact LaTeX tokens are still embeddable.
-  parts.push(content.replace(/\s+/g, " ").slice(0, 300))
-  return parts.join(". ")
-}
+// Moved to ./chunk-context.ts so the structure-aware chunker can reuse it without
+// importing this Prisma-backed module. Re-exported here for every existing importer.
+export { buildContextualPrefix, describeEquationChunk } from "./chunk-context"
+export type { ChunkContextInput, ContextLang } from "./chunk-context"
 
 // ---------------------------------------------------------------------------
 // GraphRAG extraction guards
@@ -255,6 +86,120 @@ const GRAPH_EXTRACTION_PRIORITY_KINDS = new Set([
   "introduction",
   "conclusion",
 ])
+
+/**
+ * Column list of the `DocumentChunk` INSERT, in bind order.
+ *
+ * Exported as the single source of truth: the writer below and the tests that
+ * capture the INSERT both read it, so adding a column can never silently
+ * desynchronise the row template from the column list.
+ *
+ * `id` is position 0 but is NOT always a bound parameter — the legacy chunker
+ * passes `gen_random_uuid()` there instead. `embedding` and `createdAt` are the
+ * other two positions that receive expressions rather than plain values.
+ */
+export const DOCUMENT_CHUNK_INSERT_COLUMNS = [
+  '"workspaceId"',
+  '"documentId"',
+  "heading",
+  "content",
+  "tokens",
+  "embedding",
+  '"createdAt"',
+  "kind",
+  '"contextPrefix"',
+  '"chunkType"',
+  "ordinal",
+  '"pageStart"',
+  '"pageEnd"',
+  "chapter",
+  "section",
+  "subsection",
+  '"sectionPath"',
+  '"sourceElementIds"',
+  '"parentChunkId"',
+  '"previousChunkId"',
+  '"nextChunkId"',
+  '"characterCount"',
+  "oversized",
+  '"contentHash"',
+  '"parserVersion"',
+  '"chunkerVersion"',
+  '"embeddingModelVersion"',
+  // `id` keeps the bind position it had before the hierarchy columns were added, so
+  // the row layout stays stable for callers (and tests) that index rows positionally.
+  "id",
+  // Representation-chain columns are appended AFTER `id` for the same reason: adding
+  // them anywhere earlier would shift every bind position downstream of them.
+  '"tokenEstimatorVersion"',
+  '"embeddingDimensions"',
+  '"indexVersion"',
+] as const
+
+/**
+ * Bound parameters per row.
+ *
+ * `createdAt` is the only column written as a SQL expression (`NOW()`);
+ * `embedding` is bound and cast (`$n::vector`). The chunker-v2 path binds a
+ * deterministic `id` (+1 parameter); the legacy path passes `gen_random_uuid()`
+ * (+0). Column positions before `id` are identical in both paths.
+ */
+export const DOCUMENT_CHUNK_INSERT_BIND_COUNT = DOCUMENT_CHUNK_INSERT_COLUMNS.length - 1
+
+/** One chunk ready for insertion, with its rendered embedding. */
+interface PreparedChunk {
+  /** Deterministic chunk id (chunker v2) or null → `gen_random_uuid()` (legacy). */
+  id: string | null
+  heading: string | null
+  content: string
+  tokens: number
+  kind: ChunkKind
+  contextPrefix: string | null
+  embeddingStr: string
+  chunkType: string
+  ordinal: number
+  pageStart: number | null
+  pageEnd: number | null
+  chapter: string | null
+  section: string | null
+  subsection: string | null
+  sectionPath: string | null
+  sourceElementIds: string[]
+  parentChunkId: string | null
+  previousChunkId: string | null
+  nextChunkId: string | null
+  characterCount: number
+  oversized: boolean
+  contentHash: string | null
+  parserVersion: string
+  chunkerVersion: string
+  embeddingModelVersion: string
+  tokenEstimatorVersion: string
+  embeddingDimensions: number
+  indexVersion: string
+}
+
+/** Width of a rendered `[x,y,z]` pgvector literal. -1 when it cannot be parsed. */
+function vectorWidthOf(embeddingStr: string): number {
+  const inner = embeddingStr.trim().replace(/^\[/, "").replace(/\]$/, "")
+  if (!inner) return -1
+  return inner.split(",").length
+}
+
+/**
+ * Reads the declared width of `DocumentChunk.embedding` (`atttypmod` on a `vector(n)` column).
+ * Returns `null` when it cannot be determined — a missing answer must not block ingestion, only
+ * a *contradicting* answer does.
+ */
+export async function readEmbeddingColumnWidth(): Promise<number | null> {
+  try {
+    const rows = (await prisma.$queryRawUnsafe(EMBEDDING_COLUMN_WIDTH_SQL)) as Array<{ dim: number }>
+    const dim = rows?.[0]?.dim
+    return typeof dim === "number" && dim > 0 ? dim : null
+  } catch {
+    return null
+  }
+}
 
 export interface DocumentChunkInput {
   workspaceId: string
@@ -460,10 +405,18 @@ export async function ingestDocumentChunks(
     documentTitle?: string
     domainContext?: string
     lang?: ContextLang
+    /** Page anchors from MinerU's middle_json. Absent → page columns stay NULL. */
+    pageAnchors?: PageAnchor[] | null
+    /** Chunker-v2 tuning (token budgets, parent emission). */
+    chunker?: ChunkerOptions
+    /**
+     * Skip re-embedding chunks whose content hash is already stored with the same
+     * chunker + embedding-model version. Off by default: the atomic full swap is
+     * the proven path and is what a first ingest needs.
+     */
+    incremental?: boolean
   } = {}
-): Promise<{ chunksCreated: number; skipped: number; graphQueued: number }> {
-  const concurrency = opts.concurrency ?? 3
-
+): Promise<{ chunksCreated: number; skipped: number; graphQueued: number; reused: number }> {
   // Mark indexing started (non-fatal if IngestFile row doesn't exist)
   if (opts.ingestFileId) {
     try {
@@ -488,106 +441,267 @@ export async function ingestDocumentChunks(
   }
   const domainContext = opts.domainContext?.trim() || "Akademický výskum, STEM a aplikované vedy"
   const lang: ContextLang = opts.lang ?? "sk"
+  const embeddingModelVersion = getEmbeddingModelId()
+  // The full representation chain, resolved once so every row of this document is stamped
+  // identically. A reindex that changed model mid-flight would otherwise produce a mixed index —
+  // half the vectors from one model, half from another — which is worse than no index at all.
+  const manifest = currentManifest()
+  const tokenEstimatorVersion = manifest.tokenEstimatorVersion
+  const indexVersion = manifestKey(manifest)
+  const embeddingDimensions = manifest.embeddingDimensions
 
-  const rawChunks = chunkMarkdown(markdown, documentId, opts)
-
-  let chunksCreated = 0
+  // --- Chunking -------------------------------------------------------------
+  // Hierarchical, token-aware chunker v2 by default; `CHUNKER=legacy` restores the
+  // pre-upgrade character-sized flat chunker bit-for-bit.
+  const hierarchical = isHierarchicalChunkerEnabled()
+  const prepared: PreparedChunk[] = []
   let skipped = 0
-  const graphCandidates: Array<{ sectionKind: string; content: string }> = []
-  const prepared: Array<{ heading: string | null; content: string; tokens: number; kind: ChunkKind; contextPrefix: string | null; embeddingStr: string }> = []
+  let reused = 0
+  /** Content hashes kept from the previous index (incremental mode). Function-scoped: the
+   *  persistence block below is shared with the legacy branch. */
+  const reusedHashes: string[] = []
+  const graphCandidates: Array<{ sectionKind: string; content: string; chunkId?: string }> = []
 
-  // Phase 1 — embed everything first (WASM, slow). The old chunks stay in
-  // place meanwhile, so a review started during a reindex still retrieves
-  // from the previous index instead of an empty one.
-  for (let i = 0; i < rawChunks.length; i += concurrency) {
-    const batch = rawChunks.slice(i, i + concurrency)
-    await Promise.all(
-      batch.map(async (chunk) => {
+  if (hierarchical) {
+    const { chunks } = chunkDocument(markdown, documentId, opts.pageAnchors ?? null, {
+      ...opts.chunker,
+      lang,
+      documentTitle,
+      domain: domainContext,
+    })
+
+    // Incremental mode: reuse rows that are already embedded with the same content,
+    // chunker version and embedding model. Everything else is re-embedded.
+    const reusableHashes = new Set<string>()
+    if (opts.incremental) {
+      try {
+        const existing = (await prisma.$queryRaw`
+          SELECT "contentHash" FROM "DocumentChunk"
+          WHERE "workspaceId" = ${workspaceId}
+            AND "documentId" = ${documentId}
+            AND "contentHash" IS NOT NULL
+            AND "chunkerVersion" = ${CHUNKER_VERSION}
+            AND "embeddingModelVersion" = ${embeddingModelVersion}
+        `) as Array<{ contentHash: string | null }>
+        for (const row of existing) if (row.contentHash) reusableHashes.add(row.contentHash)
+      } catch (err) {
+        console.warn("[VectorRAG] incremental hash lookup failed, falling back to full reindex:", err)
+      }
+    }
+
+    const toEmbed = chunks.filter((c) => {
+      if (reusableHashes.has(c.contentHash)) {
+        reusableHashes.delete(c.contentHash)
+        reusedHashes.push(c.contentHash)
+        reused++
+        return false
+      }
+      return true
+    })
+
+    // Batch embedding: one registry call handles cache lookup, batching and the
+    // serialized WASM queue, so a 900-chunk dissertation no longer issues 900
+    // individual inference promises.
+    let embeddings: number[][] = []
+    try {
+      embeddings = await generateLocalEmbeddings(toEmbed.map((c) => c.embeddingText), "passage")
+    } catch (err) {
+      console.error("[VectorRAG] batch embedding failed, retrying chunk-by-chunk:", err)
+      embeddings = []
+      for (const c of toEmbed) {
         try {
-          const contextHeading = chunk.headingPath || chunk.heading
-          const contextual = buildContextualPrefix({
-            documentTitle,
-            domain: domainContext,
-            heading: chunk.heading,
-            headingPath: chunk.headingPath,
-            sectionKind: chunk.sectionKind,
-            kind: chunk.kind,
-            lang,
-          })
-
-          // Structural kinds get specialised embedding text:
-          //  - tables: full retrieval description (columns, flattened rows,
-          //    notable/extreme values, p-values) — raw pipe scaffolding wastes
-          //    the embedding window and never matches natural-language questions
-          //  - equations: symbol inventory + heading so they match keyword
-          //    queries that don't contain LaTeX
-          //  - figures: content plus heading context
-          // The contextual prefix ALWAYS leads the embedding text (Anthropic-style:
-          // context before content) and is stored separately for the FTS index.
-          let embedText: string
-          if (chunk.kind === "table") {
-            embedText = `${contextual} ${describeTableChunk(chunk.content, contextHeading)}`
-          } else if (chunk.kind === "equation") {
-            embedText = `${contextual} ${describeEquationChunk(chunk.content, contextHeading)}`
-          } else if (chunk.kind === "figure_caption") {
-            embedText = contextHeading
-              ? `${contextual} ${contextHeading}: ${chunk.content}`
-              : `${contextual} ${chunk.content}`
-          } else {
-            // Prepend hierarchical heading path for rich contextual semantic embedding
-            embedText = contextHeading ? `${contextual} ${contextHeading}: ${chunk.content}` : `${contextual} ${chunk.content}`
-          }
-          const embedding = await generateLocalEmbedding(embedText)
-          prepared.push({
-            heading: chunk.heading,
-            content: chunk.content,
-            tokens: chunk.tokens,
-            kind: chunk.kind,
-            // Tables/equations get the retrieval description as their prefix so
-            // the FTS tsvector also covers headers, notable values and symbols.
-            contextPrefix:
-              chunk.kind === "table"
-                ? `${contextual} ${describeTableChunk(chunk.content, contextHeading)}`
-                : chunk.kind === "equation"
-                ? `${contextual} ${describeEquationChunk(chunk.content, contextHeading)}`
-                : contextual,
-            embeddingStr: `[${embedding.join(",")}]`,
-          })
-          if (GRAPH_RAG_ENABLED && chunk.content.length >= GRAPH_EXTRACTION_MIN_CHARS) {
-            graphCandidates.push({ sectionKind: chunk.sectionKind, content: chunk.content })
-          }
-        } catch (err) {
-          console.error(`[VectorRAG] Failed to embed chunk "${chunk.heading}":`, err)
-          skipped++
+          embeddings.push(await generateLocalEmbedding(c.embeddingText, "passage"))
+        } catch (innerErr) {
+          console.error(`[VectorRAG] Failed to embed chunk "${c.heading}":`, innerErr)
+          embeddings.push([])
         }
+      }
+    }
+
+    toEmbed.forEach((c, i) => {
+      const embedding = embeddings[i]
+      if (!embedding || embedding.length === 0) {
+        skipped++
+        return
+      }
+      prepared.push({
+        id: c.id,
+        heading: c.heading,
+        content: c.content,
+        tokens: c.tokenCount,
+        kind: c.kind,
+        contextPrefix: c.contextPrefix,
+        embeddingStr: `[${embedding.join(",")}]`,
+        chunkType: c.chunkType,
+        ordinal: c.ordinal,
+        pageStart: c.pageStart,
+        pageEnd: c.pageEnd,
+        chapter: c.chapter,
+        section: c.section,
+        subsection: c.subsection,
+        sectionPath: c.sectionPath,
+        sourceElementIds: c.sourceElementIds,
+        parentChunkId: c.parentChunkId,
+        previousChunkId: c.previousChunkId,
+        nextChunkId: c.nextChunkId,
+        characterCount: c.characterCount,
+        oversized: c.oversized,
+        contentHash: c.contentHash,
+        parserVersion: c.parserVersion,
+        chunkerVersion: c.chunkerVersion,
+        embeddingModelVersion,
+        tokenEstimatorVersion: c.tokenEstimatorVersion,
+        embeddingDimensions: embedding.length,
+        indexVersion,
       })
-    )
+      if (GRAPH_RAG_ENABLED && c.content.length >= GRAPH_EXTRACTION_MIN_CHARS && !c.isParent) {
+        graphCandidates.push({ sectionKind: c.sectionKind, content: c.content, chunkId: c.id })
+      }
+    })
+  } else {
+    // ---- Legacy path (CHUNKER=legacy) — unchanged behaviour ----------------
+    const rawChunks = chunkMarkdown(markdown, documentId, opts)
+    const embedTextsLegacy: string[] = []
+    const metas: Array<Omit<PreparedChunk, "embeddingStr">> = []
+    for (const chunk of rawChunks) {
+      const contextHeading = chunk.headingPath || chunk.heading
+      const contextual = buildContextualPrefix({
+        documentTitle,
+        domain: domainContext,
+        heading: chunk.heading,
+        headingPath: chunk.headingPath,
+        sectionKind: chunk.sectionKind,
+        kind: chunk.kind,
+        lang,
+      })
+      // Structural kinds get specialised embedding text (tables: flattened
+      // description; equations: symbol inventory). The contextual prefix always
+      // leads the embedding text and is stored separately for the FTS index.
+      let embedText: string
+      if (chunk.kind === "table") {
+        embedText = `${contextual} ${describeTableChunk(chunk.content, contextHeading)}`
+      } else if (chunk.kind === "equation") {
+        embedText = `${contextual} ${describeEquationChunk(chunk.content, contextHeading)}`
+      } else {
+        embedText = contextHeading ? `${contextual} ${contextHeading}: ${chunk.content}` : `${contextual} ${chunk.content}`
+      }
+      embedTextsLegacy.push(embedText)
+      metas.push({
+        id: null,
+        heading: chunk.heading,
+        content: chunk.content,
+        tokens: chunk.tokens,
+        kind: chunk.kind,
+        contextPrefix:
+          chunk.kind === "table"
+            ? `${contextual} ${describeTableChunk(chunk.content, contextHeading)}`
+            : chunk.kind === "equation"
+              ? `${contextual} ${describeEquationChunk(chunk.content, contextHeading)}`
+              : contextual,
+        chunkType: chunk.kind === "prose" ? "paragraph" : chunk.kind,
+        ordinal: metas.length,
+        pageStart: null,
+        pageEnd: null,
+        chapter: null,
+        section: null,
+        subsection: null,
+        sectionPath: chunk.headingPath ?? null,
+        sourceElementIds: [],
+        parentChunkId: null,
+        previousChunkId: null,
+        nextChunkId: null,
+        characterCount: chunk.content.length,
+        oversized: false,
+        contentHash: null,
+        parserVersion: PARSER_VERSION,
+        chunkerVersion: "1.x",
+        embeddingModelVersion,
+        tokenEstimatorVersion,
+        embeddingDimensions,
+        indexVersion,
+      })
+      if (GRAPH_RAG_ENABLED && chunk.content.length >= GRAPH_EXTRACTION_MIN_CHARS) {
+        graphCandidates.push({ sectionKind: chunk.sectionKind, content: chunk.content })
+      }
+    }
+    const legacyEmbeddings = await generateLocalEmbeddings(embedTextsLegacy, "passage")
+    metas.forEach((meta, i) => {
+      const embedding = legacyEmbeddings[i]
+      if (!embedding || embedding.length === 0) {
+        skipped++
+        return
+      }
+      prepared.push({ ...meta, embeddingStr: `[${embedding.join(",")}]` })
+    })
   }
 
-  // Phase 2 — atomic swap: delete old chunks and insert the new ones in one
-  // transaction (re-ingest is idempotent; readers see either old or new set).
+  // --- Representation guard --------------------------------------------------
+  // A vector written by model A must never be read back as model B. The most common way that
+  // happens is a width change: `EMBEDDING_MODEL=Xenova/bge-m3` (1024-dim) against the
+  // `vector(384)` column fails deep inside a bulk INSERT, *after* the transaction has already
+  // deleted the previous rows. Checking first turns that into a refusal that leaves the old
+  // index intact.
+  if (prepared.length > 0) {
+    const observedWidth = vectorWidthOf(prepared[0].embeddingStr)
+    const columnWidth = await readEmbeddingColumnWidth()
+    const width = assertVectorWidth(columnWidth, observedWidth)
+    if (!width.ok) {
+      const err = new Error(width.error ?? "Embedding width mismatch")
+      ;(err as { code?: string }).code = "EMBEDDING_WIDTH_MISMATCH"
+      if (opts.ingestFileId) {
+        await prisma.ingestFile
+          .update({ where: { id: opts.ingestFileId }, data: { vectorStatus: "error" } })
+          .catch(() => {})
+      }
+      throw err
+    }
+  }
+
+  let chunksCreated = 0
+
+  // --- Persistence ----------------------------------------------------------
+  // Atomic swap: readers see either the old set or the new one, never a gap.
   if (prepared.length > 0) {
     const INSERT_BATCH = 50
+    // Chunk ids are deterministic in v2 so parent/sibling links survive the swap;
+    // the legacy path keeps gen_random_uuid() (id = null in the row template).
+    const allDeterministic = prepared.every((c) => c.id !== null)
     await prisma.$transaction(async (tx) => {
-      await tx.documentChunk.deleteMany({ where: { workspaceId, documentId } })
+      if (reused > 0 && reusedHashes.length > 0) {
+        // Incremental reindex: keep rows we just recognised as unchanged, drop
+        // every other row of this document (including rows whose content has
+        // disappeared from the source and legacy rows with no content hash).
+        await tx.$executeRaw`
+          DELETE FROM "DocumentChunk"
+          WHERE "workspaceId" = ${workspaceId}
+            AND "documentId" = ${documentId}
+            AND ("contentHash" IS NULL OR "contentHash" NOT IN (${Prisma.join(reusedHashes)}))
+        `
+      } else {
+        await tx.documentChunk.deleteMany({ where: { workspaceId, documentId } })
+      }
       for (let i = 0; i < prepared.length; i += INSERT_BATCH) {
         const slice = prepared.slice(i, i + INSERT_BATCH)
-        const values = slice.map(
-          (c) => Prisma.sql`(gen_random_uuid(), ${workspaceId}, ${documentId}, ${c.heading}, ${c.content}, ${c.tokens}, ${c.embeddingStr}::vector, NOW(), ${c.kind}, ${c.contextPrefix})`
-        )
+        /**
+         * Renders one VALUES tuple in DOCUMENT_CHUNK_INSERT_COLUMNS order.
+         * `id` is last; a null id means "let the database generate one".
+         */
+        const rowSql = (c: PreparedChunk, id: string | null) => Prisma.sql`(${workspaceId}, ${documentId}, ${c.heading}, ${c.content}, ${c.tokens}, ${c.embeddingStr}::vector, NOW(), ${c.kind}, ${c.contextPrefix}, ${c.chunkType}, ${c.ordinal}, ${c.pageStart}, ${c.pageEnd}, ${c.chapter}, ${c.section}, ${c.subsection}, ${c.sectionPath}, ${c.sourceElementIds}, ${c.parentChunkId}, ${c.previousChunkId}, ${c.nextChunkId}, ${c.characterCount}, ${c.oversized}, ${c.contentHash}, ${c.parserVersion}, ${c.chunkerVersion}, ${c.embeddingModelVersion}, ${id ?? Prisma.raw("gen_random_uuid()")}, ${c.tokenEstimatorVersion}, ${c.embeddingDimensions}, ${c.indexVersion})`
+        const values = slice.map((c) => rowSql(c, allDeterministic ? c.id : null))
         await tx.$executeRaw`
-          INSERT INTO "DocumentChunk" (id, "workspaceId", "documentId", heading, content, tokens, embedding, "createdAt", kind, "contextPrefix")
+          INSERT INTO "DocumentChunk" (${Prisma.raw(DOCUMENT_CHUNK_INSERT_COLUMNS.join(", "))})
           VALUES ${Prisma.join(values)}
         `
         chunksCreated += slice.length
       }
     }, { timeout: 120_000 })
-  } else {
+  } else if (reused === 0) {
     // Nothing could be embedded — keep the previous index rather than wiping it.
     console.warn(`[VectorRAG] No chunks embedded for ${workspaceId}/${documentId}; previous index left untouched`)
   }
 
-  // Detached GraphRAG extraction: priority section kinds first, capped per doc
+  // Detached GraphRAG extraction: priority section kinds first, capped per doc.
+  // Never awaited — ingestion must not block on graph construction.
   let graphQueued = 0
   if (GRAPH_RAG_ENABLED && graphCandidates.length > 0) {
     const prioritized = [
@@ -604,13 +718,13 @@ export async function ingestDocumentChunks(
       await prisma.ingestFile.updateMany({
         where: { id: opts.ingestFileId, workspaceId },
         data: {
-          vectorStatus: skipped > 0 && chunksCreated === 0 ? "error" : "ready",
-          vectorChunks: chunksCreated,
+          vectorStatus: skipped > 0 && chunksCreated === 0 && reused === 0 ? "error" : "ready",
+          vectorChunks: chunksCreated + reused,
           vectorIndexedAt: new Date(),
         },
       })
     } catch { /* non-fatal */ }
   }
 
-  return { chunksCreated, skipped, graphQueued }
+  return { chunksCreated, skipped, graphQueued, reused }
 }

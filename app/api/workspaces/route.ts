@@ -153,6 +153,18 @@ export async function POST(req: Request) {
     }
     
     const { id, name, outputType = "poster", templateId } = parsed.data
+
+    const existing = await prisma.workspace.findUnique({
+      where: { id },
+      select: { id: true },
+    })
+    if (existing) {
+      return NextResponse.json(
+        { error: `A workspace with ID "${id}" already exists. Please choose a different name or ID.` },
+        { status: 409 }
+      )
+    }
+
     const resolvedTemplateId = templateId || getDefaultTemplateId(outputType)
     const outputId = `out_${outputType}_${Date.now().toString(36)}`
     
@@ -206,6 +218,9 @@ export async function POST(req: Request) {
           ? " Start PostgreSQL and run 'pnpm exec prisma migrate deploy'."
           : ""
       return NextResponse.json({ error: `Database unavailable.${hint}` }, { status: 503 })
+    }
+    if (msg.includes("P2002") || msg.includes("Unique constraint")) {
+      return NextResponse.json({ error: "A workspace with this ID already exists. Please choose a different name or ID." }, { status: 409 })
     }
     console.error("[Workspaces POST] Server error:", err)
     return NextResponse.json({ error: "Failed to create workspace" }, { status: 500 })

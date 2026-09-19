@@ -110,7 +110,16 @@ export function normalizeFindings(raw: unknown): ReviewFinding[] {
   const validSeverities = new Set(["critical", "major", "minor", "suggestion"])
   const validStatuses = new Set(["unreviewed", "accepted", "edited", "rejected", "resolved"])
   const validAudiences = new Set(["author", "editor", "committee", "private"])
-  const validEvidenceStates = new Set(["verified", "approximate", "unverified", "stale"])
+  const validEvidenceStates = new Set([
+    "verified",
+    "verified-exact",
+    "verified-normalized",
+    "approximate",
+    "unverified",
+    "stale",
+    "ambiguous",
+    "context-only",
+  ])
 
   return raw
     .filter((item): item is Record<string, any> => item !== null && typeof item === "object")
