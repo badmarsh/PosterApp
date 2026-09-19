@@ -2,6 +2,24 @@ import { describe, it, expect, vi } from "vitest"
 import { retrieveDriftGraphContext } from "../graph-drift-retrieval"
 import { prisma } from "@/lib/prisma"
 
+// Mock the Prisma module (the established pattern in this repo — see
+// __tests__/api/*). The previous version used vi.spyOn on the real client,
+// which requires a generated query engine binary; without it (offline CI,
+// engine-less sandboxes) merely touching `prisma.graphNode` throws
+// "@prisma/client did not initialize yet". The DRIFT algorithm itself is pure
+// over the nodes/edges it is fed, so a module mock exercises exactly the same
+// code path.
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    graphNode: {
+      findMany: vi.fn(),
+    },
+    graphEdge: {
+      findMany: vi.fn(),
+    },
+  },
+}))
+
 describe("DRIFT-style Iterative Graph Retrieval", () => {
   it("stops within iteration bounds and logs convergence step gains", async () => {
     const mockNodes = [
@@ -16,8 +34,8 @@ describe("DRIFT-style Iterative Graph Retrieval", () => {
       { id: "e3", workspaceId: "ws-1", documentId: "d1", sourceId: "n3", targetId: "n4", relation: "MEASURED_BY", evidence: null },
     ]
 
-    vi.spyOn(prisma.graphNode, "findMany").mockResolvedValueOnce(mockNodes as any)
-    vi.spyOn(prisma.graphEdge, "findMany").mockResolvedValueOnce(mockEdges as any)
+    vi.mocked(prisma.graphNode.findMany).mockResolvedValueOnce(mockNodes as any)
+    vi.mocked(prisma.graphEdge.findMany).mockResolvedValueOnce(mockEdges as any)
 
     const res = await retrieveDriftGraphContext("ws-1", "Transformer attention model", {
       maxIterations: 3,
@@ -32,7 +50,7 @@ describe("DRIFT-style Iterative Graph Retrieval", () => {
   })
 
   it("handles empty knowledge graphs gracefully", async () => {
-    vi.spyOn(prisma.graphNode, "findMany").mockResolvedValueOnce([])
+    vi.mocked(prisma.graphNode.findMany).mockResolvedValueOnce([])
 
     const res = await retrieveDriftGraphContext("ws-empty", "any query")
     expect(res.expandedNodes.length).toBe(0)
