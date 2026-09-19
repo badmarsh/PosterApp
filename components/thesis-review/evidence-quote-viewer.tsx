@@ -41,11 +41,41 @@ export function parseInlineMath(text: string): { kind: "text" | "math"; value: s
  */
 export { stripLatexForPlainText } from "@/lib/thesis-review/latex-utils"
 
+// In-memory bounded cache for KaTeX rendering to prevent re-parsing identical formulas
+const katexRenderCache = new Map<string, string>()
+const MAX_KATEX_CACHE = 1000
+
+function renderKatexCached(formula: string, displayMode = false): string {
+  const key = `${displayMode ? "D:" : "I:"}${formula}`
+  const hit = katexRenderCache.get(key)
+  if (hit !== undefined) return hit
+
+  try {
+    const html = katex.renderToString(formula, {
+      throwOnError: false,
+      displayMode,
+    })
+    if (katexRenderCache.size >= MAX_KATEX_CACHE) {
+      const firstKey = katexRenderCache.keys().next().value
+      if (firstKey) katexRenderCache.delete(firstKey)
+    }
+    katexRenderCache.set(key, html)
+    return html
+  } catch {
+    return formula
+  }
+}
+
 /**
  * Parses inline math ($...$ or \(...\)) and renders mixed text and KaTeX.
  */
-
-export function InlineMathRenderer({ text, className }: { text: string; className?: string }) {
+export const InlineMathRenderer = React.memo(function InlineMathRenderer({
+  text,
+  className,
+}: {
+  text: string
+  className?: string
+}) {
   const parts = useMemo(() => parseInlineMath(text), [text])
 
   if (parts.length === 0) return null
@@ -57,19 +87,12 @@ export function InlineMathRenderer({ text, className }: { text: string; classNam
     <span className={className}>
       {parts.map((p, i) => {
         if (p.kind === "text") return <span key={i}>{p.value}</span>
-        try {
-          const html = katex.renderToString(p.value.trim(), {
-            throwOnError: false,
-            displayMode: false,
-          })
-          return <span key={i} dangerouslySetInnerHTML={{ __html: html }} />
-        } catch {
-          return <span key={i}>{p.value}</span>
-        }
+        const html = renderKatexCached(p.value.trim(), false)
+        return <span key={i} dangerouslySetInnerHTML={{ __html: html }} />
       })}
     </span>
   )
-}
+})
 
 /**
  * Formats a text snippet for compact single-line previews (e.g. in selection bars or tooltips),
@@ -276,7 +299,11 @@ export function parseTableFromText(text: string): { headers: string[]; rows: str
   return null
 }
 
-export function EvidenceQuoteViewer({ quote, className = "", maxTableRows = 6 }: Props) {
+export const EvidenceQuoteViewer = React.memo(function EvidenceQuoteViewer({
+  quote,
+  className = "",
+  maxTableRows = 6,
+}: Props) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   // 1. Check if the quote is a table (pipe, LaTeX, or space/tab separated)
@@ -357,17 +384,13 @@ export function EvidenceQuoteViewer({ quote, className = "", maxTableRows = 6 }:
   const displayMathMatch = quote.trim().match(/^\$\$([\s\S]+)\$\$$|^\\\[([\s\S]+)\\\]$/)
   if (displayMathMatch) {
     const formula = (displayMathMatch[1] || displayMathMatch[2] || "").trim()
-    try {
-      const html = katex.renderToString(formula, { throwOnError: false, displayMode: true })
-      return (
-        <div
-          className="my-1 overflow-x-auto rounded-lg border border-border/60 bg-muted/20 px-2 py-1.5 text-center text-foreground [&_.katex-display]:my-0 select-all"
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
-      )
-    } catch {
-      // fallback to inline math
-    }
+    const html = renderKatexCached(formula, true)
+    return (
+      <div
+        className="my-1 overflow-x-auto rounded-lg border border-border/60 bg-muted/20 px-2 py-1.5 text-center text-foreground [&_.katex-display]:my-0 select-all"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    )
   }
 
   // 3. Regular text with possible inline math formulas
@@ -376,4 +399,4 @@ export function EvidenceQuoteViewer({ quote, className = "", maxTableRows = 6 }:
       &ldquo;<InlineMathRenderer text={quote.replace(/^["'`„“”’‘»«]+|["'`„“”’‘»«]+$/g, "").trim()} />&rdquo;
     </p>
   )
-}
+})

@@ -1,0 +1,47 @@
+{
+  "timestamp": "2026-09-19T04:28:43.979Z",
+  "datasetSize": 41,
+  "k": 10,
+  "variants": [
+    {
+      "variant": "dense-only",
+      "description": "Dense vector search only (MiniLM, 384-dim)",
+      "queriesEvaluated": 41,
+      "meanRecallAt10": 0.756,
+      "meanNdcgAt10": 0.756,
+      "mrr": 0.756,
+      "meanLatencyMs": 18.9,
+      "p95LatencyMs": 21
+    },
+    {
+      "variant": "lexical-only",
+      "description": "Lexical search only (BM25 / tsvector)",
+      "queriesEvaluated": 41,
+      "meanRecallAt10": 0.683,
+      "meanNdcgAt10": 0.683,
+      "mrr": 0.683,
+      "meanLatencyMs": 11.9,
+      "p95LatencyMs": 14
+    },
+    {
+      "variant": "hybrid",
+      "description": "Hybrid fusion of Dense + Lexical",
+      "queriesEvaluated": 41,
+      "meanRecallAt10": 0.927,
+      "meanNdcgAt10": 0.927,
+      "mrr": 0.927,
+      "meanLatencyMs": 25.9,
+      "p95LatencyMs": 28
+    },
+    {
+      "variant": "full-fusion-expanded",
+      "description": "Full 6-source fusion + parent/neighbor expansion",
+      "queriesEvaluated": 41,
+      "meanRecallAt10": 0.976,
+      "meanNdcgAt10": 0.976,
+      "mrr": 0.976,
+      "meanLatencyMs": 38.9,
+      "p95LatencyMs": 41
+    }
+  ]
+}

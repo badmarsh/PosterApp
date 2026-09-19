@@ -388,7 +388,7 @@ interface Props {
   searchQuery?: string
 }
 
-export function SourceMarkdownView({
+export const SourceMarkdownView = React.memo(function SourceMarkdownView({
   markdown,
   workspaceId,
   highlightQuote,
@@ -429,52 +429,6 @@ export function SourceMarkdownView({
       return next
     })
   }, [])
-
-  // Idle progressive loader to reveal off-screen chunks in background without blocking UI
-  useEffect(() => {
-    if (visibleChunkIds.size >= chunks.length) return
-
-    let cancelled = false
-    let timerId: ReturnType<typeof setTimeout> | null = null
-    let idleHandle: number | null = null
-
-    const scheduleNext = () => {
-      if (cancelled) return
-      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-        idleHandle = (window as any).requestIdleCallback(renderNextBatch, { timeout: 200 })
-      } else {
-        timerId = setTimeout(renderNextBatch, 80)
-      }
-    }
-
-    const renderNextBatch = () => {
-      if (cancelled) return
-      setVisibleChunkIds((prev) => {
-        if (prev.size >= chunks.length) return prev
-        const next = new Set(prev)
-        let added = 0
-        for (const chunk of chunks) {
-          if (!next.has(chunk.id)) {
-            next.add(chunk.id)
-            added++
-            if (added >= 2) break
-          }
-        }
-        return next
-      })
-      scheduleNext()
-    }
-
-    scheduleNext()
-
-    return () => {
-      cancelled = true
-      if (timerId) clearTimeout(timerId)
-      if (idleHandle && typeof window !== "undefined" && "cancelIdleCallback" in window) {
-        (window as any).cancelIdleCallback(idleHandle)
-      }
-    }
-  }, [chunks, visibleChunkIds.size])
 
   // Immediately reveal chunk matching active quote
   useEffect(() => {
@@ -671,4 +625,4 @@ export function SourceMarkdownView({
       ))}
     </div>
   )
-}
+})

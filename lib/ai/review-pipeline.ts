@@ -1,3 +1,4 @@
+import { persistFindingsEvidence } from "./evidence-persister"
 /**
  * Shared review-generation pipeline used by:
  *   - the synchronous POST /thesis-review route, and
@@ -705,6 +706,20 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       language: lang,
     },
   })
+
+  // Persist findings to first-class Evidence rows
+  try {
+    if (finalFindings && finalFindings.length > 0 && body.sourceFileId) {
+      await persistFindingsEvidence({
+        workspaceId,
+        documentId: body.sourceFileId,
+        findings: finalFindings,
+        reviewId: saved.id,
+      })
+    }
+  } catch (evErr) {
+    console.warn("[review-pipeline] Evidence persistence skipped or failed:", evErr)
+  }
 
   report("done", "review complete")
 

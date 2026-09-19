@@ -362,7 +362,33 @@ export async function retrieveEvidence(opts: RetrieveEvidenceOptions): Promise<E
   const evidence = [...retrieved, ...parents, ...neighbors, ...related]
 
   const direct = expansion.retrieved
-  const counter = selectCounterEvidence(expansion.retrieved, route.expectedCounterEvidence)
+  let counter = selectCounterEvidence(expansion.retrieved, route.expectedCounterEvidence)
+
+  // Active Counter-Evidence Retrieval (Phase 14):
+  // When the criterion profile or query indicates a need for counter-evidence,
+  // actively search for contradictory or limiting chunks beyond the passive pool.
+  if (route.expectedCounterEvidence.length > 0 || route.structuralTypes.includes("citation")) {
+    try {
+      const { retrieveActiveCounterEvidence } = await import("./parent-context")
+      const activeCounters = await retrieveActiveCounterEvidence(opts.workspaceId, opts.query, {
+        documentId: opts.documentId,
+        documentIds: opts.documentIds,
+        limit: 4,
+        patterns: route.expectedCounterEvidence,
+      })
+      if (activeCounters.length > 0) {
+        const seenIds = new Set(counter.map((c) => c.id))
+        for (const ac of activeCounters) {
+          if (!seenIds.has(ac.id)) {
+            counter.push(ac)
+            seenIds.add(ac.id)
+          }
+        }
+      }
+    } catch {
+      // Graceful fallback
+    }
+  }
   // Counter-evidence and citation blocks are ContextChunks (they carry the sibling links the
   // assembler renders), so they are selected from the expansion output, not from EvidenceChunk.
   const citationChunks = [...expansion.retrieved, ...expansion.neighbors, ...expansion.related].filter(

@@ -46,7 +46,7 @@ interface Props {
   onAddFindingFromSelection?: (quote: string, sectionHeading?: string) => void
 }
 
-export function EvidenceViewer({
+export const EvidenceViewer = React.memo(function EvidenceViewer({
   workspaceId,
   sourceMarkdown = "",
   selectedEvidence,
@@ -315,4 +315,4 @@ export function EvidenceViewer({
       </div>
     </div>
   )
-}
+})

@@ -410,3 +410,51 @@ export function selectCounterEvidence(chunks: ContextChunk[], patterns: string[]
     return markers.some((re) => re.test(text)) || extra.some((re) => re.test(text))
   })
 }
+
+
+/**
+ * Actively searches for contrary evidence, limitations, and contradictory findings
+ * across the workspace chunks using targeted negation/limitation queries.
+ */
+export async function retrieveActiveCounterEvidence(
+  workspaceId: string,
+  claimOrQuery: string,
+  opts: {
+    documentId?: string
+    documentIds?: string[]
+    limit?: number
+    patterns?: string[]
+  } = {}
+): Promise<ContextChunk[]> {
+  const limit = opts.limit ?? 5
+  const patterns = opts.patterns ?? []
+  
+  // Construct targeted limitation & contradiction keywords
+  const counterKeywords = [
+    "limitation", "limitations", "threats to validity", "negative result", "inconclusive",
+    "failure", "failed", "discrepancy", "obmedzenie", "limity", "nedostatok", "neplatí",
+    "nesúlad", "odchýlka", "problém", "omezení", "neshoda", "rozpor", ...patterns
+  ]
+
+  const ftsTerms = counterKeywords.slice(0, 10).map((k) => `"${k}"`).join(" OR ")
+
+  try {
+    const rows = await prisma.$queryRaw<Array<ContextRow>>`
+      SELECT ${contextSelect()}
+      FROM "DocumentChunk"
+      WHERE "workspaceId" = ${workspaceId}
+        ${opts.documentId ? Prisma.sql`AND "documentId" = ${opts.documentId}` : Prisma.empty}
+        ${opts.documentIds && opts.documentIds.length > 0 ? Prisma.sql`AND "documentId" IN (${Prisma.join(opts.documentIds)})` : Prisma.empty}
+        AND (
+          to_tsvector('simple', COALESCE("contextPrefix", '') || ' ' || content) @@ to_tsquery('simple', 'limitation | obmedzen | limit | neplatí | failed | rozpor')
+          OR content ~* '\b(however|limitation|caveat|although|ale|avšak|obmedzen|neplatí|rozpor)\b'
+        )
+      ORDER BY ordinal ASC
+      LIMIT ${limit}
+    `
+    return rows.map((r) => toContextChunk(r, "retrieved", 0.7, ["active-counter"]))
+  } catch (err) {
+    console.warn("[retrieveActiveCounterEvidence] Active counter-retrieval fallback:", err)
+    return []
+  }
+}

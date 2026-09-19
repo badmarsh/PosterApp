@@ -329,6 +329,28 @@ export const communityRetriever: CandidateGenerator = {
   source: "community",
   enabled: () => flag("GRAPH_RAG_ENABLED") && flag("COMMUNITY_RAG_ENABLED"),
   async retrieve(ctx) {
+    // 1. If query embedding is available, attempt vector search over community summaries
+    const queryEmb = ctx.queryEmbeddings && ctx.queryEmbeddings.length > 0 ? ctx.queryEmbeddings[0] : null
+    let vectorMatches: Array<{ id: string; similarity: number }> = []
+
+    if (queryEmb && queryEmb.length > 0) {
+      try {
+        const embStr = `[${queryEmb.join(",")}]`
+        vectorMatches = await prisma.$queryRaw<Array<{ id: string; similarity: number }>>`
+          SELECT id, 1.0 - ("summaryEmbedding" <=> ${embStr}::vector) AS similarity
+          FROM "GraphCommunity"
+          WHERE "workspaceId" = ${ctx.workspaceId}
+            AND "summaryEmbedding" IS NOT NULL
+          ORDER BY "summaryEmbedding" <=> ${embStr}::vector
+          LIMIT 20
+        `
+      } catch {
+        // Fall back to lexical / nodeCount matching
+      }
+    }
+
+    const vectorSimById = new Map(vectorMatches.map((m) => [m.id, Number(m.similarity) || 0]))
+
     const communities = await prisma.graphCommunity.findMany({
       where: { workspaceId: ctx.workspaceId },
       orderBy: [{ level: "asc" }, { nodeCount: "desc" }],
@@ -342,9 +364,12 @@ export const communityRetriever: CandidateGenerator = {
         const qTokens = ctx.query.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((t) => t.length > 3)
         const hits = qTokens.filter((t) => text.includes(t)).length
         const lexical = qTokens.length > 0 ? hits / qTokens.length : 0
-        // Size prior: bigger communities carry more of the document, but only weakly.
-        const sizePrior = Math.min(0.2, c.nodeCount / 500)
-        return { c, score: lexical + sizePrior, text }
+        const vSim = vectorSimById.get(c.id) ?? 0
+        // Blended score: vector similarity (weight 0.6) + lexical (0.3) + hierarchical/size prior (0.1)
+        const levelBonus = (c.level ?? 0) * 0.05
+        const sizePrior = Math.min(0.1, c.nodeCount / 500)
+        const combined = vSim > 0 ? vSim * 0.6 + lexical * 0.3 + levelBonus + sizePrior : lexical + sizePrior + levelBonus
+        return { c, score: combined, text }
       })
       .filter((s) => s.score > 0)
       .sort((a, b) => b.score - a.score)
