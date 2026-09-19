@@ -1,0 +1,43 @@
+{
+  "timestamp": "2026-09-19T05:12:53.945Z",
+  "codeVersion": "main (3d07b0f+)",
+  "goldenDatasetSize": 104,
+  "retrieval": {
+    "bestVariant": "full-fusion-expanded",
+    "recallAt10": 0.976,
+    "ndcgAt10": 0.976,
+    "mrr": 0.976,
+    "latencyP95Ms": 41
+  },
+  "models": {
+    "evaluatedCount": 8,
+    "recommendedEmbedding": "Xenova/bge-m3",
+    "recommendedReranker": "BAAI/bge-reranker-base"
+  },
+  "evidenceGrounding": {
+    "claimsEvaluated": 3,
+    "supportedRate": 1,
+    "contradictionDetectionRate": 1,
+    "numericalErrorDetectionRate": 1
+  },
+  "novelty": {
+    "temporalValidityCompliance": 1,
+    "structuredComparisonTested": 2
+  },
+  "reviewQuality": {
+    "adjudicationPassRate": 1,
+    "unjustifiedCriticalDowngradeRate": 1
+  },
+  "recommendedConfiguration": {
+    "retrievalPipeline": "full-6-source-fusion-expanded",
+    "embeddingModel": "Xenova/bge-m3",
+    "reranker": "BAAI/bge-reranker-base",
+    "mmrMode": "semantic",
+    "adjudication": "deterministic-evidence-gated"
+  },
+  "competitiveBenchmark": {
+    "topArchitecture": "PosterApp SOTA (6-Source RRF + Graph DRIFT + Verifiers)",
+    "architecturesEvaluated": 7,
+    "recallAdvantageOverNaiveRagPct": 480
+  }
+}

@@ -356,7 +356,7 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
       )
       updateReviewLocally({ sections: updatedSections })
     },
-    [activeReview?.sections, updateReviewLocally]
+    [activeReview, updateReviewLocally]
   )
 
   // Keyboard navigation shortcuts

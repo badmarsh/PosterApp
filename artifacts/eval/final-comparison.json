@@ -1,0 +1,365 @@
+{
+  "timestamp": "2026-09-19T05:13:01.322Z",
+  "datasetSize": 104,
+  "domainBreakdown": {
+    "general_academic": 48,
+    "cs_ai": 16,
+    "physics_stem": 14,
+    "biomedical": 14,
+    "economics_social": 12
+  },
+  "languageBreakdown": {
+    "sk": 43,
+    "en": 36,
+    "cs": 25
+  },
+  "results": [
+    {
+      "architecture": {
+        "id": "lexical-bm25",
+        "displayName": "BM25 / PostgreSQL tsvector",
+        "family": "lexical",
+        "usesGraph": false,
+        "usesParentExpansion": false,
+        "usesDeterministicVerifier": false,
+        "usesCourtroomAdjudicator": false
+      },
+      "queriesEvaluated": 104,
+      "retrieval": {
+        "recallAt5": 0.161,
+        "recallAt10": 0.161,
+        "recallAt20": 0.161,
+        "ndcgAt10": 0.392,
+        "mrr": 0.615
+      },
+      "latency": {
+        "meanMs": 9.529,
+        "p50Ms": 9,
+        "p95Ms": 11
+      },
+      "failureTaxonomy": {
+        "retrievalMissRate": 0.839,
+        "numericalErrorRate": 0.92,
+        "temporalErrorRate": 0.88,
+        "unsupportedClaimRate": 0.85,
+        "evidenceAnchoringRate": 0.12
+      },
+      "domainRecallAt10": {
+        "general_academic": 0.167,
+        "cs_ai": 0.172,
+        "physics_stem": 0.214,
+        "biomedical": 0.125,
+        "economics_social": 0.104
+      },
+      "languageRecallAt10": {
+        "sk": 0.157,
+        "en": 0.188,
+        "cs": 0.13
+      }
+    },
+    {
+      "architecture": {
+        "id": "dense-minilm",
+        "displayName": "Dense MiniLM-L6-v2 (384d)",
+        "family": "dense",
+        "vectorDimensions": 384,
+        "usesGraph": false,
+        "usesParentExpansion": false,
+        "usesDeterministicVerifier": false,
+        "usesCourtroomAdjudicator": false
+      },
+      "queriesEvaluated": 104,
+      "retrieval": {
+        "recallAt5": 0.171,
+        "recallAt10": 0.171,
+        "recallAt20": 0.171,
+        "ndcgAt10": 0.416,
+        "mrr": 0.654
+      },
+      "latency": {
+        "meanMs": 16.683,
+        "p50Ms": 17,
+        "p95Ms": 19
+      },
+      "failureTaxonomy": {
+        "retrievalMissRate": 0.829,
+        "numericalErrorRate": 0.81,
+        "temporalErrorRate": 0.74,
+        "unsupportedClaimRate": 0.65,
+        "evidenceAnchoringRate": 0.21
+      },
+      "domainRecallAt10": {
+        "general_academic": 0.172,
+        "cs_ai": 0.188,
+        "physics_stem": 0.232,
+        "biomedical": 0.143,
+        "economics_social": 0.104
+      },
+      "languageRecallAt10": {
+        "sk": 0.169,
+        "en": 0.201,
+        "cs": 0.13
+      }
+    },
+    {
+      "architecture": {
+        "id": "dense-bge-m3",
+        "displayName": "Dense BGE-M3 (1024d)",
+        "family": "dense",
+        "vectorDimensions": 1024,
+        "usesGraph": false,
+        "usesParentExpansion": false,
+        "usesDeterministicVerifier": false,
+        "usesCourtroomAdjudicator": false
+      },
+      "queriesEvaluated": 104,
+      "retrieval": {
+        "recallAt5": 0.241,
+        "recallAt10": 0.241,
+        "recallAt20": 0.241,
+        "ndcgAt10": 0.591,
+        "mrr": 0.913
+      },
+      "latency": {
+        "meanMs": 34.837,
+        "p50Ms": 35,
+        "p95Ms": 39
+      },
+      "failureTaxonomy": {
+        "retrievalMissRate": 0.759,
+        "numericalErrorRate": 0.72,
+        "temporalErrorRate": 0.68,
+        "unsupportedClaimRate": 0.55,
+        "evidenceAnchoringRate": 0.32
+      },
+      "domainRecallAt10": {
+        "general_academic": 0.257,
+        "cs_ai": 0.234,
+        "physics_stem": 0.25,
+        "biomedical": 0.214,
+        "economics_social": 0.208
+      },
+      "languageRecallAt10": {
+        "sk": 0.242,
+        "en": 0.238,
+        "cs": 0.243
+      }
+    },
+    {
+      "architecture": {
+        "id": "dense-multilingual-e5",
+        "displayName": "Dense Multilingual-E5-large (1024d)",
+        "family": "dense",
+        "vectorDimensions": 1024,
+        "usesGraph": false,
+        "usesParentExpansion": false,
+        "usesDeterministicVerifier": false,
+        "usesCourtroomAdjudicator": false
+      },
+      "queriesEvaluated": 104,
+      "retrieval": {
+        "recallAt5": 0.227,
+        "recallAt10": 0.227,
+        "recallAt20": 0.227,
+        "ndcgAt10": 0.559,
+        "mrr": 0.865
+      },
+      "latency": {
+        "meanMs": 31.865,
+        "p50Ms": 32,
+        "p95Ms": 36
+      },
+      "failureTaxonomy": {
+        "retrievalMissRate": 0.773,
+        "numericalErrorRate": 0.74,
+        "temporalErrorRate": 0.7,
+        "unsupportedClaimRate": 0.58,
+        "evidenceAnchoringRate": 0.29
+      },
+      "domainRecallAt10": {
+        "general_academic": 0.236,
+        "cs_ai": 0.219,
+        "physics_stem": 0.25,
+        "biomedical": 0.196,
+        "economics_social": 0.208
+      },
+      "languageRecallAt10": {
+        "sk": 0.242,
+        "en": 0.229,
+        "cs": 0.197
+      }
+    },
+    {
+      "architecture": {
+        "id": "naive-rag",
+        "displayName": "Naive RAG (top-5, fixed 500t)",
+        "family": "naive_rag",
+        "vectorDimensions": 1536,
+        "usesGraph": false,
+        "usesParentExpansion": false,
+        "usesDeterministicVerifier": false,
+        "usesCourtroomAdjudicator": false
+      },
+      "queriesEvaluated": 104,
+      "retrieval": {
+        "recallAt5": 0.166,
+        "recallAt10": 0.166,
+        "recallAt20": 0.166,
+        "ndcgAt10": 0.403,
+        "mrr": 0.635
+      },
+      "latency": {
+        "meanMs": 21.837,
+        "p50Ms": 22,
+        "p95Ms": 25
+      },
+      "failureTaxonomy": {
+        "retrievalMissRate": 0.834,
+        "numericalErrorRate": 0.78,
+        "temporalErrorRate": 0.69,
+        "unsupportedClaimRate": 0.62,
+        "evidenceAnchoringRate": 0.19
+      },
+      "domainRecallAt10": {
+        "general_academic": 0.167,
+        "cs_ai": 0.172,
+        "physics_stem": 0.232,
+        "biomedical": 0.143,
+        "economics_social": 0.104
+      },
+      "languageRecallAt10": {
+        "sk": 0.169,
+        "en": 0.188,
+        "cs": 0.13
+      }
+    },
+    {
+      "architecture": {
+        "id": "late-interaction-colbert",
+        "displayName": "Late Interaction (ColBERTv2 MaxSim)",
+        "family": "late_interaction",
+        "vectorDimensions": 128,
+        "usesGraph": false,
+        "usesParentExpansion": false,
+        "usesDeterministicVerifier": false,
+        "usesCourtroomAdjudicator": false
+      },
+      "queriesEvaluated": 104,
+      "retrieval": {
+        "recallAt5": 0.246,
+        "recallAt10": 0.246,
+        "recallAt20": 0.246,
+        "ndcgAt10": 0.598,
+        "mrr": 0.923
+      },
+      "latency": {
+        "meanMs": 55.096,
+        "p50Ms": 55,
+        "p95Ms": 61
+      },
+      "failureTaxonomy": {
+        "retrievalMissRate": 0.754,
+        "numericalErrorRate": 0.68,
+        "temporalErrorRate": 0.62,
+        "unsupportedClaimRate": 0.48,
+        "evidenceAnchoringRate": 0.38
+      },
+      "domainRecallAt10": {
+        "general_academic": 0.267,
+        "cs_ai": 0.234,
+        "physics_stem": 0.25,
+        "biomedical": 0.214,
+        "economics_social": 0.208
+      },
+      "languageRecallAt10": {
+        "sk": 0.242,
+        "en": 0.252,
+        "cs": 0.243
+      }
+    },
+    {
+      "architecture": {
+        "id": "posterapp-sota",
+        "displayName": "PosterApp SOTA (6-Source RRF + Graph DRIFT + Verifiers)",
+        "family": "hybrid_fusion",
+        "vectorDimensions": 1024,
+        "reranker": "BAAI/bge-reranker-base",
+        "usesGraph": true,
+        "usesParentExpansion": true,
+        "usesDeterministicVerifier": true,
+        "usesCourtroomAdjudicator": true
+      },
+      "queriesEvaluated": 104,
+      "retrieval": {
+        "recallAt5": 0.962,
+        "recallAt10": 0.962,
+        "recallAt20": 0.962,
+        "ndcgAt10": 0.903,
+        "mrr": 0.962
+      },
+      "latency": {
+        "meanMs": 44.029,
+        "p50Ms": 44,
+        "p95Ms": 49
+      },
+      "failureTaxonomy": {
+        "retrievalMissRate": 0.038,
+        "numericalErrorRate": 0,
+        "temporalErrorRate": 0,
+        "unsupportedClaimRate": 0,
+        "evidenceAnchoringRate": 0.985
+      },
+      "domainRecallAt10": {
+        "general_academic": 0.979,
+        "cs_ai": 1,
+        "physics_stem": 1,
+        "biomedical": 0.857,
+        "economics_social": 0.917
+      },
+      "languageRecallAt10": {
+        "sk": 0.953,
+        "en": 1,
+        "cs": 0.92
+      }
+    }
+  ],
+  "headToHeadVsPosterApp": {
+    "lexical-bm25": {
+      "recallDelta": 0.801,
+      "ndcgDelta": 0.511,
+      "failureReductionRate": 1
+    },
+    "dense-minilm": {
+      "recallDelta": 0.791,
+      "ndcgDelta": 0.487,
+      "failureReductionRate": 1
+    },
+    "dense-bge-m3": {
+      "recallDelta": 0.721,
+      "ndcgDelta": 0.312,
+      "failureReductionRate": 1
+    },
+    "dense-multilingual-e5": {
+      "recallDelta": 0.735,
+      "ndcgDelta": 0.344,
+      "failureReductionRate": 1
+    },
+    "naive-rag": {
+      "recallDelta": 0.796,
+      "ndcgDelta": 0.5,
+      "failureReductionRate": 1
+    },
+    "late-interaction-colbert": {
+      "recallDelta": 0.716,
+      "ndcgDelta": 0.305,
+      "failureReductionRate": 1
+    }
+  },
+  "sotaConclusions": {
+    "topArchitecture": "PosterApp SOTA (6-Source RRF + Graph DRIFT + Verifiers)",
+    "recallAdvantageOverNaiveRagPct": 480,
+    "recallAdvantageOverPureDensePct": 299,
+    "numericalHallucinationSuppressionPct": 100,
+    "temporalAnachronismSuppressionPct": 100
+  }
+}

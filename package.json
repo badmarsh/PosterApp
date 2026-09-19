@@ -28,7 +28,9 @@
     "eval:ablation": "vitest run lib/ai/eval/__tests__/ablation-matrix.test.ts",
     "eval:models": "vitest run lib/ai/eval/__tests__/model-benchmark.test.ts",
     "eval:novelty": "vitest run lib/ai/eval/__tests__/novelty-eval.test.ts",
-    "eval:thesis-review": "vitest run lib/ai/eval/__tests__/"
+    "eval:thesis-review": "vitest run lib/ai/eval/__tests__/",
+    "eval:competitive": "vitest run lib/ai/eval/__tests__/competitive-benchmark.test.ts",
+    "eval:all": "vitest run lib/ai/eval/__tests__/unified-eval.test.ts"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.15.16",

@@ -1,3 +1,4 @@
+import { adjudicateFindings } from "./review-adjudicator"
 /**
  * Expert Review Generation Engine.
  *
@@ -1028,7 +1029,10 @@ Respond with a valid JSON object matching this structure:
         ? options.evidenceChunks.map((c) => ({ id: c.id, heading: c.heading, content: c.content, kind: c.kind, documentId: c.documentId }))
         : undefined
     )
-    finalFindings = sortFindingsByPriority(critiqueValidation.validatedFindings, options.language)
+    const adjudicationReport = adjudicateFindings({
+      primaryFindings: critiqueValidation.validatedFindings,
+    })
+    finalFindings = sortFindingsByPriority(adjudicationReport.results.map((r) => r.finding), options.language)
     critiqueLog = critiqueResult.critiqueLog || undefined
   } else {
     critiqueLog = options.multiAgentDebate

@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-09-19T05:12:53.911Z",
+  "rerankers": [
+    {
+      "id": "none",
+      "mrr": 0.82,
+      "ndcgAt10": 0.84,
+      "latencyMs": 0
+    },
+    {
+      "id": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+      "mrr": 0.91,
+      "ndcgAt10": 0.92,
+      "latencyMs": 24
+    },
+    {
+      "id": "BAAI/bge-reranker-base",
+      "mrr": 0.95,
+      "ndcgAt10": 0.96,
+      "latencyMs": 45
+    }
+  ],
+  "recommended": "BAAI/bge-reranker-base"
+}

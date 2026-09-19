@@ -189,7 +189,7 @@ function ManuscriptImage({
                   onClick={() => setIsLightboxOpen(false)}
                   className="h-6 w-6 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-4 w-4" /><span className="sr-only">Zavrieť náhľad</span>
                 </Button>
               </div>
             </div>

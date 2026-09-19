@@ -1,0 +1,125 @@
+{
+  "timestamp": "2026-09-19T05:12:53.911Z",
+  "evaluatedModels": [
+    {
+      "id": "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+      "dimensions": 384,
+      "maxTokens": 512,
+      "backend": "xenova-v2",
+      "languages": [
+        "sk",
+        "cs",
+        "en",
+        "de",
+        "pl",
+        "+50"
+      ],
+      "simulatedRecallAt10": 0.88,
+      "simulatedNdcgAt10": 0.85,
+      "simulatedLatencyMs": 12
+    },
+    {
+      "id": "Xenova/bge-m3",
+      "dimensions": 1024,
+      "maxTokens": 8192,
+      "backend": "xenova-v2",
+      "languages": [
+        "sk",
+        "cs",
+        "en",
+        "+100"
+      ],
+      "simulatedRecallAt10": 0.96,
+      "simulatedNdcgAt10": 0.94,
+      "simulatedLatencyMs": 32
+    },
+    {
+      "id": "Xenova/multilingual-e5-base",
+      "dimensions": 768,
+      "maxTokens": 512,
+      "backend": "xenova-v2",
+      "languages": [
+        "sk",
+        "cs",
+        "en",
+        "+98"
+      ],
+      "simulatedRecallAt10": 0.96,
+      "simulatedNdcgAt10": 0.94,
+      "simulatedLatencyMs": 32
+    },
+    {
+      "id": "Xenova/multilingual-e5-large",
+      "dimensions": 1024,
+      "maxTokens": 512,
+      "backend": "xenova-v2",
+      "languages": [
+        "sk",
+        "cs",
+        "en",
+        "+98"
+      ],
+      "simulatedRecallAt10": 0.96,
+      "simulatedNdcgAt10": 0.94,
+      "simulatedLatencyMs": 32
+    },
+    {
+      "id": "Xenova/multilingual-e5-large-instruct",
+      "dimensions": 1024,
+      "maxTokens": 512,
+      "backend": "xenova-v2",
+      "languages": [
+        "sk",
+        "cs",
+        "en",
+        "+98"
+      ],
+      "simulatedRecallAt10": 0.96,
+      "simulatedNdcgAt10": 0.94,
+      "simulatedLatencyMs": 32
+    },
+    {
+      "id": "Qwen/Qwen3-Embedding-0.6B",
+      "dimensions": 1024,
+      "maxTokens": 32768,
+      "backend": "hf-v3",
+      "languages": [
+        "sk",
+        "cs",
+        "en",
+        "+100"
+      ],
+      "simulatedRecallAt10": 0.96,
+      "simulatedNdcgAt10": 0.94,
+      "simulatedLatencyMs": 32
+    },
+    {
+      "id": "Qwen/Qwen3-Embedding-4B",
+      "dimensions": 2560,
+      "maxTokens": 32768,
+      "backend": "hf-v3",
+      "languages": [
+        "sk",
+        "cs",
+        "en",
+        "+100"
+      ],
+      "simulatedRecallAt10": 0.96,
+      "simulatedNdcgAt10": 0.94,
+      "simulatedLatencyMs": 32
+    },
+    {
+      "id": "reference-ngram",
+      "dimensions": 384,
+      "maxTokens": 8192,
+      "backend": "reference-ngram",
+      "languages": [
+        "any"
+      ],
+      "simulatedRecallAt10": 0.88,
+      "simulatedNdcgAt10": 0.85,
+      "simulatedLatencyMs": 12
+    }
+  ],
+  "recommended": "Xenova/bge-m3"
+}

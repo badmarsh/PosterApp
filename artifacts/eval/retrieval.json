@@ -1,8 +1,19 @@
 {
-  "timestamp": "2026-09-19T05:12:53.909Z",
-  "datasetSize": 41,
-  "k": 10,
-  "variants": [
+  "timestamp": "2026-09-19T05:12:53.910Z",
+  "queryCount": 104,
+  "domains": [
+    "cs_ai",
+    "physics_stem",
+    "biomedical",
+    "economics_social",
+    "general_academic"
+  ],
+  "languages": [
+    "sk",
+    "cs",
+    "en"
+  ],
+  "metrics": [
     {
       "variant": "dense-only",
       "description": "Dense vector search only (MiniLM, 384-dim)",
