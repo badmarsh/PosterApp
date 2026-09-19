@@ -35,6 +35,8 @@ poster_project.zip
 *.blg
 *.pdf
 *.synctex.gz
+# ...except committed test fixtures (tiny, generated, needed by CI)
+!tests/fixtures/*.pdf
 
 # TypeScript build cache
 tsconfig.tsbuildinfo
