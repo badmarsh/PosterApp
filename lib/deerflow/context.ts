@@ -115,12 +115,97 @@ export async function buildDeerflowContext(options: DeerflowContextBuildOptions)
   }
 }
 
+export interface ImprovePosterCardSummary {
+  id: string
+  title: string
+  content: string
+  pattern: string
+}
+
+export interface ImprovePosterContext {
+  language: DeerflowLanguage
+  cards: ImprovePosterCardSummary[]
+  templateId: string
+  outputType: string
+  truncated: boolean
+}
+
+export const MAX_CARD_CONTENT_CHARS = 600
+
+/**
+ * Builds bounded context for the improve_poster loop.
+ * Includes card Markdown contents and output details.
+ */
+export async function buildImprovePosterContext(opts: {
+  workspaceId: string
+  language: DeerflowLanguage
+}): Promise<ImprovePosterContext> {
+  const { workspaceId, language } = opts
+
+  let cards: ImprovePosterCardSummary[] = []
+  let templateId = "default"
+  let outputType = "poster"
+  let truncated = false
+
+  try {
+    const outputs = await prisma.output.findMany({
+      where: { workspaceId },
+      include: {
+        cards: {
+          orderBy: { order: "asc" },
+        },
+      },
+      take: 5,
+    })
+
+    const active = outputs.find((o: any) => o.isActive) ?? outputs[0]
+    if (active) {
+      templateId = active.templateId || "default"
+      outputType = (active as any).outputType || "poster"
+      cards = (active.cards || [])
+        .filter((c) => c.pattern !== "references")
+        .map((c) => {
+          let content = c.content || ""
+          if (content.length > MAX_CARD_CONTENT_CHARS) {
+            content = content.slice(0, MAX_CARD_CONTENT_CHARS) + "…"
+            truncated = true
+          }
+          return {
+            id: c.id,
+            title: c.title,
+            content,
+            pattern: c.pattern,
+          }
+        })
+    }
+  } catch (err) {
+    console.error("[deerflow] improve context load failed:", err)
+  }
+
+  return {
+    language,
+    cards,
+    templateId,
+    outputType,
+    truncated,
+  }
+}
+
 /** Reads the workspace's asset id set for proposal normalization. */
 export async function getWorkspaceAssetIds(workspaceId: string): Promise<Set<string>> {
   const rows = (await prisma.asset.findMany({
     where: { workspaceId },
     select: { id: true },
   })) as Array<{ id: string }>
+  return new Set(rows.map((r) => r.id))
+}
+
+/** Reads all card ids across outputs in the workspace. */
+export async function getWorkspaceCardIds(workspaceId: string): Promise<Set<string>> {
+  const rows = await prisma.card.findMany({
+    where: { output: { workspaceId } },
+    select: { id: true },
+  })
   return new Set(rows.map((r) => r.id))
 }
 

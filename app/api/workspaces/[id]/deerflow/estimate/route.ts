@@ -3,13 +3,17 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { readJsonBodyCapped, safeApiError, PayloadTooLargeError } from "@/lib/security"
 import { assertDeerflowAvailable, toDeerflowResponse } from "@/lib/deerflow/guard"
-import { estimateDeerflowRun, getDeerflowBudgetStatus } from "@/lib/deerflow/budget"
+import {
+  estimateDeerflowRun,
+  estimateImprovePosterRun,
+  getDeerflowBudgetStatus,
+} from "@/lib/deerflow/budget"
 import { DeerflowEstimateSchema } from "@/lib/deerflow/contracts"
 
 /**
  * POST /api/workspaces/[id]/deerflow/estimate
- * Pre-flight estimate so the UI can show cost/time and require confirmation
- * before a long-running agent job is launched.
+ * Pre-flight estimate so the UI can show cost/time and require confirmation.
+ * Supports both poster_research and improve_poster kinds.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -43,7 +47,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "Validation failed" }, { status: 400 })
     }
 
-    const estimate = estimateDeerflowRun(parsed.data.depth)
+    const { kind, depth, maxIterations } = parsed.data
+    const estimate =
+      kind === "improve_poster"
+        ? estimateImprovePosterRun(maxIterations ?? 3)
+        : estimateDeerflowRun(depth ?? "standard")
+
     const budget = getDeerflowBudgetStatus(id)
     return NextResponse.json({
       estimate,

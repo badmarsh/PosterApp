@@ -7,11 +7,12 @@
  *  - The outer proposal object is STRICT: unknown top-level keys cause the
  *    whole proposal to be rejected (logged server-side) rather than silently
  *    dropped — a proposal must not smuggle unvalidated data into the app.
- *  - All arrays/strings are byte/Item-capped and asset ids are checked against
- *    the workspace's actual assets before anything is applied.
+ *  - All arrays/strings are byte/Item-capped and asset/card ids are checked against
+ *    the workspace's actual assets/cards before anything is applied.
  */
 import "server-only"
 import { z } from "zod"
+import { hasUnsafeLatex } from "@/lib/latex/validation"
 
 export const DeerflowLanguageSchema = z.enum(["sk", "cs", "en"])
 export type DeerflowLanguage = z.infer<typeof DeerflowLanguageSchema>
@@ -19,11 +20,12 @@ export type DeerflowLanguage = z.infer<typeof DeerflowLanguageSchema>
 export const DeerflowDepthSchema = z.enum(["fast", "standard", "deep"])
 export type DeerflowDepth = z.infer<typeof DeerflowDepthSchema>
 
-export const DeerflowKindSchema = z.enum(["poster_research"])
+export const DeerflowKindSchema = z.enum(["poster_research", "improve_poster"])
+export type DeerflowKind = z.infer<typeof DeerflowKindSchema>
 
-/** Body for `POST /api/workspaces/[id]/deerflow/runs`. */
-export const DeerflowStartRunSchema = z.object({
-  kind: DeerflowKindSchema.default("poster_research"),
+/** Input for Phase 1 poster research runs. */
+export const DeerflowPosterResearchSchema = z.object({
+  kind: z.literal("poster_research").default("poster_research"),
   language: DeerflowLanguageSchema.default("sk"),
   /** Research focus — the agent's task statement. */
   focus: z.string().min(10).max(2000),
@@ -36,16 +38,41 @@ export const DeerflowStartRunSchema = z.object({
   /** Must be true — the UI always shows the estimate before starting. */
   confirmEstimate: z.boolean().default(false),
 })
+export type DeerflowPosterResearchInput = z.infer<typeof DeerflowPosterResearchSchema>
+
+/** Input for Phase 2 autonomous improve poster runs. */
+export const DeerflowImprovePosterSchema = z.object({
+  kind: z.literal("improve_poster"),
+  language: DeerflowLanguageSchema.default("sk"),
+  /** Maximum compile -> feedback iterations (1 to 5). */
+  maxIterations: z.number().int().min(1).max(5).default(3),
+  /** Must be true — the UI shows the estimate before starting. */
+  confirmEstimate: z.boolean().default(false),
+})
+export type DeerflowImprovePosterInput = z.infer<typeof DeerflowImprovePosterSchema>
+
+/** Body for `POST /api/workspaces/[id]/deerflow/runs`. */
+export const DeerflowStartRunSchema = z.preprocess((val) => {
+  if (val && typeof val === "object" && !("kind" in val)) {
+    return { ...(val as Record<string, unknown>), kind: "poster_research" }
+  }
+  return val
+}, z.discriminatedUnion("kind", [
+  DeerflowPosterResearchSchema,
+  DeerflowImprovePosterSchema,
+]))
 export type DeerflowStartRunInput = z.infer<typeof DeerflowStartRunSchema>
 
 /** Body for `POST …/deerflow/estimate`. */
 export const DeerflowEstimateSchema = z.object({
-  depth: DeerflowDepthSchema.default("standard"),
+  kind: DeerflowKindSchema.default("poster_research"),
+  depth: DeerflowDepthSchema.default("standard").optional(),
+  maxIterations: z.number().int().min(1).max(5).default(3).optional(),
 })
 export type DeerflowEstimateInput = z.infer<typeof DeerflowEstimateSchema>
 
 // ---------------------------------------------------------------------------
-// Proposal contracts
+// Proposal contracts — Phase 1: poster_research
 // ---------------------------------------------------------------------------
 
 export const SourceRefSchema = z.object({
@@ -132,8 +159,55 @@ export const PosterResearchProposalSchema = z.preprocess(
 )
 
 export type PosterResearchProposal = z.infer<typeof PosterResearchProposalSchema>
-
 export const PROPOSAL_VERSION = "poster-research-v1" as const
+
+// ---------------------------------------------------------------------------
+// Proposal contracts — Phase 2: improve_poster
+// ---------------------------------------------------------------------------
+
+export const CardPatchSchema = z.object({
+  id: z.string().min(1).max(128),
+  content: z.string().min(1).max(8000),
+  rationale: z.string().max(400).default(""),
+})
+export type CardPatch = z.infer<typeof CardPatchSchema>
+
+export const ImprovePosterIterationSchema = z.object({
+  iterationIndex: z.number().int().min(0).max(4),
+  patches: z.array(CardPatchSchema).max(10).default([]),
+  compileLog: z.string().max(4000).default(""),
+  diagnosis: z.string().max(600).default(""),
+})
+export type ImprovePosterIteration = z.infer<typeof ImprovePosterIterationSchema>
+
+export const IMPROVE_POSTER_PROPOSAL_VERSION = "improve-poster-v1" as const
+
+export const ImprovePosterProposalSchema = z.preprocess(
+  (raw: unknown) => {
+    if (raw && typeof raw === "object") {
+      const obj = raw as Record<string, unknown>
+      return {
+        version: obj.version ?? IMPROVE_POSTER_PROPOSAL_VERSION,
+        iterations: obj.iterations ?? obj.steps ?? obj.rounds ?? [],
+        summary: obj.summary ?? obj.overview ?? "",
+        cleanCompile: obj.cleanCompile ?? obj.success ?? false,
+        meta: obj.meta ?? {},
+      }
+    }
+    return raw
+  },
+  z
+    .object({
+      version: z.literal(IMPROVE_POSTER_PROPOSAL_VERSION).default(IMPROVE_POSTER_PROPOSAL_VERSION),
+      iterations: z.array(ImprovePosterIterationSchema).max(5).default([]),
+      summary: z.string().max(2000).default(""),
+      cleanCompile: z.boolean().default(false),
+      meta: ProposalMetaSchema.default({}),
+    })
+    .strict()
+)
+
+export type ImprovePosterProposal = z.infer<typeof ImprovePosterProposalSchema>
 
 // ---------------------------------------------------------------------------
 // Normalization
@@ -192,8 +266,6 @@ export function normalizeProposal(
       ].includes(k)
   )
 
-  // Strict contract: unknown top-level keys reject the whole proposal rather
-  // than being silently dropped — nothing unvalidated may reach workspace state.
   if (unknownKeys.length > 0) {
     return {
       ok: false,
@@ -224,11 +296,91 @@ export function normalizeProposal(
   return { ok: true, proposal, rejected: { unknownKeys, unknownAssets } }
 }
 
+export type NormalizeImprovePosterResult =
+  | {
+      ok: true
+      proposal: ImprovePosterProposal
+      rejected: { unknownCardIds: string[]; unsafePatchIds: string[]; unknownKeys: string[] }
+    }
+  | { ok: false; issues: Array<{ path: string; message: string }> }
+
+/**
+ * Validates a raw improve_poster proposal, checks card ids against workspace cards,
+ * and strips unsafe LaTeX constructs.
+ */
+export function normalizeImprovePosterProposal(
+  raw: unknown,
+  opts: { allowedCardIds: ReadonlySet<string> }
+): NormalizeImprovePosterResult {
+  if (!raw || typeof raw !== "object") {
+    return { ok: false, issues: [{ path: "$", message: "Proposal must be a JSON object" }] }
+  }
+
+  const parsed = ImprovePosterProposalSchema.safeParse(raw)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      issues: parsed.error.issues.map((i) => ({
+        path: i.path.join(".") || "$",
+        message: i.message,
+      })),
+    }
+  }
+
+  const proposal = parsed.data
+  const unknownKeys = Object.keys(raw as Record<string, unknown>).filter(
+    (k) =>
+      ![
+        "version",
+        "iterations",
+        "summary",
+        "cleanCompile",
+        "meta",
+        "steps",
+        "rounds",
+        "overview",
+        "success",
+      ].includes(k)
+  )
+
+  if (unknownKeys.length > 0) {
+    return {
+      ok: false,
+      issues: [
+        {
+          path: "$",
+          message: `Unknown top-level proposal keys: ${unknownKeys.slice(0, 5).join(", ")}`,
+        },
+      ],
+    }
+  }
+
+  const unknownCardIds: string[] = []
+  const unsafePatchIds: string[] = []
+
+  for (const iter of proposal.iterations) {
+    const validPatches: CardPatch[] = []
+    for (const patch of iter.patches) {
+      if (!opts.allowedCardIds.has(patch.id)) {
+        unknownCardIds.push(patch.id)
+        continue
+      }
+      const unsafeIssues = hasUnsafeLatex(patch.content)
+      if (unsafeIssues.length > 0) {
+        unsafePatchIds.push(patch.id)
+        continue
+      }
+      validPatches.push(patch)
+    }
+    iter.patches = validPatches
+  }
+
+  return { ok: true, proposal, rejected: { unknownCardIds, unsafePatchIds, unknownKeys } }
+}
+
 /**
  * Extracts a JSON payload candidate from DeerFlow's final `values` event.
- * DeerFlow's lead_agent returns a chat message; we instruct it to end with a
- * single JSON object. This scans the final assistant text for a fenced or raw
- * JSON object without trusting anything else about the output.
+ * Scans the final assistant text for a fenced or raw JSON object.
  */
 export function extractProposalJsonCandidate(valuesValue: unknown): unknown | undefined {
   if (!valuesValue || typeof valuesValue !== "object") return undefined
@@ -317,3 +469,5 @@ export function extractProposalJsonCandidate(valuesValue: unknown): unknown | un
   }
   return undefined
 }
+
+export const extractImprovePosterJsonCandidate = extractProposalJsonCandidate

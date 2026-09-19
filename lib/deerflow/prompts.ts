@@ -1,15 +1,22 @@
 /**
  * DeerFlow run prompt + payload builder (server-only).
  *
- * The agent is instructed to return ONLY the strict `poster-research-v1`
- * JSON contract. Everything it emits is treated as untrusted by the rest of
- * the app; nothing here includes credentials or workspace paths.
+ * The agent is instructed to return ONLY the strict JSON contracts:
+ *  - `poster-research-v1` for deep research
+ *  - `improve-poster-v1` for autonomous build/fix loop
+ * Everything it emits is treated as untrusted by the rest of the app.
  */
 import "server-only"
 import { getDeerflowConfig } from "./config"
 import type { StartRunPayload } from "./client"
-import type { DeerflowContext } from "./context"
-import { PROPOSAL_VERSION, type DeerflowStartRunInput } from "./contracts"
+import type { DeerflowContext, ImprovePosterContext } from "./context"
+import {
+  PROPOSAL_VERSION,
+  IMPROVE_POSTER_PROPOSAL_VERSION,
+  type DeerflowPosterResearchInput,
+  type DeerflowImprovePosterInput,
+  type CardPatch,
+} from "./contracts"
 
 const LANG_INSTRUCTIONS: Record<string, string> = {
   sk: "Píš výstup v slovenčine.",
@@ -27,11 +34,10 @@ const DEPTH_INSTRUCTIONS: Record<string, string> = {
 }
 
 /**
- * Builds the human message for the lead_agent. The prompt document is stable
- * and versioned; the agent's reply must be parseable as a proposal JSON.
+ * Builds the human message for the lead_agent for poster_research.
  */
 export function buildDeerflowPrompt(
-  input: DeerflowStartRunInput,
+  input: DeerflowPosterResearchInput,
   context: DeerflowContext
 ): string {
   const { focus, language, depth } = input
@@ -120,10 +126,127 @@ export function buildDeerflowPrompt(
   return lines.filter((l) => l.length > 0).join("\n")
 }
 
-/** Builds the full LangGraph-compatible run payload for the sidecar. */
-export function buildDeerflowRunPayload(input: DeerflowStartRunInput, context: DeerflowContext): StartRunPayload {
+/** Builds the full LangGraph-compatible run payload for poster_research. */
+export function buildDeerflowRunPayload(input: DeerflowPosterResearchInput, context: DeerflowContext): StartRunPayload {
   const { maxRecursionLimit } = getDeerflowConfig()
   const prompt = buildDeerflowPrompt(input, context)
+  return {
+    assistant_id: "lead_agent",
+    input: {
+      messages: [
+        {
+          type: "human",
+          content: [{ type: "text", text: prompt }],
+        },
+      ],
+    },
+    stream_mode: ["values", "messages-tuple", "custom"],
+    stream_subgraphs: true,
+    config: {
+      recursion_limit: maxRecursionLimit,
+      configurable: {},
+    },
+    context: {
+      thinking_enabled: true,
+      is_plan_mode: true,
+      subagent_enabled: true,
+    },
+  }
+}
+
+/**
+ * Builds the human message for the improve_poster autonomous fix loop.
+ */
+export function buildImprovePosterPrompt(
+  input: DeerflowImprovePosterInput,
+  context: ImprovePosterContext,
+  compileLog: string,
+  iterationIndex: number,
+  previousPatches?: CardPatch[]
+): string {
+  const { language, maxIterations } = input
+
+  const cardsInventory =
+    context.cards.length > 0
+      ? context.cards
+          .map((c) => `[CARD ID: ${c.id}] (Title: "${c.title}", Pattern: ${c.pattern})\n${c.content}\n`)
+          .join("\n---\n")
+      : "No editable cards found."
+
+  const lines: string[] = [
+    "You are the autonomous build and fix agent inside PosterApp, an academic poster/paper/slides LaTeX editor.",
+    "Task: analyze the compiler log and poster cards, diagnose what caused the LaTeX compile failure or syntax error, and produce Markdown patches.",
+    "",
+    LANG_INSTRUCTIONS[language] || LANG_INSTRUCTIONS.sk,
+    `Current iteration: ${iterationIndex + 1} of ${maxIterations}.`,
+    "",
+    "CRITICAL FORMAT RULES:",
+    "1. Card contents in PosterApp are authored in MARKDOWN, NOT raw LaTeX.",
+    "   - Bullet lists: Markdown '- item' or '* item'",
+    "   - Bold: **bold**, Italic: *italic*",
+    "   - Inline math: $formula$ (clean and balanced braces)",
+    "   - Citations: \\cite{key} or [@key]",
+    "   - Special characters like _, %, &, #, $ outside math are escaped automatically by the compiler.",
+    "   - NEVER produce raw LaTeX commands like \\begin{itemize}, \\textbf{...}, \\_ or \\%. Write clean Markdown.",
+    `2. Return ONLY a single JSON object conforming strictly to version "${IMPROVE_POSTER_PROPOSAL_VERSION}". No markdown code fences, no surrounding text.`,
+    "",
+    "JSON CONTRACT:",
+    JSON.stringify(
+      {
+        version: IMPROVE_POSTER_PROPOSAL_VERSION,
+        iterations: [
+          {
+            iterationIndex,
+            diagnosis: "Explanation of what is causing the compile error or layout problem",
+            compileLog: compileLog.slice(0, 500),
+            patches: [
+              {
+                id: "valid_card_id_here",
+                content: "Corrected card content in clean Markdown...",
+                rationale: "Why this change fixes the error",
+              },
+            ],
+          },
+        ],
+        summary: "High-level summary of all repairs performed so far",
+        cleanCompile: false,
+        meta: { estimatedUsd: 0, elapsedSeconds: 0, model: "unknown" },
+      },
+      null,
+      2
+    ),
+    "",
+    previousPatches && previousPatches.length > 0
+      ? `PREVIOUS PATCHES APPLIED IN ITERATION ${iterationIndex}:\n${previousPatches
+          .map((p) => `- Card ${p.id}: ${p.rationale}`)
+          .join("\n")}\n`
+      : "",
+    "LATEST COMPILER LOG:",
+    "--- start compiler log ---",
+    compileLog.slice(-3000),
+    "--- end compiler log ---",
+    "",
+    "CURRENT POSTER CARDS:",
+    "--- start cards ---",
+    cardsInventory,
+    "--- end cards ---",
+    "",
+    `Return the ${IMPROVE_POSTER_PROPOSAL_VERSION} JSON now.`,
+  ]
+
+  return lines.filter((l) => l.length > 0).join("\n")
+}
+
+/** Builds the full LangGraph-compatible run payload for improve_poster. */
+export function buildImprovePosterPayload(
+  input: DeerflowImprovePosterInput,
+  context: ImprovePosterContext,
+  compileLog: string,
+  iterationIndex: number,
+  previousPatches?: CardPatch[]
+): StartRunPayload {
+  const { maxRecursionLimit } = getDeerflowConfig()
+  const prompt = buildImprovePosterPrompt(input, context, compileLog, iterationIndex, previousPatches)
   return {
     assistant_id: "lead_agent",
     input: {

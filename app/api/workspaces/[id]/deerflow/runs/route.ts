@@ -4,17 +4,21 @@ import { rateLimitAsync } from "@/lib/rate-limit"
 import { readJsonBodyCapped, safeApiError, PayloadTooLargeError } from "@/lib/security"
 import { getDeerflowConfig } from "@/lib/deerflow/config"
 import { assertDeerflowAvailable, ensureDeerflowThread, toDeerflowResponse } from "@/lib/deerflow/guard"
-import { estimateDeerflowRun, assertDeerflowBudget } from "@/lib/deerflow/budget"
+import { estimateDeerflowRun, assertDeerflowBudget, estimateImprovePosterRun } from "@/lib/deerflow/budget"
 import { DeerflowStartRunSchema } from "@/lib/deerflow/contracts"
 import { createRunRecord } from "@/lib/deerflow/run-store"
-import { executeDeerflowResearch } from "@/lib/deerflow/runner"
+import { executeDeerflowResearch, executeDeerflowImproveLoop } from "@/lib/deerflow/runner"
 import { updateDeerflowRun } from "@/lib/deerflow/db"
 
 /**
  * POST /api/workspaces/[id]/deerflow/runs
  * Validates the request, gates budget + rate limit, then launches a
- * background DeerFlow research run. Responds 202 immediately with the run id;
+ * background DeerFlow run. Responds 202 immediately with the run id;
  * progress arrives via GET …/runs/[runId]/stream.
+ *
+ * Supports two kinds:
+ *  - poster_research  — Phase 1 deep research
+ *  - improve_poster   — Phase 2 autonomous compile-fix loop
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -46,7 +50,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
     const parsed = DeerflowStartRunSchema.safeParse(raw)
     if (!parsed.success) {
-      return NextResponse.json({ error: "Validation failed" }, { status: 400 })
+      return NextResponse.json({ error: "Validation failed", details: parsed.error.issues.slice(0, 5).map(i => i.message) }, { status: 400 })
     }
     const input = parsed.data
 
@@ -68,7 +72,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     const budget = assertDeerflowBudget(id)
-    const estimate = estimateDeerflowRun(input.depth)
+
+    const estimate =
+      input.kind === "improve_poster"
+        ? estimateImprovePosterRun(input.maxIterations)
+        : estimateDeerflowRun(input.depth)
 
     const thread = await ensureDeerflowThread({ workspaceId: id, userId, kind: input.kind })
     if (thread.status === "running" || thread.status === "queued") {
@@ -89,24 +97,38 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     })
     await updateDeerflowRun(runId, id, {
       status: "queued",
-      phase: "planning",
+      phase: input.kind === "improve_poster" ? "compiling" : "planning",
       costEstimateUsd: estimate.usd,
       error: null,
       finishedAt: null,
     })
 
-    // Fire-and-forget; executeDeerflowResearch never throws (failures are stored).
-    void executeDeerflowResearch({
-      runId,
-      workspaceId: id,
-      userId,
-      deerThreadId: thread.deerThreadId,
-      kind: input.kind,
-      input,
-      costEstimateUsd: estimate.usd,
-    }).catch((err: unknown) => {
-      console.error("[deerflow] background run crashed:", err)
-    })
+    // Fire-and-forget — failures are stored, never thrown
+    if (input.kind === "improve_poster") {
+      void executeDeerflowImproveLoop({
+        runId,
+        workspaceId: id,
+        userId,
+        deerThreadId: thread.deerThreadId,
+        kind: "improve_poster",
+        input,
+        costEstimateUsd: estimate.usd,
+      }).catch((err: unknown) => {
+        console.error("[deerflow improve] background run crashed:", err)
+      })
+    } else {
+      void executeDeerflowResearch({
+        runId,
+        workspaceId: id,
+        userId,
+        deerThreadId: thread.deerThreadId,
+        kind: input.kind,
+        input,
+        costEstimateUsd: estimate.usd,
+      }).catch((err: unknown) => {
+        console.error("[deerflow] background run crashed:", err)
+      })
+    }
 
     return NextResponse.json(
       {

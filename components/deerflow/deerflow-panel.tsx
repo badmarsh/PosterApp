@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Bot, ExternalLink, Loader2, Play, RefreshCw, Trash2 } from "lucide-react"
+import { Bot, ChevronDown, ChevronRight, ExternalLink, Loader2, Play, RefreshCw, Trash2, Wrench } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils"
 
 type Language = "sk" | "cs" | "en"
 type Depth = "fast" | "standard" | "deep"
+type PanelMode = "poster_research" | "improve_poster"
 
 interface SourceRef {
   title: string
@@ -58,6 +59,28 @@ interface Proposal {
   openQuestions: string[]
 }
 
+interface CardPatch {
+  id: string
+  content: string
+  rationale: string
+}
+
+interface ImprovePosterIteration {
+  iterationIndex: number
+  patches: CardPatch[]
+  diagnosis: string
+  compileLog: string
+}
+
+interface ImprovePosterProposal {
+  version: string
+  summary: string
+  iterations: ImprovePosterIteration[]
+  cleanCompile: boolean
+}
+
+type AnyProposal = Proposal | ImprovePosterProposal
+
 interface RunLogEvent {
   ts: string
   type: string
@@ -68,7 +91,7 @@ interface RunStatus {
   runId: string
   status: "idle" | "queued" | "running" | "done" | "failed" | "cancelled"
   phase?: string
-  proposal?: Proposal | null
+  proposal?: AnyProposal | null
   error?: { message: string; code: string } | null
   events?: RunLogEvent[]
 }
@@ -85,12 +108,173 @@ const DEPTH_LABELS: Record<Depth, string> = {
   deep: "Hĺbkový (30 min)",
 }
 
+const MAX_ITER_LABELS: Record<number, string> = {
+  1: "1 iterácia (~3 min, ~$0.05)",
+  3: "3 iterácie (~10 min, ~$0.18)",
+  5: "5 iterácií (~18 min, ~$0.35)",
+}
+
+const PHASE_LABELS: Record<string, string> = {
+  planning: "Plánovanie",
+  researching: "Výskum",
+  synthesizing: "Syntéza",
+  writing: "Písanie",
+  compiling: "Kompilácia",
+  patching: "Aplikovanie opráv",
+  finished: "Dokončené",
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function isImprovePosterProposal(p: AnyProposal | null | undefined): p is ImprovePosterProposal {
+  return !!(p && "iterations" in p)
+}
+
+// ---------------------------------------------------------------------------
+// Improve Poster Result View
+// ---------------------------------------------------------------------------
+
+function ImprovePosterResult({
+  proposal,
+  runId,
+  projectId,
+  busy,
+  applied,
+  onApply,
+  onDiscard,
+}: {
+  proposal: ImprovePosterProposal
+  runId: string
+  projectId: string
+  busy: boolean
+  applied: boolean
+  onApply: () => void
+  onDiscard: () => void
+}) {
+  const [expandedIter, setExpandedIter] = useState<number | null>(null)
+
+  return (
+    <ScrollArea className="min-h-0 flex-1">
+      <div className="space-y-3 p-3">
+        {/* Summary + compile status */}
+        <div className="space-y-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Výsledok opravy
+          </p>
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                proposal.cleanCompile
+                  ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
+                  : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+              )}
+            >
+              {proposal.cleanCompile ? "✓ Čistá kompilácia" : "⚠ Kompilácia s varovaním"}
+            </span>
+            <span className="text-[10px] text-muted-foreground">
+              {proposal.iterations.length} iteráci{proposal.iterations.length === 1 ? "a" : proposal.iterations.length < 5 ? "e" : "í"}
+            </span>
+          </div>
+          {proposal.summary && (
+            <p className="text-xs leading-relaxed text-muted-foreground">{proposal.summary}</p>
+          )}
+        </div>
+
+        {/* Per-iteration accordion */}
+        {proposal.iterations.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Iterácie ({proposal.iterations.length})
+            </p>
+            <div className="space-y-1.5">
+              {proposal.iterations.map((iter) => (
+                <div key={iter.iterationIndex} className="rounded-md border border-border">
+                  <button
+                    className="flex w-full items-center justify-between p-2 text-left"
+                    onClick={() => setExpandedIter(expandedIter === iter.iterationIndex ? null : iter.iterationIndex)}
+                  >
+                    <span className="text-xs font-medium">
+                      Iterácia {iter.iterationIndex + 1} — {iter.patches.length} záplat{iter.patches.length === 1 ? "a" : iter.patches.length < 5 ? "y" : ""}
+                    </span>
+                    {expandedIter === iter.iterationIndex
+                      ? <ChevronDown className="size-3 text-muted-foreground" />
+                      : <ChevronRight className="size-3 text-muted-foreground" />
+                    }
+                  </button>
+                  {expandedIter === iter.iterationIndex && (
+                    <div className="border-t border-border p-2 space-y-2">
+                      {iter.diagnosis && (
+                        <p className="text-[11px] text-muted-foreground">{iter.diagnosis}</p>
+                      )}
+                      {iter.patches.map((patch) => (
+                        <div key={patch.id} className="rounded bg-muted/50 p-1.5 text-[10px]">
+                          <span className="font-mono text-muted-foreground">{patch.id}</span>
+                          {patch.rationale && (
+                            <p className="mt-0.5 text-muted-foreground">{patch.rationale}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={onApply} disabled={busy || applied}>
+            {busy ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+            {applied ? "Potvrdené" : "Potvrdiť zmeny"}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onDiscard}>
+            Zahodiť
+          </Button>
+        </div>
+
+        {applied && (
+          <div className="space-y-1">
+            <p className="text-[11px] text-green-600 dark:text-green-400">
+              ✓ Zmeny boli potvrdené. Snímky sú uložené pre prípadné vrátenie.
+            </p>
+            <button
+              className="flex items-center gap-1 text-[11px] text-primary underline-offset-2 hover:underline"
+              onClick={() => window.location.reload()}
+            >
+              <ExternalLink className="size-3" />
+              Obnoviť stránku
+            </button>
+          </div>
+        )}
+      </div>
+    </ScrollArea>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Main panel
+// ---------------------------------------------------------------------------
+
 export function DeerflowPanel({ projectId }: { projectId: string }) {
   const [serverEnabled, setServerEnabled] = useState<boolean | null>(null)
   const [workspaceRevision, setWorkspaceRevision] = useState<number>(0)
+
+  // Sub-tab
+  const [panelMode, setPanelMode] = useState<PanelMode>("poster_research")
+
+  // Deep research state
   const [focus, setFocus] = useState("")
-  const [language, setLanguage] = useState<Language>("sk")
   const [depth, setDepth] = useState<Depth>("standard")
+
+  // Improve poster state
+  const [maxIterations, setMaxIterations] = useState<number>(3)
+
+  // Shared state
+  const [language, setLanguage] = useState<Language>("sk")
   const [estimate, setEstimate] = useState<Estimate | null>(null)
   const [overBudget, setOverBudget] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -98,15 +282,16 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
   const [runStatus, setRunStatus] = useState<string | null>(null)
   const [phase, setPhase] = useState<string>("")
   const [logs, setLogs] = useState<RunLogEvent[]>([])
-  const [proposal, setProposal] = useState<Proposal | null>(null)
+  const [proposal, setProposal] = useState<AnyProposal | null>(null)
   const [runError, setRunError] = useState<{ message: string; code: string } | null>(null)
   const [applied, setApplied] = useState(false)
   const esRef = useRef<EventSource | null>(null)
 
   const running = runStatus === "queued" || runStatus === "running"
-  const canStart = Boolean(serverEnabled) && focus.trim().length >= 10 && !running && !busy
+  const canStartResearch = Boolean(serverEnabled) && focus.trim().length >= 10 && !running && !busy
+  const canStartImprove = Boolean(serverEnabled) && !running && !busy
 
-  // Load the per-workspace toggle + revision.
+  // Load workspace toggle + revision
   useEffect(() => {
     let cancelled = false
     void (async () => {
@@ -118,7 +303,7 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
         setServerEnabled(data.deerflowEnabled !== false)
         setWorkspaceRevision(data.revision ?? 0)
       } catch {
-        // Panel stays in "unknown" state; the server enforces on use.
+        // Panel stays in "unknown" state
       }
     })()
     return () => {
@@ -127,15 +312,18 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
     }
   }, [projectId])
 
-  // Debounced estimate.
+  // Debounced estimate for current mode
   useEffect(() => {
     const t = setTimeout(() => {
       void (async () => {
         try {
+          const body = panelMode === "improve_poster"
+            ? { kind: "improve_poster", maxIterations }
+            : { kind: "poster_research", depth }
           const res = await apiFetch(`/api/workspaces/${projectId}/deerflow/estimate`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ depth }),
+            body: JSON.stringify(body),
           })
           if (!res.ok) return
           const data = (await res.json()) as { estimate: Estimate; willExceed: boolean }
@@ -147,7 +335,7 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
       })()
     }, 400)
     return () => clearTimeout(t)
-  }, [projectId, depth])
+  }, [projectId, panelMode, depth, maxIterations])
 
   const refreshStatus = useCallback(
     async (id: string) => {
@@ -192,7 +380,7 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
       })
       es.addEventListener("proposal", (e) => {
         try {
-          setProposal(JSON.parse((e as MessageEvent).data) as Proposal)
+          setProposal(JSON.parse((e as MessageEvent).data) as AnyProposal)
         } catch {
           // ignore
         }
@@ -216,14 +404,13 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
         void refreshStatus(id)
       })
       es.onerror = () => {
-        // EventSource auto-reconnects; refetch status so the UI is not stale.
         void refreshStatus(id)
       }
     },
     [projectId, refreshStatus]
   )
 
-  const startRun = async () => {
+  const startResearchRun = async () => {
     setBusy(true)
     setRunError(null)
     setProposal(null)
@@ -243,8 +430,40 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
         }),
       })
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { error?: { message?: string }; message?: string }
-        const message = err.error?.message ?? err.message ?? "Failed to start research run"
+        const err = (await res.json().catch(() => ({}))) as { error?: string; message?: string; details?: unknown }
+        const message = typeof err.error === "string" ? err.error : (err.message ?? "Failed to start research run")
+        setRunError({ message, code: "DEERFLOW_START_FAILED" })
+        return
+      }
+      const data = (await res.json()) as { runId: string }
+      setRunId(data.runId)
+      setRunStatus("queued")
+      connectStream(data.runId)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const startImproveRun = async () => {
+    setBusy(true)
+    setRunError(null)
+    setProposal(null)
+    setLogs([])
+    setApplied(false)
+    try {
+      const res = await apiFetch(`/api/workspaces/${projectId}/deerflow/runs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "improve_poster",
+          language,
+          maxIterations,
+          confirmEstimate: true,
+        }),
+      })
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string; message?: string }
+        const message = typeof err.error === "string" ? err.error : (err.message ?? "Failed to start improve run")
         setRunError({ message, code: "DEERFLOW_START_FAILED" })
         return
       }
@@ -274,24 +493,35 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
     if (!runId) return
     setBusy(true)
     try {
-      const res = await apiFetch(`/api/workspaces/${projectId}/deerflow/runs/${runId}/apply`, {
+      const route = panelMode === "improve_poster"
+        ? `/api/workspaces/${projectId}/deerflow/runs/${runId}/apply-improve`
+        : `/api/workspaces/${projectId}/deerflow/runs/${runId}/apply`
+      const res = await apiFetch(route, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       })
       const data = (await res.json().catch(() => ({}))) as {
         appliedCardIds?: string[]
+        appliedPatches?: number
         bibAdded?: number
         skippedDuplicates?: number
+        cleanCompile?: boolean
         error?: { message?: string }
       }
       if (!res.ok) {
         throw new Error(data.error?.message ?? "Apply failed")
       }
       setApplied(true)
-      toast.success("Deep research applied", {
-        description: `${data.appliedCardIds?.length ?? 0} cards · ${data.bibAdded ?? 0} citations · ${data.skippedDuplicates ?? 0} duplicates skipped`,
-      })
+      if (panelMode === "improve_poster") {
+        toast.success("Improve poster potvrdený", {
+          description: `${data.appliedPatches ?? 0} záplat aplikovaných${data.cleanCompile ? " · čistá kompilácia ✓" : ""}`,
+        })
+      } else {
+        toast.success("Deep research applied", {
+          description: `${data.appliedCardIds?.length ?? 0} kariet · ${data.bibAdded ?? 0} citácií`,
+        })
+      }
     } catch (err) {
       toast.error("Failed to apply", {
         description: err instanceof Error ? err.message : String(err),
@@ -309,7 +539,7 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
         body: JSON.stringify({ revision: workspaceRevision, deerflowEnabled: next }),
       })
       if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string; details?: unknown }
+        const data = (await res.json().catch(() => ({}))) as { error?: string }
         toast.error("Could not change setting", { description: data.error })
         return
       }
@@ -328,14 +558,47 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
     return overBudget ? `${eta} — denný rozpočet vyčerpaný!` : eta
   }, [estimate, overBudget])
 
+  const phaseLabel = PHASE_LABELS[phase] ?? phase
+
+  const researchProposal = !isImprovePosterProposal(proposal) ? (proposal as Proposal | null) : null
+  const improveProposal = isImprovePosterProposal(proposal) ? proposal : null
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {/* Sub-tab switcher */}
+      <div className="flex border-b border-border">
+        <button
+          className={cn(
+            "flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-medium",
+            panelMode === "poster_research"
+              ? "border-b-2 border-primary text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+          onClick={() => { setPanelMode("poster_research"); setProposal(null); setRunStatus(null); setLogs([]); setRunError(null) }}
+        >
+          <Bot className="size-3.5" />
+          Deep research
+        </button>
+        <button
+          className={cn(
+            "flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-medium",
+            panelMode === "improve_poster"
+              ? "border-b-2 border-primary text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+          onClick={() => { setPanelMode("improve_poster"); setProposal(null); setRunStatus(null); setLogs([]); setRunError(null) }}
+        >
+          <Wrench className="size-3.5" />
+          Opraviť poster
+        </button>
+      </div>
+
       {/* Controls */}
       <div className="space-y-2.5 border-b border-border p-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            <Bot className="size-3.5" />
-            Deep research kopilot
+            {panelMode === "poster_research" ? <Bot className="size-3.5" /> : <Wrench className="size-3.5" />}
+            {panelMode === "poster_research" ? "Deep research kopilot" : "Autonómna oprava"}
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-muted-foreground">
@@ -350,14 +613,25 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
           </div>
         </div>
 
-        <Textarea
-          value={focus}
-          onChange={(e) => setFocus(e.target.value)}
-          placeholder="Čo má agent preskúmať? (min. 10 znakov)"
-          className="min-h-[64px] resize-none text-xs"
-        />
+        {/* Deep research specific */}
+        {panelMode === "poster_research" && (
+          <Textarea
+            value={focus}
+            onChange={(e) => setFocus(e.target.value)}
+            placeholder="Čo má agent preskúmať? (min. 10 znakov)"
+            className="min-h-[64px] resize-none text-xs"
+          />
+        )}
 
-        <div className="grid grid-cols-2 gap-2">
+        {/* Improve poster specific */}
+        {panelMode === "improve_poster" && (
+          <div className="rounded-md border border-border bg-muted/30 p-2 text-[11px] text-muted-foreground">
+            Agent skompiluje poster, diagnostikuje chyby a navrhne opravy Markdown obsahu kartičiek.
+            Pred každou dávkou záplat sa vytvorí záloha.
+          </div>
+        )}
+
+        <div className={cn("gap-2", panelMode === "poster_research" ? "grid grid-cols-2" : "grid grid-cols-2")}>
           <UiSelect value={language} onValueChange={(v) => setLanguage(v as Language)}>
             <SelectTrigger size="sm" className="text-xs">
               <SelectValue />
@@ -368,16 +642,33 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
               <SelectItem value="en">English</SelectItem>
             </SelectContent>
           </UiSelect>
-          <UiSelect value={depth} onValueChange={(v) => setDepth(v as Depth)}>
-            <SelectTrigger size="sm" className="text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="fast">{DEPTH_LABELS.fast}</SelectItem>
-              <SelectItem value="standard">{DEPTH_LABELS.standard}</SelectItem>
-              <SelectItem value="deep">{DEPTH_LABELS.deep}</SelectItem>
-            </SelectContent>
-          </UiSelect>
+
+          {panelMode === "poster_research" ? (
+            <UiSelect value={depth} onValueChange={(v) => setDepth(v as Depth)}>
+              <SelectTrigger size="sm" className="text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fast">{DEPTH_LABELS.fast}</SelectItem>
+                <SelectItem value="standard">{DEPTH_LABELS.standard}</SelectItem>
+                <SelectItem value="deep">{DEPTH_LABELS.deep}</SelectItem>
+              </SelectContent>
+            </UiSelect>
+          ) : (
+            <UiSelect
+              value={String(maxIterations)}
+              onValueChange={(v) => setMaxIterations(Number(v))}
+            >
+              <SelectTrigger size="sm" className="text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">{MAX_ITER_LABELS[1]}</SelectItem>
+                <SelectItem value="3">{MAX_ITER_LABELS[3]}</SelectItem>
+                <SelectItem value="5">{MAX_ITER_LABELS[5]}</SelectItem>
+              </SelectContent>
+            </UiSelect>
+          )}
         </div>
 
         <span className={cn("block text-[11px] text-muted-foreground", overBudget && "text-destructive")}>
@@ -385,9 +676,14 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
         </span>
 
         <div className="flex items-center gap-2">
-          <Button size="sm" className="flex-1" disabled={!canStart} onClick={() => void startRun()}>
+          <Button
+            size="sm"
+            className="flex-1"
+            disabled={panelMode === "poster_research" ? !canStartResearch : !canStartImprove}
+            onClick={() => void (panelMode === "poster_research" ? startResearchRun() : startImproveRun())}
+          >
             {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
-            Spustiť výskum
+            {panelMode === "poster_research" ? "Spustiť výskum" : "Spustiť opravu"}
           </Button>
           {running && runId && (
             <Button
@@ -407,7 +703,7 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
       {(running || runStatus === "done") && (
         <div className="space-y-2 border-b border-border p-3">
           <div className="flex items-center justify-between text-[11px]">
-            <span className="font-medium capitalize">{phase || runStatus}</span>
+            <span className="font-medium capitalize">{phaseLabel || phase || runStatus}</span>
             <span className="text-muted-foreground">{runStatus}</span>
           </div>
           {running && <Progress value={33} className="animate-pulse" />}
@@ -430,23 +726,36 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
         </div>
       )}
 
-      {/* Proposal */}
-      {proposal && (
+      {/* Improve poster result */}
+      {improveProposal && runId && (
+        <ImprovePosterResult
+          proposal={improveProposal}
+          runId={runId}
+          projectId={projectId}
+          busy={busy}
+          applied={applied}
+          onApply={() => void applyProposal()}
+          onDiscard={() => { setProposal(null); setRunStatus(null) }}
+        />
+      )}
+
+      {/* Deep research proposal */}
+      {researchProposal && (
         <ScrollArea className="min-h-0 flex-1">
           <div className="space-y-3 p-3">
             <div className="space-y-1">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Návrh výskumu
               </p>
-              <p className="text-xs leading-relaxed">{proposal.summary}</p>
+              <p className="text-xs leading-relaxed">{researchProposal.summary}</p>
             </div>
 
             <div className="space-y-1">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Sekcie ({proposal.sectionDrafts.length})
+                Sekcie ({researchProposal.sectionDrafts.length})
               </p>
               <div className="space-y-1.5">
-                {proposal.sectionDrafts.map((draft, i) => (
+                {researchProposal.sectionDrafts.map((draft, i) => (
                   <div key={i} className="rounded-md border border-border p-2">
                     <p className="text-xs font-medium">{draft.title}</p>
                     <ul className="mt-1 list-disc pl-4 text-[11px] text-muted-foreground">
@@ -485,10 +794,10 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
 
             <div className="space-y-1">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Zdroje ({proposal.sources.length}) · Citácie ({proposal.citations.length})
+                Zdroje ({researchProposal.sources.length}) · Citácie ({researchProposal.citations.length})
               </p>
               <div className="space-y-1">
-                {proposal.sources.slice(0, 10).map((source, i) => (
+                {researchProposal.sources.slice(0, 10).map((source, i) => (
                   <div key={i} className="truncate text-[11px]" title={source.title}>
                     • {source.title}
                     {source.confidence !== undefined && source.confidence < 0.5

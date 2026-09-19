@@ -54,6 +54,18 @@ This file contains important context about the project infrastructure and depend
 - `tests/collaboration.spec.ts` — Dual-context Yjs sync E2E test
 - `tests/persistence.spec.ts` — DB save + reload recovery E2E test
 - `tests/ai-fallback.spec.ts` — AI error handling / timeout E2E test
+- `lib/deerflow/contracts.ts` — Zod schemas for all DeerFlow deliverable contracts: `DeerflowPosterResearchSchema`, `DeerflowImprovePosterSchema`, `DeerflowStartRunSchema` (discriminated union), `PosterResearchProposalSchema`, `ImprovePosterProposalSchema`, `CardPatchSchema`, `normalizeProposal()`, `normalizeImprovePosterProposal()`, `extractProposalJsonCandidate()`.
+- `lib/deerflow/runner.ts` — Background runners: `executeDeerflowResearch()` (Phase 1) + `executeDeerflowImproveLoop()` (Phase 2). The improve loop: initial compile → iterative DeerFlow stream → normalize/snapshot/patch → recompile → repeat up to `maxIterations`. Never throws — all failures stored in run-store.
+- `lib/deerflow/budget.ts` — Per-workspace daily budget ledger. Now includes `estimateImprovePosterRun(maxIterations)` and `IMPROVE_POSTER_ESTIMATES` for improve_poster (1→$0.05/3min, 3→$0.18/10min, 5→$0.35/18min).
+- `lib/deerflow/context.ts` — Context builders: `buildDeerflowContext()` (Phase 1), `buildImprovePosterContext()` (Phase 2 — loads card summaries, max 600 chars each), `getWorkspaceCardIds()`, `getWorkspaceAssetIds()`.
+- `lib/deerflow/prompts.ts` — `buildDeerflowRunPayload()` (Phase 1), `buildImprovePosterPayload()` (Phase 2 — compile log + card inventory + iteration counter).
+- `lib/latex/compile-workspace.ts` — **NEW**: `compileWorkspace(workspaceId, opts?)` — extracts the full compile pipeline from the HTTP route into a standalone function callable by the DeerFlow runner. Returns `{ ok, log, revision, error? }`.
+- `app/api/workspaces/[id]/deerflow/runs/route.ts` — Dispatches on `input.kind`: `poster_research` → `executeDeerflowResearch`, `improve_poster` → `executeDeerflowImproveLoop`. Budget/estimate also kind-aware.
+- `app/api/workspaces/[id]/deerflow/estimate/route.ts` — Handles `kind: "improve_poster"` + `maxIterations` for cost pre-flight.
+- `app/api/workspaces/[id]/deerflow/runs/[runId]/apply-improve/route.ts` — **NEW**: Human confirmation for improve_poster runs. Re-validates stored `ImprovePosterProposal`, takes final snapshot, returns patch/iteration/cleanCompile summary.
+- `components/deerflow/deerflow-panel.tsx` — Two-tab DeerFlow panel: "Deep research" (Phase 1) + "Opraviť poster" (Phase 2). Improve tab: max-iterations selector, language picker, cost estimate, live phase labels (Kompilácia/Aplikovanie opráv), per-iteration accordion, clean-compile badge, Potvrdiť/Zahodiť actions.
+- `lib/deerflow/__tests__/contracts-improve.test.ts` — 19 tests for Phase 2 contracts (DeerflowKindSchema, discriminated union, ImprovePosterProposalSchema alias mapping, normalizeImprovePosterProposal card-id whitelist + unsafe LaTeX + unbalanced braces, extractImprovePosterJsonCandidate).
+
 
 ## Environment Variables
 All AI/model configuration is via `.env.local`. Key vars:

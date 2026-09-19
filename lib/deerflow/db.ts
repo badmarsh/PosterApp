@@ -8,7 +8,7 @@
 import "server-only"
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
-import type { PosterResearchProposal } from "./contracts"
+import type { PosterResearchProposal, ImprovePosterProposal } from "./contracts"
 
 export type DeerflowRunStatus = "idle" | "queued" | "running" | "done" | "failed" | "cancelled"
 
@@ -90,7 +90,7 @@ export async function findRunForWorkspace(
 export interface UpdateRunFields {
   status?: DeerflowRunStatus
   phase?: string | null
-  proposal?: PosterResearchProposal | null
+  proposal?: PosterResearchProposal | ImprovePosterProposal | Prisma.InputJsonValue | null
   error?: string | null
   costEstimateUsd?: number | null
   startedAt?: Date | null

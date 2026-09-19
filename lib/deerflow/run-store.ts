@@ -8,9 +8,9 @@
  */
 import "server-only"
 import type { DeerflowRunStatus } from "./db"
-import type { PosterResearchProposal } from "./contracts"
+import type { PosterResearchProposal, ImprovePosterProposal } from "./contracts"
 
-export type RunPhase = "planning" | "researching" | "synthesizing" | "writing" | "finished"
+export type RunPhase = "planning" | "researching" | "synthesizing" | "writing" | "compiling" | "patching" | "finished"
 
 export interface RunLogEvent {
   ts: string
@@ -27,7 +27,7 @@ export interface RunRecord {
   status: DeerflowRunStatus
   phase: RunPhase
   events: RunLogEvent[]
-  proposal: PosterResearchProposal | null
+  proposal: PosterResearchProposal | ImprovePosterProposal | null
   error: { message: string; code: string } | null
   costEstimateUsd: number
   startedAt: number

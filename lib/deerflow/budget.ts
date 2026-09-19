@@ -29,6 +29,24 @@ export function estimateDeerflowRun(depth: DeerflowDepth): DeerflowDepthEstimate
   return DEPTH_ESTIMATES[depth] ?? DEPTH_ESTIMATES.standard
 }
 
+export interface ImprovePosterEstimate {
+  iterations: number
+  minutes: number
+  usd: number
+  description: string
+}
+
+export const IMPROVE_POSTER_ESTIMATES: Record<number, ImprovePosterEstimate> = {
+  1: { iterations: 1, minutes: 3, usd: 0.05, description: "Single iteration fix (~3 min, ~$0.05)" },
+  3: { iterations: 3, minutes: 10, usd: 0.18, description: "Up to 3 iteration fix loop (~10 min, ~$0.18)" },
+  5: { iterations: 5, minutes: 18, usd: 0.35, description: "Full 5-iteration fix loop (~18 min, ~$0.35)" },
+}
+
+export function estimateImprovePosterRun(maxIterations: number): ImprovePosterEstimate {
+  const rounded = maxIterations <= 1 ? 1 : maxIterations <= 3 ? 3 : 5
+  return IMPROVE_POSTER_ESTIMATES[rounded] ?? IMPROVE_POSTER_ESTIMATES[3]
+}
+
 // ---------------------------------------------------------------------------
 // Per-workspace daily ledger
 // ---------------------------------------------------------------------------
