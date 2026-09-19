@@ -337,3 +337,124 @@ These were caught by the new tests, not by review, and are recorded so they are 
 `RetrievalTrace.ranking.scorer` is one of `cross-encoder | lexical-heuristic | fusion-score` and
 `usedNeuralReranker` is true only for the first. `retrieval-routing.test.ts` asserts that a run
 without a loaded reranker cannot report `cross-encoder`.
+
+---
+
+## 4. Round 2 — Gap analysis before the evaluation upgrade (2026-09-19)
+
+Branch `arena/01a0b716-posterapp`, from `dd3be81` on `main`. Nothing in this section was assumed;
+every row is a file that was opened, or a command that was run, in this sandbox.
+
+### 4.1 Baseline gates, re-measured (they differ from §3.1)
+
+| Gate | §3.1 claim | Measured on unmodified `main` here |
+| --- | --- | --- |
+| `npx vitest run` | 2 failed / 1622 passed / 1 skipped | **2 failed / 1622 passed / 1 skipped (164 files)** ✔ |
+| `npx tsc --noEmit` | "191 errors, cannot reach zero" | **0 errors** — see below |
+| `npx eslint .` | "0 errors" | **2 errors, 309 warnings** |
+
+**The `tsc` conclusion in §3.1 was wrong.** The repository already ships
+`scripts/generate-prisma-types.js`, which drives Prisma's own WASM schema builder
+(`prisma/build/prisma_schema_build_bg.wasm`) and `@prisma/client/generator-build` to emit the real
+`.prisma/client/index.d.ts` **without downloading a query-engine binary**. Running it
+(`node scripts/generate-prisma-types.js` → `1895408 bytes`) takes `npx tsc --noEmit` from
+**190 errors to 0**. Two consequences:
+
+1. `tsc` is a usable gate in this sandbox, and the previous rounds' "62 new errors are all
+   Prisma-stub artefacts" reasoning is unnecessary — real type errors would now be visible.
+2. The WASM builder *parses the schema*, so `prisma/schema.prisma` (including the
+   `20260918120000_evidence_first_retrieval` additions) is now machine-validated for syntax and
+   relation shape. It is still **not** validated as executable DDL — that needs a live server,
+   which §4.2 addresses.
+
+The 2 remaining ESLint errors are pre-existing and in React components, not in the retrieval
+stack: `components/thesis-review/evidence-quote-viewer.tsx:363` ("Avoid constructing JSX within
+try/catch") and `components/thesis-review/expert-review-workspace.tsx:352` (React-compiler
+"Existing memoization could not be preserved").
+
+### 4.2 A live PostgreSQL + pgvector is reachable here
+
+`binaries.prisma.sh` and `huggingface.co` are firewalled, but `registry.npmjs.org` and
+`codeload.github.com` are not. That makes two things possible that §3.1 declared impossible:
+
+* **Live pgvector.** `@electric-sql/pglite` + `@electric-sql/pglite-pgvector` give a real
+  PostgreSQL engine with the real pgvector C extension. Verified in this sandbox:
+  `server_version = 18.3`, `SELECT extversion FROM pg_extension WHERE extname='vector'` →
+  **0.8.1**, `CREATE INDEX … USING hnsw (embedding vector_cosine_ops)` succeeds, `ORDER BY
+  embedding <=> $1` returns nearest neighbours, `SET hnsw.ef_search` succeeds and
+  `SET hnsw.iterative_scan='relaxed_order'` **succeeds** (it exists from pgvector 0.8). This is
+  the environment `scripts/verify-pgvector.ts` runs against.
+* **Not** possible here: real model weights (HuggingFace is blocked), so neural
+  embedding/reranker numbers cannot be measured in this sandbox, and PgBouncer transaction-pooler
+  behaviour, which needs a networked pooler. Both stay flagged as *unverified-live* rather than
+  being reported as measured.
+
+### 4.3 What already exists and must be reused (not rebuilt)
+
+| Capability | Where | Status |
+| --- | --- | --- |
+| Pluggable model registry, descriptors for MiniLM / BGE-M3 / E5 / Qwen3, batching, LRU, health | `lib/ai/model-registry.ts` | **present** — descriptors are declarations, never benchmarked |
+| Token-aware hierarchical parent/child chunker | `lib/ai/chunker-v2.ts` (`CHUNKER_VERSION 2.0.0`) | **present** |
+| Contextual prefix, separated from verbatim `content` | `lib/ai/chunk-context.ts`, `document-chunker.ts` | **present** |
+| Six candidate generators (dense/lexical/metadata/citation/graph/community) | `lib/ai/retrievers/generators.ts` | **present** |
+| RRF / weighted-RRF / normalized-sum fusion with per-source shares | `lib/ai/fusion.ts` | **present** |
+| Lexical MMR (`applyMMR`), `mmrSelect`, novelty drift, honest reranker labelling | `lib/ai/retrieval-ranking.ts` | **present** |
+| Parent / neighbour / related-element expansion, labelled evidence blocks | `lib/ai/parent-context.ts` | **present** |
+| Route → transform → generate → fuse → rank → expand → assemble + `RetrievalTrace` | `lib/ai/hybrid-retrieval.ts` | **present** |
+| Query router (13 categories) + criterion profiles | `lib/ai/query-router.ts`, `criterion-profiles.ts` | **present** |
+| Provenance columns (`parserVersion`, `chunkerVersion`, `embeddingModelVersion`, `contentHash`, `pageStart/End`, `sectionPath`, `sourceElementIds`) | `prisma/schema.prisma`, migration `20260918120000` | **present** |
+| `Evidence`, `ThesisClaim`, `ScholarlyPaper`, `CitationOccurrence`, `RetrievalTrace`, `EvalRun` tables | same migration | **schema present, no writer/reader code** |
+| Community hierarchy columns (`level`, `parentCommunityId`, `evidenceIds`, `summaryEmbedding`) | same migration | **schema present, never populated** |
+| Graph edge provenance (`chunkId`, `page`, `confidence`, `extractorVersion`) | same migration | **columns present; `graph-extractor.ts` never writes them** |
+| Adversarial critic with tool access and SUPPORTED_FACT protection | `review-engine.ts::generateSelfCritique` | **present** |
+| Recall@K / Success@K / MRR over a 40-query golden set | `lib/ai/retrieval-eval.ts` | **present** |
+| Context shares so vector/graph evidence is not starved | `thesis-context.ts::THESIS_CONTEXT_SHARES` | **present** (3 shares, no counter-evidence / prior-art share) |
+
+### 4.4 Real gaps, in priority order
+
+**P0 — correctness**
+
+1. **No index-representation guard.** `EMBEDDING_MODEL=Xenova/bge-m3` (1024-dim) against the
+   `vector(384)` column fails at INSERT time with a raw Postgres error; nothing detects the
+   mismatch *before* ingestion, and `schemaVersion` / token-estimator version are never written
+   by the chunker even though the columns and `TOKEN_ESTIMATOR_VERSION` exist.
+2. **`splitProseToTokenBudget` can silently delete source text.** Step 3 calls
+   `truncateToTokenBudget`, which appends `[…]` and drops the tail of any single sentence over
+   `childMaxTokens`. There is no coverage assertion anywhere that the emitted chunks reconstruct
+   the source.
+3. **No live pgvector validation had ever been run** (see §4.2 for the fix).
+4. **Evidence-budget starvation is only partly solved.** `THESIS_CONTEXT_SHARES` reserves routed /
+   vector / graph, but there is no counter-evidence or prior-art share, and
+   `buildFullGenerationContext` still ends in `combined.slice(0, maxChars)`.
+
+**P1 — evaluation and the scientific core**
+
+5. **Nothing is benchmarked.** No `lib/ai/eval/` module, no model benchmark, no ablation matrix,
+   no nDCG, no evidence precision/recall, no cost accounting, no eval CLI. The default embedding
+   model is MiniLM by declaration, not by measurement.
+6. **Novelty is still `cosine ≥ 0.82 ⇒ missing prior art`** (`novelty-detector.ts:36`), claims are
+   extracted from `thesisText.slice(0, 40000)` only, and there is no temporal logic at all — a
+   2024 paper can be flagged as prior art against a 2019 thesis.
+7. **Community retrieval is lexical overlap + a size prior** (`generators.ts::communityRetriever`);
+   `buildGraphCommunities` never writes `summaryEmbedding`, `level`, `parentCommunityId` or
+   `evidenceIds`, and `getCommunityContext` orders by `nodeCount`.
+8. **Counter-evidence is selected, not retrieved.** `selectCounterEvidence` filters chunks that
+   are *already* in the retrieved set; nothing issues a contrary-evidence query.
+9. **Claims are not first-class objects at runtime.** `ThesisClaim` exists in the schema with no
+   writer.
+10. **No adjudicator.** `generateSelfCritique` mutates findings directly.
+
+**P2 — quality**
+
+11. MMR is lexical-only; there is no embedding-diversity mode and no `mmrMode` in the trace.
+12. Numerical and equation consistency are left entirely to the LLM.
+13. `graph-extractor.ts` emits 7 labels and free-form relations and writes no confidence.
+
+### 4.5 Rules this round is held to
+
+* Extend `CandidateGenerator`, `FusionMethod`, `RetrievalRoute`, `ModelInfo`, `RerankModel` and
+  `RetrievalTrace`. Do not add a second retrieval pipeline, a second chunker or a second fusion
+  function.
+* Every advanced stage reads a flag and degrades to the previous behaviour.
+* A benchmark number in this repository is either a measurement produced by a command that can be
+  re-run here, or it is labelled *unverified*.

@@ -107,6 +107,57 @@ const internalDmmf = externalToInternalDmmf(dmmf);
 let types = dmmfToTypes(internalDmmf);
 types = types.replace("import * as runtime from '/';", "import * as runtime from '@prisma/client/runtime/library';");
 
-const targetPath = path.resolve(__dirname, '../node_modules/.pnpm/@prisma+client@5.0.0_prisma@5.0.0/node_modules/.prisma/client/index.d.ts');
+// Resolve the generated client directory the same way Node would, so this script does not
+// hard-code a pnpm store path that changes with the lockfile.
+const clientPkgDir = path.dirname(require.resolve('@prisma/client/package.json'));
+// `@prisma/client` is scoped, so `.prisma/client` is two levels up from the package dir.
+const prismaClientDir = path.resolve(clientPkgDir, '../../.prisma/client');
+const targetPath = path.join(prismaClientDir, 'index.d.ts');
 fs.writeFileSync(targetPath, types);
 console.log('Successfully generated Prisma TypeScript definitions at:', targetPath, `(${types.length} bytes)`);
+
+// ---------------------------------------------------------------------------
+// Runtime stub completion
+// ---------------------------------------------------------------------------
+// `prisma generate` writes both `index.d.ts` and `index.js`. Without the query-engine binary only
+// the types can be produced here, and the default `index.js` stub exports a `Prisma` object with no
+// `sql` / `join` / `raw` / `empty`. Every retrieval module builds its statements with exactly those
+// four helpers, so in an environment without engine binaries the *runtime* fails even though the
+// types are fine — which previously made the whole retrieval layer un-runnable outside a full
+// install, and made live-database validation impossible.
+//
+// These helpers are pure string builders from `@prisma/client/runtime/library`; they do not need an
+// engine. Wiring them onto the stub's `Prisma` makes `Prisma.sql` behave identically to a generated
+// client. `PrismaClient` still throws, so nothing that needs a real connection silently pretends to
+// work.
+const runtimeStubPath = path.join(prismaClientDir, 'index.js');
+let stub = fs.readFileSync(runtimeStubPath, 'utf8');
+const RUNTIME_WIRING = `
+// --- added by scripts/generate-prisma-types.js: pure SQL builders from the Prisma runtime ---
+try {
+  const __rt = require('@prisma/client/runtime/library');
+  Object.assign(Prisma, {
+    sql: __rt.sqltag,
+    join: __rt.join,
+    raw: __rt.raw,
+    empty: __rt.empty,
+    Sql: __rt.Sql,
+    DbNull: __rt.DbNull ?? 'DbNull',
+    JsonNull: __rt.JsonNull ?? 'JsonNull',
+    AnyNull: __rt.AnyNull ?? 'AnyNull',
+  });
+} catch (e) {
+  console.warn('[prisma-stub] could not wire SQL builders from the runtime:', e.message);
+}
+`;
+if (!stub.includes('scripts/generate-prisma-types.js: pure SQL builders')) {
+  const marker = 'var default_index_default = { Prisma };';
+  if (!stub.includes(marker)) {
+    throw new Error(`Could not find "${marker}" in ${runtimeStubPath}; the Prisma stub layout changed.`);
+  }
+  stub = stub.replace(marker, RUNTIME_WIRING + '\n' + marker);
+  fs.writeFileSync(runtimeStubPath, stub);
+  console.log('Wired Prisma.sql/join/raw/empty from the runtime into:', runtimeStubPath);
+} else {
+  console.log('Prisma runtime stub already wired at:', runtimeStubPath);
+}

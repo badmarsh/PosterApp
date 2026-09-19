@@ -35,12 +35,21 @@ export interface RetrievalFilter {
  *
  * HNSW evaluates the index *before* the workspace/document filter, so the
  * default 40 can prune candidate branches before a small workspace fills its
- * result set in a large multi-tenant table. We scale with `limit * 8`
- * (bounded 40–1000) via SET LOCAL — transaction-scoped, so PgBouncer
- * transaction pooling (Supabase port 6543) never leaks the setting.
+ * result set in a large multi-tenant table. Applied via SET LOCAL —
+ * transaction-scoped, so PgBouncer transaction pooling (Supabase port 6543)
+ * never leaks the setting.
+ *
+ * The multiplier is measured, not assumed. `artifacts/eval/pgvector-live.json`
+ * (PostgreSQL 18 + pgvector 0.8.1, brute-force ground truth, HNSW confirmed in
+ * the EXPLAIN plan) gives mean recall@10 on a workspace+document-filtered query
+ * of 0.700 at ef_search=40, 0.933 at 80, 0.967 at 100 and 1.000 at 200. The
+ * previous `limit * 8` asked for 80 at topK=10 and therefore shipped below the
+ * 0.95 bar the retrieval contract claims. `limit * 20` asks for 200 there,
+ * which measured 1.000, and the floor moves 40 → 100 because 40 measured 0.700.
+ * Re-measure before changing these again: `pnpm run eval:pgvector`.
  */
 export function efSearchFor(limit: number): number {
-  return Math.min(1000, Math.max(40, limit * 8))
+  return Math.min(1000, Math.max(100, limit * 20))
 }
 
 /**

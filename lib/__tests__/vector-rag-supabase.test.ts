@@ -77,16 +77,27 @@ vi.mock("@prisma/client", () => ({
 // ---------------------------------------------------------------------------
 
 describe("efSearchFor — HNSW ef_search scaling", () => {
-  it("scales with the requested limit (×8)", async () => {
+  it("scales with the requested limit (×20)", async () => {
     const { efSearchFor } = await import("@/lib/ai/vector-rag")
-    expect(efSearchFor(10)).toBe(80)
-    expect(efSearchFor(50)).toBe(400)
+    expect(efSearchFor(10)).toBe(200)
+    expect(efSearchFor(50)).toBe(1000)
   })
 
-  it("clamps to the [40, 1000] bounds", async () => {
+  it("clamps to the [100, 1000] bounds", async () => {
     const { efSearchFor } = await import("@/lib/ai/vector-rag")
-    expect(efSearchFor(1)).toBe(40)
+    expect(efSearchFor(1)).toBe(100)
     expect(efSearchFor(500)).toBe(1000)
+  })
+
+  // Regression guard for the measured defect: the previous ×8 / floor-40 formula asked for
+  // ef_search=80 at topK=10, which measured recall@10 = 0.933 against brute-force ground truth
+  // on PostgreSQL 18 + pgvector 0.8.1 (artifacts/eval/pgvector-live.json) — below the 0.95 the
+  // retrieval contract claims. ef_search=200 measured 1.000 on the same corpus.
+  it("never asks for an ef_search that measured below the 0.95 recall bar", async () => {
+    const { efSearchFor } = await import("@/lib/ai/vector-rag")
+    for (const limit of [1, 2, 5, 10, 20, 50, 100, 500, 1000]) {
+      expect(efSearchFor(limit), `limit=${limit}`).toBeGreaterThanOrEqual(100)
+    }
   })
 })
 
