@@ -19,7 +19,11 @@ import {
   splitBibliographyEntries,
   collectLeafSections,
   isHierarchicalChunkerEnabled,
+  splitSentences,
+  splitClauses,
+  auditChunkCoverage,
   CHUNKER_VERSION,
+  PARSER_VERSION,
 } from "@/lib/ai/chunker-v2"
 import { countTokens } from "@/lib/ai/token-budget"
 
@@ -268,12 +272,46 @@ describe("splitProseToTokenBudget — boundary preference", () => {
     expect(pieces[0].startsWith("Prvý odstavec.")).toBe(true)
   })
 
-  it("falls back to a token boundary for a single unbreakable run", () => {
-    const run = "slovo ".repeat(400)
-    const { pieces } = splitProseToTokenBudget(run, 64, 3.6)
-    expect(pieces.length).toBe(1)
-    expect(pieces[0].endsWith("[…]")).toBe(true)
-    expect(countTokens(pieces[0], 3.6)).toBeLessThanOrEqual(64)
+  it("emits a single unbreakable run WHOLE and flags it oversized instead of truncating", () => {
+    // Regression: this used to return `truncateToTokenBudget(run, 64)`, i.e. it silently deleted
+    // ~90% of the source text and appended "[…]". Source text is never dropped from the index.
+    const run = "slovo ".repeat(400).trim()
+    const { pieces, oversized } = splitProseToTokenBudget(run, 64, 3.6)
+    expect(pieces).toEqual([run])
+    expect(oversized).toBe(true)
+    expect(pieces[0].endsWith("[…]")).toBe(false)
+    expect(countTokens(pieces[0], 3.6)).toBeGreaterThan(64)
+  })
+
+  it("splits an over-budget single sentence at clause boundaries before giving up", () => {
+    const clause = "meranie prebehlo za kontrolovaných podmienok v laboratóriu"
+    const sentence = `${Array.from({ length: 12 }, () => clause).join(", ")}.`
+    const { pieces, oversized } = splitProseToTokenBudget(sentence, 40, 3.6)
+    expect(pieces.length).toBeGreaterThan(1)
+    expect(oversized).toBe(false)
+    // Lossless: every clause survived somewhere.
+    const joined = pieces.join(" ")
+    for (const token of clause.split(/\s+/)) expect(joined).toContain(token)
+  })
+
+  it("never splits a Slovak/Czech decimal comma or a value inside math", () => {
+    const text = `Priemer dosiahol hodnotu 3,14 a rozptyl 0,05 pri $\\alpha = 0,5$; ďalšia veta pokračuje.`
+    const pieces = splitClauses(text)
+    expect(pieces.length).toBe(2)
+    expect(pieces[0]).toContain("3,14")
+    expect(pieces[0]).toContain("0,05")
+    expect(pieces[0]).toContain("$\\alpha = 0,5$")
+  })
+
+  it("does not split sentences on decimals, abbreviations or section numbers", () => {
+    expect(splitSentences("Hodnota p bola 0.05 a výsledok bol významný.")).toEqual([
+      "Hodnota p bola 0.05 a výsledok bol významný.",
+    ])
+    expect(splitSentences("Použili sme metódu et al. z roku 2019.")).toEqual([
+      "Použili sme metódu et al. z roku 2019.",
+    ])
+    expect(splitSentences("Viď kapitolu 3.1 Metóda.")).toEqual(["Viď kapitolu 3.1 Metóda."])
+    expect(splitSentences("Prvá veta. Druhá veta.")).toEqual(["Prvá veta.", "Druhá veta."])
   })
 })
 

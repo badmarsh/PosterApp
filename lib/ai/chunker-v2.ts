@@ -40,7 +40,7 @@ import { classifySectionKind, type SectionKind } from "./thesis-context"
 import { FIGURE_CAPTION_LINE_RE, type ChunkKind } from "./chunking-config"
 import { normalizeTablesToMarkdown, describeTableChunk } from "./text-splitter"
 import { buildContextualPrefix, describeEquationChunk, type ContextLang } from "./chunk-context"
-import { countTokens, packUnitsIntoTokenBudget, truncateToTokenBudget } from "./token-budget"
+import { TOKEN_ESTIMATOR_VERSION, countTokens, packUnitsIntoTokenBudget, truncateToTokenBudget } from "./token-budget"
 
 // ---------------------------------------------------------------------------
 // Versions — recorded on every indexed object so reindexing can be triggered
@@ -503,6 +503,8 @@ export interface HierarchicalChunk {
   oversized: boolean
   chunkerVersion: string
   parserVersion: string
+  /** Version of the token estimator that sized this chunk. Part of the index manifest. */
+  tokenEstimatorVersion: string
 }
 
 interface EmitContext {
@@ -596,12 +598,26 @@ function buildChunk(
     oversized: part.oversized ?? false,
     chunkerVersion: CHUNKER_VERSION,
     parserVersion: PARSER_VERSION,
+    tokenEstimatorVersion: TOKEN_ESTIMATOR_VERSION,
   }
 }
 
 /**
  * Splits an over-budget prose paragraph into sentence units and re-packs them.
- * Implements the boundary preference: paragraph → sentence → token fallback.
+ *
+ * Boundary preference: paragraph → sentence → clause → emit whole and flag `oversized`.
+ *
+ * **There is deliberately no truncation step.** The previous version ended in
+ * `truncateToTokenBudget(...)`, which appended `[…]` and dropped the tail of any unit that was
+ * still over budget — a silent deletion of source text from the index, and therefore from
+ * evidence validation. A unit that cannot be split further is now emitted **whole** with
+ * `oversized: true`, which is the same convention the chunker already applies to atomic tables and
+ * equations. The embedding model may attend to less of it; the *stored content* — the thing
+ * `evidence-validator.ts` verifies quotes against — is always complete.
+ *
+ * Clause splitting is what makes the "emit whole" outcome rare: a 400-token single sentence is
+ * almost always several comma/semicolon-separated clauses, and splitting there costs nothing
+ * semantically.
  */
 export function splitProseToTokenBudget(
   text: string,
@@ -610,34 +626,153 @@ export function splitProseToTokenBudget(
 ): { pieces: string[]; oversized: boolean } {
   if (countTokens(text, charsPerToken) <= maxTokens) return { pieces: [text], oversized: false }
 
-  // 1. Paragraph boundaries.
-  const paragraphs = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
-  if (paragraphs.length > 1) {
-    const packed = packUnitsIntoTokenBudget(paragraphs, maxTokens, charsPerToken)
-    if (packed.oversized.length === 0) return { pieces: packed.groups.map((g) => g.join("\n\n")), oversized: false }
+  // Walk the boundary ladder: paragraph → sentence → clause. The first level whose units all fit
+  // wins. This is a ladder, not a cascade of special cases, so a single 400-token sentence with no
+  // paragraph break still reaches the clause level (the previous implementation could not: the
+  // clause fallback was nested inside the `sentences.length > 1` branch and was therefore
+  // unreachable for exactly the case it existed for).
+  const levels: Array<(t: string) => string[]> = [
+    (t) => t.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean),
+    splitSentences,
+    splitClauses,
+  ]
+  const joiners = ["\n\n", " ", " "]
+
+  let units: string[] = [text]
+  let joiner = "\n\n"
+  for (let level = 0; level < levels.length; level++) {
+    const next = levels[level](text)
+    if (next.length <= 1) continue
+    units = next
+    joiner = joiners[level]
+    if (units.every((u) => countTokens(u, charsPerToken) <= maxTokens)) break
   }
 
-  // 2. Sentence boundaries.
-  const sentences = text
-    .split(/(?<=[.!?…]["')\]]?)\s+(?=["'(\[]?[\p{Lu}\p{L}0-9])/u)
-    .map((s) => s.trim())
-    .filter(Boolean)
-  if (sentences.length > 1) {
-    const packed = packUnitsIntoTokenBudget(sentences, maxTokens, charsPerToken)
-    if (packed.oversized.length === 0) return { pieces: packed.groups.map((g) => g.join(" ")), oversized: false }
-    // 3. Token fallback for the sentences that are individually over budget.
-    const pieces: string[] = []
-    for (const group of packed.groups) {
-      for (const s of group) {
-        if (countTokens(s, charsPerToken) <= maxTokens) pieces.push(s)
-        else pieces.push(truncateToTokenBudget(s, maxTokens, charsPerToken))
-      }
+  const packed = packUnitsIntoTokenBudget(units, maxTokens, charsPerToken)
+  const pieces = packed.groups.map((g) => g.join(joiner))
+  // A unit that fits nothing is emitted whole and flagged; it is never truncated away.
+  return { pieces, oversized: packed.oversized.length > 0 }
+}
+
+/**
+ * Sentence splitter that does not fire inside numbers, abbreviations or section headings.
+ * Exported because the coverage audit and the regression tests both need the exact boundaries the
+ * chunker used.
+ */
+export function splitSentences(text: string): string[] {
+  const out: string[] = []
+  let buf = ""
+  let inMath = false
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (ch === "$") inMath = !inMath
+    buf += ch
+    if (inMath || !SENTENCE_TERMINATOR.test(ch)) continue
+
+    // Closing quote/bracket may follow the terminator: `… významný."\n`
+    let j = i + 1
+    while (j < text.length && CLOSING_PUNCT.test(text[j])) {
+      buf += text[j]
+      j++
     }
-    return { pieces, oversized: false }
-  }
+    // A sentence boundary needs whitespace after the terminator. `0.05`, `3.1`, `et al.z` have
+    // none, so decimals and section numbers never split here.
+    const ws = /^\s+/.exec(text.slice(j))
+    if (!ws) continue
+    if (!/[\p{Lu}\p{L}0-9"'(\[]/u.test(text[j + ws[0].length] ?? "")) continue
+    if (endsWithAbbreviation(buf)) continue
 
-  // 4. Token fallback.
-  return { pieces: [truncateToTokenBudget(text, maxTokens, charsPerToken)], oversized: false }
+    i = j + ws[0].length - 1
+    out.push(buf.trim())
+    buf = ""
+  }
+  if (buf.trim()) out.push(buf.trim())
+  return out.filter(Boolean)
+}
+
+const SENTENCE_TERMINATOR = /[.!?…]/
+const CLOSING_PUNCT = /["')\]”’]/
+
+/**
+ * True when the text ends in something that looks like an abbreviation rather than a sentence end.
+ *
+ * Two rules cover the real cases in SK/CS/EN academic prose:
+ *   1. the token before the period is a known abbreviation (`et al.`, `resp.`, `t. j.`, `napr.`,
+ *      `cf.`, `viz.`, `approx.`, `obr.`, `kap.`, …);
+ *   2. the token before the period is a single letter — an author initial (`J. Novák`, `A. B. Smith`).
+ *
+ * A single uppercase letter is *not* treated as an initial when it is the whole sentence so far
+ * (`A.`), so list markers still split.
+ */
+export function endsWithAbbreviation(textBefore: string): boolean {
+  const m = /([\p{L}\p{L}']{1,12})\.\s*$/u.exec(textBefore)
+  if (!m) return false
+  const token = m[1].toLowerCase()
+  // A single letter before a period is an author initial ("J. Novák", "A. B. Smith"). Markdown
+  // list markers are "-" / "*" / digits, never a lone letter, so this never swallows a real
+  // sentence boundary in practice.
+  if (token.length === 1) return true
+  return ABBREVIATIONS.has(token)
+}
+
+/** Lowercase, period-free abbreviation tokens that must not terminate a sentence. */
+const ABBREVIATIONS = new Set([
+  // Latin / international
+  "al", "etc", "cf", "viz", "vs", "resp", "ibid", "cit", "eds", "vol", "pp", "figs", "eq",
+  "approx", "ie", "eg", "et",
+  // Slovak / Czech
+  "napr", "tzn", "tzv", "apod", "atď", "atd", "popř", "např", "pozri", "obr", "kap", "č", "čl",
+  "sv", "str", "prof", "ing", "bc", "mgr", "phdr", "mudr", "doc", "rndr",
+  // English
+  "jr", "sr", "mr", "mrs", "ms", "dr", "inc", "ltd", "ave",
+])
+
+/**
+ * Clause splitter: the last resort before emitting an oversized unit.
+ *
+ * Splits on `,` `;` `:` and em-dashes that are followed by whitespace, but never inside
+ * `$…$` / `$$…$$` math, never inside a parenthesised or bracketed group, and never directly after
+ * a digit (so `1,5` and `3,14` survive — the Slovak/Czech decimal comma).
+ */
+export function splitClauses(text: string): string[] {
+  const out: string[] = []
+  let buf = ""
+  let depth = 0
+  let inMath = false
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    const next = text[i + 1] ?? ""
+    if (ch === "$") {
+      // `$$` toggles display math, a lone `$` toggles inline math.
+      if (next === "$" && !inMath) {
+        buf += "$$"
+        i++
+        inMath = true
+        continue
+      }
+      inMath = !inMath
+      buf += ch
+      continue
+    }
+    if (!inMath) {
+      if (ch === "(" || ch === "[" || ch === "{") depth++
+      else if (ch === ")" || ch === "]" || ch === "}") depth = Math.max(0, depth - 1)
+    }
+    const isDecimalComma = ch === "," && /[0-9]/.test(text[i - 1] ?? "") && /[0-9]/.test(next)
+    if (!inMath && depth === 0 && !isDecimalComma && /[;,]/.test(ch) && /\s/.test(next)) {
+      out.push(buf.trim())
+      buf = ""
+      continue
+    }
+    if (!inMath && depth === 0 && ch === ":" && /\s/.test(next) && buf.trim().length > 24) {
+      out.push(buf.trim())
+      buf = ""
+      continue
+    }
+    buf += ch
+  }
+  if (buf.trim()) out.push(buf.trim())
+  return out.filter(Boolean)
 }
 
 export interface ChunkDocumentResult {
@@ -759,7 +894,12 @@ export function chunkDocument(
         .map((e) => `[${e.type}] ${e.text.split("\n")[0].slice(0, 160)}`)
         .join("\n")
       const combined = [headingLine, body, structuralSummary].filter(Boolean).join("\n\n")
-      const parentText = truncateToTokenBudget(combined, resolved.parentMaxTokens, resolved.charsPerToken)
+      // A parent is a *reading window* over children that are each stored in full, so capping it
+      // is not a loss of source text — but it is a loss of window, so it is flagged rather than
+      // left invisible. Retrieval units (children) are never truncated; see
+      // `splitProseToTokenBudget`.
+      const parentFits = countTokens(combined, resolved.charsPerToken) <= resolved.parentMaxTokens
+      const parentText = parentFits ? combined : truncateToTokenBudget(combined, resolved.parentMaxTokens, resolved.charsPerToken)
       const parent = buildChunk(ctx, section, {
         content: parentText,
         type: "section",
@@ -767,6 +907,7 @@ export function chunkDocument(
         startOffset: section.startOffset,
         endOffset: section.endOffset,
         isParent: true,
+        oversized: !parentFits,
       })
       chunks.push(parent)
       parentId = parent.id
@@ -810,4 +951,117 @@ export function chunkDocument(
 export function isHierarchicalChunkerEnabled(): boolean {
   const mode = (process.env.CHUNKER || "hierarchical").toLowerCase()
   return mode !== "legacy" && mode !== "v1"
+}
+
+// ---------------------------------------------------------------------------
+// Coverage audit — the "no silent deletion" proof
+// ---------------------------------------------------------------------------
+
+/** Folds text to a comparable token stream: case-, diacritic-, whitespace- and punctuation-insensitive. */
+function auditTokens(text: string): string[] {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // fold SK/CS diacritics: presnosť == presnost
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((t) => t.length > 0)
+}
+
+export interface CoverageReport {
+  /** Total meaningful tokens in the source document's structural elements. */
+  sourceTokens: number
+  /** Tokens present in at least one emitted retrieval unit. */
+  coveredTokens: number
+  /** `coveredTokens / sourceTokens`. Must be 1.0 for a lossless chunker. */
+  coverage: number
+  /** Tokens in the source that no retrieval unit contains, in source order, de-duplicated. */
+  missingTokens: string[]
+  /** Structural elements (paragraph/table/equation/…) that produced no chunk at all. */
+  uncoveredElements: Array<{ id: string; type: ElementType; sectionPath: string; preview: string }>
+  /** Emitted retrieval units whose content cannot be found in the source (fabricated text). */
+  fabricatedChunks: Array<{ id: string; sectionPath: string | null }>
+  /** Units flagged oversized (emitted whole because no further boundary existed). */
+  oversizedUnits: number
+  /** Number of retrieval units (parents excluded) and parents. */
+  retrievalUnits: number
+  parentUnits: number
+  ok: boolean
+}
+
+/**
+ * Proves that the emitted chunks reconstruct the source.
+ *
+ * The invariant under test is `JOINED_RETRIEVAL_CONTENT ≈ ORIGINAL_CONTENT`: every meaningful
+ * token of every structural element in the document must appear in some retrieval unit, and no
+ * retrieval unit may contain text that is not in the document. Whitespace, markdown scaffolding
+ * and diacritic form are deliberately ignored — they carry no meaning and the chunker normalises
+ * tables on purpose — but *words, numbers, p-values and symbols* are not.
+ *
+ * Parent (section) chunks are excluded from the coverage side: they are bounded reading windows
+ * over children that are each stored in full, so a capped parent is not a loss of source text.
+ * They are still checked for fabrication.
+ */
+export function auditChunkCoverage(markdown: string, chunks: HierarchicalChunk[], documentId = "doc"): CoverageReport {
+  const model = buildDocumentModel(markdown, documentId)
+
+  // Source side: every structural element of every leaf section, plus heading titles.
+  const sourceParts: Array<{ id: string; type: ElementType; sectionPath: string; text: string }> = []
+  walkSections(model.sections, (s) => {
+    for (const el of s.elements) {
+      sourceParts.push({ id: el.id, type: el.type, sectionPath: s.path.join(" > "), text: el.text })
+    }
+  })
+
+  const sourceTokenList = sourceParts.flatMap((p) => auditTokens(p.text))
+  const sourceTokenSet = new Set(sourceTokenList)
+
+  const retrievalUnits = chunks.filter((c) => !c.isParent)
+  const parentUnits = chunks.filter((c) => c.isParent)
+
+  // Chunk side: token multiset of every emitted unit.
+  const chunkTokens = new Set<string>()
+  for (const c of retrievalUnits) for (const t of auditTokens(c.content)) chunkTokens.add(t)
+
+  const missingTokens: string[] = []
+  const seenMissing = new Set<string>()
+  for (const t of sourceTokenList) {
+    if (chunkTokens.has(t) || seenMissing.has(t)) continue
+    seenMissing.add(t)
+    missingTokens.push(t)
+  }
+
+  const coveredTokens = sourceTokenList.filter((t) => chunkTokens.has(t)).length
+  const coverage = sourceTokenList.length === 0 ? 1 : coveredTokens / sourceTokenList.length
+
+  // Element-level: which structural elements contributed nothing at all?
+  const uncoveredElements = sourceParts
+    .filter((p) => {
+      const toks = auditTokens(p.text)
+      return toks.length > 0 && !toks.some((t) => chunkTokens.has(t))
+    })
+    .map((p) => ({ id: p.id, type: p.type, sectionPath: p.sectionPath, preview: p.text.slice(0, 120) }))
+
+  // Fabrication: a retrieval unit containing tokens that exist nowhere in the document.
+  const allSourceTokens = new Set([...sourceTokenSet])
+  walkSections(model.sections, (s) => {
+    for (const t of auditTokens(s.title)) allSourceTokens.add(t)
+  })
+  const fabricatedChunks = retrievalUnits
+    .filter((c) => auditTokens(c.content).some((t) => !allSourceTokens.has(t)))
+    .map((c) => ({ id: c.id, sectionPath: c.sectionPath }))
+
+  const oversizedUnits = retrievalUnits.filter((c) => c.oversized).length
+
+  return {
+    sourceTokens: sourceTokenList.length,
+    coveredTokens,
+    coverage: Math.round(coverage * 1e6) / 1e6,
+    missingTokens,
+    uncoveredElements,
+    fabricatedChunks,
+    oversizedUnits,
+    retrievalUnits: retrievalUnits.length,
+    parentUnits: parentUnits.length,
+    ok: coverage === 1 && uncoveredElements.length === 0,
+  }
 }

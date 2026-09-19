@@ -67,6 +67,15 @@ model DocumentChunk {
   chunkerVersion       String?
   embeddingModelVersion String?
   schemaVersion        String?       @default("1.0")
+  /// Version of the token estimator that sized this chunk. Chunk sizes are token budgets, so a
+  /// change here moves boundaries and invalidates the index exactly like a chunker change does.
+  tokenEstimatorVersion String?
+  /// Width of `embedding` as actually written. Stored alongside the row so a model swap can never
+  /// make a 384-dim vector be read back as a 1024-dim one.
+  embeddingDimensions  Int?
+  /// `manifestKey(currentManifest())` at write time — the whole representation chain in one
+  /// comparable string. Staleness is a single inequality instead of six.
+  indexVersion         String?
 
   createdAt   DateTime               @default(now())
   workspace   Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -628,6 +637,12 @@ model GraphCommunity {
   /// Embedding of `summary`, so community retrieval can be query-aware instead
   /// of "top N by nodeCount". Nullable; width follows DocumentChunk.embedding.
   summaryEmbedding Unsupported("vector(384)")?
+  /// Model that produced `summaryEmbedding`. A community vector must never be compared against a
+  /// query vector from a different model.
+  summaryEmbeddingModel String?
+  /// Content hash of the summary text. Summaries are regenerated only when this changes, so a
+  /// rebuild is reproducible and does not burn LLM calls on unchanged communities.
+  summaryVersion   String?
   extractorVersion String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

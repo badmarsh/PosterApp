@@ -28,6 +28,7 @@ import {
   type PageAnchor,
 } from "./chunker-v2"
 import { generateLocalEmbeddings, getEmbeddingModelId } from "@/lib/ai/local-embeddings"
+import { assertVectorWidth, currentManifest, manifestKey, EMBEDDING_COLUMN_WIDTH_SQL } from "@/lib/ai/index-version"
 
 export type { SectionKind }
 export type { ChunkKind }
@@ -125,10 +126,14 @@ export const DOCUMENT_CHUNK_INSERT_COLUMNS = [
   '"parserVersion"',
   '"chunkerVersion"',
   '"embeddingModelVersion"',
-  // `id` is deliberately LAST: every earlier column keeps the bind position it
-  // had before the hierarchy columns were added, so the row layout stays stable
-  // for callers (and tests) that index rows positionally.
+  // `id` keeps the bind position it had before the hierarchy columns were added, so
+  // the row layout stays stable for callers (and tests) that index rows positionally.
   "id",
+  // Representation-chain columns are appended AFTER `id` for the same reason: adding
+  // them anywhere earlier would shift every bind position downstream of them.
+  '"tokenEstimatorVersion"',
+  '"embeddingDimensions"',
+  '"indexVersion"',
 ] as const
 
 /**
@@ -169,6 +174,31 @@ interface PreparedChunk {
   parserVersion: string
   chunkerVersion: string
   embeddingModelVersion: string
+  tokenEstimatorVersion: string
+  embeddingDimensions: number
+  indexVersion: string
+}
+
+/** Width of a rendered `[x,y,z]` pgvector literal. -1 when it cannot be parsed. */
+function vectorWidthOf(embeddingStr: string): number {
+  const inner = embeddingStr.trim().replace(/^\[/, "").replace(/\]$/, "")
+  if (!inner) return -1
+  return inner.split(",").length
+}
+
+/**
+ * Reads the declared width of `DocumentChunk.embedding` (`atttypmod` on a `vector(n)` column).
+ * Returns `null` when it cannot be determined — a missing answer must not block ingestion, only
+ * a *contradicting* answer does.
+ */
+export async function readEmbeddingColumnWidth(): Promise<number | null> {
+  try {
+    const rows = (await prisma.$queryRawUnsafe(EMBEDDING_COLUMN_WIDTH_SQL)) as Array<{ dim: number }>
+    const dim = rows?.[0]?.dim
+    return typeof dim === "number" && dim > 0 ? dim : null
+  } catch {
+    return null
+  }
 }
 
 export interface DocumentChunkInput {
@@ -412,6 +442,13 @@ export async function ingestDocumentChunks(
   const domainContext = opts.domainContext?.trim() || "Akademický výskum, STEM a aplikované vedy"
   const lang: ContextLang = opts.lang ?? "sk"
   const embeddingModelVersion = getEmbeddingModelId()
+  // The full representation chain, resolved once so every row of this document is stamped
+  // identically. A reindex that changed model mid-flight would otherwise produce a mixed index —
+  // half the vectors from one model, half from another — which is worse than no index at all.
+  const manifest = currentManifest()
+  const tokenEstimatorVersion = manifest.tokenEstimatorVersion
+  const indexVersion = manifestKey(manifest)
+  const embeddingDimensions = manifest.embeddingDimensions
 
   // --- Chunking -------------------------------------------------------------
   // Hierarchical, token-aware chunker v2 by default; `CHUNKER=legacy` restores the
@@ -513,6 +550,9 @@ export async function ingestDocumentChunks(
         parserVersion: c.parserVersion,
         chunkerVersion: c.chunkerVersion,
         embeddingModelVersion,
+        tokenEstimatorVersion: c.tokenEstimatorVersion,
+        embeddingDimensions: embedding.length,
+        indexVersion,
       })
       if (GRAPH_RAG_ENABLED && c.content.length >= GRAPH_EXTRACTION_MIN_CHARS && !c.isParent) {
         graphCandidates.push({ sectionKind: c.sectionKind, content: c.content, chunkId: c.id })
@@ -576,6 +616,9 @@ export async function ingestDocumentChunks(
         parserVersion: PARSER_VERSION,
         chunkerVersion: "1.x",
         embeddingModelVersion,
+        tokenEstimatorVersion,
+        embeddingDimensions,
+        indexVersion,
       })
       if (GRAPH_RAG_ENABLED && chunk.content.length >= GRAPH_EXTRACTION_MIN_CHARS) {
         graphCandidates.push({ sectionKind: chunk.sectionKind, content: chunk.content })
@@ -590,6 +633,28 @@ export async function ingestDocumentChunks(
       }
       prepared.push({ ...meta, embeddingStr: `[${embedding.join(",")}]` })
     })
+  }
+
+  // --- Representation guard --------------------------------------------------
+  // A vector written by model A must never be read back as model B. The most common way that
+  // happens is a width change: `EMBEDDING_MODEL=Xenova/bge-m3` (1024-dim) against the
+  // `vector(384)` column fails deep inside a bulk INSERT, *after* the transaction has already
+  // deleted the previous rows. Checking first turns that into a refusal that leaves the old
+  // index intact.
+  if (prepared.length > 0) {
+    const observedWidth = vectorWidthOf(prepared[0].embeddingStr)
+    const columnWidth = await readEmbeddingColumnWidth()
+    const width = assertVectorWidth(columnWidth, observedWidth)
+    if (!width.ok) {
+      const err = new Error(width.error ?? "Embedding width mismatch")
+      ;(err as { code?: string }).code = "EMBEDDING_WIDTH_MISMATCH"
+      if (opts.ingestFileId) {
+        await prisma.ingestFile
+          .update({ where: { id: opts.ingestFileId }, data: { vectorStatus: "error" } })
+          .catch(() => {})
+      }
+      throw err
+    }
   }
 
   let chunksCreated = 0
@@ -621,7 +686,7 @@ export async function ingestDocumentChunks(
          * Renders one VALUES tuple in DOCUMENT_CHUNK_INSERT_COLUMNS order.
          * `id` is last; a null id means "let the database generate one".
          */
-        const rowSql = (c: PreparedChunk, id: string | null) => Prisma.sql`(${workspaceId}, ${documentId}, ${c.heading}, ${c.content}, ${c.tokens}, ${c.embeddingStr}::vector, NOW(), ${c.kind}, ${c.contextPrefix}, ${c.chunkType}, ${c.ordinal}, ${c.pageStart}, ${c.pageEnd}, ${c.chapter}, ${c.section}, ${c.subsection}, ${c.sectionPath}, ${c.sourceElementIds}, ${c.parentChunkId}, ${c.previousChunkId}, ${c.nextChunkId}, ${c.characterCount}, ${c.oversized}, ${c.contentHash}, ${c.parserVersion}, ${c.chunkerVersion}, ${c.embeddingModelVersion}, ${id ?? Prisma.raw("gen_random_uuid()")})`
+        const rowSql = (c: PreparedChunk, id: string | null) => Prisma.sql`(${workspaceId}, ${documentId}, ${c.heading}, ${c.content}, ${c.tokens}, ${c.embeddingStr}::vector, NOW(), ${c.kind}, ${c.contextPrefix}, ${c.chunkType}, ${c.ordinal}, ${c.pageStart}, ${c.pageEnd}, ${c.chapter}, ${c.section}, ${c.subsection}, ${c.sectionPath}, ${c.sourceElementIds}, ${c.parentChunkId}, ${c.previousChunkId}, ${c.nextChunkId}, ${c.characterCount}, ${c.oversized}, ${c.contentHash}, ${c.parserVersion}, ${c.chunkerVersion}, ${c.embeddingModelVersion}, ${id ?? Prisma.raw("gen_random_uuid()")}, ${c.tokenEstimatorVersion}, ${c.embeddingDimensions}, ${c.indexVersion})`
         const values = slice.map((c) => rowSql(c, allDeterministic ? c.id : null))
         await tx.$executeRaw`
           INSERT INTO "DocumentChunk" (${Prisma.raw(DOCUMENT_CHUNK_INSERT_COLUMNS.join(", "))})

@@ -40,9 +40,13 @@ ALTER TABLE "DocumentChunk" ADD COLUMN IF NOT EXISTS "schemaVersion" TEXT DEFAUL
 
 -- Backfill for pre-existing rows: keep the coarse `kind` view consistent with the
 -- new fine-grained `chunkType` so kind-based filters behave identically.
-UPDATE "DocumentChunk" SET "chunkType" = "table"          WHERE "chunkType" = 'paragraph' AND "kind" = 'table';
-UPDATE "DocumentChunk" SET "chunkType" = "equation"       WHERE "chunkType" = 'paragraph' AND "kind" = 'equation';
-UPDATE "DocumentChunk" SET "chunkType" = "figure_caption" WHERE "chunkType" = 'paragraph' AND "kind" = 'figure_caption';
+-- The literals are single-quoted. Double quotes in PostgreSQL delimit an *identifier*, so
+-- `= "table"` parses as a reference to a column named `table` and the statement fails with
+-- `column "table" does not exist`. Found by executing this migration against a real server
+-- (lib/ai/eval/pgvector-validation.ts); it had never been run before.
+UPDATE "DocumentChunk" SET "chunkType" = 'table'          WHERE "chunkType" = 'paragraph' AND "kind" = 'table';
+UPDATE "DocumentChunk" SET "chunkType" = 'equation'       WHERE "chunkType" = 'paragraph' AND "kind" = 'equation';
+UPDATE "DocumentChunk" SET "chunkType" = 'figure_caption' WHERE "chunkType" = 'paragraph' AND "kind" = 'figure_caption';
 UPDATE "DocumentChunk" SET "characterCount" = length("content") WHERE "characterCount" IS NULL;
 -- NOTE: `contentHash` is intentionally NOT backfilled here. Hashing 200k+ rows inside a
 -- migration would need pgcrypto (not guaranteed to be installed) and would lock the table.
