@@ -1,7 +1,7 @@
 import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
-import { getAtlasTemplate, getMinimalTemplate, getGeminiTemplate, getTikzposterTemplate, getA0PosterTemplate, getLandscapeTemplate, getBetterPosterTemplate } from "./templates"
+import { getAtlasTemplate, getMinimalTemplate, getGeminiTemplate, getTikzposterTemplate, getA0PosterTemplate, getLandscapeTemplate, getBetterPosterTemplate, getConferenceTemplate } from "./templates"
 import type { LatexGenerator } from "./types"
 import { indent, assetUrlToLatexPath, normalizeLatexPath, cleanCaption } from "./helpers"
 import { columnBudgetFor, estimateHeight } from "./layout"
@@ -126,7 +126,8 @@ function generateMetricHero(card: Card, _templateId = ""): string {
   if (items.length > 0) {
     let tileWidth = "0.94"
     if (items.length === 2) tileWidth = "0.46"
-    else if (items.length >= 3) tileWidth = "0.28"
+    else if (items.length === 3) tileWidth = "0.29"
+    else if (items.length >= 4) tileWidth = "0.46"
 
     const tileSnippets = items.map((item) => {
       const formattedVal = parseMarkdownToLatex(item.value)
@@ -137,7 +138,7 @@ function generateMetricHero(card: Card, _templateId = ""): string {
         ? "\\par\\vspace{0.2ex}\n    {\\small\\color{black!75} " + formattedSub + "}"
         : ""
 
-      return "\\fcolorbox{customaccent!30}{customaccent!6}{%\n  \\begin{minipage}{" + tileWidth + "\\linewidth}\n    \\centering\\vspace{0.4ex}\n    {\\Huge\\bfseries\\color{customaccent} " + formattedVal + "}\\par\\vspace{0.3ex}\n    {\\large\\bfseries " + formattedLabel + "}" + subLine + "\\vspace{0.4ex}\n  \\end{minipage}%\n}"
+      return "\\fcolorbox{customaccent!30}{customaccent!6}{%\n  \\begin{minipage}{" + tileWidth + "\\linewidth}\n    \\centering\\vspace{0.4ex}\n    {\\Huge\\bfseries\\color{customaccent} \\fitstat{" + formattedVal + "}}\\par\\vspace{0.3ex}\n    {\\large\\bfseries " + formattedLabel + "}" + subLine + "\\vspace{0.4ex}\n  \\end{minipage}%\n}"
     })
 
     if (items.length <= 3) {
@@ -179,7 +180,7 @@ export function generateLatexForCard(
     if (card.pattern !== "image-focused" && card.content.trim()) {
       parts.push(parseMarkdownToLatex(card.content.trim()))
     }
-    if (card.pattern === "bullets-table") {
+    if (card.pattern === "bullets-table" || card.pattern === "table") {
       parts.push(generateTable(card))
     }
     if (
@@ -249,7 +250,7 @@ export class TikzPosterGenerator implements LatexGenerator {
           return "% ===== Column " + col + " =====\n" + blocks
         }
         if (this.templateId === "betterposter") {
-          const width = col === 2 ? "0.46" : "0.24"
+          const width = col === 2 ? "0.42" : "0.28"
           return "% ===== Column " + col + " =====\n\\column{" + width + "}\n\n" + blocks
         }
         return "% ===== Column " + col + " =====\n\\column{0.333}\n\n" + blocks
@@ -265,6 +266,9 @@ export class TikzPosterGenerator implements LatexGenerator {
     switch (outputConfig.templateId?.toLowerCase()) {
       case "minimal":
         templateContent = getMinimalTemplate(project, themeColor);
+        break;
+      case "conference":
+        templateContent = getConferenceTemplate(project, themeColor);
         break;
       case "gemini":
         templateContent = getGeminiTemplate(project, themeColor);

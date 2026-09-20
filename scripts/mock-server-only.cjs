@@ -1,7 +1,10 @@
 
-const Module = require('module');
-const origRequire = Module.prototype.require;
-Module.prototype.require = function(id) {
-  if (id === 'server-only') return {};
-  return origRequire.apply(this, arguments);
+const m = require('module');
+const orig = m._resolveFilename;
+m._resolveFilename = function(request, parent, isMain, options) {
+  if (request === 'server-only') {
+    return __filename;
+  }
+  return orig.apply(this, arguments);
 };
+

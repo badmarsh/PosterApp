@@ -119,7 +119,7 @@ export async function runSandboxedLatex({ stage, buildCmd, timeoutMs = 60_000, i
     try {
       return await run(
         "wsl",
-        ["--cd", stage, "bash", "-lc", `ulimit -t 55 -v 524288 -f 1048576 2>/dev/null || true; ${hardenedCmd}`],
+        ["--cd", stage.replace(/\\/g, "/"), "bash", "-lc", `ulimit -t 55 -v 524288 -f 1048576 2>/dev/null || true; ${hardenedCmd}`],
         stage,
         timeoutMs
       )

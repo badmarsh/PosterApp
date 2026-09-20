@@ -33,6 +33,7 @@ export const COLUMN_BUDGET_BY_TEMPLATE: Record<string, number> = {
   minimal: 900,
   tikzposter: 900,
   gemini: 900,
+  conference: 900,
   // a0poster uses multicols at a smaller base font, so more fits per column
   a0poster: 1000,
   // A0 landscape: shorter columns
@@ -95,7 +96,7 @@ export function estimateHeightBreakdown(card: Card): HeightBreakdown {
   const bullets = bulletCount * BULLET_UNIT
 
   let table = 0
-  if (card.pattern === "bullets-table" || card.pattern === "section-table") {
+  if (card.pattern === "bullets-table" || card.pattern === "section-table" || card.pattern === "table") {
     table = 30 + (Array.isArray(card.table?.rows) ? card.table.rows.length : 0) * TABLE_ROW_UNIT
   }
 

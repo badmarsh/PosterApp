@@ -1,3 +1,4 @@
+import { isDemoProject, sampleProjects } from "@/lib/mock-data"
 import { NextResponse } from "next/server"
 import fs from "node:fs/promises"
 import { workspacePath } from "@/lib/workspace-files"
@@ -50,7 +51,10 @@ export async function GET(
   }
 
   try {
-    const access = await requireWorkspaceAccess(id)
+    let access: any = null
+    if (!isDemoProject(id)) {
+      access = await requireWorkspaceAccess(id)
+    }
 
     const workspace = await prisma.workspace.findUnique({
       where: { id },
@@ -73,7 +77,7 @@ export async function GET(
     // Build response with both new outputs format and legacy flat fields
     const data = {
       id: workspace.id,
-      role: access.role,
+      role: access?.role ?? "viewer",
       revision: workspace.revision,
       name: workspace.name,
       deerflowEnabled: workspace.deerflowEnabled,

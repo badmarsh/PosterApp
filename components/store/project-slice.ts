@@ -74,6 +74,52 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     }
     jobQueue.cancelAll()
     set((s) => { s.isSwitchingProject = true; s.selectedCardId = null })
+
+    // If switching to an in-memory sample/showcase project, load immediately
+    const sample = sampleProjects.find((p) => p.id === id)
+    if (sample) {
+      set((state) => {
+        state.project = JSON.parse(JSON.stringify(sample))
+        syncActiveCards(state.project)
+        state.selectedCardId = null
+        state.isSwitchingProject = false
+        state.isDirty = false
+        state.isSaving = false
+        state.pdfData = null
+        state.lastCompiledRevision = null
+        state.lastCompiledOutputId = null
+        state.ingestionOpen = false
+      })
+      get().setLastWorkspaceId(id)
+      get().pushEvent({
+        kind: "info",
+        status: "done",
+        title: "Showcase loaded",
+        detail: (sample.outputs?.find(o => o.id === sample.activeOutputId)?.cards?.length || 0) + " cards · " + (sample.templateName || "atlas"),
+      })
+      clearThesisReviewStoreRegistry()
+
+      // Attempt background fetch if backend has synced state
+      try {
+        const res = await apiFetch("/api/workspaces/" + id)
+        if (res.ok) {
+          const projData = await res.json()
+          const { agentEvents = [], chatMessages = [], ...projectData } = projData
+          set((state) => {
+            state.project = { ...projectData, assets: projectData.assets || [], ingestFiles: projectData.ingestFiles || [] }
+            syncActiveCards(state.project)
+          })
+          const safeEvents = agentEvents.map((e) =>
+            e.status === "running" ? { ...e, status: "error", detail: "Interrupted" } : e
+          )
+          get().hydrateUi(safeEvents, chatMessages)
+        }
+      } catch {
+        // In-memory showcase active
+      }
+      return
+    }
+
     try {
       const res = await apiFetch(`/api/workspaces/${id}`)
       if (!res.ok) throw new Error("Failed to load workspace")
@@ -1045,11 +1091,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
   },
   duplicateProject: async () => {
     const src = get().project
-    if (isDemoProject(src.id)) {
-      get().pushEvent({ kind: "info", status: "warning", title: "Cannot duplicate demo", detail: "Open or create a real workspace first." })
-      return
-    }
-    if (get().isDirty) {
+    if (get().isDirty && !isDemoProject(src.id)) {
       await get().saveProject()
       if (get().isDirty) {
         get().pushEvent({ kind: "info", status: "error", title: "Duplicate cancelled", detail: "Unsaved changes could not be saved first." })

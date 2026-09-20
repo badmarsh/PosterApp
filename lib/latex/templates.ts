@@ -23,6 +23,14 @@ export const FITMATH_MACRO = `\\newsavebox{\\eqbox}
     \\usebox{\\eqbox}%
   \\fi
 }
+\\providecommand{\\fitstat}[1]{%
+  \\sbox{\\eqbox}{#1}%
+  \\ifdim\\wd\\eqbox>0.92\\linewidth
+    \\resizebox{0.92\\linewidth}{!}{\\usebox{\\eqbox}}%
+  \\else
+    \\usebox{\\eqbox}%
+  \\fi
+}
 `
 
 // ---------------------------------------------------------------------------
@@ -139,6 +147,87 @@ ${override}
     ${title}\\\\[1mm]
     }}
 \\author{\\Large ${authors}}
+\\institute{\\normalsize ${venue}}
+\\date{}
+
+\\begin{document}
+\\maketitle
+`
+}
+
+export function getConferenceTemplate(project: Project, themeColor?: string): string {
+  const override = posterThemeOverride(themeColor)
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside a Conference Modern tikzposter poster template.
+% Use \\block{Title}{Content} for each card section.
+% Enclose blocks within \\column{width} commands (e.g. \\column{0.33}).
+\\documentclass[a0paper,portrait, blockverticalspace=2.2em, colspace=1.8em]{tikzposter}
+\\tikzposterlatexaffectionproofoff
+\\usepackage{sourcesanspro}
+\\renewcommand{\\familydefault}{\\sfdefault}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{multicol}
+\\usetikzlibrary{calc}
+
+${FITMATH_MACRO}
+
+\\newcommand{\\looseitems}{\\begin{itemize}\\setlength{\\itemsep}{0.3em}}
+\\newcommand{\\tightitems}{\\begin{itemize}\\setlength{\\itemsep}{0.15em}}
+\\newcommand{\\captiontext}[1]{#1}
+
+\\usetheme{Default}
+
+\\definecolor{maincolor}{HTML}{4F46E5}
+\\definecolor{secondarycolor}{RGB}{79, 70, 229}
+\\definecolor{accentbg}{HTML}{EEF2FF}
+${override}
+\\colorlet{customaccent}{maincolor}
+\\definecolorstyle{conferencecolors}{
+    \\colorlet{backgroundcolor}{white}
+    \\colorlet{titlefgcolor}{white}
+    \\colorlet{titlebgcolor}{maincolor}
+    \\colorlet{blocktitlefgcolor}{maincolor}
+    \\colorlet{blocktitlebgcolor}{white}
+    \\colorlet{blockbodyfgcolor}{black}
+    \\colorlet{blockbodybgcolor}{maincolor!3}
+}{}
+\\usecolorstyle{conferencecolors}
+
+\\defineblockstyle{ModernCard}{
+    titlewidthscale=1, bodywidthscale=1, titleleft,
+    titleoffsetx=0pt, titleoffsety=0pt, bodyoffsetx=0pt, bodyoffsety=0pt,
+    bodyverticalshift=0pt, roundedcorners=8, linewidth=1.8pt,
+    titleinnersep=8mm, bodyinnersep=10mm
+}{
+    \\begin{scope}[line width=\\blocklinewidth, rounded corners=\\blockroundedcorners]
+        \\ifBlockHasTitle
+           \\draw[color=maincolor!30, fill=blockbodybgcolor] (blockbody.south west) rectangle (blocktitle.north east);
+           \\draw[color=maincolor!30, fill=white] (blockbody.north west) rectangle (blocktitle.north east);
+           \\draw[color=maincolor, line width=2.5pt] (blocktitle.south west) -- (blocktitle.south east);
+        \\else
+           \\draw[color=maincolor!30, fill=blockbodybgcolor] (blockbody.south west) rectangle (blockbody.north east);
+        \\fi
+    \\end{scope}
+}
+\\useblockstyle{ModernCard}
+
+\\definetitlestyle{ConferenceTitle}{width=780mm, roundedcorners=14, linewidth=2pt,
+  innersep=12pt, titletotopverticalspace=8mm, titletoblockverticalspace=10mm}{%
+  \\begin{scope}[line width=\\titlelinewidth, rounded corners=\\titleroundedcorners]
+    \\draw[color=maincolor!40, fill=titlebgcolor]
+      (\\titleposleft,\\titleposbottom) rectangle (\\titleposright,\\titlepostop);
+  \\end{scope}%
+}
+\\usetitlestyle{ConferenceTitle}
+
+\\title{\\parbox{0.78\\linewidth}{\\centering\\huge\\bfseries
+    ${title}\\vspace{2mm}
+    }}
+\\author{\\Large\\bfseries ${authors}}
 \\institute{\\normalsize ${venue}}
 \\date{}
 

@@ -195,15 +195,8 @@ const EventRow = memo(function EventRow({
           </Button>
         )}
         {event.tips && event.tips.length > 0 && (
-          <div className="mt-2 flex flex-col gap-2">
+          <div className="mt-2 flex flex-col gap-1.5">
             {event.tips.map((tip: any, i: number) => {
-              const severityColor =
-                tip.severity === "error"
-                  ? "bg-destructive/10 text-destructive border-destructive/20"
-                  : tip.severity === "warning"
-                    ? "bg-chart-4/10 text-chart-4 border-chart-4/20"
-                    : "bg-status-info/10 text-status-info border-status-info/20"
-
               // Separate issue description from suggested fix
               let issueText = tip.issue || ""
               let fixText = tip.recommendation || ""
@@ -226,18 +219,15 @@ const EventRow = memo(function EventRow({
               return (
                 <div
                   key={i}
-                  className="flex flex-col gap-1.5 rounded-lg border bg-card p-2 shadow-xs transition-colors hover:border-border/80"
+                  className="flex flex-col gap-1 rounded-md border bg-card p-2 shadow-2xs transition-colors hover:border-border/80"
                 >
                   <div className="flex items-center justify-between gap-1.5">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span
-                        className={cn(
-                          "inline-flex shrink-0 items-center rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
-                          severityColor
-                        )}
-                      >
-                        {tip.severity}
-                      </span>
+                      {tip.severity === "error" && (
+                        <span className="inline-flex shrink-0 items-center rounded-sm border border-destructive/20 bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-destructive">
+                          error
+                        </span>
+                      )}
                       <span className="truncate text-[10.5px] font-medium text-foreground">
                         {displayCategory}
                       </span>
@@ -253,20 +243,16 @@ const EventRow = memo(function EventRow({
                     )}
                   </div>
 
-                  {issueText && (
-                    <p className="text-[11px] leading-snug text-foreground/90 font-normal">
-                      {issueText}
+                  {(issueText || fixText) && (
+                    <p className="text-[11px] leading-snug text-muted-foreground">
+                      {issueText && <span className="text-foreground/90 font-normal">{issueText}</span>}
+                      {fixText && fixText !== issueText && (
+                        <span>
+                          {issueText ? " — " : ""}
+                          {fixText}
+                        </span>
+                      )}
                     </p>
-                  )}
-
-                  {fixText && (
-                    <div className="mt-0.5 flex items-start gap-1.5 rounded-md bg-muted/60 px-2 py-1.5 text-[11px] border border-border/40">
-                      <Sparkles className="size-3.5 mt-0.5 text-chart-4 shrink-0" />
-                      <div className="flex-1 leading-snug">
-                        <span className="font-semibold text-foreground">Action: </span>
-                        <span className="text-muted-foreground">{fixText}</span>
-                      </div>
-                    </div>
                   )}
                 </div>
               )

@@ -14,7 +14,7 @@ const bib=`@article{vaswani2017attention,title={Attention Is All You Need},autho
 @article{pfau2020abinitio,title={Ab-initio Solution of the Electronic Schrödinger Equation},author={Pfau, David and others},journal={Physical Review Research},year={2020}}
 @article{abudayyeh2017rna,title={RNA targeting with CRISPR-Cas13},author={Abudayyeh, Omar and others},journal={Nature},year={2017}}`
 const emptyTable={hasHeader:false,caption:"",rows:[] as string[][]}
-function card(id:string,title:string,pattern:string,content:string,column:number|null,order:number, extra:any={}) {return {id,title,pattern,content,column,order,figureLayout:"single",validation:"valid",table:emptyTable,figures:[],sourceIds:["manuscript"],...extra}}
+function card(rawId:string,title:string,pattern:string,content:string,column:number|null,order:number, extra:any={}) { const id = rawId.startsWith("card_") ? rawId : "card_" + rawId.replace(/[^a-zA-Z0-9_]/g, "_"); return {id,title,pattern,content,column,order,figureLayout:"single",validation:"valid",table:emptyTable,figures:[],sourceIds:["manuscript"],...extra}; }
 function posterCards(slug:string,t:any){const u=(n:string)=>`/api/workspaces/${slug}/assets/${n}`;return [
  card(`${slug}-p1`,`Clinical / Scientific Need`,`bullets`,`${t.claim}\n\n- Pre-specified endpoints and blinded adjudication.\n- Distribution shifts are measured, not hidden.`,1,0),
  card(`${slug}-p2`,`Formal Objective`,`bullets`,`The constrained objective is\n\n$$${t.equation}$$\n\nAll units, uncertainty intervals, and stopping rules are declared before evaluation.`,1,1),

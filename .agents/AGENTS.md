@@ -152,6 +152,23 @@ Schema at `prisma/schema.prisma`. Key notes:
 - `IngestFile.dismissed` — boolean, persisted to DB so dismissed notifications survive page reload
 - Run `npx prisma db push` after schema changes, then `npx prisma generate` (stop server first to release DLL lock)
 
+### Demo Posters & Showcase Guidelines (Stable Block / Card ID Prefix)
+Pri vytváraní, úprave alebo rozširovaní demo plagátov a ukážok (showcase workspaces v `lib/showcases-data.ts`, `lib/mock-data.ts` a `scripts/populate_all_showcases.ts`) je **povinnou podmienkou dodržiavať správny a stabilný prefix pre Block / Card ID**:
+- **Formát Card ID**: Vždy musí dodržiavať štruktúrovaný a predvídateľný prefix s povinným `card_`:
+  * **KRITICKÉ PRAVIDLO**: Všetky karty (vrátane podvýstupov pre slides a paper) **MUSIA** začínať prefixom `card_` (napr. `card_af_slide_1`, `card_af_paper_1`, `card_atlas_slide_1`, `card_atlas_paper_1`, `card_q_slide_1`, `card_q_paper_1`). Nikdy nepoužívať neplatné prefixy bez `card_` ako `slide_af_1` alebo `paper_af_1`!
+  `card_<showcase_prefix>_<col|section>_<slug>`
+  * Príklady v produkcii: `card_atlas_intro`, `card_atlas_detector`, `card_tf_c1_abstract`, `card_res_c1_abstract`, `card_bert_abstract`, `card_gan_abstract`, `card_q_left_theory`, `card_af_challenge`, `card_pos_meta`.
+  * **Pravidlo**: Nikdy nepoužívať náhodné nestabilné ID (ako `Date.now()` alebo náhodné hashe) pri preddefinovaných demo kartách.
+- **LaTeX Block ID Comment Mapping**: Generátor `generator-poster.ts` pre každý blok vkladá do LaTeXu komentár:
+  `% block id: ${card.id}  (column ${card.column}, order ${card.order})`
+  Tento komentár je kľúčový pre AI autofix (`/api/workspaces/[id]/autofix-compile`), DeerFlow improve loop (`lib/deerflow/contracts.ts`) aj VLM Layout Review (`review-layout/route.ts`), ktoré mapujú chybové riadky z `pdflatex` kompilátora a vizuálne bounding boxy priamo na konkrétne ID karty v databáze/store.
+- **Whitelist Validácia**: Autonómne optimalizačné slučky DeerFlow a AI asistenti kontrolujú povolené ID kariet cez whitelist (`getWorkspaceCardIds()`). Pokiaľ blokové ID nezodpovedá whitelistu alebo je nestabilné, navrhnuté zmeny obsahu a formátovania sa zahodia.
+- **Bezpečná duplikácia z dema**: Pri klonovaní dema (`duplicateProject`) sa ID kariet pregenerujú s unikátnym sufixom:
+  `card_${suffix}_${outputIndex}_${cardIndex}`
+  a výstupy:
+  `out_${outputType}_${suffix}_${outputIndex}`,
+  čím sa predchádza kolíziám medzi používateľskými projektmi a zachováva sa úplná integrita referencií.
+
 ---
 
 ## Known Remaining Issues
