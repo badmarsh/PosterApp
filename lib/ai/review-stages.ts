@@ -8,6 +8,7 @@ export type ReviewStage =
   | "criterion_reviews"
   | "primary_review"
   | "self_critique"
+  | "verifying"
   | "synthesis"
   | "persisting"
   | "done"
@@ -22,6 +23,7 @@ export const REVIEW_STAGE_LABELS: Record<ReviewStage, { sk: string; cs: string; 
   criterion_reviews: { sk: "Hodnotím kritériá", cs: "Hodnotím kritéria", en: "Reviewing criteria" },
   primary_review: { sk: "Hlavný posudok", cs: "Hlavní posudek", en: "Primary review" },
   self_critique: { sk: "Sebakritika", cs: "Sebekritika", en: "Self-critique" },
+  verifying: { sk: "Overujem tvrdenia", cs: "Ověřuji tvrzení", en: "Verifying claims" },
   synthesis: { sk: "Záverečná syntéza", cs: "Závěrečná syntéza", en: "Final synthesis" },
   persisting: { sk: "Ukladám posudok", cs: "Ukládám posudek", en: "Saving review" },
   done: { sk: "Hotovo", cs: "Hotovo", en: "Done" },

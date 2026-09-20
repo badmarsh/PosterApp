@@ -315,7 +315,71 @@ export const graphRetriever: CandidateGenerator = {
 }
 
 // ---------------------------------------------------------------------------
-// 6. Community / global
+// 6. Graph DRIFT (bounded BFS frontier expansion)
+// ---------------------------------------------------------------------------
+
+/**
+ * Graph frontier retrieval: bounded BFS expansion across the knowledge graph.
+ *
+ * This is NOT Microsoft's DRIFT algorithm — it is a bounded BFS frontier
+ * expansion (3 iterations, 40 nodes, 500ms timeout) that follows typed
+ * relations (CAUSES, VALIDATES, DEPENDS_ON, EVALUATES) to uncover indirect
+ * dependencies between entities. Included as a supplementary retrieval leg
+ * with low RRF weight (0.12) because graph expansion is complementary to
+ * direct entity linking.
+ */
+export const graphDriftRetriever: CandidateGenerator = {
+  source: "graph-drift",
+  enabled: () => flag("GRAPH_RAG_ENABLED") && flag("GRAPH_DRIFT_ENABLED", false),
+  async retrieve(ctx) {
+    try {
+      const { retrieveDriftGraphContext } = await import("../graph-drift-retrieval")
+      const driftResult = await retrieveDriftGraphContext(ctx.workspaceId, ctx.query, {
+        maxIterations: 3,
+        maxNodes: 40,
+        maxTimeMs: 500,
+        convergenceGainThreshold: 0.05,
+      })
+
+      if (driftResult.expandedNodes.length === 0) return []
+
+      // Map expanded nodes back to their source chunks via documentId
+      const documentIds = Array.from(
+        new Set(driftResult.expandedNodes.map((n) => n.documentId).filter(Boolean))
+      )
+      if (documentIds.length === 0) return []
+
+      // Retrieve chunks from documents that contain the expanded nodes
+      const filter = retrievalJoin(baseFilter(ctx, { documentIds }))
+      const rows = await prisma.$queryRaw<Array<ChunkRow>>`
+        SELECT ${Prisma.raw(CHUNK_SELECT_COLUMNS)}
+        FROM "DocumentChunk"
+        WHERE "workspaceId" = ${ctx.workspaceId}
+          ${filter}
+        ORDER BY ordinal ASC
+        LIMIT ${ctx.limit}
+      `
+
+      // Score by proximity in the BFS expansion: nodes discovered in earlier
+      // iterations get higher scores. Use iteration-based decay.
+      const maxIter = driftResult.iterationsExecuted || 1
+      return rows.map((r, i) => {
+        const positionScore = 1 - i / Math.max(1, rows.length)
+        const decayScore = positionScore * (1 / (1 + (i % maxIter) * 0.3))
+        return toCandidate(r, "graph-drift", Math.max(0.1, decayScore), {
+          driftIterations: driftResult.iterationsExecuted,
+          driftNodes: driftResult.expandedNodes.length,
+          driftEdges: driftResult.expandedEdges.length,
+        })
+      })
+    } catch {
+      return []
+    }
+  },
+}
+
+// ---------------------------------------------------------------------------
+// 7. Community / global
 // ---------------------------------------------------------------------------
 
 /**
@@ -402,6 +466,7 @@ export const ALL_GENERATORS: CandidateGenerator[] = [
   denseRetriever,
   lexicalRetriever,
   graphRetriever,
+  graphDriftRetriever,
   citationRetriever,
   metadataRetriever,
   communityRetriever,
