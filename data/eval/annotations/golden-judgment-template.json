@@ -1,0 +1,44 @@
+{
+  "$schema": "golden-judgment-v2",
+  "description": "Annotated golden judgment for real corpus benchmark. Each file represents one query with chunk-level relevance grades.",
+  "example": {
+    "id": "q-001",
+    "query": "transformer self-attention cross-entropy loss dropout regularization",
+    "domain": "cs_ai",
+    "language": "en",
+    "judgments": [
+      {
+        "queryId": "q-001",
+        "chunkId": "chunk-abc123",
+        "grade": 3,
+        "annotatorId": "annotator-1",
+        "date": "2025-01-15",
+        "rationale": "Directly discusses self-attention mechanism and cross-entropy loss computation"
+      },
+      {
+        "queryId": "q-001",
+        "chunkId": "chunk-def456",
+        "grade": 2,
+        "annotatorId": "annotator-1",
+        "date": "2025-01-15",
+        "rationale": "Mentions dropout regularization in context of training procedures"
+      },
+      {
+        "queryId": "q-001",
+        "chunkId": "chunk-ghi789",
+        "grade": 1,
+        "annotatorId": "annotator-1",
+        "date": "2025-01-15",
+        "rationale": "Tangentially related — discusses general neural network training"
+      },
+      {
+        "queryId": "q-001",
+        "chunkId": "chunk-jkl012",
+        "grade": 0,
+        "annotatorId": "annotator-1",
+        "date": "2025-01-15",
+        "rationale": "Completely unrelated — discusses database indexing"
+      }
+    ]
+  }
+}
