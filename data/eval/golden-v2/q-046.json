@@ -1,0 +1,56 @@
+{
+  "id": "q-046",
+  "query": "BERT bidirectional encoder representations from transformers definition",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-046",
+      "chunkId": "bert-2018_0002",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Abstract: BERT stands for Bidirectional Encoder Representations from Transformers"
+    },
+    {
+      "queryId": "q-046",
+      "chunkId": "bert-2018_0002",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Abstract: BERT stands for Bidirectional Encoder Representations from Transformers"
+    },
+    {
+      "queryId": "q-046",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3: BERT model architecture and bidirectional Transformer encoder"
+    },
+    {
+      "queryId": "q-046",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 3: BERT model architecture and bidirectional Transformer encoder"
+    },
+    {
+      "queryId": "q-046",
+      "chunkId": "bert-2018_0001",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Title and authorship: Pre-training of Deep Bidirectional Transformers"
+    },
+    {
+      "queryId": "q-046",
+      "chunkId": "bert-2018_0001",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Title and authorship: Pre-training of Deep Bidirectional Transformers"
+    }
+  ]
+}

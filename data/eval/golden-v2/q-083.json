@@ -1,0 +1,32 @@
+{
+  "id": "q-083",
+  "query": "pre-training on unlabeled text followed by fine-tuning on downstream tasks",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-083",
+      "chunkId": "bert-2018_0002",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Abstract: Pre-training on unlabeled text and fine-tuning with one additional output layer"
+    },
+    {
+      "queryId": "q-083",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3: Two steps in our framework: pre-training and fine-tuning"
+    },
+    {
+      "queryId": "q-083",
+      "chunkId": "bert-2018_0014",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Fine-tuning ablation across GLUE tasks"
+    }
+  ]
+}

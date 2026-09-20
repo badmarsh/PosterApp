@@ -68,6 +68,66 @@ export async function POST(
   if (!full) return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
   const activeOutput = full.outputs.find((item: any) => item.isActive) ?? full.outputs[0]
   const cards = (activeOutput?.cards ?? []) as unknown as Card[]
+  const rev = parseInt(expectedRevision || "0", 10)
+
+  // Deterministic asset integrity inspection (logos & card figures)
+  const deterministicWarnings: any[] = []
+
+  // Check activeOutput and project logo
+  const effectiveLogoUrl = activeOutput?.logoUrl ?? full.logoUrl ?? null
+  if (effectiveLogoUrl && typeof effectiveLogoUrl === "string" && effectiveLogoUrl.trim()) {
+    const marker = `/api/workspaces/${workspaceId}/assets/`
+    if (effectiveLogoUrl.includes(marker)) {
+      const relPath = effectiveLogoUrl.split(marker)[1]?.split("?")[0]
+      if (relPath) {
+        const filePath = path.join(workspaceDir, "assets", relPath)
+        const exists = await fs.access(filePath).then(() => true).catch(() => false)
+        if (!exists) {
+          deterministicWarnings.push({
+            cardTitle: "Header Logo",
+            issue: `Logo image file is missing: "${relPath}"`,
+            recommendation: "Use AI Fix to restore valid logo or upload new branding image.",
+            targetType: "logo" as const,
+            assetUrl: effectiveLogoUrl,
+            fixable: true,
+            compiledRevision: rev,
+          })
+        }
+      }
+    }
+  }
+
+  // Check figures in each card
+  for (const card of cards) {
+    if (Array.isArray(card.figures)) {
+      for (let i = 0; i < card.figures.length; i++) {
+        const fig = card.figures[i]
+        if (fig && typeof fig.url === "string" && fig.url.trim()) {
+          const marker = `/api/workspaces/${workspaceId}/assets/`
+          if (fig.url.includes(marker)) {
+            const relPath = fig.url.split(marker)[1]?.split("?")[0]
+            if (relPath) {
+              const filePath = path.join(workspaceDir, "assets", relPath)
+              const exists = await fs.access(filePath).then(() => true).catch(() => false)
+              if (!exists) {
+                deterministicWarnings.push({
+                  cardId: card.id,
+                  cardTitle: card.title || "Figure",
+                  issue: `Broken figure in Slot ${i + 1}: file "${relPath}" is missing from assets.`,
+                  recommendation: "Use AI Fix to reconnect matching asset or re-upload figure.",
+                  targetType: "figure" as const,
+                  figureIndex: i,
+                  assetUrl: fig.url,
+                  fixable: true,
+                  compiledRevision: rev,
+                })
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 
   // Create a unique temporary directory for rasterization
   let stage = ""
@@ -118,12 +178,15 @@ export async function POST(
       {
         type: "text",
         text: `Inspect all ${pageFiles.length} attached rendered page(s)/slide(s) for severe visual layout defects:
-1. Two-column collisions: Single-column formulas crossing the gutter into adjacent columns.
-2. Hard clippings: Text, tables, or figures cut off at page edges.
-3. Collisions: Captions overlapping figures or headers.
+1. Header / Logo defects: Missing logos, logos overlapping title text, logos stretched or clipped at edges, or displaying missing-image placeholders.
+2. Broken / Missing graphics: Figures rendering fallback "Image unavailable" placeholder boxes or blank missing frames.
+3. Two-column collisions: Single-column formulas crossing the gutter into adjacent columns.
+4. Hard clippings: Text, tables, figures, or logos cut off at page edges.
+5. Collisions: Captions overlapping figures or headers.
 
 CRITICAL:
 - Do NOT flag intentional full-width spanning figures or tables (table*, figure*) in two-column papers.
+- Flag any missing/broken logos or "Image unavailable" figure placeholders as defects.
 - Only report genuine, severe visible defects. If clean, return {"warnings": []}.`,
       },
     ]
@@ -139,6 +202,8 @@ CRITICAL:
     const systemPrompt = `You are a high-precision visual layout inspector for a scientific ${outputType} editor.
 Inspect the rendered page(s) for genuine, severe layout defects:
 ${typeSpecificGuidelines}
+- Header & logo defects: Missing or clipped logos, logo overlapping title/author text, or broken branding placeholder.
+- Broken or missing graphics (e.g. elements displaying "Image unavailable" placeholder boxes).
 - Serious element collisions (e.g. caption rendered over a figure).
 - Clipped text or clipped plot axis labels.
 
@@ -146,9 +211,10 @@ Output Schema:
 {
   "warnings": [
     { 
-      "cardTitle": "Short card/section name (max 4 words, e.g. 'Section 1' or 'Ablation')", 
-      "issue": "Ultra-concise defect (max 8 words, e.g. 'Formula spills across central column gutter')", 
-      "recommendation": "Concise, actionable user fix (max 10 words, e.g. 'Split formula across lines or reduce text')",
+      "cardTitle": "Short card/section name or 'Header Logo' (max 4 words, e.g. 'Header Logo', 'Model Architecture')", 
+      "issue": "Ultra-concise defect (max 8 words, e.g. 'Logo overlaps title' or 'Figure shows Image unavailable')", 
+      "recommendation": "Concise, actionable user fix (max 10 words, e.g. 'Fix logo or reconnect asset')",
+      "targetType": "card" | "figure" | "logo" | "header",
       "estimatedOverflowCharacters": 20 
     }
   ]
@@ -156,6 +222,7 @@ Output Schema:
 
 STRICT CALIBRATION:
 - HIGH CONFIDENCE ONLY: Do NOT flag intentional full-width spanning elements or minor spacing variations.
+- Flag broken logos and "Image unavailable" figure placeholders with high confidence.
 - NEVER suggest raw LaTeX commands (do NOT write \\begin{sidewaystable}, \\resizebox, \\small, etc.).
 - Default to clean: If the document is properly typeset, return {"warnings": []}.
 - NEVER include entries with "No issues detected", "None", or "Clean".`
@@ -215,7 +282,6 @@ STRICT CALIBRATION:
     // Map the returned card titles back to stable cardIds
     const warningsWithRealIds = []
     const unmatchedWarnings = []
-    const rev = parseInt(expectedRevision || "0", 10)
 
     const cleanTitle = (t: string) => t.trim().toLowerCase().replace(/^\d+[\.\s]*/, "")
 
@@ -249,8 +315,19 @@ STRICT CALIBRATION:
       }
     }
 
+    // Merge deterministic warnings with VLM warnings (deduplicating if both hit the same card or logo)
+    const combinedWarnings = [...deterministicWarnings]
+    for (const w of [...warningsWithRealIds, ...unmatchedWarnings]) {
+      const alreadyFlagged = combinedWarnings.some(
+        (dw) => (w.cardId && dw.cardId === w.cardId) || (!w.cardId && dw.cardTitle === w.cardTitle)
+      )
+      if (!alreadyFlagged) {
+        combinedWarnings.push(w)
+      }
+    }
+
     return NextResponse.json({
-      warnings: [...warningsWithRealIds, ...unmatchedWarnings],
+      warnings: combinedWarnings,
       compiledRevision: rev,
       pageRange: { from: 1, to: pageFiles.length, maxEvaluated: MAX_PAGES_TO_REVIEW },
     })

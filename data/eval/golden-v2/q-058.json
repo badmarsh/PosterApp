@@ -1,0 +1,56 @@
+{
+  "id": "q-058",
+  "query": "Stanford Question Answering Dataset SQuAD v1.1 span prediction start and end",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-058",
+      "chunkId": "bert-2018_0004",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Question paragraph start/end span token representation"
+    },
+    {
+      "queryId": "q-058",
+      "chunkId": "bert-2018_0004",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Question paragraph start/end span token representation"
+    },
+    {
+      "queryId": "q-058",
+      "chunkId": "bert-2018_0008",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Question answering span prediction format"
+    },
+    {
+      "queryId": "q-058",
+      "chunkId": "bert-2018_0008",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Question answering span prediction format"
+    },
+    {
+      "queryId": "q-058",
+      "chunkId": "bert-2018_0010",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 4.2 / Table 3: SQuAD v1.1 100k question/answer pairs, EM and F1 scores"
+    },
+    {
+      "queryId": "q-058",
+      "chunkId": "bert-2018_0010",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 4.2 / Table 3: SQuAD v1.1 100k question/answer pairs, EM and F1 scores"
+    }
+  ]
+}

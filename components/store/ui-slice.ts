@@ -234,30 +234,35 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
 
               if (realWarnings.length > 0) {
                  const vlmTips = realWarnings.map((w: any) => {
-                   const rawTitle = w.cardTitle || "Card"
-                   const cleanCardTitle = rawTitle.replace(/^(\d+\.?\s*|card:\s*|table\s*\d+:?\s*|figure\s*\d+:?\s*)/i, "").trim() || rawTitle
-                   const shortTitle = cleanCardTitle.length > 28 ? cleanCardTitle.slice(0, 27) + "…" : cleanCardTitle
-                   return {
-                     severity: "warning" as const,
-                     category: `Card: ${shortTitle}`,
-                     cardId: w.cardId,
-                     issue: w.issue,
-                     recommendation: w.recommendation,
-                     message: `${w.issue} — ${w.recommendation}`,
-                   }
-                 })
-                 get().updateEvent(vlmEv, {
-                   kind: "review",
-                   status: "done",
-                   title: `Layout Inspection`,
-                   detail: `${realWarnings.length} layout issue${realWarnings.length === 1 ? "" : "s"} detected`,
-                   tips: vlmTips
-                 })
-                 set((s) => { s.layoutWarnings = realWarnings })
-              } else {
-                 get().updateEvent(vlmEv, { kind: "info", status: "done", title: `Layout Inspection Passed`, detail: "No visual overflows detected." })
-                 set((s) => { s.layoutWarnings = [] })
-              }
+                  const rawTitle = w.cardTitle || "Card"
+                  const cleanCardTitle = rawTitle.replace(/^(\d+\.?\s*|card:\s*|table\s*\d+:?\s*|figure\s*\d+:?\s*)/i, "").trim() || rawTitle
+                  const shortTitle = cleanCardTitle.length > 28 ? cleanCardTitle.slice(0, 27) + "…" : cleanCardTitle
+                  const category = w.targetType === "logo" || /logo/i.test(w.cardTitle)
+                    ? "Header / Logo"
+                    : w.cardId
+                    ? `Card: ${shortTitle}`
+                    : `Layout: ${shortTitle}`
+                  return {
+                    severity: "warning" as const,
+                    category,
+                    cardId: w.cardId,
+                    issue: w.issue,
+                    recommendation: w.recommendation,
+                    message: `${w.issue} — ${w.recommendation}`,
+                  }
+                })
+                get().updateEvent(vlmEv, {
+                  kind: "review",
+                  status: "done",
+                  title: `Layout Inspection`,
+                  detail: `${realWarnings.length} layout issue${realWarnings.length === 1 ? "" : "s"} detected`,
+                  tips: vlmTips
+                })
+                set((s) => { s.layoutWarnings = realWarnings })
+             } else {
+                get().updateEvent(vlmEv, { kind: "info", status: "done", title: `Layout Inspection Passed`, detail: "No visual overflows or asset defects detected." })
+                set((s) => { s.layoutWarnings = [] })
+             }
               set((s) => { s.lastReviewedRevision = revision ?? null })
             }).catch(err => {
                  get().updateEvent(vlmEv, { status: "error", title: `VLM Layout Check failed`, detail: String(err) })

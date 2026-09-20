@@ -154,7 +154,18 @@ export interface UiSlice {
   /** Which right-sidebar tab is shown when the inspector first opens. */
   inspectorDefaultTab: "editor" | "pdf"
   setInspectorDefaultTab: (tab: "editor" | "pdf") => void
-  layoutWarnings: { cardId?: string; cardTitle: string; issue: string; recommendation: string; estimatedOverflowCharacters?: number; compiledRevision?: number }[]
+  layoutWarnings: {
+    cardId?: string
+    cardTitle: string
+    issue: string
+    recommendation: string
+    estimatedOverflowCharacters?: number
+    compiledRevision?: number
+    targetType?: "card" | "figure" | "logo" | "header"
+    figureIndex?: number
+    assetUrl?: string
+    fixable?: boolean
+  }[]
   lastReviewedRevision: number | null
   setLastReviewedRevision: (r: number | null) => void
 

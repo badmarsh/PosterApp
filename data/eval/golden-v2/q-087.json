@@ -1,0 +1,56 @@
+{
+  "id": "q-087",
+  "query": "dot-product attention scaling factor variance magnitude preservation",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-087",
+      "chunkId": "transformer-2017_0003",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.2: Scaling factor 1/sqrt(dk) counteracting large magnitude dot products with small softmax gradients"
+    },
+    {
+      "queryId": "q-087",
+      "chunkId": "transformer-2017_0003",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Section 3.2: Scaling factor 1/sqrt(dk) counteracting large magnitude dot products with small softmax gradients"
+    },
+    {
+      "queryId": "q-087",
+      "chunkId": "transformer-2017_0002",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Scaled dot-product attention"
+    },
+    {
+      "queryId": "q-087",
+      "chunkId": "transformer-2017_0002",
+      "grade": 1,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Scaled dot-product attention"
+    },
+    {
+      "queryId": "q-087",
+      "chunkId": "bert-2018_0008",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Self-attention calculation"
+    },
+    {
+      "queryId": "q-087",
+      "chunkId": "bert-2018_0008",
+      "grade": 1,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Self-attention calculation"
+    }
+  ]
+}

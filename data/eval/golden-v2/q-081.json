@@ -1,0 +1,56 @@
+{
+  "id": "q-081",
+  "query": "self-attention mechanism replacing recurrent and convolutional architectures",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-081",
+      "chunkId": "transformer-2017_0002",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Abstract: Transformer model based solely on attention, dispensing with recurrence and convolutions entirely"
+    },
+    {
+      "queryId": "q-081",
+      "chunkId": "transformer-2017_0002",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Abstract: Transformer model based solely on attention, dispensing with recurrence and convolutions entirely"
+    },
+    {
+      "queryId": "q-081",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Self-attention layers vs recurrent network architectures"
+    },
+    {
+      "queryId": "q-081",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Self-attention layers vs recurrent network architectures"
+    },
+    {
+      "queryId": "q-081",
+      "chunkId": "bert-2018_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Transformer encoder basis for BERT"
+    },
+    {
+      "queryId": "q-081",
+      "chunkId": "bert-2018_0002",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Transformer encoder basis for BERT"
+    }
+  ]
+}

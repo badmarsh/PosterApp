@@ -1,0 +1,56 @@
+{
+  "id": "q-057",
+  "query": "Multi-Genre Natural Language Inference MNLI matched and mismatched accuracy",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-057",
+      "chunkId": "bert-2018_0009",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 4.1: MNLI is a 433k sentence-pair classification task, reports matched and mismatched accuracy"
+    },
+    {
+      "queryId": "q-057",
+      "chunkId": "bert-2018_0009",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Section 4.1: MNLI is a 433k sentence-pair classification task, reports matched and mismatched accuracy"
+    },
+    {
+      "queryId": "q-057",
+      "chunkId": "bert-2018_0014",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Table 1: MNLI accuracy scores BERT_BASE 84.6/83.4, BERT_LARGE 86.7/85.9"
+    },
+    {
+      "queryId": "q-057",
+      "chunkId": "bert-2018_0014",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Table 1: MNLI accuracy scores BERT_BASE 84.6/83.4, BERT_LARGE 86.7/85.9"
+    },
+    {
+      "queryId": "q-057",
+      "chunkId": "bert-2018_0044",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "MNLI dev accuracy curve over pre-training steps"
+    },
+    {
+      "queryId": "q-057",
+      "chunkId": "bert-2018_0044",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: MNLI dev accuracy curve over pre-training steps"
+    }
+  ]
+}

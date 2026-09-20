@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Palette, RotateCcw, Upload, Loader2, QrCode, Sparkles } from "lucide-react"
+import { Palette, RotateCcw, Upload, Loader2, QrCode, Sparkles, AlertTriangle } from "lucide-react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { apiFetch } from "@/lib/api-fetch"
+import { toast } from "sonner"
 
 interface TemplateBrandingProps {
   project: any
@@ -33,6 +34,8 @@ export function TemplateBranding({
   const activeThemeColor = activeOutput?.themeColor ?? null
   const headerLogoInputRef = useRef<HTMLInputElement>(null)
   const [isUploadingHeaderLogo, setIsUploadingHeaderLogo] = useState(false)
+  const [logoLoadError, setLogoLoadError] = useState(false)
+  const [isFixingLogo, setIsFixingLogo] = useState(false)
 
   // QR Code state
   const [qrUrl, setQrUrl] = useState("")
@@ -104,20 +107,56 @@ export function TemplateBranding({
                     alt="Document Logo"
                     fill
                     className="object-contain"
+                    onError={() => setLogoLoadError(true)}
+                    onLoad={() => setLogoLoadError(false)}
                   />
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-medium truncate">
                     {metadata.isLogoOverridden ? "Custom Document Logo" : "Project Default Logo"}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => headerLogoInputRef.current?.click()}
-                    className="text-[11px] font-medium text-primary hover:underline cursor-pointer"
-                    disabled={isUploadingHeaderLogo}
-                  >
-                    {isUploadingHeaderLogo ? "Uploading..." : "Override logo"}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => headerLogoInputRef.current?.click()}
+                      className="text-[11px] font-medium text-primary hover:underline cursor-pointer"
+                      disabled={isUploadingHeaderLogo}
+                    >
+                      {isUploadingHeaderLogo ? "Uploading..." : "Override logo"}
+                    </button>
+                    {logoLoadError && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setIsFixingLogo(true);
+                          try {
+                            const res = await apiFetch(`/api/workspaces/${project.id}/fix-asset`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ type: "logo" }),
+                            })
+                            const data = await res.json()
+                            if (res.ok && data.ok && data.fixedUrl) {
+                              updateActiveOutput({ logoUrl: data.fixedUrl })
+                              setLogoLoadError(false)
+                              toast.success("Logo reconnected", { description: data.explanation })
+                            } else {
+                              toast.error("Logo fix failed", { description: data.error || "No matching logo found." })
+                            }
+                          } catch {
+                            toast.error("Failed to run AI fix on logo")
+                          } finally {
+                            setIsFixingLogo(false)
+                          }
+                        }}
+                        disabled={isFixingLogo}
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-destructive hover:underline cursor-pointer"
+                      >
+                        {isFixingLogo ? <Loader2 className="size-2.5 animate-spin" /> : <Sparkles className="size-2.5" />}
+                        AI Fix Logo
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
               {metadata.isLogoOverridden && (

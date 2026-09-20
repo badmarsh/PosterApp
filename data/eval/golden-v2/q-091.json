@@ -1,0 +1,32 @@
+{
+  "id": "q-091",
+  "query": "BERT masked language modeling cloze task bidirectional context fusion",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-091",
+      "chunkId": "bert-2018_0002",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Abstract: Cloze task enables representations to fuse left and right context"
+    },
+    {
+      "queryId": "q-091",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.1: Masked LM randomly masking tokens to predict original word"
+    },
+    {
+      "queryId": "q-091",
+      "chunkId": "bert-2018_0043",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Ablation of MLM pre-training"
+    }
+  ]
+}

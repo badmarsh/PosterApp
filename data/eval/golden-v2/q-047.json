@@ -1,0 +1,32 @@
+{
+  "id": "q-047",
+  "query": "masked language model MLM 15 percent of token positions masked",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-047",
+      "chunkId": "bert-2018_0002",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Abstract: Masked language model (MLM) randomly masks tokens from the input"
+    },
+    {
+      "queryId": "q-047",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.1: 15% of token positions chosen for masking at random"
+    },
+    {
+      "queryId": "q-047",
+      "chunkId": "bert-2018_0043",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Convergence of MLM pre-training predicting 15% of words per batch"
+    }
+  ]
+}

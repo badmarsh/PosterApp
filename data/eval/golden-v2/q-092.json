@@ -1,0 +1,56 @@
+{
+  "id": "q-092",
+  "query": "BERT next sentence prediction downstream QA and NLI task performance",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-092",
+      "chunkId": "bert-2018_0002",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Next sentence prediction task beneficial for Question Answering and Natural Language Inference"
+    },
+    {
+      "queryId": "q-092",
+      "chunkId": "bert-2018_0002",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Next sentence prediction task beneficial for Question Answering and Natural Language Inference"
+    },
+    {
+      "queryId": "q-092",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.1: NSP joint pre-training with MLM"
+    },
+    {
+      "queryId": "q-092",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 3.1: NSP joint pre-training with MLM"
+    },
+    {
+      "queryId": "q-092",
+      "chunkId": "bert-2018_0014",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 5.1: No NSP ablation showing drop on QNLI and MNLI"
+    },
+    {
+      "queryId": "q-092",
+      "chunkId": "bert-2018_0014",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 5.1: No NSP ablation showing drop on QNLI and MNLI"
+    }
+  ]
+}

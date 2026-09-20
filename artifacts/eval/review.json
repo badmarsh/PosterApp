@@ -1,5 +1,7 @@
 {
-  "timestamp": "2026-09-20T12:30:19.158Z",
+  "timestamp": "2026-09-20T18:52:33.298Z",
+  "methodology": "unit_test",
+  "methodologyNote": "Verified with 1 hardcoded unverified critical finding. Not a real review evaluation.",
   "adjudicatedFindingsCount": 1,
   "unjustifiedCriticalDowngraded": true,
   "severityCalibrationAgreement": 0.94

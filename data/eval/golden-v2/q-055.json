@@ -1,0 +1,32 @@
+{
+  "id": "q-055",
+  "query": "BERT Large 24 layers 1024 hidden 16 heads 340M parameters",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-055",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3: BERT_LARGE: L=24, H=1024, A=16, total parameters = 340M"
+    },
+    {
+      "queryId": "q-055",
+      "chunkId": "bert-2018_0017",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Table 6: L=24, H=1024, A=16 BERT_LARGE model configuration"
+    },
+    {
+      "queryId": "q-055",
+      "chunkId": "bert-2018_0014",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT_LARGE downstream task performance"
+    }
+  ]
+}

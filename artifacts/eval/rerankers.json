@@ -1,5 +1,7 @@
 {
-  "timestamp": "2026-09-20T12:30:19.150Z",
+  "timestamp": "2026-09-20T18:52:33.282Z",
+  "methodology": "simulated",
+  "methodologyNote": "Reranker metrics are estimated, not measured against real queries.",
   "rerankers": [
     {
       "id": "none",

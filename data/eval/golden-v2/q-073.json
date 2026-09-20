@@ -1,0 +1,32 @@
+{
+  "id": "q-073",
+  "query": "NLI control task and General control task participant filtering",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-073",
+      "chunkId": "llm-survey-2023_0014",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 5: Zero-shot accuracy with perfect NLI Control scores"
+    },
+    {
+      "queryId": "q-073",
+      "chunkId": "llm-survey-2023_0015",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 6: Accuracy data with perfect General Control scores"
+    },
+    {
+      "queryId": "q-073",
+      "chunkId": "llm-survey-2023_0017",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 8: Accuracy with all perfect NLI and General Control scores"
+    }
+  ]
+}

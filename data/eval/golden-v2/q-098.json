@@ -1,0 +1,56 @@
+{
+  "id": "q-098",
+  "query": "human annotator response times distribution cognitive processing of prompts",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-098",
+      "chunkId": "llm-survey-2023_0013",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 4: Total response times distribution of human participants mean 126s"
+    },
+    {
+      "queryId": "q-098",
+      "chunkId": "llm-survey-2023_0013",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Figure 4: Total response times distribution of human participants mean 126s"
+    },
+    {
+      "queryId": "q-098",
+      "chunkId": "llm-survey-2023_0018",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 9: Response time filtering analysis"
+    },
+    {
+      "queryId": "q-098",
+      "chunkId": "llm-survey-2023_0018",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Figure 9: Response time filtering analysis"
+    },
+    {
+      "queryId": "q-098",
+      "chunkId": "llm-survey-2023_0004",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Human task completion variance"
+    },
+    {
+      "queryId": "q-098",
+      "chunkId": "llm-survey-2023_0004",
+      "grade": 1,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Human task completion variance"
+    }
+  ]
+}

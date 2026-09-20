@@ -1,0 +1,80 @@
+{
+  "id": "q-054",
+  "query": "BERT Base 12 layers 768 hidden 12 heads 110M parameters",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-054",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3: BERT_BASE: L=12, H=768, A=12, total parameters = 110M"
+    },
+    {
+      "queryId": "q-054",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 3: BERT_BASE: L=12, H=768, A=12, total parameters = 110M"
+    },
+    {
+      "queryId": "q-054",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Section 3: BERT_BASE: L=12, H=768, A=12, total parameters = 110M"
+    },
+    {
+      "queryId": "q-054",
+      "chunkId": "bert-2018_0016",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Table 6: L=12, H=768, A=12 BERT_BASE model size configuration"
+    },
+    {
+      "queryId": "q-054",
+      "chunkId": "bert-2018_0016",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Table 6: L=12, H=768, A=12 BERT_BASE model size configuration"
+    },
+    {
+      "queryId": "q-054",
+      "chunkId": "bert-2018_0016",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Table 6: L=12, H=768, A=12 BERT_BASE model size configuration"
+    },
+    {
+      "queryId": "q-054",
+      "chunkId": "bert-2018_0017",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Model size ablation across tasks"
+    },
+    {
+      "queryId": "q-054",
+      "chunkId": "bert-2018_0017",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Model size ablation across tasks"
+    },
+    {
+      "queryId": "q-054",
+      "chunkId": "bert-2018_0017",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Model size ablation across tasks"
+    }
+  ]
+}

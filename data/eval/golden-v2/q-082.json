@@ -1,0 +1,56 @@
+{
+  "id": "q-082",
+  "query": "bidirectional self-attention encoder vs unidirectional masked autoregressive decoder",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-082",
+      "chunkId": "bert-2018_0002",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Abstract: Deep bidirectional representation vs left-to-right unidirectional"
+    },
+    {
+      "queryId": "q-082",
+      "chunkId": "bert-2018_0002",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Abstract: Deep bidirectional representation vs left-to-right unidirectional"
+    },
+    {
+      "queryId": "q-082",
+      "chunkId": "bert-2018_0034",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 3: BERT bidirectional Transformer vs OpenAI GPT left-to-right"
+    },
+    {
+      "queryId": "q-082",
+      "chunkId": "bert-2018_0034",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Figure 3: BERT bidirectional Transformer vs OpenAI GPT left-to-right"
+    },
+    {
+      "queryId": "q-082",
+      "chunkId": "transformer-2017_0004",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Decoder masking preventing leftward information flow"
+    },
+    {
+      "queryId": "q-082",
+      "chunkId": "transformer-2017_0004",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Decoder masking preventing leftward information flow"
+    }
+  ]
+}

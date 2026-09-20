@@ -1,0 +1,32 @@
+{
+  "id": "q-077",
+  "query": "sports news category excerpts premise sentences domain specificity",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-077",
+      "chunkId": "llm-survey-2023_0029",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section C: Excerpts taken from articles in the 'Sports' category as premise sentences"
+    },
+    {
+      "queryId": "q-077",
+      "chunkId": "llm-survey-2023_0038",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Sports prompt template formulation"
+    },
+    {
+      "queryId": "q-077",
+      "chunkId": "llm-survey-2023_0023",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Sports classification results"
+    }
+  ]
+}

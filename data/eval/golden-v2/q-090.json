@@ -1,0 +1,80 @@
+{
+  "id": "q-090",
+  "query": "attention matrix complexity quadratic in sequence length O(n^2)",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-090",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 4 / Table 1: Self-Attention per-layer complexity O(n^2 * d)"
+    },
+    {
+      "queryId": "q-090",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 4 / Table 1: Self-Attention per-layer complexity O(n^2 * d)"
+    },
+    {
+      "queryId": "q-090",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Section 4 / Table 1: Self-Attention per-layer complexity O(n^2 * d)"
+    },
+    {
+      "queryId": "q-090",
+      "chunkId": "transformer-2017_0003",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Matrix multiplication dot-product attention"
+    },
+    {
+      "queryId": "q-090",
+      "chunkId": "transformer-2017_0003",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Matrix multiplication dot-product attention"
+    },
+    {
+      "queryId": "q-090",
+      "chunkId": "transformer-2017_0003",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Matrix multiplication dot-product attention"
+    },
+    {
+      "queryId": "q-090",
+      "chunkId": "transformer-2017_0002",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Complexity vs recurrent layers"
+    },
+    {
+      "queryId": "q-090",
+      "chunkId": "transformer-2017_0002",
+      "grade": 1,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Complexity vs recurrent layers"
+    },
+    {
+      "queryId": "q-090",
+      "chunkId": "transformer-2017_0002",
+      "grade": 1,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Complexity vs recurrent layers"
+    }
+  ]
+}

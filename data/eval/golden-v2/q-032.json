@@ -1,0 +1,56 @@
+{
+  "id": "q-032",
+  "query": "feed forward network sub-layer ReLU activation two linear transformations",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-032",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.3: Position-wise Feed-Forward Networks FFN(x) = max(0, xW1 + b1)W2 + b2"
+    },
+    {
+      "queryId": "q-032",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 3.3: Position-wise Feed-Forward Networks FFN(x) = max(0, xW1 + b1)W2 + b2"
+    },
+    {
+      "queryId": "q-032",
+      "chunkId": "transformer-2017_0002",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Network sub-layers"
+    },
+    {
+      "queryId": "q-032",
+      "chunkId": "transformer-2017_0002",
+      "grade": 1,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Network sub-layers"
+    },
+    {
+      "queryId": "q-032",
+      "chunkId": "bert-2018_0008",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Transformer feed-forward layers in BERT"
+    },
+    {
+      "queryId": "q-032",
+      "chunkId": "bert-2018_0008",
+      "grade": 1,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Transformer feed-forward layers in BERT"
+    }
+  ]
+}

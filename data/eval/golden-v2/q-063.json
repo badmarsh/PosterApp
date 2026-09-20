@@ -1,0 +1,56 @@
+{
+  "id": "q-063",
+  "query": "OpenAI GPT left-to-right autoregressive transformer vs BERT bidirectional transformer",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-063",
+      "chunkId": "bert-2018_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Abstract: Contrasting BERT with left-to-right architectures"
+    },
+    {
+      "queryId": "q-063",
+      "chunkId": "bert-2018_0002",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Abstract: Contrasting BERT with left-to-right architectures"
+    },
+    {
+      "queryId": "q-063",
+      "chunkId": "bert-2018_0008",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Comparison of BERT with OpenAI GPT parameter sizes"
+    },
+    {
+      "queryId": "q-063",
+      "chunkId": "bert-2018_0008",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Comparison of BERT with OpenAI GPT parameter sizes"
+    },
+    {
+      "queryId": "q-063",
+      "chunkId": "bert-2018_0034",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 3: Architecture differences: BERT bidirectional vs OpenAI GPT left-to-right LTR"
+    },
+    {
+      "queryId": "q-063",
+      "chunkId": "bert-2018_0034",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Figure 3: Architecture differences: BERT bidirectional vs OpenAI GPT left-to-right LTR"
+    }
+  ]
+}

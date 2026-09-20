@@ -1,0 +1,80 @@
+{
+  "id": "q-036",
+  "query": "Adam optimizer beta1 beta2 epsilon learning rate warmup steps 4000",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-036",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 5.3: Optimizer: Adam with beta1=0.9, beta2=0.98, eps=1e-9, warmup_steps=4000"
+    },
+    {
+      "queryId": "q-036",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 5.3: Optimizer: Adam with beta1=0.9, beta2=0.98, eps=1e-9, warmup_steps=4000"
+    },
+    {
+      "queryId": "q-036",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Section 5.3: Optimizer: Adam with beta1=0.9, beta2=0.98, eps=1e-9, warmup_steps=4000"
+    },
+    {
+      "queryId": "q-036",
+      "chunkId": "transformer-2017_0007",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Training details across base and big models"
+    },
+    {
+      "queryId": "q-036",
+      "chunkId": "transformer-2017_0007",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Training details across base and big models"
+    },
+    {
+      "queryId": "q-036",
+      "chunkId": "transformer-2017_0007",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Training details across base and big models"
+    },
+    {
+      "queryId": "q-036",
+      "chunkId": "bert-2018_0008",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Adam optimizer in BERT fine-tuning"
+    },
+    {
+      "queryId": "q-036",
+      "chunkId": "bert-2018_0008",
+      "grade": 1,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Adam optimizer in BERT fine-tuning"
+    },
+    {
+      "queryId": "q-036",
+      "chunkId": "bert-2018_0008",
+      "grade": 1,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Adam optimizer in BERT fine-tuning"
+    }
+  ]
+}

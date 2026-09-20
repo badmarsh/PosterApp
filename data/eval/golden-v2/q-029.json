@@ -1,0 +1,32 @@
+{
+  "id": "q-029",
+  "query": "encoder decoder attention queries keys values decoder stack",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-029",
+      "chunkId": "transformer-2017_0003",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.2.3: Encoder-decoder attention applications, memory keys and values from encoder"
+    },
+    {
+      "queryId": "q-029",
+      "chunkId": "transformer-2017_0004",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Decoder layer stack details"
+    },
+    {
+      "queryId": "q-029",
+      "chunkId": "transformer-2017_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Encoder-decoder transduction"
+    }
+  ]
+}

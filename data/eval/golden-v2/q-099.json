@@ -1,0 +1,56 @@
+{
+  "id": "q-099",
+  "query": "control task validation of crowdworker participant data quality",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-099",
+      "chunkId": "llm-survey-2023_0014",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 5: NLI Control scores participant validation"
+    },
+    {
+      "queryId": "q-099",
+      "chunkId": "llm-survey-2023_0014",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Figure 5: NLI Control scores participant validation"
+    },
+    {
+      "queryId": "q-099",
+      "chunkId": "llm-survey-2023_0015",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 6: General Control scores participant validation"
+    },
+    {
+      "queryId": "q-099",
+      "chunkId": "llm-survey-2023_0015",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Figure 6: General Control scores participant validation"
+    },
+    {
+      "queryId": "q-099",
+      "chunkId": "llm-survey-2023_0017",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 8: High-quality participant filtering on both controls"
+    },
+    {
+      "queryId": "q-099",
+      "chunkId": "llm-survey-2023_0017",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Figure 8: High-quality participant filtering on both controls"
+    }
+  ]
+}

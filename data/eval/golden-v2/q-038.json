@@ -1,0 +1,56 @@
+{
+  "id": "q-038",
+  "query": "label smoothing epsilon 0.1 perplexity hurts but BLEU improves",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-038",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 5.4: Label smoothing eps_ls = 0.1 hurts perplexity as model learns to be more unsure, but improves BLEU"
+    },
+    {
+      "queryId": "q-038",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 5.4: Label smoothing eps_ls = 0.1 hurts perplexity as model learns to be more unsure, but improves BLEU"
+    },
+    {
+      "queryId": "q-038",
+      "chunkId": "transformer-2017_0007",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Model ablation results with label smoothing"
+    },
+    {
+      "queryId": "q-038",
+      "chunkId": "transformer-2017_0007",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Model ablation results with label smoothing"
+    },
+    {
+      "queryId": "q-038",
+      "chunkId": "transformer-2017_0002",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Translation training setup"
+    },
+    {
+      "queryId": "q-038",
+      "chunkId": "transformer-2017_0002",
+      "grade": 1,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Translation training setup"
+    }
+  ]
+}

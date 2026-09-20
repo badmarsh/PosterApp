@@ -1,0 +1,80 @@
+{
+  "id": "q-060",
+  "query": "CoNLL 2003 named entity recognition NER token level classification",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-060",
+      "chunkId": "bert-2018_0018",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 4.4 / Table 7: CoNLL-2003 Named Entity Recognition NER fine-tuning and feature-based results"
+    },
+    {
+      "queryId": "q-060",
+      "chunkId": "bert-2018_0018",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 4.4 / Table 7: CoNLL-2003 Named Entity Recognition NER fine-tuning and feature-based results"
+    },
+    {
+      "queryId": "q-060",
+      "chunkId": "bert-2018_0018",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Section 4.4 / Table 7: CoNLL-2003 Named Entity Recognition NER fine-tuning and feature-based results"
+    },
+    {
+      "queryId": "q-060",
+      "chunkId": "bert-2018_0030",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "CoNLL benchmark reference"
+    },
+    {
+      "queryId": "q-060",
+      "chunkId": "bert-2018_0030",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: CoNLL benchmark reference"
+    },
+    {
+      "queryId": "q-060",
+      "chunkId": "bert-2018_0030",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: CoNLL benchmark reference"
+    },
+    {
+      "queryId": "q-060",
+      "chunkId": "bert-2018_0008",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Token-level classification output layer"
+    },
+    {
+      "queryId": "q-060",
+      "chunkId": "bert-2018_0008",
+      "grade": 1,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Token-level classification output layer"
+    },
+    {
+      "queryId": "q-060",
+      "chunkId": "bert-2018_0008",
+      "grade": 1,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Token-level classification output layer"
+    }
+  ]
+}

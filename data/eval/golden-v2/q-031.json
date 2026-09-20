@@ -1,0 +1,32 @@
+{
+  "id": "q-031",
+  "query": "masked self-attention in decoder autoregressive left to right prevention of future tokens",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-031",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.1: Decoder masking to prevent positions from attending to subsequent positions"
+    },
+    {
+      "queryId": "q-031",
+      "chunkId": "transformer-2017_0003",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Attention formulation"
+    },
+    {
+      "queryId": "q-031",
+      "chunkId": "bert-2018_0002",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Unidirectional vs bidirectional context"
+    }
+  ]
+}

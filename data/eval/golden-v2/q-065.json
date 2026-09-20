@@ -1,0 +1,32 @@
+{
+  "id": "q-065",
+  "query": "number of pre-training steps 1000000 steps vs 500000 steps accuracy progression",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-065",
+      "chunkId": "bert-2018_0042",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section A.1: 1M pre-training steps (128,000 words/batch * 1,000,000 steps) improves accuracy significantly over 500k"
+    },
+    {
+      "queryId": "q-065",
+      "chunkId": "bert-2018_0044",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 5: Pre-training Steps (Thousands) vs MNLI Dev Accuracy curve up to 1,000,000 steps"
+    },
+    {
+      "queryId": "q-065",
+      "chunkId": "bert-2018_0008",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Training batch and step configurations"
+    }
+  ]
+}

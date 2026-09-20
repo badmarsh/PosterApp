@@ -93,6 +93,10 @@ export const LayoutWarningSchema = z.object({
   cardId: z.string().optional(),
   cardTitle: z.union([z.string(), z.number()]).transform(v => String(v)).optional().default("Untitled"),
   issue: z.union([z.string(), z.number()]).transform(v => String(v)).optional().default("Layout overflow detected"),
+  targetType: z.enum(["card", "figure", "logo", "header"]).optional(),
+  figureIndex: z.number().int().min(0).optional(),
+  assetUrl: z.string().optional(),
+  fixable: z.boolean().optional(),
   recommendation: z.union([z.string(), z.number()]).transform(v => String(v)).optional().default("Reduce content or adjust layout to fit."),
   estimatedOverflowCharacters: z.preprocess((val) => {
     if (typeof val === "number") return val
@@ -129,6 +133,10 @@ export const LayoutWarningsSchema = z.preprocess((raw: any) => {
           recommendation: item.recommendation || item.fix || item.suggestion || item.solution || "Reduce content or adjust layout to fit.",
           estimatedOverflowCharacters: item.estimatedOverflowCharacters ?? item.overflowCharacters ?? item.chars ?? item.overflowChars,
           cardId: item.cardId,
+          targetType: item.targetType,
+          figureIndex: item.figureIndex,
+          assetUrl: item.assetUrl,
+          fixable: item.fixable,
           compiledRevision: item.compiledRevision,
         }
       }
@@ -137,6 +145,25 @@ export const LayoutWarningsSchema = z.preprocess((raw: any) => {
   ).default([])
 }))
 export type LayoutWarningsResult = z.infer<typeof LayoutWarningsSchema>
+
+// 4b. Asset / Figure / Logo Fix
+export const FixAssetSchema = z.preprocess((raw: any) => {
+  if (raw && typeof raw === "object") {
+    return {
+      matchedFilename: raw.matchedFilename || raw.filename || raw.file || "",
+      matchedUrl: raw.matchedUrl || raw.url || "",
+      explanation: raw.explanation || raw.reason || raw.message || "",
+      confidence: typeof raw.confidence === "number" ? raw.confidence : 0.85,
+    }
+  }
+  return raw
+}, z.object({
+  matchedFilename: z.string().optional().default(""),
+  matchedUrl: z.string().optional().default(""),
+  explanation: z.string().optional().default(""),
+  confidence: z.number().min(0).max(1).optional().default(0.85),
+}))
+export type FixAssetResult = z.infer<typeof FixAssetSchema>
 
 // 5. Shrink Content Patch
 export const ShrinkContentSchema = z.preprocess((raw: any) => {
@@ -598,5 +625,4 @@ export const ProfessionalReviewGenerationSchema = z.preprocess((raw: any) => {
   grade: z.string().optional(),
 }))
 export type ProfessionalReviewGenerationResult = z.infer<typeof ProfessionalReviewGenerationSchema>
-
 

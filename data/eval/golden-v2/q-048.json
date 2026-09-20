@@ -1,0 +1,80 @@
+{
+  "id": "q-048",
+  "query": "80 percent mask token 10 percent random token 10 percent unchanged token",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-048",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.1: Mismatch mitigation: 80% [MASK], 10% random token, 10% unchanged token"
+    },
+    {
+      "queryId": "q-048",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 3.1: Mismatch mitigation: 80% [MASK], 10% random token, 10% unchanged token"
+    },
+    {
+      "queryId": "q-048",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Section 3.1: Mismatch mitigation: 80% [MASK], 10% random token, 10% unchanged token"
+    },
+    {
+      "queryId": "q-048",
+      "chunkId": "bert-2018_0046",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Table 8: Ablation over different masking strategies (80/10/10 vs 100/0/0)"
+    },
+    {
+      "queryId": "q-048",
+      "chunkId": "bert-2018_0046",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Table 8: Ablation over different masking strategies (80/10/10 vs 100/0/0)"
+    },
+    {
+      "queryId": "q-048",
+      "chunkId": "bert-2018_0046",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Table 8: Ablation over different masking strategies (80/10/10 vs 100/0/0)"
+    },
+    {
+      "queryId": "q-048",
+      "chunkId": "bert-2018_0048",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Different masking strategies performance on MNLI and NER"
+    },
+    {
+      "queryId": "q-048",
+      "chunkId": "bert-2018_0048",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Different masking strategies performance on MNLI and NER"
+    },
+    {
+      "queryId": "q-048",
+      "chunkId": "bert-2018_0048",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Different masking strategies performance on MNLI and NER"
+    }
+  ]
+}

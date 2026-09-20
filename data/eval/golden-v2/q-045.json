@@ -1,0 +1,56 @@
+{
+  "id": "q-045",
+  "query": "attention head count ablation 1 head 2 heads 8 heads 16 heads",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-045",
+      "chunkId": "transformer-2017_0003",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Multi-head attention with h=8 heads"
+    },
+    {
+      "queryId": "q-045",
+      "chunkId": "transformer-2017_0003",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Multi-head attention with h=8 heads"
+    },
+    {
+      "queryId": "q-045",
+      "chunkId": "transformer-2017_0006",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Table 5 (A): Number of heads ablation from 1 to 16 heads with perplexity and BLEU"
+    },
+    {
+      "queryId": "q-045",
+      "chunkId": "transformer-2017_0006",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Table 5 (A): Number of heads ablation from 1 to 16 heads with perplexity and BLEU"
+    },
+    {
+      "queryId": "q-045",
+      "chunkId": "transformer-2017_0007",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Model size hyperparameter configurations"
+    },
+    {
+      "queryId": "q-045",
+      "chunkId": "transformer-2017_0007",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Model size hyperparameter configurations"
+    }
+  ]
+}

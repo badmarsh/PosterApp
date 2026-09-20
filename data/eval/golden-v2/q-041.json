@@ -1,0 +1,32 @@
+{
+  "id": "q-041",
+  "query": "training hardware 8 NVIDIA P100 GPUs 100000 steps base model 300000 steps big model",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-041",
+      "chunkId": "transformer-2017_0007",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 5.2: Hardware: 8 NVIDIA P100 GPUs, 100,000 steps (12 hours) base, 300,000 steps (3.5 days) big"
+    },
+    {
+      "queryId": "q-041",
+      "chunkId": "transformer-2017_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Training time comparison"
+    },
+    {
+      "queryId": "q-041",
+      "chunkId": "transformer-2017_0005",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Training FLOPs comparison table"
+    }
+  ]
+}

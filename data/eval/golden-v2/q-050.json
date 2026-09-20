@@ -1,0 +1,56 @@
+{
+  "id": "q-050",
+  "query": "CLS special symbol first token aggregate sequence representation classification",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-050",
+      "chunkId": "bert-2018_0003",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Input sequence representation with E[CLS] token"
+    },
+    {
+      "queryId": "q-050",
+      "chunkId": "bert-2018_0003",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Input sequence representation with E[CLS] token"
+    },
+    {
+      "queryId": "q-050",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3: First token of every sequence is special classification token [CLS]"
+    },
+    {
+      "queryId": "q-050",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 3: First token of every sequence is special classification token [CLS]"
+    },
+    {
+      "queryId": "q-050",
+      "chunkId": "bert-2018_0041",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Classification token [CLS] in sentence-pair input formatting"
+    },
+    {
+      "queryId": "q-050",
+      "chunkId": "bert-2018_0041",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Classification token [CLS] in sentence-pair input formatting"
+    }
+  ]
+}

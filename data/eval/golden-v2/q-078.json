@@ -1,0 +1,80 @@
+{
+  "id": "q-078",
+  "query": "response time distribution seconds mean 126 seconds standard deviation 33",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-078",
+      "chunkId": "llm-survey-2023_0013",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 4: Total response times (s) of participants mean=126.62s, sigma=33.01s"
+    },
+    {
+      "queryId": "q-078",
+      "chunkId": "llm-survey-2023_0013",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Figure 4: Total response times (s) of participants mean=126.62s, sigma=33.01s"
+    },
+    {
+      "queryId": "q-078",
+      "chunkId": "llm-survey-2023_0013",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Figure 4: Total response times (s) of participants mean=126.62s, sigma=33.01s"
+    },
+    {
+      "queryId": "q-078",
+      "chunkId": "llm-survey-2023_0018",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 9: Accuracy data with any response time (n = 597)"
+    },
+    {
+      "queryId": "q-078",
+      "chunkId": "llm-survey-2023_0018",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Figure 9: Accuracy data with any response time (n = 597)"
+    },
+    {
+      "queryId": "q-078",
+      "chunkId": "llm-survey-2023_0018",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Figure 9: Accuracy data with any response time (n = 597)"
+    },
+    {
+      "queryId": "q-078",
+      "chunkId": "llm-survey-2023_0004",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Human behavioral variance"
+    },
+    {
+      "queryId": "q-078",
+      "chunkId": "llm-survey-2023_0004",
+      "grade": 1,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Human behavioral variance"
+    },
+    {
+      "queryId": "q-078",
+      "chunkId": "llm-survey-2023_0004",
+      "grade": 1,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Human behavioral variance"
+    }
+  ]
+}

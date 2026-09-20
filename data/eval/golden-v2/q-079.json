@@ -1,0 +1,32 @@
+{
+  "id": "q-079",
+  "query": "participant score threshold 3 out of 4 control tasks filtering",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-079",
+      "chunkId": "llm-survey-2023_0016",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 7: Zero-shot accuracy data of human annotators with score of at least 3 out of 4"
+    },
+    {
+      "queryId": "q-079",
+      "chunkId": "llm-survey-2023_0021",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 12: Accuracy with total score of at least 3 out of 4"
+    },
+    {
+      "queryId": "q-079",
+      "chunkId": "llm-survey-2023_0014",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Filtering methodology"
+    }
+  ]
+}

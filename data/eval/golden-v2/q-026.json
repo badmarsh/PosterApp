@@ -1,0 +1,56 @@
+{
+  "id": "q-026",
+  "query": "scaled dot product attention scaling factor square root dk",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-026",
+      "chunkId": "transformer-2017_0003",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.2: Scaled dot-product attention scaling factor 1/sqrt(dk)"
+    },
+    {
+      "queryId": "q-026",
+      "chunkId": "transformer-2017_0003",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 3.2: Scaled dot-product attention scaling factor 1/sqrt(dk)"
+    },
+    {
+      "queryId": "q-026",
+      "chunkId": "transformer-2017_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Self-attention mechanism intro"
+    },
+    {
+      "queryId": "q-026",
+      "chunkId": "transformer-2017_0002",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Self-attention mechanism intro"
+    },
+    {
+      "queryId": "q-026",
+      "chunkId": "transformer-2017_0004",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Attention layers in encoder"
+    },
+    {
+      "queryId": "q-026",
+      "chunkId": "transformer-2017_0004",
+      "grade": 1,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Attention layers in encoder"
+    }
+  ]
+}

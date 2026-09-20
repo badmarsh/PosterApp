@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   LayoutWarningsSchema,
+  FixAssetSchema,
   ReviewTipsSchema,
   CardGenerationSchema,
   CompileFixesSchema,
@@ -74,6 +75,53 @@ describe("lib/ai/contracts", () => {
       const res2 = LayoutWarningsSchema.safeParse([])
       expect(res2.success).toBe(true)
       if (res2.success) expect(res2.data.warnings).toEqual([])
+    })
+
+    it("preserves asset and targetType fields for logo and figure warnings", () => {
+      const res = LayoutWarningsSchema.safeParse({
+        warnings: [
+          {
+            cardTitle: "Header Logo",
+            issue: "Logo file is missing",
+            targetType: "logo",
+            assetUrl: "/api/workspaces/ws1/assets/missing_logo.png",
+            fixable: true,
+          },
+          {
+            cardTitle: "Methods",
+            issue: "Figure broken",
+            targetType: "figure",
+            figureIndex: 0,
+            assetUrl: "/api/workspaces/ws1/assets/fig1.png",
+            fixable: true,
+          },
+        ],
+      })
+      expect(res.success).toBe(true)
+      if (res.success) {
+        expect(res.data.warnings[0].targetType).toBe("logo")
+        expect(res.data.warnings[0].assetUrl).toBe("/api/workspaces/ws1/assets/missing_logo.png")
+        expect(res.data.warnings[0].fixable).toBe(true)
+        expect(res.data.warnings[1].targetType).toBe("figure")
+        expect(res.data.warnings[1].figureIndex).toBe(0)
+      }
+    })
+  })
+
+  describe("FixAssetSchema", () => {
+    it("parses valid fix asset results with aliases", () => {
+      const res = FixAssetSchema.safeParse({
+        filename: "fig_transformer_arch.png",
+        url: "/api/workspaces/ws1/assets/fig_transformer_arch.png",
+        reason: "Matched by architecture keyword",
+      })
+      expect(res.success).toBe(true)
+      if (res.success) {
+        expect(res.data.matchedFilename).toBe("fig_transformer_arch.png")
+        expect(res.data.matchedUrl).toBe("/api/workspaces/ws1/assets/fig_transformer_arch.png")
+        expect(res.data.explanation).toBe("Matched by architecture keyword")
+        expect(res.data.confidence).toBe(0.85)
+      }
     })
   })
 

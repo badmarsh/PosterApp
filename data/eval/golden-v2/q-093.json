@@ -1,0 +1,56 @@
+{
+  "id": "q-093",
+  "query": "GLUE benchmark MNLI QQP QNLI SST-2 CoLA STS-B MRPC RTE WNLI tasks",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-093",
+      "chunkId": "bert-2018_0009",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 4.1: Descriptions of MNLI, QQP, QNLI, SST-2, CoLA, STS-B, MRPC, RTE, WNLI"
+    },
+    {
+      "queryId": "q-093",
+      "chunkId": "bert-2018_0009",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Section 4.1: Descriptions of MNLI, QQP, QNLI, SST-2, CoLA, STS-B, MRPC, RTE, WNLI"
+    },
+    {
+      "queryId": "q-093",
+      "chunkId": "bert-2018_0014",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Table 1: Benchmark test results across all 9 GLUE tasks"
+    },
+    {
+      "queryId": "q-093",
+      "chunkId": "bert-2018_0014",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Table 1: Benchmark test results across all 9 GLUE tasks"
+    },
+    {
+      "queryId": "q-093",
+      "chunkId": "bert-2018_0002",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GLUE benchmark summary"
+    },
+    {
+      "queryId": "q-093",
+      "chunkId": "bert-2018_0002",
+      "grade": 1,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: GLUE benchmark summary"
+    }
+  ]
+}

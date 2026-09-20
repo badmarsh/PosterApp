@@ -1,0 +1,56 @@
+{
+  "id": "q-068",
+  "query": "few-shot in-context learning exemplars without labels and with labels",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-068",
+      "chunkId": "llm-survey-2023_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Few-shot performance with prompts"
+    },
+    {
+      "queryId": "q-068",
+      "chunkId": "llm-survey-2023_0002",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Few-shot performance with prompts"
+    },
+    {
+      "queryId": "q-068",
+      "chunkId": "llm-survey-2023_0012",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 3: Few-Shot without Labels vs Few-Shot with Labels across sample sizes 1 to 300"
+    },
+    {
+      "queryId": "q-068",
+      "chunkId": "llm-survey-2023_0012",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Figure 3: Few-Shot without Labels vs Few-Shot with Labels across sample sizes 1 to 300"
+    },
+    {
+      "queryId": "q-068",
+      "chunkId": "llm-survey-2023_0004",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Contextual exemplars effect"
+    },
+    {
+      "queryId": "q-068",
+      "chunkId": "llm-survey-2023_0004",
+      "grade": 1,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Contextual exemplars effect"
+    }
+  ]
+}

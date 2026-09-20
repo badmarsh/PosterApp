@@ -1,0 +1,56 @@
+{
+  "id": "q-080",
+  "query": "null prompt condition task accuracy baseline performance",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-080",
+      "chunkId": "llm-survey-2023_0026",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 15: Null prompt performance across models and human subjects"
+    },
+    {
+      "queryId": "q-080",
+      "chunkId": "llm-survey-2023_0026",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Figure 15: Null prompt performance across models and human subjects"
+    },
+    {
+      "queryId": "q-080",
+      "chunkId": "llm-survey-2023_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Null prompt baseline definition"
+    },
+    {
+      "queryId": "q-080",
+      "chunkId": "llm-survey-2023_0002",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Null prompt baseline definition"
+    },
+    {
+      "queryId": "q-080",
+      "chunkId": "llm-survey-2023_0003",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Performance without instructions"
+    },
+    {
+      "queryId": "q-080",
+      "chunkId": "llm-survey-2023_0003",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Performance without instructions"
+    }
+  ]
+}

@@ -7,8 +7,10 @@ import {
   Copy,
   FilePlus2,
   FileStack,
+  Loader2,
   Plus,
   Search,
+  Sparkles,
   Trash2,
   XCircle,
 } from "lucide-react"
@@ -73,6 +75,7 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
     }))
   )
   const [isShrinking, setIsShrinking] = useState(false)
+  const [isFixingAsset, setIsFixingAsset] = useState(false)
   const active = card.id === selectedCardId
   const status = getStatus(card)
   const warning = layoutWarnings.find(w => {
@@ -136,6 +139,58 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
         </Tooltip>
       </div>
       {warning && (
+        warning.targetType === "figure" || /figure|image|asset/i.test(warning.issue) ? (
+          <div className="flex flex-col gap-1 rounded bg-destructive/10 p-1.5 text-[11px] text-destructive mt-1">
+            <div className="flex items-center gap-1 font-semibold">
+              <AlertTriangle className="size-3.5" /> Broken Figure Asset
+            </div>
+            <span className="leading-tight">{warning.issue}</span>
+            <Button
+              size="sm"
+              variant="default"
+              className="h-7 px-2 mt-1 text-[11px] font-medium gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
+              disabled={isFixingAsset}
+              onClick={async (e) => {
+                e.stopPropagation();
+                setIsFixingAsset(true);
+                try {
+                  const res = await apiFetch(`/api/workspaces/${project.id}/fix-asset`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      type: "figure",
+                      cardId: card.id,
+                      figureIndex: warning.figureIndex ?? 0,
+                      currentUrl: warning.assetUrl,
+                      caption: card.figures?.[warning.figureIndex ?? 0]?.caption,
+                    }),
+                  })
+                  const data = await res.json()
+                  if (res.ok && data.ok && data.fixedUrl) {
+                    const figures = [...(card.figures || [])]
+                    const idx = warning.figureIndex ?? 0
+                    while (figures.length <= idx) {
+                      figures.push({ id: `fig_${figures.length}_${Date.now().toString(36)}`, url: "", caption: "" })
+                    }
+                    figures[idx] = { ...figures[idx], url: data.fixedUrl }
+                    updateCard(card.id, { figures })
+                    await saveProject()
+                    toast.success("Figure reconnected", { description: data.explanation })
+                  } else {
+                    toast.error("AI Fix failed", { description: data.error || "No matching asset found in workspace." })
+                  }
+                } catch (err: unknown) {
+                  toast.error("Failed to run AI fix on figure")
+                } finally {
+                  setIsFixingAsset(false)
+                }
+              }}
+            >
+              {isFixingAsset ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3 text-warning" />}
+              AI Fix Figure Asset
+            </Button>
+          </div>
+        ) : (
         <div className="flex flex-col gap-1 rounded bg-destructive/10 p-1.5 text-[11px] text-destructive mt-1">
           <div className="flex items-center gap-1 font-semibold">
             <AlertTriangle className="size-3.5" /> Overflow Detected
@@ -204,6 +259,7 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
             {isShrinking ? "Shrinking..." : "Auto-Shrink Content"}
           </Button>
         </div>
+        )
       )}
       <div className="flex items-center justify-between gap-2 pl-5 mt-1">
         <span className="truncate font-mono text-[11px] text-muted-foreground">
@@ -354,6 +410,9 @@ export function StructureSidebar() {
       layoutWarnings: s.layoutWarnings,
     }))
   )
+  const updateActiveOutput = useEditor((s) => s.updateActiveOutput)
+  const saveProject = useEditor((s) => s.saveProject)
+  const [isFixingLogo, setIsFixingLogo] = useState(false)
 
   const activeCards = project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []
   const unmatchedWarnings = layoutWarnings.filter(w => {
@@ -453,9 +512,42 @@ export function StructureSidebar() {
           {unmatchedWarnings.map((w, i) => (
             <div key={i} className="flex flex-col gap-1 rounded bg-destructive/10 p-1.5 text-[11px] text-destructive mb-1.5">
               <div className="flex items-center gap-1 font-semibold">
-                <AlertTriangle className="size-3.5" /> Overflow Detected: {w.cardTitle}
+                <AlertTriangle className="size-3.5" /> {w.targetType === "logo" || /logo/i.test(w.cardTitle || w.issue) ? "Logo Issue" : `Layout Issue: ${w.cardTitle}`}
               </div>
               <span className="leading-tight">{w.issue}</span>
+              {(w.targetType === "logo" || /logo/i.test(w.cardTitle || w.issue)) && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="h-7 px-2 mt-1 text-[11px] font-medium gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                  disabled={isFixingLogo}
+                  onClick={async () => {
+                    setIsFixingLogo(true);
+                    try {
+                      const res = await apiFetch(`/api/workspaces/${project.id}/fix-asset`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ type: "logo" }),
+                      })
+                      const data = await res.json()
+                      if (res.ok && data.ok && data.fixedUrl) {
+                        updateActiveOutput({ logoUrl: data.fixedUrl })
+                        await saveProject()
+                        toast.success("Logo reconnected", { description: data.explanation })
+                      } else {
+                        toast.error("Logo fix failed", { description: data.error || "No matching logo found." })
+                      }
+                    } catch {
+                      toast.error("Failed to run AI fix on logo")
+                    } finally {
+                      setIsFixingLogo(false)
+                    }
+                  }}
+                >
+                  {isFixingLogo ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3 text-warning" />}
+                  AI Fix Logo
+                </Button>
+              )}
             </div>
           ))}
         </div>

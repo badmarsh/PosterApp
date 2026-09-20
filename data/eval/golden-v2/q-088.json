@@ -1,0 +1,56 @@
+{
+  "id": "q-088",
+  "query": "multi-head attention representation subspaces at different positions",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-088",
+      "chunkId": "transformer-2017_0003",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.2.2: Jointly attend to information from different representation subspaces at different positions"
+    },
+    {
+      "queryId": "q-088",
+      "chunkId": "transformer-2017_0003",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 3.2.2: Jointly attend to information from different representation subspaces at different positions"
+    },
+    {
+      "queryId": "q-088",
+      "chunkId": "transformer-2017_0019",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Visualization of multiple attention heads"
+    },
+    {
+      "queryId": "q-088",
+      "chunkId": "transformer-2017_0019",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Visualization of multiple attention heads"
+    },
+    {
+      "queryId": "q-088",
+      "chunkId": "transformer-2017_0023",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Syntactic specialization of attention heads"
+    },
+    {
+      "queryId": "q-088",
+      "chunkId": "transformer-2017_0023",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Syntactic specialization of attention heads"
+    }
+  ]
+}

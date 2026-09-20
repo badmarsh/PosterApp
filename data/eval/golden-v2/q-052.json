@@ -1,0 +1,56 @@
+{
+  "id": "q-052",
+  "query": "WordPiece tokenization 30000 token vocabulary subword split",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-052",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3: WordPiece embeddings with a 30,000 token vocabulary"
+    },
+    {
+      "queryId": "q-052",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 3: WordPiece embeddings with a 30,000 token vocabulary"
+    },
+    {
+      "queryId": "q-052",
+      "chunkId": "bert-2018_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Tokenization in BERT input representations"
+    },
+    {
+      "queryId": "q-052",
+      "chunkId": "bert-2018_0002",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Tokenization in BERT input representations"
+    },
+    {
+      "queryId": "q-052",
+      "chunkId": "transformer-2017_0004",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BPE 37,000 vocabulary comparison"
+    },
+    {
+      "queryId": "q-052",
+      "chunkId": "transformer-2017_0004",
+      "grade": 1,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: BPE 37,000 vocabulary comparison"
+    }
+  ]
+}

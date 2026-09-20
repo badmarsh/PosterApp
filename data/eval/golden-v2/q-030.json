@@ -1,0 +1,80 @@
+{
+  "id": "q-030",
+  "query": "self-attention in encoder queries keys values same sequence",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-030",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.2.3: Encoder self-attention where queries, keys and values come from same place"
+    },
+    {
+      "queryId": "q-030",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 3.2.3: Encoder self-attention where queries, keys and values come from same place"
+    },
+    {
+      "queryId": "q-030",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Section 3.2.3: Encoder self-attention where queries, keys and values come from same place"
+    },
+    {
+      "queryId": "q-030",
+      "chunkId": "transformer-2017_0003",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Self-attention definition"
+    },
+    {
+      "queryId": "q-030",
+      "chunkId": "transformer-2017_0003",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Self-attention definition"
+    },
+    {
+      "queryId": "q-030",
+      "chunkId": "transformer-2017_0003",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Self-attention definition"
+    },
+    {
+      "queryId": "q-030",
+      "chunkId": "transformer-2017_0002",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Self-attention overview"
+    },
+    {
+      "queryId": "q-030",
+      "chunkId": "transformer-2017_0002",
+      "grade": 1,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Self-attention overview"
+    },
+    {
+      "queryId": "q-030",
+      "chunkId": "transformer-2017_0002",
+      "grade": 1,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Self-attention overview"
+    }
+  ]
+}

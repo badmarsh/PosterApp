@@ -1,0 +1,32 @@
+{
+  "id": "q-089",
+  "query": "layer normalization and residual connections in transformer sub-layers",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-089",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.1: LayerNorm(x + Sublayer(x)) residual connection around each sub-layer"
+    },
+    {
+      "queryId": "q-089",
+      "chunkId": "transformer-2017_0002",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Transformer architecture overview"
+    },
+    {
+      "queryId": "q-089",
+      "chunkId": "bert-2018_0008",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Residual connections and normalization in BERT"
+    }
+  ]
+}

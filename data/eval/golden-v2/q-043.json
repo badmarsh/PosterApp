@@ -1,0 +1,32 @@
+{
+  "id": "q-043",
+  "query": "constituency parsing WSJ English treebank 4-layer transformer",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-043",
+      "chunkId": "transformer-2017_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Abstract: Constituency parsing generalization"
+    },
+    {
+      "queryId": "q-043",
+      "chunkId": "transformer-2017_0007",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 6.2: English Constituency Parsing on Penn Treebank WSJ with 4-layer Transformer"
+    },
+    {
+      "queryId": "q-043",
+      "chunkId": "transformer-2017_0004",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Constituency parsing task formulation"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "id": "q-037",
+  "query": "residual dropout applied to sub-layer outputs embedding sums Pdrop 0.1",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-037",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 5.4: Regularization: Residual dropout Pdrop=0.1 to output of each sub-layer and embeddings"
+    },
+    {
+      "queryId": "q-037",
+      "chunkId": "transformer-2017_0007",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Ablation over dropout rates 0.0 to 0.2"
+    },
+    {
+      "queryId": "q-037",
+      "chunkId": "bert-2018_0008",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Dropout in BERT architecture"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-20T12:30:19.221Z",
+  "timestamp": "2026-09-20T18:52:33.430Z",
   "codeVersion": "main (3d07b0f+)",
   "goldenDatasetSize": 104,
   "retrieval": {
@@ -36,7 +36,7 @@
     "adjudication": "deterministic-evidence-gated"
   },
   "competitiveBenchmark": {
-    "topArchitecture": "PosterApp SOTA (6-Source RRF + Graph DRIFT + Verifiers)",
+    "topArchitecture": "PosterApp Multi-Source RRF (7-leg fusion + Graph + Verifiers)",
     "architecturesEvaluated": 7,
     "recallAdvantageOverNaiveRagPct": 480
   }

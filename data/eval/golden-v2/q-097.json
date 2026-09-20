@@ -1,0 +1,32 @@
+{
+  "id": "q-097",
+  "query": "in-context learning few-shot sample size scaling 1 to 300 exemplars",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-097",
+      "chunkId": "llm-survey-2023_0012",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 3: Sample size scaling from 1 to 300 few-shot examples with and without labels"
+    },
+    {
+      "queryId": "q-097",
+      "chunkId": "llm-survey-2023_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Few-shot in-context learning overview"
+    },
+    {
+      "queryId": "q-097",
+      "chunkId": "llm-survey-2023_0004",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Exemplar learning behavior"
+    }
+  ]
+}

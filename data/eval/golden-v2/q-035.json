@@ -1,0 +1,32 @@
+{
+  "id": "q-035",
+  "query": "self-attention path length minimum number of sequential operations O(1)",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-035",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 4 / Table 1: Path length between distant positions and sequential operations O(1) in self-attention"
+    },
+    {
+      "queryId": "q-035",
+      "chunkId": "transformer-2017_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Parallelizability of attention vs recurrence"
+    },
+    {
+      "queryId": "q-035",
+      "chunkId": "transformer-2017_0003",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Attention computation"
+    }
+  ]
+}

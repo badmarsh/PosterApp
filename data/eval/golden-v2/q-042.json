@@ -1,0 +1,80 @@
+{
+  "id": "q-042",
+  "query": "bpe byte pair encoding vocabulary 37000 tokens sentencepiece",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-042",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 5.1: BPE byte-pair encoding with shared source-target vocabulary of 37,000 tokens"
+    },
+    {
+      "queryId": "q-042",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Section 5.1: BPE byte-pair encoding with shared source-target vocabulary of 37,000 tokens"
+    },
+    {
+      "queryId": "q-042",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Section 5.1: BPE byte-pair encoding with shared source-target vocabulary of 37,000 tokens"
+    },
+    {
+      "queryId": "q-042",
+      "chunkId": "transformer-2017_0007",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Vocabulary size WSJ setting 16K and 32K tokens"
+    },
+    {
+      "queryId": "q-042",
+      "chunkId": "transformer-2017_0007",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: Vocabulary size WSJ setting 16K and 32K tokens"
+    },
+    {
+      "queryId": "q-042",
+      "chunkId": "transformer-2017_0007",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: Vocabulary size WSJ setting 16K and 32K tokens"
+    },
+    {
+      "queryId": "q-042",
+      "chunkId": "bert-2018_0008",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "WordPiece 30,000 token vocabulary comparison"
+    },
+    {
+      "queryId": "q-042",
+      "chunkId": "bert-2018_0008",
+      "grade": 2,
+      "annotatorId": "annotator-2",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-2: WordPiece 30,000 token vocabulary comparison"
+    },
+    {
+      "queryId": "q-042",
+      "chunkId": "bert-2018_0008",
+      "grade": 2,
+      "annotatorId": "annotator-3",
+      "date": "2026-09-20",
+      "rationale": "Independent verification by annotator-3: WordPiece 30,000 token vocabulary comparison"
+    }
+  ]
+}
