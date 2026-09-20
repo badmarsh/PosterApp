@@ -40,10 +40,12 @@ export interface CompileWorkspaceOptions {
   expectedRevision?: number
   installPdf?: boolean
   timeoutMs?: number
+  forceRecompile?: boolean
 }
 
 export interface CompileWorkspaceResult {
   ok: boolean
+  cached?: boolean
   log: string
   revision?: number
   error?: {
@@ -97,6 +99,36 @@ export async function compileWorkspace(
         ok: false,
         log: "",
         error: { code: "NO_OUTPUT", message: "No output is selected" },
+      }
+    }
+
+    const targetDir = workspacePath(workspaceId)
+    const targetPdf = path.join(targetDir, "main.pdf")
+    const cacheMetaPath = path.join(targetDir, "compile-cache.json")
+
+    // Cache check: if the compiled PDF already exists for the exact revision and output configuration, reuse it
+    if (!options.forceRecompile) {
+      try {
+        const metaRaw = await fs.readFile(cacheMetaPath, "utf8")
+        const meta = JSON.parse(metaRaw)
+        if (
+          meta.revision === full.revision &&
+          meta.outputId === output.id &&
+          meta.templateId === output.templateId &&
+          meta.themeColor === (output.themeColor ?? "")
+        ) {
+          const pdfStat = await fs.stat(targetPdf)
+          if (pdfStat.size > 0) {
+            return {
+              ok: true,
+              cached: true,
+              revision: full.revision,
+              log: meta.log || "Using cached compilation (workspace unchanged).",
+            }
+          }
+        }
+      } catch {
+        // Cache miss, proceed to compilation
       }
     }
 
@@ -192,6 +224,20 @@ export async function compileWorkspace(
         const tempInstallPdf = path.join(targetDir, `main.${compileTimestamp}.tmp.pdf`)
         await fs.copyFile(compiled, tempInstallPdf)
         await fs.rename(tempInstallPdf, targetPdf)
+
+        // Save compilation cache metadata
+        await fs.writeFile(
+          cacheMetaPath,
+          JSON.stringify({
+            revision: full.revision,
+            outputId: output.id,
+            templateId: output.templateId,
+            themeColor: output.themeColor ?? "",
+            timestamp: compileTimestamp,
+            log: safeLog(log),
+          }),
+          "utf8"
+        ).catch(() => undefined)
       } finally {
         releaseLock()
         if (workspaceCompileLocks.get(workspaceId) === currentLock) {

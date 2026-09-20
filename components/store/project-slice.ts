@@ -90,6 +90,9 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         state.isSwitchingProject = false
         state.isDirty = false
         state.isSaving = false
+        state.pdfData = null
+        state.lastCompiledRevision = null
+        state.lastCompiledOutputId = null
         // Reset legacy assets (not linked to current workspace)
         state.ingestionOpen = false
       })

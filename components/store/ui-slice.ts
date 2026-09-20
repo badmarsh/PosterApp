@@ -71,6 +71,8 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
   pdfData: null,
   compileLog: null,
   compileOk: null,
+  lastCompiledRevision: null,
+  lastCompiledOutputId: null,
 
   autoCompile: false,
   setAutoCompile: (v) => set({ autoCompile: v }),
@@ -146,10 +148,27 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
 
   compileProject: async (format) => {
     if (get().compiling) return
+
+    const project = get().project
+    const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId) || project.outputs?.[0]
+    if (!activeOutput) return
+    const effectiveFormat = format || activeOutput.outputType || "poster"
+    const capturedWorkspaceId = project.id
+    const currentRevision = project.revision
+
+    // Cache check: as long as user hasn't changed anything (not dirty),
+    // we already have pdfData, compile was OK, and revision/output match, skip recompilation.
+    if (
+      !get().isDirty &&
+      get().pdfData !== null &&
+      get().compileOk === true &&
+      get().lastCompiledRevision === currentRevision &&
+      get().lastCompiledOutputId === activeOutput.id
+    ) {
+      return
+    }
+
     set((s) => { s.compiling = true })
-    const activeOutput = get().project.outputs?.find(o => o.id === get().project.activeOutputId)
-    const effectiveFormat = format || activeOutput?.outputType || "poster"
-    const capturedWorkspaceId = get().project.id
     
     const evId = get().pushEvent({ kind: "generate", status: "running", title: `Compiling ${effectiveFormat} with pdflatex…` })
 
@@ -207,10 +226,17 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
           const pdfRes = await apiFetch(`/api/workspaces/${project.id}/pdf?t=${Date.now()}`)
           if (pdfRes.ok) {
             const buf = await pdfRes.arrayBuffer()
-            set((s) => { s.pdfData = new Uint8Array(buf) })
+            set((s) => {
+              s.pdfData = new Uint8Array(buf)
+              s.lastCompiledRevision = revision
+              s.lastCompiledOutputId = activeOutput.id
+            })
           }
-          get().updateEvent(evId, { status: "done", title: "Compile succeeded", detail: "PDF ready for preview." })
-          notify.success("Compile succeeded", { description: "PDF ready for preview." })
+          get().updateEvent(evId, {
+            status: "done",
+            title: "Compile succeeded",
+            detail: (data as any).cached ? "Cached preview ready." : "PDF ready for preview.",
+          })
           
           // Background VLM Layout Check
           if (get().layoutCheckEnabled && get().lastReviewedRevision !== revision) {

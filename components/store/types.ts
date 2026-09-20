@@ -130,6 +130,8 @@ export interface UiSlice {
   pdfData: Uint8Array | null
   compileLog: string | null
   compileOk: boolean | null
+  lastCompiledRevision: number | null
+  lastCompiledOutputId: string | null
 
   autoCompile: boolean
   setAutoCompile: (v: boolean) => void

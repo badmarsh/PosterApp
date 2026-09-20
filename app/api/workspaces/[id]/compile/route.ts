@@ -58,6 +58,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     return NextResponse.json({
       ok: true,
+      cached: result.cached ?? false,
       revision: result.revision ?? workspace.revision,
       log: result.log,
     })

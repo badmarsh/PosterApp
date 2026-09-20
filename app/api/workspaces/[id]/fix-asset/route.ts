@@ -230,7 +230,7 @@ Respond with JSON:
           userPrompt,
           schema: FixAssetSchema,
           temperature: 0.1,
-          signal: AbortSignal.timeout(AI_TIMEOUTS.autofix || 30_000),
+          signal: AbortSignal.timeout((AI_TIMEOUTS as any).autofix || 30_000),
         })
 
         if (aiRes?.matchedFilename) {
