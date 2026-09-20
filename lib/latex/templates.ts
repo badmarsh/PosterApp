@@ -135,7 +135,7 @@ ${override}
 }
 \\useblockstyle{ModernCard}
 
-\\title{\\parbox{0.74\\linewidth}{\\centering\\huge
+\\title{\\parbox{0.62\\linewidth}{\\centering\\huge
     ${title}\\\\[1mm]
     }}
 \\author{\\Large ${authors}}
@@ -222,15 +222,15 @@ ${override}
     \\draw[color=blocktitlebgcolor, fill=titlebgcolor]
       (\\titleposleft,\\titleposbottom) rectangle (\\titleposright,\\titlepostop);
   \\end{scope}
-  \\node[anchor=east, fill=white, rounded corners=10pt, inner sep=10pt, xshift=5mm]
+  \\node[anchor=east, fill=white, rounded corners=8pt, inner sep=6pt, xshift=-15mm]
     at ($(\\titleposright,\\titlepostop)!0.5!(\\titleposright,\\titleposbottom)$)
-    {\\includegraphics[height=8.6cm]{${rightLogo}}};
-  \\node[anchor=west, fill=white, rounded corners=10pt, inner sep=10pt, xshift=-45mm, yshift=5mm]
+    {\\includegraphics[height=7.2cm, keepaspectratio]{${rightLogo}}};
+  \\node[anchor=west, fill=white, rounded corners=8pt, inner sep=6pt, xshift=15mm]
     at ($(\\titleposleft,\\titlepostop)!0.5!(\\titleposleft,\\titleposbottom)$)
-    {\\includegraphics[height=15cm]{${leftLogo}}};}
+    {\\includegraphics[height=7.2cm, keepaspectratio]{${leftLogo}}};}
 \\usetitlestyle{sampletitle}
 
-\\title{\\parbox{0.74\\linewidth}{\\centering\\huge
+\\title{\\parbox{0.62\\linewidth}{\\centering\\huge
     ${title}\\\\[1mm]
     }}
 \\author{\\Large ${authors}}
@@ -349,7 +349,7 @@ ${override}
 }
 \\useblockstyle{ModernCard}
 
-\\title{\\parbox{0.74\\linewidth}{\\centering\\huge
+\\title{\\parbox{0.62\\linewidth}{\\centering\\huge
     ${title}\\\\[1mm]
     }}
 \\author{\\Large ${authors}}

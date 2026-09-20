@@ -10,6 +10,7 @@ import { runSandboxedLatex } from "@/lib/latex/compiler-runner"
 import type { Card } from "@/lib/poster-types"
 import { parseAiModelOverrides, resolveAiModelWithOverrides, parseAiApiKey, AI_TIMEOUTS } from "@/lib/ai/models"
 import { workspacePath } from "@/lib/workspace-files"
+import sharp from "sharp"
 
 const MAX_PAGES_TO_REVIEW = 25
 
@@ -178,7 +179,10 @@ export async function POST(
       {
         type: "text",
         text: `Inspect all ${pageFiles.length} attached rendered page(s)/slide(s) for severe visual layout defects:
-1. Header / Logo defects: Missing logos, logos overlapping title text, logos stretched or clipped at edges, or displaying missing-image placeholders.
+1. Header / Logo defects:
+   - High-resolution header crop is attached: Check if left or right institutional logo overlaps/collides with the title box or title text.
+   - Check if logo background or rounded box cuts into title box or spills outside poster canvas edges.
+   - Check if logo has broken aspect ratio or displays missing-image placeholder.
 2. Broken / Missing graphics: Figures rendering fallback "Image unavailable" placeholder boxes or blank missing frames.
 3. Two-column collisions: Single-column formulas crossing the gutter into adjacent columns.
 4. Hard clippings: Text, tables, figures, or logos cut off at page edges.
@@ -190,6 +194,33 @@ CRITICAL:
 - Only report genuine, severe visible defects. If clean, return {"warnings": []}.`,
       },
     ]
+
+    // Generate high-resolution header crop of the first page (top 22%) for dedicated logo & title collision inspection
+    if (pageFiles.length > 0) {
+      try {
+        const firstPagePath = path.join(stage, pageFiles[0])
+        const meta = await sharp(firstPagePath).metadata()
+        if (meta.width && meta.height) {
+          const headerCropHeight = Math.round(meta.height * 0.22)
+          const headerBuffer = await sharp(firstPagePath)
+            .extract({ left: 0, top: 0, width: meta.width, height: headerCropHeight })
+            .resize(1600)
+            .png()
+            .toBuffer()
+
+          userPrompt.push({
+            type: "text",
+            text: "[High-Resolution Header Detail Crop]: Focus on logo alignment, title box boundary, and logo/text collision:",
+          })
+          userPrompt.push({
+            type: "image_url",
+            image_url: { url: `data:image/png;base64,${headerBuffer.toString("base64")}` },
+          })
+        }
+      } catch (cropErr) {
+        console.warn("[review-layout] Failed to generate header crop:", cropErr)
+      }
+    }
 
     for (const pf of pageFiles) {
       const pngBuffer = await fs.readFile(path.join(stage, pf))
@@ -231,14 +262,19 @@ STRICT CALIBRATION:
     const clientApiKey = parseAiApiKey(req.headers)
     const requestedModel = resolveAiModelWithOverrides("reviewLayout", modelOverrides)
 
-    // Fallback chain for VLM review: requested model first, then resilient vision models
+    // Fallback chain for VLM review: live/working models first, then legacy fallbacks.
+    // Order matters for the circuit breaker — if early models trip the breaker on the
+    // shared endpoint, later candidates are also skipped. Putting known-working models
+    // first keeps the chain healthy even when deprecated models have 0% quota.
     const candidateModels = Array.from(new Set([
       requestedModel,
+      "gemini-3.8-flash",
+      "gemini-3.7-flash",
+      "gemini-3.1-flash-image",
       "gemini-2.5-flash",
       "gemini-2.5-flash-lite",
       "gemini-1.5-flash",
       "gemini-3.1-flash-lite",
-      "gemini-3.8-flash",
     ])).filter(Boolean)
 
     let parsedData: any = null
