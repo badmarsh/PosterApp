@@ -71,6 +71,10 @@ import {
 } from "./rubric-engine"
 import { THESIS_CRITERIA } from "./thesis-rubric"
 import { shouldApplyEctsGrading, shouldRunPhdEnrichment } from "./thesis-review-policy"
+import { verifyNumericalConsistency, type NumericalDiscrepancy } from "./numerical-verifier"
+import { checkEquationSanity, type EquationValidationResult } from "./equation-consistency"
+import { verifyClaim } from "./claim-verifier"
+import { compareClaimToPaper, type StructuredClaimPaperComparison } from "./scholarly-comparator"
 
 export interface GenerateProfessionalReviewOptions {
   workspaceId: string
@@ -698,6 +702,12 @@ export async function generateProfessionalReview(
   phdEnrichment?: any
   /** How much of the manuscript the model actually saw (section-routed excerpts). */
   contextCoverage: { totalChars: number; selectedChars: number; truncated: boolean }
+  /** Deterministic verification results (numerical, equation, claim). */
+  verification?: {
+    numericalDiscrepancies: NumericalDiscrepancy[]
+    equationIssues: EquationValidationResult[]
+    claimVerifications: Array<{ findingId: string; verdict: string; reasoning: string }>
+  }
 }> {
   const rag = await loadThesisContext({
     workspaceId: options.workspaceId,
@@ -1029,10 +1039,7 @@ Respond with a valid JSON object matching this structure:
         ? options.evidenceChunks.map((c) => ({ id: c.id, heading: c.heading, content: c.content, kind: c.kind, documentId: c.documentId }))
         : undefined
     )
-    const adjudicationReport = adjudicateFindings({
-      primaryFindings: critiqueValidation.validatedFindings,
-    })
-    finalFindings = sortFindingsByPriority(adjudicationReport.results.map((r) => r.finding), options.language)
+    finalFindings = critiqueValidation.validatedFindings
     critiqueLog = critiqueResult.critiqueLog || undefined
   } else {
     critiqueLog = options.multiAgentDebate
@@ -1040,7 +1047,162 @@ Respond with a valid JSON object matching this structure:
       : "[Self-critique skipped: multiAgentDebate=false (single-pass review)]"
   }
 
-  // 3c. PhD-only guard: if NO finding touches originality/contribution at all,
+  // 3c. Deterministic verification: numerical consistency, equation sanity,
+  // and claim-evidence verification. Runs for ALL review paths (critique and
+  // non-critique). Verification failures are non-fatal — they degrade to
+  // warnings and log entries rather than blocking the review.
+  let numericalDiscrepancies: NumericalDiscrepancy[] = []
+  let equationIssues: EquationValidationResult[] = []
+  let claimVerifications: Array<{ findingId: string; verdict: string; reasoning: string }> = []
+  try {
+    options.onProgress?.("verifying", "numerical consistency check")
+    throwIfCancelled()
+
+    // 3c-i. Numerical consistency: check each finding's explanation against
+    // the evidence chunks for inline numerical claims that contradict tables.
+    const tableChunks = rag.sections.filter(
+      (s) => s.heading && /tabu|table|obr|fig|výsledk|result/i.test(s.heading)
+    )
+    for (const finding of finalFindings) {
+      if (!finding.explanation) continue
+      const evidenceTexts = (finding.evidence || [])
+        .map((ev) => ev.exactQuote || ev.quote || "")
+        .filter(Boolean)
+      if (evidenceTexts.length === 0 && tableChunks.length === 0) continue
+
+      try {
+        const numResult = verifyNumericalConsistency(
+          finding.explanation,
+          tableChunks.map((tc) => ({ content: tc.content, chunkId: tc.id })),
+          0.01
+        )
+        if (numResult.discrepancies.length > 0) {
+          numericalDiscrepancies.push(...numResult.discrepancies)
+        }
+      } catch (numErr) {
+        console.warn("[review-engine] Numerical verification failed for finding:", numErr)
+      }
+    }
+
+    // 3c-ii. Equation consistency: check chunks containing LaTeX for
+    // undefined symbols and range violations.
+    const equationChunks = rag.sections.filter(
+      (s) => s.content && (/\\[a-zA-Z]+/.test(s.content) || /\$.*\$/.test(s.content))
+    )
+    for (const chunk of equationChunks.slice(0, 20)) {
+      try {
+        // Extract inline LaTeX formulas
+        const formulaMatches = chunk.content.match(/\$([^$]+)\$/g) || []
+        const displayMatches = chunk.content.match(/\\\[([^\]]+)\\\]/g) || []
+        const allFormulas = [...formulaMatches, ...displayMatches]
+        for (const formula of allFormulas.slice(0, 5)) {
+          const cleanFormula = formula.replace(/^\$|\$$|^\[|\\\]$/g, "")
+          const eqResult = checkEquationSanity(cleanFormula, chunk.content)
+          if (!eqResult.isValid || eqResult.rangeViolations.length > 0 || eqResult.undefinedSymbols.length > 0) {
+            equationIssues.push(eqResult)
+          }
+        }
+      } catch (eqErr) {
+        console.warn("[review-engine] Equation check failed for chunk:", eqErr)
+      }
+    }
+
+    // 3c-iii. Claim verification: verify each finding's claim against its
+    // evidence chunks. Findings with contradictions are escalated.
+    for (const finding of finalFindings) {
+      if (!finding.explanation || (finding.evidence || []).length === 0) continue
+      try {
+        const evidenceChunks = (finding.evidence || [])
+          .filter((ev) => ev.exactQuote || ev.quote)
+          .map((ev) => ({
+            id: ev.chunkId || ev.id || "unknown",
+            content: ev.exactQuote || ev.quote || "",
+            heading: ev.sectionHeading || null,
+          }))
+        if (evidenceChunks.length === 0) continue
+
+        const claimResult = verifyClaim(
+          { claimKey: finding.id, text: finding.explanation, chunkId: evidenceChunks[0]?.id },
+          evidenceChunks
+        )
+        claimVerifications.push({
+          findingId: finding.id,
+          verdict: claimResult.verdict,
+          reasoning: claimResult.reasoning,
+        })
+
+        // Escalate findings with contradictions to critical
+        if (claimResult.verdict === "CONTRADICTED") {
+          const currentIdx = finalFindings.findIndex((f) => f.id === finding.id)
+          if (currentIdx >= 0) {
+            const current = finalFindings[currentIdx]
+            if (current.severity !== "critical") {
+              finalFindings[currentIdx] = {
+                ...current,
+                severity: "critical",
+                explanation: current.explanation
+                  + `\n[Verification: claim contradicted by evidence — ${claimResult.reasoning}]`,
+                epistemicStatus: "REQUIRES_HUMAN_VERIFICATION",
+                decisionStatus: "needs_human_review",
+              }
+            }
+          }
+        }
+
+        // Collect any numerical discrepancies from claim verification
+        if (claimResult.numericalDiscrepancies.length > 0) {
+          numericalDiscrepancies.push(...claimResult.numericalDiscrepancies)
+        }
+      } catch (claimErr) {
+        console.warn("[review-engine] Claim verification failed for finding:", claimErr)
+      }
+    }
+
+    // 3c-iv. Add equation issues as additional findings
+    if (equationIssues.length > 0) {
+      const equationFindings: ReviewFinding[] = equationIssues.map((eq, idx) => ({
+        id: `eq-check-${idx + 1}`,
+        criterionKey: "methodology_rigor",
+        criterionId: "methodology_rigor",
+        title: eq.rangeViolations.length > 0
+          ? `Equation range violation: ${eq.rangeViolations[0]}`
+          : `Undefined symbols in equation: ${eq.undefinedSymbols.join(", ")}`,
+        findingType: "weakness" as const,
+        epistemicStatus: "SUPPORTED_FACT" as const,
+        explanation: `Equation verification detected: ${[
+          ...eq.rangeViolations.map((v) => `Range violation: ${v}`),
+          ...eq.undefinedSymbols.map((s) => `Undefined symbol: ${s}`),
+        ].join("; ")}. Formula: ${eq.formula.slice(0, 100)}`,
+        recommendation: "Verify the equation's defined variables and value ranges against the manuscript.",
+        severity: eq.rangeViolations.length > 0 ? "major" as const : "minor" as const,
+        category: "methodology" as const,
+        confidence: 0.8,
+        evidence: [],
+        evidenceState: "unverified" as const,
+        status: "unreviewed" as const,
+        decisionStatus: "open" as const,
+        includeInExport: true,
+        createdBy: "ai" as const,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }))
+      finalFindings = [...finalFindings, ...equationFindings]
+    }
+  } catch (verifyErr) {
+    // Verification is non-fatal — log and continue
+    console.warn("[review-engine] Verification stage failed (non-fatal):", verifyErr)
+  }
+
+  // 3d. Deterministic adjudication — runs for ALL paths (critique and non-critique).
+  // The adjudicator receives numerical discrepancies from verification so it can
+  // escalate severity for findings with confirmed numerical contradictions.
+  const adjudicationReport = adjudicateFindings({
+    primaryFindings: finalFindings,
+    numericalDiscrepancies,
+  })
+  finalFindings = sortFindingsByPriority(adjudicationReport.results.map((r) => r.finding), options.language)
+
+  // 3e. PhD-only guard: if NO finding touches originality/contribution at all,
   // add a visible "REQUIRES_HUMAN_VERIFICATION" card in the review workspace so
   // the reviewer is prompted to check this critical dimension explicitly.
   // NOTE: This finding starts with decisionStatus="needs_human_review" and
@@ -1133,12 +1295,40 @@ Respond with a valid JSON object matching this structure:
         )
       }
 
+      // Phase 1.4: Scholarly prior-art comparison for PhD reviews.
+      // Compare the thesis's key originality claims against SOTA benchmarking papers.
+      let priorArtComparisons: StructuredClaimPaperComparison[] = []
+      if (sotaBenchmarking.length > 0) {
+        const originalityFindings = finalFindings.filter((f) =>
+          f.category === "results" ||
+          /origin|contribut|novelt|novel/i.test(`${f.title} ${f.explanation}`)
+        )
+        const claimText = originalityFindings.length > 0
+          ? originalityFindings.map((f) => f.explanation).join(" ").slice(0, 500)
+          : options.documentTitle
+        for (const paper of sotaBenchmarking.slice(0, 3)) {
+          try {
+            const comparison = compareClaimToPaper(
+              claimText,
+              { title: paper.title, abstract: paper.abstract, year: paper.year },
+              undefined,
+              undefined,
+              0
+            )
+            priorArtComparisons.push(comparison)
+          } catch (compErr) {
+            console.warn("[review-engine] Scholarly comparison failed:", compErr)
+          }
+        }
+      }
+
       phdEnrichment = {
         authorProfile,
         sotaBenchmarking,
         statutoryClause,
         defenseQuestionsExternal,
         citationAudit,
+        priorArtComparisons,
       }
     } catch (e) {
       console.warn("PhD Enrichment failed", e)
@@ -1158,6 +1348,11 @@ Respond with a valid JSON object matching this structure:
     defenseQuestions: calibratedQuestions,
     phdEnrichment,
     contextCoverage,
+    verification: {
+      numericalDiscrepancies,
+      equationIssues,
+      claimVerifications,
+    },
   }
 }
 

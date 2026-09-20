@@ -25,6 +25,7 @@ export const DEFAULT_CANDIDATE_LIMITS: Record<RetrievalSource, number> = {
   dense: 50,
   lexical: 50,
   graph: 30,
+  "graph-drift": 20,
   citation: 30,
   metadata: 20,
   community: 12,

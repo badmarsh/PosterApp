@@ -25,6 +25,7 @@ export type RetrievalSource =
   | "dense"
   | "lexical"
   | "graph"
+  | "graph-drift"
   | "citation"
   | "metadata"
   | "community"
@@ -90,6 +91,7 @@ export const DEFAULT_FUSION_WEIGHTS: Record<RetrievalSource, number> = {
   dense: 1.0,
   lexical: 0.9,
   graph: 0.6,
+  "graph-drift": 0.12,
   citation: 0.6,
   metadata: 0.4,
   community: 0.5,

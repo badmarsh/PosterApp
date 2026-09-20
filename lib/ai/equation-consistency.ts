@@ -1,8 +1,9 @@
 /**
- * Equation Consistency and Parameter Range Engine (Phase 16)
+ * Equation Consistency and Parameter Range Checker (Phase 16)
  *
- * Verifies consistency of mathematical equations in scientific dissertations:
- *   - Extracts defined variables, symbols, and operators from LaTeX formulas
+ * Uses regex-based extraction (not AST parsing) to verify consistency of
+ * mathematical equations in scientific dissertations:
+ *   - Extracts distinct single-letter and LaTeX Greek symbols from formulas via regex
  *   - Checks whether variables used in formulas are defined or explained in the surrounding prose
  *   - Detects physically or mathematically impossible ranges (e.g. negative probabilities, probabilities > 1)
  */

@@ -11,7 +11,7 @@
  *   4. dense-multilingual-e5: Single-vector dense multilingual (Multilingual-E5-large, 1024-dim)
  *   5. naive-rag: Industry-standard naive chunk concatenation (500 tokens, top-5, no parent expansion, unverified)
  *   6. late-interaction-colbert: Token-level MaxSim late interaction (ColBERTv2 style)
- *   7. posterapp-sota: PosterApp 6-Source RRF Fusion (BGE-M3 + BM25 + Citation + DRIFT Graph + Parent Context Expansion + BGE-Reranker + Semantic MMR + Deterministic Verifiers)
+ *   7. posterapp-sota: PosterApp multi-source RRF Fusion (default: multilingual MiniLM-L12-v2 384d + BM25 + Citation + Graph + Parent Expansion + Reranker + Semantic MMR + Deterministic Verifiers)
  *
  * Metrics computed:
  *   - Retrieval: Recall@5, Recall@10, Recall@20, Graded nDCG@10, MRR
@@ -103,7 +103,7 @@ export const ARCHITECTURES: BenchmarkArchitecture[] = [
   },
   {
     id: "posterapp-sota",
-    displayName: "PosterApp SOTA (6-Source RRF + Graph DRIFT + Verifiers)",
+    displayName: "PosterApp Multi-Source RRF (7-leg fusion + Graph + Verifiers)",
     family: "hybrid_fusion",
     vectorDimensions: 1024,
     reranker: "BAAI/bge-reranker-base",
@@ -142,6 +142,10 @@ export interface ArchitectureBenchmarkResult {
 
 export interface FinalComparisonReport {
   timestamp: string
+  /** "simulated" for hash-based retrieval simulation, "empirical" for real ONNX/PGlite runs. */
+  methodology: string
+  /** Explains what the methodology means and how to get real measurements. */
+  methodologyNote: string
   datasetSize: number
   domainBreakdown: Record<string, number>
   languageBreakdown: Record<string, number>
@@ -484,6 +488,12 @@ export async function runCompetitiveBenchmark(
 
   const report: FinalComparisonReport = {
     timestamp: new Date().toISOString(),
+    methodology: "simulated",
+    methodologyNote:
+      "This benchmark uses hash-based deterministic simulation (simulateRetrieval) with " +
+      "hardcoded baseHitProb values per architecture family. It does NOT run real retrieval " +
+      "against actual documents. For empirical measurements, use pnpm eval:real which runs " +
+      "against a live PGlite/ONNX engine with real documents and annotated golden judgments.",
     datasetSize: dataset.length,
     domainBreakdown,
     languageBreakdown,
