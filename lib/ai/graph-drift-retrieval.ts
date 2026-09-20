@@ -1,13 +1,13 @@
 /**
- * Iterative Graph & Concept Expansion Engine (DRIFT-style GraphRAG, Phase 16)
+ * Bounded BFS Graph Frontier Expansion Engine (Phase 16)
  *
- * Implements bounded iterative exploration:
+ * This is a bounded breadth-first search expansion across the knowledge graph,
+ * NOT Microsoft's DRIFT algorithm. It performs iterative exploration:
  *   1. Initial Query & Seed Linking: Retrieve top graph nodes and connected entities.
- *   2. Missing Concept Identification: Compare query intention against linked graph entities.
- *   3. Targeted Neighborhood Expansion: Follow typed relations (CAUSES, VALIDATES, DEPENDS_ON, EVALUATES)
+ *   2. Targeted Neighborhood Expansion: Follow typed relations (CAUSES, VALIDATES, DEPENDS_ON, EVALUATES)
  *      to uncover indirect dependencies.
- *   4. Convergence & Budgets: Stops when marginal new evidence gain < threshold, or upon reaching
- *      strict token/latency/iteration bounds.
+ *   3. Convergence & Budgets: Stops when marginal new evidence gain < threshold, or upon reaching
+ *      strict token/latency/iteration bounds (3 iterations, 40 nodes, 500ms timeout).
  */
 
 import { prisma } from "@/lib/prisma"

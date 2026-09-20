@@ -339,6 +339,7 @@ const DEFAULT_STRATEGY_LIMITS: Record<RetrievalSource, number> = {
   dense: 40,
   lexical: 40,
   graph: 25,
+  "graph-drift": 20,
   citation: 25,
   metadata: 20,
   community: 12,

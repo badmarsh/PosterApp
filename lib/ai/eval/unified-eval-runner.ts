@@ -80,6 +80,8 @@ export async function runAllEvaluations(outputDir = "artifacts/eval"): Promise<U
 
   const retrievalArtifact = {
     timestamp: new Date().toISOString(),
+    methodology: "simulated",
+    methodologyNote: "Ablation variants use hash-based simulation (simulateRetrieval). For empirical results, use pnpm eval:real.",
     queryCount: goldenSet.length,
     domains: ["cs_ai", "physics_stem", "biomedical", "economics_social", "general_academic"],
     languages: ["sk", "cs", "en"],
@@ -90,6 +92,8 @@ export async function runAllEvaluations(outputDir = "artifacts/eval"): Promise<U
   // 2. Model Tournament Simulation
   const modelsArtifact = {
     timestamp: new Date().toISOString(),
+    methodology: "simulated",
+    methodologyNote: "Recall and latency values are estimated from model dimensions, not measured. For real benchmarks, run against actual corpus.",
     evaluatedModels: listKnownModels("embedding").map((m) => ({
       id: m.id,
       dimensions: m.dimensions,
@@ -107,6 +111,8 @@ export async function runAllEvaluations(outputDir = "artifacts/eval"): Promise<U
   // 3. Reranker Tournament
   const rerankersArtifact = {
     timestamp: new Date().toISOString(),
+    methodology: "simulated",
+    methodologyNote: "Reranker metrics are estimated, not measured against real queries.",
     rerankers: [
       { id: "none", mrr: 0.82, ndcgAt10: 0.84, latencyMs: 0 },
       { id: "cross-encoder/ms-marco-MiniLM-L-6-v2", mrr: 0.91, ndcgAt10: 0.92, latencyMs: 24 },
@@ -144,6 +150,8 @@ export async function runAllEvaluations(outputDir = "artifacts/eval"): Promise<U
 
   const evidenceArtifact = {
     timestamp: new Date().toISOString(),
+    methodology: "unit_test",
+    methodologyNote: "Verified on 3 hardcoded mock claims (SUPPORTED, CONTRADICTED, UNSUPPORTED). Not a real corpus evaluation.",
     claimsEvaluated: mockClaims.length,
     accuracy: correctVerdicts / mockClaims.length,
     verifiedExactPrecision: 1.0,
@@ -156,6 +164,8 @@ export async function runAllEvaluations(outputDir = "artifacts/eval"): Promise<U
   const comp2 = compareClaimToPaper("Graph networks", { title: "Graph networks", year: 2019 }, 2021, "2021-05-01", 0.9)
   const noveltyArtifact = {
     timestamp: new Date().toISOString(),
+    methodology: "unit_test",
+    methodologyNote: "Verified with 2 hardcoded temporal precedence comparisons. Not a real corpus evaluation.",
     temporalPrecedenceRuleAccuracy: comp1.relation === "POSTDATED" && comp2.isPriorArt ? 1.0 : 0.0,
     structuredDecompositionTested: true,
   }
@@ -190,6 +200,8 @@ export async function runAllEvaluations(outputDir = "artifacts/eval"): Promise<U
 
   const reviewArtifact = {
     timestamp: new Date().toISOString(),
+    methodology: "unit_test",
+    methodologyNote: "Verified with 1 hardcoded unverified critical finding. Not a real review evaluation.",
     adjudicatedFindingsCount: adjRes.results.length,
     unjustifiedCriticalDowngraded: adjRes.downgradedCount === 1,
     severityCalibrationAgreement: 0.94,

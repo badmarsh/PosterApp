@@ -74,6 +74,7 @@ import { shouldApplyEctsGrading, shouldRunPhdEnrichment } from "./thesis-review-
 import { verifyNumericalConsistency, type NumericalDiscrepancy } from "./numerical-verifier"
 import { checkEquationSanity, type EquationValidationResult } from "./equation-consistency"
 import { verifyClaim } from "./claim-verifier"
+import { compareClaimToPaper, type StructuredClaimPaperComparison } from "./scholarly-comparator"
 
 export interface GenerateProfessionalReviewOptions {
   workspaceId: string
@@ -1294,12 +1295,40 @@ Respond with a valid JSON object matching this structure:
         )
       }
 
+      // Phase 1.4: Scholarly prior-art comparison for PhD reviews.
+      // Compare the thesis's key originality claims against SOTA benchmarking papers.
+      let priorArtComparisons: StructuredClaimPaperComparison[] = []
+      if (sotaBenchmarking.length > 0) {
+        const originalityFindings = finalFindings.filter((f) =>
+          f.category === "results" ||
+          /origin|contribut|novelt|novel/i.test(`${f.title} ${f.explanation}`)
+        )
+        const claimText = originalityFindings.length > 0
+          ? originalityFindings.map((f) => f.explanation).join(" ").slice(0, 500)
+          : options.documentTitle
+        for (const paper of sotaBenchmarking.slice(0, 3)) {
+          try {
+            const comparison = compareClaimToPaper(
+              claimText,
+              { title: paper.title, abstract: paper.abstract, year: paper.year },
+              undefined,
+              undefined,
+              0
+            )
+            priorArtComparisons.push(comparison)
+          } catch (compErr) {
+            console.warn("[review-engine] Scholarly comparison failed:", compErr)
+          }
+        }
+      }
+
       phdEnrichment = {
         authorProfile,
         sotaBenchmarking,
         statutoryClause,
         defenseQuestionsExternal,
         citationAudit,
+        priorArtComparisons,
       }
     } catch (e) {
       console.warn("PhD Enrichment failed", e)
