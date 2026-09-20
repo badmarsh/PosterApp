@@ -43,25 +43,25 @@ export function ShowcaseGallery({
     return ALL_SHOWCASE_PROJECTS.filter((showcase) => {
       // Category filter
       if (selectedCategory === "ai-foundations") {
-        const aiIds = ["attention-is-all-you-need", "resnet-deep-residual-learning", "bert-pre-training", "gans-goodfellow-2014"]
+        const aiIds = ["attention-is-all-you-need", "resnet-deep-residual-learning", "bert-pre-training", "gans-goodfellow-2014", "vla-autonomous-surgery"]
         if (!aiIds.includes(showcase.id)) return false
       } else if (selectedCategory === "physics") {
-        if (showcase.id !== "atlas-bose-einstein-correlations") return false
+        if (!["atlas-bose-einstein-correlations", "neural-wavefunction-superconductors"].includes(showcase.id)) return false
       } else if (selectedCategory === "quantum") {
-        if (showcase.id !== "quantum-supremacy-sycamore") return false
+        if (!["quantum-supremacy-sycamore", "neural-wavefunction-superconductors"].includes(showcase.id)) return false
       } else if (selectedCategory === "biology") {
-        if (showcase.id !== "alphafold-protein-folding") return false
+        if (!["alphafold-protein-folding", "cas13-panviral-immunity"].includes(showcase.id)) return false
       } else if (selectedCategory === "thesis-review") {
-        if (showcase.id !== "posudok-diplomovka-ai") return false
+        if (!["posudok-diplomovka-ai", "vla-autonomous-surgery"].includes(showcase.id)) return false
       }
 
       // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase()
-        const matchTitle = showcase.name.toLowerCase().includes(q) || showcase.posterTitle.toLowerCase().includes(q)
+        const matchTitle = showcase.name.toLowerCase().includes(q) || (showcase.posterTitle || showcase.name).toLowerCase().includes(q)
         const matchAuthors = showcase.authors.toLowerCase().includes(q)
         const matchVenue = showcase.venue.toLowerCase().includes(q)
-        const matchTemplate = showcase.templateName.toLowerCase().includes(q)
+        const matchTemplate = (showcase.templateName || "").toLowerCase().includes(q)
         return matchTitle || matchAuthors || matchVenue || matchTemplate
       }
 
@@ -72,10 +72,12 @@ export function ShowcaseGallery({
   const getCategoryIcon = (id: string) => {
     switch (id) {
       case "atlas-bose-einstein-correlations":
+      case "neural-wavefunction-superconductors":
         return <Atom className="size-4 text-rose-500" />
       case "quantum-supremacy-sycamore":
         return <Cpu className="size-4 text-blue-500" />
       case "alphafold-protein-folding":
+      case "cas13-panviral-immunity":
         return <Dna className="size-4 text-emerald-500" />
       case "posudok-diplomovka-ai":
         return <GraduationCap className="size-4 text-sky-500" />

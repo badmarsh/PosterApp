@@ -109,10 +109,6 @@ export const PATTERN_SHORT: Record<BlockPattern, string> = {
   "image-focused": "image",
   stats: "stats",
   "metric-card": "metric",
-  "image-centric": "image",
-  "bullets-dense": "dense",
-  "callout-box": "callout",
-  table: "table",
   references: "refs",
   // Slides
   "title-slide": "title",

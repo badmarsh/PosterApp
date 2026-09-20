@@ -96,7 +96,7 @@ export function estimateHeightBreakdown(card: Card): HeightBreakdown {
   const bullets = bulletCount * BULLET_UNIT
 
   let table = 0
-  if (card.pattern === "bullets-table" || card.pattern === "section-table" || card.pattern === "table") {
+  if (card.pattern === "bullets-table" || card.pattern === "section-table") {
     table = 30 + (Array.isArray(card.table?.rows) ? card.table.rows.length : 0) * TABLE_ROW_UNIT
   }
 

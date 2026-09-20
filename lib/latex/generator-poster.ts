@@ -180,7 +180,7 @@ export function generateLatexForCard(
     if (card.pattern !== "image-focused" && card.content.trim()) {
       parts.push(parseMarkdownToLatex(card.content.trim()))
     }
-    if (card.pattern === "bullets-table" || card.pattern === "table") {
+    if (card.pattern === "bullets-table") {
       parts.push(generateTable(card))
     }
     if (

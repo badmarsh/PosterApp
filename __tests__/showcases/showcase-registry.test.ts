@@ -5,8 +5,8 @@ import { generateFullTemplate } from "@/lib/latex/generator"
 import { TEMPLATE_REGISTRY } from "@/lib/output-types"
 
 describe("Showcase Registry & LaTeX Generation", () => {
-  it("exports all 8 landmark showcases with rich metadata", () => {
-    expect(ALL_SHOWCASE_PROJECTS.length).toBe(8)
+  it("exports all 11 landmark showcases with rich metadata", () => {
+    expect(ALL_SHOWCASE_PROJECTS.length).toBe(11)
     const expectedIds = [
       "atlas-bose-einstein-correlations",
       "quantum-supremacy-sycamore",
@@ -16,6 +16,9 @@ describe("Showcase Registry & LaTeX Generation", () => {
       "resnet-deep-residual-learning",
       "bert-pre-training",
       "gans-goodfellow-2014",
+      "vla-autonomous-surgery",
+      "neural-wavefunction-superconductors",
+      "cas13-panviral-immunity",
     ]
     for (const expectedId of expectedIds) {
       const showcase = ALL_SHOWCASE_PROJECTS.find((p) => p.id === expectedId)
@@ -28,7 +31,7 @@ describe("Showcase Registry & LaTeX Generation", () => {
   })
 
   it("integrates all showcases into sampleProjects in mock-data", () => {
-    expect(sampleProjects.length).toBe(9) // 1 default demo + 8 showcases
+    expect(sampleProjects.length).toBe(12) // 1 default demo + 11 showcases
     expect(sampleProjects[0].id).toBe(DEMO_PROJECT_ID)
     for (const showcase of ALL_SHOWCASE_PROJECTS) {
       expect(sampleProjects.some((p) => p.id === showcase.id)).toBe(true)

@@ -109,7 +109,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
             state.project = { ...projectData, assets: projectData.assets || [], ingestFiles: projectData.ingestFiles || [] }
             syncActiveCards(state.project)
           })
-          const safeEvents = agentEvents.map((e) =>
+          const safeEvents = agentEvents.map((e: any) =>
             e.status === "running" ? { ...e, status: "error", detail: "Interrupted" } : e
           )
           get().hydrateUi(safeEvents, chatMessages)

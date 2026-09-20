@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { ResearchLabTemplates, type ScientificTask } from "@/components/research-lab-templates"
 import { ShowcaseGallery } from "@/components/showcase-gallery"
+import { ALL_SHOWCASE_PROJECTS } from "@/lib/showcases-data"
 import type { Project } from "@/lib/poster-types"
 import { AGENT_SCOPE_PRESETS, buildDeerFlowLaunchBundle } from "@/lib/agent-launch"
 
@@ -407,7 +408,7 @@ export function WorkspaceSelector({
                 {activeTab === "research-lab" ? "Research Lab Templates" : activeTab === "showcases" ? "Vedecké ukážky & Demos" : "Select a Workspace"}
               </DialogTitle>
               <DialogDescription>
-                {activeTab === "research-lab" ? "Long-horizon scientific task protocols designed for autonomous DeerFlow execution." : activeTab === "showcases" ? "Preskúmajte špičkové vedecké ukážky (CERN ATLAS, Kvantové počítače, AlphaFold 2, NeurIPS/CVPR, Posudky) s hotovým LaTeXom." : "Open an existing project or create a new one."}
+                {activeTab === "research-lab" ? "Long-horizon scientific task protocols designed for autonomous DeerFlow execution." : activeTab === "showcases" ? "Preskúmajte špičkové vedecké ukážky (CERN ATLAS, SurgiVLA, Kvantové počítače, AlphaFold 2, Cas13, NeurIPS/CVPR, Posudky) s hotovým LaTeXom." : "Open an existing project or create a new one."}
               </DialogDescription>
             </div>
           </div>
@@ -446,7 +447,7 @@ export function WorkspaceSelector({
             <Sparkles className="size-3.5 text-amber-500" />
             Ukážky & Demos
             <span className="ml-1 rounded-full bg-muted-foreground/15 text-muted-foreground px-1.5 py-0.2 text-[10px]">
-              8
+              {ALL_SHOWCASE_PROJECTS.length}
             </span>
           </button>
           <button
