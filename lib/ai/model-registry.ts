@@ -763,6 +763,63 @@ export interface RerankModel {
   getModelInfo(): ModelInfo
 }
 
+
+let _pyRerankProc: any = null
+let _pyRerankQueue: Array<{ resolve: (s: number[] | null) => void }> = []
+
+function startPythonReranker(): void {
+  if (_pyRerankProc) return
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { spawn } = require("child_process") as typeof import("child_process")
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const path = require("path") as typeof import("path")
+  const scriptPath = path.resolve(process.cwd(), "lib/ai/eval/qwen-reranker-server.py")
+  const env = { ...process.env, RERANKER_MODEL: getRegistryConfig().rerankerModel }
+  const proc = spawn("python", [scriptPath], { stdio: ["pipe", "pipe", "inherit"], env })
+  _pyRerankProc = proc
+  let buf = ""
+  proc.stdout.on("data", (chunk: Buffer) => {
+    buf += chunk.toString()
+    const lines = buf.split("\n")
+    buf = lines.pop() ?? ""
+    for (const line of lines) {
+      if (!line.trim()) continue
+      try {
+        const msg = JSON.parse(line)
+        if (msg.status === "ready") {
+          console.info("[model-registry] Python GPU reranker ready:", msg.model, "on", msg.device)
+        } else if (typeof msg.scores !== "undefined" && _pyRerankQueue.length > 0) {
+          _pyRerankQueue.shift()!.resolve(msg.scores)
+        } else if (msg.error && _pyRerankQueue.length > 0) {
+          console.warn("[model-registry] Python reranker:", msg.error)
+          _pyRerankQueue.shift()!.resolve(null)
+        }
+      } catch { /* ignore parse errors */ }
+    }
+  })
+  proc.on("exit", () => { _pyRerankProc = null; for (const p of _pyRerankQueue) p.resolve(null); _pyRerankQueue = [] })
+}
+
+async function rerankViaPython(query: string, documents: string[], _modelId: string): Promise<number[] | null> {
+  if (documents.length === 0) return null
+  const started = Date.now()
+  try {
+    startPythonReranker()
+    const scores = await new Promise<number[] | null>((resolve) => {
+      _pyRerankQueue.push({ resolve })
+      _pyRerankProc.stdin.write(JSON.stringify({ query, passages: documents.map((d) => (d == null ? "" : String(d))) }) + "\n")
+    })
+    modelHealth.reranker.calls++
+    modelHealth.reranker.inferenceMs += Date.now() - started
+    return scores
+  } catch (err) {
+    modelHealth.reranker.failures++
+    modelHealth.reranker.lastError = err instanceof Error ? err.message : String(err)
+    console.warn("[model-registry] Python reranker unavailable:", modelHealth.reranker.lastError)
+    return null
+  }
+}
+
 let rerankerLoader: Promise<{ tokenizer: any; model: any }> | null = null
 let rerankerLoaderId = ""
 
@@ -772,6 +829,10 @@ async function loadXenovaReranker(modelId: string) {
   rerankerLoader = (async () => {
     const mod: any = await import("@xenova/transformers")
     mod.env.allowLocalModels = false
+    if (process.env.HF_TOKEN) {
+      mod.env.token = process.env.HF_TOKEN
+      mod.env.authToken = process.env.HF_TOKEN
+    }
     const tokenizer = await mod.AutoTokenizer.from_pretrained(modelId)
     const model = await mod.AutoModelForSequenceClassification.from_pretrained(modelId, { quantized: true })
     modelHealth.reranker.warmedUp = true
@@ -823,6 +884,7 @@ export function getReranker(): RerankModel | null {
     rerank: async (query, documents) => {
       if (documents.length === 0) return null
       if (info.backend === "reference-ngram") return lexicalHeuristicScores(query, documents)
+      if (info.backend === "hf-v3") return rerankViaPython(query, documents, info.id)
       if (process.env.VITEST && !process.env.TEST_REAL_EMBEDDINGS) return null
       const started = Date.now()
       const scores = await enqueue(async () => {

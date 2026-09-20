@@ -34,6 +34,8 @@ export type BlockPattern =
   | "bullets-two-images"
   | "bullets-table"
   | "image-focused"
+  | "stats"
+  | "metric-card"
   | "references"
   // Slide-specific patterns
   | "title-slide"
@@ -72,6 +74,8 @@ export const BLOCK_PATTERNS: {
     label: "Image-focused card",
     description: "A figure-dominant block with a short caption.",
   },
+  { id: "stats", label: "Stat hero callouts", description: "Display metric callouts with badges and large numbers." },
+  { id: "metric-card", label: "Metric card", description: "Visual metric tiles for key benchmarks and results." },
   {
     id: "references",
     label: "References / Bibliography",
@@ -282,6 +286,8 @@ export function cardType(card: Card): CardType {
     case "section":
     case "title-slide":
     case "references":
+    case "stats":
+    case "metric-card":
       return "bullets"
     case "bullets-table":
     case "section-table":

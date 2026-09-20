@@ -29,7 +29,7 @@
     "eval:models": "vitest run lib/ai/eval/__tests__/model-benchmark.test.ts",
     "eval:novelty": "vitest run lib/ai/eval/__tests__/novelty-eval.test.ts",
     "eval:thesis-review": "vitest run lib/ai/eval/__tests__/",
-    "eval:real": "node --import tsx/esm -e \"import('./lib/ai/eval/real-corpus-benchmark.ts').then(m => m.runRealCorpusBenchmark()).then(r => { console.log(JSON.stringify(r, null, 2)); process.exit(0) })\"",
+    "eval:real": "node --env-file=.env --env-file=.env.local --import tsx/esm -e \"import('./lib/ai/eval/real-corpus-benchmark.ts').then(m => m.runRealCorpusBenchmark()).then(r => { console.log(JSON.stringify(r, null, 2)); process.exit(0) })\"",
     "eval:competitive": "vitest run lib/ai/eval/__tests__/competitive-benchmark.test.ts",
     "eval:all": "vitest run lib/ai/eval/__tests__/unified-eval.test.ts"
   },

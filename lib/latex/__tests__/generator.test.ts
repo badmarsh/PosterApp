@@ -77,6 +77,45 @@ describe("Generator", () => {
       expect(res).toContain("\\begin{tabular}")
       expect(res).toContain("A & B \\\\")
     })
+    it("produces booktabs rules with no vertical bars for bullets-table", () => {
+      const card = makeCard({
+        pattern: "bullets-table",
+        table: { hasHeader: true, caption: "Test Caption", rows: [["Model", "Score"], ["Transformer", "28.4"]] }
+      })
+      const res = generateLatexForCard(card)
+      expect(res).toContain("\\begin{tabular}{lc}")
+      expect(res).toContain("\\toprule")
+      expect(res).toContain("\\midrule")
+      expect(res).toContain("\\bottomrule")
+      expect(res).not.toContain("|")
+      expect(res).toContain("Transformer & 28.4 \\")
+    })
+
+    it("produces visual metric callout tiles for stats pattern", () => {
+      const card = makeCard({
+        pattern: "stats",
+        content: "- **28.4 BLEU** EN-DE Translation (+2.0 over SOTA)\n- **41.0 BLEU** EN-FR Translation\n- **3.5 d** Training time (8x P100)"
+      })
+      const res = generateLatexForCard(card)
+      expect(res).toContain("\\fcolorbox{customaccent!30}{customaccent!6}")
+      expect(res).toContain("28.4 BLEU")
+      expect(res).toContain("EN-DE Translation")
+      expect(res).toContain("+2.0 over SOTA")
+      expect(res).toContain("41.0 BLEU")
+      expect(res).toContain("3.5 d")
+    })
+
+    it("produces visual metric callout tiles for metric-card pattern", () => {
+      const card = makeCard({
+        pattern: "metric-card",
+        content: "Top benchmark highlights:\n- **3.57%** Top-5 Error | ImageNet 2015\n- **152** Layers | 8x deeper than VGG"
+      })
+      const res = generateLatexForCard(card)
+      expect(res).toContain("\\fcolorbox{customaccent!30}{customaccent!6}")
+      expect(res).toContain("3.57\\%")
+      expect(res).toContain("Top-5 Error")
+      expect(res).toContain("ImageNet 2015")
+    })
   })
 
   describe("generateFullTemplate", () => {

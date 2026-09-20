@@ -217,6 +217,8 @@ export type PosterPattern =
   | "bullets-two-images"
   | "bullets-table"
   | "image-focused"
+  | "stats"
+  | "metric-card"
   | "references"
 
 export type SlidePattern =
@@ -242,6 +244,8 @@ export const PATTERNS_FOR_TYPE: Record<OutputType, { id: string; label: string; 
     { id: "bullets-two-images", label: "Bullets + two images", description: "Bullets followed by two side-by-side figures." },
     { id: "bullets-table", label: "Bullets + table", description: "Bullets followed by a tabular result block." },
     { id: "image-focused", label: "Image-focused card", description: "A figure-dominant block with a short caption." },
+    { id: "stats", label: "Stat hero callouts", description: "Large metric callouts and benchmark highlight tiles." },
+    { id: "metric-card", label: "Metric card", description: "Visual metric tiles for key benchmark results." },
     { id: "references", label: "References / Bibliography", description: "Auto-generates the bibliography." },
   ],
   slides: [

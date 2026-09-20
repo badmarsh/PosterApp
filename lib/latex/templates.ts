@@ -83,9 +83,12 @@ export function getMinimalTemplate(project: Project, themeColor?: string): strin
 % [AI-CONTEXT] You are inside a tikzposter poster template.
 % Use \\block{Title}{Content} for each card section.
 % Enclose blocks within \\column{width} commands (e.g. \\column{0.33}).
-\\documentclass[a0paper,portrait, blockverticalspace=3em, colspace=2em]{tikzposter}
+\\documentclass[a0paper,portrait, blockverticalspace=2.5em, colspace=2em]{tikzposter}
 \\tikzposterlatexaffectionproofoff
+\\usepackage{sourcesanspro}
+\\renewcommand{\\familydefault}{\\sfdefault}
 \\usepackage{graphicx}
+\\usepackage{booktabs}
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{multicol}
@@ -103,6 +106,7 @@ ${FITMATH_MACRO}
 \\definecolor{secondarycolor}{RGB}{43, 75, 158}
 \\definecolor{lightblue}{RGB}{199, 215, 237}
 ${override}
+\\colorlet{customaccent}{maincolor}
 \\definecolorstyle{minimalcolors}{
     \\colorlet{backgroundcolor}{white}
     \\colorlet{titlefgcolor}{white}
@@ -110,9 +114,26 @@ ${override}
     \\colorlet{blocktitlefgcolor}{white}
     \\colorlet{blocktitlebgcolor}{maincolor}
     \\colorlet{blockbodyfgcolor}{black}
-    \\colorlet{blockbodybgcolor}{lightblue!25}
+    \\colorlet{blockbodybgcolor}{maincolor!5}
 }{}
 \\usecolorstyle{minimalcolors}
+
+\\defineblockstyle{ModernCard}{
+    titlewidthscale=1, bodywidthscale=1, titleleft,
+    titleoffsetx=0pt, titleoffsety=0pt, bodyoffsetx=0pt, bodyoffsety=0pt,
+    bodyverticalshift=0pt, roundedcorners=6, linewidth=1.5pt,
+    titleinnersep=8mm, bodyinnersep=10mm
+}{
+    \\begin{scope}[line width=\\blocklinewidth, rounded corners=\\blockroundedcorners]
+        \\ifBlockHasTitle
+           \\draw[color=blocktitlebgcolor, fill=blocktitlebgcolor] (blockbody.south west) rectangle (blocktitle.north east);
+           \\draw[color=blocktitlebgcolor, fill=blockbodybgcolor] (blockbody.south west) rectangle (blockbody.north east);
+        \\else
+           \\draw[color=blocktitlebgcolor, fill=blockbodybgcolor] (blockbody.south west) rectangle (blockbody.north east);
+        \\fi
+    \\end{scope}
+}
+\\useblockstyle{ModernCard}
 
 \\title{\\parbox{0.74\\linewidth}{\\centering\\huge
     ${title}\\\\[1mm]
@@ -143,9 +164,12 @@ export function getAtlasTemplate(project: Project, themeColor?: string, workspac
 % [AI-CONTEXT] You are inside an ATLAS (CERN) tikzposter poster template.
 % Use \\block{Title}{Content} for each card section.
 % Enclose blocks within \\column{width} commands (e.g. \\column{0.33}).
-\\documentclass[a0paper,portrait, blockverticalspace=3em, colspace=2em]{tikzposter}
+\\documentclass[a0paper,portrait, blockverticalspace=2.5em, colspace=2em]{tikzposter}
 \\tikzposterlatexaffectionproofoff
+\\usepackage{sourcesanspro}
+\\renewcommand{\\familydefault}{\\sfdefault}
 \\usepackage{graphicx}
+\\usepackage{booktabs}
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{multicol}
@@ -163,6 +187,7 @@ ${FITMATH_MACRO}
 \\definecolor{secondarycolor}{RGB}{158, 43, 47}
 \\definecolor{lightred}{RGB}{237, 199, 201}
 ${override}
+\\colorlet{customaccent}{maincolor}
 \\definecolorstyle{atlascolors}{
     \\colorlet{backgroundcolor}{white}
     \\colorlet{titlefgcolor}{white}
@@ -170,9 +195,26 @@ ${override}
     \\colorlet{blocktitlefgcolor}{white}
     \\colorlet{blocktitlebgcolor}{maincolor}
     \\colorlet{blockbodyfgcolor}{black}
-    \\colorlet{blockbodybgcolor}{lightred!25}
+    \\colorlet{blockbodybgcolor}{lightred!12}
 }{}
 \\usecolorstyle{atlascolors}
+
+\\defineblockstyle{ModernCard}{
+    titlewidthscale=1, bodywidthscale=1, titleleft,
+    titleoffsetx=0pt, titleoffsety=0pt, bodyoffsetx=0pt, bodyoffsety=0pt,
+    bodyverticalshift=0pt, roundedcorners=6, linewidth=1.5pt,
+    titleinnersep=8mm, bodyinnersep=10mm
+}{
+    \\begin{scope}[line width=\\blocklinewidth, rounded corners=\\blockroundedcorners]
+        \\ifBlockHasTitle
+           \\draw[color=blocktitlebgcolor, fill=blocktitlebgcolor] (blockbody.south west) rectangle (blocktitle.north east);
+           \\draw[color=blocktitlebgcolor, fill=blockbodybgcolor] (blockbody.south west) rectangle (blockbody.north east);
+        \\else
+           \\draw[color=blocktitlebgcolor, fill=blockbodybgcolor] (blockbody.south west) rectangle (blockbody.north east);
+        \\fi
+    \\end{scope}
+}
+\\useblockstyle{ModernCard}
 
 \\definetitlestyle{sampletitle}{width=760mm, roundedcorners=20, linewidth=2pt,
   innersep=10pt, titletotopverticalspace=6mm, titletoblockverticalspace=8mm}{%
@@ -210,6 +252,8 @@ export function getGeminiTemplate(project: Project, themeColor?: string): string
 \\documentclass[final]{beamer}
 \\usepackage[orientation=portrait,size=a0,scale=1.2]{beamerposter}
 \\usepackage[utf8]{inputenc}
+\\usepackage{sourcesanspro}
+\\renewcommand{\\familydefault}{\\sfdefault}
 \\usepackage{graphicx}
 \\usepackage{amsmath}
 \\usepackage{amssymb}
@@ -229,18 +273,35 @@ ${override}
 \\setbeamercolor{institute in headline}{fg=white!80}
 \\setbeamercolor{structure}{fg=customaccent}
 \\setbeamercolor{block title}{fg=white,bg=customaccent}
-\\setbeamercolor{block body}{fg=black,bg=customaccent!8}
+\\colorlet{maincolor}{customaccent}
+\\setbeamercolor{block body}{fg=black!85,bg=customaccent!5}
 \\setbeamertemplate{navigation symbols}{}
+\\setbeamertemplate{blocks}[rounded][shadow=false]
+
+\\addtobeamertemplate{block begin}{%
+  \\vspace{1.5ex}%
+}{%
+  \\vspace{0.8ex}%
+}
+\\addtobeamertemplate{block end}{}{
+  \\vspace{2.5ex}%
+}
+
+\\setbeamerfont{title in headline}{size=\\huge,series=\\bfseries}
+\\setbeamerfont{author in headline}{size=\\Large,series=\\mdseries}
+\\setbeamerfont{institute in headline}{size=\\large,series=\\mdseries}
+\\setbeamerfont{block title}{size=\\Large,series=\\bfseries}
+\\setbeamerfont{block body}{size=\\normalsize}
 \\setbeamertemplate{headline}{
   \\leavevmode
-  \\begin{beamercolorbox}[wd=\\paperwidth,leftskip=2cm,rightskip=2cm,sep=1.5cm]{headline}
-    \\usebeamerfont{title in headline}{\\huge \\bfseries ${title}\\par}
-    \\vspace{0.8ex}
-    \\usebeamerfont{author in headline}{\\Large ${authors}\\par}
-    \\vspace{0.4ex}
-    \\usebeamerfont{institute in headline}{\\large ${venue}\\par}
+  \\begin{beamercolorbox}[wd=\\paperwidth,leftskip=2.5cm,rightskip=2.5cm,sep=1.8cm]{headline}
+    {\\usebeamerfont{title in headline}\\huge\\bfseries ${title}\\par}
+    \\vspace{1ex}
+    {\\usebeamerfont{author in headline}\\Large ${authors}\\par}
+    \\vspace{0.5ex}
+    {\\usebeamerfont{institute in headline}\\large ${venue}\\par}
   \\end{beamercolorbox}
-  \\vspace{1cm}
+  \\vspace{1.2cm}
 }
 
 \\begin{document}
@@ -255,9 +316,12 @@ export function getTikzposterTemplate(project: Project, themeColor?: string): st
 % [AI-CONTEXT] You are inside a standard tikzposter template.
 % Use \\block{Title}{Content} for each card section.
 % Enclose blocks within \\column{width} commands (e.g. \\column{0.33}).
-\\documentclass[a0paper,portrait, blockverticalspace=3em, colspace=2em]{tikzposter}
+\\documentclass[a0paper,portrait, blockverticalspace=2.5em, colspace=2em]{tikzposter}
 \\tikzposterlatexaffectionproofoff
+\\usepackage{sourcesanspro}
+\\renewcommand{\\familydefault}{\\sfdefault}
 \\usepackage{graphicx}
+\\usepackage{booktabs}
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{multicol}
@@ -265,7 +329,25 @@ export function getTikzposterTemplate(project: Project, themeColor?: string): st
 ${FITMATH_MACRO}
 
 ${override}
-\\usetheme{Board}
+\\colorlet{customaccent}{maincolor}
+\\usetheme{Default}
+
+\\defineblockstyle{ModernCard}{
+    titlewidthscale=1, bodywidthscale=1, titleleft,
+    titleoffsetx=0pt, titleoffsety=0pt, bodyoffsetx=0pt, bodyoffsety=0pt,
+    bodyverticalshift=0pt, roundedcorners=6, linewidth=1.5pt,
+    titleinnersep=8mm, bodyinnersep=10mm
+}{
+    \\begin{scope}[line width=\\blocklinewidth, rounded corners=\\blockroundedcorners]
+        \\ifBlockHasTitle
+           \\draw[color=blocktitlebgcolor, fill=blocktitlebgcolor] (blockbody.south west) rectangle (blocktitle.north east);
+           \\draw[color=blocktitlebgcolor, fill=blockbodybgcolor] (blockbody.south west) rectangle (blockbody.north east);
+        \\else
+           \\draw[color=blocktitlebgcolor, fill=blockbodybgcolor] (blockbody.south west) rectangle (blockbody.north east);
+        \\fi
+    \\end{scope}
+}
+\\useblockstyle{ModernCard}
 
 \\title{\\parbox{0.74\\linewidth}{\\centering\\huge
     ${title}\\\\[1mm]
@@ -285,14 +367,20 @@ export function getA0PosterTemplate(project: Project, _themeColor?: string): str
 % [AI-CONTEXT] You are inside a classic a0poster document.
 % Use standard \\section commands or minipages.
 \\documentclass[a0,portrait]{a0poster}
+\\usepackage{sourcesanspro}
+\\renewcommand{\\familydefault}{\\sfdefault}
 \\usepackage{graphicx}
+\\usepackage{booktabs}
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{multicol}
 
 ${FITMATH_MACRO}
 
-\\title{\\Huge ${title}}
+\\definecolor{customaccent}{HTML}{4F46E5}
+\\colorlet{maincolor}{customaccent}
+
+\\title{\\Huge\\bfseries ${title}}
 \\author{\\Large ${authors}}
 \\date{}
 
@@ -935,7 +1023,10 @@ export function getLandscapeTemplate(project: Project, themeColor?: string): str
 % side-by-side figures; avoid very long single-column bullet runs.
 \\documentclass[a0paper,landscape, blockverticalspace=2em, colspace=2em]{tikzposter}
 \\tikzposterlatexaffectionproofoff
+\\usepackage{sourcesanspro}
+\\renewcommand{\\familydefault}{\\sfdefault}
 \\usepackage{graphicx}
+\\usepackage{booktabs}
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{multicol}
@@ -953,6 +1044,7 @@ ${FITMATH_MACRO}
 \\definecolor{secondarycolor}{RGB}{43, 75, 158}
 \\definecolor{lightblue}{RGB}{199, 215, 237}
 ${override}
+\\colorlet{customaccent}{maincolor}
 \\definecolorstyle{landscapecolors}{
     \\colorlet{backgroundcolor}{white}
     \\colorlet{titlefgcolor}{white}
@@ -960,9 +1052,26 @@ ${override}
     \\colorlet{blocktitlefgcolor}{white}
     \\colorlet{blocktitlebgcolor}{maincolor}
     \\colorlet{blockbodyfgcolor}{black}
-    \\colorlet{blockbodybgcolor}{lightblue!25}
+    \\colorlet{blockbodybgcolor}{maincolor!5}
 }{}
 \\usecolorstyle{landscapecolors}
+
+\\defineblockstyle{ModernCard}{
+    titlewidthscale=1, bodywidthscale=1, titleleft,
+    titleoffsetx=0pt, titleoffsety=0pt, bodyoffsetx=0pt, bodyoffsety=0pt,
+    bodyverticalshift=0pt, roundedcorners=6, linewidth=1.5pt,
+    titleinnersep=8mm, bodyinnersep=10mm
+}{
+    \\begin{scope}[line width=\\blocklinewidth, rounded corners=\\blockroundedcorners]
+        \\ifBlockHasTitle
+           \\draw[color=blocktitlebgcolor, fill=blocktitlebgcolor] (blockbody.south west) rectangle (blocktitle.north east);
+           \\draw[color=blocktitlebgcolor, fill=blockbodybgcolor] (blockbody.south west) rectangle (blockbody.north east);
+        \\else
+           \\draw[color=blocktitlebgcolor, fill=blockbodybgcolor] (blockbody.south west) rectangle (blockbody.north east);
+        \\fi
+    \\end{scope}
+}
+\\useblockstyle{ModernCard}
 
 \\title{\\parbox{0.82\\linewidth}{\\centering\\huge
     ${title}\\\\[1mm]
@@ -996,7 +1105,10 @@ export function getBetterPosterTemplate(project: Project, themeColor?: string): 
 % and should use short bullets, not paragraphs.
 \\documentclass[a0paper,landscape, blockverticalspace=2em, colspace=1.5em]{tikzposter}
 \\tikzposterlatexaffectionproofoff
+\\usepackage{sourcesanspro}
+\\renewcommand{\\familydefault}{\\sfdefault}
 \\usepackage{graphicx}
+\\usepackage{booktabs}
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{multicol}
@@ -1014,6 +1126,7 @@ ${FITMATH_MACRO}
 \\definecolor{secondarycolor}{RGB}{31, 41, 55}
 \\definecolor{lightblue}{RGB}{243, 244, 246}
 ${override}
+\\colorlet{customaccent}{maincolor}
 \\definecolorstyle{bettercolors}{
     \\colorlet{backgroundcolor}{white}
     \\colorlet{titlefgcolor}{white}
@@ -1021,9 +1134,26 @@ ${override}
     \\colorlet{blocktitlefgcolor}{maincolor}
     \\colorlet{blocktitlebgcolor}{white}
     \\colorlet{blockbodyfgcolor}{black}
-    \\colorlet{blockbodybgcolor}{lightblue}
+    \\colorlet{blockbodybgcolor}{maincolor!5}
 }{}
 \\usecolorstyle{bettercolors}
+
+\\defineblockstyle{ModernCard}{
+    titlewidthscale=1, bodywidthscale=1, titleleft,
+    titleoffsetx=0pt, titleoffsety=0pt, bodyoffsetx=0pt, bodyoffsety=0pt,
+    bodyverticalshift=0pt, roundedcorners=6, linewidth=1.5pt,
+    titleinnersep=8mm, bodyinnersep=10mm
+}{
+    \\begin{scope}[line width=\\blocklinewidth, rounded corners=\\blockroundedcorners]
+        \\ifBlockHasTitle
+           \\draw[color=blocktitlebgcolor, fill=blocktitlebgcolor] (blockbody.south west) rectangle (blocktitle.north east);
+           \\draw[color=blocktitlebgcolor, fill=blockbodybgcolor] (blockbody.south west) rectangle (blockbody.north east);
+        \\else
+           \\draw[color=blocktitlebgcolor, fill=blockbodybgcolor] (blockbody.south west) rectangle (blockbody.north east);
+        \\fi
+    \\end{scope}
+}
+\\useblockstyle{ModernCard}
 
 \\title{\\parbox{0.82\\linewidth}{\\centering\\huge
     ${title}\\\\[1mm]

@@ -633,21 +633,30 @@ async function runArchitecture(
         retrievedIds = scored.map((x) => x.cid).slice(0, TOP_K)
       }
     } else {
-      // posterapp-pipeline: hybrid fusion with precision fallback
-      let vec: number[] | null = null
-      if (embedQuery) {
+      // posterapp-pipeline: SOTA multi-representation hybrid fusion
+      // Fuses 1024-dim multilingual HyDE embeddings with BM25 lexical candidates via Reciprocal Rank Fusion (k=60),
+      // gracefully falling back to MiniLM (384-dim) precision fallback in offline environments.
+      let denseIds: string[] = []
+      const bm25Ids = await retrieveBm25(db, gq.query, TOP_K * 2)
+
+      if (has1024Dim) {
+        const hydeDoc = generateBenchmarkHyDE(gq.query)
+        const qwenVecs = await fetchQwenBatchEmbeddings([gq.query, hydeDoc])
+        let vec1024: number[] | null = null
+        if (qwenVecs && qwenVecs.length >= 2) {
+          vec1024 = qwenVecs[0].map((v, i) => (v + qwenVecs[1][i]) / 2)
+        } else if (qwenVecs && qwenVecs.length >= 1) {
+          vec1024 = qwenVecs[0]
+        }
+        denseIds = await retrieveDense(db, vec1024, TOP_K * 2, "embedding_1024")
+      } else if (embedQuery) {
         const hydeDoc = generateBenchmarkHyDE(gq.query)
         const [queryVec, hydeVec] = await Promise.all([embedQuery(gq.query), embedQuery(hydeDoc)])
-        if (queryVec && hydeVec) {
-          vec = queryVec.map((v, i) => (v + hydeVec[i]) / 2)
-        } else {
-          vec = queryVec ?? hydeVec
-        }
+        const vec = (queryVec && hydeVec) ? queryVec.map((v, i) => (v + hydeVec[i]) / 2) : (queryVec ?? hydeVec)
+        denseIds = await retrieveDense(db, vec, TOP_K * 2, "embedding")
       }
-      const denseIds = await retrieveDense(db, vec, TOP_K * 2, "embedding")
-      const bm25Ids = await retrieveBm25(db, gq.query, TOP_K * 2)
-      const rrfIds = rrfFuse(denseIds, bm25Ids, TOP_K * 2)
 
+      const rrfIds = rrfFuse(denseIds, bm25Ids, TOP_K * 2)
       const candidates = rrfIds.slice(0, 30)
       let reranked = false
       if (crossEncoderScores && candidates.length > 0) {
@@ -665,9 +674,13 @@ async function runArchitecture(
         } catch (err) {}
       }
       if (!reranked) {
-        const bm25Set = new Set(bm25Ids.slice(0, TOP_K))
-        const denseExtras = denseIds.filter((id) => !bm25Set.has(id)).slice(0, TOP_K)
-        retrievedIds = [...bm25Ids.slice(0, TOP_K), ...denseExtras].slice(0, TOP_K)
+        if (has1024Dim && denseIds.length > 0) {
+          retrievedIds = rrfIds.slice(0, TOP_K)
+        } else {
+          const bm25Set = new Set(bm25Ids.slice(0, TOP_K))
+          const denseExtras = denseIds.filter((id) => !bm25Set.has(id)).slice(0, TOP_K)
+          retrievedIds = [...bm25Ids.slice(0, TOP_K), ...denseExtras].slice(0, TOP_K)
+        }
       }
     }
 
@@ -807,7 +820,7 @@ export async function runRealCorpusBenchmark(
     archResults.push(await runArchitecture("bm25", db, queries, null, "bm25"))
     archResults.push(await runArchitecture("dense-minilm", db, queries, embedQuery, "dense"))
     archResults.push(await runArchitecture("naive-rag", db, queries, embedQuery, "naive-rag"))
-    archResults.push(await runArchitecture("posterapp-pipeline", db, queries, embedQuery, "posterapp"))
+    archResults.push(await runArchitecture("posterapp-pipeline", db, queries, embedQuery, "posterapp", hasAliProxy))
 
     if (hasAliProxy) {
       archResults.push(await runArchitecture("bge-m3", db, queries, null, "bge-m3", true))

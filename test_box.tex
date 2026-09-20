@@ -1,0 +1,21 @@
+\documentclass[final]{beamer}
+\usepackage[orientation=portrait,size=a0,scale=1.2]{beamerposter}
+\usepackage{sourcesanspro}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{xcolor}
+\definecolor{customaccent}{HTML}{4F46E5}
+\setlength{\fboxsep}{1.2em}
+\setlength{\fboxrule}{1.5pt}
+\begin{document}
+\begin{frame}
+\fcolorbox{customaccent!30}{customaccent!6}{%
+  \begin{minipage}{0.3\linewidth}
+    \centering
+    {\Huge\bfseries\color{customaccent} 28.4 BLEU}\par\vspace{0.4ex}
+    {\large\bfseries EN-DE Translation}\par\vspace{0.2ex}
+    {\small +2.0 over SOTA}
+  \end{minipage}%
+}
+\end{frame}
+\end{document}
+

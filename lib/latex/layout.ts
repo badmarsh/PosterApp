@@ -81,6 +81,10 @@ export function estimateHeightBreakdown(card: Card): HeightBreakdown {
   if (card.pattern === "two-column") chrome += 20
   if (card.pattern === "title-slide") chrome += 30
 
+  if (card.pattern === "stats" || card.pattern === "metric-card") {
+    return { total: chrome + 120, chrome, prose: 0, bullets: 0, table: 0, figures: 120 }
+  }
+
   if (card.pattern === "references") {
     return { total: chrome + 150, chrome, prose: 0, bullets: 0, table: 0, figures: 150 }
   }

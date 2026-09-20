@@ -55,6 +55,27 @@ export function getRerankerModelInfo() {
  * [-10, 10]) or `null` if the reranker is unavailable.
  */
 export async function crossEncoderScores(query: string, passages: string[]): Promise<number[] | null> {
+  // First attempt: High-performance GPU Qwen3-Reranker-0.6B microservice on CUDA (RTX 3090)
+  try {
+    const res = await fetch("http://127.0.0.1:8085/rerank", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, documents: passages }),
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (res.ok) {
+      const data = await res.json() as any
+      if (Array.isArray(data.scores) && data.scores.length === passages.length) {
+        modelHealth.reranker.calls++
+        modelHealth.reranker.warmedUp = true
+        return data.scores
+      }
+    }
+  } catch (gpuErr) {
+    // GPU server unavailable or timed out; fall through to local fallback
+  }
+
+  // Fallback: Registry cross-encoder
   const reranker = getReranker()
   if (!reranker) return null
   return reranker.rerank(query, passages)
