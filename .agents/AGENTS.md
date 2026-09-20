@@ -4,14 +4,14 @@ This file contains important context about the project infrastructure and depend
 
 ## Key Services
 - **Next.js Frontend/API + Yjs WebSocket**: Single custom server (`server.ts`). Run via `tsx --env-file=.env.local server.ts`. Serves Next.js on port 3333 AND the Yjs WebSocket at `ws://localhost:3333/api/yjs` (authenticated via short-lived, one-time ticket passed via `Sec-WebSocket-Protocol: posterapp-yjs-v1, <ticket>` to avoid token leakage in URLs).
-- **MinerU**: Document parsing service. Runs in a WSL (Ubuntu) environment at `http://localhost:8001` (local dev) or as Docker container `mineru-api-wsl` on `dokploy-network` at `http://mineru-api-wsl:8000` / host port 8001 (production on `dev.significa.sk`). Returns `md_content` (CommonMark Markdown with ATX headings), `images{}` (base64), `middle_json` (tables, equations, page structure). Secured via `X-API-Key: <MINERU_API_KEY>`.
+- **MinerU**: Document parsing service. Runs in a WSL (Ubuntu) environment at `http://localhost:8002` (local dev) or as Docker container `mineru-api-wsl` on `dokploy-network` at `http://mineru-api-wsl:8000` / host port 8001 (production on `dev.significa.sk`). Returns `md_content` (CommonMark Markdown with ATX headings), `images{}` (base64), `middle_json` (tables, equations, page structure). Secured via `X-API-Key: <MINERU_API_KEY>`.
 - **AI Models & Native Gemini Support**: Direct Google Gemini API key support (`AQ.*` / `AIzaSy*`) via `GEMINI_API_KEY`, routing requests for `gemini-*` models directly to Google's official OpenAI-compatible endpoint `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` with Bearer authentication. Default model across the app is `gemini-3.8-flash`.
 - **PostgreSQL + pgvector**: Database via Docker using `pgvector/pgvector:pg16` image (NOT the standard `postgres:16-alpine`). Run with: `docker run -d --name posterapp-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=posterapp -p 5432:5432 pgvector/pgvector:pg16`. Connection: `postgresql://postgres:postgres@localhost:5432/posterapp`. The `vector` extension is enabled via Prisma schema (`extensions = [vector]`).
 - **Local Embedding Model**: `Xenova/paraphrase-multilingual-MiniLM-L12-v2` via `@xenova/transformers` (Transformers.js/WASM), runs inside Node.js. No external API. Multilingual SK/CS/EN, 384-dimensional vectors. Singleton, lazy-loaded on first use. Model auto-downloads from HuggingFace on first call.
 
 ## Startup & Execution
 - **Dev Server**: Run `pnpm run dev` to start everything concurrently.
-- `start-mineru.bat`: Launches MinerU in WSL via `wsl -d Ubuntu -e bash -c "cd ~/mineru && source .venv/bin/activate && mineru-api --port 8001"`. MinerU API binds to **port 8001**.
+- `start-mineru.bat`: Launches MinerU in WSL via `wsl -d Ubuntu -e bash -c "cd ~/mineru && source .venv/bin/activate && mineru-api --port 8002"`. MinerU API binds to **port 8002** locally (port 8001 is reserved for DeerFlow gateway).
 - **IMPORTANT**: `pnpm dev` now uses `tsx --env-file=.env.local server.ts` (NOT `next dev`) so both Next.js and the Yjs WebSocket run on the same port 3333.
 - **PostgreSQL via Docker**: Must be running `pgvector/pgvector:pg16` (not standard postgres). Start with: `docker start posterapp-postgres`. After schema changes: stop server first (releases DLL lock), then `npx prisma db push && npx prisma generate`.
 
@@ -83,7 +83,7 @@ All AI/model configuration is via `.env.local`. Key vars:
 | `OPENROUTER_API_KEY` | Key for image editing via OpenRouter | required for image edit |
 | `OPENROUTER_BASE_URL` | OpenRouter API base | `https://openrouter.ai/api/v1` |
 | `OPENROUTER_IMAGE_MODEL` | Image-to-image model | `openai/gpt-image-1` |
-| `MINERU_API_URL` | MinerU parse service | `http://mineru-api-wsl:8000` or `http://localhost:8001` |
+| `MINERU_API_URL` | MinerU parse service | `http://mineru-api-wsl:8000` or `http://localhost:8002` |
 | `MINERU_API_KEY` | Secret token for MinerU sidecar (`X-API-Key`) | required in production |
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/posterapp` |
 | `NEXT_PUBLIC_YJS_WS_URL` | Yjs WebSocket URL (enables collaboration) | `ws://localhost:3333/api/yjs` |
