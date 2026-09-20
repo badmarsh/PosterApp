@@ -1,0 +1,128 @@
+{
+  "id": "q-023",
+  "query": "contextual word representations ELMo language model embeddings",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-023",
+      "chunkId": "bert-2018_0005",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Contextual word representation history: word2vec, GloVe, ELMo"
+    },
+    {
+      "queryId": "q-023",
+      "chunkId": "bert-2018_0006",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Comparison with ELMo: deeply bidirectional vs feature-based biLSTM"
+    },
+    {
+      "queryId": "q-023",
+      "chunkId": "bert-2018_0003",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Feature-based approach with contextual representations"
+    },
+    {
+      "queryId": "q-023",
+      "chunkId": "bert-2018_0002",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Pre-trained contextual representations vs word embeddings"
+    },
+    {
+      "queryId": "q-023",
+      "chunkId": "transformer-2017_0002",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Contextual representations foundation via self-attention"
+    },
+    {
+      "queryId": "q-023",
+      "chunkId": "llm-survey-2023_0020",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GPT-3 language model reference; not about ELMo"
+    },
+    {
+      "queryId": "q-023",
+      "chunkId": "llm-survey-2023_0007",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "NLI prompt categories table; unrelated to ELMo"
+    },
+    {
+      "queryId": "q-023",
+      "chunkId": "llm-survey-2023_0038",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "InstructGPT prompt study; not about ELMo contextual representations"
+    },
+    {
+      "queryId": "q-023",
+      "chunkId": "llm-survey-2023_0001",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Paper about prompt following; not about ELMo"
+    },
+    {
+      "queryId": "q-023",
+      "chunkId": "llm-survey-2023_0040",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Author contribution acknowledgment; unrelated to ELMo"
+    },
+    {
+      "queryId": "q-023",
+      "chunkId": "llm-survey-2023_0000",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "LLM survey metadata; unrelated to ELMo"
+    },
+    {
+      "queryId": "q-023",
+      "chunkId": "llm-survey-2023_0023",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "EMNLP proceedings reference; unrelated"
+    },
+    {
+      "queryId": "q-023",
+      "chunkId": "llm-survey-2023_0034",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Numeric plot data; unrelated"
+    },
+    {
+      "queryId": "q-023",
+      "chunkId": "llm-survey-2023_0036",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Participant quote about difficulty; unrelated to ELMo"
+    },
+    {
+      "queryId": "q-023",
+      "chunkId": "bert-2018_0034",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 3: Direct architecture comparison of ELMo vs BERT vs GPT contextual embeddings"
+    }
+  ]
+}

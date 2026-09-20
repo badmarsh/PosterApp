@@ -1,0 +1,144 @@
+{
+  "id": "q-017",
+  "query": "BERT WordPiece tokenization vocabulary 30000 tokens CLS SEP special tokens",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-017",
+      "chunkId": "bert-2018_0007",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT uses WordPiece tokenization with 30000 token vocabulary"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Tokenization details and special tokens CLS and SEP"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "bert-2018_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT overview mentions WordPiece vocabulary"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "llm-survey-2023_0020",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GPT-3 reference; LLMs use BPE tokenization"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "transformer-2017_0010",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Reference bibliography entry, not primary technical content"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "transformer-2017_0014",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Translation BLEU table, not about tokenization"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "bert-2018_0019",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Reference bibliography entry, not primary technical content"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "bert-2018_0009",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "SQuAD input format with CLS and SEP tokens; tokenization output"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "bert-2018_0010",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Token classification format showing WordPiece tokenization output"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "bert-2018_0011",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Sequence labeling format with tokenized input"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "bert-2018_0012",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Masked sentence A/B format showing WordPiece tokenization with [MASK]"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "bert-2018_0020",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Token representations fed into output layer for token-level tasks; shows tokenization output usage"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "bert-2018_0026",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "SQuAD results table; not about WordPiece tokenization"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "bert-2018_0030",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT model sizes with WordPiece vocabulary; mentions 30K vocab indirectly"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "bert-2018_0000",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "YAML preamble; metadata only"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "bert-2018_0001",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT paper title page; provides context for tokenization paper"
+    },
+    {
+      "queryId": "q-017",
+      "chunkId": "llm-survey-2023_0006",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "NLI study experimental setup; unrelated to WordPiece tokenization"
+    }
+  ]
+}

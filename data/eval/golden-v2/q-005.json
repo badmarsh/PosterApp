@@ -34,7 +34,7 @@
       "grade": 2,
       "annotatorId": "annotator-1",
       "date": "2026-09-20",
-      "rationale": "ELMo feature-based approach for downstream tasks"
+      "rationale": "Task-specific input formatting for fine-tuning"
     },
     {
       "queryId": "q-005",
@@ -59,6 +59,110 @@
       "annotatorId": "annotator-1",
       "date": "2026-09-20",
       "rationale": "Attention math only - not about fine-tuning downstream tasks"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "bert-2018_0013",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 1: BERT overall pre-training and fine-tuning procedures - directly shows fine-tuning"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "bert-2018_0007",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT task-specific input/output formatting for fine-tuning"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "bert-2018_0030",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT model sizes used across fine-tuned tasks"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "bert-2018_0002",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT overview: pre-training then fine-tuning for downstream NLP classification & QA"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3: Fine-tuning framework for downstream classification and question answering"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "bert-2018_0017",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 5.2: Model size ablation across fine-tuned downstream tasks"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "bert-2018_0034",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 3: Downstream task fine-tuning architectures"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "bert-2018_0041",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Input representations for sentence-pair classification and NER downstream tasks"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "llm-survey-2023_0003",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Prompting paper; not about fine-tuning"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "bert-2018_0043",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Citation entry; unrelated to fine-tuning"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "llm-survey-2023_0007",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "NLI prompt categories; unrelated to fine-tuning"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "llm-survey-2023_0012",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Numeric value 0.3/0.268; unrelated to fine-tuning"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "bert-2018_0014",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 5.1: Fine-tuning results and ablation on downstream tasks"
     }
   ]
 }

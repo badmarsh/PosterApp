@@ -1,0 +1,128 @@
+{
+  "id": "q-009",
+  "query": "BERT fine-tuning downstream NLP tasks classification question answering",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-009",
+      "chunkId": "bert-2018_0015",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT fine-tuning procedure for downstream tasks described"
+    },
+    {
+      "queryId": "q-009",
+      "chunkId": "bert-2018_0016",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT fine-tuning section with task-specific input representations"
+    },
+    {
+      "queryId": "q-009",
+      "chunkId": "bert-2018_0021",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GLUE fine-tuning results: BERT achieves state-of-the-art"
+    },
+    {
+      "queryId": "q-009",
+      "chunkId": "bert-2018_0007",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT architecture with task-specific output layers for fine-tuning"
+    },
+    {
+      "queryId": "q-009",
+      "chunkId": "bert-2018_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT overview: pre-training + fine-tuning paradigm"
+    },
+    {
+      "queryId": "q-009",
+      "chunkId": "transformer-2017_0014",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Translation results table, weakly related"
+    },
+    {
+      "queryId": "q-009",
+      "chunkId": "llm-survey-2023_0009",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "NLI classification table, not about BERT fine-tuning"
+    },
+    {
+      "queryId": "q-009",
+      "chunkId": "bert-2018_0009",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Question-paragraph input format for SQuAD fine-tuning task"
+    },
+    {
+      "queryId": "q-009",
+      "chunkId": "bert-2018_0010",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Token classification output for NER fine-tuning"
+    },
+    {
+      "queryId": "q-009",
+      "chunkId": "bert-2018_0011",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Sequence-level fine-tuning output format"
+    },
+    {
+      "queryId": "q-009",
+      "chunkId": "bert-2018_0012",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "NSP-style input for sentence pair classification fine-tuning"
+    },
+    {
+      "queryId": "q-009",
+      "chunkId": "bert-2018_0001",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT paper title and authors - provides paper context"
+    },
+    {
+      "queryId": "q-009",
+      "chunkId": "bert-2018_0000",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT YAML preamble header only; metadata, no content"
+    },
+    {
+      "queryId": "q-009",
+      "chunkId": "llm-survey-2023_0006",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "NLI study experimental setup; unrelated"
+    },
+    {
+      "queryId": "q-009",
+      "chunkId": "bert-2018_0008",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Diagram fragment 2 chars; figure label only"
+    }
+  ]
+}

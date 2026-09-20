@@ -1,0 +1,160 @@
+{
+  "id": "q-021",
+  "query": "chain-of-thought reasoning few-shot prompting arithmetic commonsense",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-021",
+      "chunkId": "llm-survey-2023_0002",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Chain-of-thought and few-shot reasoning capabilities in language models"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "llm-survey-2023_0003",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Few-shot prompting with reasoning chains analyzed"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "llm-survey-2023_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Step-by-step reasoning and prompting evaluation"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "llm-survey-2023_0004",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Pathological prompt conditions affecting reasoning"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "llm-survey-2023_0005",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Reference bibliography entry, not primary technical content"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "transformer-2017_0007",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Attention mechanism is foundation for LLM reasoning; tangential"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "bert-2018_0022",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GLUE fine-tuning, unrelated to chain-of-thought"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "llm-survey-2023_0015",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Zero-shot accuracy figure: model vs human reasoning with different prompts"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "bert-2018_0007",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT architecture; not about chain-of-thought reasoning"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "bert-2018_0013",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT pre-training and fine-tuning diagram shows learning pipeline, context for reasoning"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "llm-survey-2023_0039",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Explicitly mentions chain-of-thought prompting and intermediate computation as few-shot exemplars"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "llm-survey-2023_0037",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Zero-shot vs step-by-step reasoning formulation"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "llm-survey-2023_0012",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Few-shot prompting accuracy with reasoning exemplars"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "bert-2018_0044",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GPT citation; unrelated to chain-of-thought"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "llm-survey-2023_0042",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Prompt formulation variations across reasoning benchmarks"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "bert-2018_0012",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT masked sentence format; unrelated to CoT"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "transformer-2017_0015",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Transformer training results; unrelated to chain-of-thought"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "llm-survey-2023_0031",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "NLI proceedings reference; unrelated"
+    },
+    {
+      "queryId": "q-021",
+      "chunkId": "bert-2018_0048",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GLUE paper reference; unrelated"
+    }
+  ]
+}

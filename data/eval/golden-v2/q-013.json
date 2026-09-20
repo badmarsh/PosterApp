@@ -1,0 +1,112 @@
+{
+  "id": "q-013",
+  "query": "attention complexity quadratic sequence length efficient transformers",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-013",
+      "chunkId": "transformer-2017_0010",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Reference bibliography entry, not primary technical content"
+    },
+    {
+      "queryId": "q-013",
+      "chunkId": "transformer-2017_0012",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Restricted self-attention for long sequences with neighborhood r"
+    },
+    {
+      "queryId": "q-013",
+      "chunkId": "transformer-2017_0009",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Reference bibliography entry, not primary technical content"
+    },
+    {
+      "queryId": "q-013",
+      "chunkId": "transformer-2017_0011",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Reference bibliography entry, not primary technical content"
+    },
+    {
+      "queryId": "q-013",
+      "chunkId": "bert-2018_0003",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT attention over full sequence; efficiency mentioned"
+    },
+    {
+      "queryId": "q-013",
+      "chunkId": "llm-survey-2023_0005",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Experimental setup, unrelated to complexity"
+    },
+    {
+      "queryId": "q-013",
+      "chunkId": "transformer-2017_0002",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Computational efficiency and parallelizability of attention vs recurrence"
+    },
+    {
+      "queryId": "q-013",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Self-attention O(n^2) complexity vs sequential computation in recurrent models"
+    },
+    {
+      "queryId": "q-013",
+      "chunkId": "transformer-2017_0007",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Dot-product attention formula: Q*K^T/sqrt(d_k) shows quadratic term"
+    },
+    {
+      "queryId": "q-013",
+      "chunkId": "transformer-2017_0000",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "YAML preamble; metadata only"
+    },
+    {
+      "queryId": "q-013",
+      "chunkId": "transformer-2017_0001",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Copyright notice from Google; not content"
+    },
+    {
+      "queryId": "q-013",
+      "chunkId": "transformer-2017_0003",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.2: Dot-product vs additive attention theoretical and space complexity"
+    },
+    {
+      "queryId": "q-013",
+      "chunkId": "transformer-2017_0019",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Numeric ablation table row; not technical content"
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+{
+  "id": "q-011",
+  "query": "BERT masked language model MLM pre-training objective",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "MLM pre-training task: randomly masking 15% of tokens for prediction"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0015",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "MLM ablation: effect of removing NSP or MLM pre-training"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0003",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT fine-tuning vs feature-based; MLM enables bidirectionality"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0002",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Abstract: BERT masked language model pre-training enabling bidirectional context"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0073",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Ablation Q: Does BERT need bidirectionality and MLM"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "transformer-2017_0007",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Attention mechanism used in MLM training; tangential"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "llm-survey-2023_0002",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "LLM prompting; unrelated to MLM"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0019",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Reference bibliography entry, not primary technical content"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.1: Masked LM pre-training objective, 15% random masking"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0013",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 1 shows pre-training (MLM) and fine-tuning workflow"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0006",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 1: Masked LM pre-training workflow with [MASK] tokens"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0026",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "SQuAD expert human scores table; unrelated to MLM"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0014",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 5.1: Pre-training task ablation evaluating MLM objective"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0043",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section A.2: Detailed MLM pre-training convergence analysis"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0001",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT pre-training paper context"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0044",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GPT citation reference; unrelated to MLM objective"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0007",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT architecture diagram label; figure fragment, not MLM content"
+    },
+    {
+      "queryId": "q-011",
+      "chunkId": "bert-2018_0020",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Token output representation; context for MLM pre-training pipeline"
+    }
+  ]
+}

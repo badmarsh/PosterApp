@@ -10,7 +10,7 @@
       "grade": 3,
       "annotatorId": "annotator-1",
       "date": "2026-09-20",
-      "rationale": "Core BERT intro - directly answers query"
+      "rationale": "Core BERT intro: bidirectional encoder representations from transformers"
     },
     {
       "queryId": "q-002",
@@ -42,7 +42,7 @@
       "grade": 2,
       "annotatorId": "annotator-1",
       "date": "2026-09-20",
-      "rationale": "Compares BERT to ELMo and other models"
+      "rationale": "Figure 1 pre-training and fine-tuning input formats with masked sentences"
     },
     {
       "queryId": "q-002",
@@ -59,6 +59,94 @@
       "annotatorId": "annotator-1",
       "date": "2026-09-20",
       "rationale": "Discusses prompts and NLI - unrelated to BERT pre-training"
+    },
+    {
+      "queryId": "q-002",
+      "chunkId": "bert-2018_0001",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT paper title and author context"
+    },
+    {
+      "queryId": "q-002",
+      "chunkId": "bert-2018_0007",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT input/output representation: CLS token for classification, sequence encoding"
+    },
+    {
+      "queryId": "q-002",
+      "chunkId": "bert-2018_0013",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 1: BERT pre-training and fine-tuning procedure overview"
+    },
+    {
+      "queryId": "q-002",
+      "chunkId": "bert-2018_0030",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT model sizes (110M and 340M parameters) described"
+    },
+    {
+      "queryId": "q-002",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3: Detailed pre-training and fine-tuning framework for BERT"
+    },
+    {
+      "queryId": "q-002",
+      "chunkId": "bert-2018_0014",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 5.1: Pre-training tasks ablation evaluating MLM vs LTR"
+    },
+    {
+      "queryId": "q-002",
+      "chunkId": "bert-2018_0033",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Model ablation numeric table; unrelated to MLM pre-training"
+    },
+    {
+      "queryId": "q-002",
+      "chunkId": "bert-2018_0043",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section A.2: Does MLM pre-training converge slower than LTR pre-training analysis"
+    },
+    {
+      "queryId": "q-002",
+      "chunkId": "bert-2018_0020",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Token representation output layer for classification; context for pre-training outputs"
+    },
+    {
+      "queryId": "q-002",
+      "chunkId": "bert-2018_0026",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "SQuAD human expert scores table; unrelated to MLM pre-training"
+    },
+    {
+      "queryId": "q-002",
+      "chunkId": "llm-survey-2023_0007",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Prompt categories table for NLI study; unrelated to BERT pre-training"
     }
   ]
 }

@@ -1,0 +1,136 @@
+{
+  "id": "q-022",
+  "query": "transformer model training Adam optimizer learning rate warmup",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-022",
+      "chunkId": "transformer-2017_0013",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Adam optimizer details: beta1=0.9, beta2=0.98, eps=1e-9; warmup steps"
+    },
+    {
+      "queryId": "q-022",
+      "chunkId": "transformer-2017_0015",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Base and big model training: 100K-300K steps, P100 GPUs"
+    },
+    {
+      "queryId": "q-022",
+      "chunkId": "transformer-2017_0014",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Training result BLEU scores from the training procedure"
+    },
+    {
+      "queryId": "q-022",
+      "chunkId": "transformer-2017_0011",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Reference bibliography entry, not primary technical content"
+    },
+    {
+      "queryId": "q-022",
+      "chunkId": "bert-2018_0016",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT fine-tuning uses Adam with different hyperparameters"
+    },
+    {
+      "queryId": "q-022",
+      "chunkId": "llm-survey-2023_0006",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Experimental NLI setup, unrelated to Adam training"
+    },
+    {
+      "queryId": "q-022",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 5.3: Optimizer: Adam with beta1=0.9, beta2=0.98, warmup_steps=4000 formula"
+    },
+    {
+      "queryId": "q-022",
+      "chunkId": "bert-2018_0034",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT training architecture and optimizer details"
+    },
+    {
+      "queryId": "q-022",
+      "chunkId": "bert-2018_0017",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT Figure 2 fine-tuning tasks; unrelated to Adam optimizer"
+    },
+    {
+      "queryId": "q-022",
+      "chunkId": "bert-2018_0043",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Citation entry; unrelated to training"
+    },
+    {
+      "queryId": "q-022",
+      "chunkId": "bert-2018_0044",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GPT citation; unrelated to Adam optimizer"
+    },
+    {
+      "queryId": "q-022",
+      "chunkId": "bert-2018_0042",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Pre-training step count (1,000,000 steps) and optimizer convergence"
+    },
+    {
+      "queryId": "q-022",
+      "chunkId": "bert-2018_0048",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GLUE paper reference; unrelated to optimizer"
+    },
+    {
+      "queryId": "q-022",
+      "chunkId": "bert-2018_0012",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT masked sentence label; unrelated to Adam training"
+    },
+    {
+      "queryId": "q-022",
+      "chunkId": "bert-2018_0001",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT title page; not about Transformer training"
+    },
+    {
+      "queryId": "q-022",
+      "chunkId": "transformer-2017_0007",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Training hardware: 8 P100 GPUs, 100k steps base, 300k steps big model"
+    }
+  ]
+}

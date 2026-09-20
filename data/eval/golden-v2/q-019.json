@@ -1,0 +1,152 @@
+{
+  "id": "q-019",
+  "query": "machine translation BLEU score WMT English German French benchmark",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-019",
+      "chunkId": "transformer-2017_0014",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BLEU results on WMT EN-DE and EN-FR: Transformer achieves SOTA"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "transformer-2017_0015",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Training details for base and big models achieving BLEU scores"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "transformer-2017_0013",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Training procedure: Adam optimizer, warmup steps, batch sizes"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "transformer-2017_0004",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Transformer proposed as seq transduction model for NMT"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "bert-2018_0002",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT not used for translation; unrelated"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "llm-survey-2023_0002",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "LLM survey; not about NMT BLEU scores"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "transformer-2017_0005",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Decoder architecture for NMT generation"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "transformer-2017_0009",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Reference bibliography entry, not primary technical content"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "transformer-2017_0010",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Reference bibliography entry, not primary technical content"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "transformer-2017_0011",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Reference bibliography entry, not primary technical content"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "llm-survey-2023_0007",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Prompt categories table; unrelated to machine translation"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "llm-survey-2023_0035",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "NLI instruction recovery; unrelated to machine translation"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "llm-survey-2023_0039",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Few-shot chain-of-thought; unrelated to WMT translation"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "transformer-2017_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Transformer abstract with BLEU results and seq2seq architecture overview"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "transformer-2017_0008",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Reference bibliography entry, not primary technical content"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "bert-2018_0007",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT diagram label; unrelated to seq2seq translation"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "bert-2018_0014",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "ImageNet caption stub; unrelated to machine translation"
+    },
+    {
+      "queryId": "q-019",
+      "chunkId": "bert-2018_0021",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GLUE results; unrelated to WMT machine translation"
+    }
+  ]
+}

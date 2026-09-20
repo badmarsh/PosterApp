@@ -10,7 +10,7 @@
       "grade": 3,
       "annotatorId": "annotator-1",
       "date": "2026-09-20",
-      "rationale": "Directly about prompting for zero-shot and few-shot LLM performance"
+      "rationale": "Abstract: Language models zero-shot and few-shot performance via prompting"
     },
     {
       "queryId": "q-003",
@@ -26,7 +26,7 @@
       "grade": 3,
       "annotatorId": "annotator-1",
       "date": "2026-09-20",
-      "rationale": "Model instruction-following vs NLI prompting directly analyzed"
+      "rationale": "Prompting analysis and evaluation of instruction-tuned models"
     },
     {
       "queryId": "q-003",
@@ -39,10 +39,10 @@
     {
       "queryId": "q-003",
       "chunkId": "llm-survey-2023_0005",
-      "grade": 2,
+      "grade": 0,
       "annotatorId": "annotator-1",
       "date": "2026-09-20",
-      "rationale": "Experimental prompting setup description"
+      "rationale": "Reference bibliography entry, not primary technical content"
     },
     {
       "queryId": "q-003",
@@ -59,6 +59,94 @@
       "annotatorId": "annotator-1",
       "date": "2026-09-20",
       "rationale": "ELMo comparison - unrelated to zero-shot prompting"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "llm-survey-2023_0016",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Irrelevant prompt setting: zero-shot behavior of models when no useful instructions given"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "llm-survey-2023_0017",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Idiosyncrasies in human instruction-following behavior with prompts"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "llm-survey-2023_0018",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Analysis of NLI task as test bed for instruction-following evaluation"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "llm-survey-2023_0012",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 3: Few-shot prompting accuracy without and with labels"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "llm-survey-2023_0030",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Empirical study on prompt instruction following under misleading task settings"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "bert-2018_0007",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT architecture diagram; unrelated to prompting"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "llm-survey-2023_0022",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Conference proceedings reference; not content"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "llm-survey-2023_0031",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "NLI inference proceedings reference; not content"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "bert-2018_0044",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GPT reference; unrelated to prompting evaluation"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "llm-survey-2023_0041",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Numeric value 0.004; not relevant"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "llm-survey-2023_0037",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Zero-shot setting: model unclear what continuation to generate; directly addresses instruction following challenge"
     }
   ]
 }

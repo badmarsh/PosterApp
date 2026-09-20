@@ -1,0 +1,128 @@
+{
+  "id": "q-024",
+  "query": "misleading pathological prompt NLI model fooled incorrect instruction",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-024",
+      "chunkId": "llm-survey-2023_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Models behave as if doing NLI even with misleading or unrelated instructions"
+    },
+    {
+      "queryId": "q-024",
+      "chunkId": "llm-survey-2023_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Pathological and misleading prompts: how humans and models respond analyzed"
+    },
+    {
+      "queryId": "q-024",
+      "chunkId": "llm-survey-2023_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Zero-shot performance impacted by prompt quality and misleading instructions"
+    },
+    {
+      "queryId": "q-024",
+      "chunkId": "llm-survey-2023_0003",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Study of pathological prompts from Webson and Pavlick analyzed"
+    },
+    {
+      "queryId": "q-024",
+      "chunkId": "llm-survey-2023_0016",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Irrelevant prompt setting: humans and models respond differently to misleading prompts"
+    },
+    {
+      "queryId": "q-024",
+      "chunkId": "llm-survey-2023_0017",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Idiosyncrasies in human behavior with prompts difficult to anticipate"
+    },
+    {
+      "queryId": "q-024",
+      "chunkId": "bert-2018_0022",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GLUE fine-tuning results, unrelated to misleading prompts"
+    },
+    {
+      "queryId": "q-024",
+      "chunkId": "llm-survey-2023_0035",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Participant recovered NLI instruction from misleading paraphrasing prompt - directly relevant"
+    },
+    {
+      "queryId": "q-024",
+      "chunkId": "llm-survey-2023_0038",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Semantically incoherent prompts work well for InstructGPT; models fooled by bad prompts"
+    },
+    {
+      "queryId": "q-024",
+      "chunkId": "llm-survey-2023_0037",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Zero-shot setting: model unclear what to do with misleading instruction"
+    },
+    {
+      "queryId": "q-024",
+      "chunkId": "llm-survey-2023_0011",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Numeric value 0.6/0.8; table cell, unrelated to pathological prompts"
+    },
+    {
+      "queryId": "q-024",
+      "chunkId": "llm-survey-2023_0012",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Numeric value 0.3/0.268; table cell, unrelated"
+    },
+    {
+      "queryId": "q-024",
+      "chunkId": "llm-survey-2023_0013",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Numeric value 0.542/0.708; table cell, unrelated"
+    },
+    {
+      "queryId": "q-024",
+      "chunkId": "llm-survey-2023_0014",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Numeric value 0.5; table cell, unrelated"
+    },
+    {
+      "queryId": "q-024",
+      "chunkId": "llm-survey-2023_0015",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Zero-shot accuracy figure showing human vs model behavior; related to misleading prompt effects"
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 {
-  "timestamp": "2026-09-20T12:30:19.240Z",
+  "timestamp": "2026-09-20T14:45:37.334Z",
+  "methodology": "simulated",
+  "methodologyNote": "This benchmark uses hash-based deterministic simulation (simulateRetrieval) with hardcoded baseHitProb values per architecture family. It does NOT run real retrieval against actual documents. For empirical measurements, use pnpm eval:real which runs against a live PGlite/ONNX engine with real documents and annotated golden judgments.",
   "datasetSize": 104,
   "domainBreakdown": {
     "general_academic": 48,
@@ -280,7 +282,7 @@
     {
       "architecture": {
         "id": "posterapp-sota",
-        "displayName": "PosterApp SOTA (6-Source RRF + Graph DRIFT + Verifiers)",
+        "displayName": "PosterApp Multi-Source RRF (7-leg fusion + Graph + Verifiers)",
         "family": "hybrid_fusion",
         "vectorDimensions": 1024,
         "reranker": "BAAI/bge-reranker-base",
@@ -356,7 +358,7 @@
     }
   },
   "sotaConclusions": {
-    "topArchitecture": "PosterApp SOTA (6-Source RRF + Graph DRIFT + Verifiers)",
+    "topArchitecture": "PosterApp Multi-Source RRF (7-leg fusion + Graph + Verifiers)",
     "recallAdvantageOverNaiveRagPct": 480,
     "recallAdvantageOverPureDensePct": 299,
     "numericalHallucinationSuppressionPct": 100,

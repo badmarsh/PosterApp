@@ -1,0 +1,152 @@
+{
+  "id": "q-007",
+  "query": "multi-head attention concatenate project parallel heads",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-007",
+      "chunkId": "transformer-2017_0008",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Reference bibliography entry, not primary technical content"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "transformer-2017_0007",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Scaled dot-product and multi-head attention directly explained"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "transformer-2017_0005",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Decoder uses multi-head attention sub-layers"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "transformer-2017_0009",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Reference bibliography entry, not primary technical content"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "bert-2018_0002",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT encoder relies on multi-head self-attention"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "transformer-2017_0016",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Table of ablation hyperparameters, not about multi-head"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "transformer-2017_0004",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Attention sub-layers and multi-head attention stack"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "transformer-2017_0006",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Decoder attention sub-layers directly use multi-head attention"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "transformer-2017_0003",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.2.2: Multi-Head Attention formula, linear projections, parallel heads, concatenate"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "transformer-2017_0023",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 5: Multiple parallel attention heads exhibiting sentence structure behavior"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "transformer-2017_0019",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 4: Parallel attention heads visualization in layer 5"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "transformer-2017_0015",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Figure 3: Attention mechanism visualization of parallel multi-head behavior"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "llm-survey-2023_0037",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Zero-shot NLI continuation; unrelated to multi-head attention"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "llm-survey-2023_0041",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Numeric value 0.004; unrelated"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "llm-survey-2023_0031",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "NLI proceedings reference; unrelated to multi-head attention"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "bert-2018_0043",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Citation entry; unrelated to multi-head attention"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "bert-2018_0048",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GLUE paper reference; unrelated to multi-head attention"
+    },
+    {
+      "queryId": "q-007",
+      "chunkId": "transformer-2017_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Transformer architecture intro with multi-head attention"
+    }
+  ]
+}

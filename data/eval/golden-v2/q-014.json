@@ -1,0 +1,168 @@
+{
+  "id": "q-014",
+  "query": "large language model instruction following RLHF alignment human preference",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-014",
+      "chunkId": "llm-survey-2023_0002",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Abstract: Prompt following and instruction tuning in large language models"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "llm-survey-2023_0003",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Instruction prompting and instruction-following LLMs analyzed"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "llm-survey-2023_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Evaluation of instruction-following models under diverse prompt formulations"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "llm-survey-2023_0004",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "LLM response quality under different prompting conditions"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "llm-survey-2023_0007",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Experimental methodology for evaluating instruction following"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "transformer-2017_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Foundational Transformer architecture underpinning instruction-following LLMs"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "bert-2018_0021",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GLUE results, unrelated to RLHF"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "llm-survey-2023_0037",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Zero-shot instruction following challenges"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "llm-survey-2023_0039",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Few-shot instruction exemplars"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "llm-survey-2023_0001",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Paper about language models and instruction following capability"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "llm-survey-2023_0035",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Instruction sensitivity and prompt recovery in human-model evaluations"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "transformer-2017_0003",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Multi-head attention mechanism powering instruction LLM backbones"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "transformer-2017_0004",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Encoder architecture and feed-forward transformation"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "transformer-2017_0007",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Model scaling and hyperparameter variants"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "transformer-2017_0010",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Embedding layers and Table 1; unrelated to instruction following"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "transformer-2017_0011",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Sinusoidal position encoding; unrelated to RLHF"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "bert-2018_0002",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT abstract; architecture paper, not about instruction following"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "bert-2018_0007",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT architecture diagram label; unrelated to RLHF"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "bert-2018_0008",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Diagram fragment; unrelated to instruction following"
+    },
+    {
+      "queryId": "q-014",
+      "chunkId": "bert-2018_0009",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "QA diagram label; unrelated to RLHF alignment"
+    }
+  ]
+}

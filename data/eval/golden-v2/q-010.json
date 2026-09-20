@@ -1,0 +1,152 @@
+{
+  "id": "q-010",
+  "query": "next sentence prediction NSP BERT sentence-level pre-training",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "NSP pre-training task for sentence-level understanding described"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0005",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "NSP training corpus and sentence pairs described"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0015",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "NSP ablation study results"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT abstract mentions NSP as one of two pre-training tasks"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "transformer-2017_0002",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Transformer is BERT base architecture; tangentially related"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "llm-survey-2023_0003",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "NLI prompting study, unrelated to NSP"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 3.1: Next Sentence Prediction (NSP) pre-training task definition"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0014",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Section 5.1: Effect of Pre-training Tasks - NSP ablation on MNLI and QNLI"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0019",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Reference bibliography entry, not primary technical content"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0028",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Ablation: No NSP vs full BERT - directly shows NSP contribution"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0006",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Input representation for sentence pairs A and B in NSP pre-training"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0043",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Peters 2017 citation; unrelated to NSP"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0044",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "GPT citation; unrelated to NSP"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0007",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT CLS/SEP tokens used in NSP sentence pair format"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0026",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "SQuAD results table; unrelated to NSP"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0012",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "NSP task sentence-level pre-training diagram"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0030",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Sentence-level pre-training evaluation across BERT models"
+    },
+    {
+      "queryId": "q-010",
+      "chunkId": "bert-2018_0020",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Sentence-level classification context"
+    }
+  ]
+}

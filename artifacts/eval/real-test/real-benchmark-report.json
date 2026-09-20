@@ -1,158 +1,102 @@
 {
-  "timestamp": "2026-09-20T14:45:10.074Z",
+  "timestamp": "2026-09-20T17:48:26.442Z",
   "methodology": "empirical",
-  "methodologyNote": "This benchmark framework is designed to run real retrieval against a live PGlite/ONNX engine. Currently no architectures have been executed because no corpus or golden judgments are available. Provide documents in data/eval/corpus/ and judgments in data/eval/golden-v2/ to populate this report.",
-  "corpusHash": "no-corpus",
+  "methodologyNote": "No golden judgments available. Populate data/eval/golden-v2-nonexistent to run retrieval evaluation.",
   "goldenSetSize": 0,
-  "engineVersion": "posterapp-real-eval-v1",
+  "corpusChunks": 0,
+  "limitations": [
+    "No golden judgments found — all architectures marked not-executed"
+  ],
   "architectures": [
     {
-      "architectureId": "bm25",
-      "displayName": "BM25 / PostgreSQL tsvector",
+      "name": "bm25",
       "status": "not-executed",
-      "reason": "Requires live PostgreSQL with ingested documents and tsvector indexes.",
       "methodology": "not-executed",
+      "reason": "No golden judgments",
       "queriesEvaluated": 0,
-      "metrics": {
-        "recallAt5": 0,
-        "recallAt10": 0,
-        "recallAt20": 0,
-        "ndcgAt10": 0,
-        "mrr": 0
-      },
-      "latency": {
-        "p50Ms": 0,
-        "p95Ms": 0,
-        "p99Ms": 0,
-        "meanMs": 0
-      },
-      "perQueryResults": []
+      "recallAt5": 0,
+      "recallAt10": 0,
+      "recallAt20": 0,
+      "ndcgAt10": 0,
+      "mrr": 0,
+      "latencyMs": 0,
+      "perQuery": []
     },
     {
-      "architectureId": "dense-minilm",
-      "displayName": "Dense MiniLM-L6-v2 (384d) via ONNX",
+      "name": "dense-minilm",
       "status": "not-executed",
-      "reason": "Requires ONNX runtime with xenova/transformers model loaded and pgvector indexed documents.",
       "methodology": "not-executed",
+      "reason": "No golden judgments",
       "queriesEvaluated": 0,
-      "metrics": {
-        "recallAt5": 0,
-        "recallAt10": 0,
-        "recallAt20": 0,
-        "ndcgAt10": 0,
-        "mrr": 0
-      },
-      "latency": {
-        "p50Ms": 0,
-        "p95Ms": 0,
-        "p99Ms": 0,
-        "meanMs": 0
-      },
-      "perQueryResults": []
+      "recallAt5": 0,
+      "recallAt10": 0,
+      "recallAt20": 0,
+      "ndcgAt10": 0,
+      "mrr": 0,
+      "latencyMs": 0,
+      "perQuery": []
     },
     {
-      "architectureId": "naive-rag",
-      "displayName": "Naive RAG (500-token chunks, top-5 vector)",
+      "name": "naive-rag",
       "status": "not-executed",
-      "reason": "Requires live PostgreSQL with vector-indexed documents.",
       "methodology": "not-executed",
+      "reason": "No golden judgments",
       "queriesEvaluated": 0,
-      "metrics": {
-        "recallAt5": 0,
-        "recallAt10": 0,
-        "recallAt20": 0,
-        "ndcgAt10": 0,
-        "mrr": 0
-      },
-      "latency": {
-        "p50Ms": 0,
-        "p95Ms": 0,
-        "p99Ms": 0,
-        "meanMs": 0
-      },
-      "perQueryResults": []
+      "recallAt5": 0,
+      "recallAt10": 0,
+      "recallAt20": 0,
+      "ndcgAt10": 0,
+      "mrr": 0,
+      "latencyMs": 0,
+      "perQuery": []
     },
     {
-      "architectureId": "posterapp-pipeline",
-      "displayName": "PosterApp Full Pipeline (hybrid-retrieval.ts)",
+      "name": "posterapp-pipeline",
       "status": "not-executed",
-      "reason": "Requires full PosterApp stack with PostgreSQL, pgvector, and graph extraction.",
       "methodology": "not-executed",
+      "reason": "No golden judgments",
       "queriesEvaluated": 0,
-      "metrics": {
-        "recallAt5": 0,
-        "recallAt10": 0,
-        "recallAt20": 0,
-        "ndcgAt10": 0,
-        "mrr": 0
-      },
-      "latency": {
-        "p50Ms": 0,
-        "p95Ms": 0,
-        "p99Ms": 0,
-        "meanMs": 0
-      },
-      "perQueryResults": []
+      "recallAt5": 0,
+      "recallAt10": 0,
+      "recallAt20": 0,
+      "ndcgAt10": 0,
+      "mrr": 0,
+      "latencyMs": 0,
+      "perQuery": []
     },
     {
-      "architectureId": "bge-m3",
-      "displayName": "Dense BGE-M3 (1024d)",
+      "name": "bge-m3",
       "status": "not-executed",
-      "reason": "BGE-M3 weights not available in current sandbox environment.",
       "methodology": "not-executed",
+      "reason": "Not executed: requires 1024-dim index rebuild",
       "queriesEvaluated": 0,
-      "metrics": {
-        "recallAt5": 0,
-        "recallAt10": 0,
-        "recallAt20": 0,
-        "ndcgAt10": 0,
-        "mrr": 0
-      },
-      "latency": {
-        "p50Ms": 0,
-        "p95Ms": 0,
-        "p99Ms": 0,
-        "meanMs": 0
-      },
-      "perQueryResults": []
+      "recallAt5": 0,
+      "recallAt10": 0,
+      "recallAt20": 0,
+      "ndcgAt10": 0,
+      "mrr": 0,
+      "latencyMs": 0,
+      "perQuery": []
     },
     {
-      "architectureId": "colbert",
-      "displayName": "Late Interaction ColBERTv2 (MaxSim)",
+      "name": "colbert",
       "status": "not-executed",
-      "reason": "ColBERT weights not available in current sandbox environment.",
       "methodology": "not-executed",
+      "reason": "Not executed: requires ColBERT server",
       "queriesEvaluated": 0,
-      "metrics": {
-        "recallAt5": 0,
-        "recallAt10": 0,
-        "recallAt20": 0,
-        "ndcgAt10": 0,
-        "mrr": 0
-      },
-      "latency": {
-        "p50Ms": 0,
-        "p95Ms": 0,
-        "p99Ms": 0,
-        "meanMs": 0
-      },
-      "perQueryResults": []
+      "recallAt5": 0,
+      "recallAt10": 0,
+      "recallAt20": 0,
+      "ndcgAt10": 0,
+      "mrr": 0,
+      "latencyMs": 0,
+      "perQuery": []
     }
   ],
   "comparison": {
     "posterappVsBaseline": {
-      "bm25": {
-        "recallDelta": 0,
-        "ndcgDelta": 0
-      },
-      "naiveRag": {
-        "recallDelta": 0,
-        "ndcgDelta": 0
-      }
+      "bm25": null,
+      "naiveRag": null
     }
-  },
-  "limitations": [
-    "No golden judgments found in data/eval/golden-v2/. Provide annotated judgments (chunk-ID-level relevance, grade 0-3) to run empirical benchmarks.",
-    "No corpus found at data/eval/corpus-nonexistent. Provide ingested Markdown documents to run empirical benchmarks."
-  ]
+  }
 }
