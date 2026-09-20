@@ -1,0 +1,158 @@
+{
+  "timestamp": "2026-09-20T14:45:10.074Z",
+  "methodology": "empirical",
+  "methodologyNote": "This benchmark framework is designed to run real retrieval against a live PGlite/ONNX engine. Currently no architectures have been executed because no corpus or golden judgments are available. Provide documents in data/eval/corpus/ and judgments in data/eval/golden-v2/ to populate this report.",
+  "corpusHash": "no-corpus",
+  "goldenSetSize": 0,
+  "engineVersion": "posterapp-real-eval-v1",
+  "architectures": [
+    {
+      "architectureId": "bm25",
+      "displayName": "BM25 / PostgreSQL tsvector",
+      "status": "not-executed",
+      "reason": "Requires live PostgreSQL with ingested documents and tsvector indexes.",
+      "methodology": "not-executed",
+      "queriesEvaluated": 0,
+      "metrics": {
+        "recallAt5": 0,
+        "recallAt10": 0,
+        "recallAt20": 0,
+        "ndcgAt10": 0,
+        "mrr": 0
+      },
+      "latency": {
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "p99Ms": 0,
+        "meanMs": 0
+      },
+      "perQueryResults": []
+    },
+    {
+      "architectureId": "dense-minilm",
+      "displayName": "Dense MiniLM-L6-v2 (384d) via ONNX",
+      "status": "not-executed",
+      "reason": "Requires ONNX runtime with xenova/transformers model loaded and pgvector indexed documents.",
+      "methodology": "not-executed",
+      "queriesEvaluated": 0,
+      "metrics": {
+        "recallAt5": 0,
+        "recallAt10": 0,
+        "recallAt20": 0,
+        "ndcgAt10": 0,
+        "mrr": 0
+      },
+      "latency": {
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "p99Ms": 0,
+        "meanMs": 0
+      },
+      "perQueryResults": []
+    },
+    {
+      "architectureId": "naive-rag",
+      "displayName": "Naive RAG (500-token chunks, top-5 vector)",
+      "status": "not-executed",
+      "reason": "Requires live PostgreSQL with vector-indexed documents.",
+      "methodology": "not-executed",
+      "queriesEvaluated": 0,
+      "metrics": {
+        "recallAt5": 0,
+        "recallAt10": 0,
+        "recallAt20": 0,
+        "ndcgAt10": 0,
+        "mrr": 0
+      },
+      "latency": {
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "p99Ms": 0,
+        "meanMs": 0
+      },
+      "perQueryResults": []
+    },
+    {
+      "architectureId": "posterapp-pipeline",
+      "displayName": "PosterApp Full Pipeline (hybrid-retrieval.ts)",
+      "status": "not-executed",
+      "reason": "Requires full PosterApp stack with PostgreSQL, pgvector, and graph extraction.",
+      "methodology": "not-executed",
+      "queriesEvaluated": 0,
+      "metrics": {
+        "recallAt5": 0,
+        "recallAt10": 0,
+        "recallAt20": 0,
+        "ndcgAt10": 0,
+        "mrr": 0
+      },
+      "latency": {
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "p99Ms": 0,
+        "meanMs": 0
+      },
+      "perQueryResults": []
+    },
+    {
+      "architectureId": "bge-m3",
+      "displayName": "Dense BGE-M3 (1024d)",
+      "status": "not-executed",
+      "reason": "BGE-M3 weights not available in current sandbox environment.",
+      "methodology": "not-executed",
+      "queriesEvaluated": 0,
+      "metrics": {
+        "recallAt5": 0,
+        "recallAt10": 0,
+        "recallAt20": 0,
+        "ndcgAt10": 0,
+        "mrr": 0
+      },
+      "latency": {
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "p99Ms": 0,
+        "meanMs": 0
+      },
+      "perQueryResults": []
+    },
+    {
+      "architectureId": "colbert",
+      "displayName": "Late Interaction ColBERTv2 (MaxSim)",
+      "status": "not-executed",
+      "reason": "ColBERT weights not available in current sandbox environment.",
+      "methodology": "not-executed",
+      "queriesEvaluated": 0,
+      "metrics": {
+        "recallAt5": 0,
+        "recallAt10": 0,
+        "recallAt20": 0,
+        "ndcgAt10": 0,
+        "mrr": 0
+      },
+      "latency": {
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "p99Ms": 0,
+        "meanMs": 0
+      },
+      "perQueryResults": []
+    }
+  ],
+  "comparison": {
+    "posterappVsBaseline": {
+      "bm25": {
+        "recallDelta": 0,
+        "ndcgDelta": 0
+      },
+      "naiveRag": {
+        "recallDelta": 0,
+        "ndcgDelta": 0
+      }
+    }
+  },
+  "limitations": [
+    "No golden judgments found in data/eval/golden-v2/. Provide annotated judgments (chunk-ID-level relevance, grade 0-3) to run empirical benchmarks.",
+    "No corpus found at data/eval/corpus-nonexistent. Provide ingested Markdown documents to run empirical benchmarks."
+  ]
+}

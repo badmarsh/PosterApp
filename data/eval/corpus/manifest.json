@@ -1,0 +1,20 @@
+[
+  {
+    "docId": "transformer-2017",
+    "title": "Attention Is All You Need",
+    "path": "data/eval/corpus/transformer-2017.md",
+    "words": 6172
+  },
+  {
+    "docId": "bert-2018",
+    "title": "BERT: Pre-training of Deep Bidirectional Transformers",
+    "path": "data/eval/corpus/bert-2018.md",
+    "words": 10207
+  },
+  {
+    "docId": "llm-survey-2023",
+    "title": "A Survey of Large Language Models",
+    "path": "data/eval/corpus/llm-survey-2023.md",
+    "words": 11855
+  }
+]

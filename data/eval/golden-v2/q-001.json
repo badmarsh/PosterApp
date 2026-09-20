@@ -1,0 +1,72 @@
+{
+  "id": "q-001",
+  "query": "transformer self-attention mechanism scaled dot-product query key value",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-001",
+      "chunkId": "transformer-2017_0002",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Core Transformer intro: model relying solely on attention, dispensing with recurrence"
+    },
+    {
+      "queryId": "q-001",
+      "chunkId": "transformer-2017_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "First transduction model relying entirely on self-attention"
+    },
+    {
+      "queryId": "q-001",
+      "chunkId": "transformer-2017_0005",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Decoder attention sub-layers described"
+    },
+    {
+      "queryId": "q-001",
+      "chunkId": "transformer-2017_0007",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Scaled dot-product and additive attention directly explained"
+    },
+    {
+      "queryId": "q-001",
+      "chunkId": "bert-2018_0002",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT uses transformer encoder - contextually related"
+    },
+    {
+      "queryId": "q-001",
+      "chunkId": "bert-2018_0004",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "MLM extends bidirectional self-attention concept"
+    },
+    {
+      "queryId": "q-001",
+      "chunkId": "llm-survey-2023_0002",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Discusses LLM prompting, tangentially related"
+    },
+    {
+      "queryId": "q-001",
+      "chunkId": "llm-survey-2023_0009",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Table data, unrelated to attention mechanism"
+    }
+  ]
+}

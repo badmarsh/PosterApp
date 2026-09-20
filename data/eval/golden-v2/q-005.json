@@ -1,0 +1,64 @@
+{
+  "id": "q-005",
+  "query": "fine-tuning pre-trained language model downstream NLP classification NER question answering",
+  "domain": "cs_nlp",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-005",
+      "chunkId": "bert-2018_0003",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Directly contrasts fine-tuning vs feature-based for downstream NLP tasks"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "bert-2018_0004",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "BERT MLM pre-training for fine-tuning on downstream tasks"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "bert-2018_0005",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Pre-training approaches for word embeddings"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "bert-2018_0006",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "ELMo feature-based approach for downstream tasks"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "transformer-2017_0004",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Transformer applied to constituency parsing - related task"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "llm-survey-2023_0002",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "LLM prompting for tasks - tangentially related"
+    },
+    {
+      "queryId": "q-005",
+      "chunkId": "transformer-2017_0007",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Attention math only - not about fine-tuning downstream tasks"
+    }
+  ]
+}

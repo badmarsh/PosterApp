@@ -1,0 +1,1646 @@
+{
+  "transformer-2017": [
+    {
+      "id": "transformer-2017_0000",
+      "heading": "Preamble",
+      "preview": "---\ndocId: transformer-2017\ntitle: Attention Is All You Need\n---",
+      "chars": 64
+    },
+    {
+      "id": "transformer-2017_0001",
+      "heading": "Preamble",
+      "preview": "Provided proper attribution is provided, Google hereby grants permission to reproduce the tables and figures in this paper solely for use in journalis",
+      "chars": 592
+    },
+    {
+      "id": "transformer-2017_0002",
+      "heading": "Abstract [1]",
+      "preview": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder.\nThe b",
+      "chars": 1845
+    },
+    {
+      "id": "transformer-2017_0003",
+      "heading": "Abstract [2]",
+      "preview": "Llion also experimented with novel model variants, was responsible for our initial codebase, and efficient inference and visualizations.\nLukasz and Ai",
+      "chars": 1971
+    },
+    {
+      "id": "transformer-2017_0004",
+      "heading": "Abstract [3]",
+      "preview": "In all but a few cases [27], however, such attention mechanisms are used in conjunction with a recurrent network.\nIn this work we propose the Transfor",
+      "chars": 1951
+    },
+    {
+      "id": "transformer-2017_0005",
+      "heading": "Abstract [4]",
+      "preview": "To the best of our knowledge, however, the Transformer is the first transduction model relying entirely on self-attention to compute representations o",
+      "chars": 1883
+    },
+    {
+      "id": "transformer-2017_0006",
+      "heading": "Abstract [5]",
+      "preview": "Decoder: The decoder is also composed of a stack of N = 6 identical layers.\nIn addition to the two sub-layers in each encoder layer, the decoder inser",
+      "chars": 1821
+    },
+    {
+      "id": "transformer-2017_0007",
+      "heading": ")V (1) [1]",
+      "preview": "The two most commonly used attention functions are additive attention [2], and dot-product (multi- plicative) attention.\nDot-product attention is iden",
+      "chars": 1891
+    },
+    {
+      "id": "transformer-2017_0008",
+      "heading": ")V (1) [2]",
+      "preview": "With a single attention head, averaging inhibits this.\nMultiHead(Q, K, V ) = Concat(head 1, ..., headh)W O where headi = Attention(QW Q i , KW K i , V",
+      "chars": 1007
+    },
+    {
+      "id": "transformer-2017_0009",
+      "heading": "[38, 2, 9]. [1]",
+      "preview": "• The encoder contains self-attention layers.\nIn a self-attention layer all of the keys, values and queries come from the same place, in this case, th",
+      "chars": 1922
+    },
+    {
+      "id": "transformer-2017_0010",
+      "heading": "[38, 2, 9]. [2]",
+      "preview": "In the embedding layers, we multiply those weights by √dmodel.\n5 Table 1: Maximum path lengths, per-layer complexity and minimum number of sequential ",
+      "chars": 1853
+    },
+    {
+      "id": "transformer-2017_0011",
+      "heading": "[38, 2, 9]. [3]",
+      "preview": "We chose the sinusoidal version because it may allow the model to extrapolate to sequence lengths longer than the ones encountered during training.\n4 ",
+      "chars": 1926
+    },
+    {
+      "id": "transformer-2017_0012",
+      "heading": "[38, 2, 9]. [4]",
+      "preview": "To improve computational performance for tasks involving very long sequences, self-attention could be restricted to considering only a neighborhood of",
+      "chars": 1996
+    },
+    {
+      "id": "transformer-2017_0013",
+      "heading": "[38, 2, 9]. [5]",
+      "preview": "Sentence pairs were\nbatched together by approximate sequence length.\nEach training batch contained a set of sentence pairs containing approximately 25",
+      "chars": 1384
+    },
+    {
+      "id": "transformer-2017_0014",
+      "heading": "EN-DE EN-FR EN-DE EN-FR [1]",
+      "preview": "ByteNet [18] 23.75 Deep-Att + PosUnk [39] 39.2 1.0 · 1020 GNMT + RL [38] 24.6 39.92 2.3 · 1019 1.4 · 1020 ConvS2S [9] 25.16 40.46 9.6 · 1018 1.5 · 102",
+      "chars": 1957
+    },
+    {
+      "id": "transformer-2017_0015",
+      "heading": "EN-DE EN-FR EN-DE EN-FR [2]",
+      "preview": "For the base models, we used a single model obtained by averaging the last 5 checkpoints, which were written at 10-minute intervals.\nFor the big model",
+      "chars": 1576
+    },
+    {
+      "id": "transformer-2017_0016",
+      "heading": "1 512 512 5.29 24.9",
+      "preview": "4 128 128 5.00 25.5",
+      "chars": 19
+    },
+    {
+      "id": "transformer-2017_0017",
+      "heading": "16 32 32 4.91 25.8",
+      "preview": "32 16 16 5.01 25.4",
+      "chars": 18
+    },
+    {
+      "id": "transformer-2017_0018",
+      "heading": "(B) 16 5.16 25.1 58",
+      "preview": "32 5.01 25.4 60 (C)",
+      "chars": 19
+    },
+    {
+      "id": "transformer-2017_0019",
+      "heading": "2 6.11 23.7 36",
+      "preview": "4 5.19 25.3 50",
+      "chars": 14
+    },
+    {
+      "id": "transformer-2017_0020",
+      "heading": "8 4.88 25.5 80",
+      "preview": "256 32 32 5.75 24.5 28",
+      "chars": 22
+    },
+    {
+      "id": "transformer-2017_0021",
+      "heading": "1024 128 128 4.66 26.0 168",
+      "preview": "1024 5.12 25.4 53",
+      "chars": 17
+    },
+    {
+      "id": "transformer-2017_0022",
+      "heading": "4096 4.75 26.2 90",
+      "preview": "(D)",
+      "chars": 3
+    },
+    {
+      "id": "transformer-2017_0023",
+      "heading": "0.0 5.77 24.6",
+      "preview": "0.2 4.95 25.5",
+      "chars": 13
+    },
+    {
+      "id": "transformer-2017_0024",
+      "heading": "0.0 4.67 25.3 [1]",
+      "preview": "0.2 5.47 25.7 (E) positional embedding instead of sinusoids 4.92 25.7 big 6 1024 4096 16 0.3 300K 4.33 26.4 213 development set, newstest2013.\nWe used",
+      "chars": 1931
+    },
+    {
+      "id": "transformer-2017_0025",
+      "heading": "0.0 4.67 25.3 [2]",
+      "preview": "We used a vocabulary of 16K tokens for the WSJ only setting and a vocabulary of 32K tokens for the semi-supervised setting.\nWe performed only a small ",
+      "chars": 1953
+    },
+    {
+      "id": "transformer-2017_0026",
+      "heading": "0.0 4.67 25.3 [3]",
+      "preview": "For translation tasks, the Transformer can be trained significantly faster than architectures based on recurrent or convolutional layers.\nOn both WMT ",
+      "chars": 988
+    },
+    {
+      "id": "transformer-2017_0027",
+      "heading": "References",
+      "preview": "[1] Jimmy Lei Ba, Jamie Ryan Kiros, and Geoffrey E Hinton. Layer normalization. arXiv preprint arXiv:1607.06450, 2016. [2] Dzmitry Bahdanau, Kyunghyun",
+      "chars": 1986
+    },
+    {
+      "id": "transformer-2017_0028",
+      "heading": "9(8):1735–1780, 1997.",
+      "preview": "[14] Zhongqiang Huang and Mary Harper. Self-training PCFG grammars with latent annotations across languages. In Proceedings of the 2009 Conference on ",
+      "chars": 867
+    },
+    {
+      "id": "transformer-2017_0029",
+      "heading": "2017.",
+      "preview": "[19] Yoon Kim, Carl Denton, Luong Hoang, and Alexander M. Rush. Structured attention networks. In International Conference on Learning Representations",
+      "chars": 1889
+    },
+    {
+      "id": "transformer-2017_0030",
+      "heading": "2006. [1]",
+      "preview": "[30] Ofir Press and Lior Wolf.\nUsing the output embedding to improve language models. arXiv preprint arXiv:1608.05859, 2016.\n[31] Rico Sennrich, Barry",
+      "chars": 1997
+    },
+    {
+      "id": "transformer-2017_0031",
+      "heading": "2006. [2]",
+      "preview": "Deep recurrent models with fast-forward connections for neural machine translation.\nCoRR, abs/1606.04199, 2016.\n[40] Muhua Zhu, Yue Zhang,\nWenliang Ch",
+      "chars": 479
+    },
+    {
+      "id": "transformer-2017_0032",
+      "heading": "2009",
+      "preview": "making the registration or voting process more difficult .",
+      "chars": 58
+    },
+    {
+      "id": "transformer-2017_0033",
+      "heading": "<EOS>",
+      "preview": "<pad> <pad> <pad> <pad> <pad> <pad> It is in this spirit that a majority of American governments have passed new laws since",
+      "chars": 123
+    },
+    {
+      "id": "transformer-2017_0034",
+      "heading": "2009",
+      "preview": "making the registration or voting process more difficult .",
+      "chars": 58
+    },
+    {
+      "id": "transformer-2017_0035",
+      "heading": "<EOS>",
+      "preview": "<pad> <pad> <pad> <pad> <pad> <pad> Figure 3: An example of the attention mechanism following long-distance dependencies in the encoder self-attention",
+      "chars": 550
+    },
+    {
+      "id": "transformer-2017_0036",
+      "heading": "<EOS>",
+      "preview": "<pad> The Law will never be perfect , but its application should be just - this is what we are missing , in my opinion .",
+      "chars": 120
+    },
+    {
+      "id": "transformer-2017_0037",
+      "heading": "<EOS>",
+      "preview": "<pad> Input-Input Layer5 The Law will never be perfect , but its application should be just - this is what we are missing , in my opinion .",
+      "chars": 139
+    },
+    {
+      "id": "transformer-2017_0038",
+      "heading": "<EOS>",
+      "preview": "<pad> The Law will never be perfect , but its application should be just - this is what we are missing , in my opinion .",
+      "chars": 120
+    },
+    {
+      "id": "transformer-2017_0039",
+      "heading": "<EOS>",
+      "preview": "<pad> Figure 4: Two attention heads, also in layer 5 of 6, apparently involved in anaphora resolution. Top: Full attentions for head 5. Bottom: Isolat",
+      "chars": 409
+    },
+    {
+      "id": "transformer-2017_0040",
+      "heading": "<EOS>",
+      "preview": "<pad> The Law will never be perfect , but its application should be just - this is what we are missing , in my opinion .",
+      "chars": 120
+    },
+    {
+      "id": "transformer-2017_0041",
+      "heading": "<EOS>",
+      "preview": "<pad> Input-Input Layer5 The Law will never be perfect , but its application should be just - this is what we are missing , in my opinion .",
+      "chars": 139
+    },
+    {
+      "id": "transformer-2017_0042",
+      "heading": "<EOS>",
+      "preview": "<pad> The Law will never be perfect , but its application should be just - this is what we are missing , in my opinion .",
+      "chars": 120
+    },
+    {
+      "id": "transformer-2017_0043",
+      "heading": "<EOS>",
+      "preview": "<pad> Figure 5: Many of the attention heads exhibit behaviour that seems related to the structure of the sentence. We give two such examples above, fr",
+      "chars": 278
+    }
+  ],
+  "bert-2018": [
+    {
+      "id": "bert-2018_0000",
+      "heading": "Preamble",
+      "preview": "---\ndocId: bert-2018\ntitle: BERT: Pre-training of Deep Bidirectional Transformers\n---",
+      "chars": 85
+    },
+    {
+      "id": "bert-2018_0001",
+      "heading": "Preamble",
+      "preview": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding Jacob Devlin Ming-Wei Chang Kenton Lee Kristina Toutanova Google AI L",
+      "chars": 212
+    },
+    {
+      "id": "bert-2018_0002",
+      "heading": "Abstract [1]",
+      "preview": "We introduce a new language representa- tion model called BERT, which stands for Bidirectional Encoder Representations from Transformers.\nUnlike recen",
+      "chars": 1910
+    },
+    {
+      "id": "bert-2018_0003",
+      "heading": "Abstract [2]",
+      "preview": "There are two existing strategies for apply- ing pre-trained language representations to down- stream tasks: feature-based and ﬁne-tuning.\nThe feature",
+      "chars": 1990
+    },
+    {
+      "id": "bert-2018_0004",
+      "heading": "Abstract [3]",
+      "preview": "Unlike left-to- right language model pre-training, the MLM ob- jective enables the representation to fuse the left and the right context, which allows",
+      "chars": 1915
+    },
+    {
+      "id": "bert-2018_0005",
+      "heading": "Abstract [4]",
+      "preview": "To pre- train word embedding vectors, left-to-right lan- guage modeling objectives have been used (Mnih and Hinton, 2009), as well as objectives to di",
+      "chars": 1694
+    },
+    {
+      "id": "bert-2018_0006",
+      "heading": "Abstract [5]",
+      "preview": "Similar to ELMo, their model is feature-based and not deeply bidirectional.\nFedus et al. (2018) shows that the cloze task can be used to improve the r",
+      "chars": 959
+    },
+    {
+      "id": "bert-2018_0007",
+      "heading": "BERT BERT",
+      "preview": "E[CLS] E1 E[SEP]... EN E1’ ... EM’ C T1",
+      "chars": 39
+    },
+    {
+      "id": "bert-2018_0008",
+      "heading": "T[SEP]...",
+      "preview": "TN",
+      "chars": 2
+    },
+    {
+      "id": "bert-2018_0009",
+      "heading": "T1’ ...",
+      "preview": "TM’ [CLS] Tok 1 [SEP]... Tok N Tok 1 ... TokM Question Paragraph Start/End Span",
+      "chars": 79
+    },
+    {
+      "id": "bert-2018_0010",
+      "heading": "BERT",
+      "preview": "E[CLS] E1 E[SEP]... EN E1’ ... EM’ C T1",
+      "chars": 39
+    },
+    {
+      "id": "bert-2018_0011",
+      "heading": "T[SEP]...",
+      "preview": "TN",
+      "chars": 2
+    },
+    {
+      "id": "bert-2018_0012",
+      "heading": "T1’ ...",
+      "preview": "TM’ [CLS] Tok 1 [SEP]... Tok N Tok 1 ... TokM Masked Sentence A Masked Sentence B Pre-training Fine-Tuning NSP Mask LM Mask LM Unlabeled Sentence A an",
+      "chars": 185
+    },
+    {
+      "id": "bert-2018_0013",
+      "heading": "NERMNLI",
+      "preview": "Figure 1: Overall pre-training and ﬁne-tuning procedures for BERT. Apart from output layers, the same architec- tures are used in both pre-training an",
+      "chars": 1007
+    },
+    {
+      "id": "bert-2018_0014",
+      "heading": "NERMNLI",
+      "preview": "pre-trained with Ima- geNet (Deng et al., 2009; Yosinski et al., 2014).",
+      "chars": 71
+    },
+    {
+      "id": "bert-2018_0015",
+      "heading": "3 BERT [1]",
+      "preview": "We introduce BERT and its detailed implementa- tion in this section.\nThere are two steps in our framework: pre-training and ﬁne-tuning.\nDur- ing pre-t",
+      "chars": 1725
+    },
+    {
+      "id": "bert-2018_0016",
+      "heading": "3 BERT [2]",
+      "preview": "BERTBASE was chosen to have the same model size as OpenAI GPT for comparison purposes.\nCritically, however, the BERT Transformer uses bidirectional se",
+      "chars": 1965
+    },
+    {
+      "id": "bert-2018_0017",
+      "heading": "3 BERT [3]",
+      "preview": "A visualiza- tion of this construction can be seen in Figure 2.\n3.1 Pre-training BERT Unlike Peters et al. (2018a) and Radford et al. (2018), we do no",
+      "chars": 1935
+    },
+    {
+      "id": "bert-2018_0018",
+      "heading": "3 BERT [4]",
+      "preview": "To mitigate this, we do not always replace “masked” words with the ac- tual [MASK]\ntoken.\nThe training data generator chooses 15% of the token positio",
+      "chars": 1954
+    },
+    {
+      "id": "bert-2018_0019",
+      "heading": "3 BERT [5]",
+      "preview": "The input embeddings are the sum of the token embeddings, the segmenta- tion embeddings and the position embeddings.\nThe NSP task is closely related t",
+      "chars": 1997
+    },
+    {
+      "id": "bert-2018_0020",
+      "heading": "3 BERT [6]",
+      "preview": "At the output, the token rep- resentations are fed into an output layer for token- level tasks, such as sequence tagging or question answering, and th",
+      "chars": 715
+    },
+    {
+      "id": "bert-2018_0021",
+      "heading": "4.1 GLUE [1]",
+      "preview": "The General Language Understanding Evaluation (GLUE) benchmark (Wang et al., 2018a) is a col- lection of diverse natural language understanding tasks.",
+      "chars": 1888
+    },
+    {
+      "id": "bert-2018_0022",
+      "heading": "4.1 GLUE [2]",
+      "preview": "We exclude entries that use BERT as one of their components.\nWe use a batch size of 32 and ﬁne-tune for 3 epochs over the data for all GLUE tasks.\nFor",
+      "chars": 1858
+    },
+    {
+      "id": "bert-2018_0023",
+      "heading": "4.1 GLUE [3]",
+      "preview": "10https://gluebenchmark.com/leaderboard Wikipedia containing\nthe answer, the task is to predict the answer text span in the passage.\nAs shown in Figur",
+      "chars": 1839
+    },
+    {
+      "id": "bert-2018_0024",
+      "heading": "EM F1 EM F1",
+      "preview": "Top Leaderboard Systems (Dec 10th, 2018) Human - - 82.3 91.2 #1 Ensemble - nlnet - - 86.0 91.7 #2 Ensemble - QANet - - 84.5 90.5 Published BiDAF+ELMo ",
+      "chars": 557
+    },
+    {
+      "id": "bert-2018_0025",
+      "heading": "EM F1 EM F1",
+      "preview": "Top Leaderboard Systems (Dec 10th, 2018) Human 86.3 89.0 86.9 89.5 #1 Single - MIR-MRC (F-Net) - - 74.8 78.0 #2 Single - nlnet - - 74.2 77.1 Published",
+      "chars": 1317
+    },
+    {
+      "id": "bert-2018_0026",
+      "heading": "BERTBASE 81.6 -",
+      "preview": "BERTLARGE 86.6 86.3 Human (expert)† - 85.0 Human (5 annotations)† - 88.0 Table 4: SW AG Dev and Test accuracies.†Human per- formance is measured with ",
+      "chars": 727
+    },
+    {
+      "id": "bert-2018_0027",
+      "heading": "4.4 SW AG",
+      "preview": "The Situations With Adversarial Generations (SW AG) dataset contains 113k sentence-pair com- pletion examples that evaluate grounded common- sense inf",
+      "chars": 1114
+    },
+    {
+      "id": "bert-2018_0028",
+      "heading": "BERTBASE 84.4 88.4 86.7 92.7 88.5 [1]",
+      "preview": "No NSP 83.9 84.9 86.5 92.6 87.9 LTR & No NSP 82.1 84.3 77.5 92.1 77.8 + BiLSTM 82.1 84.1 75.7 91.6 84.9 Table 5: Ablation over the pre-training tasks ",
+      "chars": 1984
+    },
+    {
+      "id": "bert-2018_0029",
+      "heading": "BERTBASE 84.4 88.4 86.7 92.7 88.5 [2]",
+      "preview": "In order to make a good faith at- tempt at strengthening the LTR system, we added a randomly initialized BiLSTM on top.\nThis does signiﬁcantly improve",
+      "chars": 1995
+    },
+    {
+      "id": "bert-2018_0030",
+      "heading": "BERTBASE 84.4 88.4 86.7 92.7 88.5 [3]",
+      "preview": "By contrast, BERT BASE contains 110M parameters and BERT LARGE con- tains 340M parameters.\nIt has long been known that increasing the model size will ",
+      "chars": 1989
+    },
+    {
+      "id": "bert-2018_0031",
+      "heading": "BERTBASE 84.4 88.4 86.7 92.7 88.5 [4]",
+      "preview": "In this section, we compare the two approaches by applying BERT to the CoNLL-2003 Named Entity Recognition (NER) task (Tjong Kim Sang and De Meulder, ",
+      "chars": 439
+    },
+    {
+      "id": "bert-2018_0032",
+      "heading": "3 768 12 5.84 77.9 79.8 88.4",
+      "preview": "6 768 3 5.24 80.6 82.2 90.7",
+      "chars": 27
+    },
+    {
+      "id": "bert-2018_0033",
+      "heading": "6 768 12 4.68 81.9 84.8 91.3",
+      "preview": "12 768 12 3.99 84.4 86.7 92.9",
+      "chars": 29
+    },
+    {
+      "id": "bert-2018_0034",
+      "heading": "12 1024 16 3.54 85.7 86.9 93.3",
+      "preview": "24 1024 16 3.23 86.6 87.8 93.7 Table 6: Ablation over BERT model size. #L = the number of layers; #H = hidden size; #A = number of at- tention heads. ",
+      "chars": 360
+    },
+    {
+      "id": "bert-2018_0035",
+      "heading": "BERTLARGE 96.6 92.8",
+      "preview": "BERTBASE 96.4 92.4 Feature-based approach (BERTBASE ) Embeddings 91.0 - Second-to-Last Hidden 95.6 - Last Hidden 94.9 - Weighted Sum Last Four Hidden ",
+      "chars": 1757
+    },
+    {
+      "id": "bert-2018_0036",
+      "heading": "References",
+      "preview": "Alan Akbik, Duncan Blythe, and Roland V ollgraf.",
+      "chars": 48
+    },
+    {
+      "id": "bert-2018_0037",
+      "heading": "2018. Contextual string embeddings for sequence",
+      "preview": "labeling. In Proceedings of the 27th International Conference on Computational Linguistics , pages",
+      "chars": 98
+    },
+    {
+      "id": "bert-2018_0038",
+      "heading": "1638–1649.",
+      "preview": "Rami Al-Rfou, Dokook Choe, Noah Constant, Mandy Guo, and Llion Jones. 2018. Character-level lan- guage modeling with deeper self-attention. arXiv prep",
+      "chars": 569
+    },
+    {
+      "id": "bert-2018_0039",
+      "heading": "2006. Domain adaptation with structural correspon-",
+      "preview": "dence learning. In Proceedings of the 2006 confer- ence on empirical methods in natural language pro- cessing, pages 120–128. Association for Computa-",
+      "chars": 1572
+    },
+    {
+      "id": "bert-2018_0040",
+      "heading": "1925.",
+      "preview": "Ronan Collobert and Jason Weston. 2008. A uniﬁed architecture for natural language processing: Deep neural networks with multitask learning. In Pro- c",
+      "chars": 1102
+    },
+    {
+      "id": "bert-2018_0041",
+      "heading": "2018. Maskgan: Better text generation via ﬁlling in",
+      "preview": "the . arXiv preprint arXiv:1801.07736. Dan Hendrycks and Kevin Gimpel. 2016. Bridging nonlinearities and stochastic regularizers with gaus- sian error",
+      "chars": 1507
+    },
+    {
+      "id": "bert-2018_0042",
+      "heading": "1188–1196.",
+      "preview": "Hector J Levesque, Ernest Davis, and Leora Morgen- stern. 2011. The winograd schema challenge. In Aaai spring symposium: Logical formalizations of com",
+      "chars": 1493
+    },
+    {
+      "id": "bert-2018_0043",
+      "heading": "1543.",
+      "preview": "Matthew Peters, Waleed Ammar, Chandra Bhagavat- ula, and Russell Power. 2017. Semi-supervised se- quence tagging with bidirectional language models. I",
+      "chars": 570
+    },
+    {
+      "id": "bert-2018_0044",
+      "heading": "1499–1509.",
+      "preview": "Alec Radford, Karthik Narasimhan, Tim Salimans, and Ilya Sutskever. 2018. Improving language under- standing with unsupervised learning. Technical re-",
+      "chars": 903
+    },
+    {
+      "id": "bert-2018_0045",
+      "heading": "2018. U-net: Machine reading comprehension",
+      "preview": "with unanswerable questions. arXiv preprint arXiv:1810.06638. Wilson L Taylor. 1953. Cloze procedure: A new tool for measuring readability. Journalism",
+      "chars": 160
+    },
+    {
+      "id": "bert-2018_0046",
+      "heading": "30(4):415–433.",
+      "preview": "Erik F Tjong Kim Sang and Fien De Meulder.",
+      "chars": 42
+    },
+    {
+      "id": "bert-2018_0047",
+      "heading": "2003. Introduction to the conll-2003 shared task:",
+      "preview": "Language-independent named entity recognition. In CoNLL. Joseph Turian, Lev Ratinov, and Yoshua Bengio. 2010. Word representations: A simple and gener",
+      "chars": 783
+    },
+    {
+      "id": "bert-2018_0048",
+      "heading": "ACM.",
+      "preview": "Alex Wang, Amanpreet Singh, Julian Michael, Fe- lix Hill, Omer Levy, and Samuel Bowman. 2018a. Glue: A multi-task benchmark and analysis platform for ",
+      "chars": 896
+    },
+    {
+      "id": "bert-2018_0049",
+      "heading": "NAACL.",
+      "preview": "Yonghui Wu, Mike Schuster, Zhifeng Chen, Quoc V Le, Mohammad Norouzi, Wolfgang Macherey, Maxim Krikun, Yuan Cao, Qin Gao, Klaus Macherey, et al. 2016.",
+      "chars": 1222
+    },
+    {
+      "id": "bert-2018_0050",
+      "heading": "19–27. [1]",
+      "preview": "Appendix for “BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding” We organize the appendix into three sections: • Additi",
+      "chars": 1988
+    },
+    {
+      "id": "bert-2018_0051",
+      "heading": "19–27. [2]",
+      "preview": "Trm Trm Trm Trm Trm Trm ... ...\nOpenAI GPT Lstm ELMo Lstm Lstm Lstm\nLstm Lstm Lstm Lstm Lstm Lstm Lstm Lstm",
+      "chars": 107
+    },
+    {
+      "id": "bert-2018_0052",
+      "heading": "T1 T2  TN...",
+      "preview": "... ... ... ...",
+      "chars": 15
+    },
+    {
+      "id": "bert-2018_0053",
+      "heading": "E1 E2  EN...",
+      "preview": "T1 T2 TN...",
+      "chars": 11
+    },
+    {
+      "id": "bert-2018_0054",
+      "heading": "E1 E2  EN...",
+      "preview": "T1 T2 TN...",
+      "chars": 11
+    },
+    {
+      "id": "bert-2018_0055",
+      "heading": "E1 E2  EN...",
+      "preview": "Figure 3: Differences in pre-training model architectures. BERT uses a bidirectional Transformer. OpenAI GPT uses a left-to-right Transformer. ELMo us",
+      "chars": 1016
+    },
+    {
+      "id": "bert-2018_0056",
+      "heading": "E1 E2  EN... [1]",
+      "preview": "[MASK] are flight ##less birds [SEP] Label = NotNext A.2 Pre-training Procedure To generate each training input sequence, we sam- ple two spans of tex",
+      "chars": 1927
+    },
+    {
+      "id": "bert-2018_0057",
+      "heading": "E1 E2  EN... [2]",
+      "preview": "Then, we train the rest 10% of the steps of sequence of 512 to learn the positional embeddings.\nA.3 Fine-tuning Procedure For ﬁne-tuning, most model h",
+      "chars": 1701
+    },
+    {
+      "id": "bert-2018_0058",
+      "heading": "E1 E2  EN... [3]",
+      "preview": "The core argument of this work is that the bi-directionality and the two pre- training tasks presented in Section 3.1 account for the majority of the ",
+      "chars": 1988
+    },
+    {
+      "id": "bert-2018_0059",
+      "heading": "E1 E2  EN... [4]",
+      "preview": "Our GLUE results in Table1 are obtained from https://gluebenchmark.com/ leaderboard and https://blog. openai.com/language-unsupervised.\nThe GLUE bench",
+      "chars": 1122
+    },
+    {
+      "id": "bert-2018_0060",
+      "heading": "BERT",
+      "preview": "E[CLS] E1 E[SEP]... EN E1’ ... EM’ C T1",
+      "chars": 39
+    },
+    {
+      "id": "bert-2018_0061",
+      "heading": "T[SEP]...",
+      "preview": "TN",
+      "chars": 2
+    },
+    {
+      "id": "bert-2018_0062",
+      "heading": "T1’ ...",
+      "preview": "TM’ [CLS] Tok 1 [SEP]... Tok N Tok 1 ... Tok M Question Paragraph",
+      "chars": 65
+    },
+    {
+      "id": "bert-2018_0063",
+      "heading": "BERT",
+      "preview": "E[CLS] E1 E2 EN C T1 T2 TN Single Sentence ... ...",
+      "chars": 50
+    },
+    {
+      "id": "bert-2018_0064",
+      "heading": "BERT",
+      "preview": "Tok 1 Tok 2 Tok N...[CLS]",
+      "chars": 25
+    },
+    {
+      "id": "bert-2018_0065",
+      "heading": "E[CLS] E1  E2  EN",
+      "preview": "C T1 T2 TN Single Sentence",
+      "chars": 26
+    },
+    {
+      "id": "bert-2018_0066",
+      "heading": "B-PERO O",
+      "preview": "...",
+      "chars": 3
+    },
+    {
+      "id": "bert-2018_0067",
+      "heading": "...E[CLS] E1  E[SEP]",
+      "preview": "Class Label",
+      "chars": 11
+    },
+    {
+      "id": "bert-2018_0068",
+      "heading": "... EN E1’ ... EM’",
+      "preview": "C T1",
+      "chars": 4
+    },
+    {
+      "id": "bert-2018_0069",
+      "heading": "T[SEP]...",
+      "preview": "TN",
+      "chars": 2
+    },
+    {
+      "id": "bert-2018_0070",
+      "heading": "T1’ ...",
+      "preview": "TM’ Start/End Span Class Label",
+      "chars": 30
+    },
+    {
+      "id": "bert-2018_0071",
+      "heading": "BERT [1]",
+      "preview": "Tok 1 Tok 2 Tok N...[CLS] Tok 1[CLS][CLS] Tok 1 [SEP]...\nTok N Tok 1 ...\nTok M Sentence 1 ...\nSentence 2 Figure 4: Illustrations of Fine-tuning BERT o",
+      "chars": 1966
+    },
+    {
+      "id": "bert-2018_0072",
+      "heading": "BERT [2]",
+      "preview": "For example, we did observe substantial improvements on RTE from multi- task training with MNLI. 15https://gluebenchmark.com/faq jority class.\nC Addit",
+      "chars": 371
+    },
+    {
+      "id": "bert-2018_0073",
+      "heading": "1. Question: Does BERT really need such",
+      "preview": "a large amount of pre-training (128,000 words/batch * 1,000,000 steps) to achieve high ﬁne-tuning accuracy? Answer: Yes, BERT BASE achieves almost 1.0",
+      "chars": 228
+    },
+    {
+      "id": "bert-2018_0074",
+      "heading": "2. Question: Does MLM pre-training converge",
+      "preview": "slower than LTR pre-training, since only 15% of words are predicted in each batch rather than every word? Answer: The MLM model does converge slightly",
+      "chars": 579
+    },
+    {
+      "id": "bert-2018_0075",
+      "heading": "200 400 600 800 1,000",
+      "preview": "76 78 80 82 84 Pre-training Steps (Thousands) MNLI Dev Accuracy BERTBASE (Masked LM) BERTBASE (Left-to-Right) Figure 5: Ablation over number of traini",
+      "chars": 776
+    },
+    {
+      "id": "bert-2018_0076",
+      "heading": "MASK SAME RND MNLI NER",
+      "preview": "Fine-tune Fine-tune Feature-based",
+      "chars": 33
+    },
+    {
+      "id": "bert-2018_0077",
+      "heading": "80% 10% 10% 84.2 95.4 94.9",
+      "preview": "100% 0% 0% 84.3 94.9 94.0",
+      "chars": 25
+    },
+    {
+      "id": "bert-2018_0078",
+      "heading": "80% 0% 20% 84.1 95.2 94.6",
+      "preview": "80% 20% 0% 84.4 95.2 94.7",
+      "chars": 25
+    },
+    {
+      "id": "bert-2018_0079",
+      "heading": "0% 20% 80% 83.7 94.8 94.6",
+      "preview": "0% 0% 100% 83.6 94.9 94.6 Table 8: Ablation over different masking strategies. The results are presented in Table 8. In the table, MASK means that we ",
+      "chars": 998
+    }
+  ],
+  "llm-survey-2023": [
+    {
+      "id": "llm-survey-2023_0000",
+      "heading": "Preamble",
+      "preview": "---\ndocId: llm-survey-2023\ntitle: A Survey of Large Language Models\n---",
+      "chars": 71
+    },
+    {
+      "id": "llm-survey-2023_0001",
+      "heading": "Preamble",
+      "preview": "Are Language Models Worse than Humans at Following Prompts? It’s Complicated Albert Websonκϕ*, Alyssa Marie Looκλ*, Qinan Yuκ*, and Ellie Pavlickκλ κD",
+      "chars": 246
+    },
+    {
+      "id": "llm-survey-2023_0002",
+      "heading": "Abstract [1]",
+      "preview": "Prompts have been the center of progress in advancing language models’ zero-shot and few- shot performance.\nHowever, recent work finds that models can",
+      "chars": 1966
+    },
+    {
+      "id": "llm-survey-2023_0003",
+      "heading": "Abstract [2]",
+      "preview": "Correspondence to papers@aw.nyc. used by Webson and Pavlick (2022) (W&P here- after) to study how instructions in prompts affect LMs’ performance.\nW&P",
+      "chars": 1735
+    },
+    {
+      "id": "llm-survey-2023_0004",
+      "heading": "Abstract [3]",
+      "preview": "In this paper, we revisit W&P’s assumptions on how humans behave with pathological prompts. arXiv:2301.07085v2 [cs.CL] 11 Nov 2023 Category Descriptio",
+      "chars": 1825
+    },
+    {
+      "id": "llm-survey-2023_0005",
+      "heading": "Abstract [4]",
+      "preview": "(That is, in our results, we always re- port human and model performance with respect to the NLI task.)\nWhen necessary, in designing stimuli for the m",
+      "chars": 1965
+    },
+    {
+      "id": "llm-survey-2023_0006",
+      "heading": "Abstract [5]",
+      "preview": "For each item, subjects choose between“Yes\" or “No\".\nThey do not receive any feedback throughout the experiment.\nExample Selection Because our main go",
+      "chars": 1978
+    },
+    {
+      "id": "llm-survey-2023_0007",
+      "heading": "Abstract [6]",
+      "preview": "Text within the curly bracket are not shown to the participants.\nCategory Prompts Examples Total Items Instructive 5 12 60 Misleading 10 5 50 Irreleva",
+      "chars": 1867
+    },
+    {
+      "id": "llm-survey-2023_0008",
+      "heading": "Abstract [7]",
+      "preview": "In contrast, models often appear to behave as though they have been instructed to do NLI even though they are instructed to do some other surface task",
+      "chars": 1257
+    },
+    {
+      "id": "llm-survey-2023_0009",
+      "heading": "0.833",
+      "preview": "0.917",
+      "chars": 5
+    },
+    {
+      "id": "llm-survey-2023_0010",
+      "heading": "0.833",
+      "preview": "0.917",
+      "chars": 5
+    },
+    {
+      "id": "llm-survey-2023_0011",
+      "heading": "0.781",
+      "preview": "0.6 0.8 0.6",
+      "chars": 11
+    },
+    {
+      "id": "llm-survey-2023_0012",
+      "heading": "0.3 0.268",
+      "preview": "0.708",
+      "chars": 5
+    },
+    {
+      "id": "llm-survey-2023_0013",
+      "heading": "0.542",
+      "preview": "0.708 0.708",
+      "chars": 11
+    },
+    {
+      "id": "llm-survey-2023_0014",
+      "heading": "0.7590.792",
+      "preview": "0.5",
+      "chars": 3
+    },
+    {
+      "id": "llm-survey-2023_0015",
+      "heading": "0.708 0.667 [1]",
+      "preview": "0.73 Figure 2: Zero-shot accuracy of human annotators vs. instruction-tuned models.\nIn the misleading condition, lower NLI accuracy is preferred as it",
+      "chars": 1862
+    },
+    {
+      "id": "llm-survey-2023_0016",
+      "heading": "0.708 0.667 [2]",
+      "preview": "When no useful instructions are provided in the irrelevant prompt setting, our results show that hu- mans still tend to perform the NLI task surprisin",
+      "chars": 303
+    },
+    {
+      "id": "llm-survey-2023_0017",
+      "heading": "2022). [1]",
+      "preview": "Such idiosyncrasies in human behavior are of- ten difficult to anticipate and even more difficult to codify in a way that lends itself well to bench- ",
+      "chars": 1968
+    },
+    {
+      "id": "llm-survey-2023_0018",
+      "heading": "2022). [2]",
+      "preview": "While future work should con- sider repeating this analysis\nfor other tasks, NLI has several advantages for our purposes.\nFirst, NLI is one of the onl",
+      "chars": 1813
+    },
+    {
+      "id": "llm-survey-2023_0019",
+      "heading": "References",
+      "preview": "Tom B. Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Ask",
+      "chars": 483
+    },
+    {
+      "id": "llm-survey-2023_0020",
+      "heading": "2020. Language models are few-shot learners. In Ad-",
+      "preview": "vances in Neural Information Processing Systems 33: Annual Conference on Neural Information Process- ing Systems 2020, NeurIPS 2020, December 6-12, 20",
+      "chars": 592
+    },
+    {
+      "id": "llm-survey-2023_0021",
+      "heading": "2022. Scaling instruction-finetuned language models.",
+      "preview": "ArXiv preprint, abs/2210.11416. Alexis Conneau, Ruty Rinott, Guillaume Lample, Adina Williams, Samuel Bowman, Holger Schwenk, and Veselin Stoyanov. 20",
+      "chars": 435
+    },
+    {
+      "id": "llm-survey-2023_0022",
+      "heading": "2006. The pascal recognising textual entailment chal- [1]",
+      "preview": "lenge.\nIn Machine learning challenges workshop , pages 177–190.\nSpringer.\nIshita Dasgupta, Andrew K.\nLampinen, Stephanie C. Y .\nChan, Antonia Creswell",
+      "chars": 1974
+    },
+    {
+      "id": "llm-survey-2023_0023",
+      "heading": "2006. The pascal recognising textual entailment chal- [2]",
+      "preview": "In EMNLP.\nAman Madaan and Amir Yazdanbakhsh.\n2022.\nText and patterns: For effective chain of thought, it takes two to tango.\nArXiv preprint, abs/2209.",
+      "chars": 1977
+    },
+    {
+      "id": "llm-survey-2023_0024",
+      "heading": "2006. The pascal recognising textual entailment chal- [3]",
+      "preview": "Associa- tion for Computational Linguistics.\nEllie Pavlick and Tom Kwiatkowski.\n2019.\nInherent disagreements in human textual inferences.\nTransac- tio",
+      "chars": 1794
+    },
+    {
+      "id": "llm-survey-2023_0025",
+      "heading": "2021. Beyond Fair Pay: Ethical Implications of NLP [1]",
+      "preview": "Crowdsourcing.\nAarohi Srivastava, Abhinav Rastogi, Abhishek B Rao, Abu Awal Md Shoeb, Abubakar Abid, Adam Fisch, Adam R.\nBrown, Adam Santoro, Aditya G",
+      "chars": 1612
+    },
+    {
+      "id": "llm-survey-2023_0026",
+      "heading": "2021. Beyond Fair Pay: Ethical Implications of NLP [2]",
+      "preview": "Drakard, David Jur- gens, Debajyoti Datta, Deep Ganguli, Denis Emelin, Denis Kleyko, Deniz Yuret, Derek Chen, Derek Tam, Dieuwke Hupkes, Diganta Misra",
+      "chars": 1749
+    },
+    {
+      "id": "llm-survey-2023_0027",
+      "heading": "2021. Beyond Fair Pay: Ethical Implications of NLP [3]",
+      "preview": "Dhole, Kevin Gimpel, Kevin Ochieng’ Omondi, Kory Wallace Mathewson, Kristen Chia- fullo, Ksenia Shkaruta, Kumar Shridhar, Kyle Mc- Donell, Kyle Richar",
+      "chars": 1778
+    },
+    {
+      "id": "llm-survey-2023_0028",
+      "heading": "2021. Beyond Fair Pay: Ethical Implications of NLP [4]",
+      "preview": "Saurous, Riku Arakawa, Robbe Raymaekers, Robert Frank, Rohan Sikand, Roman Novak, Roman Sitelew, Ronan Le Bras, Rosanne Liu, Rowan Jacobs, Rui Zhang, ",
+      "chars": 1929
+    },
+    {
+      "id": "llm-survey-2023_0029",
+      "heading": "2021. Beyond Fair Pay: Ethical Implications of NLP [5]",
+      "preview": "Wang, Zirui Wang, Ziyi Wu, Sahib Singh, and Uri Shaham.\n2022.\nBeyond the imitation game: Quantifying and extrapolating the capabilities of language mo",
+      "chars": 437
+    },
+    {
+      "id": "llm-survey-2023_0030",
+      "heading": "392.",
+      "preview": "Albert Webson and Ellie Pavlick. 2022. Do prompt- based models really understand the meaning of their prompts? In Proceedings of the 2022 Conference o",
+      "chars": 802
+    },
+    {
+      "id": "llm-survey-2023_0031",
+      "heading": "2018. A broad-coverage challenge corpus for sen- [1]",
+      "preview": "tence understanding through inference.\nIn Proceed- ings of the 2018 Conference of the North American Chapter of the Association for Computational Lin-",
+      "chars": 1916
+    },
+    {
+      "id": "llm-survey-2023_0032",
+      "heading": "2018. A broad-coverage challenge corpus for sen- [2]",
+      "preview": "A.1 Method We show each subject 32 items sequentially, one item per page, for which subjects must\nrespond “Yes” or “No” to each item.\nEach subject is ",
+      "chars": 1966
+    },
+    {
+      "id": "llm-survey-2023_0033",
+      "heading": "2018. A broad-coverage challenge corpus for sen- [3]",
+      "preview": "4. {sentence1} Single-family zoning is bad for American cities {sentence2} (Irrelevant.)\n5. {sentence1} {sentence2} (Null; empty instruc- tion baselin",
+      "chars": 1509
+    },
+    {
+      "id": "llm-survey-2023_0034",
+      "heading": "1 5 10 15 20 25 300 [1]",
+      "preview": "5 10 15 20 25 30 1 5 10 15 20 25 30 1 5 10 15 20 25 30 1 5 10 15 20 25 30 Few-Shot without LabelsFew-Shot with LabelsBaseline with Instructive Prompt ",
+      "chars": 1796
+    },
+    {
+      "id": "llm-survey-2023_0035",
+      "heading": "1 5 10 15 20 25 300 [2]",
+      "preview": "That is, this participant completely recovered the NLI instruction even though they were given a paraphrasing instruction.\nThey even ob- served the un",
+      "chars": 1983
+    },
+    {
+      "id": "llm-survey-2023_0036",
+      "heading": "1 5 10 15 20 25 300 [3]",
+      "preview": "It was a little difficult because some of the sentences made inferences that weren’t explicit in the given text, so I wasn’t sure if that was a gramma",
+      "chars": 1729
+    },
+    {
+      "id": "llm-survey-2023_0037",
+      "heading": "1 5 10 15 20 25 300 [4]",
+      "preview": "In a zero-shot setting, it could be unclear to the model “what is the intended continuation; the model might be likely to produce a blank line for som",
+      "chars": 1991
+    },
+    {
+      "id": "llm-survey-2023_0038",
+      "heading": "1 5 10 15 20 25 300 [5]",
+      "preview": "Prasad et al. (2022) find that semantically incoherent prompts work well for In- structGPT over 12 QA and coreference datasets in Natural Instructions",
+      "chars": 1449
+    },
+    {
+      "id": "llm-survey-2023_0039",
+      "heading": "1 5 10 15 20 25 300 [6]",
+      "preview": "As few-shot exemplars are now commonly accompanied with intermediate computation, explanations, or chain-of-thoughts (Wei et al., 2022; Nye et al., 20",
+      "chars": 1988
+    },
+    {
+      "id": "llm-survey-2023_0040",
+      "heading": "1 5 10 15 20 25 300 [7]",
+      "preview": "Ellie Pavlick advised the project and edited the paper.\nE Additional Details of the Main Zero-Shot Experiment E.1 Controls We collect additional data ",
+      "chars": 1657
+    },
+    {
+      "id": "llm-survey-2023_0041",
+      "heading": "0.002",
+      "preview": "0.004",
+      "chars": 5
+    },
+    {
+      "id": "llm-survey-2023_0042",
+      "heading": "0.006",
+      "preview": "0.008",
+      "chars": 5
+    },
+    {
+      "id": "llm-survey-2023_0043",
+      "heading": "0.01 [1]",
+      "preview": "Total response times (s) Proportion of participants μ-σ=33.01 μ=126.62 Figure 4: Histogram of subjects’ total time taken (in seconds) to complete the ",
+      "chars": 1938
+    },
+    {
+      "id": "llm-survey-2023_0044",
+      "heading": "0.01 [2]",
+      "preview": "We also ran a separate pilot study in order to determine whether previous exposure\nto other NLP studies on Mechanical Turk would bias subjects to perf",
+      "chars": 1843
+    },
+    {
+      "id": "llm-survey-2023_0045",
+      "heading": "0.01 [3]",
+      "preview": "You strictly must answer only ‘Yes’ or ‘No’ to the paragraph.”.\nNo other instruc- tions or examples are given.\n14 F Additional Results for Zero-Shot E",
+      "chars": 1890
+    },
+    {
+      "id": "llm-survey-2023_0046",
+      "heading": "0.01 [4]",
+      "preview": "However, the top-line trends we argue in the main paper about human behavior given these different prompts remain observable (instructive > misleading",
+      "chars": 290
+    },
+    {
+      "id": "llm-survey-2023_0047",
+      "heading": "0.792",
+      "preview": "0.286",
+      "chars": 5
+    },
+    {
+      "id": "llm-survey-2023_0048",
+      "heading": "0.7920.743",
+      "preview": "Figure 5: Zero-shot accuracy data of human annotators with perfect NLI Control scores and time above floor cutoff. (n = 384) 0 0.2 0.4 0.6 0.8 1 instr",
+      "chars": 193
+    },
+    {
+      "id": "llm-survey-2023_0049",
+      "heading": "0.857",
+      "preview": "0",
+      "chars": 1
+    },
+    {
+      "id": "llm-survey-2023_0050",
+      "heading": "0.833",
+      "preview": "0.663 Figure 6: Zero-shot accuracy data of human annotators with perfect General Control scores and time above floor cutoff. (n = 238). 0 0.2 0.4 0.6 ",
+      "chars": 206
+    },
+    {
+      "id": "llm-survey-2023_0051",
+      "heading": "0.174",
+      "preview": "0.81 0.769 Figure 7: Zero-shot accuracy data of human annotators with a total score of at least 3 out of 4 Control items and time above floor cutoff. ",
+      "chars": 232
+    },
+    {
+      "id": "llm-survey-2023_0052",
+      "heading": "0.909",
+      "preview": "0",
+      "chars": 1
+    },
+    {
+      "id": "llm-survey-2023_0053",
+      "heading": "0.889",
+      "preview": "0.633 Figure 8: Zero-shot accuracy data of human annotators with all perfect NLI and General Control scores and time above floor cutoff. (n = 186). 0 ",
+      "chars": 234
+    },
+    {
+      "id": "llm-survey-2023_0054",
+      "heading": "0.718",
+      "preview": "0.366",
+      "chars": 5
+    },
+    {
+      "id": "llm-survey-2023_0055",
+      "heading": "0.7270.681",
+      "preview": "Figure 9: Zero-shot accuracy data of human annotators with any response time (n = 597) (i.e., all data). 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 instruc",
+      "chars": 191
+    },
+    {
+      "id": "llm-survey-2023_0056",
+      "heading": "0.76",
+      "preview": "0.286",
+      "chars": 5
+    },
+    {
+      "id": "llm-survey-2023_0057",
+      "heading": "0.7920.744",
+      "preview": "Figure 10: Zero-shot accuracy data of human annotators with perfect NLI Control scores, with any response time. (n = 409). 0 0.2 0.4 0.6 0.8 1 instruc",
+      "chars": 191
+    },
+    {
+      "id": "llm-survey-2023_0058",
+      "heading": "0.833",
+      "preview": "0",
+      "chars": 1
+    },
+    {
+      "id": "llm-survey-2023_0059",
+      "heading": "0.824",
+      "preview": "0.626 Figure 11: Zero-shot accuracy data of human annotators with perfect General Control scores, with any response time. (n = 273). 0 0.2 0.4 0.6 0.8",
+      "chars": 199
+    },
+    {
+      "id": "llm-survey-2023_0060",
+      "heading": "0.773",
+      "preview": "0.261",
+      "chars": 5
+    },
+    {
+      "id": "llm-survey-2023_0061",
+      "heading": "0.826",
+      "preview": "0.729 Figure 12: Zero-shot accuracy data of human annotators with a total score of at least 3 out of 4 Control items, with any response time. (n = 377",
+      "chars": 227
+    },
+    {
+      "id": "llm-survey-2023_0062",
+      "heading": "0.889",
+      "preview": "0.633 Figure 13: Zero-shot accuracy data of human annotators with all perfect NLI and General Control scores, with any response time. (n = 192). 16 G ",
+      "chars": 233
+    },
+    {
+      "id": "llm-survey-2023_0063",
+      "heading": "0.83",
+      "preview": "1.00 1.000.92 0.92",
+      "chars": 18
+    },
+    {
+      "id": "llm-survey-2023_0064",
+      "heading": "0.00",
+      "preview": "0.40",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0065",
+      "heading": "0.000.00 0.00",
+      "preview": "1.00 1.00",
+      "chars": 9
+    },
+    {
+      "id": "llm-survey-2023_0066",
+      "heading": "0.20",
+      "preview": "0.80",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0067",
+      "heading": "0.40",
+      "preview": "0.83",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0068",
+      "heading": "0.67 0.750.67 0.67 0.67",
+      "preview": "is_it_truedoes_this_implyguaranteed_truejustified_in_sayingmnli_ynwords_appearsportsballsummarizesentimentstart_with_theparaphrasesame_meaningfrenchgr",
+      "chars": 241
+    },
+    {
+      "id": "llm-survey-2023_0069",
+      "heading": "0.830.92 0.830.92",
+      "preview": "0.75",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0070",
+      "heading": "0.40",
+      "preview": "0.60",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0071",
+      "heading": "0.40",
+      "preview": "0.00",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0072",
+      "heading": "0.40",
+      "preview": "0.60",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0073",
+      "heading": "0.80",
+      "preview": "0.60",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0074",
+      "heading": "0.80",
+      "preview": "0.60",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0075",
+      "heading": "0.83",
+      "preview": "0.67 0.670.75 0.67 0.75 0 0.5 1",
+      "chars": 31
+    },
+    {
+      "id": "llm-survey-2023_0076",
+      "heading": "0.920.920.92",
+      "preview": "0.75",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0077",
+      "heading": "0.92 0.80",
+      "preview": "0.600.60",
+      "chars": 8
+    },
+    {
+      "id": "llm-survey-2023_0078",
+      "heading": "0.80 0.80",
+      "preview": "1.00",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0079",
+      "heading": "0.600.60",
+      "preview": "0.80",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0080",
+      "heading": "1.00",
+      "preview": "0.420.50",
+      "chars": 8
+    },
+    {
+      "id": "llm-survey-2023_0081",
+      "heading": "0.83",
+      "preview": "0.58 0.67",
+      "chars": 9
+    },
+    {
+      "id": "llm-survey-2023_0082",
+      "heading": "0.33",
+      "preview": "0 0.5 1",
+      "chars": 7
+    },
+    {
+      "id": "llm-survey-2023_0083",
+      "heading": "0.750.75",
+      "preview": "0.92 0.830.83",
+      "chars": 13
+    },
+    {
+      "id": "llm-survey-2023_0084",
+      "heading": "0.60",
+      "preview": "0.80",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0085",
+      "heading": "0.40",
+      "preview": "0.00",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0086",
+      "heading": "0.20",
+      "preview": "0.80",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0087",
+      "heading": "0.60",
+      "preview": "1.00",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0088",
+      "heading": "0.80",
+      "preview": "0.60 0.67",
+      "chars": 9
+    },
+    {
+      "id": "llm-survey-2023_0089",
+      "heading": "0.50",
+      "preview": "0.830.75 0.830.75 0 0.5 1",
+      "chars": 25
+    },
+    {
+      "id": "llm-survey-2023_0090",
+      "heading": "0.78 0.73",
+      "preview": "0.94",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0091",
+      "heading": "0.68 0.83",
+      "preview": "0.21 0.29 0.33 0.40",
+      "chars": 19
+    },
+    {
+      "id": "llm-survey-2023_0092",
+      "heading": "0.23",
+      "preview": "0.50",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0093",
+      "heading": "0.77",
+      "preview": "0.25 0.23 0.00",
+      "chars": 14
+    },
+    {
+      "id": "llm-survey-2023_0094",
+      "heading": "0.72 0.73 0.83 0.79 0.76 0.62 [1]",
+      "preview": "0.84 0 0.5 1 instructive misleading irrelevant null GPT-4 GPT-3.5 FLAN-T5 T0++ Humans NLI Accuracy Figure 14: Zero-shot NLI accuracy of human annotato",
+      "chars": 483
+    },
+    {
+      "id": "llm-survey-2023_0095",
+      "heading": "0.72 0.73 0.83 0.79 0.76 0.62 [2]",
+      "preview": "Yes, no or unclear?\ninstructive justified-in-saying {sentence1} Are we justified in saying that \"{sentence2}\"? instructive is-it-true {sentence1} Base",
+      "chars": 1954
+    },
+    {
+      "id": "llm-survey-2023_0096",
+      "heading": "0.72 0.73 0.83 0.79 0.76 0.62 [3]",
+      "preview": "Or is it pious because it is loved by the gods? \"{sentence2}\"? null concat-phm {sentence1}\n{sentence2} null concat-hpm {sentence2}{sentence1} Table 3:",
+      "chars": 1970
+    },
+    {
+      "id": "llm-survey-2023_0097",
+      "heading": "0.72 0.73 0.83 0.79 0.76 0.62 [4]",
+      "preview": "A hypothesis sentence was manually written based on the review.\nIf the review was positive, the hypothesis sentence was not entailed; if the review wa",
+      "chars": 1650
+    },
+    {
+      "id": "llm-survey-2023_0098",
+      "heading": "2020)",
+      "preview": "Grammatically incorrect sentences from BLiMP were used as hypothesis sentences, while grammatically correct premise para- graphs were handwritten for ",
+      "chars": 296
+    },
+    {
+      "id": "llm-survey-2023_0099",
+      "heading": "2015)",
+      "preview": "Reviews were taken from the Yelp Polarity dataset as premise paragraphs and a hypothesis sentence was manually based on the review. If the review was ",
+      "chars": 377
+    },
+    {
+      "id": "llm-survey-2023_0100",
+      "heading": "2022)",
+      "preview": "Excerpts were taken from articles in the ‘Sports’ category of the dataset and non-entailing hypothesis sentences were manually written, such that the ",
+      "chars": 258
+    },
+    {
+      "id": "llm-survey-2023_0101",
+      "heading": "2018)",
+      "preview": "Non-entailing French XNLI examples were taken such that the misleading task answer was “Yes\" while the NLI task answer was “No\". 20 I Results on Zero-",
+      "chars": 201
+    },
+    {
+      "id": "llm-survey-2023_0102",
+      "heading": "0.78 0.75",
+      "preview": "0.84",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0103",
+      "heading": "0.69",
+      "preview": "0.75",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0104",
+      "heading": "0.18 0.22 0.16",
+      "preview": "0.27 0.22",
+      "chars": 9
+    },
+    {
+      "id": "llm-survey-2023_0105",
+      "heading": "0.04 0.03 0.04 0.03",
+      "preview": "mnli_yn (103) is_it_true (97) does_this_imply (100)guaranteed_true (107)justified_in_saying (97)0 0.2 0.4 0.6 0.8 1 Score Attained 2 1 0 Percentage of",
+      "chars": 469
+    },
+    {
+      "id": "llm-survey-2023_0106",
+      "heading": "0.65",
+      "preview": "0.54",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0107",
+      "heading": "0.27",
+      "preview": "0.12",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0108",
+      "heading": "0.64",
+      "preview": "0.24",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0109",
+      "heading": "0.52",
+      "preview": "0.67 0.64",
+      "chars": 9
+    },
+    {
+      "id": "llm-survey-2023_0110",
+      "heading": "0.44",
+      "preview": "0.270.35",
+      "chars": 8
+    },
+    {
+      "id": "llm-survey-2023_0111",
+      "heading": "0.27",
+      "preview": "0.35",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0112",
+      "heading": "0.23",
+      "preview": "0.33",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0113",
+      "heading": "0.18",
+      "preview": "0.29",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0114",
+      "heading": "0.280.44",
+      "preview": "0.080.120.47 0.54 0.130.43 0.30",
+      "chars": 31
+    },
+    {
+      "id": "llm-survey-2023_0115",
+      "heading": "0.04 [1]",
+      "preview": "0.080.12 paraphrase (49)summarize (49)same_meaning (52)similar_words (52)words_appear (53)french (49)sentiment (52)sportsball (48)grammatical (50)star",
+      "chars": 1984
+    },
+    {
+      "id": "llm-survey-2023_0116",
+      "heading": "0.04 [2]",
+      "preview": "These results suggest that subjects\nwith- out prior exposure appear to follow explicit task instructions more closely than the sample that was not con",
+      "chars": 743
+    },
+    {
+      "id": "llm-survey-2023_0117",
+      "heading": "1.00 1.00",
+      "preview": "0.75",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0118",
+      "heading": "0.86",
+      "preview": "0.75",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0119",
+      "heading": "0.25 0.140.25",
+      "preview": "is_it_true justified_in_sayingguaranteed_truedoes_this_implymnli_yn0 0.2 0.4 0.6 0.8 1",
+      "chars": 86
+    },
+    {
+      "id": "llm-survey-2023_0120",
+      "heading": "2 1 0",
+      "preview": "Accuracy Figure 17: NLI Control scores of subjects (n = 29) with no prior NLP experience.",
+      "chars": 89
+    },
+    {
+      "id": "llm-survey-2023_0121",
+      "heading": "0.640.69 0.63",
+      "preview": "0.730.69",
+      "chars": 8
+    },
+    {
+      "id": "llm-survey-2023_0122",
+      "heading": "0.360.31",
+      "preview": "0.19",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0123",
+      "heading": "0.270.31 0.19",
+      "preview": "is_it_true justified_in_sayingguaranteed_truedoes_this_implymnli_yn0 0.2 0.4 0.6 0.8 1",
+      "chars": 86
+    },
+    {
+      "id": "llm-survey-2023_0124",
+      "heading": "2 1 0",
+      "preview": "Accuracy Figure 18: NLI Control scores of sample of subjects (n = 67 ) that were not filtered on prior exposure to NLP tasks.",
+      "chars": 125
+    },
+    {
+      "id": "llm-survey-2023_0125",
+      "heading": "1.00 1.00 1.00",
+      "preview": "0.50",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0126",
+      "heading": "0.67",
+      "preview": "0.50",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0127",
+      "heading": "0.75",
+      "preview": "1.001.00",
+      "chars": 8
+    },
+    {
+      "id": "llm-survey-2023_0128",
+      "heading": "0.50",
+      "preview": "0.33",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0129",
+      "heading": "0.25",
+      "preview": "0.50 0.50 0.250.25 start_with_thegrammaticalsentimentsportsballfrench words_appearsimilar_wordssame_meaningparaphrasesummarize0 0.2 0.4 0.6 0.8 1",
+      "chars": 145
+    },
+    {
+      "id": "llm-survey-2023_0130",
+      "heading": "2 1 0",
+      "preview": "Accuracy Figure 19: General Control scores of subjects (n = 29) with no prior NLP experience.",
+      "chars": 93
+    },
+    {
+      "id": "llm-survey-2023_0131",
+      "heading": "0.60",
+      "preview": "0.75",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0132",
+      "heading": "0.17 0.20",
+      "preview": "0.64",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0133",
+      "heading": "0.40",
+      "preview": "0.86",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0134",
+      "heading": "0.43",
+      "preview": "0.67",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0135",
+      "heading": "0.20",
+      "preview": "0.25",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0136",
+      "heading": "0.67",
+      "preview": "0.20",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0137",
+      "heading": "0.29",
+      "preview": "0.600.14",
+      "chars": 8
+    },
+    {
+      "id": "llm-survey-2023_0138",
+      "heading": "0.430.17",
+      "preview": "0.20 0.17 0.600.710.360.140.17 start_with_thegrammaticalsentimentsportsballfrench words_appearsimilar_wordssame_meaningparaphrasesummarize0 0.2 0.4 0.",
+      "chars": 157
+    },
+    {
+      "id": "llm-survey-2023_0139",
+      "heading": "2 1 0",
+      "preview": "Accuracy Figure 20: General Control scores of sample of subjects (n = 67) that were not filtered on prior exposure to NLP tasks. 23",
+      "chars": 131
+    },
+    {
+      "id": "llm-survey-2023_0140",
+      "heading": "1.00 1.001.00 1.001.00",
+      "preview": "0.50",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0141",
+      "heading": "1.001.001.00",
+      "preview": "0.67 is_it_truejustified_in_sayingguaranteed_truedoes_this_implymnli_ynstart_with_thegrammaticalsentimentsportsballfrenchwords_appearsimilar_wordssame",
+      "chars": 403
+    },
+    {
+      "id": "llm-survey-2023_0142",
+      "heading": "0.67",
+      "preview": "1.001.00",
+      "chars": 8
+    },
+    {
+      "id": "llm-survey-2023_0143",
+      "heading": "0.67",
+      "preview": "0.33 0.33",
+      "chars": 9
+    },
+    {
+      "id": "llm-survey-2023_0144",
+      "heading": "0.75",
+      "preview": "0.33",
+      "chars": 4
+    },
+    {
+      "id": "llm-survey-2023_0145",
+      "heading": "0.75",
+      "preview": "0.50 0.50",
+      "chars": 9
+    },
+    {
+      "id": "llm-survey-2023_0146",
+      "heading": "1.001.00 1.00 1.00 [1]",
+      "preview": "0.80 is_it_truejustified_in_sayingguaranteed_truedoes_this_implymnli_ynstart_with_thegrammaticalsentimentsportsballfrenchwords_appearsimilar_wordssame",
+      "chars": 1968
+    },
+    {
+      "id": "llm-survey-2023_0147",
+      "heading": "1.001.00 1.00 1.00 [2]",
+      "preview": "Sometimes it involved a logical de- duction, and other times it was not implied at all by the other sentences but just related.\nSometimes I was unsure",
+      "chars": 1957
+    },
+    {
+      "id": "llm-survey-2023_0148",
+      "heading": "1.001.00 1.00 1.00 [3]",
+      "preview": "Later on, I just tried to see if the shorter sentences give accurate information based on the longer parag traphs above.\nTable 5: Sample of free-text ",
+      "chars": 450
+    }
+  ]
+}

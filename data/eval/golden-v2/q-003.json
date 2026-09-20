@@ -1,0 +1,64 @@
+{
+  "id": "q-003",
+  "query": "large language model zero-shot few-shot prompting instruction following",
+  "domain": "cs_ai",
+  "language": "en",
+  "judgments": [
+    {
+      "queryId": "q-003",
+      "chunkId": "llm-survey-2023_0002",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Directly about prompting for zero-shot and few-shot LLM performance"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "llm-survey-2023_0003",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Studies how instructions in prompts affect model behavior"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "llm-survey-2023_0008",
+      "grade": 3,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Model instruction-following vs NLI prompting directly analyzed"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "llm-survey-2023_0004",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Pathological prompts and human vs model response analysis"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "llm-survey-2023_0005",
+      "grade": 2,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Experimental prompting setup description"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "transformer-2017_0005",
+      "grade": 1,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "Transformer is foundation of LLMs - weak relevance"
+    },
+    {
+      "queryId": "q-003",
+      "chunkId": "bert-2018_0006",
+      "grade": 0,
+      "annotatorId": "annotator-1",
+      "date": "2026-09-20",
+      "rationale": "ELMo comparison - unrelated to zero-shot prompting"
+    }
+  ]
+}
