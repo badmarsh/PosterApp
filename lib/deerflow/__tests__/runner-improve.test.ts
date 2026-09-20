@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Tests for the improve_poster autonomous build & fix loop (Phase 2).
  *
  * Strategy: the DeerFlow HTTP bridge (streamDeerRun) hits a real in-process
@@ -163,6 +163,7 @@ describe("executeDeerflowImproveLoop", () => {
       improvePosterFrames(buildImprovePosterProposal({ cardId: CARD_ID, iterationCount: 1 })),
     ]
     await fixture.stop()
+    // @ts-expect-error -- callFrames inferred as never[] from untyped .mjs; runtime-safe
     fixture = createImprovePosterFixture({ callFrames: perCall })
     await fixture.start()
     process.env.DEERFLOW_URL = fixture.url
@@ -194,6 +195,7 @@ describe("executeDeerflowImproveLoop", () => {
       meta: {},
     }
     await fixture.stop()
+    // @ts-expect-error -- callFrames inferred as never[] from untyped .mjs; runtime-safe
     fixture = createImprovePosterFixture({ callFrames: [improvePosterFrames(emptyProposal)] })
     await fixture.start()
     process.env.DEERFLOW_URL = fixture.url
@@ -210,3 +212,5 @@ describe("executeDeerflowImproveLoop", () => {
     )
   })
 })
+
+
