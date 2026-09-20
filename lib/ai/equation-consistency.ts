@@ -34,7 +34,7 @@ const COMMON_MATH_SYMBOLS = new Set([
  */
 export function extractSymbolsFromFormula(formula: string): string[] {
   const clean = formula.replace(/\\[a-zA-Z]+/g, (m) => (COMMON_MATH_SYMBOLS.has(m) ? ` ${m} ` : " "))
-  const latinMatches = clean.match(/\b[a-zA-Z]\b/g) || []
+  const latinMatches = Array.from(new Set(clean.match(/[a-zA-Z]/g) ?? []))
   const greekMatches = Array.from(COMMON_MATH_SYMBOLS).filter((sym) => formula.includes(sym))
 
   const unique = Array.from(new Set([...latinMatches, ...greekMatches]))

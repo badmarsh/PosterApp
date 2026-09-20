@@ -19,6 +19,7 @@ export type ReviewJobStage =
   | "criterion_reviews"
   | "primary_review"
   | "self_critique"
+  | "verifying"
   | "synthesis"
   | "persisting"
   | "done"
@@ -57,6 +58,7 @@ const STAGE_PROGRESS: Record<ReviewJobStage, number> = {
   criterion_reviews: 55,
   primary_review: 70,
   self_critique: 82,
+  verifying: 87,
   synthesis: 92,
   persisting: 97,
   done: 100,

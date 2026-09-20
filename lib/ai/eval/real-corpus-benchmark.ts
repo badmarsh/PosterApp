@@ -291,7 +291,8 @@ export async function runRealCorpusBenchmark(
   // Write per-architecture artifacts
   const timestamp = new Date().toISOString()
   for (const arch of architectureResults) {
-    const artifactPath = path.join(absOutputDir, `${arch.architectureId}-${timestamp}.json`)
+    const safeTimestamp = timestamp.replace(/:/g, '-')
+    const artifactPath = path.join(absOutputDir, `${arch.architectureId}-${safeTimestamp}.json`)
     fs.writeFileSync(artifactPath, JSON.stringify(arch, null, 2), "utf8")
   }
 
