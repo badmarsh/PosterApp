@@ -3,12 +3,12 @@
   "status": "executed",
   "methodology": "empirical",
   "queriesEvaluated": 25,
-  "recallAt5": 0.27988078588078585,
+  "recallAt5": 0.28351714951714946,
   "recallAt10": 0.36267155067155066,
   "recallAt20": 0.36267155067155066,
-  "ndcgAt10": 0.48361843622661616,
+  "ndcgAt10": 0.485843401930146,
   "mrr": 0.9066666666666667,
-  "latencyMs": 51.56,
+  "latencyMs": 45.48,
   "perQuery": [
     {
       "queryId": "q-001",
@@ -21,7 +21,7 @@
       "retrievedChunkIds": [
         "transformer-2017_0002"
       ],
-      "latencyMs": 72
+      "latencyMs": 56
     },
     {
       "queryId": "q-002",
@@ -37,7 +37,7 @@
         "bert-2018_0014",
         "bert-2018_0033"
       ],
-      "latencyMs": 56
+      "latencyMs": 47
     },
     {
       "queryId": "q-003",
@@ -52,7 +52,7 @@
         "llm-survey-2023_0012",
         "llm-survey-2023_0008"
       ],
-      "latencyMs": 52
+      "latencyMs": 45
     },
     {
       "queryId": "q-004",
@@ -80,7 +80,7 @@
         "bert-2018_0032",
         "llm-survey-2023_0008"
       ],
-      "latencyMs": 49
+      "latencyMs": 39
     },
     {
       "queryId": "q-005",
@@ -100,7 +100,7 @@
         "llm-survey-2023_0003",
         "llm-survey-2023_0012"
       ],
-      "latencyMs": 57
+      "latencyMs": 39
     },
     {
       "queryId": "q-006",
@@ -113,7 +113,7 @@
       "retrievedChunkIds": [
         "transformer-2017_0004"
       ],
-      "latencyMs": 49
+      "latencyMs": 38
     },
     {
       "queryId": "q-007",
@@ -126,7 +126,7 @@
       "retrievedChunkIds": [
         "transformer-2017_0003"
       ],
-      "latencyMs": 49
+      "latencyMs": 35
     },
     {
       "queryId": "q-008",
@@ -141,7 +141,7 @@
         "transformer-2017_0007",
         "transformer-2017_0008"
       ],
-      "latencyMs": 46
+      "latencyMs": 38
     },
     {
       "queryId": "q-009",
@@ -149,13 +149,12 @@
       "recallAt5": 0.2727272727272727,
       "recallAt10": 0.6363636363636364,
       "recallAt20": 0.6363636363636364,
-      "ndcgAt10": 0.4467406676966709,
+      "ndcgAt10": 0.4670474255170701,
       "mrr": 0.5,
       "retrievedChunkIds": [
         "bert-2018_0000",
         "bert-2018_0001",
         "bert-2018_0002",
-        "llm-survey-2023_0006",
         "bert-2018_0007",
         "bert-2018_0008",
         "bert-2018_0009",
@@ -171,9 +170,10 @@
         "bert-2018_0033",
         "bert-2018_0034",
         "bert-2018_0041",
-        "bert-2018_0042"
+        "bert-2018_0042",
+        "bert-2018_0043"
       ],
-      "latencyMs": 51
+      "latencyMs": 36
     },
     {
       "queryId": "q-010",
@@ -187,7 +187,7 @@
         "bert-2018_0008",
         "bert-2018_0014"
       ],
-      "latencyMs": 52
+      "latencyMs": 39
     },
     {
       "queryId": "q-011",
@@ -203,7 +203,7 @@
         "bert-2018_0014",
         "bert-2018_0043"
       ],
-      "latencyMs": 53
+      "latencyMs": 40
     },
     {
       "queryId": "q-012",
@@ -222,7 +222,7 @@
         "bert-2018_0041",
         "llm-survey-2023_0026"
       ],
-      "latencyMs": 54
+      "latencyMs": 38
     },
     {
       "queryId": "q-013",
@@ -254,7 +254,7 @@
         "bert-2018_0030",
         "bert-2018_0031"
       ],
-      "latencyMs": 50
+      "latencyMs": 39
     },
     {
       "queryId": "q-014",
@@ -286,7 +286,7 @@
         "bert-2018_0024",
         "bert-2018_0032"
       ],
-      "latencyMs": 44
+      "latencyMs": 68
     },
     {
       "queryId": "q-015",
@@ -299,7 +299,7 @@
       "retrievedChunkIds": [
         "llm-survey-2023_0002"
       ],
-      "latencyMs": 55
+      "latencyMs": 60
     },
     {
       "queryId": "q-016",
@@ -326,21 +326,20 @@
         "llm-survey-2023_0013",
         "llm-survey-2023_0026"
       ],
-      "latencyMs": 58
+      "latencyMs": 61
     },
     {
       "queryId": "q-017",
       "query": "BERT WordPiece tokenization vocabulary 30000 tokens CLS SEP special tokens",
-      "recallAt5": 0.2727272727272727,
+      "recallAt5": 0.36363636363636365,
       "recallAt10": 0.7272727272727273,
       "recallAt20": 0.7272727272727273,
-      "ndcgAt10": 0.625782467638972,
+      "ndcgAt10": 0.6610998524068187,
       "mrr": 0.5,
       "retrievedChunkIds": [
         "bert-2018_0000",
         "bert-2018_0001",
         "bert-2018_0002",
-        "llm-survey-2023_0006",
         "bert-2018_0007",
         "bert-2018_0008",
         "bert-2018_0009",
@@ -356,9 +355,10 @@
         "bert-2018_0033",
         "bert-2018_0034",
         "bert-2018_0041",
-        "bert-2018_0042"
+        "bert-2018_0042",
+        "bert-2018_0043"
       ],
-      "latencyMs": 43
+      "latencyMs": 53
     },
     {
       "queryId": "q-018",
@@ -390,7 +390,7 @@
         "bert-2018_0030",
         "bert-2018_0031"
       ],
-      "latencyMs": 50
+      "latencyMs": 49
     },
     {
       "queryId": "q-019",
@@ -418,7 +418,7 @@
         "bert-2018_0032",
         "llm-survey-2023_0008"
       ],
-      "latencyMs": 51
+      "latencyMs": 54
     },
     {
       "queryId": "q-020",
@@ -434,7 +434,7 @@
         "transformer-2017_0011",
         "bert-2018_0034"
       ],
-      "latencyMs": 53
+      "latencyMs": 42
     },
     {
       "queryId": "q-021",
@@ -448,7 +448,7 @@
         "llm-survey-2023_0002",
         "llm-survey-2023_0012"
       ],
-      "latencyMs": 50
+      "latencyMs": 54
     },
     {
       "queryId": "q-022",
@@ -462,7 +462,7 @@
         "transformer-2017_0004",
         "bert-2018_0034"
       ],
-      "latencyMs": 47
+      "latencyMs": 39
     },
     {
       "queryId": "q-023",
@@ -476,7 +476,7 @@
         "bert-2018_0002",
         "bert-2018_0034"
       ],
-      "latencyMs": 52
+      "latencyMs": 44
     },
     {
       "queryId": "q-024",
@@ -508,7 +508,7 @@
         "llm-survey-2023_0030",
         "llm-survey-2023_0033"
       ],
-      "latencyMs": 52
+      "latencyMs": 38
     },
     {
       "queryId": "q-025",
@@ -539,7 +539,7 @@
         "llm-survey-2023_0042",
         "llm-survey-2023_0043"
       ],
-      "latencyMs": 44
+      "latencyMs": 46
     }
   ]
 }

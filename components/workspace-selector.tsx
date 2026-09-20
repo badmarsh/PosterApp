@@ -381,8 +381,8 @@ export function WorkspaceSelector({
           >
             <FlaskConical className="size-3.5 text-primary" />
             Research Lab (DeerFlow)
-            <span className="ml-1 rounded-full bg-primary/20 text-primary px-1.5 py-0.2 text-[10px] font-mono">
-              6 Protocols
+            <span className="ml-1 rounded-full bg-muted-foreground/15 text-muted-foreground px-1.5 py-0.2 text-[10px]">
+              6
             </span>
           </button>
         </div>

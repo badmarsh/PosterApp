@@ -1,47 +1,57 @@
 {
-  "timestamp": "2026-09-20T14:45:37.283Z",
-  "datasetSize": 41,
+  "timestamp": "2026-09-20T18:10:04.791Z",
+  "methodology": "empirical",
+  "datasetSize": 25,
+  "corpusChunks": 117,
   "k": 10,
-  "variants": [
+  "stages": [
     {
-      "variant": "dense-only",
-      "description": "Dense vector search only (MiniLM, 384-dim)",
-      "queriesEvaluated": 41,
-      "meanRecallAt10": 0.756,
-      "meanNdcgAt10": 0.756,
-      "mrr": 0.756,
-      "meanLatencyMs": 18.9,
-      "p95LatencyMs": 21
+      "stage": "1_bm25_only",
+      "name": "1. BM25 Only",
+      "recallAt10": 0.36267155067155066,
+      "ndcgAt10": 0.48457455724170023,
+      "mrr": 0.9066666666666667,
+      "latencyMs": 50.4
     },
     {
-      "variant": "lexical-only",
-      "description": "Lexical search only (BM25 / tsvector)",
-      "queriesEvaluated": 41,
-      "meanRecallAt10": 0.683,
-      "meanNdcgAt10": 0.683,
-      "mrr": 0.683,
-      "meanLatencyMs": 11.9,
-      "p95LatencyMs": 14
+      "stage": "2_dense_plain",
+      "name": "2. Dense Plain (no context prefix, no HyDE)",
+      "recallAt10": 0.15467299367299364,
+      "ndcgAt10": 0.15469033245566605,
+      "mrr": 0.4388964719491035,
+      "latencyMs": 9.28
     },
     {
-      "variant": "hybrid",
-      "description": "Hybrid fusion of Dense + Lexical",
-      "queriesEvaluated": 41,
-      "meanRecallAt10": 0.927,
-      "meanNdcgAt10": 0.927,
-      "mrr": 0.927,
-      "meanLatencyMs": 25.9,
-      "p95LatencyMs": 28
+      "stage": "3_dense_contextual",
+      "name": "3. Dense Contextual (doc+section prefix, no HyDE)",
+      "recallAt10": 0.19170884670884672,
+      "ndcgAt10": 0.17812401588911142,
+      "mrr": 0.45574018379281533,
+      "latencyMs": 1.84
     },
     {
-      "variant": "full-fusion-expanded",
-      "description": "Full 6-source fusion + parent/neighbor expansion",
-      "queriesEvaluated": 41,
-      "meanRecallAt10": 0.976,
-      "meanNdcgAt10": 0.976,
-      "mrr": 0.976,
-      "meanLatencyMs": 38.9,
-      "p95LatencyMs": 41
+      "stage": "4_bm25_plus_dense_plain",
+      "name": "4. BM25 + Dense Plain (no HyDE)",
+      "recallAt10": 0.44985070485070494,
+      "ndcgAt10": 0.5514013332170924,
+      "mrr": 0.9066666666666667,
+      "latencyMs": 52.32
+    },
+    {
+      "stage": "5_bm25_plus_dense_contextual",
+      "name": "5. BM25 + Dense Contextual (no HyDE)",
+      "recallAt10": 0.46862259962259967,
+      "ndcgAt10": 0.5594652124520995,
+      "mrr": 0.9066666666666667,
+      "latencyMs": 51.8
+    },
+    {
+      "stage": "6_full_posterapp",
+      "name": "6. Full PosterApp (BM25 + Contextual + HyDE)",
+      "recallAt10": 0.5021141081141081,
+      "ndcgAt10": 0.5755414296548161,
+      "mrr": 0.9066666666666667,
+      "latencyMs": 53.84
     }
   ]
 }

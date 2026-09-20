@@ -8,7 +8,7 @@
   "recallAt20": 0.24320179820179816,
   "ndcgAt10": 0.17812401588911142,
   "mrr": 0.45574018379281533,
-  "latencyMs": 2.52,
+  "latencyMs": 2.76,
   "perQuery": [
     {
       "queryId": "q-001",
@@ -40,7 +40,7 @@
         "llm-survey-2023_0014",
         "llm-survey-2023_0016"
       ],
-      "latencyMs": 3
+      "latencyMs": 2
     },
     {
       "queryId": "q-002",
@@ -72,7 +72,7 @@
         "bert-2018_0017",
         "llm-survey-2023_0000"
       ],
-      "latencyMs": 2
+      "latencyMs": 4
     },
     {
       "queryId": "q-003",
@@ -104,7 +104,7 @@
         "llm-survey-2023_0018",
         "llm-survey-2023_0034"
       ],
-      "latencyMs": 2
+      "latencyMs": 3
     },
     {
       "queryId": "q-004",
@@ -136,7 +136,7 @@
         "llm-survey-2023_0031",
         "llm-survey-2023_0039"
       ],
-      "latencyMs": 4
+      "latencyMs": 3
     },
     {
       "queryId": "q-005",
@@ -232,7 +232,7 @@
         "transformer-2017_0001",
         "bert-2018_0048"
       ],
-      "latencyMs": 2
+      "latencyMs": 3
     },
     {
       "queryId": "q-008",
@@ -456,7 +456,7 @@
         "llm-survey-2023_0019",
         "llm-survey-2023_0015"
       ],
-      "latencyMs": 2
+      "latencyMs": 4
     },
     {
       "queryId": "q-015",
@@ -520,7 +520,7 @@
         "bert-2018_0027",
         "bert-2018_0001"
       ],
-      "latencyMs": 2
+      "latencyMs": 3
     },
     {
       "queryId": "q-017",
@@ -552,7 +552,7 @@
         "bert-2018_0023",
         "transformer-2017_0009"
       ],
-      "latencyMs": 3
+      "latencyMs": 5
     },
     {
       "queryId": "q-018",
@@ -584,7 +584,7 @@
         "bert-2018_0026",
         "transformer-2017_0003"
       ],
-      "latencyMs": 2
+      "latencyMs": 3
     },
     {
       "queryId": "q-019",
@@ -680,7 +680,7 @@
         "bert-2018_0011",
         "llm-survey-2023_0030"
       ],
-      "latencyMs": 3
+      "latencyMs": 2
     },
     {
       "queryId": "q-022",
@@ -712,7 +712,7 @@
         "bert-2018_0000",
         "llm-survey-2023_0018"
       ],
-      "latencyMs": 3
+      "latencyMs": 2
     },
     {
       "queryId": "q-023",
@@ -744,7 +744,7 @@
         "llm-survey-2023_0041",
         "llm-survey-2023_0027"
       ],
-      "latencyMs": 3
+      "latencyMs": 2
     },
     {
       "queryId": "q-024",
@@ -808,7 +808,7 @@
         "bert-2018_0043",
         "llm-survey-2023_0029"
       ],
-      "latencyMs": 3
+      "latencyMs": 4
     }
   ]
 }
