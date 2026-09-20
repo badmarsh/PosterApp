@@ -54,10 +54,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
     const input = parsed.data
 
-    if (input.confirmEstimate !== true) {
-      return safeApiError("Estimate confirmation required before starting a DeerFlow run", 400, "DEERFLOW_NEEDS_CONFIRMATION")
-    }
-
     const cfg = getDeerflowConfig()
     const { allowed, retryAfterMs } = await rateLimitAsync(
       `${userId}:${id}:deerflow:run`,
