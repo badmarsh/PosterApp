@@ -32,6 +32,24 @@ export const ELITE_SHOWCASES: ShowcaseWorkspace[] = [
     highlights: [{ value: "287 K", label: "predicted Tc" }, { value: "−2.4 meV", label: "energy error" }, { value: "8.1×", label: "sampling speedup" }],
   },
   {
+    id: "jwst-gravitational-lensing",
+    title: "JWST Gravitational Lensing: Dark Matter Substructures",
+    subtitle: "Forward neural ray-tracing resolves sub-kpc dark matter subhalos in cosmic dawn clusters.",
+    category: "Physics",
+    tags: ["Gravitational Lensing", "JWST", "Dark Matter", "Astrophysics"],
+    outputs: ["poster", "slides", "paper", "thesis-review"], accent: "#0284C7",
+    highlights: [{ value: "10^7 M_☉", label: "subhalo threshold" }, { value: "0.028″", label: "astrometric resolution" }, { value: "5.8σ", label: "detection confidence" }],
+  },
+  {
+    id: "speculative-decoding-guarantees",
+    title: "Speculative Decoding with Provable Latency Guarantees",
+    subtitle: "Martingale-bounded acceptance trees achieve lossless 3.4× acceleration on frontier LLMs.",
+    category: "AI & Robotics",
+    tags: ["Speculative Decoding", "Inference Acceleration", "Martingale Bounds", "NeurIPS"],
+    outputs: ["poster", "slides", "paper"], accent: "#6366F1",
+    highlights: [{ value: "3.42×", label: "latency speedup" }, { value: "0.0%", label: "distribution drift" }, { value: "18.2 ms", label: "token latency (p99)" }],
+  },
+  {
     id: "cas13-panviral-immunity",
     title: "Programmable Cas13 Pan-Viral Immunity",
     subtitle: "Structure-aware guide ensembles suppress escape across diverse respiratory RNA viruses.",
@@ -77,6 +95,8 @@ export const DEMO_WORKSPACE_IDS = [
   "vla-autonomous-surgery",
   "neural-wavefunction-superconductors",
   "cas13-panviral-immunity",
+  "jwst-gravitational-lensing",
+  "speculative-decoding-guarantees",
 ] as const
 
 export const ALL_SHOWCASE_PROJECTS: Project[] = [
@@ -3087,6 +3107,1850 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
     ],
     "ingestFiles": []
   }
+,
+{
+  "id": "jwst-gravitational-lensing",
+  "name": "JWST: Dark Matter Substructures in Strong Lens SMACS J0723",
+  "posterTitle": "Sub-Kiloparsec Dark Matter Substructure Imaging with JWST Strong Lensing",
+  "authors": "Alistair Vance, Elena Rostova, Marcus Thorne, Tariq Mansoor",
+  "venue": "The Astrophysical Journal Letters (ApJL) • High Energy Astrophysics",
+  "templateName": "conference",
+  "activeOutputId": "out_jwst_poster",
+  "logoUrl": null,
+  "secondaryLogoUrl": null,
+  "outputs": [
+    {
+      "id": "out_jwst_poster",
+      "outputType": "poster",
+      "templateId": "conference",
+      "title": "Sub-Kiloparsec Dark Matter Substructure Imaging with JWST Strong Lensing",
+      "themeColor": "#0284C7",
+      "cards": [
+        {
+          "id": "card_jwst_c1_motivation",
+          "title": "Astrophysical Motivation & Dark Halos",
+          "column": 1,
+          "order": 0,
+          "pattern": "bullets",
+          "content": "Halos below $10^8 M_\\odot$ remain devoid of stars, making strong lensing the sole probe of sub-galactic cold dark matter.\n\n- **Missing Satellites:** $\\Lambda\\text{CDM}$ predicts thousands of subhalos; local dwarf galaxy counts show an order-of-magnitude deficit.\n- **Warm Dark Matter:** Thermal relics impose a free-streaming cutoff $k_{\\text{fs}}$, damping perturbations below $M_{\\text{cut}}$.\n- **Cosmic Dawn Lensing:** JWST NIRCam reveals multiply imaged galaxies at $z > 6$ magnified by massive clusters.\n- **Sub-kpc Perturbations:** Subhalos near critical curves induce localized astrometric kinks in giant arcs.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_c1_theory",
+          "title": "Gravitational Deflection & Lens Equation",
+          "column": 1,
+          "order": 1,
+          "pattern": "bullets",
+          "content": "Light rays from source $\\vec{\\beta}$ are deflected by potential $\\psi(\\vec{\\theta})$ to angles $\\vec{\\theta}$ via Fermat's principle:\n\n$$\\vec{\\beta} = \\vec{\\theta} - \\vec{\\alpha}(\\vec{\\theta}) = \\vec{\\theta} - \\frac{1}{\\pi} \\int_{\\mathbb{R}^2} \\kappa(\\vec{\\theta}') \\frac{\\vec{\\theta} - \\vec{\\theta}'}{|\\vec{\\theta} - \\vec{\\theta}'|^2} \\, d^2\\theta'$$\n\n- **Convergence Field:** $\\kappa(\\vec{\\theta}) \\equiv \\Sigma(\\vec{\\theta})/\\Sigma_{\\text{crit}}$ with $\\Sigma_{\\text{crit}} = \\frac{c^2 D_s}{4\\pi G D_d D_{ds}}$.\n- **Magnification Matrix:** $\\mathcal{A}(\\vec{\\theta}) = \\partial \\vec{\\beta}/\\partial \\vec{\\theta}$; diverges at critical curves where $\\det \\mathcal{A} = 0$.\n- **Subhalo Perturbation:** $\\kappa = \\kappa_{\\text{macro}} + \\delta\\kappa_{\\text{sub}}$ decouples macro potential from sub-kpc clumps.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_c1_objective",
+          "title": "Substructure Field Optimization",
+          "column": 1,
+          "order": 2,
+          "pattern": "bullets",
+          "content": "We formulate substructure reconstruction as joint optimization over continuous deflection and source morphology:\n\n$$\\min_{\\phi, I_{\\text{src}}} \\frac{1}{2} \\left\\| I_{\\text{obs}} - \\mathcal{P} \\ast \\left( I_{\\text{src}} \\circ \\left( \\text{Id} - \\vec{\\alpha}_\\phi \\right) \\right) \\right\\|_{\\mathbf{C}_n^{-1}}^2 + \\lambda_{\\text{sub}} \\mathcal{R}_{\\text{sparse}}(\\delta\\kappa) + \\tau \\|\\nabla^2 \\psi_{\\text{macro}}\\|_2^2$$\n\n- **PSF Deconvolution:** $\\mathcal{P}$ models NIRCam WebbPSF field-dependent spatial wavefront kernels.\n- **Sparsity Prior:** $\\mathcal{R}_{\\text{sparse}}(\\delta\\kappa) = \\int \\sqrt{|\\delta\\kappa|^2 + \\epsilon^2} \\, d^2\\theta$ penalizes unphysical diffuse perturbations.\n- **Noise Covariance:** $\\mathbf{C}_n$ captures correlated pixel noise from multi-drizzle stacking and Poisson background.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_c2_pipeline",
+          "title": "Differentiable Forward Lens Pipeline",
+          "column": 2,
+          "order": 0,
+          "pattern": "bullets-image",
+          "content": "Our differentiable neural pipeline integrates JWST multi-band drizzled mosaics with coordinate-based implicit ray tracers:\n\n- **Multi-Band Input:** Co-added NIRCam F115W, F200W, and F444W frames provide chromatic constraint on source morphology.\n- **Implicit Neural Deflection:** Multi-resolution hash grids parameterize $\\vec{\\alpha}_\\phi(\\vec{\\theta})$ with analytical curl-free constraints.\n- **End-to-End Autodiff:** Fully differentiable ray-tracer updates subhalo coordinates via AdamW with backpropagation through 14 lensed arc systems.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_jwst_arch",
+              "url": "/api/workspaces/jwst-gravitational-lensing/assets/architecture.png",
+              "caption": "Figure 1: End-to-end forward neural ray-tracing pipeline with multi-resolution hash grid deflection."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_c2_model",
+          "title": "Neural Deflection Field & Poisson Solver",
+          "column": 2,
+          "order": 1,
+          "pattern": "bullets",
+          "content": "To eliminate unphysical line-of-sight mass degeneracies, our solver enforces exact gravitational potential Poisson consistency:\n\n$$\\nabla^2 \\psi(\\vec{\\theta}) = 2\\kappa(\\vec{\\theta}) = 2\\left[\\kappa_{\\text{macro}}(\\vec{\\theta}) + \\sum_{k=1}^K \\kappa_{\\text{NFW}}(\\vec{\\theta}; M_k, r_{s,k}, \\vec{\\theta}_k)\\right]$$\n\n- **Harmonic Consistency:** Spectral boundary projection ensures $\\nabla \\times \\vec{\\alpha} \\equiv 0$ identically across the entire $120'' \\times 120''$ mosaic field.\n- **Adaptive Resolution:** Quadtree ray grid dynamically refines sampling near caustic folds down to $0.005''$ per ray.\n- **Subhalo Mass Spectrum:** Hierarchical Bayes estimates subhalo mass function slope $dN/dM \\propto M^{-\\alpha}$ with $\\alpha = 1.89 \\pm 0.08$.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_c2_metrics",
+          "title": "Headline Astronomical Metrics",
+          "column": 2,
+          "order": 2,
+          "pattern": "stats",
+          "content": "**\\fitstat{1.1 \\times 10^7 M_\\odot}** Subhalo Mass Limit | 95% Bayesian credible interval\n**\\fitstat{0.028''}** Astrometric Resolution | 3.4× finer than HST ACS\n**\\fitstat{5.8\\sigma}** Detection Confidence | SMACS J0723 arc perturber",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_c3_bench",
+          "title": "Controlled Substructure Benchmark",
+          "column": 3,
+          "order": 0,
+          "pattern": "bullets-table",
+          "content": "Controlled benchmark on 50 simulated cluster fields with injection-recovery subhalos (95% CI):",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": true,
+            "caption": "Table 1: Substructure Detection Benchmark Across Lensing Suites",
+            "rows": [
+              [
+                "Method",
+                "Mass Limit ↓",
+                "Astrometry ↓",
+                "GPU-h ↓"
+              ],
+              [
+                "LENSTOOL v7.2",
+                "3.8e8 M☉",
+                "0.095''",
+                "48.0 h"
+              ],
+              [
+                "PyAutoLens v2.6",
+                "8.5e7 M☉",
+                "0.052''",
+                "26.5 h"
+              ],
+              [
+                "NeuralLens (Ours)",
+                "1.1e7 M☉",
+                "0.028''",
+                "1.8 h"
+              ]
+            ]
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_c3_ablation",
+          "title": "Ablation Studies & Wavefront Modeling",
+          "column": 3,
+          "order": 1,
+          "pattern": "bullets-two-images",
+          "content": "- **Wavefront Modeling:** Removing NIRCam empirical PSF increases astrometric bias by 2.6×.",
+          "figureLayout": "two-up",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_jwst_b1",
+              "url": "/api/workspaces/jwst-gravitational-lensing/assets/benchmark.png",
+              "caption": "Figure 2: Mass sensitivity vs astrometry."
+            },
+            {
+              "id": "fig_jwst_b2",
+              "url": "/api/workspaces/jwst-gravitational-lensing/assets/architecture.png",
+              "caption": "Figure 3: Pipeline verification."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_c3_impact",
+          "title": "Take-home Message",
+          "column": 3,
+          "order": 2,
+          "pattern": "metric-card",
+          "content": "**\\fitstat{10^7 M_\\odot}** Cold Dark Matter Sensitivity | rules out sterile neutrino m_s < 12 keV\n**\\fitstat{0}** Unphysical Mass Pixels | guaranteed by Poisson consistency",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_c3_refs",
+          "title": "Literature Foundations",
+          "column": 3,
+          "order": 3,
+          "pattern": "references",
+          "content": "\\cite{treu2022jwst,hezaveh2016alma,vegetti2014gravitational,meneghetti2020dark}",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "out_jwst_slides",
+      "outputType": "slides",
+      "templateId": "beamer-metropolis",
+      "title": "JWST Strong Lensing: Dark Matter Substructures",
+      "themeColor": "#0284C7",
+      "cards": [
+        {
+          "id": "card_jwst_s1_title",
+          "title": "Dark Matter Substructure Imaging with JWST",
+          "column": null,
+          "order": 0,
+          "pattern": "title-slide",
+          "content": "Sub-Kiloparsec Dark Matter Substructure Imaging with JWST Strong Lensing\n\nDr. Alistair Vance, Elena Rostova, Marcus Thorne, Tariq Mansoor\n\nKavli Institute for Particle Astrophysics & European Southern Observatory",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 1: Welcome everyone. Today we present direct observational constraints on sub-galactic dark matter structures using JWST NIRCam strong gravitational lensing."
+        },
+        {
+          "id": "card_jwst_s2_motivation",
+          "title": "The Sub-Galactic Dark Matter Frontier",
+          "column": null,
+          "order": 1,
+          "pattern": "bullets",
+          "content": "Why target sub-kiloparsec dark matter clumps?\n\n- **Cold Dark Matter (CDM):** Predicts scale-invariant hierarchical structure down to Earth-mass microhalos.\n- **Alternative Candidates:** Warm Dark Matter (WDM) and Fuzzy Dark Matter (FDM) impose sharp sub-galactic cutoffs.\n- **Baryonic Blindness:** Halos below $10^8 M_\\odot$ fail to ignite star formation, rendering them completely dark.\n- **Gravitational Lensing:** Gravitational deflection depends purely on mass, providing an unbiased astronomical scale.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 2: Emphasize that below 10^8 solar masses, halos are invisible to traditional telescopes because no stars form. Lensing is our sole direct window."
+        },
+        {
+          "id": "card_jwst_s3_theory",
+          "title": "Strong Gravitational Lensing Physics",
+          "column": null,
+          "order": 2,
+          "pattern": "two-column",
+          "content": "Light rays undergo relativistic deflection governed by the 2D Poisson equation:\n\n$$\\vec{\\beta} = \\vec{\\theta} - \\vec{\\alpha}(\\vec{\\theta}), \\quad \\nabla^2 \\psi(\\vec{\\theta}) = 2\\kappa(\\vec{\\theta})$$\n\nMagnification diverges at caustic boundaries:\n$$\\det \\mathcal{A}(\\vec{\\theta}) = (1 - \\kappa)^2 - \\gamma^2 = 0$$\n\nSubhalos crossing caustic folds produce astrometric kinks and anomalous flux ratios.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 3: Review Fermat potential and the lens equation. Note how critical curves magnify background sources by factors exceeding 50."
+        },
+        {
+          "id": "card_jwst_s4_pipeline",
+          "title": "Forward Neural Ray-Tracing Architecture",
+          "column": null,
+          "order": 3,
+          "pattern": "figure-slide",
+          "content": "Continuous multi-resolution coordinate hash grid parameterizes the deflection potential with exact Poisson consistency.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_jwst_s4_arch",
+              "url": "/api/workspaces/jwst-gravitational-lensing/assets/architecture.png",
+              "caption": "Evidence-to-action differentiable lens inversion architecture."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 4: Highlight the modular architecture connecting raw JWST drizzle products, neural deflection fields, and differentiable ray-tracing."
+        },
+        {
+          "id": "card_jwst_s5_data",
+          "title": "JWST NIRCam Observational Data",
+          "column": null,
+          "order": 4,
+          "pattern": "bullets-image",
+          "content": "Multi-band observations of galaxy cluster SMACS J0723.3-7327 ($z = 0.39$):\n\n- **Spectral Coverage:** F115W ($1.15\\,\\mu\\text{m}$), F200W ($2.0\\,\\mu\\text{m}$), F444W ($4.4\\,\\mu\\text{m}$).\n- **Spatial Sampling:** $0.031''$ per drizzled pixel with WebbPSF field-dependent kernels.\n- **Target Arcs:** Multiply imaged high-redshift starburst galaxy at $z = 1.425$ stretched across $15''$.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_jwst_s5_data",
+              "url": "/api/workspaces/jwst-gravitational-lensing/assets/architecture.png",
+              "caption": "NIRCam filter mosaic and drizzled PSF convolution."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 5: Detail the observational dataset and the importance of NIRCam's exquisite infrared point spread function."
+        },
+        {
+          "id": "card_jwst_s6_objective",
+          "title": "Differentiable Optimization Objective",
+          "column": null,
+          "order": 5,
+          "pattern": "bullets",
+          "content": "Joint maximum a posteriori formulation over deflection field $\\phi$ and source plane $I_{\\text{src}}$:\n\n$$\\mathcal{L}(\\phi, I_{\\text{src}}) = \\frac{1}{2} \\left\\| I_{\\text{obs}} - \\mathcal{P} \\ast I_{\\text{mod}}(\\phi) \\right\\|_{\\mathbf{C}_n^{-1}}^2 + \\lambda \\mathcal{R}_{\\text{sparse}}(\\delta\\kappa) + \\gamma \\|\\nabla^2 \\psi_{\\text{macro}}\\|_2^2$$\n\n- **Exact Gradient Propagation:** Full auto-differentiation backpropagates pixel residuals to subhalo positions.\n- **Charbonnier Prior:** Suppresses diffuse reconstruction noise while allowing compact subhalo cusps.\n- **AdamW Optimization:** 5,000 iterations converge in 1.8 GPU-hours on a single NVIDIA A100.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 6: Explain the regularized likelihood and why Charbonnier sparsity prevents false-positive diffuse artifacts."
+        },
+        {
+          "id": "card_jwst_s7_benchmark",
+          "title": "Substructure Sensitivity Benchmark",
+          "column": null,
+          "order": 6,
+          "pattern": "figure-slide",
+          "content": "Controlled benchmark demonstrates a 7.7x sensitivity gain over legacy grid and parametric algorithms.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_jwst_s7_bench",
+              "url": "/api/workspaces/jwst-gravitational-lensing/assets/benchmark.png",
+              "caption": "Primary substructure mass detection limit with 95% bootstrap confidence intervals."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 7: Walk through the benchmark chart. Point out our 1.1e7 solar mass limit with narrow 95% confidence intervals."
+        },
+        {
+          "id": "card_jwst_s8_substructure",
+          "title": "Detection of 1.1x10^7 M_☉ Subhalo",
+          "column": null,
+          "order": 7,
+          "pattern": "two-column",
+          "content": "Unambiguous localized detection in SMACS J0723:\n\n- **Mass:** $M_{\\text{sub}} = (1.1 \\pm 0.2) \\times 10^7 M_\\odot$\n- **Significance:** $5.8\\sigma$ above smooth macro-model\n- **Position:** $\\Delta\\vec{\\theta} = (+1.42'', -0.88'')$ relative to Arc 1 BCG\n- **Bayes Factor:** $\\ln \\mathcal{B} = 18.4$ (decisive preference)\n\nResidual image shows zero systematic dipolar patterns remaining after subhalo inclusion.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 8: Announce the primary astronomical detection. Emphasize the 5.8 sigma statistical significance."
+        },
+        {
+          "id": "card_jwst_s9_ablation",
+          "title": "Ablation Studies & Robustness",
+          "column": null,
+          "order": 8,
+          "pattern": "two-column",
+          "content": "Rigorous ablation on synthetic injection challenges:\n\n- **Wavefront Model:** Neglecting empirical WebbPSF increases astrometric error from $0.028''$ to $0.073''$.\n- **Multi-Band Synergy:** Monochromatic inversion suffers 38% higher false-alarm rates due to dust unmixing ambiguities.\n- **Noise Injection:** Stable recovery maintained under 40% added correlated noise.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 9: Discuss ablations. Note that accounting for WebbPSF wavefront errors is mandatory for sub-pixel astrometry."
+        },
+        {
+          "id": "card_jwst_s10_wdm",
+          "title": "Cosmological Warm Dark Matter Limits",
+          "column": null,
+          "order": 9,
+          "pattern": "bullets-image",
+          "content": "Inferring the subhalo mass function down to $10^7 M_\\odot$:\n\n- **Power-Law Slope:** Measured $dN/dM \\propto M^{-\\alpha}$ with $\\alpha = 1.89 \\pm 0.08$.\n- **CDM Compatibility:** Perfectly consistent with cold dark matter N-body simulations ($\\alpha \\approx 1.90$).\n- **Thermal Relic Exclusion:** Constrains warm dark matter particle mass $m_{\\text{wdm}} > 9.4\\text{ keV}$ ($95\\%$ CL).",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_jwst_s10_wdm",
+              "url": "/api/workspaces/jwst-gravitational-lensing/assets/benchmark.png",
+              "caption": "Subhalo mass function constraints against WDM free-streaming models."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 10: Relate the astronomical detection back to fundamental physics and sterile neutrino dark matter exclusions."
+        },
+        {
+          "id": "card_jwst_s11_limitations",
+          "title": "Systematics & Astrophysical Caveats",
+          "column": null,
+          "order": 10,
+          "pattern": "bullets",
+          "content": "Remaining observational and computational limitations:\n\n- **Line-of-Sight Contamination:** Intervening field halos along the pencil beam can mimic cluster subhalos.\n- **Source Morphology Complexity:** Multi-component starburst knots require careful regularization to prevent degeneracies.\n- **Intra-Cluster Light (ICL):** Stellar micro-lensing causes high-frequency stochastic magnification fluctuations.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 11: Honestly acknowledge limitations. Line-of-sight mass contamination requires multi-plane redshift tomography in future work."
+        },
+        {
+          "id": "card_jwst_s12_conclusion",
+          "title": "Summary & Future Horizons",
+          "column": null,
+          "order": 11,
+          "pattern": "bullets",
+          "content": "Key Takeaways:\n\n- **Direct Sub-kpc Probing:** Proved subhalos down to $1.1 \\times 10^7 M_\\odot$ are directly measurable with JWST.\n- **Differentiable Speed:** 14.7x faster than legacy Markov Chain Monte Carlo algorithms.\n- **Open Science:** Complete code, WebbPSF kernels, and calibrated pipeline released on GitHub.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 12: Summarize our core conclusions and highlight that the open-source pipeline is containerized and available to the community."
+        },
+        {
+          "id": "card_jwst_s13_refs",
+          "title": "References & Citations",
+          "column": null,
+          "order": 12,
+          "pattern": "references",
+          "content": "\\cite{treu2022jwst,hezaveh2016alma,vegetti2014gravitational,meneghetti2020dark}",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 13: Citations and bibliography."
+        }
+      ]
+    },
+    {
+      "id": "out_jwst_paper",
+      "outputType": "paper",
+      "templateId": "revtex-aps",
+      "title": "Sub-Kiloparsec Dark Matter Substructure Imaging with JWST Strong Lensing",
+      "themeColor": "#0284C7",
+      "cards": [
+        {
+          "id": "card_jwst_p_abstract",
+          "title": "Abstract",
+          "column": null,
+          "order": 0,
+          "pattern": "section",
+          "content": "Standard cold dark matter ($\\Lambda\\text{CDM}$) cosmology predicts an abundant population of low-mass subhalos ($M < 10^8 M_\\odot$) orbiting massive galaxy cluster lenses. Because star formation is heavily suppressed below this mass scale, these primordial structures remain dark and can only be detected via their gravitational perturbation on magnified background arcs. Here we present a differentiable neural ray-tracing framework that inverts JWST NIRCam high-resolution multi-band mosaics (F115W, F200W, F444W) of the lensing cluster SMACS J0723.3-7327 ($z = 0.39$). By coupling a multi-resolution hash grid to a Poisson-consistent deflection solver ($\\nabla^2 \\psi = 2\\kappa$), our method achieves a subhalo mass detection limit of $1.1 \\times 10^7 M_\\odot$ at $5.8\\sigma$ significance with an astrometric resolution of $0.028''$. This represents a $7.7\\times$ sensitivity gain over Hubble Space Telescope baselines, ruling out thermal relic warm dark matter candidates with particle masses $m_{\\text{wdm}} < 9.4\\text{ keV}$ at $95\\%$ confidence.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_p_intro",
+          "title": "Introduction",
+          "column": null,
+          "order": 1,
+          "pattern": "section-figure",
+          "content": "The nature of dark matter on sub-galactic scales remains one of the fundamental open frontiers in modern cosmology \\cite{meneghetti2020dark}. While collisionless cold dark matter ($\\Lambda\\text{CDM}$) successfully reproduces large-scale cosmic structure, local dwarf galaxy counts exhibit apparent discrepancies including the 'missing satellites' and 'too-big-to-fail' problems \\cite{vegetti2014gravitational}. Distinguishing whether these discrepancies arise from baryonic feedback or alternative dark matter physics (such as warm or fuzzy dark matter) requires measuring the subhalo mass function in systems completely devoid of stars. Strong gravitational lensing by massive galaxy clusters provides an ideal natural telescope, magnifying high-redshift background galaxies across critical curves where localized perturbations induce detectable astrometric distortions \\cite{treu2022jwst}.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_jwst_p_arch",
+              "url": "/api/workspaces/jwst-gravitational-lensing/assets/architecture.png",
+              "caption": "Figure 1: Overview of the differentiable forward lens modeling pipeline."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_p_related",
+          "title": "Related Work & Baseline Methods",
+          "column": null,
+          "order": 2,
+          "pattern": "section",
+          "content": "Traditional gravitational lens modeling relies either on parametric mass profiles (e.g., LENSTOOL \\cite{treu2022jwst}) or pixelated source and potential grid inversions (e.g., PyAutoLens \\cite{vegetti2014gravitational}). Parametric models restrict subhalo geometries to rigid analytic forms (such as Navarro-Frenk-White or truncated pseudo-Jaffe profiles), preventing the discovery of non-standard perturbers. Pixelated potential corrections alleviate profile rigidity but suffer from severe ill-posedness and prohibitive computational costs, requiring tens of GPU-hours per system \\cite{hezaveh2016alma}. Recent developments in neural radiance fields and coordinate networks offer continuous representations, yet prior implementations lacked exact Poisson consistency and empirical optical wavefront convolution.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_p_methods",
+          "title": "Formal Methods & Neural Ray-Tracing",
+          "column": null,
+          "order": 3,
+          "pattern": "section",
+          "content": "We parameterize the total convergence field as $\\kappa(\\vec{\\theta}) = \\kappa_{\\text{macro}}(\\vec{\\theta}; \\mathbf{w}) + \\delta\\kappa_{\\text{sub}}(\\vec{\\theta}; \\mathbf{\\phi})$, where $\\kappa_{\\text{macro}}$ models cluster-scale halos and member galaxies, and $\\delta\\kappa_{\\text{sub}}$ is parameterized via a 16-level multi-resolution hash grid. Deflection angles are computed via spectral projection $\\vec{\\alpha}_\\phi(\\vec{\\theta}) = \\nabla(\\nabla^{-2}[2\\kappa(\\vec{\\theta})])$, ensuring $\\nabla \\times \\vec{\\alpha} \\equiv 0$. The forward surface brightness is predicted by ray-tracing through the reconstructed deflection field and convolving with the empirical WebbPSF kernel $\\mathcal{P}(\\vec{\\theta})$. We optimize parameters end-to-end using the regularized objective:\n\n$$\\mathcal{L}(\\phi, I_{\\text{src}}) = \\frac{1}{2} \\left\\| I_{\\text{obs}} - \\mathcal{P} \\ast I_{\\text{mod}}(\\phi) \\right\\|_{\\mathbf{C}_n^{-1}}^2 + \\lambda_{\\text{sub}} \\mathcal{R}_{\\text{sparse}}(\\delta\\kappa) + \\gamma \\|\\nabla^2 \\psi_{\\text{macro}}\\|_2^2$$",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_p_experiments",
+          "title": "Experimental Evaluation & Benchmark",
+          "column": null,
+          "order": 4,
+          "pattern": "section-table",
+          "content": "We evaluate our framework across 50 simulated cluster lensing fields with injected dark subhalos ranging from $10^7 M_\\odot$ to $10^9 M_\\odot$. Each method was evaluated on identical synthetic datasets with matched noise and stopping criteria across 5 random seeds.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": true,
+            "caption": "Table 1: Controlled Benchmark Comparison across Substructure Inversion Methods",
+            "rows": [
+              [
+                "Method",
+                "Mass Limit ↓",
+                "Astrometry ↓",
+                "Src PSNR ↑",
+                "GPU-h ↓"
+              ],
+              [
+                "Analytic NFW",
+                "1.4e9 M☉",
+                "0.180''",
+                "24.2 dB",
+                "12.4 h"
+              ],
+              [
+                "LENSTOOL v7.2",
+                "3.8e8 M☉",
+                "0.095''",
+                "28.7 dB",
+                "48.0 h"
+              ],
+              [
+                "PyAutoLens v2.6",
+                "8.5e7 M☉",
+                "0.052''",
+                "32.1 dB",
+                "26.5 h"
+              ],
+              [
+                "NeuralLens (Ours)",
+                "1.1e7 M☉",
+                "0.028''",
+                "38.4 dB",
+                "1.8 h"
+              ]
+            ]
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_p_ablation",
+          "title": "Ablation Studies & Sensitivity Analysis",
+          "column": null,
+          "order": 5,
+          "pattern": "section-two-figures",
+          "content": "Ablation analysis reveals that incorporating empirical WebbPSF wavefront kernels provides the single largest improvement in astrometric fidelity, cutting centroid reconstruction bias by $2.6\\times$. Multi-band joint fitting over F115W, F200W, and F444W eliminates chromatic source-lens degeneracies.",
+          "figureLayout": "two-up",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_jwst_p_b1",
+              "url": "/api/workspaces/jwst-gravitational-lensing/assets/benchmark.png",
+              "caption": "Primary substructure mass detection sensitivity."
+            },
+            {
+              "id": "fig_jwst_p_b2",
+              "url": "/api/workspaces/jwst-gravitational-lensing/assets/architecture.png",
+              "caption": "Differentiable lens modeling stages."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_p_discussion",
+          "title": "Astrophysical Discussion & Cosmological Impact",
+          "column": null,
+          "order": 6,
+          "pattern": "section",
+          "content": "Applying our method to JWST NIRCam observations of cluster SMACS J0723.3-7327 yields a definitive $5.8\\sigma$ detection of a $(1.1 \\pm 0.2) \\times 10^7 M_\\odot$ dark subhalo. The measured subhalo mass function slope $\\alpha = 1.89 \\pm 0.08$ is in excellent agreement with cold dark matter simulations and rules out sterile neutrino warm dark matter models with $m_s < 12\\text{ keV}$. Line-of-sight mass projection remains the principal systematic uncertainty, requiring future multi-plane tomography.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_p_conclusion",
+          "title": "Conclusion",
+          "column": null,
+          "order": 7,
+          "pattern": "section",
+          "content": "We have demonstrated that differentiable forward neural ray-tracing enables direct sub-kiloparsec dark matter substructure imaging in JWST strong lensing clusters. By resolving dark subhalos down to $10^7 M_\\odot$, this approach establishes a scalable pathway to test dark matter particle candidates at cosmic dawn.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_p_refs",
+          "title": "References",
+          "column": null,
+          "order": 8,
+          "pattern": "references",
+          "content": "\\cite{treu2022jwst,hezaveh2016alma,vegetti2014gravitational,meneghetti2020dark}",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "out_jwst_review",
+      "outputType": "thesis-review",
+      "templateId": "posudok-en",
+      "title": "Opponent Assessment — Sub-Kiloparsec Dark Matter Lensing",
+      "themeColor": "#003366",
+      "cards": [
+        {
+          "id": "card_jwst_rev_1",
+          "title": "Criterion 1: Originality & Novelty",
+          "column": null,
+          "order": 0,
+          "pattern": "section",
+          "content": "Grade **A**. The manuscript delivers a rigorous, breakthrough treatment of originality & novelty. The integration of JWST NIRCam WebbPSF empirical wavefronts with differentiable ray-tracing provides an unprecedented observational test of dark matter physics at sub-kiloparsec scales.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_rev_2",
+          "title": "Criterion 2: Theoretical Formulation",
+          "column": null,
+          "order": 1,
+          "pattern": "section",
+          "content": "Grade **A**. The manuscript delivers a rigorous, breakthrough treatment of theoretical formulation. The integration of JWST NIRCam WebbPSF empirical wavefronts with differentiable ray-tracing provides an unprecedented observational test of dark matter physics at sub-kiloparsec scales.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_rev_3",
+          "title": "Criterion 3: Computational Methods",
+          "column": null,
+          "order": 2,
+          "pattern": "section",
+          "content": "Grade **A**. The manuscript delivers a rigorous, breakthrough treatment of computational methods. The integration of JWST NIRCam WebbPSF empirical wavefronts with differentiable ray-tracing provides an unprecedented observational test of dark matter physics at sub-kiloparsec scales.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_rev_4",
+          "title": "Criterion 4: Observational Data Provenance",
+          "column": null,
+          "order": 3,
+          "pattern": "section",
+          "content": "Grade **A**. The manuscript delivers a rigorous, breakthrough treatment of observational data provenance. The integration of JWST NIRCam WebbPSF empirical wavefronts with differentiable ray-tracing provides an unprecedented observational test of dark matter physics at sub-kiloparsec scales.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_rev_5",
+          "title": "Criterion 5: Statistical Rigor & Bayes Analysis",
+          "column": null,
+          "order": 4,
+          "pattern": "section",
+          "content": "Grade **A**. The manuscript delivers a rigorous, breakthrough treatment of statistical rigor & bayes analysis. The integration of JWST NIRCam WebbPSF empirical wavefronts with differentiable ray-tracing provides an unprecedented observational test of dark matter physics at sub-kiloparsec scales.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_rev_6",
+          "title": "Criterion 6: Empirical Results & Sensitivity",
+          "column": null,
+          "order": 5,
+          "pattern": "section",
+          "content": "Grade **A**. The manuscript delivers a rigorous, breakthrough treatment of empirical results & sensitivity. The integration of JWST NIRCam WebbPSF empirical wavefronts with differentiable ray-tracing provides an unprecedented observational test of dark matter physics at sub-kiloparsec scales.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_rev_7",
+          "title": "Criterion 7: Astrophysical Validation & Robustness",
+          "column": null,
+          "order": 6,
+          "pattern": "section",
+          "content": "Grade **A**. The manuscript delivers a rigorous, breakthrough treatment of astrophysical validation & robustness. The integration of JWST NIRCam WebbPSF empirical wavefronts with differentiable ray-tracing provides an unprecedented observational test of dark matter physics at sub-kiloparsec scales.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_rev_8",
+          "title": "Criterion 8: Reproducibility & Open Science",
+          "column": null,
+          "order": 7,
+          "pattern": "section",
+          "content": "Grade **A**. The manuscript delivers a rigorous, breakthrough treatment of reproducibility & open science. The integration of JWST NIRCam WebbPSF empirical wavefronts with differentiable ray-tracing provides an unprecedented observational test of dark matter physics at sub-kiloparsec scales.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_rev_9",
+          "title": "Criterion 9: Scientific Writing & Presentation",
+          "column": null,
+          "order": 8,
+          "pattern": "section",
+          "content": "Grade **A**. The manuscript delivers a rigorous, breakthrough treatment of scientific writing & presentation. The integration of JWST NIRCam WebbPSF empirical wavefronts with differentiable ray-tracing provides an unprecedented observational test of dark matter physics at sub-kiloparsec scales.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_rev_10",
+          "title": "Criterion 10: Research Ethics & Attribution",
+          "column": null,
+          "order": 9,
+          "pattern": "section",
+          "content": "Grade **A**. The manuscript delivers a rigorous, breakthrough treatment of research ethics & attribution. The integration of JWST NIRCam WebbPSF empirical wavefronts with differentiable ray-tracing provides an unprecedented observational test of dark matter physics at sub-kiloparsec scales.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_rev_11",
+          "title": "Criterion 11: Discussion of Limitations",
+          "column": null,
+          "order": 10,
+          "pattern": "section",
+          "content": "Grade **B+**. The manuscript delivers a rigorous, breakthrough treatment of discussion of limitations. The integration of JWST NIRCam WebbPSF empirical wavefronts with differentiable ray-tracing provides an unprecedented observational test of dark matter physics at sub-kiloparsec scales.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_jwst_rev_12",
+          "title": "Criterion 12: Astrophysical Impact & Outlook",
+          "column": null,
+          "order": 11,
+          "pattern": "section",
+          "content": "Grade **A**. The manuscript delivers a rigorous, breakthrough treatment of astrophysical impact & outlook. The integration of JWST NIRCam WebbPSF empirical wavefronts with differentiable ray-tracing provides an unprecedented observational test of dark matter physics at sub-kiloparsec scales.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        }
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "id": "ast_jwst_arch",
+      "fileId": "architecture.png",
+      "filename": "architecture.png",
+      "url": "/api/workspaces/jwst-gravitational-lensing/assets/architecture.png",
+      "kind": "figure",
+      "page": 1,
+      "confidence": "high",
+      "caption": "JWST NIRCam forward neural ray-tracing pipeline"
+    },
+    {
+      "id": "ast_jwst_bench",
+      "fileId": "benchmark.png",
+      "filename": "benchmark.png",
+      "url": "/api/workspaces/jwst-gravitational-lensing/assets/benchmark.png",
+      "kind": "figure",
+      "page": 1,
+      "confidence": "high",
+      "caption": "Subhalo detection limit and astrometric precision comparison"
+    }
+  ],
+  "ingestFiles": []
+},
+{
+  "id": "speculative-decoding-guarantees",
+  "name": "MartingaleTree: Lossless Speculative Decoding",
+  "posterTitle": "Speculative Decoding with Provable Latency and Lossless Verification",
+  "authors": "Julian Richter, Maya Lin, Aris Thorne, Sunita Deshmukh",
+  "venue": "NeurIPS 2026 • Machine Learning Systems & Efficiency",
+  "templateName": "gemini",
+  "activeOutputId": "out_spec_poster",
+  "logoUrl": null,
+  "secondaryLogoUrl": null,
+  "outputs": [
+    {
+      "id": "out_spec_poster",
+      "outputType": "poster",
+      "templateId": "gemini",
+      "title": "Speculative Decoding with Provable Latency and Lossless Verification",
+      "themeColor": "#6366F1",
+      "cards": [
+        {
+          "id": "card_spec_c1_problem",
+          "title": "Memory-Bound Autoregressive Bottleneck",
+          "column": 1,
+          "order": 0,
+          "pattern": "bullets",
+          "content": "Autoregressive generation in large foundation models is memory-bandwidth bound, transferring hundreds of gigabytes per token.\n\n- **Memory Bandwidth Bottleneck:** Modern accelerator FLOP utilization rarely exceeds 15% during single-sequence autoregressive decoding.\n- **Speculative Acceleration:** A lightweight draft model generates candidate sequences verified in parallel by the target model.\n- **The Tail Latency Pitfall:** When draft alignment deteriorates, speculative verification degenerates into wasteful forward passes.\n- **Heuristic Tree Limits:** Heuristic tree search introduces unbounded verification latency without formal guarantees.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_c1_formulation",
+          "title": "Lossless Speculative Rejection Formulation",
+          "column": 1,
+          "order": 1,
+          "pattern": "bullets",
+          "content": "Target model distribution $p(x_t \\mid x_{<t})$ verifies draft distribution $q(x_t \\mid x_{<t})$ via modified rejection sampling:\n\n$$r_i = \\min\\left(1, \\frac{p(x_{t+i} \\mid x_{<t+i})}{q(x_{t+i} \\mid x_{<t+i})}\\right), \\qquad p_{\\text{res}}(x) = \\frac{\\max(0, p(x) - q(x))}{1 - \\sum_y \\min(p(y), q(y))}$$\n\n- **Lossless Guarantee:** Total variation distance $D_{\\text{TV}}(P_{\\text{spec}}, P_{\\text{tgt}}) \\equiv 0$ identically across all vocabulary tokens.\n- **Sequential Acceptance:** Candidates are accepted with probability $r_i$; upon rejection, residual resampling guarantees target distribution fidelity.\n- **KV-Cache Alignment:** Cache pointers update transactionally, avoiding re-computation for validated prefix tokens.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_c1_martingale",
+          "title": "Martingale Latency Stopping Bounds",
+          "column": 1,
+          "order": 2,
+          "pattern": "bullets",
+          "content": "We frame the likelihood ratio along speculative candidate branches as a non-negative sub-martingale process:\n\n$$M_k = \\prod_{j=1}^k \\frac{p(x_{t+j} \\mid x_{<t+j})}{q(x_{t+j} \\mid x_{<t+j})}, \\qquad \\mathbb{P}\\left(\\sup_{1 \\le k \\le K} M_k \\ge \\lambda\\right) \\le \\frac{1}{\\lambda}$$\n\n- **Ville's Inequality Bound:** Establishes non-asymptotic bounds on alignment divergence before branch execution.\n- **Dynamic Stopping Time:** $\\tau = \\inf \\{k \\in [1, K] : M_k < 1 - \\delta\\}$ cuts branches when expected acceptance decays.\n- **Zero Latency Regressions:** Pruning guarantees that worst-case step latency never exceeds $1.15\\times$ standard autoregressive decoding.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_c2_pipeline",
+          "title": "Tree Pipelining & Verification Architecture",
+          "column": 2,
+          "order": 0,
+          "pattern": "bullets-image",
+          "content": "Our end-to-end architecture pairs draft tree generation with a fused Triton verification kernel and ring-buffer KV cache:\n\n- **Tree Draft Expansion:** 1.5B parameter draft generates $K=16$ branching candidates in $4.2\\text{ ms}$.\n- **Fused Tree Attention:** Custom 2D causal attention mask $M_{i,j}$ verifies all $K$ candidates in a single batched target forward pass.\n- **Zero-Copy Reclaim:** Rollback pointers immediately free discarded candidate KV slots with zero memory fragmentation.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_spec_arch",
+              "url": "/api/workspaces/speculative-decoding-guarantees/assets/architecture.png",
+              "caption": "Figure 1: MartingaleTree speculative pipeline with dynamic stopping and tree attention."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_c2_kernel",
+          "title": "Fused Triton Tree-Attention Kernel",
+          "column": 2,
+          "order": 1,
+          "pattern": "bullets",
+          "content": "Custom fused GPU kernels eliminate host-device synchronization barriers during tree verification:\n\n$$\\text{Attn}(Q, K, V) = \\text{softmax}\\left(\\frac{QK^T}{\\sqrt{d_k}} + M_{\\text{tree}}\\right) V$$\n\n- **Triton Tree Kernel:** Computes non-linear tree-causal attention across 128 streaming multiprocessors without materialized masks.\n- **Batch Efficiency:** Amortizes memory bandwidth across 4.12 accepted tokens per verification pass.\n- **Dynamic Tree Pruning:** Prunes underperforming branches in-flight based on prefix likelihood ratios.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_c2_stats",
+          "title": "Headline Acceleration Metrics",
+          "column": 2,
+          "order": 2,
+          "pattern": "stats",
+          "content": "**\\fitstat{3.42\\times}** Wall-Clock Speedup | on Llama-3-70B across MT-Bench\n**\\fitstat{0.0\\%}** Distribution Drift | TV distance D_TV = 0.000\n**\\fitstat{18.2\\text{ ms}}** Token Latency (p99) | 62% reduction vs baseline",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_c3_bench",
+          "title": "Controlled Inference Benchmark",
+          "column": 3,
+          "order": 0,
+          "pattern": "bullets-table",
+          "content": "Controlled throughput and latency benchmark on Llama-3-70B across 5 independent seeds (95% CI):",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": true,
+            "caption": "Table 1: Controlled Inference Speedup Benchmark on Llama-3-70B",
+            "rows": [
+              [
+                "Inference Framework",
+                "Throughput ↑",
+                "Latency ↓",
+                "Speedup ↑"
+              ],
+              [
+                "Standard Spec (K=4)",
+                "42.1 tok/s",
+                "23.8 ms",
+                "2.17×"
+              ],
+              [
+                "EAGLE Tree Spec",
+                "53.6 tok/s",
+                "18.7 ms",
+                "2.76×"
+              ],
+              [
+                "MartingaleTree (Ours)",
+                "66.3 tok/s",
+                "15.1 ms",
+                "3.42×"
+              ]
+            ]
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_c3_ablation",
+          "title": "Ablation Studies & Dynamic Stopping",
+          "column": 3,
+          "order": 1,
+          "pattern": "bullets-two-images",
+          "content": "- **Martingale Stopping:** Removing dynamic depth pruning increases p99 tail latency by 2.67×.",
+          "figureLayout": "two-up",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_spec_b1",
+              "url": "/api/workspaces/speculative-decoding-guarantees/assets/benchmark.png",
+              "caption": "Figure 2: Speedup comparison."
+            },
+            {
+              "id": "fig_spec_b2",
+              "url": "/api/workspaces/speculative-decoding-guarantees/assets/architecture.png",
+              "caption": "Figure 3: Pipelined execution."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_c3_impact",
+          "title": "Key Takeaway & Guarantee",
+          "column": 3,
+          "order": 2,
+          "pattern": "metric-card",
+          "content": "**\\fitstat{66.3\\text{ tok/s}}** Frontier 70B Throughput | vs 19.4 tok/s vanilla\n**\\fitstat{0\\text{ Error}}** Bitwise Numerical Equivalence | verified across 100k queries",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_c3_refs",
+          "title": "Foundational References",
+          "column": 3,
+          "order": 3,
+          "pattern": "references",
+          "content": "\\cite{leviathan2023fast,chen2023accelerating,miao2024specinfer,ville1939etude}",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "out_spec_slides",
+      "outputType": "slides",
+      "templateId": "beamer-metropolis",
+      "title": "MartingaleTree: Provable Speculative Decoding",
+      "themeColor": "#6366F1",
+      "cards": [
+        {
+          "id": "card_spec_s1_title",
+          "title": "Speculative Decoding with Provable Latency",
+          "column": null,
+          "order": 0,
+          "pattern": "title-slide",
+          "content": "Speculative Decoding with Provable Latency Guarantees and Lossless Verification\n\nJulian Richter, Maya Lin, Aris Thorne, Sunita Deshmukh\n\nSystems and Machine Learning Laboratory, ETH Zürich & Stanford University",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 1: Welcome everyone. We present MartingaleTree: exact, lossless speculative decoding with provable latency bounds."
+        },
+        {
+          "id": "card_spec_s2_bottleneck",
+          "title": "The Memory Bandwidth Wall in LLMs",
+          "column": null,
+          "order": 1,
+          "pattern": "bullets",
+          "content": "Why is large foundation model inference slow?\n\n- **Memory Bandwidth Bound:** Decoding a 70B model requires moving 140 GB of weights per single token.\n- **Low Hardware Utilization:** Arithmetic intensity is <1 FLOP/byte during batch=1 autoregressive decoding.\n- **Speculative Decoding Concept:** Hypothesize $K$ tokens via small draft model; verify simultaneously in target model.\n- **The Heuristic Tree Pitfall:** Without stopping rules, speculative verification produces tail latency stalls.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 2: Explain memory-bandwidth bottlenecks. Single-token autoregression leaves GPUs mostly idle."
+        },
+        {
+          "id": "card_spec_s3_formulation",
+          "title": "Modified Rejection Sampling",
+          "column": null,
+          "order": 2,
+          "pattern": "two-column",
+          "content": "Exact distribution equivalence requires sampling from residual distributions:\n\n$$r_i = \\min\\left(1, \\frac{p(x_{t+i} \\mid x_{<t+i})}{q(x_{t+i} \\mid x_{<t+i})}\\right)$$\n\nResidual upon rejection at node $k$:\n$$p_{\\text{res}}(x) = \\frac{\\max(0, p(x) - q(x))}{1 - \\sum_y \\min(p(y), q(y))}$$\n\nTotal variation distance is identically zero: $D_{\\text{TV}}(P_{\\text{spec}}, P_{\\text{tgt}}) \\equiv 0$.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 3: Present the rejection sampling mathematics. Emphasize that output sequences have bitwise identical distributions."
+        },
+        {
+          "id": "card_spec_s4_pipeline",
+          "title": "Lossless Tree-Speculative Architecture",
+          "column": null,
+          "order": 3,
+          "pattern": "figure-slide",
+          "content": "End-to-end pipelined execution combining draft proposal, Triton tree verification, and memory ring-buffer reclamation.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_spec_s4_arch",
+              "url": "/api/workspaces/speculative-decoding-guarantees/assets/architecture.png",
+              "caption": "MartingaleTree four-stage pipeline."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 4: Trace the four pipeline stages from draft generation through fused verification and rollback."
+        },
+        {
+          "id": "card_spec_s5_tree_attn",
+          "title": "Fused Triton Tree-Attention Kernel",
+          "column": null,
+          "order": 4,
+          "pattern": "bullets-image",
+          "content": "Parallel verification of all tree candidates in a single batched forward pass:\n\n- **2D Tree Attention Mask:** Tokens only attend to causal tree ancestors.\n- **Hardware Fusion:** Eliminates intermediate global memory materialization of dense attention matrices.\n- **SRAM Staging:** Tiles $Q, K, V$ chunks directly into GPU shared memory.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_spec_s5_kernel",
+              "url": "/api/workspaces/speculative-decoding-guarantees/assets/architecture.png",
+              "caption": "Tree attention matrix and kernel execution."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 5: Detail the Triton kernel implementation and how it eliminates host-device sync overheads."
+        },
+        {
+          "id": "card_spec_s6_acceptance",
+          "title": "Sequential Path Acceptance Dynamics",
+          "column": null,
+          "order": 5,
+          "pattern": "bullets",
+          "content": "How candidate tree branches are verified:\n\n- **Root-to-Leaf Traversal:** Traverses draft candidates along highest-probability prefix paths.\n- **Greedy Path Selection:** Maximizes expected accepted token count per forward pass.\n- **Mean Acceptance Length:** Reaches 4.12 accepted tokens per step on Llama-3-70B.\n- **Distribution Invariance:** Zero degradation across perplexity, GSM8K, and HumanEval.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 6: Explain sequential tree traversal and empirical acceptance lengths."
+        },
+        {
+          "id": "card_spec_s7_benchmark",
+          "title": "Controlled Inference Speedup Benchmark",
+          "column": null,
+          "order": 6,
+          "pattern": "figure-slide",
+          "content": "MartingaleTree achieves 3.42x wall-clock speedup on Llama-3-70B across standard evaluation suites.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_spec_s7_bench",
+              "url": "/api/workspaces/speculative-decoding-guarantees/assets/benchmark.png",
+              "caption": "Controlled throughput and latency benchmark with 95% bootstrap CI."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 7: Present the benchmark results comparing our framework against vanilla autoregression and EAGLE."
+        },
+        {
+          "id": "card_spec_s8_martingale",
+          "title": "Martingale Stopping Bounds via Ville's Inequality",
+          "column": null,
+          "order": 7,
+          "pattern": "two-column",
+          "content": "The likelihood ratio process forms a non-negative martingale:\n\n$$M_k = \\prod_{j=1}^k \\frac{p(x_{t+j} \\mid x_{<t+j})}{q(x_{t+j} \\mid x_{<t+j})}, \\quad \\mathbb{E}[M_k] = 1$$\n\nVille's Maximal Inequality:\n$$\\mathbb{P}\\left(\\sup_{k \\ge 1} M_k \\ge \\lambda\\right) \\le \\frac{1}{\\lambda}$$\n\nStopping time $\\tau = \\inf \\{k : M_k < 1 - \\delta\\}$ dynamically stops speculative branches before tail latency spikes.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 8: Highlight the martingale theoretical bound. Ville's inequality provides rigorous non-asymptotic safety."
+        },
+        {
+          "id": "card_spec_s9_ablation",
+          "title": "Tail Latency & Pruning Ablation",
+          "column": null,
+          "order": 8,
+          "pattern": "two-column",
+          "content": "Ablation on stopping strategies and tree topologies:\n\n- **Unconstrained Tree Search:** p99 latency degrades to 48.6 ms under low alignment queries.\n- **With Martingale Bound:** p99 latency stabilized at 18.2 ms (62% improvement).\n- **Draft Size Tradeoff:** 1.5B draft provides optimal Pareto efficiency versus 0.5B and 3B models.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 9: Discuss tail latency ablation and the stabilization delivered by Martingale stopping."
+        },
+        {
+          "id": "card_spec_s10_memory",
+          "title": "Ring-Buffer KV-Cache Management",
+          "column": null,
+          "order": 9,
+          "pattern": "bullets-image",
+          "content": "Zero-copy GPU memory management for speculative branches:\n\n- **Ring-Buffer Slot Allocation:** Candidate tokens write to pre-allocated ring-buffer slots.\n- **Transactional Commit:** Only accepted branch tokens are committed to main KV cache.\n- **Instant Rollback:** Rejected branches freed via $O(1)$ pointer reset; 0% memory fragmentation.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_spec_s10_mem",
+              "url": "/api/workspaces/speculative-decoding-guarantees/assets/architecture.png",
+              "caption": "Zero-copy KV-cache rollback and transaction management."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 10: Explain the zero-copy ring-buffer memory mechanism and why it prevents CUDA memory fragmentation."
+        },
+        {
+          "id": "card_spec_s11_limitations",
+          "title": "System Constraints & Scope",
+          "column": null,
+          "order": 10,
+          "pattern": "bullets",
+          "content": "Scope of applicability and operational boundaries:\n\n- **Draft Compatibility:** Requires draft tokenizer alignment; cross-vocabulary speculation needs projection matrices.\n- **High Concurrency Saturation:** Under massive batch sizes (batch > 128), decode becomes compute-bound, reducing gains.\n- **Hardware Requirement:** Requires modern Tensor Cores (Ampere/Hopper/Blackwell) for optimal Triton kernel speed.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 11: Discuss practical system constraints including high-concurrency saturation."
+        },
+        {
+          "id": "card_spec_s12_conclusion",
+          "title": "Summary & Open Artifacts",
+          "column": null,
+          "order": 11,
+          "pattern": "bullets",
+          "content": "Conclusion:\n\n- **3.42x Lossless Speedup:** Exact preservation of target model token distribution.\n- **Provable Latency Guarantees:** Martingale stopping eliminates catastrophic tail latency.\n- **Open-Source Release:** Fused Triton kernels, vLLM integration, and benchmark harnesses released.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 12: Conclude with key achievements and open artifacts."
+        },
+        {
+          "id": "card_spec_s13_refs",
+          "title": "References",
+          "column": null,
+          "order": 12,
+          "pattern": "references",
+          "content": "\\cite{leviathan2023fast,chen2023accelerating,miao2024specinfer,ville1939etude}",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ],
+          "slideNotes": "Frame 13: Citations and foundational literature."
+        }
+      ]
+    },
+    {
+      "id": "out_spec_paper",
+      "outputType": "paper",
+      "templateId": "neurips",
+      "title": "Speculative Decoding with Provable Latency Guarantees and Lossless Verification",
+      "themeColor": "#6366F1",
+      "cards": [
+        {
+          "id": "card_spec_p_abstract",
+          "title": "Abstract",
+          "column": null,
+          "order": 0,
+          "pattern": "section",
+          "content": "Speculative decoding accelerates large language model (LLM) generation by employing a lightweight draft model to hypothesize sequences of candidate tokens, followed by parallel verification under the target foundation model. However, standard speculative decoding faces severe tail-latency bottlenecks under distribution drift, and heuristic tree search introduces unbounded verification latency. Here we introduce MartingaleTree, an exact speculative decoding architecture equipped with provable latency bounds and lossless verification. By framing the sequential acceptance of draft branches as a stopped sub-martingale, we derive dynamic pruning thresholds via Ville's inequality that terminate speculative verification before tail latency degradation occurs. Coupled with a customized fused Triton tree-attention kernel and zero-copy ring-buffer KV-cache reuse, MartingaleTree achieves a $3.42\\times$ wall-clock speedup on Llama-3-70B across MT-Bench, GSM8K, and HumanEval with strictly zero divergence from the target autoregressive token distribution ($D_{\\text{TV}} = 0.000$, $\\text{KL} = 0.000$).",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_p_intro",
+          "title": "Introduction",
+          "column": null,
+          "order": 1,
+          "pattern": "section-figure",
+          "content": "Large language models (LLMs) underpin transformative advances in reasoning and code generation, but their interactive deployment is severely constrained by memory bandwidth limitations \\cite{leviathan2023fast}. Autoregressive token generation loads all model weights into high-bandwidth memory for every token produced, resulting in low arithmetic intensity (<1 FLOP/byte) and high per-token latency \\cite{chen2023accelerating}. Speculative decoding breaks this memory-bandwidth bottleneck by pairing a high-capacity target model with a small draft model. While prior works explore heuristic tree topologies \\cite{miao2024specinfer}, they lack formal non-asymptotic latency guarantees, frequently degrading into worst-case tail stalls.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_spec_p_arch",
+              "url": "/api/workspaces/speculative-decoding-guarantees/assets/architecture.png",
+              "caption": "Figure 1: The MartingaleTree speculative decoding architecture."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_p_related",
+          "title": "Related Work",
+          "column": null,
+          "order": 2,
+          "pattern": "section",
+          "content": "Speculative decoding was pioneered by Leviathan et al. \\cite{leviathan2023fast} and Chen et al. \\cite{chen2023accelerating}, demonstrating that modified rejection sampling guarantees exact distribution equivalence. Subsequent works expanded linear speculation into tree structures (SpecInfer \\cite{miao2024specinfer}, Medusa, EAGLE). However, these architectures rely on heuristic branch pruning based on static confidence thresholds, which fail to adapt to dynamic token entropy and lead to tail latency spikes. Martingale probability theory, rooted in Ville's classic study \\cite{ville1939etude}, provides non-asymptotic concentration bounds that have never previously been unified with speculative inference systems.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_p_methods",
+          "title": "Martingale Bounds & Fused Tree Verification",
+          "column": null,
+          "order": 3,
+          "pattern": "section",
+          "content": "Let $p(x_t \\mid x_{<t})$ and $q(x_t \\mid x_{<t})$ denote target and draft distributions over vocabulary $\\mathcal{V}$. Candidates are verified via rejection sampling $r_i = \\min(1, p(x_i)/q(x_i))$ with residual sampling $p_{\\text{res}}(x) = \\frac{\\max(0, p(x)-q(x))}{1 - \\sum_y \\min(p(y), q(y))}$, ensuring $D_{\\text{TV}}(P_{\\text{spec}}, P_{\\text{tgt}}) \\equiv 0$. Along any candidate branch, the likelihood ratio $M_k = \\prod_{j=1}^k \\frac{p(x_{t+j})}{q(x_{t+j})}$ forms a non-negative martingale with $\\mathbb{E}[M_k] = 1$. By Ville's inequality, $\\mathbb{P}(\\sup_{1 \\le k \\le K} M_k \\ge \\lambda) \\le 1/\\lambda$. We construct stopping rule $\\tau = \\inf \\{k : M_k < 1 - \\delta\\}$, dynamically pruning low-confidence branches. Verification is computed via a fused Triton kernel implementing causal 2D tree attention mask $M_{i,j}$.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_p_experiments",
+          "title": "Experimental Evaluation & Controlled Benchmark",
+          "column": null,
+          "order": 4,
+          "pattern": "section-table",
+          "content": "We evaluate MartingaleTree using Llama-3-70B-Instruct as the target foundation model and Llama-3-1.5B as the draft model on 8× NVIDIA H100 SXM5 GPUs. Benchmarking spans MT-Bench (multi-turn conversation), GSM8K (mathematical reasoning), and HumanEval (code synthesis) across 5 independent seeds.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": true,
+            "caption": "Table 1: Controlled Benchmark Comparison on Llama-3-70B",
+            "rows": [
+              [
+                "Inference Method",
+                "Throughput ↑",
+                "Latency ↓",
+                "Peak VRAM ↓",
+                "Speedup ↑"
+              ],
+              [
+                "Autoregressive",
+                "19.4 tok/s",
+                "51.5 ms",
+                "142 GB",
+                "1.00×"
+              ],
+              [
+                "Standard Spec (K=4)",
+                "42.1 tok/s",
+                "23.8 ms",
+                "146 GB",
+                "2.17×"
+              ],
+              [
+                "EAGLE Tree Spec",
+                "53.6 tok/s",
+                "18.7 ms",
+                "154 GB",
+                "2.76×"
+              ],
+              [
+                "MartingaleTree (Ours)",
+                "66.3 tok/s",
+                "15.1 ms",
+                "147 GB",
+                "3.42×"
+              ]
+            ]
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_p_ablation",
+          "title": "Ablation Studies & Latency Distribution",
+          "column": null,
+          "order": 5,
+          "pattern": "section-two-figures",
+          "content": "Ablation experiments confirm that Martingale stopping eliminates tail latency spikes without sacrificing throughput. Compared to unconstrained tree search, 99th-percentile token latency is reduced from 48.6 ms to 18.2 ms.",
+          "figureLayout": "two-up",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [
+            {
+              "id": "fig_spec_p_b1",
+              "url": "/api/workspaces/speculative-decoding-guarantees/assets/benchmark.png",
+              "caption": "Throughput benchmark across draft depths."
+            },
+            {
+              "id": "fig_spec_p_b2",
+              "url": "/api/workspaces/speculative-decoding-guarantees/assets/architecture.png",
+              "caption": "Speculative tree verification execution."
+            }
+          ],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_p_discussion",
+          "title": "Discussion & Systems Analysis",
+          "column": null,
+          "order": 6,
+          "pattern": "section",
+          "content": "Across 100,000 generated tokens, empirical Total Variation distance is identically 0.000, confirming zero loss in generation fidelity. Accuracy on GSM8K (92.4% vs 92.4%) and HumanEval (84.1% vs 84.1%) matches vanilla autoregressive decoding bitwise. Peak GPU memory overhead is restricted to +4.8% due to our zero-copy ring-buffer cache reuse.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_p_conclusion",
+          "title": "Conclusion",
+          "column": null,
+          "order": 7,
+          "pattern": "section",
+          "content": "MartingaleTree resolves the long-standing tension between speculative decoding speedup and tail-latency predictability. By establishing Ville-bounded stopping times on speculative trees, it provides a principled foundation for high-throughput foundation model deployment.",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        },
+        {
+          "id": "card_spec_p_refs",
+          "title": "References",
+          "column": null,
+          "order": 8,
+          "pattern": "references",
+          "content": "\\cite{leviathan2023fast,chen2023accelerating,miao2024specinfer,ville1939etude}",
+          "figureLayout": "single",
+          "validation": "valid",
+          "table": {
+            "hasHeader": false,
+            "caption": "",
+            "rows": []
+          },
+          "figures": [],
+          "sourceIds": [
+            "manuscript"
+          ]
+        }
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "id": "ast_spec_arch",
+      "fileId": "architecture.png",
+      "filename": "architecture.png",
+      "url": "/api/workspaces/speculative-decoding-guarantees/assets/architecture.png",
+      "kind": "figure",
+      "page": 1,
+      "confidence": "high",
+      "caption": "Lossless Tree-Speculative Decoding Pipeline"
+    },
+    {
+      "id": "ast_spec_bench",
+      "fileId": "benchmark.png",
+      "filename": "benchmark.png",
+      "url": "/api/workspaces/speculative-decoding-guarantees/assets/benchmark.png",
+      "kind": "figure",
+      "page": 1,
+      "confidence": "high",
+      "caption": "Throughput and Latency Benchmark on Llama-3-70B"
+    }
+  ],
+  "ingestFiles": []
+}
 ];
 export const getShowcaseById = (id: string): Project | undefined => {
   return ALL_SHOWCASE_PROJECTS.find(p => p.id === id);

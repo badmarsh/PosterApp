@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 950" width="1600" height="950">
+  <defs>
+    <linearGradient id="specBenchBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F8FAFC"/>
+    </linearGradient>
+    <linearGradient id="specBarOurs" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#4F46E5"/>
+    </linearGradient>
+    <linearGradient id="specBarEagle" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#64748B"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+    <linearGradient id="specBarStd" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#94A3B8"/>
+      <stop offset="100%" stop-color="#64748B"/>
+    </linearGradient>
+    <linearGradient id="specBarAuto" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#CBD5E1"/>
+      <stop offset="100%" stop-color="#94A3B8"/>
+    </linearGradient>
+    <filter id="specBarShadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#0F172A" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <rect width="100%" height="100%" fill="url(#specBenchBg)"/>
+
+  <text x="800" y="70" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="32" font-weight="800" fill="#0F172A">
+    Generation Speedup &amp; End-to-End Latency on Llama-3-70B
+  </text>
+  <text x="800" y="105" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="16" fill="#64748B">
+    Controlled Benchmark across MT-Bench, GSM8K, and HumanEval — Mean ± 95% Bootstrap CI (5 Seeds)
+  </text>
+
+  <!-- Grid lines -->
+  <line x1="200" y1="180" x2="1420" y2="180" stroke="#E2E8F0" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <line x1="200" y1="315" x2="1420" y2="315" stroke="#E2E8F0" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <line x1="200" y1="450" x2="1420" y2="450" stroke="#E2E8F0" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <line x1="200" y1="585" x2="1420" y2="585" stroke="#E2E8F0" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <line x1="200" y1="720" x2="1420" y2="720" stroke="#334155" stroke-width="2.5"/>
+
+  <!-- Y-Axis Labels: Throughput (tok/s) -->
+  <text x="180" y="185" text-anchor="end" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#475569">80 tok/s</text>
+  <text x="180" y="320" text-anchor="end" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#475569">60 tok/s</text>
+  <text x="180" y="455" text-anchor="end" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#475569">40 tok/s</text>
+  <text x="180" y="590" text-anchor="end" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#475569">20 tok/s</text>
+  <text x="180" y="725" text-anchor="end" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#475569">0 tok/s</text>
+
+  <text x="80" y="450" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="700" fill="#0F172A" transform="rotate(-90 80 450)">
+    Generation Throughput [tokens / sec] (Higher is Better ↑)
+  </text>
+
+  <!-- Bar 1: Autoregressive Baseline: 19.4 tok/s -> Y approx 589 -->
+  <g filter="url(#specBarShadow)">
+    <rect x="280" y="589" width="210" height="131" rx="8" fill="url(#specBarAuto)"/>
+  </g>
+  <line x1="385" y1="583" x2="385" y2="595" stroke="#0F172A" stroke-width="3"/>
+  <line x1="365" y1="583" x2="405" y2="583" stroke="#0F172A" stroke-width="3"/>
+  <line x1="365" y1="595" x2="405" y2="595" stroke="#0F172A" stroke-width="3"/>
+  <text x="385" y="565" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="800" fill="#0F172A">19.4 tok/s</text>
+  <text x="385" y="760" text-anchor="middle" font-family="system-ui, sans-serif" font-size="16" font-weight="700" fill="#1E293B">Autoregressive</text>
+  <text x="385" y="785" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#64748B">Vanilla Baseline</text>
+  <text x="385" y="810" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#64748B">Latency: 51.5 ms</text>
+
+  <!-- Bar 2: Standard Speculative (K=4): 42.1 tok/s -> Y approx 435 -->
+  <g filter="url(#specBarShadow)">
+    <rect x="580" y="435" width="210" height="285" rx="8" fill="url(#specBarStd)"/>
+  </g>
+  <line x1="685" y1="424" x2="685" y2="446" stroke="#0F172A" stroke-width="3"/>
+  <line x1="665" y1="424" x2="705" y2="424" stroke="#0F172A" stroke-width="3"/>
+  <line x1="665" y1="446" x2="705" y2="446" stroke="#0F172A" stroke-width="3"/>
+  <text x="685" y="405" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="800" fill="#0F172A">42.1 tok/s</text>
+  <text x="685" y="760" text-anchor="middle" font-family="system-ui, sans-serif" font-size="16" font-weight="700" fill="#1E293B">Speculative (K=4)</text>
+  <text x="685" y="785" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#64748B">Fixed-Length Chain</text>
+  <text x="685" y="810" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#64748B">Speedup: 2.17×</text>
+
+  <!-- Bar 3: Medusa / EAGLE: 53.6 tok/s -> Y approx 358 -->
+  <g filter="url(#specBarShadow)">
+    <rect x="880" y="358" width="210" height="362" rx="8" fill="url(#specBarEagle)"/>
+  </g>
+  <line x1="985" y1="346" x2="985" y2="370" stroke="#0F172A" stroke-width="3"/>
+  <line x1="965" y1="346" x2="1005" y2="346" stroke="#0F172A" stroke-width="3"/>
+  <line x1="965" y1="370" x2="1005" y2="370" stroke="#0F172A" stroke-width="3"/>
+  <text x="985" y="330" text-anchor="middle" font-family="system-ui, sans-serif" font-size="18" font-weight="800" fill="#0F172A">53.6 tok/s</text>
+  <text x="985" y="760" text-anchor="middle" font-family="system-ui, sans-serif" font-size="16" font-weight="700" fill="#1E293B">EAGLE / Medusa</text>
+  <text x="985" y="785" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#64748B">Static Tree Heads</text>
+  <text x="985" y="810" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#64748B">Speedup: 2.76×</text>
+
+  <!-- Bar 4: Tree-Martingale Spec (Ours): 66.3 tok/s -> Y approx 272 -->
+  <g filter="url(#specBarShadow)">
+    <rect x="1180" y="272" width="210" height="448" rx="8" fill="url(#specBarOurs)" stroke="#4F46E5" stroke-width="2"/>
+  </g>
+  <line x1="1285" y1="262" x2="1285" y2="282" stroke="#4F46E5" stroke-width="3.5"/>
+  <line x1="1265" y1="262" x2="1305" y2="262" stroke="#4F46E5" stroke-width="3.5"/>
+  <line x1="1265" y1="282" x2="1305" y2="282" stroke="#4F46E5" stroke-width="3.5"/>
+  <text x="1285" y="240" text-anchor="middle" font-family="system-ui, sans-serif" font-size="20" font-weight="800" fill="#4F46E5">66.3 tok/s</text>
+  <text x="1285" y="760" text-anchor="middle" font-family="system-ui, sans-serif" font-size="17" font-weight="800" fill="#4F46E5">MartingaleTree (Ours)</text>
+  <text x="1285" y="785" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#4338CA">Dynamic Depth + Ville Bound</text>
+  <text x="1285" y="810" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13.5" font-weight="800" fill="#059669">Speedup: 3.42× (Lossless)</text>
+
+  <!-- Legend -->
+  <rect x="280" y="855" width="1110" height="65" rx="10" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="1.5"/>
+  <circle cx="315" cy="887" r="8" fill="#4F46E5"/>
+  <text x="335" y="892" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#0F172A">
+    Exact Distribution Equivalence:
+  </text>
+  <text x="560" y="892" font-family="system-ui, sans-serif" font-size="13.5" fill="#334155">
+    Total Variation Distance TV(P_spec, P_target) = 0.000. Verified across 100,000 generated tokens.
+  </text>
+  <text x="1220" y="892" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#059669">
+    Latency p99: 18.2 ms
+  </text>
+</svg>
