@@ -3,6 +3,7 @@ import {
   parseCompileLog,
   attributeIssuesToCards,
   extractQuotedNames,
+  extractControlSequenceName,
 } from "@/lib/latex/log-parser"
 import type { Card } from "@/lib/poster-types"
 
@@ -194,5 +195,43 @@ describe("attributeIssuesToCards", () => {
     const parsed = parseCompileLog("! Undefined control sequence.\nl.9 \\sqrt {x}")
     const attributed = attributeIssuesToCards(parsed.issues, [])
     expect(attributed[0].cardId).toBeUndefined()
+  })
+
+  it("attributes overfull boxes via the overflowing glyph dump, not just l.NNN", () => {
+    const log = [
+      "Overfull \\hbox (14.20343pt too wide) in paragraph at lines 120--126",
+      "[]\\OT1/lmr/m/n/10 We use a convolutional approach with layer",
+    ].join("\n")
+    const parsed = parseCompileLog(log)
+    expect(parsed.issues[0].kind).toBe("overfull")
+    expect(parsed.issues[0].context).toMatch(/convolutional/)
+    const attributed = attributeIssuesToCards(parsed.issues, cards)
+    expect(attributed[0].cardId).toBe("card_method")
+  })
+
+  it("puts the undefined control sequence name into the message", () => {
+    const log = [
+      "! Undefined control sequence.",
+      "<recently read> \\captionshort",
+      "",
+      "l.12 text",
+    ].join("\n")
+    const parsed = parseCompileLog(log)
+    expect(parsed.issues[0].message).toContain("\\captionshort")
+    expect(extractControlSequenceName(parsed.issues[0].detail, parsed.issues[0].context)).toBe("captionshort")
+  })
+
+  it("captures a Runaway argument line that precedes the ! error", () => {
+    const log = [
+      "Runaway argument?",
+      "{foo bar",
+      "! Paragraph ended before \\textbf was complete.",
+      "<to be read again>",
+      "                   \\par",
+      "l.10 more text here that is long enough",
+    ].join("\n")
+    const parsed = parseCompileLog(log)
+    expect(parsed.issues[0].detail.some((d) => /Runaway argument/.test(d))).toBe(true)
+    expect(parsed.issues[0].line).toBe(10)
   })
 })

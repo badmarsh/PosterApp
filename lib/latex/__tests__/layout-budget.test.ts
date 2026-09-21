@@ -69,16 +69,43 @@ describe("estimateHeightBreakdown", () => {
   })
 
   it("attributes figure height to the figures part, not prose", () => {
-    const b = estimateHeightBreakdown(makeCard({ pattern: "image-focused", content: "" }))
+    const b = estimateHeightBreakdown(makeCard({
+      pattern: "image-focused",
+      content: "",
+      figures: [{ id: "f1", url: "/assets/a.png", caption: "" }],
+    }))
     expect(b.figures).toBe(260)
     expect(b.prose).toBe(0)
   })
 
+  it("charges side-by-side two-image height once, not twice, and zero when no figures", () => {
+    const fig = (id: string) => ({ id, url: `/assets/${id}.png`, caption: "" })
+    const two = estimateHeightBreakdown(makeCard({
+      pattern: "bullets-two-images",
+      content: "- x",
+      figures: [fig("a"), fig("b")],
+    }))
+    const one = estimateHeightBreakdown(makeCard({
+      pattern: "bullets-two-images",
+      content: "- x",
+      figures: [fig("a")],
+    }))
+    const none = estimateHeightBreakdown(makeCard({
+      pattern: "image-focused",
+      content: "",
+      figures: [],
+    }))
+    expect(two.figures).toBe(150)
+    expect(two.figures).toBeLessThan(one.figures)
+    expect(none.figures).toBe(0)
+  })
+
   it("accounts for paper, slide, and two-column structural patterns", () => {
-    expect(estimateHeightBreakdown(makeCard({ pattern: "section-figure" })).figures).toBeGreaterThan(0)
-    expect(estimateHeightBreakdown(makeCard({ pattern: "section-two-figures" })).figures).toBeGreaterThan(0)
+    const fig = (id: string) => ({ id, url: `/assets/${id}.png`, caption: "" })
+    expect(estimateHeightBreakdown(makeCard({ pattern: "section-figure", figures: [fig("a")] })).figures).toBeGreaterThan(0)
+    expect(estimateHeightBreakdown(makeCard({ pattern: "section-two-figures", figures: [fig("a"), fig("b")] })).figures).toBeGreaterThan(0)
     expect(estimateHeightBreakdown(makeCard({ pattern: "section-table" })).table).toBeGreaterThan(0)
-    expect(estimateHeightBreakdown(makeCard({ pattern: "figure-slide" })).figures).toBeGreaterThan(0)
+    expect(estimateHeightBreakdown(makeCard({ pattern: "figure-slide", figures: [fig("a")] })).figures).toBeGreaterThan(0)
     expect(estimateHeightBreakdown(makeCard({ pattern: "two-column" })).chrome).toBeGreaterThan(
       estimateHeightBreakdown(makeCard({ pattern: "bullets" })).chrome,
     )
@@ -103,7 +130,11 @@ describe("suggestReductions", () => {
   })
 
   it("suggests shrinking the figure when a figure dominates", () => {
-    const fixes = suggestReductions(makeCard({ pattern: "image-focused", content: "" }), 200)
+    const fixes = suggestReductions(makeCard({
+      pattern: "image-focused",
+      content: "",
+      figures: [{ id: "f1", url: "/assets/a.png", caption: "" }],
+    }), 200)
     expect(fixes.join(" ")).toContain("shrink the figure")
   })
 

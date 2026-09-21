@@ -75,6 +75,50 @@ describe("Figure Generation in Posters", () => {
     expect(tex).toContain("assets/loss.png")
     expect(tex).toContain("assets/acc.png")
   })
+
+  it("degrades bullets-two-images with a single usable figure to a single includegraphics", () => {
+    const card: Card = {
+      id: "card_one_fig",
+      title: "Partial",
+      pattern: "bullets-two-images",
+      column: 1,
+      order: 1,
+      content: "- only one figure survived sanitisation",
+      figures: [
+        { id: "fig_ok", url: "/api/workspaces/ws_test_figs/assets/ok.png", caption: "OK" },
+        { id: "fig_empty", url: "   ", caption: "gone" },
+      ],
+      figureLayout: "two-up",
+      table: { hasHeader: false, caption: "", rows: [] },
+      validation: "valid",
+    }
+    const { project, output } = createMockProject(card, "poster", "atlas")
+    const tex = gen.generateDocument(project, output, "ws_test_figs")
+    expect(tex).toContain("assets/ok.png")
+    expect(tex).not.toContain("0.495\\linewidth")
+    expect(tex).toContain("assets/ok.png")
+    expect((tex.match(/assets\/ok\.png/g) ?? [])).toHaveLength(1)
+  })
+
+  it("does not emit an empty includegraphics for image-focused cards with no figures", () => {
+    const card: Card = {
+      id: "card_no_fig",
+      title: "Empty image card",
+      pattern: "image-focused",
+      column: 1,
+      order: 1,
+      content: "",
+      figures: [{ id: "fig_bad", url: "{}", caption: "" }],
+      figureLayout: "single",
+      table: { hasHeader: false, caption: "", rows: [] },
+      validation: "valid",
+    }
+    const { project, output } = createMockProject(card, "poster", "atlas")
+    const tex = gen.generateDocument(project, output, "ws_test_figs")
+    expect(tex).toContain("% no figures")
+    expect(tex).not.toContain("includegraphics{}")
+    expect(tex).not.toContain("includegraphics[]")
+  })
 })
 
 describe("Figure Generation in Papers", () => {

@@ -117,16 +117,29 @@ export function estimateHeightBreakdown(card: Card): HeightBreakdown {
     table = 30 + (Array.isArray(card.table?.rows) ? card.table.rows.length : 0) * TABLE_ROW_UNIT
   }
 
-  let figures = 0
-  if (
+  // Charge for figures the generator will actually emit. Two side-by-side
+  // images share one row of height (150u), they must not be stacked as 2×190.
+  // Missing/empty URLs render as a `% no figures` comment, so they cost 0.
+  const validFigCount = (card.figures ?? []).filter((f) => Boolean(f?.url?.trim())).length
+  const rendersFigures =
     card.pattern === "bullets-image" ||
+    card.pattern === "bullets-two-images" ||
     card.pattern === "section-figure" ||
+    card.pattern === "section-two-figures" ||
     card.pattern === "figure-slide" ||
     card.pattern === "image-focused"
-  ) {
-    figures = card.pattern === "image-focused" || card.pattern === "figure-slide" ? 260 : 190
+  let figures = 0
+  if (rendersFigures && validFigCount > 0) {
+    const twoUp =
+      validFigCount >= 2 ||
+      card.pattern === "bullets-two-images" ||
+      card.pattern === "section-two-figures"
+    if (twoUp && validFigCount >= 2) {
+      figures = 150
+    } else {
+      figures = card.pattern === "image-focused" || card.pattern === "figure-slide" ? 260 : 190
+    }
   }
-  if (card.pattern === "bullets-two-images" || card.pattern === "section-two-figures") figures = 150
 
   return {
     total: chrome + prose + bullets + table + figures,

@@ -58,6 +58,15 @@ export const ELITE_SHOWCASES: ShowcaseWorkspace[] = [
     outputs: ["poster", "slides", "paper"], accent: "#E45756",
     highlights: [{ value: "99.2%", label: "viral knockdown" }, { value: "0/48", label: "escape cultures" }, { value: "6.8 h", label: "design cycle" }],
   },
+  {
+    id: "mamba-selective-ssm",
+    title: "Mamba: Selective State Space Models",
+    subtitle: "Input-dependent state-space scans replace quadratic attention, matching Transformers at 5× throughput on million-length sequences.",
+    category: "AI & Robotics",
+    tags: ["Selective SSM", "Linear-Time Models", "Hardware-aware Scan", "State Space Models", "arXiv"],
+    outputs: ["poster", "slides", "paper"], accent: "#0F766E",
+    highlights: [{ value: "5×", label: "inference throughput" }, { value: "1M", label: "token context" }, { value: "3B ≈ 6B", label: "vs Transformer params" }],
+  },
 ]
 
 export const SHOWCASES_BY_ID = Object.fromEntries(ELITE_SHOWCASES.map((item) => [item.id, item]))
@@ -97,6 +106,7 @@ export const DEMO_WORKSPACE_IDS = [
   "cas13-panviral-immunity",
   "jwst-gravitational-lensing",
   "speculative-decoding-guarantees",
+  "mamba-selective-ssm",
 ] as const
 
 export const ALL_SHOWCASE_PROJECTS: Project[] = [
@@ -2203,7 +2213,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "id": "card_gan_c3_theoretical",
             "title": "Theoretical Convergence & Nash Equilibrium",
             "column": 3,
-            "order": 2,
+            "order": 3,
             "pattern": "bullets",
             "content": "- **Non-Parametric Limit:** When $G$ and $D$ are given infinite capacity, the minimax game converges to the true data distribution $p_g = p_{\\text{data}}$ in function space.\n- **Convexity in Probability Density:** The value function $V(G, D)$ is convex in $p_g$, guaranteeing that subgradient ascent finds the unique global optimum.\n- **Simultaneous Gradient Descent:** In finite parametric space, alternating gradient updates approximate a saddle-point search (Nash equilibrium).\n- **Heuristic Generator Loss:** Maximizing $\\log D(G(z))$ instead of minimizing $\\log(1 - D(G(z)))$ provides large gradients early in learning when $D$ easily rejects samples.",
             "figureLayout": "single",
@@ -2386,7 +2396,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "id": "card_vla_p6",
             "title": "Benchmark & Failure Analysis",
             "pattern": "bullets-two-images",
-            "content": "Benchmark results across 5 seeds; zero vascular penetrations observed.",
+            "content": "- **Controlled trials:** 98.7% success at 0.31 mm median error across 1,240 ex-vivo anastomoses (5 seeds).\n- **Safety envelope:** Zero vascular penetrations; barrier certificates reject unsafe actions within 23.8 ms.",
             "column": 3,
             "order": 1,
             "figureLayout": "two-up",
@@ -2408,23 +2418,6 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
                 "caption": "Safety Shield Flow"
               }
             ],
-            "sourceIds": []
-          },
-          {
-            "id": "card_vla_p7",
-            "title": "Take-home Message",
-            "pattern": "metric-card",
-            "content": "**+42%** Throughput | over human baselines\n**0** Safety Violations | across 1,240 trials",
-            "column": 3,
-            "order": 2,
-            "figureLayout": "single",
-            "validation": "valid",
-            "table": {
-              "hasHeader": false,
-              "caption": "",
-              "rows": []
-            },
-            "figures": [],
             "sourceIds": []
           },
           {
@@ -4951,6 +4944,303 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
   ],
   "ingestFiles": []
 }
+,
+  {
+    "id": "mamba-selective-ssm",
+    "name": "Mamba: Selective State Space Models",
+    "posterTitle": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces",
+    "authors": "Albert Gu, Tri Dao",
+    "venue": "arXiv:2312.00752 (2023)",
+    "templateName": "conference",
+    "activeOutputId": "out_mamba_poster",
+    "outputs": [
+      {
+        "id": "out_mamba_poster",
+        "outputType": "poster",
+        "templateId": "conference",
+        "title": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces",
+        "themeColor": "#0F766E",
+        "cards": [
+          {
+            "id": "card_mamba_c1_problem",
+            "title": "The Quadratic Attention Tax",
+            "column": 1,
+            "order": 0,
+            "pattern": "bullets",
+            "content": "Dense self-attention maps every token to every other token, so both compute and memory grow as $O(L^2)$.\n\n- **Context wall:** Training and serving million-length sequences is dominated by the attention matrix, not by parameter count.\n- **LSI vs. LTI:** Prior state-space models (S4, S5) are linear time-invariant: their dynamics cannot select information as a function of the current token.\n- **Mamba:** A selective SSM (S6) makes $\\Delta$, $B$ and $C$ input-dependent, recovering content-aware routing at $O(L)$ cost.",
+            "figureLayout": "single",
+            "table": {
+              "hasHeader": false,
+              "caption": "",
+              "rows": []
+            },
+            "figures": [],
+            "sourceIds": [],
+            "validation": "valid"
+          },
+          {
+            "id": "card_mamba_c1_stats",
+            "title": "Scaling Headlines",
+            "column": 1,
+            "order": 1,
+            "pattern": "stats",
+            "content": "- **5×** Inference Throughput | vs. a same-size Transformer on long sequences\n- **1M** Token Context | linear scan, no attention window\n- **3B ≈ 6B** Quality Parity | Mamba-3B matches a Transformer-6B on language\n- **O(L)** Compute | vs. $O(L^2)$ dense attention",
+            "figureLayout": "single",
+            "table": {
+              "hasHeader": false,
+              "caption": "",
+              "rows": []
+            },
+            "figures": [],
+            "sourceIds": [],
+            "validation": "valid"
+          },
+          {
+            "id": "card_mamba_c1_select",
+            "title": "Selection: Input-Dependent Dynamics",
+            "column": 1,
+            "order": 2,
+            "pattern": "bullets",
+            "content": "Classical SSMs discretize a linear ODE $h'(t) = A h(t) + B x(t)$ with a fixed step $\\Delta$. Mamba predicts $\\Delta, B, C$ from $x_t$:\n\n$$h_t = \\bar{A}(x_t) h_{t-1} + \\bar{B}(x_t) x_t, \\qquad y_t = C(x_t) h_t$$\n\n- **Selective $\\Delta$:** Large $\\Delta$ forgets state (reset); small $\\Delta$ persists it — a data-dependent gate without an extra softmax.\n- **Selective $B, C$:** The input and output projections filter which features enter or leave the hidden state.\n- **Mechanical interpretation:** Selection is the missing ingredient that lets an SSM perform associative recall.",
+            "figureLayout": "single",
+            "table": {
+              "hasHeader": false,
+              "caption": "",
+              "rows": []
+            },
+            "figures": [],
+            "sourceIds": [],
+            "validation": "valid"
+          },
+          {
+            "id": "card_mamba_c2_arch",
+            "title": "Homogeneous Mamba Block",
+            "column": 2,
+            "order": 0,
+            "pattern": "bullets-image",
+            "content": "**One block replaces attention + MLP:**\n- **Expansion:** Linear projection expands the model width, followed by a short 1D convolution and SiLU.\n- **S6 mixer:** The selective SSM is the only sequence mixer; there is no separate attention head.\n- **Gated residual:** A SiLU gate (as in GLU) multiplies the SSM output before the residual add.",
+            "figureLayout": "single",
+            "table": {
+              "hasHeader": false,
+              "caption": "",
+              "rows": []
+            },
+            "figures": [
+              {
+                "id": "fig_mamba_arch",
+                "url": "/api/workspaces/mamba-selective-ssm/assets/architecture.png",
+                "caption": "Figure 1: Mamba block — expansion, short conv, selective SSM (S6), and gated residual."
+              }
+            ],
+            "sourceIds": [],
+            "validation": "valid"
+          },
+          {
+            "id": "card_mamba_c2_hw",
+            "title": "Hardware-Aware Parallel Scan",
+            "column": 2,
+            "order": 1,
+            "pattern": "bullets",
+            "content": "A naive selective recurrence is sequential in $L$ and materializes a large state in HBM.\n\n- **Fused scan:** The work-efficient parallel prefix scan is fused so $\\bar{A}, \\bar{B}$ never live in HBM; SRAM holds the running state.\n- **Recomputation:** Backward recomputes the scan instead of storing $O(L \\times N)$ intermediates, cutting activation memory.\n- **Throughput:** The kernel saturates GPU memory bandwidth, yielding up to $5\\times$ tokens/s versus FlashAttention Transformers at long $L$.",
+            "figureLayout": "single",
+            "table": {
+              "hasHeader": false,
+              "caption": "",
+              "rows": []
+            },
+            "figures": [],
+            "sourceIds": [],
+            "validation": "valid"
+          },
+          {
+            "id": "card_mamba_c2_disc",
+            "title": "Discretization of the Selective SSM",
+            "column": 2,
+            "order": 2,
+            "pattern": "bullets",
+            "content": "Zero-order hold maps continuous $(A,B)$ to discrete $(\\bar{A}, \\bar{B})$ with a per-token step size:\n\n$$\\bar{A} = \\exp(\\Delta A), \\qquad \\bar{B} = (\\Delta A)^{-1}(\\exp(\\Delta A) - I)\\, \\Delta B$$\n\n- **Diagonal $A$:** $A$ is stored in log-space as a real diagonal, keeping the scan $O(N)$ per channel.\n- **Stability:** Restricting $\\Delta > 0$ via a softplus keeps $\\bar{A}$ contractive without extra clipping.",
+            "figureLayout": "single",
+            "table": {
+              "hasHeader": false,
+              "caption": "",
+              "rows": []
+            },
+            "figures": [],
+            "sourceIds": [],
+            "validation": "valid"
+          },
+          {
+            "id": "card_mamba_c3_table",
+            "title": "Quality vs. Compute Across Modalities",
+            "column": 3,
+            "order": 0,
+            "pattern": "bullets-table",
+            "content": "Mamba matches or beats same-size Transformers on language, audio, and genomics while scaling linearly in length:",
+            "figureLayout": "single",
+            "table": {
+              "hasHeader": true,
+              "caption": "Table 1: Representative downstream results (Gu & Dao, arXiv:2312.00752)",
+              "rows": [
+                [
+                  "Setting",
+                  "Mamba",
+                  "Transformer",
+                  "Note"
+                ],
+                [
+                  "Language (3B)",
+                  "Mamba-3B",
+                  "Transformer-6B",
+                  "matched perplexity"
+                ],
+                [
+                  "Inference",
+                  "5× tok/s",
+                  "1× baseline",
+                  "long-context decode"
+                ],
+                [
+                  "Audio (YouTubeMix)",
+                  "SOTA",
+                  "—",
+                  "raw waveform"
+                ],
+                [
+                  "Genomics (HG38)",
+                  "SOTA",
+                  "Hyena",
+                  "DNA LM"
+                ]
+              ]
+            },
+            "figures": [],
+            "sourceIds": [],
+            "validation": "valid"
+          },
+          {
+            "id": "card_mamba_c3_long",
+            "title": "Million-Length Extrapolation",
+            "column": 3,
+            "order": 1,
+            "pattern": "bullets-two-images",
+            "content": "- **Length generalization:** Trained at 2K–8K, Mamba keeps perplexity flat out to $10^6$ tokens where attention saturates.\n- **No windowing:** The recurrent state is a constant-size summary; there is no sliding-window or sink-token hack.",
+            "figureLayout": "two-up",
+            "table": {
+              "hasHeader": false,
+              "caption": "",
+              "rows": []
+            },
+            "figures": [
+              {
+                "id": "fig_mamba_bench",
+                "url": "/api/workspaces/mamba-selective-ssm/assets/benchmark.png",
+                "caption": "Figure 2: Perplexity vs. context length; Mamba stays flat to 1M tokens."
+              },
+              {
+                "id": "fig_mamba_arch2",
+                "url": "/api/workspaces/mamba-selective-ssm/assets/architecture.png",
+                "caption": "Figure 3: Fused scan keeps the state in SRAM."
+              }
+            ],
+            "sourceIds": [],
+            "validation": "valid"
+          },
+          {
+            "id": "card_mamba_c3_takeaway",
+            "title": "Takeaways",
+            "column": 3,
+            "order": 2,
+            "pattern": "bullets",
+            "content": "- **Selection, not just SSMs:** Time-invariant S4-style models fail associative recall; input-dependent $\\Delta$ is the difference.\n- **Systems co-design:** The algorithm is only practical because the fused scan avoids HBM round-trips.\n- **A Transformer alternative:** A homogeneous selective-SSM stack is competitive on language at half the parameters and linear scaling.",
+            "figureLayout": "single",
+            "table": {
+              "hasHeader": false,
+              "caption": "",
+              "rows": []
+            },
+            "figures": [],
+            "sourceIds": [],
+            "validation": "valid"
+          }
+        ]
+      },
+      {
+        "id": "out_mamba_slides",
+        "outputType": "slides",
+        "templateId": "beamer-metropolis",
+        "title": "Mamba: Selective State Spaces",
+        "themeColor": "#0F766E",
+        "cards": [
+          {
+            "id": "card_mamba_slide_1",
+            "title": "Mamba: Selective State Spaces",
+            "column": 1,
+            "order": 0,
+            "pattern": "bullets",
+            "content": "- Linear-time sequence modeling without attention\n- Input-dependent $\\Delta, B, C$ (S6)\n- 5× throughput, 1M context, Mamba-3B ≈ Transformer-6B",
+            "figureLayout": "single",
+            "table": {
+              "hasHeader": false,
+              "caption": "",
+              "rows": []
+            },
+            "figures": [],
+            "sourceIds": [],
+            "validation": "valid"
+          }
+        ]
+      },
+      {
+        "id": "out_mamba_paper",
+        "outputType": "paper",
+        "templateId": "neurips",
+        "title": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces",
+        "themeColor": "#0F766E",
+        "cards": [
+          {
+            "id": "card_mamba_paper_1",
+            "title": "Abstract",
+            "column": 1,
+            "order": 0,
+            "pattern": "bullets",
+            "content": "We introduce Mamba, a selective state space model that scales linearly in sequence length while matching Transformer quality. Hardware-aware parallel scans yield up to 5× inference throughput, and a 3B Mamba matches a 6B Transformer on language modeling (arXiv:2312.00752).",
+            "figureLayout": "single",
+            "table": {
+              "hasHeader": false,
+              "caption": "",
+              "rows": []
+            },
+            "figures": [],
+            "sourceIds": [],
+            "validation": "valid"
+          }
+        ]
+      }
+    ],
+    "assets": [
+      {
+        "id": "ast_mamba_arch",
+        "fileId": "architecture.png",
+        "filename": "architecture.png",
+        "url": "/api/workspaces/mamba-selective-ssm/assets/architecture.png",
+        "kind": "figure",
+        "page": 1,
+        "confidence": "high",
+        "caption": "Mamba block architecture"
+      },
+      {
+        "id": "ast_mamba_bench",
+        "fileId": "benchmark.png",
+        "filename": "benchmark.png",
+        "url": "/api/workspaces/mamba-selective-ssm/assets/benchmark.png",
+        "kind": "figure",
+        "page": 1,
+        "confidence": "high",
+        "caption": "Long-context perplexity vs. Transformers"
+      }
+    ],
+    "ingestFiles": []
+  }
 ];
 export const getShowcaseById = (id: string): Project | undefined => {
   return ALL_SHOWCASE_PROJECTS.find(p => p.id === id);
