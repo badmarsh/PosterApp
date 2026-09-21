@@ -395,7 +395,9 @@ export function WorkspaceSelector({
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent
         className={
-          activeTab === "research-lab" || activeTab === "showcases"
+          activeTab === "showcases"
+            ? "z-[60] w-[96vw] max-w-[1560px] sm:max-w-[96vw] lg:max-w-[96vw] 2xl:max-w-[1560px] h-[92vh] max-h-[92vh] flex flex-col p-6 overflow-hidden"
+            : activeTab === "research-lab"
             ? "z-[60] sm:max-w-4xl lg:max-w-5xl max-h-[92vh] flex flex-col p-6"
             : "z-[60] sm:max-w-md"
         }
@@ -519,8 +521,8 @@ export function WorkspaceSelector({
           </div>
         )}
 
-                {activeTab === "showcases" ? (
-          <div className="flex-1 overflow-hidden min-h-0 pt-1">
+        {activeTab === "showcases" ? (
+          <div className="flex-1 overflow-hidden min-h-0 pt-1.5 flex flex-col">
             <ShowcaseGallery
               onSelectShowcase={(id) => {
                 onSelect(id)

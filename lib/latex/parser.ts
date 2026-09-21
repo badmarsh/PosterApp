@@ -169,7 +169,8 @@ export function mapUnicodeToLatex(input: string): string {
     "Γ": "$\\Gamma$", "Δ": "$\\Delta$", "Θ": "$\\Theta$", "Λ": "$\\Lambda$", "Ξ": "$\\Xi$", "Π": "$\\Pi$",
     "Σ": "$\\Sigma$", "Φ": "$\\Phi$", "Ψ": "$\\Psi$", "Ω": "$\\Omega$",
     "→": "$\\to$", "←": "$\\gets$", "↔": "$\\leftrightarrow$", "⇒": "$\\Rightarrow$", "⇐": "$\\Leftarrow$",
-    "∈": "$\\in$", "∉": "$\\notin$", "⊂": "$\\subset$", "⊆": "$\\subseteq$", "∩": "$\\cap$", "∪": "$\\cup$"
+    "∈": "$\\in$", "∉": "$\\notin$", "⊂": "$\\subset$", "⊆": "$\\subseteq$", "∩": "$\\cap$", "∪": "$\\cup$",
+    "☉": "$\\odot$"
   }
   for (const [char, repl] of Object.entries(unicodeMap)) {
     text = text.split(char).join(repl)
