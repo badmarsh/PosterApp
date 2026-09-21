@@ -842,8 +842,6 @@ ${FITMATH_MACRO}
 \\title{${title}}
 \\author{${authors}}
 \\affiliation{${venue}}
-
-\\maketitle
 `
 }
 

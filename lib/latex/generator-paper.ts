@@ -177,7 +177,7 @@ export class StandardPaperGenerator implements LatexGenerator {
     const isTwoColumn = !SINGLE_COLUMN_TEMPLATES.has(this.templateId)
 
     let contentBlocks = ""
-    if (this.templateId === "acm-sigconf") {
+    if (this.templateId === "acm-sigconf" || this.templateId === "revtex-aps") {
       const abstractCard = sortedCards.find(c => c.title.trim().toLowerCase() === "abstract" || (c.pattern as string) === "abstract")
       const otherCards = sortedCards.filter(c => c !== abstractCard)
       const abstractTex = abstractCard ? generateLatexForCard(abstractCard, workspaceId, usedKeysArray, isTwoColumn) : ""
