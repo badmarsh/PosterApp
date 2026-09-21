@@ -14,6 +14,7 @@ import {
   type ThesisReviewLabels,
 } from "./templates-thesis"
 import { THESIS_CRITERIA, type ThesisSection, type ReviewLanguage } from "@/lib/ai/thesis-rubric"
+import { SK_ACADEMIC_RUBRIC_V1 } from "@/lib/ai/rubric-engine"
 import type { ReviewKind, ReviewFinding } from "@/lib/ai/review-types"
 import { getEligibleFindings } from "@/lib/ai/review-composer"
 import { bucketFindings } from "@/lib/ai/review-bucketing"
@@ -126,7 +127,7 @@ function buildMetadataBlock(
     rows.push(`  \\textbf{${escapeLatex(labels.departmentLabel)}:} & ${escapeLatex(meta.department)} \\\\`)
   }
   if (meta.academicYear) {
-    rows.push(`  \\textbf{${escapeLatex(labels.dateLabel)} / Rok:} & ${escapeLatex(meta.academicYear)} \\\\`)
+    rows.push(`  \\textbf{${escapeLatex(labels.academicYearLabel)}:} & ${escapeLatex(meta.academicYear)} \\\\`)
   }
 
   return `\\noindent
@@ -151,6 +152,103 @@ function resolveCriterionLabel(
   return criterion.labels[rubricLang] ?? criterion.labels.en ?? fallbackId
 }
 
+/**
+ * Unified criterion resolution for section rows (2026-09 audit fix F-04).
+ *
+ * Sections enter this generator from three different lineages and the old
+ * code matched only the deprecated one, silently dropping the rest:
+ *   1. the production review pipeline writes ids from SK_ACADEMIC_RUBRIC_V1
+ *      (12 criteria) — these are tried FIRST,
+ *   2. legacy/seeded drafts may still carry THESIS_CRITERIA ids (8 criteria),
+ *   3. hand-built or imported sections may store a criterion *title* (in any
+ *      of the translated labels) instead of an id — matched with
+ *      diacritic/case folding.
+ * An unresolved section is still rendered under a humanized heading instead
+ * of vanishing from the export: losing a reviewer's paragraph is far worse
+ * than an imperfect heading.
+ */
+let v1CriterionMap: Map<string, (typeof SK_ACADEMIC_RUBRIC_V1.criteria)[number]> | null = null
+function getV1CriterionMap() {
+  if (!v1CriterionMap) {
+    v1CriterionMap = new Map(SK_ACADEMIC_RUBRIC_V1.criteria.map((c) => [c.id, c]))
+  }
+  return v1CriterionMap
+}
+
+function foldCriterionText(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[_\-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+function humanizeCriterionId(id: string): string {
+  const words = foldCriterionText(id)
+  return words ? words[0].toUpperCase() + words.slice(1) : id
+}
+
+function rubricLabelsFor(
+  labels: Record<ReviewLanguage, string>,
+  lang: ReportLanguage
+): string[] {
+  const unique = new Set<string>([labels.sk, labels.cs, labels.en].filter(Boolean))
+  void lang
+  return [...unique]
+}
+
+function localizedLabel(
+  labels: Record<ReviewLanguage, string>,
+  lang: ReportLanguage,
+  fallback: string
+): string {
+  const rubricLang: ReviewLanguage = lang === "sk" || lang === "cs" || lang === "en" ? lang : "en"
+  return labels[rubricLang] ?? labels.en ?? fallback
+}
+
+function resolveSectionCriterion(
+  section: ThesisSection,
+  lang: ReportLanguage
+): { name: string; skip: boolean } {
+  const rawId = (section.criterionId || "").trim()
+  if (rawId) {
+    // 1. Active v1 rubric (what the production pipeline writes).
+    const v1 = getV1CriterionMap().get(rawId)
+    if (v1) {
+      return {
+        name: localizedLabel(v1.labels, lang, rawId),
+        skip: v1.weight === 0 || v1.category === "defense",
+      }
+    }
+    // 2. Deprecated legacy rubric (older drafts / seeds).
+    const legacy = THESIS_CRITERIA.find((c) => c.id === rawId)
+    if (legacy) {
+      return {
+        name: resolveCriterionLabel(legacy, lang, rawId),
+        skip: legacy.weight === 0 || legacy.category === "defense",
+      }
+    }
+    // 3. The id field actually contains a human title — match against the
+    //    label sets of both rubrics with diacritic/case folding.
+    const folded = foldCriterionText(rawId)
+    const matchesFold = (label: string) => foldCriterionText(label) === folded
+    for (const c of SK_ACADEMIC_RUBRIC_V1.criteria) {
+      if (foldCriterionText(c.id) === folded || rubricLabelsFor(c.labels, lang).some(matchesFold)) {
+        return { name: localizedLabel(c.labels, lang, rawId), skip: c.weight === 0 || c.category === "defense" }
+      }
+    }
+    for (const c of THESIS_CRITERIA) {
+      if (foldCriterionText(c.id) === folded || rubricLabelsFor(c.labels, lang).some(matchesFold)) {
+        return { name: resolveCriterionLabel(c, lang, rawId), skip: c.weight === 0 || c.category === "defense" }
+      }
+    }
+  }
+  // 4. Never drop: render whatever the reviewer wrote under a readable title.
+  return { name: humanizeCriterionId(rawId || section.id || "section"), skip: false }
+}
+
 function buildCriteriaTable(
   labels: ThesisReviewLabels,
   sections: ThesisSection[],
@@ -160,10 +258,10 @@ function buildCriteriaTable(
   const rows: string[] = []
 
   for (const section of sections) {
-    const criterion = THESIS_CRITERIA.find((c) => c.id === section.criterionId)
-    if (!criterion || criterion.weight === 0 || criterion.category === "defense") continue
+    const resolved = resolveSectionCriterion(section, lang)
+    if (resolved.skip) continue
 
-    const criterionName = resolveCriterionLabel(criterion, lang, section.criterionId)
+    const criterionName = resolved.name
     const rating = section.rating && section.rating !== "pending" ? section.rating : "---"
     const text = nl2par(section.text || "")
 

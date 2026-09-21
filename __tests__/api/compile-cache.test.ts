@@ -61,13 +61,15 @@ describe("compileWorkspace caching", () => {
   })
 
   it("returns cached compilation if compile-cache.json and main.pdf match the current revision", async () => {
-    // compile-cache.json matches
+    // compile-cache.json matches — including the content fingerprint
+    // (sha256("bib\0") of an empty bib source with an empty assets dir).
     ;(mockFs.readFile as any).mockResolvedValue(
       JSON.stringify({
         revision: 5,
         outputId: "out_1",
         templateId: "atlas",
         themeColor: "#ff0000",
+        contentHash: "94861b993102a8e789409a54166c0595f754631702eec2cbb05281b90ae638c2",
         log: "Cached log",
       })
     )
@@ -90,6 +92,25 @@ describe("compileWorkspace caching", () => {
         outputId: "out_1",
         templateId: "atlas",
         themeColor: "#ff0000",
+      })
+    )
+    ;(mockFs.stat as any).mockResolvedValue({ size: 1024 })
+
+    const result = await compileWorkspace("ws_cache_test")
+
+    expect(mockRunner).toHaveBeenCalled()
+    expect(result.ok).toBe(true)
+    expect(result.cached).toBeFalsy()
+  })
+
+  it("recompiles when the content fingerprint does not match (bib/assets changed)", async () => {
+    ;(mockFs.readFile as any).mockResolvedValue(
+      JSON.stringify({
+        revision: 5,
+        outputId: "out_1",
+        templateId: "atlas",
+        themeColor: "#ff0000",
+        contentHash: "stale-fingerprint-does-not-match",
       })
     )
     ;(mockFs.stat as any).mockResolvedValue({ size: 1024 })

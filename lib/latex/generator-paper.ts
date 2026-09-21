@@ -108,12 +108,12 @@ function generateFigures(card: Card, workspaceId = "", isTwoColumn = false): str
 ${captionLine}\\end{${env}}`
 }
 
-function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[] = [], isTwoColumn = false): string {
+function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[] = [], isTwoColumn = false, bibStyle = "plain"): string {
   const parts: string[] = []
 
   if (card.pattern === "references") {
     const nociteCmd = usedBibKeys.length > 0 ? `\\nocite{${usedBibKeys.join(",")}}` : "\\nocite{*}"
-    parts.push(`\\begingroup\n${nociteCmd}\n\\bibliographystyle{plain}\n\\bibliography{references}\n\\endgroup`)
+    parts.push(`\\begingroup\n${nociteCmd}\n\\bibliographystyle{${bibStyle}}\n\\bibliography{references}\n\\endgroup`)
     return parts.join("\n\n")
   }
 
@@ -150,6 +150,28 @@ function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[
   return parts.join("\n\n")
 }
 
+/**
+ * Canonical BibTeX style per paper template. `plain` on a REVTeX or
+ * elsarticle document produces formatting the venue rejects or a class that
+ * conflicts with its own natbib setup. Every .bst listed here ships with
+ * TeX Live and is also vendored under public/latex-styles so the sandboxed
+ * compiler finds it. Templates absent from the map keep `plain`.
+ */
+const BIBSTYLE_BY_TEMPLATE: Record<string, string> = {
+  "revtex-aps": "apsrev4-2",
+  elsarticle: "elsarticle-num",
+  "acm-sigconf": "ACM-Reference-Format",
+  "jinst-proceedings": "JHEP",
+  "epj-woc": "woc",
+  iopart: "iopart-num",
+  aaai: "aaai2026",
+  icml: "icml2026",
+  iclr: "iclr2026_conference",
+  acl: "acl_natbib",
+  neurips: "plainnat",
+  "ieee-conf": "IEEEtran",
+}
+
 export class StandardPaperGenerator implements LatexGenerator {
   outputType = "paper" as const
   templateId = "article-twocol"
@@ -176,16 +198,32 @@ export class StandardPaperGenerator implements LatexGenerator {
     // are undefined outside a twocolumn class and abort the compile.
     const isTwoColumn = !SINGLE_COLUMN_TEMPLATES.has(this.templateId)
 
+    // When rendering for elsarticle, the abstract card is spliced into the
+    // frontmatter instead of the regular body stream. Unused for all other
+    // templates.
+    let injectElsarticleAbstract = ""
+    const bibStyle = BIBSTYLE_BY_TEMPLATE[this.templateId] ?? "plain"
     let contentBlocks = ""
     if (this.templateId === "acm-sigconf" || this.templateId === "revtex-aps") {
       const abstractCard = sortedCards.find(c => c.title.trim().toLowerCase() === "abstract" || (c.pattern as string) === "abstract")
       const otherCards = sortedCards.filter(c => c !== abstractCard)
-      const abstractTex = abstractCard ? generateLatexForCard(abstractCard, workspaceId, usedKeysArray, isTwoColumn) : ""
-      const otherTex = otherCards.map(c => generateLatexForCard(c, workspaceId, usedKeysArray, isTwoColumn)).join("\n\n")
+      const abstractTex = abstractCard ? generateLatexForCard(abstractCard, workspaceId, usedKeysArray, isTwoColumn, bibStyle) : ""
+      const otherTex = otherCards.map(c => generateLatexForCard(c, workspaceId, usedKeysArray, isTwoColumn, bibStyle)).join("\n\n")
       contentBlocks = [abstractTex, "\\maketitle", otherTex].filter(Boolean).join("\n\n")
+    } else if (this.templateId === "elsarticle") {
+      // elsarticle (like acmart) requires the abstract to be a frontmatter
+      // environment; as another \section after \end{frontmatter} it would be
+      // typeset as ordinary body text. Splice it in before the marker.
+      const abstractCard = sortedCards.find(c => c.title.trim().toLowerCase() === "abstract" || (c.pattern as string) === "abstract")
+      const otherCards = sortedCards.filter(c => c !== abstractCard)
+      contentBlocks = otherCards.map((c) => generateLatexForCard(c, workspaceId, usedKeysArray, isTwoColumn, bibStyle)).join("\n\n")
+      if (abstractCard) {
+        const abstractTex = generateLatexForCard(abstractCard, workspaceId, usedKeysArray, isTwoColumn, bibStyle)
+        injectElsarticleAbstract = abstractTex
+      }
     } else {
       contentBlocks = sortedCards
-        .map((c) => generateLatexForCard(c, workspaceId, usedKeysArray, isTwoColumn))
+        .map((c) => generateLatexForCard(c, workspaceId, usedKeysArray, isTwoColumn, bibStyle))
         .join("\n\n")
     }
 
@@ -246,7 +284,12 @@ export class StandardPaperGenerator implements LatexGenerator {
     }
 
     return `% =============================================================================
-${templateContent.trim()}
+${(injectElsarticleAbstract
+  ? templateContent.trim().replace(
+      "\\end{frontmatter}",
+      `${injectElsarticleAbstract}\n\\end{frontmatter}`
+    )
+  : templateContent.trim())}
 
 ${contentBlocks}
 

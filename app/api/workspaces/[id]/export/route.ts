@@ -151,6 +151,35 @@ export async function GET(
       await fs.rm(remoteStage, { recursive: true, force: true })
     }
 
+    // Bundle the vendored LaTeX styles and template logos at the ZIP root so
+    // the exported project compiles outside PosterApp exactly like it does in
+    // the sandboxed compiler — the .tex references classes/styles (webofc,
+    // acmart, aaai2026, ...) and logos that previously were NOT included, so
+    // any venue template failed out-of-the-box on Overleaf (F-06 fix).
+    const latexStylesDir = path.join(process.cwd(), "public", "latex-styles")
+    try {
+      for (const file of await fs.readdir(latexStylesDir)) {
+        const filePath = path.join(latexStylesDir, file)
+        const stat = await fs.stat(filePath)
+        if (stat.isFile() && /\.(sty|cls|bst|cfg|clo)$/i.test(file)) {
+          zip.file(file, await fs.readFile(filePath))
+        }
+      }
+    } catch (stylesErr) {
+      console.warn("Could not bundle vendored latex styles into export zip:", stylesErr)
+    }
+    const logosDir = path.join(process.cwd(), "public", "logos")
+    try {
+      const logosFolder = zip.folder("logos")
+      for (const file of await fs.readdir(logosDir)) {
+        const filePath = path.join(logosDir, file)
+        const stat = await fs.stat(filePath)
+        if (stat.isFile()) logosFolder?.file(file, await fs.readFile(filePath))
+      }
+    } catch (logosErr) {
+      console.warn("Could not bundle template logos into export zip:", logosErr)
+    }
+
     // Add README.md
     const meta = resolveOutputMetadata(project)
     const readmeContent = `# ${meta.title || workspace.name}
@@ -161,6 +190,8 @@ Exported from PosterApp on ${new Date().toISOString().split("T")[0]}.
 - \`main.tex\` — Full LaTeX document configured for ${activeOutputConfig.outputType} (${activeOutputConfig.templateId})
 - \`references.bib\` — BibTeX citation library
 - \`assets/\` — High-resolution figures, logos, and QR codes
+- \`*.sty / *.cls / *.bst\` (root) — Vendored style/class/bib files so the document compiles anywhere
+- \`logos/\` — Template logos referenced by the document
 
 ## Local Compilation (LaTeX / pdflatex):
 \`\`\`bash

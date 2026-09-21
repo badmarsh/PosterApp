@@ -1,6 +1,7 @@
 import fs from "fs/promises"
 import path from "path"
 import os from "os"
+import crypto from "crypto"
 import { prisma } from "@/lib/prisma"
 import { generateFullTemplate } from "@/lib/latex"
 import { resolveBibSource } from "@/lib/latex/bib-source"
@@ -13,7 +14,12 @@ import type { Card, Project } from "@/lib/poster-types"
 const workspaceCompileLocks = new Map<string, Promise<void>>()
 
 function asProject(workspace: any): Project {
-  const outputs = workspace.outputs.map((output: any) => ({
+  // Deterministic ordering: Prisma relation order is unspecified, and the
+  // "first output" fallback + active-output selection must not flicker
+  // between identical compiles.
+  const outputs = [...workspace.outputs]
+    .sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)))
+    .map((output: any) => ({
     ...output,
     cards: output.cards.map((card: any): Card => ({
       ...card,
@@ -34,6 +40,33 @@ function asProject(workspace: any): Project {
     assets: workspace.assets.map((asset: any) => ({ ...asset, tableRows: asset.tableRows ?? undefined })),
     ingestFiles: [],
   }
+}
+
+/**
+ * Fingerprint of everything besides the cards that influences the compiled
+ * PDF: the resolved BibTeX source and the on-disk assets (name, size, mtime).
+ * The compile cache is only valid when cards/revision AND this fingerprint
+ * match — previously a bibliography-only or image-only change reused a stale
+ * cached PDF.
+ */
+async function computeContentFingerprint(bibContent: string, workspaceId: string): Promise<string> {
+  const hash = crypto.createHash("sha256")
+  hash.update("bib\0").update(bibContent)
+  try {
+    const dir = path.join(WORKSPACES_ROOT, workspaceId, "assets")
+    const names = (await fs.readdir(dir)).sort()
+    for (const name of names) {
+      try {
+        const st = await fs.stat(path.join(dir, name))
+        if (st.isFile()) hash.update(`\0${name}:${st.size}:${Math.trunc(st.mtimeMs)}`)
+      } catch {
+        // file vanished mid-scan; ignore
+      }
+    }
+  } catch {
+    // assets dir may not exist yet
+  }
+  return hash.digest("hex")
 }
 
 export interface CompileWorkspaceOptions {
@@ -106,7 +139,13 @@ export async function compileWorkspace(
     const targetPdf = path.join(targetDir, "main.pdf")
     const cacheMetaPath = path.join(targetDir, "compile-cache.json")
 
-    // Cache check: if the compiled PDF already exists for the exact revision and output configuration, reuse it
+    // Bib source and asset fingerprint must be resolved BEFORE the cache
+    // check — they are part of what the cache validates.
+    const bibContent = resolveBibSource(full, output.cards)
+    const contentHash = await computeContentFingerprint(bibContent, workspaceId)
+
+    // Cache check: if the compiled PDF already exists for the exact
+    // revision + output configuration + bib/assets fingerprint, reuse it
     if (!options.forceRecompile) {
       try {
         const metaRaw = await fs.readFile(cacheMetaPath, "utf8")
@@ -115,7 +154,8 @@ export async function compileWorkspace(
           meta.revision === full.revision &&
           meta.outputId === output.id &&
           meta.templateId === output.templateId &&
-          meta.themeColor === (output.themeColor ?? "")
+          meta.themeColor === (output.themeColor ?? "") &&
+          meta.contentHash === contentHash
         ) {
           const pdfStat = await fs.stat(targetPdf)
           if (pdfStat.size > 0) {
@@ -141,8 +181,7 @@ export async function compileWorkspace(
 
     await fs.writeFile(path.join(stage, "main.tex"), tex, "utf8")
 
-    // Bib source resolution
-    const bibContent = resolveBibSource(full, output.cards)
+    // Bib source already resolved above (needed for the cache fingerprint).
     if (bibContent.trim()) {
       await fs.writeFile(path.join(stage, "references.bib"), bibContent, "utf8")
     }
@@ -233,6 +272,7 @@ export async function compileWorkspace(
             outputId: output.id,
             templateId: output.templateId,
             themeColor: output.themeColor ?? "",
+            contentHash,
             timestamp: compileTimestamp,
             log: safeLog(log),
           }),

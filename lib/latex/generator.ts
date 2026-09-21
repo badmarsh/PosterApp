@@ -138,7 +138,11 @@ export function ensureEncodingPreamble(tex: string, language?: string | null): s
   const lines: string[] = []
   if (!/\\usepackage(\[[^\]]*\])?\{inputenc\}/.test(tex)) lines.push("\\usepackage[utf8]{inputenc}")
   if (!/\\usepackage(\[[^\]]*\])?\{fontenc\}/.test(tex)) lines.push("\\usepackage[T1]{fontenc}")
-  if (!/\\usepackage\{lmodern\}/.test(tex)) lines.push("\\usepackage{lmodern}")
+  // acmart (acm-sigconf template) loads its own font setup (libertine/newtx)
+  // and throwing lmodern on top redefines symbols (\Bbbk & co.) — the document
+  // fails to compile. Leave font selection to the class in that case.
+  const isAcmart = /\\documentclass(\[[^\]]*\])?\{acmart\}/.test(tex)
+  if (!isAcmart && !/\\usepackage\{lmodern\}/.test(tex)) lines.push("\\usepackage{lmodern}")
   if (!/\\usepackage(\[[^\]]*\])?\{babel\}/.test(tex)) {
     // Keep english as the fallback language so \selectlanguage works for mixed abstracts.
     lines.push(babelOpt === "english" ? "\\usepackage[english]{babel}" : `\\usepackage[english,${babelOpt}]{babel}`)
