@@ -126,7 +126,10 @@ function generateMetricHero(card: Card, _templateId = ""): string {
   if (items.length > 0) {
     let tileWidth = "0.94"
     if (items.length === 2) tileWidth = "0.46"
-    else if (items.length >= 3) tileWidth = "0.28"
+    else if (items.length === 3) tileWidth = "0.28"
+    // >3 items are laid out as rows of 2 below, so use the two-column width;
+    // 0.28 made them cramped slivers with huge gaps.
+    else if (items.length > 3) tileWidth = "0.46"
 
     const tileSnippets = items.map((item) => {
       const formattedVal = parseMarkdownToLatex(item.value)
@@ -215,8 +218,11 @@ export class TikzPosterGenerator implements LatexGenerator {
   }
 
   generateDocument(project: Project, outputConfig: OutputConfig, workspaceId = ""): string {
+    // Cards must come from outputConfig — the caller has already selected the
+    // exact output being generated. Reading project.activeOutputId here meant
+    // generating a non-active output silently produced the active one's PDF.
     const usedKeys = new Set<string>()
-    for (const card of (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])) {
+    for (const card of outputConfig.cards) {
       const textParts = [card.content]
       if (card.table?.caption) textParts.push(card.table.caption)
       if (Array.isArray(card.figures)) card.figures.forEach(f => { if (f?.caption) textParts.push(f.caption) })
@@ -225,7 +231,7 @@ export class TikzPosterGenerator implements LatexGenerator {
     const usedKeysArray = Array.from(usedKeys)
 
     const budget = columnBudgetFor(this.templateId)
-    const activeCards = project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []
+    const activeCards = outputConfig.cards
 
     const columns = [1, 2, 3]
       .map((col) => {

@@ -252,6 +252,7 @@ export const PATTERNS_FOR_TYPE: Record<OutputType, { id: string; label: string; 
     { id: "title-slide", label: "Title slide", description: "Title page with authors and venue." },
     { id: "bullets", label: "Bullet points", description: "Standard bullet-point slide." },
     { id: "bullets-image", label: "Bullets + image", description: "Bullets on one side, image on the other." },
+    { id: "bullets-table", label: "Bullets + table", description: "Bullet points followed by a compact comparison table." },
     { id: "figure-slide", label: "Full figure", description: "A slide dominated by a single figure." },
     { id: "two-column", label: "Two-column", description: "Split slide with two content columns." },
     { id: "references", label: "References", description: "Bibliography slide." },
@@ -300,7 +301,7 @@ export const LAYOUT_CONSTRAINTS: Record<OutputType, LayoutConstraints> = {
     columnCount: 1,
     columnBudget: 400,
     maxCharsPerCard: 180,
-    defaultCardCount: 12,
+    defaultCardCount: 7,
   },
   paper: {
     outputType: "paper",

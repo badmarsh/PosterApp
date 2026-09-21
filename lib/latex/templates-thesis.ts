@@ -120,6 +120,7 @@ export interface ThesisReviewLabels {
   recommendationLabel: string
   signatureLabel: string
   dateLabel: string
+  academicYearLabel: string
   thesisTypes: { bachelor: string; master: string; phd: string }
   roles: { supervisor: string; opponent: string; self?: string; reviewer?: string; [key: string]: string | undefined }
 }
@@ -146,6 +147,7 @@ export const THESIS_REVIEW_LABELS: Record<ReportLanguage, ThesisReviewLabels> = 
     recommendationLabel: "Odporúčanie",
     signatureLabel: "Podpis hodnotiteľa/ky",
     dateLabel: "Dátum",
+    academicYearLabel: "Akademický rok",
     thesisTypes: { bachelor: "Bakalárska práca", master: "Diplomová práca", phd: "Dizertačná práca" },
     roles: { supervisor: "Vedúci/a práce", opponent: "Oponent/ka", self: "Predkonzultačný rozbor", reviewer: "Recenzent" },
   },
@@ -170,6 +172,7 @@ export const THESIS_REVIEW_LABELS: Record<ReportLanguage, ThesisReviewLabels> = 
     recommendationLabel: "Doporučení",
     signatureLabel: "Podpis hodnotitele/ky",
     dateLabel: "Datum",
+    academicYearLabel: "Akademický rok",
     thesisTypes: { bachelor: "Bakalářská práce", master: "Diplomová práce", phd: "Dizertační práce" },
     roles: { supervisor: "Vedoucí práce", opponent: "Oponent/ka", self: "Předkonzultační rozbor", reviewer: "Recenzent" },
   },
@@ -194,6 +197,7 @@ export const THESIS_REVIEW_LABELS: Record<ReportLanguage, ThesisReviewLabels> = 
     recommendationLabel: "Recommendation",
     signatureLabel: "Reviewer's signature",
     dateLabel: "Date",
+    academicYearLabel: "Academic year",
     thesisTypes: { bachelor: "Bachelor's thesis", master: "Master's thesis", phd: "PhD dissertation" },
     roles: { supervisor: "Supervisor", opponent: "Opponent", self: "Pre-consultation triage", reviewer: "Reviewer" },
   },
@@ -218,6 +222,7 @@ export const THESIS_REVIEW_LABELS: Record<ReportLanguage, ThesisReviewLabels> = 
     recommendationLabel: "Empfehlung",
     signatureLabel: "Unterschrift des Gutachters/der Gutachterin",
     dateLabel: "Datum",
+    academicYearLabel: "Akademisches Jahr",
     thesisTypes: { bachelor: "Bachelorarbeit", master: "Masterarbeit", phd: "Dissertation" },
     roles: { supervisor: "Betreuer/in", opponent: "Zweitgutachter/in", self: "Vorbegutachtung", reviewer: "Gutachter/in" },
   },
@@ -242,6 +247,7 @@ export const THESIS_REVIEW_LABELS: Record<ReportLanguage, ThesisReviewLabels> = 
     recommendationLabel: "Rekomendacja",
     signatureLabel: "Podpis recenzenta/ki",
     dateLabel: "Data",
+    academicYearLabel: "Rok akademicki",
     thesisTypes: { bachelor: "Praca licencjacka", master: "Praca magisterska", phd: "Rozprawa doktorska" },
     roles: { supervisor: "Promotor/ka", opponent: "Recenzent/ka", self: "Analiza wstępna", reviewer: "Recenzent/ka" },
   },
@@ -266,6 +272,7 @@ export const THESIS_REVIEW_LABELS: Record<ReportLanguage, ThesisReviewLabels> = 
     recommendationLabel: "Ajánlás",
     signatureLabel: "A bíráló aláírása",
     dateLabel: "Dátum",
+    academicYearLabel: "Tanév",
     thesisTypes: { bachelor: "Szakdolgozat (BSc/BA)", master: "Diplomamunka (MSc/MA)", phd: "Doktori értekezés" },
     roles: { supervisor: "Témavezető", opponent: "Opponens", self: "Előzetes elemzés", reviewer: "Bíráló" },
   },

@@ -57,6 +57,10 @@ export async function GET(
       include: {
         outputs: {
           include: { cards: true },
+          // Deterministic ordering — Postgres does not guarantee row order
+          // without ORDER BY, which made the outputs list (and any default
+          // selection downstream of it) flicker between requests.
+          orderBy: { createdAt: "asc" },
         },
         assets: true,
         ingestFiles: true,

@@ -39,6 +39,44 @@ describe("LaTeX Parser", () => {
   })
 })
 
+describe("escapeLatex single-pass (F-01)", () => {
+  it("escapes a raw backslash exactly once (no brace corruption)", () => {
+    // Chained .replace() passes previously re-escaped the braces inside the
+    // `\textbackslash{}` replacement itself, yielding `\textbackslash\{\}`.
+    expect(escapeLatex("C:\\path\\to")).toBe("C:\\textbackslash{}path\\textbackslash{}to")
+    expect(escapeLatex("\\\\")).toBe("\\textbackslash{}\\textbackslash{}")
+  })
+
+  it("escapes angle brackets as textless/textgreater", () => {
+    expect(escapeLatex("a < 5 && b > 3")).toBe("a \\textless{} 5 \\&\\& b \\textgreater{} 3")
+  })
+
+  it("escapes braces independently of backslash replacement output", () => {
+    expect(escapeLatex("{x} \\ {y}")).toBe("\\{x\\} \\textbackslash{} \\{y\\}")
+  })
+})
+
+describe("mapUnicodeToLatex (F-02)", () => {
+  it("maps common math symbols to base-LaTeX math commands", () => {
+    expect(parseMarkdownToLatex("∑ f(x) = ∞·α")).toBe("$\\sum$ f(x) = $\\infty$$\\cdot$$\\alpha$")
+    expect(parseMarkdownToLatex("∀x ∃y")).toBe("$\\forall$x $\\exists$y")
+    expect(parseMarkdownToLatex("⟨ψ|φ⟩")).toBe("$\\langle$$\\psi$|$\\phi$$\\rangle$")
+  })
+
+  it("maps subscripts and division", () => {
+    expect(parseMarkdownToLatex("H₂O ÷ 2")).toBe("H$_2$O $\\div$ 2")
+  })
+
+  it("maps textcomp symbols", () => {
+    expect(parseMarkdownToLatex("© 2026 €5™")).toBe("\\textcopyright{} 2026 \\texteuro{}5\\texttrademark{}")
+  })
+
+  it("strips emoji instead of producing inputenc failures", () => {
+    expect(parseMarkdownToLatex("Great 🚀 paper! 🎉")).toBe("Great  paper! ")
+    expect(parseMarkdownToLatex("✅ done ⚠️")).toBe(" done ")
+  })
+})
+
 describe("markdown link URLs (A-02)", () => {
   it("does not escape LaTeX specials inside the href target", () => {
     const out = parseMarkdownToLatex("See [Paper](https://ex.com/a_b?x=1&y=2#sec)")

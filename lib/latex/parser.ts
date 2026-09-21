@@ -125,19 +125,34 @@ function restoreLinks(text: string, slots: Slot[]): string {
   return result
 }
 
+/**
+ * Single-pass escaper. Every special character is consumed exactly once by a
+ * single regex, so replacements are never re-scanned: a literal backslash maps
+ * straight to `\textbackslash{}` and the braces the replacement itself
+ * introduces cannot be escaped again into the corrupt `\textbackslash\{\}`
+ * the previous chained `.replace()` sequence produced (`\\` is escaped before
+ * `[{}]` — chained passes always re-scan their own output).
+ * `<`/`>` are included because they typeset as inverted ¡/¿ glyphs in T1 text
+ * fonts, silently mangling math written outside $...$.
+ */
+const LATEX_SPECIALS: Record<string, string> = {
+  "\\": "\\textbackslash{}",
+  "{": "\\{",
+  "}": "\\}",
+  $: "\\$",
+  "&": "\\&",
+  "%": "\\%",
+  "#": "\\#",
+  _: "\\_",
+  "~": "\\textasciitilde{}",
+  "^": "\\textasciicircum{}",
+  "<": "\\textless{}",
+  ">": "\\textgreater{}",
+}
+
 export function escapeLatex(input: string): string {
   const decoded = decodeHtmlEntities(input)
-  let text = decoded
-    .replace(/\\/g, "\\textbackslash{}")
-    .replace(/[{}]/g, (char) => char === "{" ? "\\{" : "\\}")
-    .replace(/\$/g, "\\$")
-    .replace(/&/g, "\\&")
-    .replace(/%/g, "\\%")
-    .replace(/#/g, "\\#")
-    .replace(/_/g, "\\_")
-    .replace(/~/g, "\\textasciitilde{}")
-    .replace(/\^/g, "\\textasciicircum{}")
-
+  const text = decoded.replace(/[\\{}$&%#_~^<>]/g, (char) => LATEX_SPECIALS[char])
   return mapUnicodeToLatex(text)
 }
 
@@ -155,13 +170,17 @@ export function escapeLatex(input: string): string {
  * introduces are not themselves escaped.
  */
 export function mapUnicodeToLatex(input: string): string {
-  let text = input
+  // Emoji and pictographs have no pdflatex representation at all; leaving one
+  // in is a hard inputenc compile failure, so strip them outright.
+  let text = input.replace(/([\u{1F000}-\u{1FAFF}]|[\u2600-\u26FF]|[\u2700-\u27BF]|\uFE0F|\u200D)/gu, "")
   const unicodeMap: Record<string, string> = {
     "⁰": "$^0$", "¹": "$^1$", "²": "$^2$", "³": "$^3$", "⁴": "$^4$",
     "⁵": "$^5$", "⁶": "$^6$", "⁷": "$^7$", "⁸": "$^8$", "⁹": "$^9$",
     "⁺": "$^+$", "⁻": "$^-$", "⁼": "$^=$", "⁽": "$^($", "⁾": "$^)$",
+    "₀": "$_0$", "₁": "$_1$", "₂": "$_2$", "₃": "$_3$", "₄": "$_4$",
+    "₅": "$_5$", "₆": "$_6$", "₇": "$_7$", "₈": "$_8$", "₉": "$_9$",
     "°": "$^\\circ$", "–": "--", "—": "---", "’": "'", "‘": "`", "“": "``", "”": "''",
-    "≤": "$\\le$", "≥": "$\\ge$", "×": "$\\times$", "±": "$\\pm$", "≈": "$\\approx$", "≠": "$\\neq$",
+    "≤": "$\\le$", "≥": "$\\ge$", "×": "$\\times$", "÷": "$\\div$", "±": "$\\pm$", "≈": "$\\approx$", "≠": "$\\neq$",
     "µ": "$\\mu$", "α": "$\\alpha$", "β": "$\\beta$", "γ": "$\\gamma$", "δ": "$\\delta$",
     "ε": "$\\epsilon$", "ϵ": "$\\epsilon$", "ζ": "$\\zeta$", "η": "$\\eta$", "θ": "$\\theta$", "κ": "$\\kappa$",
     "λ": "$\\lambda$", "μ": "$\\mu$", "ν": "$\\nu$", "ξ": "$\\xi$", "π": "$\\pi$", "ρ": "$\\rho$", "σ": "$\\sigma$",
@@ -169,7 +188,27 @@ export function mapUnicodeToLatex(input: string): string {
     "Γ": "$\\Gamma$", "Δ": "$\\Delta$", "Θ": "$\\Theta$", "Λ": "$\\Lambda$", "Ξ": "$\\Xi$", "Π": "$\\Pi$",
     "Σ": "$\\Sigma$", "Φ": "$\\Phi$", "Ψ": "$\\Psi$", "Ω": "$\\Omega$",
     "→": "$\\to$", "←": "$\\gets$", "↔": "$\\leftrightarrow$", "⇒": "$\\Rightarrow$", "⇐": "$\\Leftarrow$",
-    "∈": "$\\in$", "∉": "$\\notin$", "⊂": "$\\subset$", "⊆": "$\\subseteq$", "∩": "$\\cap$", "∪": "$\\cup$"
+    "↑": "$\\uparrow$", "↓": "$\\downarrow$", "↕": "$\\updownarrow$",
+    "↦": "$\\mapsto$", "⟶": "$\\longrightarrow$", "⟵": "$\\longleftarrow$",
+    "∈": "$\\in$", "∉": "$\\notin$", "⊂": "$\\subset$", "⊆": "$\\subseteq$", "∩": "$\\cap$", "∪": "$\\cup$",
+    // Operators & relations extended in 2026-09 audit fixes (F-02).
+    // Every command here is available in base LaTeX math mode — deliberately
+    // nothing from amssymb/esint/etc., because symbols shared across all 25
+    // templates must not depend on packages individual classes may clash with.
+    "∑": "$\\sum$", "∏": "$\\prod$", "∫": "$\\int$", "∮": "$\\oint$", "∞": "$\\infty$",
+    "∂": "$\\partial$", "∇": "$\\nabla$", "√": "$\\sqrt{}$", "ℏ": "$\\hbar$", "ℓ": "$\\ell$",
+    "⊕": "$\\oplus$", "⊗": "$\\otimes$", "⊖": "$\\ominus$", "⊘": "$\\oslash$",
+    "≪": "$\\ll$", "≫": "$\\gg$", "·": "$\\cdot$", "∝": "$\\propto$",
+    "∘": "$\\circ$", "∼": "$\\sim$", "≃": "$\\simeq$", "≅": "$\\cong$", "≡": "$\\equiv$",
+    "⊥": "$\\perp$", "∥": "$\\parallel$",
+    "⌊": "$\\lfloor$", "⌋": "$\\rfloor$", "⌈": "$\\lceil$", "⌉": "$\\rceil$",
+    "⟨": "$\\langle$", "⟩": "$\\rangle$",
+    "∀": "$\\forall$", "∃": "$\\exists$", "∅": "$\\emptyset$",
+    // Text-mode symbols available via kernel-included textcomp (T1). Note:
+    // § and ¶ are deliberately NOT mapped — inputenc[utf8] typesets them
+    // correctly and users/tests expect them to pass through verbatim.
+    "†": "\\textdagger{}", "‡": "\\textdaggerdbl{}",
+    "©": "\\textcopyright{}", "®": "\\textregistered{}", "™": "\\texttrademark{}", "€": "\\texteuro{}",
   }
   for (const [char, repl] of Object.entries(unicodeMap)) {
     text = text.split(char).join(repl)

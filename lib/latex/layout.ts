@@ -82,7 +82,24 @@ export function estimateHeightBreakdown(card: Card): HeightBreakdown {
   if (card.pattern === "title-slide") chrome += 30
 
   if (card.pattern === "stats" || card.pattern === "metric-card") {
-    return { total: chrome + 120, chrome, prose: 0, bullets: 0, table: 0, figures: 120 }
+    // The metric hero itself costs ~120u. The poster generator ALSO renders
+    // an optional table and optional figures for this pattern — the previous
+    // fixed estimate ignored both, so a stats card carrying a big table could
+    // overflow a column without a single over-budget warning.
+    const metricHero = 120
+    let table = 0
+    const tableRows = Array.isArray(card.table?.rows) ? card.table.rows.length : 0
+    if (tableRows > 0) table = 30 + tableRows * TABLE_ROW_UNIT
+    const figureCount = (card.figures ?? []).filter((f) => Boolean(f?.url?.trim())).length
+    const figures = figureCount >= 2 ? 150 : figureCount === 1 ? 190 : 0
+    return {
+      total: chrome + metricHero + table + figures,
+      chrome,
+      prose: 0,
+      bullets: 0,
+      table,
+      figures: metricHero + figures,
+    }
   }
 
   if (card.pattern === "references") {

@@ -767,8 +767,9 @@ export function getEpjWocTemplate(project: Project): string {
   return `
 % [AI-CONTEXT] You are inside an EPJ Web of Conferences document.
 % Use standard \\section{}, \\subsection{} commands.
-\\documentclass[option]{webofc}
+\\documentclass{webofc}
 \\usepackage[varg]{txfonts}
+\\usepackage{amsmath}
 \\usepackage{graphicx}
 \\usepackage{booktabs}
 
