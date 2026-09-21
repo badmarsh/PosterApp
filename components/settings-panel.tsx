@@ -745,6 +745,11 @@ function getCategoryBadge(category: AiRoleMeta["category"]) {
 
 const ENDPOINT_PRESETS = [
   {
+    name: "OpenCodeX Proxy",
+    baseUrl: "http://localhost:10100/v1",
+    desc: "Lokálne proxy — Gemini 3.8 Flash, Claude 4.6 Sonnet/Opus",
+  },
+  {
     name: "OpenRouter",
     baseUrl: "https://openrouter.ai/api/v1",
     desc: "Claude 3.5, GPT-4o, DeepSeek, Qwen, Gemini",

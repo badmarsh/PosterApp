@@ -33,6 +33,7 @@ export const COLUMN_BUDGET_BY_TEMPLATE: Record<string, number> = {
   minimal: 900,
   tikzposter: 900,
   gemini: 900,
+  conference: 900,
   // a0poster uses multicols at a smaller base font, so more fits per column
   a0poster: 1000,
   // A0 landscape: shorter columns

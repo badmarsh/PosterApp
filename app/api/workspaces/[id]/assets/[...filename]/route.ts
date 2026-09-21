@@ -1,3 +1,4 @@
+import { isDemoProject } from "@/lib/mock-data"
 import { NextResponse } from "next/server"
 import * as fs from "fs/promises"
 import { createReadStream } from "fs"

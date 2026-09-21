@@ -204,7 +204,7 @@ export class StandardPaperGenerator implements LatexGenerator {
     let injectElsarticleAbstract = ""
     const bibStyle = BIBSTYLE_BY_TEMPLATE[this.templateId] ?? "plain"
     let contentBlocks = ""
-    if (this.templateId === "acm-sigconf") {
+    if (this.templateId === "acm-sigconf" || this.templateId === "revtex-aps") {
       const abstractCard = sortedCards.find(c => c.title.trim().toLowerCase() === "abstract" || (c.pattern as string) === "abstract")
       const otherCards = sortedCards.filter(c => c !== abstractCard)
       const abstractTex = abstractCard ? generateLatexForCard(abstractCard, workspaceId, usedKeysArray, isTwoColumn, bibStyle) : ""

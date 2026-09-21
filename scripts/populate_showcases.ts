@@ -272,7 +272,7 @@ Multi-head attention allows the model to jointly attend to information from diff
   const ws2Cards = [
     // Column 1
     {
-      id: 'res_c1_degradation',
+      id: 'card_res_c1_degradation',
       outputId: out2.id,
       title: 'The Degradation Problem',
       column: 1,
@@ -295,7 +295,7 @@ Multi-head attention allows the model to jointly attend to information from diff
       sourceIds: [],
     },
     {
-      id: 'res_c1_residual_learning',
+      id: 'card_res_c1_residual_learning',
       outputId: out2.id,
       title: 'Residual Learning Formulation',
       column: 1,
@@ -323,7 +323,7 @@ $$\\mathcal{F}(x) := \\mathcal{H}(x) - x \\quad \\Longrightarrow \\quad \\mathca
 
     // Column 2
     {
-      id: 'res_c2_arch_table',
+      id: 'card_res_c2_arch_table',
       outputId: out2.id,
       title: 'Network Architectures & Efficiency',
       column: 2,
@@ -351,7 +351,7 @@ $$\\mathcal{F}(x) := \\mathcal{H}(x) - x \\quad \\Longrightarrow \\quad \\mathca
       sourceIds: [],
     },
     {
-      id: 'res_c2_gradient_flow',
+      id: 'card_res_c2_gradient_flow',
       outputId: out2.id,
       title: 'Skip-Connection Gradient Dynamics',
       column: 2,
@@ -373,7 +373,7 @@ $$\\frac{\\partial \\mathcal{E}}{\\partial x_l} = \\frac{\\partial \\mathcal{E}}
 
     // Column 3
     {
-      id: 'res_c3_hero_stats',
+      id: 'card_res_c3_hero_stats',
       outputId: out2.id,
       title: 'ILSVRC & COCO 2015 Sweeping Victory',
       column: 3,
@@ -397,7 +397,7 @@ $$\\frac{\\partial \\mathcal{E}}{\\partial x_l} = \\frac{\\partial \\mathcal{E}}
       sourceIds: [],
     },
     {
-      id: 'res_c3_coco_detection',
+      id: 'card_res_c3_coco_detection',
       outputId: out2.id,
       title: 'Generalization & Visual Recognition',
       column: 3,
@@ -415,7 +415,7 @@ $$\\frac{\\partial \\mathcal{E}}{\\partial x_l} = \\frac{\\partial \\mathcal{E}}
       sourceIds: [],
     },
     {
-      id: 'res_c3_legacy',
+      id: 'card_res_c3_legacy',
       outputId: out2.id,
       title: 'Legacy: The Backbone of Modern AI',
       column: 3,

@@ -3,11 +3,14 @@
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api-fetch"
 import { TEMPLATE_REGISTRY as TEMPLATES } from "@/lib/output-types"
-import { FolderOpen, Plus, FlaskConical, Copy, Check, AlertCircle } from "lucide-react"
+import { FolderOpen, Plus, FlaskConical, Sparkles, Copy, Check, AlertCircle } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { ResearchLabTemplates, type ScientificTask } from "@/components/research-lab-templates"
+import { ShowcaseGallery } from "@/components/showcase-gallery"
+import { ALL_SHOWCASE_PROJECTS } from "@/lib/showcases-data"
+import type { Project } from "@/lib/poster-types"
 import { AGENT_SCOPE_PRESETS, buildDeerFlowLaunchBundle } from "@/lib/agent-launch"
 
 import {
@@ -38,7 +41,7 @@ export function WorkspaceSelector({
   onClose: () => void
   initialCreating?: boolean
 }) {
-  const [activeTab, setActiveTab] = useState<"workspaces" | "research-lab">("workspaces")
+  const [activeTab, setActiveTab] = useState<"workspaces" | "showcases" | "research-lab">("workspaces")
   const [workspaces, setWorkspaces] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -171,6 +174,70 @@ export function WorkspaceSelector({
     }
   }
 
+    const handleDuplicateShowcase = async (showcase: Project) => {
+    setIsSubmitting(true)
+    setCreateError(null)
+    try {
+      const suffix = Date.now().toString(36).slice(-4)
+      const cleanBase = showcase.id.replace(/^demo_/, "").replace(/[^a-zA-Z0-9_-]/g, "-")
+      const newId = (cleanBase + "-copy-" + suffix).slice(0, 64)
+      const newName = showcase.name + " (Kópia)"
+      const activeOut = showcase.outputs.find(o => o.id === showcase.activeOutputId) || showcase.outputs[0]
+
+      const res = await apiFetch("/api/workspaces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: newId,
+          name: newName,
+          outputType: activeOut?.outputType ?? "poster",
+          templateId: activeOut?.templateId ?? "atlas",
+        }),
+      })
+
+      if (!res.ok) {
+        toast.info("Ukážka otvorená v demo režime")
+        onSelect(showcase.id)
+        onClose()
+        return
+      }
+
+      const created = await res.json() as { revision?: number }
+
+      const outputs = showcase.outputs.map((o, i) => ({
+        ...o,
+        id: "out_" + o.outputType + "_" + suffix + "_" + i,
+        cards: (o.cards || []).map((card, j) => ({
+          ...card,
+          id: "card_" + suffix + "_" + i + "_" + j,
+          figures: card.figures ?? [],
+        })),
+      }))
+
+      await apiFetch("/api/workspaces/" + newId, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newName,
+          authors: showcase.authors,
+          venue: showcase.venue,
+          outputs,
+          activeOutputId: outputs[0]?.id,
+          expectedRevision: created.revision ?? 0,
+        }),
+      })
+
+      toast.success(`Ukážka duplikovaná ako "${newName}"`)
+      onSelect(newId)
+      onClose()
+    } catch (err: any) {
+      console.error("Duplicate showcase failed:", err)
+      onSelect(showcase.id)
+      onClose()
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
   const handleLaunchLabTask = async (task: ScientificTask) => {
     setIsSubmitting(true)
     setCreateError(null)
@@ -328,7 +395,9 @@ export function WorkspaceSelector({
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent
         className={
-          activeTab === "research-lab"
+          activeTab === "showcases"
+            ? "z-[60] w-[96vw] max-w-[1560px] sm:max-w-[96vw] lg:max-w-[96vw] 2xl:max-w-[1560px] h-[92vh] max-h-[92vh] flex flex-col p-6 overflow-hidden"
+            : activeTab === "research-lab"
             ? "z-[60] sm:max-w-4xl lg:max-w-5xl max-h-[92vh] flex flex-col p-6"
             : "z-[60] sm:max-w-md"
         }
@@ -338,12 +407,10 @@ export function WorkspaceSelector({
           <div className="flex items-center justify-between pr-6">
             <div>
               <DialogTitle>
-                {activeTab === "research-lab" ? "Research Lab Templates" : "Select a Workspace"}
+                {activeTab === "research-lab" ? "Research Lab Templates" : activeTab === "showcases" ? "Vedecké ukážky & Demos" : "Select a Workspace"}
               </DialogTitle>
               <DialogDescription>
-                {activeTab === "research-lab"
-                  ? "Long-horizon scientific task protocols designed for autonomous DeerFlow execution."
-                  : "Open an existing project or create a new one."}
+                {activeTab === "research-lab" ? "Long-horizon scientific task protocols designed for autonomous DeerFlow execution." : activeTab === "showcases" ? "Preskúmajte špičkové vedecké ukážky (CERN ATLAS, SurgiVLA, Kvantové počítače, AlphaFold 2, Cas13, NeurIPS/CVPR, Posudky) s hotovým LaTeXom." : "Open an existing project or create a new one."}
               </DialogDescription>
             </div>
           </div>
@@ -368,6 +435,22 @@ export function WorkspaceSelector({
                 {workspaces.length}
               </span>
             )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("showcases")}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer",
+              activeTab === "showcases"
+                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold shadow-xs ring-1 ring-amber-500/20"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+          >
+            <Sparkles className="size-3.5 text-amber-500" />
+            Ukážky & Demos
+            <span className="ml-1 rounded-full bg-muted-foreground/15 text-muted-foreground px-1.5 py-0.2 text-[10px]">
+              {ALL_SHOWCASE_PROJECTS.length}
+            </span>
           </button>
           <button
             type="button"
@@ -438,7 +521,18 @@ export function WorkspaceSelector({
           </div>
         )}
 
-        {activeTab === "research-lab" ? (
+        {activeTab === "showcases" ? (
+          <div className="flex-1 overflow-hidden min-h-0 pt-1.5 flex flex-col">
+            <ShowcaseGallery
+              onSelectShowcase={(id) => {
+                onSelect(id)
+                onClose()
+              }}
+              onDuplicateShowcase={handleDuplicateShowcase}
+              isDuplicating={isSubmitting}
+            />
+          </div>
+        ) : activeTab === "research-lab" ? (
           <div className="flex-1 overflow-hidden min-h-0 pt-1">
             <ResearchLabTemplates
               onLaunchTask={handleLaunchLabTask}
@@ -524,6 +618,10 @@ export function WorkspaceSelector({
                       <Button size="sm" className="gap-1.5" onClick={() => setIsCreating(true)}>
                         <Plus className="size-3.5" />
                         Create blank workspace
+                      </Button>
+                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setActiveTab("showcases")}>
+                        <Sparkles className="size-3.5 text-amber-500" />
+                        Ukážky & Demos
                       </Button>
                       <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setActiveTab("research-lab")}>
                         <FlaskConical className="size-3.5 text-primary" />

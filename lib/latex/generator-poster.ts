@@ -1,7 +1,7 @@
 import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
-import { getAtlasTemplate, getMinimalTemplate, getGeminiTemplate, getTikzposterTemplate, getA0PosterTemplate, getLandscapeTemplate, getBetterPosterTemplate } from "./templates"
+import { getAtlasTemplate, getMinimalTemplate, getGeminiTemplate, getTikzposterTemplate, getA0PosterTemplate, getLandscapeTemplate, getBetterPosterTemplate, getConferenceTemplate } from "./templates"
 import type { LatexGenerator } from "./types"
 import { indent, assetUrlToLatexPath, normalizeLatexPath, cleanCaption } from "./helpers"
 import { columnBudgetFor, estimateHeight } from "./layout"
@@ -126,10 +126,8 @@ function generateMetricHero(card: Card, _templateId = ""): string {
   if (items.length > 0) {
     let tileWidth = "0.94"
     if (items.length === 2) tileWidth = "0.46"
-    else if (items.length === 3) tileWidth = "0.28"
-    // >3 items are laid out as rows of 2 below, so use the two-column width;
-    // 0.28 made them cramped slivers with huge gaps.
-    else if (items.length > 3) tileWidth = "0.46"
+    else if (items.length === 3) tileWidth = "0.29"
+    else if (items.length >= 4) tileWidth = "0.46"
 
     const tileSnippets = items.map((item) => {
       const formattedVal = parseMarkdownToLatex(item.value)
@@ -140,7 +138,7 @@ function generateMetricHero(card: Card, _templateId = ""): string {
         ? "\\par\\vspace{0.2ex}\n    {\\small\\color{black!75} " + formattedSub + "}"
         : ""
 
-      return "\\fcolorbox{customaccent!30}{customaccent!6}{%\n  \\begin{minipage}{" + tileWidth + "\\linewidth}\n    \\centering\\vspace{0.4ex}\n    {\\Huge\\bfseries\\color{customaccent} " + formattedVal + "}\\par\\vspace{0.3ex}\n    {\\large\\bfseries " + formattedLabel + "}" + subLine + "\\vspace{0.4ex}\n  \\end{minipage}%\n}"
+      return "\\fcolorbox{customaccent!30}{customaccent!6}{%\n  \\begin{minipage}{" + tileWidth + "\\linewidth}\n    \\centering\\vspace{0.4ex}\n    {\\Huge\\bfseries\\color{customaccent} \\fitstat{" + formattedVal + "}}\\par\\vspace{0.3ex}\n    {\\large\\bfseries " + formattedLabel + "}" + subLine + "\\vspace{0.4ex}\n  \\end{minipage}%\n}"
     })
 
     if (items.length <= 3) {
@@ -218,11 +216,8 @@ export class TikzPosterGenerator implements LatexGenerator {
   }
 
   generateDocument(project: Project, outputConfig: OutputConfig, workspaceId = ""): string {
-    // Cards must come from outputConfig — the caller has already selected the
-    // exact output being generated. Reading project.activeOutputId here meant
-    // generating a non-active output silently produced the active one's PDF.
     const usedKeys = new Set<string>()
-    for (const card of outputConfig.cards) {
+    for (const card of (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])) {
       const textParts = [card.content]
       if (card.table?.caption) textParts.push(card.table.caption)
       if (Array.isArray(card.figures)) card.figures.forEach(f => { if (f?.caption) textParts.push(f.caption) })
@@ -231,7 +226,7 @@ export class TikzPosterGenerator implements LatexGenerator {
     const usedKeysArray = Array.from(usedKeys)
 
     const budget = columnBudgetFor(this.templateId)
-    const activeCards = outputConfig.cards
+    const activeCards = project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []
 
     const columns = [1, 2, 3]
       .map((col) => {
@@ -255,7 +250,7 @@ export class TikzPosterGenerator implements LatexGenerator {
           return "% ===== Column " + col + " =====\n" + blocks
         }
         if (this.templateId === "betterposter") {
-          const width = col === 2 ? "0.46" : "0.24"
+          const width = col === 2 ? "0.42" : "0.28"
           return "% ===== Column " + col + " =====\n\\column{" + width + "}\n\n" + blocks
         }
         return "% ===== Column " + col + " =====\n\\column{0.333}\n\n" + blocks
@@ -271,6 +266,9 @@ export class TikzPosterGenerator implements LatexGenerator {
     switch (outputConfig.templateId?.toLowerCase()) {
       case "minimal":
         templateContent = getMinimalTemplate(project, themeColor);
+        break;
+      case "conference":
+        templateContent = getConferenceTemplate(project, themeColor);
         break;
       case "gemini":
         templateContent = getGeminiTemplate(project, themeColor);

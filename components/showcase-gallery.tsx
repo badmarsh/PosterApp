@@ -1,0 +1,674 @@
+"use client"
+
+import React, { useState, useMemo } from "react"
+import {
+  Sparkles,
+  Search,
+  X,
+  Atom,
+  Cpu,
+  Dna,
+  Layers,
+  GraduationCap,
+  Copy,
+  ExternalLink,
+  FileText,
+  Presentation,
+  Award,
+  Box,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
+import { ALL_SHOWCASE_PROJECTS, SHOWCASE_CATEGORIES, ELITE_SHOWCASES } from "@/lib/showcases-data"
+import type { Project } from "@/lib/poster-types"
+
+interface ShowcaseGalleryProps {
+  onSelectShowcase: (id: string) => void
+  onDuplicateShowcase?: (project: Project) => void
+  isDuplicating?: boolean
+}
+
+type PreviewMode = "mockup" | "triad" | "poster" | "slides" | "paper"
+
+function getMockupPath(showcaseId: string): string {
+  switch (showcaseId) {
+    case "vla-autonomous-surgery":
+      return "/showcases/mockups/mockup-medical-robotics.png"
+    case "jwst-gravitational-lensing":
+      return "/showcases/mockups/mockup-astrophysics-jwst.png"
+    case "atlas-bose-einstein-correlations":
+    case "neural-wavefunction-superconductors":
+    case "quantum-supremacy-sycamore":
+      return "/showcases/mockups/mockup-physics-quantum.png"
+    case "speculative-decoding-guarantees":
+    case "attention-is-all-you-need":
+    case "bert-pre-training":
+    case "gans-goodfellow-2014":
+    case "resnet-deep-residual-learning":
+      return "/showcases/mockups/mockup-ai-foundations.png"
+    case "alphafold-protein-folding":
+    case "cas13-panviral-immunity":
+    case "posudok-diplomovka-ai":
+    default:
+      return "/showcases/mockups/mockup-universal-suite.png"
+  }
+}
+
+function getTemplateMeta(templateId?: string) {
+  switch (templateId) {
+    case "betterposter":
+      return {
+        label: "Morrison BetterPoster",
+        desc: "Dominantný stredový záver (50%) + bočné stĺpce",
+        colorClass: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+      }
+    case "atlas":
+      return {
+        label: "CERN ATLAS",
+        desc: "Dvojité inštitucionálne logá + zaoblená hlavička",
+        colorClass: "text-rose-500 bg-rose-500/10 border-rose-500/20",
+      }
+    case "conference":
+      return {
+        label: "Conference Modern",
+        desc: "Vysoko-kontrastné karty + hero stat callouts",
+        colorClass: "text-sky-500 bg-sky-500/10 border-sky-500/20",
+      }
+    case "gemini":
+      return {
+        label: "Beamerposter Gemini",
+        desc: "Plochý konferenčný layout s Beamer blokmi",
+        colorClass: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
+      }
+    case "minimal":
+      return {
+        label: "Minimal Blue",
+        desc: "Čisté bezlogové bloky, klasický akademický vzhľad",
+        colorClass: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+      }
+    case "posudok-sk":
+    case "posudok-cs":
+    case "posudok-en":
+      return {
+        label: "Oficiálny posudok",
+        desc: "Univerzitná hlavička, tabuľka kritérií a otázky",
+        colorClass: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+      }
+    default:
+      return {
+        label: templateId || "Šablóna",
+        desc: "Štandardné rozvrhnutie",
+        colorClass: "text-muted-foreground bg-muted border-border/40",
+      }
+  }
+}
+
+function ShowcaseCard({
+  showcase,
+  eliteData,
+  onSelect,
+  onDuplicate,
+  isDuplicating,
+}: {
+  showcase: Project
+  eliteData?: typeof ELITE_SHOWCASES[number]
+  onSelect: () => void
+  onDuplicate?: () => void
+  isDuplicating: boolean
+}) {
+  const activeOutput = showcase.outputs.find((o) => o.id === showcase.activeOutputId) || showcase.outputs[0]
+  const outputsCount = showcase.outputs.length
+
+  const hasSlides = showcase.outputs.some((o) => o.outputType === "slides")
+  const hasPaper = showcase.outputs.some((o) => o.outputType === "paper")
+  const hasTriad = hasSlides && hasPaper
+
+  // Default to 3D Mockup if it's a triad suite, otherwise poster
+  const [previewMode, setPreviewMode] = useState<PreviewMode>(hasTriad ? "mockup" : "poster")
+  const [imgError, setImgError] = useState(false)
+
+  const mockupUrl = getMockupPath(showcase.id)
+  const posterUrl = "/showcases/" + showcase.id + ".png"
+  const slidesUrl = "/showcases/" + showcase.id + "-slides.png"
+  const paperUrl = "/showcases/" + showcase.id + "-paper.png"
+
+  const templateMeta = getTemplateMeta(activeOutput?.templateId || showcase.templateName)
+
+  const getCategoryIcon = (id: string) => {
+    switch (id) {
+      case "atlas-bose-einstein-correlations":
+      case "neural-wavefunction-superconductors":
+        return <Atom className="size-3.5 text-rose-500" />
+      case "jwst-gravitational-lensing":
+        return <Atom className="size-3.5 text-sky-500" />
+      case "quantum-supremacy-sycamore":
+      case "speculative-decoding-guarantees":
+        return <Cpu className="size-3.5 text-indigo-500" />
+      case "alphafold-protein-folding":
+      case "cas13-panviral-immunity":
+        return <Dna className="size-3.5 text-emerald-500" />
+      case "posudok-diplomovka-ai":
+        return <GraduationCap className="size-3.5 text-sky-500" />
+      default:
+        return <Layers className="size-3.5 text-indigo-500" />
+    }
+  }
+
+  return (
+    <div
+      onClick={onSelect}
+      className="group relative flex flex-col justify-between rounded-xl border border-border/70 bg-card transition-all duration-200 hover:border-primary/50 hover:shadow-lg cursor-pointer overflow-hidden"
+    >
+      <div>
+        {/* Visual Poster / 3D Mockup / Trojkompozícia Container */}
+        <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted/50 border-b border-border/50 select-none">
+          {!imgError ? (
+            previewMode === "mockup" && hasTriad ? (
+              /* 3D Realistic Studio Mockup (Generated via Qwen-Image / AliProxy) */
+              <div className="w-full h-full relative">
+                <img
+                  src={mockupUrl}
+                  alt={showcase.posterTitle || showcase.name}
+                  className="w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                  onError={() => setImgError(true)}
+                  loading="lazy"
+                />
+                <div className="absolute bottom-1.5 left-2 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-md text-[10px] font-mono text-white flex items-center gap-1.5 pointer-events-none border border-white/10">
+                  <Box className="size-3 text-amber-400" />
+                  <span>3D Mockup: Poster · Slides · Paper</span>
+                </div>
+              </div>
+            ) : previewMode === "triad" && hasTriad ? (
+              /* Live Compiled LaTeX 3-in-1 Suite */
+              <div className="w-full h-full flex bg-black/5">
+                {/* Left: Poster (44% width) */}
+                <div className="relative w-[44%] h-full border-r border-border/60 overflow-hidden group/sub">
+                  <img
+                    src={posterUrl}
+                    alt="Poster"
+                    className="w-full h-full object-cover object-top transition-transform duration-300 group-hover/sub:scale-105"
+                    onError={() => setImgError(true)}
+                    loading="lazy"
+                  />
+                  <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-xs text-[9px] font-mono text-white flex items-center gap-1 pointer-events-none">
+                    <Layers className="size-2.5 text-indigo-400" /> Poster
+                  </div>
+                </div>
+
+                {/* Right: Slides (top 50%) + Paper (bottom 50%) */}
+                <div className="w-[56%] h-full flex flex-col">
+                  {/* Top: 16:9 Beamer Slides */}
+                  <div className="relative h-1/2 border-b border-border/60 overflow-hidden group/sub bg-black/10">
+                    <img
+                      src={slidesUrl}
+                      alt="Prezentácia"
+                      className="w-full h-full object-cover object-top transition-transform duration-300 group-hover/sub:scale-105"
+                      onError={() => setImgError(true)}
+                      loading="lazy"
+                    />
+                    <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-xs text-[9px] font-mono text-white flex items-center gap-1 pointer-events-none">
+                      <Presentation className="size-2.5 text-amber-400" /> Prezentácia
+                    </div>
+                  </div>
+
+                  {/* Bottom: 2-column Paper */}
+                  <div className="relative h-1/2 overflow-hidden group/sub bg-black/5">
+                    <img
+                      src={paperUrl}
+                      alt="Článok"
+                      className="w-full h-full object-cover object-top transition-transform duration-300 group-hover/sub:scale-105"
+                      onError={() => setImgError(true)}
+                      loading="lazy"
+                    />
+                    <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-xs text-[9px] font-mono text-white flex items-center gap-1 pointer-events-none">
+                      <FileText className="size-2.5 text-emerald-400" /> Článok
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Single Full Preview */
+              <div className="w-full h-full relative">
+                <img
+                  src={
+                    previewMode === "slides"
+                      ? slidesUrl
+                      : previewMode === "paper"
+                      ? paperUrl
+                      : posterUrl
+                  }
+                  alt={showcase.posterTitle || showcase.name}
+                  className="w-full h-full object-cover object-top transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                  onError={() => setImgError(true)}
+                  loading="lazy"
+                />
+                <div className="absolute bottom-1.5 left-2 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-md text-[10px] font-mono text-white flex items-center gap-1.5 pointer-events-none border border-white/10">
+                  {previewMode === "slides" ? (
+                    <>
+                      <Presentation className="size-3 text-amber-400" /> Prezentácia (16:9 Beamer)
+                    </>
+                  ) : previewMode === "paper" ? (
+                    <>
+                      <FileText className="size-3 text-emerald-400" /> Vedecký článok (2 stĺpce)
+                    </>
+                  ) : (
+                    <>
+                      <Layers className="size-3 text-indigo-400" /> Konferenčný poster (A0)
+                    </>
+                  )}
+                </div>
+              </div>
+            )
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-muted/80 via-muted to-muted/40 p-4 text-center">
+              <div className="p-3 rounded-full bg-background/80 border border-border/50 mb-2 shadow-xs">
+                {getCategoryIcon(showcase.id)}
+              </div>
+              <span className="text-xs font-semibold text-foreground/80 line-clamp-1">
+                {showcase.posterTitle || showcase.name}
+              </span>
+              <span className="text-[10px] text-muted-foreground mt-0.5 font-mono">
+                {activeOutput?.templateId}
+              </span>
+            </div>
+          )}
+
+          {/* Scrim overlay at top for badge legibility */}
+          <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-black/55 via-black/20 to-transparent pointer-events-none" />
+
+          {/* Template Badge on Preview */}
+          <div className="absolute top-2 left-2 flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-black/80 backdrop-blur-md px-2 py-0.5 text-[10px] font-mono font-medium text-white shadow-xs border border-white/10">
+              <span
+                className="size-2 rounded-full ring-1 ring-white/20 shrink-0"
+                style={{ backgroundColor: activeOutput?.themeColor || "#4F46E5" }}
+              />
+              {templateMeta.label}
+            </span>
+          </div>
+
+          {/* Trojkompozícia Flag Badge */}
+          <div className="absolute top-2 right-2 flex items-center gap-1">
+            {hasTriad ? (
+              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/95 text-white backdrop-blur-md px-2 py-0.5 text-[10px] font-semibold shadow-xs border border-amber-400/40">
+                <Sparkles className="size-2.5 text-white" />
+                Trojkompozícia
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-md bg-black/80 backdrop-blur-md px-2 py-0.5 text-[10px] font-medium text-white shadow-xs border border-white/10">
+                {outputsCount > 1 ? outputsCount + " formáty" : "1 formát"}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Interactive Mode Switcher Pills (under preview) */}
+        {hasTriad && (
+          <div
+            className="flex items-center justify-start gap-1 px-3 py-1.5 bg-muted/40 border-b border-border/40 text-[10px] overflow-x-auto scrollbar-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="text-muted-foreground font-medium text-[10px] mr-1 hidden sm:inline">
+              Náhľad:
+            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setPreviewMode("mockup")
+              }}
+              className={cn(
+                "px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0",
+                previewMode === "mockup"
+                  ? "bg-amber-500 text-white font-semibold shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <Box className="size-2.5" />
+              3D Mockup
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setPreviewMode("triad")
+              }}
+              className={cn(
+                "px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0",
+                previewMode === "triad"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <Sparkles className="size-2.5" />
+              LaTeX Trojica
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setPreviewMode("poster")
+              }}
+              className={cn(
+                "px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0",
+                previewMode === "poster"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <Layers className="size-2.5" />
+              Poster
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setPreviewMode("slides")
+              }}
+              className={cn(
+                "px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0",
+                previewMode === "slides"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <Presentation className="size-2.5" />
+              Slides
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setPreviewMode("paper")
+              }}
+              className={cn(
+                "px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0",
+                previewMode === "paper"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <FileText className="size-2.5" />
+              Paper
+            </button>
+          </div>
+        )}
+
+        {/* Content Section */}
+        <div className="p-3.5 pb-2">
+          {/* Template Style Highlight Tag */}
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium truncate">
+              <span className="p-1 rounded bg-muted border border-border/40 shrink-0">
+                {getCategoryIcon(showcase.id)}
+              </span>
+              <span className="truncate">{showcase.venue.split("•")[0].split(",")[0]}</span>
+            </div>
+
+            <span
+              className={cn(
+                "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border shrink-0",
+                templateMeta.colorClass
+              )}
+              title={templateMeta.desc}
+            >
+              {templateMeta.label}
+            </span>
+          </div>
+
+          {/* Title */}
+          <h4 className="text-sm font-bold leading-snug text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-1">
+            {showcase.posterTitle || showcase.name}
+          </h4>
+
+          {/* Description of template structure */}
+          <p className="text-[11px] text-muted-foreground font-medium mb-1.5 flex items-center gap-1">
+            <span className="size-1 rounded-full bg-primary/60 shrink-0" />
+            <span className="line-clamp-1">{templateMeta.desc}</span>
+          </p>
+
+          {/* Authors */}
+          <p className="text-xs text-muted-foreground line-clamp-1 mb-2">
+            {showcase.authors}
+          </p>
+
+          {/* Key metrics / Highlights from elite data */}
+          {eliteData?.highlights && eliteData.highlights.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
+              {eliteData.highlights.map((h, idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center gap-1 rounded bg-muted/80 px-1.5 py-0.5 text-[10px] border border-border/40"
+                >
+                  <strong className="font-mono text-foreground font-semibold">{h.value}</strong>
+                  <span className="text-muted-foreground">{h.label}</span>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Available outputs badges */}
+          <div className="flex flex-wrap items-center gap-1 mb-1">
+            {showcase.outputs.map((out) => (
+              <span
+                key={out.id}
+                className="inline-flex items-center gap-1 rounded-md bg-muted/60 border border-border/40 px-1.5 py-0.5 text-[10px] text-muted-foreground font-medium"
+                title={out.outputType + " (" + out.templateId + ")"}
+              >
+                {out.outputType === "poster" && <Layers className="size-2.5 text-indigo-500 shrink-0" />}
+                {out.outputType === "slides" && <Presentation className="size-2.5 text-amber-500 shrink-0" />}
+                {out.outputType === "paper" && <FileText className="size-2.5 text-emerald-500 shrink-0" />}
+                {out.outputType === "thesis-review" && <Award className="size-2.5 text-sky-500 shrink-0" />}
+                <span className="capitalize">{out.outputType}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Actions Footer */}
+      <div
+        className="flex items-center justify-between gap-2 px-3.5 py-2.5 mt-1 border-t border-border/50 bg-muted/20"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="text-[11px] text-muted-foreground truncate max-w-[150px]">
+          {hasTriad ? "3 kompletné výstupy" : showcase.assets.length > 0 ? showcase.assets.length + " grafov (SVG/PNG)" : "Vzorce a tabuľky"}
+        </span>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {onDuplicate && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs px-2.5 gap-1 cursor-pointer hover:bg-muted"
+              disabled={isDuplicating}
+              onClick={(e) => {
+                e.stopPropagation()
+                onDuplicate()
+              }}
+              title="Vytvoriť kópiu ukážky do vlastných projektov"
+            >
+              <Copy className="size-3" />
+              Duplikovať
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="default"
+            className="h-7 text-xs px-3 gap-1 cursor-pointer font-medium"
+            onClick={(e) => {
+              e.stopPropagation()
+              onSelect()
+            }}
+          >
+            <ExternalLink className="size-3" />
+            Otvoriť
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function ShowcaseGallery({
+  onSelectShowcase,
+  onDuplicateShowcase,
+  isDuplicating = false,
+}: ShowcaseGalleryProps) {
+  const [selectedCategory, setSelectedCategory] = useState<string>("all")
+  const [searchQuery, setSearchQuery] = useState("")
+
+  const eliteMap = useMemo(() => {
+    return new Map(ELITE_SHOWCASES.map((e) => [e.id, e]))
+  }, [])
+
+  const filteredShowcases = useMemo(() => {
+    return ALL_SHOWCASE_PROJECTS.filter((showcase) => {
+      // Category filter
+      if (selectedCategory === "triad-suites") {
+        // Only showcases with Poster + Slides + Paper trojkompozícia
+        const hasSlides = showcase.outputs.some((o) => o.outputType === "slides")
+        const hasPaper = showcase.outputs.some((o) => o.outputType === "paper")
+        if (!hasSlides || !hasPaper) return false
+      } else if (selectedCategory === "ai-foundations") {
+        const aiIds = [
+          "attention-is-all-you-need",
+          "resnet-deep-residual-learning",
+          "bert-pre-training",
+          "gans-goodfellow-2014",
+          "vla-autonomous-surgery",
+          "speculative-decoding-guarantees",
+        ]
+        if (!aiIds.includes(showcase.id)) return false
+      } else if (selectedCategory === "physics") {
+        if (!["atlas-bose-einstein-correlations", "neural-wavefunction-superconductors", "jwst-gravitational-lensing"].includes(showcase.id)) return false
+      } else if (selectedCategory === "quantum") {
+        if (!["quantum-supremacy-sycamore", "neural-wavefunction-superconductors"].includes(showcase.id)) return false
+      } else if (selectedCategory === "biology") {
+        if (!["alphafold-protein-folding", "cas13-panviral-immunity"].includes(showcase.id)) return false
+      } else if (selectedCategory === "thesis-review") {
+        if (!["posudok-diplomovka-ai", "vla-autonomous-surgery", "jwst-gravitational-lensing"].includes(showcase.id)) return false
+      }
+
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase()
+        const matchTitle = showcase.name.toLowerCase().includes(q) || (showcase.posterTitle || showcase.name).toLowerCase().includes(q)
+        const matchAuthors = showcase.authors.toLowerCase().includes(q)
+        const matchVenue = showcase.venue.toLowerCase().includes(q)
+        const matchTemplate = (showcase.templateName || "").toLowerCase().includes(q)
+        const elite = eliteMap.get(showcase.id)
+        const matchTags = elite?.tags?.some((t) => t.toLowerCase().includes(q)) ?? false
+        return matchTitle || matchAuthors || matchVenue || matchTemplate || matchTags
+      }
+
+      return true
+    })
+  }, [selectedCategory, searchQuery, eliteMap])
+
+  return (
+    <div className="flex flex-col h-full min-h-0 gap-3">
+      {/* Header controls: Search & Category filter */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pb-2 border-b shrink-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none">
+          {/* Dedicated Trojkompozícia Filter Button */}
+          <button
+            type="button"
+            onClick={() => setSelectedCategory(selectedCategory === "triad-suites" ? "all" : "triad-suites")}
+            className={cn(
+              "px-3 py-1 text-xs font-semibold rounded-full transition-all shrink-0 cursor-pointer flex items-center gap-1.5",
+              selectedCategory === "triad-suites"
+                ? "bg-amber-500 text-white shadow-xs ring-1 ring-amber-400"
+                : "bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/30"
+            )}
+          >
+            <Sparkles className="size-3" />
+            Iba Trojkompozície (Poster + Slides + Paper)
+          </button>
+
+          {SHOWCASE_CATEGORIES.map((cat) => {
+            const isActive = selectedCategory === cat.id
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(cat.id)}
+                className={cn(
+                  "px-3 py-1 text-xs font-medium rounded-full transition-all shrink-0 cursor-pointer",
+                  isActive
+                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                    : "bg-muted/70 text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}
+              >
+                {cat.label}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="relative w-full sm:w-64 shrink-0">
+            <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Hľadať ukážku, autora, model..."
+              className="h-8 pl-8 pr-7 text-xs bg-muted/30 focus-visible:ring-1"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+          <span className="text-[11px] text-muted-foreground whitespace-nowrap hidden md:inline">
+            {filteredShowcases.length} z {ALL_SHOWCASE_PROJECTS.length}
+          </span>
+        </div>
+      </div>
+
+      {/* Scrollable grid of showcase cards with native smooth wheel scrolling */}
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1.5 pb-6 overscroll-contain">
+        {filteredShowcases.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-4 pb-4">
+            {filteredShowcases.map((showcase) => (
+              <ShowcaseCard
+                key={showcase.id}
+                showcase={showcase}
+                eliteData={eliteMap.get(showcase.id)}
+                onSelect={() => onSelectShowcase(showcase.id)}
+                onDuplicate={onDuplicateShowcase ? () => onDuplicateShowcase(showcase) : undefined}
+                isDuplicating={isDuplicating}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+            <Search className="size-8 stroke-1 mb-2 text-muted-foreground/60" />
+            <p className="text-sm font-medium">Nenašli sa žiadne ukážky</p>
+            <p className="text-xs mt-1 text-muted-foreground/80">
+              Skúste zmeniť kategóriu alebo hľadaný výraz.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4 text-xs h-8"
+              onClick={() => {
+                setSelectedCategory("all")
+                setSearchQuery("")
+              }}
+            >
+              Resetovať filtre
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

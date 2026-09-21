@@ -182,6 +182,7 @@ function CompileLog({ log, ok }: { log: string; ok: boolean }) {
           </button>
           {showRaw && (
             <pre
+              data-testid="compile-raw-log"
               className={cn(
                 "mt-1 max-h-48 overflow-auto rounded-md border border-border bg-muted/40 p-2 font-mono text-[10px] leading-relaxed",
                 ok ? "text-success/80" : "text-destructive",

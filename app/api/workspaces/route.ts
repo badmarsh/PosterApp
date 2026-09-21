@@ -39,7 +39,7 @@ export async function GET() {
     if (workspaces.length === 0) {
       const { sampleProjects } = await import("@/lib/mock-data")
 
-      const demoWorkspaces = await Promise.all(sampleProjects.map(async (sampleProj, idx) => {
+      const demoWorkspaces = await Promise.all(sampleProjects.slice(0, 1).map(async (sampleProj, idx) => {
         const demoId = idx === 0 ? `demo_${Date.now().toString(36)}` : sampleProj.id
         
         return prisma.workspace.create({

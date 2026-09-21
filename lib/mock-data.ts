@@ -1,7 +1,7 @@
+import { ALL_SHOWCASE_PROJECTS, DEMO_WORKSPACE_IDS } from "./showcases-data"
 import type { Project, Card } from "./poster-types"
 
-export const sampleProjects: Project[] = [
-  {
+const defaultDemoProject: Project = {
   id: "demo_ws",
   name: "Advanced Layouts & Latent Dynamics",
   posterTitle: "Advanced Layouts & Latent Dynamics",
@@ -17,7 +17,7 @@ export const sampleProjects: Project[] = [
       title: "Advanced Layouts & Latent Dynamics",
       cards: [
         {
-          id: "poster_card_1",
+          id: "card_demo_poster_1",
           title: "Introduction",
           column: 1,
           order: 0,
@@ -30,7 +30,7 @@ export const sampleProjects: Project[] = [
           validation: "valid"
         },
         {
-          id: "poster_card_2",
+          id: "card_demo_poster_2",
           title: "Mathematical Framework",
           column: 1,
           order: 1,
@@ -46,7 +46,7 @@ export const sampleProjects: Project[] = [
           validation: "valid"
         },
         {
-          id: "poster_card_3",
+          id: "card_demo_poster_3",
           title: "System Architecture",
           column: 2,
           order: 0,
@@ -65,7 +65,7 @@ export const sampleProjects: Project[] = [
           validation: "valid"
         },
         {
-          id: "poster_card_4",
+          id: "card_demo_poster_4",
           title: "Results & Discussion",
           column: 2,
           order: 1,
@@ -87,7 +87,7 @@ export const sampleProjects: Project[] = [
           validation: "valid"
         },
         {
-          id: "poster_card_5",
+          id: "card_demo_poster_5",
           title: "References",
           column: 3,
           order: 0,
@@ -108,7 +108,7 @@ export const sampleProjects: Project[] = [
       title: "Advanced Layouts & Latent Dynamics",
       cards: [
         {
-          id: "paper_card_1",
+          id: "card_demo_paper_1",
           title: "Abstract",
           column: null,
           order: 0,
@@ -121,7 +121,7 @@ export const sampleProjects: Project[] = [
           validation: "valid"
         },
         {
-          id: "paper_card_2",
+          id: "card_demo_paper_2",
           title: "Lagrangian Formulation",
           column: null,
           order: 1,
@@ -137,7 +137,7 @@ export const sampleProjects: Project[] = [
           validation: "valid"
         },
         {
-          id: "paper_card_3",
+          id: "card_demo_paper_3",
           title: "Architecture",
           column: null,
           order: 2,
@@ -156,7 +156,7 @@ export const sampleProjects: Project[] = [
           validation: "valid"
         },
         {
-          id: "paper_card_4",
+          id: "card_demo_paper_4",
           title: "Results",
           column: null,
           order: 3,
@@ -177,7 +177,7 @@ export const sampleProjects: Project[] = [
           validation: "valid"
         },
         {
-          id: "paper_card_5",
+          id: "card_demo_paper_5",
           title: "References",
           column: null,
           order: 4,
@@ -198,7 +198,7 @@ export const sampleProjects: Project[] = [
       title: "Advanced Layouts & Latent Dynamics",
       cards: [
         {
-          id: "slide_card_1",
+          id: "card_demo_slide_1",
           title: "Motivation",
           column: null,
           order: 0,
@@ -211,7 +211,7 @@ export const sampleProjects: Project[] = [
           validation: "valid"
         },
         {
-          id: "slide_card_2",
+          id: "card_demo_slide_2",
           title: "Our Equation",
           column: null,
           order: 1,
@@ -224,7 +224,7 @@ export const sampleProjects: Project[] = [
           validation: "valid"
         },
         {
-          id: "slide_card_3",
+          id: "card_demo_slide_3",
           title: "Architecture",
           column: null,
           order: 2,
@@ -243,7 +243,7 @@ export const sampleProjects: Project[] = [
           validation: "valid"
         },
         {
-          id: "slide_card_4",
+          id: "card_demo_slide_4",
           title: "Results",
           column: null,
           order: 3,
@@ -262,7 +262,7 @@ export const sampleProjects: Project[] = [
           validation: "valid"
         },
         {
-          id: "slide_card_5",
+          id: "card_demo_slide_5",
           title: "References",
           column: null,
           order: 4,
@@ -457,8 +457,13 @@ export const sampleProjects: Project[] = [
     }
   ]
 }
+
+export const sampleProjects: Project[] = [
+  defaultDemoProject,
+  ...ALL_SHOWCASE_PROJECTS,
 ]
 
 /** ID of the in-memory demo project shown before a workspace is selected. */
-export const DEMO_PROJECT_ID = sampleProjects[0].id
-export const isDemoProject = (id: string) => id === DEMO_PROJECT_ID
+export const DEMO_PROJECT_ID = defaultDemoProject.id
+export const isDemoProject = (id: string) =>
+  id === DEMO_PROJECT_ID || id.startsWith("demo_") || (DEMO_WORKSPACE_IDS as readonly string[]).includes(id)
