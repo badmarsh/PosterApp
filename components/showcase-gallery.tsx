@@ -15,6 +15,7 @@ import {
   FileText,
   Presentation,
   Award,
+  Box,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -29,7 +30,31 @@ interface ShowcaseGalleryProps {
   isDuplicating?: boolean
 }
 
-type PreviewMode = "triad" | "poster" | "slides" | "paper"
+type PreviewMode = "mockup" | "triad" | "poster" | "slides" | "paper"
+
+function getMockupPath(showcaseId: string): string {
+  switch (showcaseId) {
+    case "vla-autonomous-surgery":
+      return "/showcases/mockups/mockup-medical-robotics.png"
+    case "jwst-gravitational-lensing":
+      return "/showcases/mockups/mockup-astrophysics-jwst.png"
+    case "atlas-bose-einstein-correlations":
+    case "neural-wavefunction-superconductors":
+    case "quantum-supremacy-sycamore":
+      return "/showcases/mockups/mockup-physics-quantum.png"
+    case "speculative-decoding-guarantees":
+    case "attention-is-all-you-need":
+    case "bert-pre-training":
+    case "gans-goodfellow-2014":
+    case "resnet-deep-residual-learning":
+      return "/showcases/mockups/mockup-ai-foundations.png"
+    case "alphafold-protein-folding":
+    case "cas13-panviral-immunity":
+    case "posudok-diplomovka-ai":
+    default:
+      return "/showcases/mockups/mockup-universal-suite.png"
+  }
+}
 
 function getTemplateMeta(templateId?: string) {
   switch (templateId) {
@@ -100,9 +125,11 @@ function ShowcaseCard({
   const hasPaper = showcase.outputs.some((o) => o.outputType === "paper")
   const hasTriad = hasSlides && hasPaper
 
-  const [previewMode, setPreviewMode] = useState<PreviewMode>(hasTriad ? "triad" : "poster")
+  // Default to 3D Mockup if it's a triad suite, otherwise poster
+  const [previewMode, setPreviewMode] = useState<PreviewMode>(hasTriad ? "mockup" : "poster")
   const [imgError, setImgError] = useState(false)
 
+  const mockupUrl = getMockupPath(showcase.id)
   const posterUrl = "/showcases/" + showcase.id + ".png"
   const slidesUrl = "/showcases/" + showcase.id + "-slides.png"
   const paperUrl = "/showcases/" + showcase.id + "-paper.png"
@@ -135,11 +162,26 @@ function ShowcaseCard({
       className="group relative flex flex-col justify-between rounded-xl border border-border/70 bg-card transition-all duration-200 hover:border-primary/50 hover:shadow-lg cursor-pointer overflow-hidden"
     >
       <div>
-        {/* Visual Poster / Trojkompozícia Container */}
+        {/* Visual Poster / 3D Mockup / Trojkompozícia Container */}
         <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted/50 border-b border-border/50 select-none">
           {!imgError ? (
-            previewMode === "triad" && hasTriad ? (
-              /* Trojkompozícia (3-in-1 Suite) */
+            previewMode === "mockup" && hasTriad ? (
+              /* 3D Realistic Studio Mockup (Generated via Qwen-Image / AliProxy) */
+              <div className="w-full h-full relative">
+                <img
+                  src={mockupUrl}
+                  alt={showcase.posterTitle || showcase.name}
+                  className="w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                  onError={() => setImgError(true)}
+                  loading="lazy"
+                />
+                <div className="absolute bottom-1.5 left-2 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-md text-[10px] font-mono text-white flex items-center gap-1.5 pointer-events-none border border-white/10">
+                  <Box className="size-3 text-amber-400" />
+                  <span>3D Mockup: Poster · Slides · Paper</span>
+                </div>
+              </div>
+            ) : previewMode === "triad" && hasTriad ? (
+              /* Live Compiled LaTeX 3-in-1 Suite */
               <div className="w-full h-full flex bg-black/5">
                 {/* Left: Poster (44% width) */}
                 <div className="relative w-[44%] h-full border-r border-border/60 overflow-hidden group/sub">
@@ -202,7 +244,7 @@ function ShowcaseCard({
                   onError={() => setImgError(true)}
                   loading="lazy"
                 />
-                <div className="absolute bottom-1.5 left-2 px-2 py-0.5 rounded bg-black/75 backdrop-blur-xs text-[10px] font-mono text-white flex items-center gap-1.5 pointer-events-none">
+                <div className="absolute bottom-1.5 left-2 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-md text-[10px] font-mono text-white flex items-center gap-1.5 pointer-events-none border border-white/10">
                   {previewMode === "slides" ? (
                     <>
                       <Presentation className="size-3 text-amber-400" /> Prezentácia (16:9 Beamer)
@@ -250,7 +292,7 @@ function ShowcaseCard({
           {/* Trojkompozícia Flag Badge */}
           <div className="absolute top-2 right-2 flex items-center gap-1">
             {hasTriad ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/90 text-white backdrop-blur-md px-2 py-0.5 text-[10px] font-semibold shadow-xs border border-amber-400/40">
+              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/95 text-white backdrop-blur-md px-2 py-0.5 text-[10px] font-semibold shadow-xs border border-amber-400/40">
                 <Sparkles className="size-2.5 text-white" />
                 Trojkompozícia
               </span>
@@ -265,7 +307,7 @@ function ShowcaseCard({
         {/* Interactive Mode Switcher Pills (under preview) */}
         {hasTriad && (
           <div
-            className="flex items-center justify-start gap-1 px-3 py-1.5 bg-muted/40 border-b border-border/40 text-[10px]"
+            className="flex items-center justify-start gap-1 px-3 py-1.5 bg-muted/40 border-b border-border/40 text-[10px] overflow-x-auto scrollbar-none"
             onClick={(e) => e.stopPropagation()}
           >
             <span className="text-muted-foreground font-medium text-[10px] mr-1 hidden sm:inline">
@@ -275,17 +317,33 @@ function ShowcaseCard({
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
-                setPreviewMode("triad")
+                setPreviewMode("mockup")
               }}
               className={cn(
-                "px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors",
-                previewMode === "triad"
+                "px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0",
+                previewMode === "mockup"
                   ? "bg-amber-500 text-white font-semibold shadow-2xs"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
+              <Box className="size-2.5" />
+              3D Mockup
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setPreviewMode("triad")
+              }}
+              className={cn(
+                "px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0",
+                previewMode === "triad"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
               <Sparkles className="size-2.5" />
-              Trojkompozícia
+              LaTeX Trojica
             </button>
             <button
               type="button"
@@ -294,7 +352,7 @@ function ShowcaseCard({
                 setPreviewMode("poster")
               }}
               className={cn(
-                "px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors",
+                "px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0",
                 previewMode === "poster"
                   ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -310,7 +368,7 @@ function ShowcaseCard({
                 setPreviewMode("slides")
               }}
               className={cn(
-                "px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors",
+                "px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0",
                 previewMode === "slides"
                   ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -326,7 +384,7 @@ function ShowcaseCard({
                 setPreviewMode("paper")
               }}
               className={cn(
-                "px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors",
+                "px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0",
                 previewMode === "paper"
                   ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
