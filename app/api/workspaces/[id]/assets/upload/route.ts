@@ -63,7 +63,7 @@ export async function POST(
     const arrayBuffer = await file.arrayBuffer()
     const bytes = new Uint8Array(arrayBuffer)
     const mime = detectedImageMime(bytes)
-    if (!mime || !["image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"].includes(mime)) return NextResponse.json({ error: "Unsupported or invalid file format" }, { status: 415 })
+    if (!mime || !["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml", "application/pdf"].includes(mime)) return NextResponse.json({ error: "Unsupported or invalid file format" }, { status: 415 })
     await fs.writeFile(destPath, bytes)
 
     const url = `/api/workspaces/${id}/assets/${filename}`

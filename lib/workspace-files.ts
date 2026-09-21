@@ -27,6 +27,8 @@ export function detectedImageMime(bytes: Uint8Array) {
   if (new TextDecoder().decode(bytes.subarray(0, 6)) === "GIF87a" || new TextDecoder().decode(bytes.subarray(0, 6)) === "GIF89a") return "image/gif"
   if (new TextDecoder().decode(bytes.subarray(0, 12)).startsWith("RIFF") && new TextDecoder().decode(bytes.subarray(8, 12)) === "WEBP") return "image/webp"
   if (new TextDecoder().decode(bytes.subarray(0, 5)) === "%PDF-") return "application/pdf"
+  const text = new TextDecoder().decode(bytes.subarray(0, Math.min(256, bytes.length)));
+  if ((text.trimStart().startsWith("<svg") || (text.trimStart().startsWith("<?xml") && text.includes("<svg")))) return "image/svg+xml";
   return null
 }
 
