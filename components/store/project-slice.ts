@@ -1098,19 +1098,27 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         return
       }
     }
-    const suffix = Date.now().toString(36).slice(-4)
-    const newId = `${src.id}-copy-${suffix}`.slice(0, 64)
-    const newName = `${src.name} (copy)`
+    const newName = `${src.name} (kópia)`
     const evId = get().pushEvent({ kind: "info", status: "running", title: "Duplicating workspace", detail: `Creating "${newName}"…` })
     try {
       const activeOutput = src.outputs?.find((o) => o.id === src.activeOutputId) ?? src.outputs?.[0]
-      const createRes = await apiFetch("/api/workspaces", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: newId, name: newName, outputType: activeOutput?.outputType ?? "poster", templateId: activeOutput?.templateId }),
-      })
-      if (!createRes.ok) throw new Error(`Create failed (HTTP ${createRes.status})`)
-      const created = await createRes.json() as { revision?: number }
+      // Retry with fresh suffix on HTTP 409 (ID collision).
+      let newId = ""
+      let suffix = ""
+      let created: { revision?: number } = {}
+      for (let attempt = 0; attempt <= 3; attempt++) {
+        suffix = (Date.now() + attempt).toString(36).slice(-6)
+        newId = `${src.id}-copy-${suffix}`.slice(0, 64)
+        const createRes = await apiFetch("/api/workspaces", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: newId, name: newName, outputType: activeOutput?.outputType ?? "poster", templateId: activeOutput?.templateId }),
+        })
+        if (createRes.status === 409 && attempt < 3) continue
+        if (!createRes.ok) throw new Error(`Vytvorenie kópie zlyhalo (HTTP ${createRes.status})`)
+        created = await createRes.json() as { revision?: number }
+        break
+      }
 
       // Re-mint child IDs: the server refuses output/card IDs owned by another workspace.
       let activeOutputId: string | undefined

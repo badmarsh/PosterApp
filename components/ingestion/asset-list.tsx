@@ -334,7 +334,7 @@ const AssetRow = memo(function AssetRow({ asset }: { asset: ExtractedAsset }) {
         {asset.kind === "figure" ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={asset.thumbnailUrl || "/placeholder.svg"}
+            src={asset.thumbnailUrl || asset.url || "/placeholder.svg"}
             alt={asset.caption || "Extracted figure"}
             crossOrigin="anonymous"
             className="h-12 w-16 shrink-0 rounded border border-border object-cover"

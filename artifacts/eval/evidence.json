@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-20T23:31:38.782Z",
+  "timestamp": "2026-09-21T01:26:08.487Z",
   "methodology": "unit_test",
   "methodologyNote": "Verified on 3 hardcoded mock claims (SUPPORTED, CONTRADICTED, UNSUPPORTED). Not a real corpus evaluation.",
   "claimsEvaluated": 3,

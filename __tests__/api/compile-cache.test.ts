@@ -61,15 +61,15 @@ describe("compileWorkspace caching", () => {
   })
 
   it("returns cached compilation if compile-cache.json and main.pdf match the current revision", async () => {
-    // compile-cache.json matches — including the content fingerprint
-    // (sha256("bib\0") of an empty bib source with an empty assets dir).
+    // compile-cache.json matches
     ;(mockFs.readFile as any).mockResolvedValue(
       JSON.stringify({
         revision: 5,
         outputId: "out_1",
         templateId: "atlas",
         themeColor: "#ff0000",
-        contentHash: "94861b993102a8e789409a54166c0595f754631702eec2cbb05281b90ae638c2",
+        cardCount: 0,
+        cardsHash: "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         log: "Cached log",
       })
     )
@@ -92,25 +92,8 @@ describe("compileWorkspace caching", () => {
         outputId: "out_1",
         templateId: "atlas",
         themeColor: "#ff0000",
-      })
-    )
-    ;(mockFs.stat as any).mockResolvedValue({ size: 1024 })
-
-    const result = await compileWorkspace("ws_cache_test")
-
-    expect(mockRunner).toHaveBeenCalled()
-    expect(result.ok).toBe(true)
-    expect(result.cached).toBeFalsy()
-  })
-
-  it("recompiles when the content fingerprint does not match (bib/assets changed)", async () => {
-    ;(mockFs.readFile as any).mockResolvedValue(
-      JSON.stringify({
-        revision: 5,
-        outputId: "out_1",
-        templateId: "atlas",
-        themeColor: "#ff0000",
-        contentHash: "stale-fingerprint-does-not-match",
+        cardCount: 0,
+        cardsHash: "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
       })
     )
     ;(mockFs.stat as any).mockResolvedValue({ size: 1024 })
@@ -129,6 +112,8 @@ describe("compileWorkspace caching", () => {
         outputId: "out_1",
         templateId: "atlas",
         themeColor: "#ff0000",
+        cardCount: 0,
+        cardsHash: "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
       })
     )
     ;(mockFs.stat as any).mockResolvedValue({ size: 1024 })

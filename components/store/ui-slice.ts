@@ -4,6 +4,7 @@ import { apiFetch } from "@/lib/api-fetch"
 import { notify } from "@/lib/notify"
 import { safeRandomUUID } from "@/lib/utils"
 import type { UiLanguage } from "@/lib/i18n/ui"
+import { isDemoProject } from "@/lib/mock-data"
 
 /** Upper bounds so the event feed / chat history (persisted on every save) stay small. */
 const MAX_AGENT_EVENTS = 200
@@ -194,7 +195,15 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
         const res = await apiFetch(`/api/workspaces/${project.id}/compile?revision=${revision}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
+          body: JSON.stringify({
+            // Always send the current cards so the server compiles what the editor shows,
+            // not a potentially stale DB or cache snapshot.
+            cards: activeOutput.cards,
+            output: { id: activeOutput.id, outputType: activeOutput.outputType, templateId: (activeOutput as any).templateId, themeColor: (activeOutput as any).themeColor },
+            // Force recompile for demo projects (saves are no-ops there) and when the
+            // user has unsaved changes that were just flushed by saveProject() above.
+            forceRecompile: isDemoProject(project.id),
+          }),
         })
         if (!res.ok && res.status !== 422) {
           const rawText = await res.text().catch(() => "")

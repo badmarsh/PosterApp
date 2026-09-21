@@ -130,7 +130,8 @@ function generateMetricHero(card: Card, _templateId = ""): string {
     else if (items.length >= 4) tileWidth = "0.46"
 
     const tileSnippets = items.map((item) => {
-      const formattedVal = parseMarkdownToLatex(item.value)
+      // If value starts with a raw LaTeX command (e.g. \fitstat{...}), pass it through unescaped
+      const formattedVal = /^\\[A-Za-z]/.test(item.value) ? item.value : parseMarkdownToLatex(item.value)
       const formattedLabel = parseMarkdownToLatex(item.label)
       const formattedSub = item.sub ? parseMarkdownToLatex(item.sub) : ""
 

@@ -1,7 +1,7 @@
 import fs from "fs/promises"
 import path from "path"
-import os from "os"
 import crypto from "crypto"
+import os from "os"
 import { prisma } from "@/lib/prisma"
 import { generateFullTemplate } from "@/lib/latex"
 import { resolveBibSource } from "@/lib/latex/bib-source"
@@ -9,17 +9,13 @@ import { materializeRemoteFigures, rewriteTexRemoteUrls } from "@/lib/latex/remo
 import { WORKSPACES_ROOT, workspacePath } from "@/lib/workspace-files"
 import { safeLog, runSandboxedLatex } from "@/lib/latex/compiler-runner"
 import type { Card, Project } from "@/lib/poster-types"
+import { sampleProjects } from "@/lib/mock-data"
 
 /** Per-workspace mutex to guarantee serial, atomic PDF installation (B3) */
 const workspaceCompileLocks = new Map<string, Promise<void>>()
 
 function asProject(workspace: any): Project {
-  // Deterministic ordering: Prisma relation order is unspecified, and the
-  // "first output" fallback + active-output selection must not flicker
-  // between identical compiles.
-  const outputs = [...workspace.outputs]
-    .sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)))
-    .map((output: any) => ({
+  const outputs = workspace.outputs.map((output: any) => ({
     ...output,
     cards: output.cards.map((card: any): Card => ({
       ...card,
@@ -42,34 +38,9 @@ function asProject(workspace: any): Project {
   }
 }
 
-/**
- * Fingerprint of everything besides the cards that influences the compiled
- * PDF: the resolved BibTeX source and the on-disk assets (name, size, mtime).
- * The compile cache is only valid when cards/revision AND this fingerprint
- * match — previously a bibliography-only or image-only change reused a stale
- * cached PDF.
- */
-async function computeContentFingerprint(bibContent: string, workspaceId: string): Promise<string> {
-  const hash = crypto.createHash("sha256")
-  hash.update("bib\0").update(bibContent)
-  try {
-    const dir = path.join(WORKSPACES_ROOT, workspaceId, "assets")
-    const names = (await fs.readdir(dir)).sort()
-    for (const name of names) {
-      try {
-        const st = await fs.stat(path.join(dir, name))
-        if (st.isFile()) hash.update(`\0${name}:${st.size}:${Math.trunc(st.mtimeMs)}`)
-      } catch {
-        // file vanished mid-scan; ignore
-      }
-    }
-  } catch {
-    // assets dir may not exist yet
-  }
-  return hash.digest("hex")
-}
-
 export interface CompileWorkspaceOptions {
+  cards?: Card[]
+  output?: any
   expectedRevision?: number
   installPdf?: boolean
   timeoutMs?: number
@@ -92,14 +63,27 @@ export interface CompileWorkspaceResult {
  * Server-only helper to compile a workspace's active output to LaTeX/PDF.
  * Reused across the compile HTTP route and the DeerFlow autonomous fix runner.
  */
+function computeCardsHash(cards: Card[]): string {
+  const normalized = cards.map((c) => ({
+    id: c.id,
+    title: c.title || "",
+    column: c.column,
+    order: c.order,
+    pattern: c.pattern,
+    content: c.content || "",
+  }))
+  return crypto.createHash("sha256").update(JSON.stringify(normalized)).digest("hex")
+}
+
 export async function compileWorkspace(
   workspaceId: string,
   options: CompileWorkspaceOptions = {}
 ): Promise<CompileWorkspaceResult> {
-  const { expectedRevision, installPdf = true, timeoutMs = 60_000 } = options
+  const { expectedRevision, installPdf = true, timeoutMs = 60_000, cards: overrideCards, output: overrideOutput } = options
   let stage = ""
 
   try {
+    let project: Project
     const full = await prisma.workspace.findUnique({
       where: { id: workspaceId },
       include: {
@@ -109,24 +93,32 @@ export async function compileWorkspace(
     })
 
     if (!full) {
-      return {
-        ok: false,
-        log: "",
-        error: { code: "WORKSPACE_NOT_FOUND", message: "Workspace not found" },
+      const mock = sampleProjects.find((p) => p.id === workspaceId)
+      if (mock) {
+        project = JSON.parse(JSON.stringify(mock))
+      } else {
+        return {
+          ok: false,
+          log: "",
+          error: { code: "WORKSPACE_NOT_FOUND", message: "Workspace not found" },
+        }
       }
+    } else {
+      project = asProject(full)
     }
 
-    if (expectedRevision !== undefined && full.revision !== expectedRevision) {
+    if (expectedRevision !== undefined && full != null && full.revision !== expectedRevision) {
       return {
         ok: false,
         log: "",
-        revision: full.revision,
+        revision: full?.revision ?? project.revision,
         error: { code: "CONFLICT", message: "Workspace modified concurrently" },
       }
     }
 
-    const project = asProject(full)
-    const output = project.outputs.find((item) => item.id === project.activeOutputId)
+    // When client specifies an output id (e.g. user switched to slides/paper), compile that output.
+    const targetOutputId = overrideOutput?.id ?? project.activeOutputId
+    const output = project.outputs.find((item) => item.id === targetOutputId) ?? project.outputs.find((item) => item.id === project.activeOutputId)
     if (!output) {
       return {
         ok: false,
@@ -135,34 +127,39 @@ export async function compileWorkspace(
       }
     }
 
+    if (overrideOutput) {
+      Object.assign(output, overrideOutput)
+    }
+    if (overrideCards && Array.isArray(overrideCards)) {
+      output.cards = overrideCards
+    }
+
+    const currentCards = output.cards || []
+    const currentCardsHash = computeCardsHash(currentCards)
+
     const targetDir = workspacePath(workspaceId)
     const targetPdf = path.join(targetDir, "main.pdf")
     const cacheMetaPath = path.join(targetDir, "compile-cache.json")
 
-    // Bib source and asset fingerprint must be resolved BEFORE the cache
-    // check — they are part of what the cache validates.
-    const bibContent = resolveBibSource(full, output.cards)
-    const contentHash = await computeContentFingerprint(bibContent, workspaceId)
-
-    // Cache check: if the compiled PDF already exists for the exact
-    // revision + output configuration + bib/assets fingerprint, reuse it
+    // Cache check: if the compiled PDF already exists for the exact revision and output configuration, reuse it
     if (!options.forceRecompile) {
       try {
         const metaRaw = await fs.readFile(cacheMetaPath, "utf8")
         const meta = JSON.parse(metaRaw)
         if (
-          meta.revision === full.revision &&
+          meta.revision === (full?.revision ?? project.revision) &&
           meta.outputId === output.id &&
+          meta.cardCount === currentCards.length &&
+          meta.cardsHash === currentCardsHash &&
           meta.templateId === output.templateId &&
-          meta.themeColor === (output.themeColor ?? "") &&
-          meta.contentHash === contentHash
+          meta.themeColor === (output.themeColor ?? "")
         ) {
           const pdfStat = await fs.stat(targetPdf)
           if (pdfStat.size > 0) {
             return {
               ok: true,
               cached: true,
-              revision: full.revision,
+              revision: full?.revision ?? project.revision,
               log: meta.log || "Using cached compilation (workspace unchanged).",
             }
           }
@@ -181,7 +178,8 @@ export async function compileWorkspace(
 
     await fs.writeFile(path.join(stage, "main.tex"), tex, "utf8")
 
-    // Bib source already resolved above (needed for the cache fingerprint).
+    // Bib source resolution
+    const bibContent = resolveBibSource(full || { bibContent: (project as any).bibContent }, output.cards)
     if (bibContent.trim()) {
       await fs.writeFile(path.join(stage, "references.bib"), bibContent, "utf8")
     }
@@ -225,7 +223,7 @@ export async function compileWorkspace(
         return {
           ok: false,
           log: safeLog(errorLog),
-          revision: full.revision,
+          revision: full?.revision ?? project.revision,
           error: {
             code: "COMPILER_UNAVAILABLE",
             message: "The LaTeX compiler is not available. Please ensure TeX Live (pdflatex) is installed or LATEX_COMPILER_IMAGE is configured.",
@@ -236,7 +234,7 @@ export async function compileWorkspace(
       return {
         ok: false,
         log: safeLog(errorLog),
-        revision: full.revision,
+        revision: full?.revision ?? project.revision,
         error: {
           code: "COMPILE_FAILED",
           message: "Compilation failed",
@@ -268,11 +266,12 @@ export async function compileWorkspace(
         await fs.writeFile(
           cacheMetaPath,
           JSON.stringify({
-            revision: full.revision,
+            revision: full?.revision ?? project.revision,
             outputId: output.id,
+            cardCount: currentCards.length,
+            cardsHash: currentCardsHash,
             templateId: output.templateId,
             themeColor: output.themeColor ?? "",
-            contentHash,
             timestamp: compileTimestamp,
             log: safeLog(log),
           }),
@@ -288,7 +287,7 @@ export async function compileWorkspace(
 
     return {
       ok: true,
-      revision: full.revision,
+      revision: full?.revision ?? project.revision,
       log: safeLog(log),
     }
   } catch (error: any) {

@@ -41,7 +41,7 @@ export function FigureEditor({
     null,
   )
 
-  const isPdf = asset.thumbnailUrl?.toLowerCase().endsWith(".pdf")
+  const isPdf = (asset.thumbnailUrl || asset.url)?.toLowerCase().endsWith(".pdf")
 
   async function runOp(opId: string, filter: string, overridePrompt?: string) {
     const label = overridePrompt || prompt.trim() || opId
@@ -59,7 +59,7 @@ export function FigureEditor({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          assetUrl: asset.thumbnailUrl,
+          assetUrl: asset.thumbnailUrl || asset.url,
           workspaceId,
           operation: mappedOp,
           prompt: label,
@@ -111,14 +111,14 @@ export function FigureEditor({
         <figure className="flex flex-col gap-1">
           {isPdf ? (
             <object
-              data={asset.thumbnailUrl}
+              data={asset.thumbnailUrl || asset.url}
               type="application/pdf"
               className="h-20 w-full rounded border border-border bg-card object-contain"
             />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={asset.thumbnailUrl || "/placeholder.svg"}
+              src={asset.thumbnailUrl || asset.url || "/placeholder.svg"}
               alt="Original extracted figure"
               crossOrigin="anonymous"
               className="h-20 w-full rounded border border-border bg-card object-contain"

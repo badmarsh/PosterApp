@@ -457,7 +457,7 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
             }
             card.figures[idx] = {
               id: `fig_${assetId}`,
-              url: asset.thumbnailUrl ?? "",
+              url: asset.thumbnailUrl || asset.url || "",
               caption: asset.caption ?? "",
             }
             card.figureLayout = card.figures.filter(f => Boolean(f?.url?.trim())).length > 1 ? "two-up" : "single"

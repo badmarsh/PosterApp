@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-20T23:31:38.778Z",
+  "timestamp": "2026-09-21T01:26:08.483Z",
   "methodology": "simulated",
   "methodologyNote": "Ablation variants use hash-based simulation (simulateRetrieval). For empirical results, use pnpm eval:real.",
   "queryCount": 104,

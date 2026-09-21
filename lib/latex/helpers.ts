@@ -31,6 +31,10 @@ export function assetUrlToLatexPath(apiUrl: string, workspaceId: string): string
   if (apiUrl.startsWith(prefix)) {
     return normalizeLatexPath(`assets/${apiUrl.slice(prefix.length)}`)
   }
+  const logosPrefix = `/api/workspaces/${workspaceId}/logos/`
+  if (apiUrl.startsWith(logosPrefix)) {
+    return normalizeLatexPath(`logos/${apiUrl.slice(logosPrefix.length)}`)
+  }
   return normalizeLatexPath(apiUrl)
 }
 
@@ -41,3 +45,4 @@ export function cleanCaption(caption: string | undefined, prefix: "Figure" | "Ta
     : /^(?:Table|Tab\.?)\s*\d*[:\.\s-]*/i
   return caption.replace(regex, "").trim()
 }
+
