@@ -35,31 +35,41 @@ function generateFigures(card: Card, workspaceId = ""): string {
   const figs = (card.figures ?? []).filter((f): f is NonNullable<typeof f> => Boolean(f?.url?.trim()))
   if (!figs.length) return "% no figures"
 
-  function latexPath(url: string): string {
-    return normalizeLatexPath(workspaceId ? assetUrlToLatexPath(url, workspaceId) : url)
+  function latexPath(url: string): string | null {
+    const path = normalizeLatexPath(workspaceId ? assetUrlToLatexPath(url, workspaceId) : url)
+    // After stripping TeX-specials a path can collapse to empty, which would
+    // emit `\includegraphics{}` and abort the compile.
+    return path.length > 0 ? path : null
   }
 
-  if (figs.length >= 2) {
-    const [a, b] = figs.slice(0, 2)
-    const rawCapA = cleanCaption(a.caption, "Figure")
-    const rawCapB = cleanCaption(b.caption, "Figure")
+  const withPaths = figs
+    .map((f) => ({ fig: f, path: latexPath(f.url) }))
+    .filter((item): item is { fig: (typeof figs)[number]; path: string } => Boolean(item.path))
+  if (!withPaths.length) return "% no figures"
+
+  // Two valid figures → side-by-side minipages. A bullets-two-images card
+  // with only one usable figure degrades to the single-figure layout below.
+  if (withPaths.length >= 2) {
+    const [a, b] = withPaths
+    const rawCapA = cleanCaption(a.fig.caption, "Figure")
+    const rawCapB = cleanCaption(b.fig.caption, "Figure")
     const captionA = rawCapA ? "\n  \\vspace{0.4ex}\\par{\\small\\textit{" + parseMarkdownToLatex(rawCapA) + "}}" : ""
     const captionB = rawCapB ? "\n  \\vspace{0.4ex}\\par{\\small\\textit{" + parseMarkdownToLatex(rawCapB) + "}}" : ""
     return [
-      "\\begin{minipage}[t]{0.495\\linewidth}\n  \\centering\n  \\includegraphics[width=\\linewidth,keepaspectratio]{" + latexPath(a.url) + "}" + captionA + "\n\\end{minipage}%",
+      "\\begin{minipage}[t]{0.495\\linewidth}\n  \\centering\n  \\includegraphics[width=\\linewidth,keepaspectratio]{" + a.path + "}" + captionA + "\n\\end{minipage}%",
       "\\hfill",
-      "\\begin{minipage}[t]{0.495\\linewidth}\n  \\centering\n  \\includegraphics[width=\\linewidth,keepaspectratio]{" + latexPath(b.url) + "}" + captionB + "\n\\end{minipage}"
+      "\\begin{minipage}[t]{0.495\\linewidth}\n  \\centering\n  \\includegraphics[width=\\linewidth,keepaspectratio]{" + b.path + "}" + captionB + "\n\\end{minipage}"
     ]
       .filter(Boolean)
       .join("\n")
   }
 
-  const f = figs[0]
+  const { fig: f, path } = withPaths[0]
   const rawCap = cleanCaption(f.caption, "Figure")
   const captionLine = rawCap
     ? "\n\\vspace{0.5ex}\\par\n{\\small\\textit{" + parseMarkdownToLatex(rawCap) + "}}"
     : ""
-  return "\\begin{center}\n  \\includegraphics[width=1.0\\linewidth,keepaspectratio]{" + latexPath(f.url) + "}" + captionLine + "\n\\end{center}"
+  return "\\begin{center}\n  \\includegraphics[width=1.0\\linewidth,keepaspectratio]{" + path + "}" + captionLine + "\n\\end{center}"
 }
 
 interface MetricItem {
@@ -174,7 +184,7 @@ export function generateLatexForCard(
     if (card.table?.rows?.length) {
       parts.push(generateTable(card))
     }
-    if (card.figures?.length) {
+    if ((card.figures ?? []).some((f) => Boolean(f?.url?.trim()))) {
       parts.push(generateFigures(card, workspaceId))
     }
   } else {
@@ -217,8 +227,12 @@ export class TikzPosterGenerator implements LatexGenerator {
   }
 
   generateDocument(project: Project, outputConfig: OutputConfig, workspaceId = ""): string {
+    // Always render the requested output, not whatever happens to be active in
+    // the editor. Compiling a non-active poster used to silently emit the
+    // active output's PDF (F-07).
+    const projectForMeta: Project = { ...project, activeOutputId: outputConfig.id }
     const usedKeys = new Set<string>()
-    for (const card of (project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? [])) {
+    for (const card of outputConfig.cards) {
       const textParts = [card.content]
       if (card.table?.caption) textParts.push(card.table.caption)
       if (Array.isArray(card.figures)) card.figures.forEach(f => { if (f?.caption) textParts.push(f.caption) })
@@ -227,7 +241,7 @@ export class TikzPosterGenerator implements LatexGenerator {
     const usedKeysArray = Array.from(usedKeys)
 
     const budget = columnBudgetFor(this.templateId)
-    const activeCards = project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []
+    const activeCards = outputConfig.cards ?? []
 
     const columns = [1, 2, 3]
       .map((col) => {
@@ -266,33 +280,33 @@ export class TikzPosterGenerator implements LatexGenerator {
     const themeColor = outputConfig.themeColor ?? undefined
     switch (outputConfig.templateId?.toLowerCase()) {
       case "minimal":
-        templateContent = getMinimalTemplate(project, themeColor);
+        templateContent = getMinimalTemplate(projectForMeta, themeColor);
         break;
       case "conference":
-        templateContent = getConferenceTemplate(project, themeColor);
+        templateContent = getConferenceTemplate(projectForMeta, themeColor);
         break;
       case "gemini":
-        templateContent = getGeminiTemplate(project, themeColor);
+        templateContent = getGeminiTemplate(projectForMeta, themeColor);
         beginColumns = "\\begin{columns}[t]";
         endDocumentContent = "\\end{frame}\n\\end{document}";
         break;
       case "tikzposter":
-        templateContent = getTikzposterTemplate(project, themeColor);
+        templateContent = getTikzposterTemplate(projectForMeta, themeColor);
         break;
       case "a0poster":
-        templateContent = getA0PosterTemplate(project, themeColor);
+        templateContent = getA0PosterTemplate(projectForMeta, themeColor);
         beginColumns = "\\begin{multicols}{3}";
         endColumns = "\\end{multicols}";
         break;
       case "landscape":
-        templateContent = getLandscapeTemplate(project, themeColor);
+        templateContent = getLandscapeTemplate(projectForMeta, themeColor);
         break;
       case "betterposter":
-        templateContent = getBetterPosterTemplate(project, themeColor);
+        templateContent = getBetterPosterTemplate(projectForMeta, themeColor);
         break;
       case "atlas":
       default:
-        templateContent = getAtlasTemplate(project, themeColor, workspaceId);
+        templateContent = getAtlasTemplate(projectForMeta, themeColor, workspaceId);
         break;
     }
 

@@ -35,6 +35,12 @@ describe("braceBalance", () => {
     expect(braceBalance("\\{literal\\}")).toBe(0)
     expect(braceBalance("frac{a}{b}")).toBe(0)
   })
+
+  it("ignores escaped braces inside math so $\\{x\\}$ is not an extra }", () => {
+    expect(braceBalance("$\\{x\\}$")).toBe(0)
+    expect(braceBalance("$\\frac{a}{b}$ and {unclosed")).toBe(1)
+    expect(fixById("balance-braces")("$\\{x\\}$")).toBeUndefined()
+  })
 })
 
 describe("deriveQuickFixes — close-math", () => {
@@ -110,6 +116,23 @@ describe("deriveQuickFixes — clean content", () => {
   it("can offer multiple fixes at once", () => {
     const fixes = deriveQuickFixes(card("$\\foo$ and {unclosed"))
     expect(fixes.map((f) => f.id).sort()).toEqual(["balance-braces", "escape-unknown-commands"])
+  })
+})
+
+describe("deriveQuickFixes — display math and \\text specials", () => {
+  it("offers close-display-math for an orphaned $$ with even $ count", () => {
+    const src = "The energy is $$E = mc^2"
+    const fix = fixById("close-display-math")(src)
+    expect(fix).toBeDefined()
+    expect(fix!.apply(src)).toBe("The energy is $$E = mc^2$$")
+    expect(fixById("close-math")(src)).toBeUndefined()
+  })
+
+  it("escapes unescaped specials inside \\text{...} in math", () => {
+    const src = "$$\\text{a_b}$$"
+    const fix = fixById("escape-text-specials")(src)
+    expect(fix).toBeDefined()
+    expect(fix!.apply(src)).toBe("$$\\text{a\\_b}$$")
   })
 })
 

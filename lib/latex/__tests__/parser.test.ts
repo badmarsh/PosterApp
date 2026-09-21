@@ -78,9 +78,9 @@ describe("mapUnicodeToLatex (F-02)", () => {
 })
 
 describe("markdown link URLs (A-02)", () => {
-  it("does not escape LaTeX specials inside the href target", () => {
+  it("keeps underscores literal in the href target but escapes TeX catcode specials", () => {
     const out = parseMarkdownToLatex("See [Paper](https://ex.com/a_b?x=1&y=2#sec)")
-    expect(out).toBe("See \\href{https://ex.com/a_b?x=1&y=2#sec}{Paper}")
+    expect(out).toBe("See \\href{https://ex.com/a_b?x=1\\&y=2\\#sec}{Paper}")
   })
 
   it("keeps DOI underscores intact", () => {
@@ -89,7 +89,7 @@ describe("markdown link URLs (A-02)", () => {
 
   it("still escapes the link text while leaving the URL alone", () => {
     expect(parseMarkdownToLatex("[Smith & Co](https://ex.com/a%20b)")).toBe(
-      "\\href{https://ex.com/a%20b}{Smith \\& Co}"
+      "\\href{https://ex.com/a\\%20b}{Smith \\& Co}"
     )
   })
 
@@ -101,5 +101,23 @@ describe("markdown link URLs (A-02)", () => {
 
   it("drops the href for non-http targets, keeping escaped text", () => {
     expect(parseMarkdownToLatex("[a_b](mailto:x@y.z)")).toBe("a\\_b")
+  })
+})
+
+describe("nested emphasis, math in lists, table specials", () => {
+  it("renders italic nested inside bold without leftover asterisks", () => {
+    expect(parseMarkdownToLatex("**foo *bar* baz**")).toBe("\\textbf{foo \\textit{bar} baz}")
+  })
+
+  it("does not re-escape specials inside dollar math, including in bullets", () => {
+    const out = parseMarkdownToLatex("- energy $E=mc^2$ and $a_b$")
+    expect(out).toContain("\\item energy $E=mc^2$ and $a_b$")
+    expect(out).not.toContain("\\$")
+    expect(out).not.toContain("\\_")
+  })
+
+  it("escapes & in prose (tabular-safe) but not inside math", () => {
+    expect(parseMarkdownToLatex("Smith & Jones")).toBe("Smith \\& Jones")
+    expect(parseMarkdownToLatex("see $a < b$")).toContain("$a < b$")
   })
 })

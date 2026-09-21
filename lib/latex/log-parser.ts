@@ -65,6 +65,7 @@ const OVERFULL = /^Overfull \\[hv]box \((\d+(?:\.\d+)?)pt too wide\)(?: in parag
 const UNDERFULL = /^Underfull \\[hv]box \(badness \d+\)/
 const L_LINE = /^l\.(\d+)\s?(.*)$/
 const BIBTEX_ERROR = /^I couldn't open|^I found no |^You're missing a field/
+const RUNAWAY = /^Runaway (argument|definition|text|preamble)/
 
 function classifyError(message: string): LatexLogIssueKind {
   if (CONTROL_SEQUENCE.test(message)) return "undefined-control-sequence"
@@ -116,11 +117,22 @@ export function parseCompileLog(log: string | null | undefined): ParsedCompileLo
     const raw = lines[i]
 
     if (raw.startsWith("!")) {
-      const message = stripPrefix(raw)
+      let message = stripPrefix(raw)
       if (!message) continue
       const detail: string[] = []
       let line: number | undefined
       let context: string | undefined
+
+      // Multi-line TeX diagnostics often start the block with
+      // "Runaway argument?" *before* the `!` line (sometimes with the
+      // truncated token sitting on the line in between). Capture it so
+      // the UI sees the full error, not just the first `!` sentence.
+      for (let k = 1; k <= 3 && i - k >= 0 && detail.length < MAX_DETAIL_LINES; k++) {
+        if (RUNAWAY.test(lines[i - k])) {
+          detail.push(lines[i - k])
+          break
+        }
+      }
 
       // Error blocks are noisy: blank lines and boilerplate ("See the LaTeX
       // manual...") sit between the message and the `l.NNN` marker that
@@ -137,6 +149,17 @@ export function parseCompileLog(log: string | null | undefined): ParsedCompileLo
         if (lm) {
           line = parseInt(lm[1], 10)
           context = lm[2].trim() || undefined
+          // TeX splits a long control sequence across the `l.NNN` line and
+          // the following indented continuation (`\thisisalong` / `command`).
+          if (j + 1 < lines.length && /^\s+\S/.test(lines[j + 1]) && detail.length < MAX_DETAIL_LINES) {
+            const cont = lines[j + 1].trim()
+            if (cont) {
+              detail.push(lines[j + 1])
+              if (context && /^\\[A-Za-z@]+$/.test(context) && /^[A-Za-z@]+/.test(cont)) {
+                context = context + cont.replace(/[^A-Za-z@].*$/, "")
+              }
+            }
+          }
           i = j
           break
         }
@@ -146,10 +169,18 @@ export function parseCompileLog(log: string | null | undefined): ParsedCompileLo
         if (j === windowEnd - 1) i = j
       }
 
+      const kind = classifyError(message)
+      if (kind === "undefined-control-sequence") {
+        const cmd = extractControlSequenceName(detail, context)
+        if (cmd && !message.includes(`\\${cmd}`)) {
+          message = `${message.replace(/\.$/, "")} \\${cmd}`
+        }
+      }
+
       issues.push({
         id: `issue-${issues.length}`,
         severity: "error",
-        kind: classifyError(message),
+        kind,
         message,
         detail,
         line,
@@ -163,13 +194,33 @@ export function parseCompileLog(log: string | null | undefined): ParsedCompileLo
       const kind = classifyWarning(raw)
       if (kind) {
         const isBox = kind === "overfull" || kind === "underfull"
+        const detail: string[] = []
+        let context: string | undefined
+        if (isBox) {
+          // The overflowing text is printed on the following line(s), often
+          // starting with `[]` and a font selector. Capture it so we can
+          // attribute the box to a card.
+          for (let j = i + 1; j < Math.min(lines.length, i + 4); j++) {
+            const l = lines[j]
+            if (!l) break
+            if (l.startsWith("!") || classifyWarning(l)) break
+            if (/^\s|^\[\]/.test(l) || /\\OT[12]/.test(l) || /\\OMS/.test(l)) {
+              detail.push(l)
+              i = j
+            } else {
+              break
+            }
+          }
+          if (detail[0]) context = stripBoxGlyphLine(detail[0]) || undefined
+        }
         issues.push({
           id: `issue-${issues.length}`,
           severity: isBox ? "info" : "warning",
           kind,
           message: raw.trim(),
-          detail: [],
-          line: kind === "overfull" ? parseOverfullLine(raw) : undefined,
+          detail,
+          line: isBox ? parseBoxLine(raw) : undefined,
+          context,
         })
       }
     }
@@ -180,10 +231,38 @@ export function parseCompileLog(log: string | null | undefined): ParsedCompileLo
   return { issues, errorCount, warningCount, succeeded: errorCount === 0 }
 }
 
-function parseOverfullLine(line: string): number | undefined {
-  const m = OVERFULL.exec(line)
-  if (!m) return undefined
-  if (m[2]) return parseInt(m[2], 10)
+/** Strip TeX's `[]` / `\OT1/lmr/...` glyph dump so the overflowing words remain. */
+function stripBoxGlyphLine(line: string): string {
+  return line
+    .replace(/^\[\]\s*/, "")
+    .replace(/^(?:\\[A-Z]+\d*(?:\/\S+)?\s*)+/, "")
+    .replace(/^\([^)]*\)\s*/, "")
+    .trim()
+}
+
+function parseBoxLine(line: string): number | undefined {
+  const m = /at lines (\d+)--(\d+)/.exec(line)
+  if (m) return parseInt(m[1], 10)
+  const over = OVERFULL.exec(line)
+  if (over?.[2]) return parseInt(over[2], 10)
+  const under = UNDERFULL.exec(line)
+  if (under?.[1]) return parseInt(under[1], 10)
+  return undefined
+}
+
+/** Pull `\foo` out of TeX's many "Undefined control sequence" layouts. */
+export function extractControlSequenceName(detail: string[], context?: string): string | undefined {
+  const blobs = [...detail, context ?? ""]
+  for (const d of blobs) {
+    const recent = /<(?:recently read|argument|template|to be read again)>\s*\\([A-Za-z@]+)/.exec(d)
+    if (recent) return recent[1]
+    const leading = /^\s*\\([A-Za-z@]+)/.exec(d)
+    if (leading) return leading[1]
+  }
+  if (context) {
+    const m = /\\([A-Za-z@]+)/.exec(context)
+    if (m) return m[1]
+  }
   return undefined
 }
 
@@ -214,25 +293,22 @@ function cardHaystack(card: Card): string {
 function issueNeedles(issue: LatexLogIssue): string[] {
   const needles: string[] = []
   if (issue.kind === "undefined-control-sequence") {
-    // The offending command appears either in the detail
-    // (`<recently read> \foo`) or directly in the `l.NNN` context line.
-    for (const d of [...issue.detail, issue.context ?? ""]) {
-      const m = /\\([A-Za-z@]+)/.exec(d)
-      if (m) {
-        needles.push(`\\${m[1]}`)
-        break
-      }
-    }
+    const cmd = extractControlSequenceName(issue.detail, issue.context)
+    if (cmd) needles.push(`\\${cmd}`)
+    const fromMsg = /\\([A-Za-z@]+)/.exec(issue.message)
+    if (fromMsg && !needles.includes(`\\${fromMsg[1]}`)) needles.push(`\\${fromMsg[1]}`)
   }
   for (const name of extractQuotedNames(issue.message)) {
     if (name.length >= 4) needles.push(name)
   }
-  if (issue.context && issue.context.length >= 15) {
-    const norm = normalizeForMatch(issue.context)
-    // Use a mid-string fragment of the normalized context — matching the full
-    // line is too strict once escapeLatex has rewritten characters.
-    if (norm.length >= 15) {
-      needles.push(norm.slice(0, Math.max(24, Math.min(60, norm.length))))
+  const boxKind = issue.kind === "overfull" || issue.kind === "underfull"
+  const minLen = boxKind ? 8 : 15
+  const contextBlob = issue.context
+    || (boxKind ? issue.detail.map(stripBoxGlyphLine).filter(Boolean).join(" ") : "")
+  if (contextBlob && contextBlob.length >= minLen) {
+    const norm = normalizeForMatch(contextBlob)
+    if (norm.length >= minLen) {
+      needles.push(norm.slice(0, Math.max(boxKind ? 16 : 24, Math.min(60, norm.length))))
     }
   }
   return needles
