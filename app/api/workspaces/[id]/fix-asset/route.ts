@@ -78,7 +78,7 @@ export async function POST(
         const files = await fs.readdir(wsLogosDir)
         for (const f of files) {
           if (VALID_EXTENSIONS.has(path.extname(f).toLowerCase())) {
-            logoFiles.push({ filename: f, url: `/api/workspaces/${workspaceId}/assets/${f}`, source: "workspace" })
+            logoFiles.push({ filename: f, url: `/api/workspaces/${workspaceId}/logos/${f}`, source: "workspace" })
           }
         }
       } catch {
