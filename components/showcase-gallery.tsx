@@ -43,16 +43,16 @@ export function ShowcaseGallery({
     return ALL_SHOWCASE_PROJECTS.filter((showcase) => {
       // Category filter
       if (selectedCategory === "ai-foundations") {
-        const aiIds = ["attention-is-all-you-need", "resnet-deep-residual-learning", "bert-pre-training", "gans-goodfellow-2014", "vla-autonomous-surgery"]
+        const aiIds = ["attention-is-all-you-need", "resnet-deep-residual-learning", "bert-pre-training", "gans-goodfellow-2014", "vla-autonomous-surgery", "speculative-decoding-guarantees"]
         if (!aiIds.includes(showcase.id)) return false
       } else if (selectedCategory === "physics") {
-        if (!["atlas-bose-einstein-correlations", "neural-wavefunction-superconductors"].includes(showcase.id)) return false
+        if (!["atlas-bose-einstein-correlations", "neural-wavefunction-superconductors", "jwst-gravitational-lensing"].includes(showcase.id)) return false
       } else if (selectedCategory === "quantum") {
         if (!["quantum-supremacy-sycamore", "neural-wavefunction-superconductors"].includes(showcase.id)) return false
       } else if (selectedCategory === "biology") {
         if (!["alphafold-protein-folding", "cas13-panviral-immunity"].includes(showcase.id)) return false
       } else if (selectedCategory === "thesis-review") {
-        if (!["posudok-diplomovka-ai", "vla-autonomous-surgery"].includes(showcase.id)) return false
+        if (!["posudok-diplomovka-ai", "vla-autonomous-surgery", "jwst-gravitational-lensing"].includes(showcase.id)) return false
       }
 
       // Search query
@@ -74,8 +74,11 @@ export function ShowcaseGallery({
       case "atlas-bose-einstein-correlations":
       case "neural-wavefunction-superconductors":
         return <Atom className="size-4 text-rose-500" />
+      case "jwst-gravitational-lensing":
+        return <Atom className="size-4 text-sky-500" />
       case "quantum-supremacy-sycamore":
-        return <Cpu className="size-4 text-blue-500" />
+      case "speculative-decoding-guarantees":
+        return <Cpu className="size-4 text-indigo-500" />
       case "alphafold-protein-folding":
       case "cas13-panviral-immunity":
         return <Dna className="size-4 text-emerald-500" />

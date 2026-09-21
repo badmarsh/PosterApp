@@ -5,7 +5,7 @@ import { ALL_SHOWCASE_PROJECTS } from '../lib/showcases-data';
 import { getTemplateDef } from '../lib/output-types';
 
 async function main() {
-  console.log('Seeding and updating all 8 showcase workspaces in PostgreSQL Prisma DB...');
+  console.log(`Seeding and updating all ${ALL_SHOWCASE_PROJECTS.length} showcase workspaces in PostgreSQL Prisma DB...`);
   const defaultUserId = 'user_3IGDYw03LkmHZaaCgKwWcBYxHQu';
 
   for (const s of ALL_SHOWCASE_PROJECTS) {
@@ -96,7 +96,7 @@ async function main() {
     console.log(`✔ ${s.id} seeded successfully with ${s.outputs.length} outputs and ${s.assets.length} assets.`);
   }
 
-  console.log('All 8 showcases successfully populated in database!');
+  console.log(`All ${ALL_SHOWCASE_PROJECTS.length} showcases successfully populated in database!`);
 }
 
 main().catch(err => {

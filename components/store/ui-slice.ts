@@ -228,7 +228,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
             const buf = await pdfRes.arrayBuffer()
             set((s) => {
               s.pdfData = new Uint8Array(buf)
-              s.lastCompiledRevision = revision
+              s.lastCompiledRevision = revision ?? null
               s.lastCompiledOutputId = activeOutput.id
             })
           }
