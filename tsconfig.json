@@ -37,6 +37,9 @@
   ],
   "exclude": [
     "node_modules",
-    "tmp"
+    "tmp",
+    "after_part.ts",
+    "before_part.ts",
+    "mid.ts"
   ]
 }

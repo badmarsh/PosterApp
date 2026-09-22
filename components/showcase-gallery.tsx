@@ -163,7 +163,7 @@ function ShowcaseCard({
     >
       <div>
         {/* Visual Poster / 3D Mockup / Trojkompozícia Container */}
-        <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted/50 border-b border-border/50 select-none">
+        <div className="relative aspect-[7/10] w-full overflow-hidden bg-muted/50 border-b border-border/50 select-none">
           {!imgError ? (
             previewMode === "mockup" && hasTriad ? (
               /* 3D Realistic Studio Mockup (Generated via Qwen-Image / AliProxy) */
@@ -672,3 +672,6 @@ export function ShowcaseGallery({
     </div>
   )
 }
+
+
+

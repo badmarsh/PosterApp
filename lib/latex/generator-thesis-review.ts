@@ -616,7 +616,7 @@ export class ThesisReviewLatexGenerator implements LatexGenerator {
     const sections: ThesisSection[] = outputConfig.cards.map((c) => ({
       id: c.id,
       sectionId: c.id,
-      criterionId: c.id,
+      criterionId: (c as any).criterionId || c.title || c.id,
       text: c.content || "",
       rating: "pending",
       suggestions: [],

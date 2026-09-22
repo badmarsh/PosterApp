@@ -120,7 +120,7 @@ function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[
 
   if (card.pattern === "references") {
     const nociteCmd = usedBibKeys.length > 0 ? `\\nocite{${usedBibKeys.join(",")}}` : "\\nocite{*}"
-    parts.push(`\\begingroup\n${nociteCmd}\n\\bibliographystyle{${bibStyle}}\n\\bibliography{references}\n\\endgroup`)
+    parts.push(`${nociteCmd}\n\\bibliographystyle{${bibStyle}}\n\\bibliography{references}`)
     return parts.join("\n\n")
   }
 
@@ -148,7 +148,7 @@ function generateLatexForCard(card: Card, workspaceId = "", usedBibKeys: string[
     card.pattern === "bullets-image" ||
     card.pattern === "bullets-two-images" ||
     card.pattern === "image-focused" ||
-    card.pattern === "section-figure" ||
+    card.pattern === "section-figure" || card.pattern === "graph" ||
     card.pattern === "section-two-figures"
   ) {
     parts.push(generateFigures(card, workspaceId, isTwoColumn))
@@ -177,6 +177,7 @@ const BIBSTYLE_BY_TEMPLATE: Record<string, string> = {
   acl: "acl_natbib",
   neurips: "plainnat",
   "ieee-conf": "IEEEtran",
+  cvpr: "ieeenat_fullname",
 }
 
 export class StandardPaperGenerator implements LatexGenerator {
@@ -209,6 +210,7 @@ export class StandardPaperGenerator implements LatexGenerator {
     // frontmatter instead of the regular body stream. Unused for all other
     // templates.
     let injectElsarticleAbstract = ""
+    let injectAbstractCommand = ""
     const bibStyle = BIBSTYLE_BY_TEMPLATE[this.templateId] ?? "plain"
     let contentBlocks = ""
     if (this.templateId === "acm-sigconf" || this.templateId === "revtex-aps") {
@@ -227,6 +229,15 @@ export class StandardPaperGenerator implements LatexGenerator {
       if (abstractCard) {
         const abstractTex = generateLatexForCard(abstractCard, workspaceId, usedKeysArray, isTwoColumn, bibStyle)
         injectElsarticleAbstract = abstractTex
+      }
+    } else if (this.templateId === "jinst-proceedings" || this.templateId === "epj-woc") {
+      // jinstpub and webofc define \abstract{...} as a macro rendered by \maketitle,
+      // not as an environment after \maketitle.
+      const abstractCard = sortedCards.find(c => c.title.trim().toLowerCase() === "abstract" || (c.pattern as string) === "abstract")
+      const otherCards = sortedCards.filter(c => c !== abstractCard)
+      contentBlocks = otherCards.map((c) => generateLatexForCard(c, workspaceId, usedKeysArray, isTwoColumn, bibStyle)).join("\n\n")
+      if (abstractCard) {
+        injectAbstractCommand = `\\abstract{\n${parseMarkdownToLatex(abstractCard.content.trim())}\n}`
       }
     } else {
       contentBlocks = sortedCards
@@ -288,6 +299,12 @@ export class StandardPaperGenerator implements LatexGenerator {
       default:
         templateContent = getTwoColumnTemplate(project);
         break;
+    }
+
+    if (this.templateId === "jinst-proceedings" && injectAbstractCommand) {
+      templateContent = templateContent.replace("\\maketitle", `${injectAbstractCommand}\n\\maketitle`)
+    } else if (this.templateId === "epj-woc" && injectAbstractCommand) {
+      templateContent = templateContent.replace(/\\abstract\{%[\r\n\s]*\}/, injectAbstractCommand)
     }
 
     return `% =============================================================================

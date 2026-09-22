@@ -12,6 +12,7 @@
 
 import type { ChatModelAdapter } from "@assistant-ui/react"
 import { apiFetch } from "@/lib/api-fetch"
+import { isDemoProject } from "@/lib/mock-data"
 
 export function makeChatAdapter(
   projectId: string,
@@ -20,6 +21,13 @@ export function makeChatAdapter(
 ): ChatModelAdapter {
   return {
     async run({ messages, abortSignal }) {
+      // Demo/showcase workspaces have no DB record — chat is not available.
+      if (isDemoProject(projectId)) {
+        return {
+          content: [{ type: "text", text: "💡 Chat is not available for demo workspaces. Open or create a real workspace to use AI chat." }],
+        }
+      }
+
       setIsAiStreaming?.(true)
       try {
         // Convert assistant-ui message objects to plain {role, content} pairs

@@ -11,7 +11,7 @@ describe("LaTeX Validation", () => {
 
   it("validates a valid card", () => {
     const card: Card = {
-      id: "blk_test",
+      id: "card_test",
       title: "Test Card",
       column: 1,
       order: 0,
@@ -31,7 +31,7 @@ describe("LaTeX Validation", () => {
 
   it("detects missing title", () => {
     const card: Card = {
-      id: "blk_test",
+      id: "card_test",
       title: "",
       column: 1,
       order: 0,
@@ -51,7 +51,7 @@ describe("LaTeX Validation", () => {
 
   it("detects missing content for bullets pattern", () => {
     const card: Card = {
-      id: "blk_test",
+      id: "card_test",
       title: "Test",
       column: 1,
       order: 0,
@@ -67,6 +67,25 @@ describe("LaTeX Validation", () => {
     const msgs = validateCard(card)
     expect(msgs.find((m) => m.field === "content")).toBeDefined()
     expect(levelFromMessages(msgs)).toBe("invalid")
+  })
+
+  it("enforces strict card_ prefix for block IDs", () => {
+    const cardInvalid: Card = {
+      id: "blk_legacy",
+      title: "Test",
+      column: 1,
+      order: 0,
+      pattern: "bullets",
+      content: "- content",
+      table: { hasHeader: true, caption: "", rows: [] },
+      figures: [],
+      figureLayout: "single",
+      sourceIds: [],
+      heightBudget: null,
+      validation: "valid",
+    }
+    const msgs = validateCard(cardInvalid)
+    expect(msgs.find((m) => m.field === "id")).toBeDefined()
   })
 })
 

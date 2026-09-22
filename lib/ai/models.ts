@@ -33,7 +33,7 @@ export const AI_TIMEOUTS = {
   generation: 180_000,
   review: 180_000,
   chat: 180_000,
-  thesis: 120_000,
+  thesis: 210_000,
 } as const
 
 export const DEFAULT_FALLBACK_VISION_MODELS: readonly string[] = [

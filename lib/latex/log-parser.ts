@@ -355,3 +355,26 @@ export function attributeIssuesToCards<T extends LatexLogIssue>(
     return best ? { ...issue, cardId: best.cardId } : { ...issue }
   })
 }
+
+export function getDeterministicSummary(log: string, cards?: Card[]): string {
+  if (!log || typeof log !== 'string' || !log.trim()) return 'Compilation failed without compiler output.';
+  const parsed = parseCompileLog(log);
+  if (!parsed.issues.length) {
+    if (/fatal error/i.test(log) || /emergency stop/i.test(log)) return 'LaTeX compiler stopped with a fatal error. Check syntax and package dependencies.';
+    return 'Compilation failed without a specific LaTeX error line. Check card formatting.';
+  }
+  const attributed = cards && cards.length > 0 ? attributeIssuesToCards(parsed.issues, cards) : parsed.issues;
+  const errorIssue = attributed.find((i) => i.severity === 'error') || attributed[0];
+  let cardInfo = '';
+  if (errorIssue.cardId && cards) {
+    const matchedCard = cards.find((c) => c.id === errorIssue.cardId);
+    if (matchedCard?.title?.trim()) cardInfo = ' in card "' + matchedCard.title.trim() + '"';
+    else if (errorIssue.cardId) cardInfo = ' in card "' + errorIssue.cardId + '"';
+  }
+  const lineInfo = errorIssue.line ? ' on line ' + errorIssue.line : '';
+  let hint = '';
+  if (errorIssue.kind === 'math' || /missing \$/i.test(errorIssue.message)) hint = ' Math formula may be missing an opening or closing dollar sign ($).';
+  else if (errorIssue.kind === 'undefined-control-sequence') hint = ' An unrecognized command was used. Use Markdown syntax instead.';
+  else if (errorIssue.kind === 'file-not-found') hint = ' A referenced image or figure file was not found.';
+  return ('Compile error: ' + errorIssue.message + lineInfo + cardInfo + '.' + (hint ? ' ' + hint : '')).trim();
+}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { requireWorkspaceEditor } from "@/lib/auth"
+import { isDemoProject } from "@/lib/mock-data"
 import { generateAIResponse } from "@/lib/ai/client"
 import { CompileFixesSchema } from "@/lib/ai/contracts"
 import type { Card } from "@/lib/poster-types"
@@ -18,21 +19,24 @@ export async function POST(
     return NextResponse.json({ error: "Invalid workspace ID" }, { status: 400 })
   }
 
-  let userId: string
-  let workspace: Awaited<ReturnType<typeof requireWorkspaceEditor>>["workspace"]
-  try {
-    const access = await requireWorkspaceEditor(workspaceId)
-    userId = access.userId
-    workspace = access.workspace
-  } catch (err) {
-    if (err instanceof Response) return err
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const isDemo = isDemoProject(workspaceId)
+  let userId = "demo-user"
+  let workspace: Awaited<ReturnType<typeof requireWorkspaceEditor>>["workspace"] | null = null
+  if (!isDemo) {
+    try {
+      const access = await requireWorkspaceEditor(workspaceId)
+      userId = access.userId
+      workspace = access.workspace
+    } catch (err) {
+      if (err instanceof Response) return err
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   }
 
   const url = new URL(req.url)
   const expectedRevision = url.searchParams.get("revision")
 
-  if (expectedRevision && workspace.revision !== parseInt(expectedRevision, 10)) {
+  if (!isDemo && workspace && expectedRevision && workspace.revision !== parseInt(expectedRevision, 10)) {
     return NextResponse.json({ error: "Stale revision" }, { status: 409 })
   }
 

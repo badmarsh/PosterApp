@@ -4,7 +4,7 @@ import { WorkspaceCreateSchema } from "@/lib/validations/workspace"
 import { auth } from "@/lib/auth"
 import { getDefaultTemplateId, getTemplateDef } from "@/lib/output-types"
 import { rateLimitAsync } from "@/lib/rate-limit"
-import { safeApiError } from "@/lib/security"
+import { safeApiError, readJsonBodyCapped, PayloadTooLargeError } from "@/lib/security"
 
 export async function GET() {
   try {
@@ -42,7 +42,8 @@ export async function GET() {
       const demoWorkspaces = await Promise.all(sampleProjects.slice(0, 1).map(async (sampleProj, idx) => {
         const demoId = idx === 0 ? `demo_${Date.now().toString(36)}` : sampleProj.id
         
-        return prisma.workspace.create({
+        try {
+        return await prisma.workspace.create({
           data: {
             id: demoId,
             name: sampleProj.name,
@@ -91,9 +92,13 @@ export async function GET() {
             },
           }
         })
+        } catch (cErr: any) {
+          if (cErr?.code === "P2002") return null
+          throw cErr
+        }
       }))
       
-      workspaces = demoWorkspaces
+      workspaces = demoWorkspaces.filter((w): w is NonNullable<typeof w> => Boolean(w))
     }
 
     const result = workspaces.map((ws: any) => {
@@ -142,7 +147,15 @@ export async function POST(req: Request) {
       )
     }
 
-    const rawBody = await req.json()
+    let rawBody: unknown
+    try {
+      rawBody = await readJsonBodyCapped(req, 64 * 1024)
+    } catch (err) {
+      if (err instanceof PayloadTooLargeError) {
+        return NextResponse.json({ error: "Request payload too large" }, { status: 413 })
+      }
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+    }
     const parsed = WorkspaceCreateSchema.safeParse(rawBody)
     
     if (!parsed.success) {
@@ -226,3 +239,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to create workspace" }, { status: 500 })
   }
 }
+

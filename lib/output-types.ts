@@ -102,7 +102,7 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
     colors: [{id:"indigo",name:"Indigo",hex:"#4F46E5"},{id:"teal",name:"Teal",hex:"#0D9488"},{id:"crimson",name:"Crimson",hex:"#DC2626"}], layoutPreview: "poster-3col",
     detailFeatures: ["Plain a0poster class — no tikz block styling", "Three columns via multicol at a smaller base font", "Highest column budget (1000u): more fits per column", "Sections instead of cards (\\section*, not \\block)"], latexClass: "a0poster", colorSystem: "xcolor \\definecolor", requiresClass: ["a0poster"] },
   // Slides
-  { id: "beamer-metropolis", outputType: "slides", label: "Metropolis",    description: "Modern minimal theme with progress bar. (Requires 'metropolis' package).",             category: "core",
+  { id: "beamer-metropolis", outputType: "slides", label: "Metropolis",    description: "Modern minimal theme with progress bar. (Requires 'metropolis' package).",             category: "core", requiresClass: ["metropolis"],
     colors: [{id:"charcoal",name:"Charcoal",hex:"#2D3748"},{id:"blue",name:"Blue",hex:"#3B82F6"},{id:"green",name:"Green",hex:"#10B981"}], layoutPreview: "slides-wide",
     detailFeatures: ["Modern, flat design", "Distinctive progress bar in footer", "Clean, minimalist slide titles", "Requires the 'metropolis' LaTeX package"], latexClass: "beamer", colorSystem: "\\usetheme{metropolis}" },
   { id: "beamer-atlas",      outputType: "slides", label: "ATLAS Beamer",  description: "Madrid theme with hardcoded ATLAS red base color.",         category: "institutional",
@@ -114,7 +114,7 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
   { id: "beamer-default",    outputType: "slides", label: "Default",        description: "Bare-bones Beamer. Highly portable, no extra packages needed.",          category: "core",
     colors: [{id:"blue",name:"Blue",hex:"#1E40AF"},{id:"gray",name:"Gray",hex:"#4B5563"}], layoutPreview: "slides-wide",
     detailFeatures: ["Bare-bones default Beamer style", "Extremely portable, works everywhere", "No extraneous packages required"], latexClass: "beamer", colorSystem: "\\usetheme{default}" },
-  { id: "beamer-focus",      outputType: "slides", label: "Focus",          description: "Dark, minimalist full-bleed title slides. (Requires 'focus' package).",           category: "core",
+  { id: "beamer-focus",      outputType: "slides", label: "Focus",          description: "Dark, minimalist full-bleed title slides. (Requires 'focus' package).",           category: "core", requiresClass: ["focus"],
     colors: [{id:"dark",name:"Dark",hex:"#1C1C1C"},{id:"blue",name:"Blue",hex:"#007AB8"}], layoutPreview: "slides-wide",
     detailFeatures: ["Dark, minimalist aesthetic", "Full-bleed title and section slides", "Requires the 'focus' LaTeX package"], latexClass: "beamer", colorSystem: "\\usetheme{focus}" },
   { id: "beamer-editorial",  outputType: "slides", label: "Editorial (16:9)", description: "Magazine-style 16:9 deck: full-bleed accent rule, heavy frame titles, running footline.", category: "core",
@@ -127,13 +127,13 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
   { id: "article-single",   outputType: "paper", label: "Single-Column",        description: "Wider margins, thesis style. Figures don't span columns.",             category: "core",
     colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"Blue",hex:"#1E40AF"}], layoutPreview: "paper-single",
     detailFeatures: ["Single-column thesis/report layout", "Wider 1.5-inch margins for readability", "Uses authblk for affiliations", "Uses standard figure environments"], latexClass: "article", colorSystem: "None" },
-  { id: "ieee-conf",        outputType: "paper", label: "IEEE Conference",       description: "IEEE standards formatting. (Requires 'IEEEtran' class).",              category: "core",
+  { id: "ieee-conf",        outputType: "paper", label: "IEEE Conference",       description: "IEEE standards formatting. (Requires 'IEEEtran' class).",              category: "core", requiresClass: ["IEEEtran"],
     colors: [{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-twocol",
     detailFeatures: ["Complies with IEEE conference standards", "Two-column automatic layout", "Requires the 'IEEEtran' document class"], latexClass: "IEEEtran [conference]", colorSystem: "None" },
-  { id: "acm-sigconf",      outputType: "paper", label: "ACM SIGCONF",           description: "ACM conference format. (Requires 'acmart' class).",                           category: "core",
+  { id: "acm-sigconf",      outputType: "paper", label: "ACM SIGCONF",           description: "ACM conference format. (Requires 'acmart' class).",                           category: "core", requiresClass: ["acmart"],
     colors: [{id:"black",name:"Black",hex:"#111827"}], layoutPreview: "paper-twocol",
     detailFeatures: ["Complies with ACM SIGCONF standards", "Two-column automatic layout", "Requires the 'acmart' document class"], latexClass: "acmart [sigconf]", colorSystem: "None" },
-  { id: "springer-llncs",   outputType: "paper", label: "Springer LLNCS",        description: "Single-col Lecture Notes format. (Requires 'llncs' class).",         category: "core",
+  { id: "springer-llncs",   outputType: "paper", label: "Springer LLNCS",        description: "Single-col Lecture Notes format. (Requires 'llncs' class).",         category: "core", requiresClass: ["llncs"],
     colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"Blue",hex:"#1A56DB"}], layoutPreview: "paper-single",
     detailFeatures: ["Complies with Springer LNCS formatting", "Single-column layout", "Requires the 'llncs' document class"], latexClass: "llncs", colorSystem: "None" },
   { id: "jinst-proceedings", outputType: "paper", label: "JINST Proceedings",   description: "Journal of Instrumentation (SISSA/IOP) proceedings style using jinstpub.", category: "institutional",
@@ -226,6 +226,7 @@ export type PosterPattern =
   | "bullets-two-images"
   | "bullets-table"
   | "image-focused"
+  | "graph"
   | "stats"
   | "metric-card"
   | "references"
@@ -235,7 +236,11 @@ export type SlidePattern =
   | "bullets"
   | "bullets-image"
   | "figure-slide"
+  | "graph"
   | "two-column"
+  | "bullets-table"
+  | "stats"
+  | "metric-card"
   | "references"
 
 export type PaperPattern =
@@ -243,6 +248,7 @@ export type PaperPattern =
   | "section-figure"
   | "section-table"
   | "section-two-figures"
+  | "graph"
   | "references"
 
 /** All valid block patterns for a given output type. */
@@ -253,6 +259,7 @@ export const PATTERNS_FOR_TYPE: Record<OutputType, { id: string; label: string; 
     { id: "bullets-two-images", label: "Bullets + two images", description: "Bullets followed by two side-by-side figures." },
     { id: "bullets-table", label: "Bullets + table", description: "Bullets followed by a tabular result block." },
     { id: "image-focused", label: "Image-focused card", description: "A figure-dominant block with a short caption." },
+    { id: "graph", label: "Scientific Plot / Graph", description: "Prominent scientific chart or plot with dedicated caption." },
     { id: "stats", label: "Stat hero callouts", description: "Large metric callouts and benchmark highlight tiles." },
     { id: "metric-card", label: "Metric card", description: "Visual metric tiles for key benchmark results." },
     { id: "references", label: "References / Bibliography", description: "Auto-generates the bibliography." },
@@ -263,6 +270,9 @@ export const PATTERNS_FOR_TYPE: Record<OutputType, { id: string; label: string; 
     { id: "bullets-image", label: "Bullets + image", description: "Bullets on one side, image on the other." },
     { id: "bullets-table", label: "Bullets + table", description: "Bullet points followed by a compact comparison table." },
     { id: "figure-slide", label: "Full figure", description: "A slide dominated by a single figure." },
+    { id: "graph", label: "Scientific Plot / Graph", description: "Full-slide scientific plot or comparison chart." },
+    { id: "stats", label: "Stat hero callouts", description: "Large metric callouts and benchmark highlight tiles." },
+    { id: "metric-card", label: "Metric card", description: "Visual metric tiles for key benchmark results." },
     { id: "two-column", label: "Two-column", description: "Split slide with two content columns." },
     { id: "references", label: "References", description: "Bibliography slide." },
   ],
@@ -271,6 +281,7 @@ export const PATTERNS_FOR_TYPE: Record<OutputType, { id: string; label: string; 
     { id: "section-figure", label: "Section + figure", description: "Text section followed by a figure float." },
     { id: "section-table", label: "Section + table", description: "Text section followed by a table float." },
     { id: "section-two-figures", label: "Section + two figures", description: "Text section with two figure floats." },
+    { id: "graph", label: "Scientific Plot / Graph", description: "Standalone figure float for high-resolution scientific plots." },
     { id: "references", label: "References", description: "Bibliography section." },
   ],
   "thesis-review": [
@@ -388,6 +399,16 @@ export const DEFAULT_STRUCTURES: Record<OutputType, DefaultCardTemplate[]> = {
 export function buildDefaultStructure(outputType: OutputType, count?: number): DefaultCardTemplate[] {
   if (outputType === "thesis-review") {
     return DEFAULT_STRUCTURES["thesis-review"]
+  }
+
+  // Single-item shortcut: 1 slide or 1 page — blank canvas, no references card
+  if (count === 1) {
+    if (outputType === "slides") {
+      return [{ title: "Slide 1", pattern: "bullets" }]
+    }
+    if (outputType === "paper") {
+      return [{ title: "Page 1", pattern: "section" }]
+    }
   }
 
   if (outputType === "poster") {

@@ -766,10 +766,9 @@ function AgentPanelInner({
   onCancelJob: (id: string) => void
   onCollapse: () => void
 }) {
-  const { hydrateUi, updateProject, isAiStreaming, projectId } = useEditor(
+  const { isAiStreaming, projectId, clearHistory } = useEditor(
     useShallow((s) => ({
-      hydrateUi: s.hydrateUi,
-      updateProject: s.updateProject,
+      clearHistory: s.clearHistory,
       isAiStreaming: s.isAiStreaming,
       projectId: s.project.id,
     }))
@@ -920,9 +919,8 @@ function AgentPanelInner({
         </DialogHeader>
         <DialogFooter className="-mx-4 -mb-4">
           <Button variant="outline" size="sm" onClick={() => setConfirmClear(false)}>Cancel</Button>
-          <Button variant="destructive" size="sm" onClick={() => {
-            hydrateUi([], [])
-            updateProject({})
+          <Button variant="destructive" size="sm" onClick={async () => {
+            await clearHistory()
             setConfirmClear(false)
           }}>
             Clear History
@@ -938,25 +936,40 @@ function AgentPanelInner({
 // AgentPanel (main export) — manages runtime lifecycle
 // ---------------------------------------------------------------------------
 
-export function AgentPanel() {
-  const { agentEvents, generatingIds, jobs, cancelJob, projectId, selectedCardId, pendingAiPrompt, setPendingAiPrompt, chatMessages, setChatMessages, isAiStreaming, setIsAiStreaming } = useEditor(
+function AgentRuntimeHost({
+  projectId,
+  onCollapse,
+  onExpand,
+}: {
+  projectId: string
+  onCollapse: () => void
+  onExpand: () => void
+}) {
+  const {
+    agentEvents,
+    generatingIds,
+    jobs,
+    cancelJob,
+    selectedCardId,
+    pendingAiPrompt,
+    setPendingAiPrompt,
+    chatMessages,
+    setChatMessages,
+    setIsAiStreaming,
+  } = useEditor(
     useShallow((s) => ({
       agentEvents: s.agentEvents,
       generatingIds: s.generatingIds,
       jobs: s.jobs,
       cancelJob: s.cancelJob,
-      projectId: s.project.id,
       selectedCardId: s.selectedCardId,
       pendingAiPrompt: s.pendingAiPrompt,
       setPendingAiPrompt: s.setPendingAiPrompt,
       chatMessages: s.chatMessages,
       setChatMessages: s.setChatMessages,
-      isAiStreaming: s.isAiStreaming,
       setIsAiStreaming: s.setIsAiStreaming,
     }))
   )
-
-  const [collapsed, setCollapsed] = useState(false)
 
   const selectedCardIdRef = useRef(selectedCardId)
   useEffect(() => {
@@ -981,11 +994,36 @@ export function AgentPanel() {
 
   useEffect(() => {
     if (pendingAiPrompt && runtime?.thread?.append) {
-      setCollapsed(false)
+      onExpand()
       runtime.thread.append({ role: "user", content: [{ type: "text", text: pendingAiPrompt }] })
       setPendingAiPrompt(null)
     }
-  }, [pendingAiPrompt, runtime, setPendingAiPrompt])
+  }, [pendingAiPrompt, runtime, setPendingAiPrompt, onExpand])
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <AgentPanelInner
+        agentEvents={agentEvents}
+        generatingIds={generatingIds}
+        jobs={jobs}
+        onCancelJob={cancelJob}
+        onCollapse={onCollapse}
+      />
+    </AssistantRuntimeProvider>
+  )
+}
+
+export function AgentPanel() {
+  const { projectId, historyVersion, generatingIds, isAiStreaming } = useEditor(
+    useShallow((s) => ({
+      projectId: s.project.id,
+      historyVersion: s.historyVersion,
+      generatingIds: s.generatingIds,
+      isAiStreaming: s.isAiStreaming,
+    }))
+  )
+
+  const [collapsed, setCollapsed] = useState(false)
 
   if (collapsed) {
     return (
@@ -1021,14 +1059,11 @@ export function AgentPanel() {
   }
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <AgentPanelInner
-        agentEvents={agentEvents}
-        generatingIds={generatingIds}
-        jobs={jobs}
-        onCancelJob={cancelJob}
-        onCollapse={() => setCollapsed(true)}
-      />
-    </AssistantRuntimeProvider>
+    <AgentRuntimeHost
+      key={`${projectId}:${historyVersion}`}
+      projectId={projectId}
+      onCollapse={() => setCollapsed(true)}
+      onExpand={() => setCollapsed(false)}
+    />
   )
 }

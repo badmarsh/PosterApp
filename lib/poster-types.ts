@@ -37,6 +37,7 @@ export type BlockPattern =
   | "stats"
   | "metric-card"
   | "references"
+  | "graph"
   // Slide-specific patterns
   | "title-slide"
   | "figure-slide"

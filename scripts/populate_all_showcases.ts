@@ -8,6 +8,18 @@ async function main() {
   console.log(`Seeding and updating all ${ALL_SHOWCASE_PROJECTS.length} showcase workspaces in PostgreSQL Prisma DB...`);
   const defaultUserId = 'user_3IGDYw03LkmHZaaCgKwWcBYxHQu';
 
+  // Strict safeguard: Validate that EVERY card has the required 'card_' prefix
+  for (const s of ALL_SHOWCASE_PROJECTS) {
+    for (const out of s.outputs) {
+      for (const c of out.cards) {
+        if (!c.id.startsWith("card_")) {
+          throw new Error(`FATAL: Card ID "${c.id}" in workspace "${s.id}", output "${out.id}" violates the strict 'card_' prefix rule! Aborting seed.`);
+        }
+      }
+    }
+  }
+  console.log("All card prefixes verified: strict 'card_' compliance confirmed.");
+
   for (const s of ALL_SHOWCASE_PROJECTS) {
     console.log(`Updating ${s.id} (${s.name})...`);
 
@@ -54,9 +66,9 @@ async function main() {
         },
       });
 
-      for (const c of out.cards) {
-        await prisma.card.create({
-          data: {
+      if (out.cards.length > 0) {
+        await prisma.card.createMany({
+          data: out.cards.map((c) => ({
             id: c.id,
             outputId: createdOut.id,
             title: c.title || '',
@@ -70,7 +82,7 @@ async function main() {
             table: c.table as any,
             figures: c.figures as any,
             sourceIds: c.sourceIds as any,
-          },
+          })),
         });
       }
     }

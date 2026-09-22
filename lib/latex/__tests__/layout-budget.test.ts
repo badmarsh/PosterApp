@@ -149,9 +149,9 @@ describe("suggestReductions", () => {
 })
 
 describe("validateCard budget integration", () => {
-  const bigCard = makeCard({
-    content: Array.from({ length: 60 }, (_, i) => `- a reasonably long bullet line number ${i}`).join("\n"),
-  })
+  // 5 200 chars of prose → floor(5200/60)*14 + chrome 70 = 1274u, which exceeds
+  // the new atlas budget of 1 250u while staying safely within the old 900u tests.
+  const bigCard = makeCard({ content: "x".repeat(5200) })
 
   it("uses the template budget, so landscape overflows earlier than portrait", () => {
     const midCard = makeCard({ content: "x".repeat(3200) })
@@ -187,8 +187,9 @@ describe("validateCard budget integration", () => {
 })
 
 describe("aggregate poster column validation", () => {
-  const first = makeCard({ id: "card_first", column: 1, content: "x".repeat(2000) })
-  const second = makeCard({ id: "card_second", column: 1, content: "y".repeat(2000) })
+  // Each card is 910u (< 1 250u budget); together they are 1 820u (> 1 250u budget).
+  const first = makeCard({ id: "card_first", column: 1, content: "x".repeat(3600) })
+  const second = makeCard({ id: "card_second", column: 1, content: "y".repeat(3600) })
   const cards = [first, second]
 
   it("detects overflow made up of individually valid cards", () => {

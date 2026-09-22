@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-21T01:26:08.488Z",
+  "timestamp": "2026-09-22T19:43:49.825Z",
   "methodology": "unit_test",
   "methodologyNote": "Verified with 2 hardcoded temporal precedence comparisons. Not a real corpus evaluation.",
   "temporalPrecedenceRuleAccuracy": 1,

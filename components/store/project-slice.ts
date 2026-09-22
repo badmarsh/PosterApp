@@ -1,7 +1,7 @@
 import type { EditorSlice, ProjectSlice } from "./types"
 import { sampleProjects, isDemoProject } from "@/lib/mock-data"
 import { columnBudgetFor, estimateHeight, generateLatexForCard, hasUnsafeLatex, levelFromMessages, validateCard } from "@/lib/latex"
-import type { Project, OutputConfig, BlockPattern, Card, Figure } from "@/lib/poster-types"
+import type { Project, OutputConfig, BlockPattern, Card, Figure, AgentEvent } from "@/lib/poster-types"
 import type { ExtractedAsset as Asset, AssignSlot } from "@/lib/ingestion"
 import { apiFetch } from "@/lib/api-fetch"
 import { notify } from "@/lib/notify"
@@ -10,6 +10,8 @@ import { getDefaultTemplateId, DEFAULT_STRUCTURES, getTemplateDef, buildDefaultS
 import { jobQueue } from "@/lib/job-queue"
 import { sanitizeCiteKeys } from "@/lib/ai/prompts"
 import { destroyThesisReviewStore, clearThesisReviewStoreRegistry, getExistingThesisReviewStore } from "@/components/thesis-review/use-thesis-review-store"
+import { getWorkspaceLocalHistory, setWorkspaceLocalHistory } from "@/lib/workspace-history"
+import { safeRandomUUID } from "@/lib/utils"
 
 
 /** outputs[].cards is the persisted source of truth. `project.cards` only mirrors the active output for legacy consumers. */
@@ -62,6 +64,10 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
   switchProject: async (id) => {
     const { project, isSwitchingProject } = get()
     if (id === project.id || isSwitchingProject) return
+    const currentId = project.id
+    if (currentId) {
+      setWorkspaceLocalHistory(currentId, get().agentEvents, get().chatMessages)
+    }
     // Never silently discard unsaved edits on in-app navigation.
     if (get().isDirty && !isDemoProject(project.id) && typeof window !== "undefined") {
       const save = window.confirm(`"${project.name}" has unsaved changes.\n\nPress OK to save them before switching, or Cancel to stay here.`)
@@ -78,6 +84,22 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     // If switching to an in-memory sample/showcase project, load immediately
     const sample = sampleProjects.find((p) => p.id === id)
     if (sample) {
+      const cached = getWorkspaceLocalHistory(id)
+      const initialEvents: AgentEvent[] = cached?.agentEvents?.length
+        ? cached.agentEvents
+        : [
+            {
+              id: safeRandomUUID(),
+              createdAt: Date.now(),
+              ts: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+              kind: "info",
+              status: "done",
+              title: "Showcase loaded",
+              detail: `${sample.outputs?.find(o => o.id === sample.activeOutputId)?.cards?.length || 0} cards · ${sample.templateName || "atlas"}`,
+            },
+          ]
+      const initialMessages = cached?.chatMessages || []
+
       set((state) => {
         state.project = JSON.parse(JSON.stringify(sample))
         syncActiveCards(state.project)
@@ -91,12 +113,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         state.ingestionOpen = false
       })
       get().setLastWorkspaceId(id)
-      get().pushEvent({
-        kind: "info",
-        status: "done",
-        title: "Showcase loaded",
-        detail: (sample.outputs?.find(o => o.id === sample.activeOutputId)?.cards?.length || 0) + " cards · " + (sample.templateName || "atlas"),
-      })
+      get().hydrateUi(initialEvents, initialMessages)
       clearThesisReviewStoreRegistry()
 
       // Attempt background fetch if backend has synced state
@@ -104,15 +121,17 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
         const res = await apiFetch("/api/workspaces/" + id)
         if (res.ok) {
           const projData = await res.json()
-          const { agentEvents = [], chatMessages = [], ...projectData } = projData
+          const { agentEvents: backendEvents = [], chatMessages: backendMessages = [], ...projectData } = projData
           set((state) => {
             state.project = { ...projectData, assets: projectData.assets || [], ingestFiles: projectData.ingestFiles || [] }
             syncActiveCards(state.project)
           })
-          const safeEvents = agentEvents.map((e: any) =>
-            e.status === "running" ? { ...e, status: "error", detail: "Interrupted" } : e
-          )
-          get().hydrateUi(safeEvents, chatMessages)
+          if (Array.isArray(backendEvents) && backendEvents.length > 0) {
+            const safeEvents = backendEvents.map((e: any) =>
+              e.status === "running" ? { ...e, status: "error", detail: "Interrupted" } : e
+            )
+            get().hydrateUi(safeEvents, backendMessages)
+          }
         }
       } catch {
         // In-memory showcase active
@@ -144,19 +163,37 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       })
       get().setLastWorkspaceId(id)
 
-      // Load UI history
-      // Any event that was left "running" from a previous session is definitely dead now.
-      const safeEvents = agentEvents.map((e: any) => 
+      // Load UI history for THIS workspace (never bleed previous workspace history)
+      const cached = getWorkspaceLocalHistory(id)
+      const rawEvents = Array.isArray(agentEvents) && agentEvents.length > 0
+        ? agentEvents
+        : cached?.agentEvents?.length
+        ? cached.agentEvents
+        : []
+
+      const safeEvents = rawEvents.map((e: any) => 
         e.status === "running" ? { ...e, status: "error", detail: "Interrupted" } : e
       )
-      get().hydrateUi(safeEvents, chatMessages)
 
-      get().pushEvent({
-        kind: "info",
-        status: "done",
-        title: "Workspace loaded",
-        detail: `${projectData.cards?.length || 0} cards · ${projectData.templateName || "atlas"}`,
-      })
+      const finalEvents: AgentEvent[] = safeEvents.length > 0
+        ? safeEvents
+        : [
+            {
+              id: safeRandomUUID(),
+              createdAt: Date.now(),
+              ts: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+              kind: "info",
+              status: "done",
+              title: "Workspace loaded",
+              detail: `${projectData.cards?.length || 0} cards · ${projectData.templateName || "atlas"}`,
+            },
+          ]
+
+      const finalMessages = Array.isArray(chatMessages) && chatMessages.length > 0
+        ? chatMessages
+        : cached?.chatMessages || []
+
+      get().hydrateUi(finalEvents, finalMessages)
       clearThesisReviewStoreRegistry()
       get().fetchBib(id)
       get().fetchEquations(id)
@@ -374,11 +411,13 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
     s.isDirty = true
   }),
 
-  addOutput: (outputType, templateId) => set((s) => {
+  addOutput: (outputType, templateId, count) => set((s) => {
     const resolvedTemplate = templateId || getDefaultTemplateId(outputType)
     const id = `out_${outputType}_${Date.now().toString(36)}`
     
-    const structure = DEFAULT_STRUCTURES[outputType]
+    const structure = (count !== undefined)
+      ? buildDefaultStructure(outputType, count)
+      : DEFAULT_STRUCTURES[outputType]
     const newCards = structure.map((def, i) => ({
       id: `blk_${id}_${i}`,
       title: def.title,
@@ -1193,6 +1232,7 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
       // Bound history arrays before sending to prevent oversized payloads / schema overflow
       const agentEvents = (get().agentEvents || []).slice(-200)
       const chatMessages = (get().chatMessages || []).slice(-100)
+      setWorkspaceLocalHistory(proj.id, agentEvents, chatMessages)
 
       const res = await apiFetch(`/api/workspaces/${proj.id}`, {
         method: "PUT",

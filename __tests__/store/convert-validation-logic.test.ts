@@ -16,7 +16,7 @@ import type { Card } from '@/lib/poster-types'
 
 function makeCard(overrides: Partial<Card> = {}): Card {
   return {
-    id: 'blk_test_1',
+    id: 'card_test_1',
     title: 'Test Card',
     column: 1,
     order: 1,

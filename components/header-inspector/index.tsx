@@ -142,7 +142,7 @@ export function HeaderInspector() {
                         <span>{tmpl.label}</span>
                         {tmpl.category === "institutional" && (
                           <span className="rounded bg-warning/15 dark:bg-warning/20 px-1 py-px text-[10px] font-bold text-warning dark:text-warning">
-                            ATLAS
+                            {tmpl.id.includes("atlas") ? "ATLAS" : "Institutional"}
                           </span>
                         )}
                       </div>

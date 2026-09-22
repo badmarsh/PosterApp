@@ -5,6 +5,8 @@ import { notify } from "@/lib/notify"
 import { safeRandomUUID } from "@/lib/utils"
 import type { UiLanguage } from "@/lib/i18n/ui"
 import { isDemoProject } from "@/lib/mock-data"
+import { getDeterministicSummary } from "@/lib/latex/log-parser"
+import { setWorkspaceLocalHistory, clearWorkspaceLocalHistory } from "@/lib/workspace-history"
 
 /** Upper bounds so the event feed / chat history (persisted on every save) stay small. */
 const MAX_AGENT_EVENTS = 200
@@ -48,10 +50,54 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
   chatMessages: [],
   setChatMessages: (messages) => set({ chatMessages: tail(messages, MAX_CHAT_MESSAGES) }),
 
-  hydrateUi: (events, messages) => set({ 
-    agentEvents: tail(events.length > 0 ? events : get().agentEvents, MAX_AGENT_EVENTS),
-    chatMessages: tail(messages, MAX_CHAT_MESSAGES),
-  }),
+  historyVersion: 0,
+
+  hydrateUi: (events, messages) => {
+    const nextEvents = Array.isArray(events) ? events : []
+    const nextMessages = Array.isArray(messages) ? messages : []
+    set({
+      agentEvents: tail(nextEvents, MAX_AGENT_EVENTS),
+      chatMessages: tail(nextMessages, MAX_CHAT_MESSAGES) as any,
+      historyVersion: (get().historyVersion || 0) + 1,
+    })
+  },
+
+  clearHistory: async () => {
+    const project = get().project
+    const isDemo = isDemoProject(project.id)
+    const initialEvent = makeEvent({
+      kind: "info",
+      status: "done",
+      title: "History cleared",
+      detail: "Operation history and chat messages were reset.",
+    })
+
+    set({
+      agentEvents: [initialEvent],
+      chatMessages: [],
+      historyVersion: (get().historyVersion || 0) + 1,
+    })
+
+    if (project.id) {
+      clearWorkspaceLocalHistory(project.id)
+      setWorkspaceLocalHistory(project.id, [initialEvent], [])
+    }
+
+    if (!isDemo && project.id) {
+      try {
+        await apiFetch(`/api/workspaces/${project.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            agentEvents: [initialEvent],
+            chatMessages: [],
+          }),
+        })
+      } catch (err) {
+        console.warn("[clearHistory] Failed to save cleared history to server:", err)
+      }
+    }
+  },
 
   inspectorTab: "basics",
   isInspectorOpen: true,
@@ -218,7 +264,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
           } catch {}
           throw new Error(formattedError)
         }
-        const data: { ok: boolean; log: string } = await res.json()
+        const data: { ok: boolean; log: string; summary?: string } = await res.json()
 
         if (get().project.id !== capturedWorkspaceId) {
           get().updateEvent(evId, { status: "error", title: "Canceled", detail: "Workspace changed during compilation." })
@@ -250,7 +296,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
           // Background VLM Layout Check
           if (get().layoutCheckEnabled && get().lastReviewedRevision !== revision) {
             const vlmEv = get().pushEvent({ kind: "info", status: "running", title: `VLM Layout Check running...` })
-            apiFetch(`/api/workspaces/${project.id}/review-layout?revision=${revision}`, { method: "POST" })
+            apiFetch(`/api/workspaces/${project.id}/review-layout?revision=${revision}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cards: activeOutput.cards, output: activeOutput }) })
             .then(async res => {
               if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => "")}`)
               return res.json()
@@ -306,6 +352,9 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
 
           break; // Exit loop on success
         } else {
+          const isDemo = isDemoProject(project.id)
+          const errorSummary = data.summary || (data.log ? getDeterministicSummary(data.log, activeOutput.cards) : "Compilation failed.")
+
           if (attempts < MAX_ATTEMPTS && get().compileAutoFixEnabled) {
             get().updateEvent(evId, { detail: `Attempt ${attempts}/${MAX_ATTEMPTS} failed. Requesting LLM autofix...` })
             let autofixData: { fixes?: Array<{ id: string; content: string }>; explanation?: string } | null = null
@@ -326,9 +375,6 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
             }
             const fixes: Array<{ id: string; content: string }> = Array.isArray(autofixData?.fixes) ? autofixData.fixes : []
             if (fixes.length > 0) {
-               // Auto-apply the patches (they were already validated server-side for
-               // unsafe LaTeX and card-id membership), snapshot for undo, then loop
-               // back to recompile. This is what "3 attempts" always claimed to do.
                const snapshot = fixes
                  .map((f) => {
                    const card = activeOutput.cards.find((c) => c.id === f.id)
@@ -337,9 +383,12 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
                  .filter((x): x is { cardId: string; content: string } => x !== null)
                const alreadyIdentical = fixes.every((f) => activeOutput.cards.find((c) => c.id === f.id)?.content === f.content)
                if (alreadyIdentical) {
-                 get().updateEvent(evId, { status: "error", title: "Compile failed", detail: "Autofix returned unchanged content — stopping." })
-                 notify.error("Compile failed", { description: "Autofix returned unchanged content — the error log was shared with the agent." })
-                 get().setPendingAiPrompt(`The LaTeX compilation failed and the automatic fix did not change anything. Please analyze this error log and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
+                 const finalSummary = autofixData?.explanation || errorSummary
+                 get().updateEvent(evId, { status: "error", title: "Compile failed", detail: finalSummary })
+                 notify.error("Compile failed", { description: finalSummary })
+                 if (!isDemo) {
+                   get().setPendingAiPrompt(`The LaTeX compilation failed: ${finalSummary}\n\nPlease analyze this error and provide a fix using the <fix>...</fix> tag for the relevant card.`)
+                 }
                  break
                }
                fixes.forEach((f) => get().updateCard(f.id, { content: f.content }))
@@ -353,9 +402,12 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
                })
                continue
             } else {
-               get().updateEvent(evId, { status: "error", title: "Compile failed", detail: "LLM autofix could not provide a fix." })
-               notify.error("Compile failed", { description: "The automatic fix could not repair the LaTeX — the log was shared with the agent." })
-               get().setPendingAiPrompt(`The LaTeX compilation failed with the following error. Please analyze it, explain the issue, and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
+               const finalSummary = autofixData?.explanation || errorSummary
+               get().updateEvent(evId, { status: "error", title: "Compile failed", detail: finalSummary })
+               notify.error("Compile failed", { description: finalSummary })
+               if (!isDemo) {
+                 get().setPendingAiPrompt(`The LaTeX compilation failed: ${finalSummary}\n\nPlease analyze this error and provide a fix using the <fix>...</fix> tag for the relevant card.`)
+               }
                break;
             }
           } else {
@@ -364,16 +416,14 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
               title: get().compileAutoFixEnabled
                 ? `Compile failed after ${MAX_ATTEMPTS} attempts`
                 : "Compile failed",
-              detail: get().compileAutoFixEnabled
-                ? (data.log ?? "").slice(0, 200)
-                : "Auto-fix is disabled — the log was shared with the agent for a manual fix.",
+              detail: errorSummary,
             })
             notify.error("Compile failed", {
-              description: get().compileAutoFixEnabled
-                ? `Failed after ${MAX_ATTEMPTS} attempts — the log was shared with the agent.`
-                : "Auto-fix is disabled — the log was shared with the agent for a manual fix.",
+              description: errorSummary,
             })
-            get().setPendingAiPrompt(`The LaTeX compilation failed${get().compileAutoFixEnabled ? " after multiple attempts" : ""}. Please analyze this error log and explain the issue, and provide a fix using the <fix>...</fix> tag for the relevant card.\n\n\`\`\`log\n${data.log}\n\`\`\``)
+            if (!isDemo) {
+              get().setPendingAiPrompt(`The LaTeX compilation failed${get().compileAutoFixEnabled ? " after multiple attempts" : ""}: ${errorSummary}\n\nPlease analyze this error and provide a fix using the <fix>...</fix> tag for the relevant card.`)
+            }
           }
         }
       }

@@ -19,9 +19,9 @@ function asProject(workspace: any): Project {
     ...output,
     cards: output.cards.map((card: any): Card => ({
       ...card,
-      table: card.table ?? { hasHeader: true, caption: "", rows: [] },
-      figures: card.figures ?? [],
-      sourceIds: card.sourceIds ?? [],
+      table: (() => { const v = card.table; if (Array.isArray(v) || (v && typeof v === "object")) return v; if (typeof v === "string") { try { return JSON.parse(v) } catch {} } return { hasHeader: true, caption: "", rows: [] } })(),
+      figures: (() => { const v = card.figures; if (Array.isArray(v)) return v; if (typeof v === "string") { try { return JSON.parse(v) } catch {} } return [] })(),
+      sourceIds: (() => { const v = card.sourceIds; if (Array.isArray(v)) return v; if (typeof v === "string") { try { return JSON.parse(v) } catch {} } return [] })(),
     })),
   }))
   const active = outputs.find((output: any) => output.isActive) ?? outputs[0]

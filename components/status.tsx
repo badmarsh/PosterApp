@@ -110,6 +110,7 @@ export const PATTERN_SHORT: Record<BlockPattern, string> = {
   stats: "stats",
   "metric-card": "metric",
   references: "refs",
+  graph: "graph",
   // Slides
   "title-slide": "title",
   "figure-slide": "figure",

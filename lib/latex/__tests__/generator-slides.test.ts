@@ -75,4 +75,95 @@ describe("BeamerSlidesGenerator", () => {
     const tex = generator.generateDocument(mockProject, mockProject.outputs![0])
     expect(tex).toContain("\\note{Here are some notes}")
   })
+
+  test("does not generate redundant empty frame for title-slide pattern", () => {
+    const projectWithTitleSlide: Project = {
+      ...mockProject,
+      outputs: [
+        {
+          ...mockProject.outputs![0],
+          cards: [
+            {
+              id: "c_title",
+              pattern: "title-slide",
+              title: "Title Slide",
+              content: "",
+              order: 0,
+              column: null,
+              table: { hasHeader: false, caption: "", rows: [] },
+              figureLayout: "single",
+              validation: "valid",
+              figures: [],
+              slideNotes: "Opening remarks"
+            },
+            ...mockProject.outputs![0].cards
+          ]
+        }
+      ]
+    }
+    const generator = new BeamerSlidesGenerator("beamer-default")
+    const tex = generator.generateDocument(projectWithTitleSlide, projectWithTitleSlide.outputs![0])
+    expect(tex).not.toContain("\\begin{frame}{Title Slide}")
+    expect(tex).toContain("\\note{Opening remarks}")
+  })
+
+  test("emits proper newline separation and balanced braces for captions", () => {
+    const projectWithCaption: Project = {
+      ...mockProject,
+      outputs: [
+        {
+          ...mockProject.outputs![0],
+          cards: [
+            {
+              id: "c_fig",
+              pattern: "figure-slide",
+              title: "Figure Slide",
+              content: "",
+              order: 0,
+              column: null,
+              table: { hasHeader: false, caption: "", rows: [] },
+              figureLayout: "single",
+              validation: "valid",
+              figures: [{ url: "assets/fig.png", id: "f1", caption: "Caption with $x=1$" }]
+            }
+          ]
+        }
+      ]
+    }
+    const generator = new BeamerSlidesGenerator("beamer-default")
+    const tex = generator.generateDocument(projectWithCaption, projectWithCaption.outputs![0])
+    expect(tex).toContain("{\\footnotesize")
+    const openBraces = (tex.match(/(?<!\\)\{/g) || []).length
+    const closeBraces = (tex.match(/(?<!\\)\}/g) || []).length
+    expect(openBraces).toBe(closeBraces)
+  })
+
+  test("emits bibliography with template-specific bibstyle", () => {
+    const projectWithRefs: Project = {
+      ...mockProject,
+      outputs: [
+        {
+          ...mockProject.outputs![0],
+          cards: [
+            {
+              id: "c_refs",
+              pattern: "references",
+              title: "References",
+              content: "",
+              order: 0,
+              column: null,
+              table: { hasHeader: false, caption: "", rows: [] },
+              figureLayout: "single",
+              validation: "valid",
+              figures: []
+            }
+          ]
+        }
+      ]
+    }
+    const generator = new BeamerSlidesGenerator("beamer-metropolis")
+    const tex = generator.generateDocument(projectWithRefs, projectWithRefs.outputs![0])
+    expect(tex).toContain("\\bibliographystyle{plain}")
+    expect(tex).toContain("\\bibliography{references}")
+  })
 })

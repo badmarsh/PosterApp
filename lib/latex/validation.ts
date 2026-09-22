@@ -1,5 +1,6 @@
 import type { Card, ColumnIndex, ValidationMessage } from "@/lib/poster-types"
 import { columnBudgetFor, estimateHeight, suggestReductions } from "./layout"
+import { getTemplateDef } from "@/lib/output-types"
 
 export interface PosterColumnOccupancy {
   column: ColumnIndex
@@ -85,6 +86,13 @@ const DANGEROUS_LATEX_COMMANDS = [
   "\\usepackage",
   "\\RequirePackage",
   "\\documentclass",
+  // File-handle allocators that pair with \write / \read
+  "\\newwrite",
+  "\\newread",
+  // LuaLaTeX / expl3 execution primitives (not blocked by \directlua alone)
+  "\\lua_code",
+  "\\luacode",
+  "\\LuaCode",
 ]
 
 /** Case-insensitive detection of active-character / caret-notation tricks (^^40 == @). */
@@ -138,18 +146,18 @@ export function validateCard(
   if (!card.title.trim()) {
     msgs.push({ level: "error", field: "title", message: "Card title is required." })
   }
-  if (!/^(blk|card)_[a-z0-9_]+$/.test(card.id)) {
+  if (!/^card_[a-z0-9_]+$/.test(card.id)) {
     msgs.push({
       level: "error",
       field: "id",
-      message: "Block ID must match blk_ or card_ prefix.",
+      message: "Card ID must start with card_ prefix (e.g. card_<showcase>_<slug>).",
     })
   }
 
   const needsContent =
     card.pattern !== "image-focused" &&
     card.pattern !== "references" &&
-    card.pattern !== "figure-slide" &&
+    card.pattern !== "figure-slide" && card.pattern !== "graph" &&
     card.pattern !== "title-slide"
   if (needsContent && !card.content.trim()) {
     msgs.push({
@@ -184,7 +192,7 @@ export function validateCard(
   }
 
   const figureCount =
-    card.pattern === "bullets-image" || card.pattern === "image-focused" || card.pattern === "section-figure" || card.pattern === "figure-slide"
+    card.pattern === "bullets-image" || card.pattern === "image-focused" || card.pattern === "section-figure" || card.pattern === "figure-slide" || card.pattern === "graph"
       ? 1
       : card.pattern === "bullets-two-images" || card.pattern === "section-two-figures"
         ? 2
@@ -198,6 +206,10 @@ export function validateCard(
     })
   }
 
+  const tmplDef = templateId ? getTemplateDef(templateId) : null
+  const isPoster = !tmplDef || tmplDef.outputType === "poster"
+
+  if (isPoster) {
   const columnBudget = columnBudgetFor(templateId)
   const explicitBudget =
     typeof card.heightBudget === "number" && card.heightBudget > 0
@@ -228,6 +240,7 @@ export function validateCard(
     const aggregate = validatePosterColumns(siblingCards, templateId)
       .find((message) => message.field === `column-${card.column}`)
     if (aggregate) msgs.push(aggregate)
+  }
   }
 
   return msgs

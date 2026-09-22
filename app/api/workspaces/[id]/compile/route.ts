@@ -3,6 +3,7 @@ import { requireWorkspaceEditor } from "@/lib/auth"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { compileWorkspace } from "@/lib/latex/compile-workspace"
 import { isDemoProject } from "@/lib/mock-data"
+import { summarizeCompileError } from "@/lib/latex/compile-summary"
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -25,12 +26,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         const code = result.error?.code
         if (code === "WORKSPACE_NOT_FOUND") return NextResponse.json({ error: result.error }, { status: 404 })
         if (code === "COMPILER_UNAVAILABLE") return NextResponse.json({ error: result.error }, { status: 503 })
-        return NextResponse.json({ ok: false, error: result.error ?? { code: "COMPILE_FAILED", message: "Compilation failed" }, log: result.log }, { status: 422 })
+        const summary = await summarizeCompileError(result.log, body.cards); return NextResponse.json({ ok: false, error: result.error ?? { code: "COMPILE_FAILED", message: "Compilation failed" }, log: result.log, summary }, { status: 422 })
       }
       return NextResponse.json({ ok: true, cached: result.cached ?? false, revision: result.revision ?? 1, log: result.log })
     }
 
-    const { workspace, userId } = await requireWorkspaceEditor(id)
+    let bodyCards; try { const cloned = req.clone(); const parsedBody = await cloned.json(); if (Array.isArray(parsedBody?.cards)) bodyCards = parsedBody.cards; } catch {} const { workspace, userId } = await requireWorkspaceEditor(id)
 
     const { allowed, retryAfterMs } = await rateLimitAsync(
       `${userId}:${id}:compile`,
@@ -72,6 +73,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           ok: false,
           error: result.error ?? { code: "COMPILE_FAILED", message: "Compilation failed" },
           log: result.log,
+          summary: await summarizeCompileError(result.log, bodyCards),
         },
         { status: 422 }
       )

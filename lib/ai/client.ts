@@ -47,7 +47,7 @@ const RETRYABLE_STATUS_CODES = new Set([429, 502, 503, 504])
 // Starting value; needs empirical tuning against the largest thesis-review payloads.
 export const DEFAULT_AI_MAX_TOKENS = 8192
 /** Upper bound on a single provider round-trip so hung upstreams never pin a worker. */
-export const DEFAULT_AI_TIMEOUT_MS = Number(process.env.AI_REQUEST_TIMEOUT_MS) || 180_000
+export const DEFAULT_AI_TIMEOUT_MS = Number(process.env.AI_REQUEST_TIMEOUT_MS) || 220_000
 
 /** Combine the caller's signal (if any) with a hard per-request timeout. */
 function withDefaultTimeout(signal?: AbortSignal): AbortSignal {

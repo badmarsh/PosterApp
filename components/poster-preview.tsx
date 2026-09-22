@@ -393,12 +393,14 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
   const [selectedType, setSelectedType] = useState<OutputType>("slides")
   const templates = getTemplatesForType(selectedType)
   const [selectedTemplate, setSelectedTemplate] = useState(templates[0]?.id ?? "")
+  const [singleItem, setSingleItem] = useState(false)
 
   useEffect(() => {
     if (open) {
       setSelectedType("slides")
       const ts = getTemplatesForType("slides")
       setSelectedTemplate(ts[0]?.id ?? "")
+      setSingleItem(false)
     }
   }, [open])
 
@@ -406,10 +408,12 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
     setSelectedType(t)
     const ts = getTemplatesForType(t)
     setSelectedTemplate(ts[0]?.id ?? "")
+    setSingleItem(false)
   }
 
   const handleCreate = () => {
-    addOutput(selectedType, selectedTemplate)
+    const count = singleItem && (selectedType === "slides" || selectedType === "paper") ? 1 : undefined
+    addOutput(selectedType, selectedTemplate, count)
     onClose()
   }
 
@@ -472,7 +476,7 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
                     </span>
                     {tmpl.category === "institutional" && (
                       <span className="rounded bg-warning/15 px-1 py-px text-[8px] font-bold uppercase tracking-wide text-warning dark:bg-warning/20 dark:text-warning shrink-0">
-                        ATLAS
+                        {tmpl.id.includes("atlas") ? "ATLAS" : "Institutional"}
                       </span>
                     )}
                   </div>
@@ -579,6 +583,29 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
           <p className="text-[11px] text-muted-foreground">
             You can change theme settings or switch templates anytime in Header Settings.
           </p>
+          {(selectedType === "slides" || selectedType === "paper") && (
+            <label className="flex items-center gap-2 cursor-pointer select-none mr-4">
+              <div
+                role="checkbox"
+                aria-checked={singleItem}
+                tabIndex={0}
+                onClick={() => setSingleItem((v) => !v)}
+                onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") setSingleItem((v) => !v) }}
+                className={cn(
+                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  singleItem ? "bg-primary" : "bg-muted-foreground/30"
+                )}
+              >
+                <span className={cn(
+                  "pointer-events-none inline-block size-4 rounded-full bg-white shadow-lg transform transition-transform",
+                  singleItem ? "translate-x-4" : "translate-x-0"
+                )} />
+              </div>
+              <span className="text-[11px] text-muted-foreground font-medium">
+                {selectedType === "slides" ? "1 slide" : "1 page"}
+              </span>
+            </label>
+          )}
           <button
             onClick={handleCreate}
             className="rounded-lg bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-all shadow-xs"

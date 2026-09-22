@@ -49,7 +49,7 @@ export interface ProjectSlice {
   /** Run the server-side shrink pass using the card's layout truth. */
   autoShrinkCardAction: (cardId: string) => Promise<void>
   addCard: (column?: ColumnOrNull) => void
-  addOutput: (outputType: OutputType, templateId: string) => void
+  addOutput: (outputType: OutputType, templateId: string, count?: number) => void
   deleteCard: (id: string) => void
   reorderCard: (id: string, dir: -1 | 1) => void
   moveColumn: (id: string, column: ColumnOrNull) => void
@@ -211,6 +211,8 @@ export interface UiSlice {
   chatMessages: ThreadMessage[]
   setChatMessages: (messages: ThreadMessage[]) => void
   hydrateUi: (events: AgentEvent[], messages: ThreadMessage[]) => void
+  historyVersion: number
+  clearHistory: () => Promise<void>
 
   pushEvent: (e: Omit<AgentEvent, "id" | "ts">) => string
   updateEvent: (id: string, patch: Partial<AgentEvent>) => void
