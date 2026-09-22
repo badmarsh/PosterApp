@@ -149,7 +149,7 @@ export function WorkspaceSelector({
         <div className="flex flex-1 min-h-0 overflow-hidden">
 
           {/* ── LEFT COLUMN ── */}
-          <div className="w-[260px] shrink-0 border-r border-border/60 flex flex-col overflow-hidden" className="bg-muted/40">
+          <div className="w-[260px] shrink-0 border-r border-border/60 flex flex-col overflow-hidden bg-muted/50">
 
             {/* Left header — fixed 44px height, border-b */}
             <div className="h-[44px] flex items-center px-4 border-b border-border/60 shrink-0">
@@ -160,7 +160,7 @@ export function WorkspaceSelector({
             <div className="px-3 pt-2.5 pb-2 shrink-0">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-                <Input value={searchExisting} onChange={(e) => setSearchExisting(e.target.value)} placeholder="Hladat..." className="h-8 pl-8 pr-7 text-xs bg-background border-border/50 focus-visible:ring-1" />
+                <Input value={searchExisting} onChange={(e) => setSearchExisting(e.target.value)} placeholder="Hladat..." className="h-8 pl-8 pr-7 text-xs bg-background border-border/50 focus-visible:ring-1 focus-visible:ring-border" />
                 {searchExisting && <button type="button" onClick={() => setSearchExisting("")} className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"><X className="size-3.5" /></button>}
               </div>
             </div>
