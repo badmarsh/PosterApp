@@ -34,6 +34,10 @@ export const COLUMN_BUDGET_BY_TEMPLATE: Record<string, number> = {
   tikzposter: 900,
   gemini: 900,
   conference: 900,
+  // Aurora is A0 portrait with the same three-column geometry as the others;
+  // its square-cornered, outline-free cards have marginally less chrome, but
+  // not enough to justify a separate (unmeasured) number.
+  aurora: 900,
   // a0poster uses multicols at a smaller base font, so more fits per column
   a0poster: 1000,
   // A0 landscape: shorter columns
@@ -117,16 +121,29 @@ export function estimateHeightBreakdown(card: Card): HeightBreakdown {
     table = 30 + (Array.isArray(card.table?.rows) ? card.table.rows.length : 0) * TABLE_ROW_UNIT
   }
 
-  let figures = 0
-  if (
+  // Charge for figures the generator will actually emit. Two side-by-side
+  // images share one row of height (150u), they must not be stacked as 2×190.
+  // Missing/empty URLs render as a `% no figures` comment, so they cost 0.
+  const validFigCount = (card.figures ?? []).filter((f) => Boolean(f?.url?.trim())).length
+  const rendersFigures =
     card.pattern === "bullets-image" ||
+    card.pattern === "bullets-two-images" ||
     card.pattern === "section-figure" ||
+    card.pattern === "section-two-figures" ||
     card.pattern === "figure-slide" ||
     card.pattern === "image-focused"
-  ) {
-    figures = card.pattern === "image-focused" || card.pattern === "figure-slide" ? 260 : 190
+  let figures = 0
+  if (rendersFigures && validFigCount > 0) {
+    const twoUp =
+      validFigCount >= 2 ||
+      card.pattern === "bullets-two-images" ||
+      card.pattern === "section-two-figures"
+    if (twoUp && validFigCount >= 2) {
+      figures = 150
+    } else {
+      figures = card.pattern === "image-focused" || card.pattern === "figure-slide" ? 260 : 190
+    }
   }
-  if (card.pattern === "bullets-two-images" || card.pattern === "section-two-figures") figures = 150
 
   return {
     total: chrome + prose + bullets + table + figures,

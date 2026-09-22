@@ -33,7 +33,10 @@ export function generateFullTemplate(project: Project, outputConfig: OutputConfi
   const encoded = outputConfig.outputType === "thesis-review"
     ? tex
     : ensureEncodingPreamble(tex, detectDocumentLanguage(tex))
-  return ensureMissingGraphicsFallback(encoded)
+  const withScripts = ensureScriptPackages(encoded)
+  const withHyperref = ensureHyperrefPreamble(withScripts, outputConfig.templateId)
+  const withHrefFallback = ensureHrefFallback(withHyperref)
+  return ensureMissingGraphicsFallback(withHrefFallback)
 }
 
 const MISSING_GRAPHICS_COMMAND = String.raw`% --- missing asset fallback (auto) ---
@@ -64,16 +67,25 @@ export function ensureMissingGraphicsFallback(tex: string): string {
     "\\PosterIncludeGraphics"
   )
 
-  // Insert after graphicx when possible. The fallback body may safely mention
-  // \includegraphics before this point, but placing it after the package also
-  // keeps standalone .tex inspection intuitive.
+  // The definition MUST stay in the preamble. Inserting after a body-level
+  // `\usepackage{graphicx}` (or after `\begin{document}` when graphicx is
+  // loaded by the class) made `\providecommand` execute in the document and
+  // broke the first `\PosterIncludeGraphics` call.
+  const beginDoc = rewritten.search(/\\begin\{document\}/)
+  const preamble = beginDoc >= 0 ? rewritten.slice(0, beginDoc) : rewritten
+  const rest = beginDoc >= 0 ? rewritten.slice(beginDoc) : ""
+
   const graphicx = /\\usepackage(?:\[[^\]]*\])?\{graphicx\}[^\n]*\n/g
   let match: RegExpExecArray | null = null
   let last: RegExpExecArray | null = null
-  while ((match = graphicx.exec(rewritten)) !== null) last = match
+  while ((match = graphicx.exec(preamble)) !== null) last = match
   if (last?.index !== undefined) {
     const insertAt = last.index + last[0].length
-    return rewritten.slice(0, insertAt) + MISSING_GRAPHICS_COMMAND + rewritten.slice(insertAt)
+    return preamble.slice(0, insertAt) + MISSING_GRAPHICS_COMMAND + preamble.slice(insertAt) + rest
+  }
+
+  if (beginDoc >= 0) {
+    return preamble + MISSING_GRAPHICS_COMMAND + rest
   }
 
   const docclass = rewritten.match(/\\documentclass(\[[^\]]*\])?\{[^}]+\}[^\n]*\n/)
@@ -151,4 +163,96 @@ export function ensureEncodingPreamble(tex: string, language?: string | null): s
 
   const insertAt = docclass.index + docclass[0].length
   return tex.slice(0, insertAt) + `% --- encoding & language (auto) ---\n${lines.join("\n")}\n` + tex.slice(insertAt)
+}
+
+/**
+ * T1/UTF8 cannot typeset Cyrillic or CJK. Detect those scripts in the
+ * generated body and load the pdflatex packages that actually provide glyphs.
+ */
+export function detectExtraScripts(tex: string): { cyrillic: boolean; cjk: boolean } {
+  const bodyStart = tex.indexOf("\\begin{document}")
+  const body = bodyStart >= 0 ? tex.slice(bodyStart) : tex
+  return {
+    cyrillic: /[\u0400-\u04FF]/.test(body),
+    cjk: /[\u3040-\u30FF\u3400-\u9FFF\uAC00-\uD7AF]/.test(body),
+  }
+}
+
+export function ensureScriptPackages(tex: string): string {
+  const { cyrillic, cjk } = detectExtraScripts(tex)
+  let out = tex
+  if (cyrillic) {
+    if (/\\usepackage\[T1\]\{fontenc\}/.test(out) && !/T2A/.test(out)) {
+      out = out.replace("\\usepackage[T1]{fontenc}", "\\usepackage[T2A,T1]{fontenc}")
+    } else if (!/\\usepackage(\[[^\]]*\])?\{fontenc\}/.test(out)) {
+      const beginDoc = out.search(/\\begin\{document\}/)
+      const inject = "\\usepackage[T2A,T1]{fontenc}\n"
+      out = beginDoc >= 0 ? out.slice(0, beginDoc) + inject + out.slice(beginDoc) : out + inject
+    }
+    if (!/russian/.test(out) && /\\usepackage(\[[^\]]*\])?\{babel\}/.test(out)) {
+      out = out.replace(
+        /\\usepackage\[([^\]]*)\]\{babel\}/,
+        (_m, opts: string) => opts.includes("russian") ? _m : `\\usepackage[${opts},russian]{babel}`
+      )
+    } else if (!/\\usepackage(\[[^\]]*\])?\{babel\}/.test(out)) {
+      const beginDoc = out.search(/\\begin\{document\}/)
+      const inject = "\\usepackage[english,russian]{babel}\n"
+      out = beginDoc >= 0 ? out.slice(0, beginDoc) + inject + out.slice(beginDoc) : out + inject
+    }
+  }
+  if (cjk) {
+    if (!/CJKutf8/.test(out)) {
+      const beginDoc = out.search(/\\begin\{document\}/)
+      const inject = "\\usepackage{CJKutf8}\n"
+      out = beginDoc >= 0 ? out.slice(0, beginDoc) + inject + out.slice(beginDoc) : out + inject
+    }
+    if (!/\\begin\{CJK/.test(out) && out.includes("\\begin{document}")) {
+      out = out.replace("\\begin{document}", "\\begin{document}\n\\begin{CJK*}{UTF8}{gbsn}")
+      out = out.replace(/\\end\{document\}/, "\\end{CJK*}\n\\end{document}")
+    }
+  }
+  return out
+}
+
+/**
+ * `\href` is emitted by the markdown parser but almost no poster/slides/paper
+ * template loads hyperref. AAAI and acmart forbid a second load.
+ * Insert immediately before `\begin{document}` so option clashes are avoided.
+ */
+export function ensureHyperrefPreamble(tex: string, templateId?: string | null): string {
+  if (/\\usepackage(\[[^\]]*\])?\{hyperref\}/.test(tex)) return tex
+  const skip = new Set(["aaai", "acm-sigconf", "revtex-aps"])
+  if (templateId && skip.has(templateId)) return tex
+  if (/\\documentclass(\[[^\]]*\])?\{acmart\}/.test(tex)) return tex
+  if (/\\usepackage\{aaai2026\}/.test(tex)) return tex
+  const beginDoc = tex.search(/\\begin\{document\}/)
+  if (beginDoc < 0) return tex
+  return tex.slice(0, beginDoc) + "% --- hyperref (auto) ---\n\\usepackage{hyperref}\n" + tex.slice(beginDoc)
+}
+
+const HREF_FALLBACK_COMMAND = [
+  "% --- \\href fallback (auto) ---",
+  "% \\href is what the markdown parser emits for [text](url) links.",
+  "% hyperref defines it; several venues cannot load hyperref at all (aaai2026.sty",
+  "% raises a \\PackageError when it is loaded) and others simply do not, so define",
+  "% a printable fallback. \\providecommand is a no-op once hyperref has defined",
+  "% \\href, so this is safe in both worlds and cannot cause an option clash.",
+  "% \\detokenize keeps the URL's TeX specials printable; it is e-TeX and therefore",
+  "% always available under pdflatex.",
+  "\\providecommand{\\href}[2]{#2\\ (\\texttt{\\detokenize{#1}})}",
+  "",
+].join("\n")
+
+
+/**
+ * Guarantee that `\href` exists in every generated document.
+ *
+ * Must run *after* `ensureHyperrefPreamble` so the `\usepackage{hyperref}` line
+ * is already in the preamble and `\providecommand` sees the real `\href`.
+ */
+export function ensureHrefFallback(tex: string): string {
+  if (/\\providecommand\s*\{\\href\}/.test(tex)) return tex
+  const beginDoc = tex.search(/\\begin\{document\}/)
+  if (beginDoc < 0) return tex
+  return tex.slice(0, beginDoc) + HREF_FALLBACK_COMMAND + tex.slice(beginDoc)
 }

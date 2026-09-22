@@ -200,6 +200,28 @@ function LayoutDiagram({
 }
 
 // ---------------------------------------------------------------------------
+// TemplatePreview — bespoke per-template mockup from public/template-previews
+// ---------------------------------------------------------------------------
+/**
+ * Renders the generated per-template mockup (`public/template-previews/<id>.svg`)
+ * produced by `scripts/generate-template-previews.mjs` from the template's own
+ * palette/geometry (lib/template-preview-art.ts). Falls back to the generic
+ * {@link LargeLayoutDiagram} if the asset is missing (e.g. an old build folder).
+ */
+function TemplatePreview({ template }: { template: import("@/lib/output-types").TemplateDef }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return <LargeLayoutDiagram kind={template.layoutPreview} colors={template.colors} />
+  return (
+    <img
+      src={`/template-previews/${template.id}.svg`}
+      alt={`${template.label} template preview`}
+      onError={() => setFailed(true)}
+      className="w-full max-w-[340px] h-auto rounded drop-shadow-sm"
+    />
+  )
+}
+
+// ---------------------------------------------------------------------------
 // AddOutputDialog — pick type + template, then create
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
@@ -469,7 +491,7 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
             <div className="flex flex-1 flex-col min-h-0 overflow-y-auto bg-card">
               {/* Large layout preview sample */}
               <div className="shrink-0 bg-muted/20 border-b border-border p-5 flex items-center justify-center">
-                <LargeLayoutDiagram kind={activeTmpl.layoutPreview} colors={activeTmpl.colors} />
+                <TemplatePreview template={activeTmpl} />
               </div>
 
               {/* Detail content */}

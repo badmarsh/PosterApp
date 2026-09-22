@@ -25,6 +25,7 @@ node_modules
 !/workspaces/vla-autonomous-surgery/
 !/workspaces/jwst-gravitational-lensing/
 !/workspaces/speculative-decoding-guarantees/
+!/workspaces/mamba-selective-ssm/
 *.db
 *.db-journal
 middle.json

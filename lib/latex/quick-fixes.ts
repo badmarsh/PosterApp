@@ -35,18 +35,89 @@ function countDollars(content: string): number {
 }
 
 /**
- * Depth of unescaped braces, ignoring escaped `\{`/`\}`. Mirrors the counting
- * in validation.ts so the fix and the warning can never disagree.
+ * True when index `i` sits inside a `$...$` / `$$...$$` / `\(...\)` / `\[...\]`
+ * span. Used so markdown-level brace counting does not treat math grouping
+ * (or typeset `\{x\}`) as document braces.
+ */
+function inMathSpan(content: string, index: number): boolean {
+  MATH_SEGMENT.lastIndex = 0
+  for (const match of content.matchAll(MATH_SEGMENT)) {
+    if (match.index === undefined) continue
+    if (index >= match.index && index < match.index + match[0].length) return true
+  }
+  return false
+}
+
+/** Odd number of preceding backslashes ⇒ the character is escaped. */
+function isEscapedAt(content: string, index: number): boolean {
+  let n = 0
+  for (let j = index - 1; j >= 0 && content[j] === "\\"; j--) n++
+  return n % 2 === 1
+}
+
+/**
+ * Depth of unescaped braces, ignoring escaped `\{`/`\}` AND braces inside math
+ * (so `$\{x\}$` is balanced, not an extra `}`). `\\{` (backslash command plus
+ * grouping brace) still counts. Mirrors validation.ts.
  */
 export function braceBalance(content: string): number {
   let depth = 0
   for (let i = 0; i < content.length; i++) {
     const ch = content[i]
-    const prev = i > 0 ? content[i - 1] : ""
-    if (ch === "{" && prev !== "\\") depth++
-    else if (ch === "}" && prev !== "\\") depth--
+    if (ch !== "{" && ch !== "}") continue
+    if (inMathSpan(content, i)) continue
+    if (isEscapedAt(content, i)) continue
+    if (ch === "{") depth++
+    else depth--
   }
   return depth
+}
+
+/** Unpaired `$$` display-math opener (not the same as an odd `$` count). */
+export function hasOrphanDisplayMath(content: string): boolean {
+  let open = false
+  for (let i = 0; i < content.length; i++) {
+    if (content[i] !== "$" || isEscapedAt(content, i)) continue
+    if (content[i + 1] === "$") {
+      open = !open
+      i++
+    }
+  }
+  return open
+}
+
+const TEXT_SPECIALS_IN_MATH = /\\text\{([^{}]*)\}/g
+
+/** `\text{...}` spans inside math whose body has unescaped `% & # _`. */
+export function findUnescapedTextSpecials(content: string): string[] {
+  const hits: string[] = []
+  MATH_SEGMENT.lastIndex = 0
+  for (const match of content.matchAll(MATH_SEGMENT)) {
+    TEXT_SPECIALS_IN_MATH.lastIndex = 0
+    for (const t of match[0].matchAll(TEXT_SPECIALS_IN_MATH)) {
+      const inner = t[1]
+      for (let i = 0; i < inner.length; i++) {
+        if ("%&#_".includes(inner[i]) && (i === 0 || inner[i - 1] !== "\\")) {
+          hits.push(inner[i])
+        }
+      }
+    }
+  }
+  return hits
+}
+
+function escapeTextSpecialsInMath(content: string): string {
+  return content.replace(MATH_SEGMENT, (segment) =>
+    segment.replace(TEXT_SPECIALS_IN_MATH, (_full, inner: string) => {
+      let out = ""
+      for (let i = 0; i < inner.length; i++) {
+        const ch = inner[i]
+        if ("%&#_".includes(ch) && (i === 0 || inner[i - 1] !== "\\")) out += `\\${ch}`
+        else out += ch
+      }
+      return `\\text{${out}}`
+    })
+  )
 }
 
 /** Commands allowed inside `$…$` math (superset of what templates use). */
@@ -123,6 +194,16 @@ export function deriveQuickFixes(card: Card): LatexQuickFix[] {
         return `${trimmed}$${c.slice(trimmed.length)}`
       },
     })
+  } else if (hasOrphanDisplayMath(content)) {
+    fixes.push({
+      id: "close-display-math",
+      label: "Close unclosed $$…$$",
+      description: "An opening $$ display-math delimiter has no matching closer — the compiler fails with “Display math should end with $$”. Appends the missing $$.",
+      apply: (c) => {
+        const trimmed = c.replace(/\s+$/, "")
+        return `${trimmed}$$${c.slice(trimmed.length)}`
+      },
+    })
   }
 
   const depth = braceBalance(content)
@@ -164,6 +245,15 @@ export function deriveQuickFixes(card: Card): LatexQuickFix[] {
             KNOWN_MATH_COMMANDS.has(name) ? full : name
           )
         ),
+    })
+  }
+
+  if (findUnescapedTextSpecials(content).length > 0) {
+    fixes.push({
+      id: "escape-text-specials",
+      label: "Escape specials inside \\text{}",
+      description: "Unescaped %, &, # or _ inside \\text{...} in math become TeX specials and abort the compile. Escapes them.",
+      apply: escapeTextSpecialsInMath,
     })
   }
 

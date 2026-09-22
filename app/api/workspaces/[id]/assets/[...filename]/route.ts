@@ -51,6 +51,7 @@ export async function GET(
     ".jpeg": "image/jpeg",
     ".gif": "image/gif",
     ".webp": "image/webp",
+    ".svg": "image/svg+xml",
     ".pdf": "application/pdf",
   }
   const contentType = map[ext] || "application/octet-stream"

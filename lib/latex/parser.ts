@@ -32,6 +32,38 @@ export function extractMath(input: string): { text: string; slots: Slot[] } {
   return { text, slots }
 }
 
+/**
+ * Inline math at or above this many characters is treated as "wide".
+ *
+ * A poster column is ~26 cm of text at `\normalsize`; an inline run of this
+ * length — typically a chained fraction, a large operator with limits, or a
+ * multi-term expression the model wrote inline because it did not think of it
+ * as a display — will not break and overruns the column. Short spans (`$E=mc^2$`,
+ * `$\chi^2$`) are left exactly as written; wrapping them would buy nothing and
+ * would put a box around ordinary text maths.
+ *
+ * Exported so the static audit (lib/latex/static-checks.ts) uses the same
+ * threshold the generator does, and the two can never drift apart.
+ */
+export const WIDE_INLINE_MATH_CHARS = 40
+
+/**
+ * Constructs that make a run render at display scale even when short: a
+ * fraction, a large operator with limits, or a nested environment.
+ */
+const WIDE_MATH_CONSTRUCTS =
+  /\\(?:frac|dfrac|tfrac|sum|int|oint|iint|prod|coprod|bigcup|bigcap|bigoplus|lim|begin\{)/
+
+/** Minimum length at which one of those constructs is worth protecting. */
+export const WIDE_MATH_CONSTRUCT_CHARS = 20
+
+/** True when an inline math body is wide enough to need `\fitinline`. */
+export function isWideInlineMath(mathBody: string): boolean {
+  const body = mathBody.trim()
+  if (body.length >= WIDE_INLINE_MATH_CHARS) return true
+  return body.length >= WIDE_MATH_CONSTRUCT_CHARS && WIDE_MATH_CONSTRUCTS.test(body)
+}
+
 function restoreMath(text: string, slots: Slot[]): string {
   let result = text
   const dangerousCommands = new Set([
@@ -53,6 +85,13 @@ function restoreMath(text: string, slots: Slot[]): string {
       result = result.split(placeholder).join(escapeLatex(original))
     } else if (original.startsWith("$$") || original.startsWith("\\[")) {
       result = result.split(placeholder).join(`\\begin{equation*}\\fitmath{${math}}\\end{equation*}`)
+    } else if (isWideInlineMath(math)) {
+      // Inline math too long to break. `\fitinline` (FITMATH_MACRO) measures
+      // the run and shrinks it to the column width only when it would
+      // otherwise overrun, so a span that fits renders byte-identically to the
+      // bare `$...$` it replaces. Strictly monotone: it can only reduce the
+      // overfull amount, never increase it.
+      result = result.split(placeholder).join(`\\fitinline{${math}}`)
     } else {
       result = result.split(placeholder).join(original)
     }
@@ -95,11 +134,11 @@ function restoreCitations(text: string, slots: Slot[]): string {
 
 /**
  * Markdown links must be pulled out *before* escapeLatex runs, exactly like
- * math and citations. `\href`'s first argument is a URL, not text: a `_`, `&`,
- * `%` or `#` in a query string or anchor must reach the PDF verbatim, and an
- * escaped `\_` there produces a dead or wrong link rather than a typeset
- * underscore. The link *text* is a separate concern and is escaped normally,
- * so the raw title is stashed and re-parsed on restore.
+ * math and citations. `\href`'s first argument is a URL, not typeset text:
+ * `_` must stay literal (an escaped `\_` produces a dead DOI), but `%`, `#`
+ * and `&` are still TeX catcodes even inside `\href` and must be escaped.
+ * The link *text* is escaped normally, so the raw title is stashed and
+ * re-parsed on restore.
  */
 function extractLinks(input: string): { text: string; slots: Slot[] } {
   if (typeof input !== "string") return { text: "", slots: [] }
@@ -114,11 +153,16 @@ function extractLinks(input: string): { text: string; slots: Slot[] } {
   return { text, slots }
 }
 
+/** Escape TeX catcode specials inside an `\\href` URL; leave `_` literal. */
+export function escapeHrefUrl(url: string): string {
+  return url.replace(/[%#&]/g, (ch) => `\\${ch}`)
+}
+
 function restoreLinks(text: string, slots: Slot[]): string {
   let result = text
   for (const { placeholder, original } of slots) {
     const parsed = original.replace(/^\[([^\]\n]+)\]\(([^)\s]+)\)$/, (_m, title: string, url: string) =>
-      `\\href{${url}}{${escapeLatex(title)}}`
+      `\\href{${escapeHrefUrl(url)}}{${escapeLatex(title)}}`
     )
     result = result.split(placeholder).join(parsed)
   }
@@ -222,7 +266,10 @@ export function parseMarkdownToLatex(input: string): string {
   const { text: afterLinks, slots: linkSlots } = extractLinks(afterCites)
   let text = escapeLatex(afterLinks)
 
-  text = text.replace(/\*\*([^*\n]+)\*\*/g, "\\textbf{$1}")
+  // Bold first so nested `**foo *bar* baz**` becomes `\textbf{foo \textit{bar} baz}`
+  // rather than a leftover `**` pair. Inner single-stars are allowed; a second
+  // `**` still terminates the span.
+  text = text.replace(/\*\*((?:[^*]|\*(?!\*))+?)\*\*/g, "\\textbf{$1}")
   text = text.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "\\textit{$1}")
   text = text.replace(/`([^`\n]+)`/g, "\\texttt{$1}")
   // http(s) links were placeheld before escaping (see extractLinks); anything

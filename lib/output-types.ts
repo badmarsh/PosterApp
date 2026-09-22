@@ -95,6 +95,12 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
   { id: "betterposter", outputType: "poster", label: "Better Poster (Morrison)", description: "Landscape with a dominant centre column for one big finding, narrow detail sidebars.", category: "poster",
     colors: [{id:"slate",name:"Slate",hex:"#1F2937"},{id:"amber",name:"Amber",hex:"#D97706"},{id:"blue",name:"Blue",hex:"#2563EB"}], layoutPreview: "poster-3col",
     detailFeatures: ["Morrison 'big finding' layout, landscape A0", "Centre column 46% — one plain-language sentence", "Narrow 24% sidebars for methods and references", "Tightest column budget (520u) — brevity is the point"], latexClass: "tikzposter [landscape]", colorSystem: "Custom \\definecolorstyle" },
+  { id: "aurora", outputType: "poster", label: "Aurora", description: "Modern high-impact poster: dark ink title band, square accent-barred cards, no outlines.", category: "core",
+    colors: [{id:"teal",name:"Teal",hex:"#14B8A6"},{id:"rose",name:"Rose",hex:"#E11D48"},{id:"amber",name:"Amber",hex:"#F59E0B"},{id:"indigo",name:"Indigo",hex:"#4F46E5"}], layoutPreview: "poster-3col",
+    detailFeatures: ["Dark ink title band with a hairline accent rule", "Square-cornered, outline-free white cards", "Solid 5mm accent bar down each card's left edge", "Accent follows your theme colour; ink stays fixed for contrast"], latexClass: "tikzposter", colorSystem: "Custom \\definecolorstyle" },
+  { id: "a0poster", outputType: "poster", label: "Classic A0", description: "Bare a0poster class with multicols. Maximum content density, minimal chrome.", category: "core",
+    colors: [{id:"indigo",name:"Indigo",hex:"#4F46E5"},{id:"teal",name:"Teal",hex:"#0D9488"},{id:"crimson",name:"Crimson",hex:"#DC2626"}], layoutPreview: "poster-3col",
+    detailFeatures: ["Plain a0poster class — no tikz block styling", "Three columns via multicol at a smaller base font", "Highest column budget (1000u): more fits per column", "Sections instead of cards (\\section*, not \\block)"], latexClass: "a0poster", colorSystem: "xcolor \\definecolor", requiresClass: ["a0poster"] },
   // Slides
   { id: "beamer-metropolis", outputType: "slides", label: "Metropolis",    description: "Modern minimal theme with progress bar. (Requires 'metropolis' package).",             category: "core",
     colors: [{id:"charcoal",name:"Charcoal",hex:"#2D3748"},{id:"blue",name:"Blue",hex:"#3B82F6"},{id:"green",name:"Green",hex:"#10B981"}], layoutPreview: "slides-wide",
@@ -111,6 +117,9 @@ export const TEMPLATE_REGISTRY: TemplateDef[] = [
   { id: "beamer-focus",      outputType: "slides", label: "Focus",          description: "Dark, minimalist full-bleed title slides. (Requires 'focus' package).",           category: "core",
     colors: [{id:"dark",name:"Dark",hex:"#1C1C1C"},{id:"blue",name:"Blue",hex:"#007AB8"}], layoutPreview: "slides-wide",
     detailFeatures: ["Dark, minimalist aesthetic", "Full-bleed title and section slides", "Requires the 'focus' LaTeX package"], latexClass: "beamer", colorSystem: "\\usetheme{focus}" },
+  { id: "beamer-editorial",  outputType: "slides", label: "Editorial (16:9)", description: "Magazine-style 16:9 deck: full-bleed accent rule, heavy frame titles, running footline.", category: "core",
+    colors: [{id:"rose",name:"Rose",hex:"#E11D48"},{id:"teal",name:"Teal",hex:"#0D9488"},{id:"indigo",name:"Indigo",hex:"#4338CA"},{id:"amber",name:"Amber",hex:"#D97706"}], layoutPreview: "slides-wide",
+    detailFeatures: ["16:9 widescreen (aspectratio=169)", "Full-bleed accent rule across the top of every frame", "Heavy left-aligned frame titles with a short accent underline", "Built only on beamer + tikz — no extra style files to install"], latexClass: "beamer", colorSystem: "\\setbeamercolor + tikz overlay" },
   // Papers
   { id: "article-twocol",   outputType: "paper", label: "Two-Column Article",   description: "Standard preprint format. Uses geometry and authblk packages.",               category: "core",
     colors: [{id:"black",name:"Black",hex:"#111827"},{id:"blue",name:"Blue",hex:"#1E40AF"}], layoutPreview: "paper-twocol",
