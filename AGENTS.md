@@ -15,6 +15,26 @@ This file contains important context about the project infrastructure and depend
 - **IMPORTANT**: `pnpm dev` now uses `tsx --env-file=.env.local server.ts` (NOT `next dev`) so both Next.js and the Yjs WebSocket run on the same port 3333.
 - **PostgreSQL via Docker**: Must be running `pgvector/pgvector:pg16` (not standard postgres). Start with: `docker start posterapp-postgres`. After schema changes: stop server first (releases DLL lock), then `npx prisma db push && npx prisma generate`.
 
+
+## Production Deployment (POVINNÉ PRAVIDLO)
+
+**Deploy VŽDY cez Dokploy webhook** — nikdy priamo cez SSH docker compose.
+
+Webhook endpoint: POST https://dev.significa.sk/api/deploy/compose/posterapp_whk_2026_tok
+
+`ash
+curl -s -X POST "https://dev.significa.sk/api/deploy/compose/posterapp_whk_2026_tok" 
+  -H "Content-Type: application/json" 
+  -H "x-github-event: push" 
+  -d '{"ref":"refs/heads/main","commits":[{"added":["deploy"],"modified":[],"removed":[]}],"head_commit":{"message":"Deploy","id":"000000"}}'
+`
+
+Konfigurácia uložená v .env.local: DOKPLOY_URL, DOKPLOY_COMPOSE_ID, DOKPLOY_REFRESH_TOKEN.
+
+Postup: (1) commitni + pushni na main, (2) zavolaj webhook vyššie, (3) sleduj logy cez SSH.
+SSH sa smie použiť IBA na diagnostiku — NIE na build.
+
+Detailné inštrukcie: skills/custom/posterapp-deploy/SKILL.md
 ## Key Directories & Files
 - `workspaces/<id>/assets/` — extracted image files (figures, tables) served by `/api/workspaces/[id]/assets/[file]`
 - `workspaces/<id>/sources/<fileId>.md` — parsed markdown from MinerU (max 5MB), used as RAG context for card generation and AI review. Also source for vector chunking.
