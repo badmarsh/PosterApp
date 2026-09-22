@@ -34,6 +34,10 @@ export const COLUMN_BUDGET_BY_TEMPLATE: Record<string, number> = {
   tikzposter: 900,
   gemini: 900,
   conference: 900,
+  // Aurora is A0 portrait with the same three-column geometry as the others;
+  // its square-cornered, outline-free cards have marginally less chrome, but
+  // not enough to justify a separate (unmeasured) number.
+  aurora: 900,
   // a0poster uses multicols at a smaller base font, so more fits per column
   a0poster: 1000,
   // A0 landscape: shorter columns

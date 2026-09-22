@@ -35,7 +35,8 @@ export function generateFullTemplate(project: Project, outputConfig: OutputConfi
     : ensureEncodingPreamble(tex, detectDocumentLanguage(tex))
   const withScripts = ensureScriptPackages(encoded)
   const withHyperref = ensureHyperrefPreamble(withScripts, outputConfig.templateId)
-  return ensureMissingGraphicsFallback(withHyperref)
+  const withHrefFallback = ensureHrefFallback(withHyperref)
+  return ensureMissingGraphicsFallback(withHrefFallback)
 }
 
 const MISSING_GRAPHICS_COMMAND = String.raw`% --- missing asset fallback (auto) ---
@@ -227,4 +228,31 @@ export function ensureHyperrefPreamble(tex: string, templateId?: string | null):
   const beginDoc = tex.search(/\\begin\{document\}/)
   if (beginDoc < 0) return tex
   return tex.slice(0, beginDoc) + "% --- hyperref (auto) ---\n\\usepackage{hyperref}\n" + tex.slice(beginDoc)
+}
+
+const HREF_FALLBACK_COMMAND = [
+  "% --- \\href fallback (auto) ---",
+  "% \\href is what the markdown parser emits for [text](url) links.",
+  "% hyperref defines it; several venues cannot load hyperref at all (aaai2026.sty",
+  "% raises a \\PackageError when it is loaded) and others simply do not, so define",
+  "% a printable fallback. \\providecommand is a no-op once hyperref has defined",
+  "% \\href, so this is safe in both worlds and cannot cause an option clash.",
+  "% \\detokenize keeps the URL's TeX specials printable; it is e-TeX and therefore",
+  "% always available under pdflatex.",
+  "\\providecommand{\\href}[2]{#2\\ (\\texttt{\\detokenize{#1}})}",
+  "",
+].join("\n")
+
+
+/**
+ * Guarantee that `\href` exists in every generated document.
+ *
+ * Must run *after* `ensureHyperrefPreamble` so the `\usepackage{hyperref}` line
+ * is already in the preamble and `\providecommand` sees the real `\href`.
+ */
+export function ensureHrefFallback(tex: string): string {
+  if (/\\providecommand\s*\{\\href\}/.test(tex)) return tex
+  const beginDoc = tex.search(/\\begin\{document\}/)
+  if (beginDoc < 0) return tex
+  return tex.slice(0, beginDoc) + HREF_FALLBACK_COMMAND + tex.slice(beginDoc)
 }

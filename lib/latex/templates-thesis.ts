@@ -7,6 +7,8 @@
  *  - posudok-cs: Czech template
  */
 
+import { FITMATH_MACRO } from "./templates"
+
 export type ThesisReviewTemplate =
   | "posudok-sk"
   | "posudok-en"
@@ -72,12 +74,17 @@ ${babel[lang]}
 \\usepackage{lastpage}
 \\usepackage{needspace}
 \\usepackage{enumitem}
+\\usepackage{graphicx}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
 \\usepackage{hyperref}
 
 \\hypersetup{
   colorlinks=false,
   pdfborder={0 0 0}
 }
+
+${FITMATH_MACRO}
 
 \\onehalfspacing
 

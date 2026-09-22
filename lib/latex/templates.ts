@@ -23,6 +23,14 @@ export const FITMATH_MACRO = `\\newsavebox{\\eqbox}
     \\usebox{\\eqbox}%
   \\fi
 }
+\\providecommand{\\fitinline}[1]{%
+  \\sbox{\\eqbox}{\\ensuremath{#1}}%
+  \\ifdim\\wd\\eqbox>\\linewidth
+    \\resizebox{\\linewidth}{!}{\\usebox{\\eqbox}}%
+  \\else
+    \\usebox{\\eqbox}%
+  \\fi
+}
 \\providecommand{\\fitstat}[1]{%
   \\sbox{\\eqbox}{#1}%
   \\ifdim\\wd\\eqbox>0.92\\linewidth
@@ -31,6 +39,25 @@ export const FITMATH_MACRO = `\\newsavebox{\\eqbox}
     \\usebox{\\eqbox}%
   \\fi
 }
+`
+
+/**
+ * List environments shared by the tikzposter templates.
+ *
+ * These used to be `\newcommand{\looseitems}{\begin{itemize}...}` — a macro
+ * that *opens* an environment without ever closing it. That is legal LaTeX only
+ * if the author remembers to write the matching `\end{itemize}` by hand; a
+ * single `\looseitems` with no explicit end aborts the compile with
+ * "\begin{itemize} ended by \end{document}". `\newenvironment` keeps the two
+ * halves together. The `\providecommand` aliases preserve the old
+ * `\looseitems ... \end{looselist}` spelling for any card content that already
+ * uses the macro form.
+ */
+export const LIST_ENVIRONMENTS = `\\newenvironment{looselist}{\\begin{itemize}\\setlength{\\itemsep}{0.3em}}{\\end{itemize}}
+\\newenvironment{tightlist}{\\begin{itemize}\\setlength{\\itemsep}{0.15em}}{\\end{itemize}}
+\\providecommand{\\looseitems}{\\begin{looselist}}
+\\providecommand{\\tightitems}{\\begin{tightlist}}
+\\providecommand{\\captiontext}[1]{#1}
 `
 
 // ---------------------------------------------------------------------------
@@ -104,9 +131,7 @@ export function getMinimalTemplate(project: Project, themeColor?: string): strin
 
 ${FITMATH_MACRO}
 
-\\newcommand{\\looseitems}{\\begin{itemize}\\setlength{\\itemsep}{0.3em}}
-\\newcommand{\\tightitems}{\\begin{itemize}\\setlength{\\itemsep}{0.15em}}
-\\newcommand{\\captiontext}[1]{#1}
+${LIST_ENVIRONMENTS}
 
 \\usetheme{Default}
 
@@ -175,9 +200,7 @@ export function getConferenceTemplate(project: Project, themeColor?: string): st
 
 ${FITMATH_MACRO}
 
-\\newcommand{\\looseitems}{\\begin{itemize}\\setlength{\\itemsep}{0.3em}}
-\\newcommand{\\tightitems}{\\begin{itemize}\\setlength{\\itemsep}{0.15em}}
-\\newcommand{\\captiontext}[1]{#1}
+${LIST_ENVIRONMENTS}
 
 \\usetheme{Default}
 
@@ -266,9 +289,7 @@ export function getAtlasTemplate(project: Project, themeColor?: string, workspac
 
 ${FITMATH_MACRO}
 
-\\newcommand{\\looseitems}{\\begin{itemize}\\setlength{\\itemsep}{0.3em}}
-\\newcommand{\\tightitems}{\\begin{itemize}\\setlength{\\itemsep}{0.15em}}
-\\newcommand{\\captiontext}[1]{#1}
+${LIST_ENVIRONMENTS}
 
 \\usetheme{Default}
 
@@ -418,6 +439,14 @@ export function getTikzposterTemplate(project: Project, themeColor?: string): st
 ${FITMATH_MACRO}
 
 ${override}
+% tikzposter's colour styles install backgroundcolor/titlebgcolor/... but NOT
+% maincolor - that name comes from the example in the tikzposter manual, not
+% from the class. Without an explicit definition the colorlet below dies with
+% "Package xcolor Error: Undefined color 'maincolor'" for every poster that has
+% no themeColor set. This was the only poster template that relied on the class
+% to provide it.
+\\definecolor{maincolor}{HTML}{1D4ED8}
+\\definecolor{secondarycolor}{RGB}{29, 78, 216}
 \\colorlet{customaccent}{maincolor}
 \\usetheme{Default}
 
@@ -463,6 +492,11 @@ export function getA0PosterTemplate(project: Project, _themeColor?: string): str
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{multicol}
+% a0poster.cls is a bare article-derived class: unlike tikzposter and beamer it
+% loads neither xcolor nor colour. The \\definecolor/\\colorlet below — and the
+% \\fcolorbox{customaccent!30}{...} stat tiles the poster generator emits —
+% would therefore abort with "Undefined control sequence. \\definecolor".
+\\usepackage{xcolor}
 
 ${FITMATH_MACRO}
 
@@ -1122,9 +1156,7 @@ export function getLandscapeTemplate(project: Project, themeColor?: string): str
 
 ${FITMATH_MACRO}
 
-\\newcommand{\\looseitems}{\\begin{itemize}\\setlength{\\itemsep}{0.3em}}
-\\newcommand{\\tightitems}{\\begin{itemize}\\setlength{\\itemsep}{0.15em}}
-\\newcommand{\\captiontext}[1]{#1}
+${LIST_ENVIRONMENTS}
 
 \\usetheme{Default}
 
@@ -1204,9 +1236,7 @@ export function getBetterPosterTemplate(project: Project, themeColor?: string): 
 
 ${FITMATH_MACRO}
 
-\\newcommand{\\looseitems}{\\begin{itemize}\\setlength{\\itemsep}{0.3em}}
-\\newcommand{\\tightitems}{\\begin{itemize}\\setlength{\\itemsep}{0.15em}}
-\\newcommand{\\captiontext}[1]{#1}
+${LIST_ENVIRONMENTS}
 
 \\usetheme{Default}
 
@@ -1252,5 +1282,219 @@ ${override}
 
 \\begin{document}
 \\maketitle
+`
+}
+
+// ---------------------------------------------------------------------------
+// Aurora — modern high-impact poster (added 2026-09)
+// ---------------------------------------------------------------------------
+
+/**
+ * "Aurora" — a modern, high-impact poster look built on tikzposter.
+ *
+ * Visually distinct from everything else in this file: a dark ink title band
+ * with a hairline accent rule, square-cornered white cards with no outline,
+ * and a solid accent bar running down the left edge of each card instead of a
+ * filled title block. Uses only tikz primitives that tikzposter already loads
+ * (plus `calc`), so it compiles on a stock TeX Live with no extra packages.
+ *
+ * The accent follows `themeColor` (through `posterThemeOverride`'s
+ * `\definecolor{maincolor}`); the ink stays fixed so a light theme colour
+ * cannot wash out the title band.
+ */
+export function getAuroraTemplate(project: Project, themeColor?: string): string {
+  const override = posterThemeOverride(themeColor)
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside the AURORA tikzposter poster template.
+% Use \\block{Title}{Content} for each card section.
+% Enclose blocks within \\column{width} commands (e.g. \\column{0.33}).
+% Cards have a solid accent bar on their LEFT edge, so keep card titles short
+% (they sit in accent-coloured type above the body, not inside a filled box).
+\\documentclass[a0paper,portrait, blockverticalspace=2.4em, colspace=2em]{tikzposter}
+\\tikzposterlatexaffectionproofoff
+\\usepackage{sourcesanspro}
+\\renewcommand{\\familydefault}{\\sfdefault}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{multicol}
+\\usetikzlibrary{calc}
+
+${FITMATH_MACRO}
+
+${LIST_ENVIRONMENTS}
+
+\\usetheme{Default}
+
+\\definecolor{auroraink}{HTML}{0B1F3A}
+\\definecolor{maincolor}{HTML}{14B8A6}
+\\definecolor{secondarycolor}{RGB}{20, 184, 166}
+${override}
+\\colorlet{customaccent}{maincolor}
+\\definecolorstyle{auroracolors}{
+    \\colorlet{backgroundcolor}{auroraink!4}
+    \\colorlet{titlefgcolor}{white}
+    \\colorlet{titlebgcolor}{auroraink}
+    \\colorlet{blocktitlefgcolor}{maincolor}
+    \\colorlet{blocktitlebgcolor}{white}
+    \\colorlet{blockbodyfgcolor}{black}
+    \\colorlet{blockbodybgcolor}{white}
+}{}
+\\usecolorstyle{auroracolors}
+
+% Square-cornered, outline-free card: white body panel, faint accent wash
+% behind the title, and a 5mm solid accent bar down the whole left edge.
+\\defineblockstyle{AuroraCard}{
+    titlewidthscale=1, bodywidthscale=1, titleleft,
+    titleoffsetx=0pt, titleoffsety=0pt, bodyoffsetx=0pt, bodyoffsety=0pt,
+    bodyverticalshift=0pt, roundedcorners=0, linewidth=0pt,
+    titleinnersep=7mm, bodyinnersep=9mm
+}{%
+    \\begin{scope}
+        \\fill[draw=none, fill=blockbodybgcolor] (blockbody.south west) rectangle (blockbody.north east);
+        \\ifBlockHasTitle
+           \\fill[draw=none, fill=maincolor!8] (blocktitle.south west) rectangle (blocktitle.north east);
+           \\fill[draw=none, fill=maincolor] (blockbody.south west) rectangle ([xshift=5mm]blocktitle.north west);
+        \\else
+           \\fill[draw=none, fill=maincolor] (blockbody.south west) rectangle ([xshift=5mm]blockbody.north west);
+        \\fi
+    \\end{scope}
+}
+\\useblockstyle{AuroraCard}
+
+\\definetitlestyle{AuroraTitle}{width=820mm, roundedcorners=0, linewidth=0pt,
+  innersep=12pt, titletotopverticalspace=0mm, titletoblockverticalspace=14mm}{%
+  \\begin{scope}
+    \\fill[draw=none, fill=titlebgcolor]
+      (\\titleposleft,\\titleposbottom-6mm) rectangle (\\titleposright,\\titlepostop+16mm);
+    \\fill[draw=none, fill=maincolor]
+      (\\titleposleft,\\titleposbottom-6mm) rectangle (\\titleposright,\\titleposbottom-1mm);
+  \\end{scope}%
+}
+\\usetitlestyle{AuroraTitle}
+
+\\title{\\parbox{0.86\\linewidth}{\\centering\\Huge\\bfseries
+    ${title}\\\\[2mm]
+    }}
+\\author{\\Large ${authors}}
+\\institute{\\normalsize ${venue}}
+\\date{}
+
+\\begin{document}
+\\maketitle
+`
+}
+
+// ---------------------------------------------------------------------------
+// Editorial — modern high-impact Beamer slide theme (added 2026-09)
+// ---------------------------------------------------------------------------
+
+/**
+ * "Editorial" — a 16:9 Beamer theme with a full-bleed accent rule, a heavy
+ * left-aligned frame title and a magazine-style running footline.
+ *
+ * Deliberately built only on beamer + tikz, both of which are always present
+ * wherever beamer is. `metropolis` and `focus` (the other distinctive themes
+ * here) need packages that a plain TeX Live install may not have — this one
+ * never fails for a missing style file.
+ */
+export function getEditorialTemplate(project: Project, themeColor?: string): string {
+  const override = beamerThemeOverride(themeColor)
+  const { title, authors, venue } = getMeta(project)
+  return `
+% [AI-CONTEXT] You are inside the EDITORIAL Beamer presentation (16:9).
+% Use \\begin{frame}{Title} ... \\end{frame} for each slide.
+% Frame titles render large and left-aligned under a full-bleed accent rule,
+% so keep them to one short line; long titles wrap into the body area.
+\\documentclass[aspectratio=169]{beamer}
+\\usepackage[utf8]{inputenc}
+\\usepackage{sourcesanspro}
+\\renewcommand{\\familydefault}{\\sfdefault}
+\\usepackage{graphicx}
+\\usepackage{booktabs}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+\\usepackage{tikz}
+
+${FITMATH_MACRO}
+
+\\definecolor{editorialink}{HTML}{111827}
+\\definecolor{customaccent}{HTML}{E11D48}
+${override}
+\\colorlet{maincolor}{customaccent}
+
+\\setbeamercolor{background canvas}{bg=white}
+\\setbeamercolor{normal text}{fg=editorialink}
+\\setbeamercolor{structure}{fg=customaccent}
+\\setbeamercolor{frametitle}{fg=editorialink}
+\\setbeamercolor{title}{fg=white}
+\\setbeamercolor{subtitle}{fg=white!85}
+\\setbeamercolor{author}{fg=white}
+\\setbeamercolor{institute}{fg=white!80}
+\\setbeamercolor{block title}{fg=white,bg=customaccent}
+\\setbeamercolor{block body}{fg=editorialink,bg=customaccent!5}
+\\setbeamercolor{itemize item}{fg=customaccent}
+\\setbeamercolor{itemize subitem}{fg=customaccent}
+\\setbeamertemplate{navigation symbols}{}
+\\setbeamertemplate{blocks}[rounded][shadow=false]
+
+\\setbeamerfont{title}{size=\\LARGE,series=\\bfseries}
+\\setbeamerfont{frametitle}{size=\\Large,series=\\bfseries}
+\\setbeamerfont{footline}{size=\\scriptsize}
+\\setbeamerfont{block title}{size=\\large,series=\\bfseries}
+
+% Full-bleed accent rule across the top of every frame.
+\\setbeamertemplate{background}{%
+  \\begin{tikzpicture}[remember picture,overlay]
+    \\fill[customaccent] (current page.north west) rectangle ([yshift=-5mm]current page.north east);
+  \\end{tikzpicture}%
+}
+
+\\setbeamertemplate{frametitle}{%
+  \\vspace{4mm}%
+  \\begin{beamercolorbox}[wd=\\paperwidth,leftskip=0.9cm,rightskip=0.9cm]{frametitle}%
+    \\usebeamerfont{frametitle}\\insertframetitle\\strut\\par
+  \\end{beamercolorbox}%
+  \\vspace{-1.6ex}%
+  \\hspace*{0.9cm}{\\color{customaccent!55}\\rule{0.16\\paperwidth}{1.6pt}}%
+  \\vspace{3.5mm}%
+}
+
+% Magazine footline: running title left, "n / N" right.
+\\setbeamertemplate{footline}{%
+  \\begin{beamercolorbox}[wd=\\paperwidth,leftskip=0.9cm,rightskip=0.9cm,ht=2.8ex,dp=1.6ex]{footline}%
+    \\usebeamerfont{footline}{\\color{editorialink!55}%
+      \\insertshorttitle\\hfill\\insertframenumber\\,/\\,\\inserttotalframenumber}%
+  \\end{beamercolorbox}%
+}
+
+\\setbeamertemplate{title page}{%
+  \\begin{tikzpicture}[remember picture,overlay]
+    \\fill[editorialink] (current page.south west) rectangle (current page.north east);
+    \\fill[customaccent] (current page.south west) rectangle ([yshift=9mm]current page.south east);
+  \\end{tikzpicture}%
+  \\vfill
+  \\begin{center}
+    {\\usebeamerfont{title}\\usebeamercolor[fg]{title}\\inserttitle\\par}
+    \\vskip0.6em
+    {\\color{customaccent}\\rule{0.18\\paperwidth}{2pt}\\par}
+    \\vskip1em
+    {\\usebeamerfont{author}\\usebeamercolor[fg]{author}\\insertauthor\\par}
+    \\vskip0.5em
+    {\\usebeamerfont{institute}\\usebeamercolor[fg]{institute}\\insertinstitute\\par}
+  \\end{center}
+  \\vfill
+}
+
+\\title{${title}}
+\\author{${authors}}
+\\institute{${venue}}
+
+\\begin{document}
+\\begin{frame}[plain]
+\\titlepage
+\\end{frame}
 `
 }

@@ -2,7 +2,7 @@ import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
 import type { LatexGenerator } from "./types"
-import { getMetropolisTemplate, getBeamerAtlasTemplate, getMadridTemplate, getDefaultTemplate, getFocusTemplate } from "./templates"
+import { getMetropolisTemplate, getBeamerAtlasTemplate, getMadridTemplate, getDefaultTemplate, getFocusTemplate, getEditorialTemplate } from "./templates"
 
 import { assetUrlToLatexPath, normalizeLatexPath } from "./helpers"
 
@@ -44,16 +44,24 @@ export class BeamerSlidesGenerator implements LatexGenerator {
 
       // ── Two-column slide ──────────────────────────────────────────────────
       if (c.pattern === "two-column") {
-        const hasFigure = Boolean(c.figures && c.figures.length > 0 && c.figures[0]?.url?.trim())
+        const firstFigure = c.figures?.[0]
+        // `normalizeLatexPath` strips `{ } % # ~ $ & ^`, whitespace and control
+        // characters, so a URL made only of those collapses to "". graphicx
+        // aborts on `\includegraphics{}` ("File `' not found"), so an empty
+        // path must count as "no figure" rather than be emitted. The poster
+        // generator already guards this; slides did not.
+        const firstFigurePath = firstFigure?.url?.trim()
+          ? normalizeLatexPath(workspaceId ? assetUrlToLatexPath(firstFigure.url, workspaceId) : firstFigure.url)
+          : ""
+        const hasFigure = firstFigurePath.length > 0
         let leftContent: string
         let rightContent: string
 
         if (hasFigure) {
           // Text left, figure right
           leftContent = parseMarkdownToLatex(c.content)
-          const f = c.figures[0]!
-          const imgPath = normalizeLatexPath(workspaceId ? assetUrlToLatexPath(f.url, workspaceId) : f.url)
-          rightContent = `\\includegraphics[width=\\linewidth,keepaspectratio]{${imgPath}}`
+          const f = firstFigure!
+          rightContent = `\\includegraphics[width=\\linewidth,keepaspectratio]{${firstFigurePath}}`
           if (f.caption) rightContent += `\n\\\\\n{\\footnotesize ${parseMarkdownToLatex(f.caption)}}`
           rightContent = `\\centering\n${rightContent}`
         } else {
@@ -82,14 +90,19 @@ export class BeamerSlidesGenerator implements LatexGenerator {
       if (c.pattern === "bullets-image" || c.pattern === "figure-slide" || c.pattern === "image-focused") {
         if (c.figures && c.figures.length > 0) {
           const f = c.figures[0]
-          if (f?.url?.trim()) {
+          // See the note on the two-column branch: a path that normalises to ""
+          // must not reach \includegraphics.
+          const imgPath = f?.url?.trim()
+            ? normalizeLatexPath(workspaceId ? assetUrlToLatexPath(f.url, workspaceId) : f.url)
+            : ""
+          if (imgPath.length > 0) {
             const hasBullets = c.pattern === "bullets-image" && c.content.trim().length > 0
             const bulletLines = c.content.split("\n").filter(l => l.trim().length > 0).length
             // Scale down image height if there are many bullets or long captions
             const imgHeight = hasBullets 
               ? (bulletLines > 3 ? "0.32\\textheight" : bulletLines > 1 ? "0.36\\textheight" : "0.42\\textheight")
               : "0.62\\textheight"
-            tex += `\\begin{center}\n\\includegraphics[height=${imgHeight},width=0.9\\linewidth,keepaspectratio]{${normalizeLatexPath(workspaceId ? assetUrlToLatexPath(f.url, workspaceId) : f.url)}}\n`
+            tex += `\\begin{center}\n\\includegraphics[height=${imgHeight},width=0.9\\linewidth,keepaspectratio]{${imgPath}}\n`
             if (f.caption) tex += `\\\\{\\footnotesize ${parseMarkdownToLatex(f.caption)}}\n`
             tex += `\\end{center}\n`
           }
@@ -126,6 +139,9 @@ export class BeamerSlidesGenerator implements LatexGenerator {
         break;
       case "beamer-focus":
         templateContent = getFocusTemplate(project, themeColor);
+        break;
+      case "beamer-editorial":
+        templateContent = getEditorialTemplate(project, themeColor);
         break;
       case "beamer-atlas":
       default:
