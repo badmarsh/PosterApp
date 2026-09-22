@@ -6,7 +6,7 @@
  * `prisma generate` cannot run in an environment without the engine binaries, so the retrieval
  * code cannot be pointed at a real server through the real client. But the thing that actually
  * needs validating is the **SQL the retrieval layer produces**, and that SQL is built with
- * `(Prisma as any).sql` / `(Prisma as any).join` / `(Prisma as any).raw` from `@prisma/client/runtime/library` — which *is*
+ * `Prisma.sql` / `Prisma.join` / `Prisma.raw` from `@prisma/client/runtime/library` — which *is*
  * present and is Prisma's own implementation, not a copy of it.
  *
  * So this adapter:

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Community Detection & LightRAG-style Community Summaries
  *

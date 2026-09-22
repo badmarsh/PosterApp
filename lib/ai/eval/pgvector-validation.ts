@@ -747,7 +747,7 @@ export async function runPgvectorValidation(opts: RunValidationOptions): Promise
     // `$1..$n` numbering, so splicing it after another `$1` produces a statement whose parameter
     // count does not match its placeholders. Prisma renumbers on composition.
     const emptyScope = retrievalJoin({ documentIds: [] })
-    const isolatedStmt = (Prisma as any).sql`SELECT COUNT(*)::int AS n FROM "DocumentChunk" WHERE "workspaceId" = ${workspaceId} ${emptyScope}`
+    const isolatedStmt = Prisma.sql`SELECT COUNT(*)::int AS n FROM "DocumentChunk" WHERE "workspaceId" = ${workspaceId} ${emptyScope}`
     const isolated = await db.query<{ n: number }>(isolatedStmt.text, isolatedStmt.values)
     push({
       id: "empty-documentids-matches-nothing",
@@ -759,7 +759,7 @@ export async function runPgvectorValidation(opts: RunValidationOptions): Promise
     // And the same filter with a real document id must match the whole document — the guard must
     // not have quietly become "match nothing always".
     const scopedJoin = retrievalJoin({ documentIds: [documentId] })
-    const scopedStmt = (Prisma as any).sql`SELECT COUNT(*)::int AS n FROM "DocumentChunk" WHERE "workspaceId" = ${workspaceId} ${scopedJoin}`
+    const scopedStmt = Prisma.sql`SELECT COUNT(*)::int AS n FROM "DocumentChunk" WHERE "workspaceId" = ${workspaceId} ${scopedJoin}`
     const scoped = await db.query<{ n: number }>(scopedStmt.text, scopedStmt.values)
     push({
       id: "documentids-filter-still-matches",

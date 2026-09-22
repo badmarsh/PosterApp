@@ -20,7 +20,7 @@ export interface DeerflowThreadRow {
   kind: string
   status: DeerflowRunStatus
   phase: string | null
-  proposal: any | null
+  proposal: Prisma.JsonValue | null
   error: string | null
   costEstimateUsd: number | null
   startedAt: Date | null
@@ -90,7 +90,7 @@ export async function findRunForWorkspace(
 export interface UpdateRunFields {
   status?: DeerflowRunStatus
   phase?: string | null
-  proposal?: PosterResearchProposal | ImprovePosterProposal | any | null
+  proposal?: PosterResearchProposal | ImprovePosterProposal | Prisma.InputJsonValue | null
   error?: string | null
   costEstimateUsd?: number | null
   startedAt?: Date | null
@@ -103,12 +103,12 @@ export async function updateDeerflowRun(
   workspaceId: string,
   fields: UpdateRunFields
 ): Promise<boolean> {
-  const data: any = {}
+  const data: Prisma.DeerflowThreadUpdateInput = {}
   if (fields.status !== undefined) data.status = fields.status
   if (fields.phase !== undefined) data.phase = fields.phase
   if (fields.proposal !== undefined) {
     data.proposal =
-      fields.proposal === null ? (Prisma as any).DbNull : (fields.proposal as unknown as any)
+      fields.proposal === null ? Prisma.DbNull : (fields.proposal as unknown as Prisma.InputJsonValue)
   }
   if (fields.error !== undefined) data.error = fields.error
   if (fields.costEstimateUsd !== undefined) data.costEstimateUsd = fields.costEstimateUsd

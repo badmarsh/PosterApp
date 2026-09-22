@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from "next/server"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { requireWorkspaceEditor } from "@/lib/auth"

@@ -199,8 +199,8 @@ export async function PUT(
           deerflowEnabled: body.deerflowEnabled !== undefined ? body.deerflowEnabled : undefined,
           // Zod passthrough objects are structurally JSON but not assignable to
           // Prisma's InputJsonValue; they were validated/bounded above.
-          agentEvents: body.agentEvents !== undefined ? (body.agentEvents as unknown as any) : undefined,
-          chatMessages: body.chatMessages !== undefined ? (body.chatMessages as unknown as any) : undefined,
+          agentEvents: body.agentEvents !== undefined ? (body.agentEvents as unknown as Prisma.InputJsonValue) : undefined,
+          chatMessages: body.chatMessages !== undefined ? (body.chatMessages as unknown as Prisma.InputJsonValue) : undefined,
           revision: { increment: 1 },
         }
       })

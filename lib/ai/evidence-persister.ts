@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Evidence and Claim Graph Persistence Engine (Phases 9 & 13)
  *

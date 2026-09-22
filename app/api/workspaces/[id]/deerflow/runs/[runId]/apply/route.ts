@@ -203,8 +203,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         data: {
           revision: { increment: 1 },
           ...(bibAdded > 0 ? { bibContent: nextBib } : {}),
-          ...(bibAdded > 0 ? { bibKeys: nextKeys as unknown as any } : {}),
-          agentEvents: nextEvents as unknown as any,
+          ...(bibAdded > 0 ? { bibKeys: nextKeys as unknown as Prisma.InputJsonValue } : {}),
+          agentEvents: nextEvents as unknown as Prisma.InputJsonValue,
         },
       })
       if (updated.count !== 1) throw new ApplyConflictError()

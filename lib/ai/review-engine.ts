@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { adjudicateFindings } from "./review-adjudicator"
 /**
  * Expert Review Generation Engine.

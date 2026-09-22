@@ -77,7 +77,7 @@ export async function GET(
       COUNT(*) FILTER (WHERE kind = 'figure_caption')     AS "captionChunks"
     FROM "DocumentChunk"
     WHERE "workspaceId" = ${workspaceId}
-      AND "documentId" IN (${(Prisma as any).join(activeDocIds)})
+      AND "documentId" IN (${Prisma.join(activeDocIds)})
     GROUP BY "documentId"
     ORDER BY MAX("createdAt") DESC
   ` : []

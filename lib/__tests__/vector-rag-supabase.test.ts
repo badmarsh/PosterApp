@@ -9,7 +9,7 @@
  *  - If the pooled transaction fails (pool timeout, connection recycle), the
  *    pipeline must degrade to a plain query, not fail the request.
  *  - Multi-tenant HNSW pruning → adaptive exact-scan recall fallback.
- *  - All SQL fragments are built with (Prisma as any).sql / (Prisma as any).join (injection-safe)
+ *  - All SQL fragments are built with Prisma.sql / Prisma.join (injection-safe)
  *    and remain index-eligible.
  *
  * Prisma is mocked with a lightweight Sql builder whose `.text` mirrors real
@@ -19,7 +19,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
-// A any stand-in with .text/.values, sufficient for SQL-text assertions.
+// A Prisma.Sql stand-in with .text/.values, sufficient for SQL-text assertions.
 // Nested Sql fragments inline their text and flatten their values — matching
 // real Prisma template semantics.
 type FakeSql = { text: string; values: unknown[] }
@@ -49,9 +49,9 @@ vi.mock("@prisma/client", () => ({
   Prisma: {
     sql: sqlTag,
     empty: { text: "", values: [] },
-    // (Prisma as any).raw inlines a trusted literal fragment without adding a bound parameter.
+    // Prisma.raw inlines a trusted literal fragment without adding a bound parameter.
     raw: (text: string): FakeSql => ({ text, values: [] }),
-    // (Prisma as any).join treats raw entries as bound parameters and inlines Sql fragments,
+    // Prisma.join treats raw entries as bound parameters and inlines Sql fragments,
     // renumbering their placeholders after the values collected so far.
     join: (parts: unknown[], sep = ","): FakeSql => {
       let text = ""
@@ -172,7 +172,7 @@ async function importWithHarness(opts: {
   let hybridRows: unknown[] = []
   let exactRows: unknown[] = []
 
-  // $queryRaw accepts both the tagged-template form and a any object
+  // $queryRaw accepts both the tagged-template form and a Prisma.Sql object
   // argument (used by the exact-scan fallback). Captured text is rebuilt with
   // the same Sql semantics (nested fragments inlined) for assertions.
   // The direct (non-tx) client serves both the degraded retry (template form →

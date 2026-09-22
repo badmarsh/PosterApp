@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { z } from "zod"
 import { zodToJsonSchema } from "zod-to-json-schema"
 import { prisma } from "@/lib/prisma"

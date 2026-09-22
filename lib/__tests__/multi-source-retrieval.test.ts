@@ -32,7 +32,7 @@ type FakeSql = { text: string; values: unknown[] }
  *
  * `vi.mock` is hoisted above every declaration in the file, so anything its factory touches has
  * to come from `vi.hoisted`. `rawThrows` lets one test simulate a Prisma build without
- * `(Prisma as any).raw` — the exact way a retrieval leg dies silently in the field.
+ * `Prisma.raw` — the exact way a retrieval leg dies silently in the field.
  */
 const h = vi.hoisted(() => {
   const isSql = (v: unknown): v is { text: string; values: unknown[] } =>
@@ -63,7 +63,7 @@ vi.mock("@prisma/client", () => ({
     sql: h.sqlTag,
     empty: { text: "", values: [] },
     raw: (text: string): FakeSql => {
-      if (h.rawThrows) throw new TypeError("(Prisma as any).raw is not a function")
+      if (h.rawThrows) throw new TypeError("Prisma.raw is not a function")
       return { text, values: [] }
     },
     join: (parts: unknown[], sep = ","): FakeSql => {
@@ -382,9 +382,9 @@ describe("trace honesty", () => {
     h.rawThrows = true
     const { retrieveEvidence } = await import("@/lib/ai/hybrid-retrieval")
     const r = await retrieveEvidence({ workspaceId: "ws-1", query: NUMERICAL_QUERY, criterionId: "results_validity", topK: 4 })
-    // Every leg that builds SQL through (Prisma as any).raw fails; the pipeline must say so.
+    // Every leg that builds SQL through Prisma.raw fails; the pipeline must say so.
     expect(r.trace.degraded.length).toBeGreaterThan(0)
-    expect(r.trace.degraded[0].error).toContain("(Prisma as any).raw")
+    expect(r.trace.degraded[0].error).toContain("Prisma.raw")
     expect(r.trace.sources.filter((s) => s.enabled && s.candidates === 0).length).toBeGreaterThan(0)
   })
 })

@@ -302,12 +302,12 @@ function exactScanSql(
   workspaceId: string,
   queryEmbeddingStr: string,
   limit: number,
-  docCondition: any
-): any {
+  docCondition: Prisma.Sql
+): Prisma.Sql {
   // Sequential scan + sort — immune to HNSW pruning, so it always returns the
   // true nearest neighbours of the (workspace, document) subset. Used ONLY as
   // a recall fallback for small workspaces (see retrieveSingleQuery).
-  return (Prisma as any).sql`
+  return Prisma.sql`
     SELECT id, heading, content, tokens, kind, "contextPrefix",
            1.0 - (embedding <=> ${queryEmbeddingStr}::vector) AS similarity
     FROM "DocumentChunk"

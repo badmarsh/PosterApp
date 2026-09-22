@@ -675,7 +675,7 @@ export async function ingestDocumentChunks(
           DELETE FROM "DocumentChunk"
           WHERE "workspaceId" = ${workspaceId}
             AND "documentId" = ${documentId}
-            AND ("contentHash" IS NULL OR "contentHash" NOT IN (${(Prisma as any).join(reusedHashes)}))
+            AND ("contentHash" IS NULL OR "contentHash" NOT IN (${Prisma.join(reusedHashes)}))
         `
       } else {
         await tx.documentChunk.deleteMany({ where: { workspaceId, documentId } })
@@ -686,11 +686,11 @@ export async function ingestDocumentChunks(
          * Renders one VALUES tuple in DOCUMENT_CHUNK_INSERT_COLUMNS order.
          * `id` is last; a null id means "let the database generate one".
          */
-        const rowSql = (c: PreparedChunk, id: string | null) => (Prisma as any).sql`(${workspaceId}, ${documentId}, ${c.heading}, ${c.content}, ${c.tokens}, ${c.embeddingStr}::vector, NOW(), ${c.kind}, ${c.contextPrefix}, ${c.chunkType}, ${c.ordinal}, ${c.pageStart}, ${c.pageEnd}, ${c.chapter}, ${c.section}, ${c.subsection}, ${c.sectionPath}, ${c.sourceElementIds}, ${c.parentChunkId}, ${c.previousChunkId}, ${c.nextChunkId}, ${c.characterCount}, ${c.oversized}, ${c.contentHash}, ${c.parserVersion}, ${c.chunkerVersion}, ${c.embeddingModelVersion}, ${id ?? (Prisma as any).raw("gen_random_uuid()")}, ${c.tokenEstimatorVersion}, ${c.embeddingDimensions}, ${c.indexVersion})`
+        const rowSql = (c: PreparedChunk, id: string | null) => Prisma.sql`(${workspaceId}, ${documentId}, ${c.heading}, ${c.content}, ${c.tokens}, ${c.embeddingStr}::vector, NOW(), ${c.kind}, ${c.contextPrefix}, ${c.chunkType}, ${c.ordinal}, ${c.pageStart}, ${c.pageEnd}, ${c.chapter}, ${c.section}, ${c.subsection}, ${c.sectionPath}, ${c.sourceElementIds}, ${c.parentChunkId}, ${c.previousChunkId}, ${c.nextChunkId}, ${c.characterCount}, ${c.oversized}, ${c.contentHash}, ${c.parserVersion}, ${c.chunkerVersion}, ${c.embeddingModelVersion}, ${id ?? Prisma.raw("gen_random_uuid()")}, ${c.tokenEstimatorVersion}, ${c.embeddingDimensions}, ${c.indexVersion})`
         const values = slice.map((c) => rowSql(c, allDeterministic ? c.id : null))
         await tx.$executeRaw`
-          INSERT INTO "DocumentChunk" (${(Prisma as any).raw(DOCUMENT_CHUNK_INSERT_COLUMNS.join(", "))})
-          VALUES ${(Prisma as any).join(values)}
+          INSERT INTO "DocumentChunk" (${Prisma.raw(DOCUMENT_CHUNK_INSERT_COLUMNS.join(", "))})
+          VALUES ${Prisma.join(values)}
         `
         chunksCreated += slice.length
       }

@@ -8,7 +8,9 @@ export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number]
 const WORKSPACE_ID = /^[A-Za-z0-9_-]{3,64}$/
 
 /** Workspace row as returned by requireWorkspaceAccess (includes filtered members). */
-export type WorkspaceWithMembers = any
+export type WorkspaceWithMembers = Prisma.WorkspaceGetPayload<{
+  include: { members: { where: { userId: string }; select: { role: true } } }
+}>
 
 export async function auth() {
   if (isE2eAuthBypassEnabled()) {
