@@ -67,7 +67,33 @@ export const ELITE_SHOWCASES: ShowcaseWorkspace[] = [
     outputs: ["poster", "slides", "paper"], accent: "#0F766E",
     highlights: [{ value: "5×", label: "inference throughput" }, { value: "1M", label: "token context" }, { value: "3B ≈ 6B", label: "vs Transformer params" }],
   },
-]
+  {
+    id: "aurora-topological-photonics",
+    title: "Aurora: Topological Photonic Crystals",
+    subtitle: "Synthetic frequency dimensions enable non-Abelian braiding with 42 dB topological isolation.",
+    category: "Physics",
+    tags: ["Photonics", "Topology", "Synthetic Dimensions", "Nature"],
+    outputs: ["poster", "slides", "paper"], accent: "#6C3CE0",
+    highlights: [{ value: "42 dB", label: "isolation" }, { value: "0.98", label: "braiding fidelity" }, { value: "21", label: "synthetic sites" }],
+  },
+  {
+    id: "landscape-ocean-circulation",
+    title: "Landscape: AMOC Tipping Early Warning",
+    subtitle: "High-resolution ocean model quantifies critical slowing down 38 years before collapse.",
+    category: "Physics",
+    tags: ["Climate", "Tipping Points", "Ocean", "HPC"],
+    outputs: ["poster", "slides", "paper"], accent: "#0F4C75",
+    highlights: [{ value: "0.32 Sv", label: "tipping threshold" }, { value: "38 yr", label: "early warning" }, { value: "0.91", label: "AUC" }],
+  },
+  {
+    id: "betterposter-single-cell-atlas",
+    title: "Betterposter: Human Cell Atlas",
+    subtitle: "11.7M-cell variational atlas discovers ultra-rare niches at 0.02% frequency.",
+    category: "Biomedicine",
+    tags: ["scRNA-seq", "Atlas", "Trajectory", "Cell"],
+    outputs: ["poster", "slides", "paper"], accent: "#E63946",
+    highlights: [{ value: "11.7M", label: "cells" }, { value: "284", label: "clusters" }, { value: "0.94", label: "kBET" }],
+  }]
 
 export const SHOWCASES_BY_ID = Object.fromEntries(ELITE_SHOWCASES.map((item) => [item.id, item]))
 
@@ -2409,7 +2435,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
         "themeColor": "#0284C7",
         "cards": [
           {
-            "id": "card_pos_meta",
+            "id": "card_pos_review_meta",
             "title": "Identifikácia práce a zadanie",
             "column": 1,
             "order": 0,
@@ -2426,7 +2452,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_pos_ciele",
+            "id": "card_pos_review_goals",
             "title": "Splnenie stanovených cieľov",
             "column": 1,
             "order": 1,
@@ -2443,7 +2469,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_pos_teoria",
+            "id": "card_pos_review_theory",
             "title": "Odborná úroveň a teoretická báza",
             "column": 1,
             "order": 2,
@@ -2460,7 +2486,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_pos_experimenty",
+            "id": "card_pos_review_experiments",
             "title": "Metodika, experimenty a softvér",
             "column": 1,
             "order": 3,
@@ -2483,7 +2509,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_pos_otazky",
+            "id": "card_pos_review_questions",
             "title": "Otázky k obhajobe",
             "column": 1,
             "order": 4,
@@ -2500,7 +2526,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_pos_zaver",
+            "id": "card_pos_review_conclusion",
             "title": "Záverečné zhodnotenie a klasifikácia",
             "column": 1,
             "order": 5,
@@ -3675,7 +3701,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
         "themeColor": "#00A6A6",
         "cards": [
           {
-            "id": "card_vla_p1",
+            "id": "card_vla_poster_clinical",
             "title": "Clinical Need & Safety Gaps",
             "pattern": "bullets",
             "content": "Sub-millimetre microsurgery demands sub-millimetre precision with guaranteed safety limits.\n\n- **Current Limitations:** Unconstrained imitation learning suffers from tail errors (>2 mm).\n- **Barrier Functions:** Real-time control-barrier certificates provide safety envelopes.\n- **Dataset:** 1,240 ex-vivo anastomosis and micro-cannulation procedures.",
@@ -3692,7 +3718,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_vla_p2",
+            "id": "card_vla_poster_objective",
             "title": "Formal Objective",
             "pattern": "bullets",
             "content": "$$\\min_{\\pi} \\mathbb{E}[\\mathcal{L}_{\\text{task}}] \\quad \\text{s.t.} \\quad \\dot{h}(x, u) + \\alpha h(x) \\ge 0$$\n\nSafe set $\\mathcal{C}$ ensures tool tip cannot violate critical vascular boundaries under any predicted action trajectory.",
@@ -3709,7 +3735,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_vla_p3",
+            "id": "card_vla_poster_architecture",
             "title": "System Architecture",
             "pattern": "bullets-image",
             "content": "Stereo endoscopy and force telemetry feed the 7B VLA foundation model, predicting 42 Hz sub-millimetre actions.\\n- **Backbone:** 7B-parameter OpenVLA processes 1080p stereo frames and natural-language task description at 14 ms inference latency.\\n- **Force Fusion:** 6-axis force/torque at 5 mN resolution fused with visual features via gated cross-attention, improving contact detection by 23%.\\n- **Safety Shield:** QP-based Control Barrier Function projects actions to safe set in 3.2 ms, guaranteeing zero vascular penetrations.",
@@ -3732,7 +3758,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_vla_p4",
+            "id": "card_vla_poster_metrics",
             "title": "Headline Metrics",
             "pattern": "stats",
             "content": "**98.7%** Success Rate | 1,240 trials\n**0.31 mm** Median Error | vs 0.71 mm OpenVLA\n**42 Hz** Control Loop | <24 ms latency",
@@ -3749,7 +3775,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_vla_p5",
+            "id": "card_vla_poster_benchmark",
             "title": "Controlled Benchmark",
             "pattern": "bullets-table",
             "content": "SurgiVLA consistently outperforms current vision-language-action baselines.",
@@ -3797,7 +3823,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_vla_p6",
+            "id": "card_vla_poster_analysis",
             "title": "Benchmark & Failure Analysis",
             "pattern": "bullets-two-images",
             "content": "Benchmark results across 5 seeds; zero vascular penetrations observed.",
@@ -3825,7 +3851,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_vla_p7",
+            "id": "card_vla_poster_takeaway",
             "title": "Take-home Message",
             "pattern": "metric-card",
             "content": "**+42%** Throughput | over human baselines\n**0** Safety Violations | across 1,240 trials",
@@ -3842,7 +3868,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_vla_p8",
+            "id": "card_vla_poster_references",
             "title": "References",
             "pattern": "references",
             "content": "\\cite{vaswani2017attention,brohan2023rt2,pfau2020abinitio,abudayyeh2017rna}",
@@ -4398,7 +4424,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
         "themeColor": "#003366",
         "cards": [
           {
-            "id": "card_vla_review_1",
+            "id": "card_vla_review_criterion_1_novelty",
             "title": "Criterion 1: Novelty",
             "pattern": "section",
             "content": "Grade A. Outstanding formal safety treatment and extensive experimental evaluation.",
@@ -4458,7 +4484,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
         "themeColor": "#6D5DFB",
         "cards": [
           {
-            "id": "card_nqs_p1",
+            "id": "card_nqs_poster_superconductivity",
             "title": "Superconductivity at Megabar Pressure",
             "pattern": "bullets",
             "content": "Metastable LaH10-xNx exhibits room-temperature superconductivity under extreme compression.\n\n- **Anharmonic Effects:** Strong phonon coupling defies standard harmonic approximations.\n- **Neural Quantum State:** E(3)-equivariant wavefunctions parameterize correlated ground states.\n- **Variational Accuracy:** 2.4 meV energy error over 65,536 walkers.\\n- **Benchmark vs. DMC:** Achieves quantum Monte Carlo accuracy at 8.1x higher sampling throughput via vectorised WASM-compatible inference.\\n- **Training Cost:** 48 GPU-hours on 8xA100 for full LaH$_{10}$ at 250 GPa; natural gradient optimisation via stochastic reconfiguration.\\n- **Anharmonic Coupling:** Path-integral molecular dynamics coupled to the wavefunction increases predicted $T_c$ by 22 K vs. the harmonic approximation.",
@@ -4475,7 +4501,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_nqs_p2",
+            "id": "card_nqs_poster_formulation",
             "title": "Equivariant Formulation",
             "pattern": "bullets",
             "content": "$$\\Psi_\\theta(R) = \\det[\\phi_i(r_j)] \\exp[J_\\theta(R)]$$\n\nOrbital and Jastrow components respect permutation and rotational symmetry groups.\\n- **Equivariant Orbital Network:** Message-passing over the crystal graph encodes local coordination; orbital envelopes enforce correct asymptotic decay.\\n- **Jastrow Factor:** Three-body electron--electron--ion correlations captured by a permutation-equivariant network, recovering 98.6% of correlation energy.\\n- **Pressure Grid:** Calculations at 150, 182, 210, and 250 GPa; $T_c$ peaks at 287 K for LaH$_{10}$ at 182 GPa, within experimental error of the measured 250-260 K.",
@@ -4492,7 +4518,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_nqs_p3",
+            "id": "card_nqs_poster_architecture",
             "title": "VMC Sampler Architecture",
             "pattern": "bullets-image",
             "content": "Crystal graph neural network drives stochastic reconfiguration optimization.",
@@ -4515,7 +4541,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_nqs_p4",
+            "id": "card_nqs_poster_transition",
             "title": "Critical Transition",
             "pattern": "stats",
             "content": "**287 K** Predicted $T_c$ | Room-temperature regime\n**2.4 meV** Energy Error | 5x improvement\n**8.1x** Sampling Speed | VMC scaling",
@@ -4532,7 +4558,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_nqs_p5",
+            "id": "card_nqs_poster_comparison",
             "title": "Hydride Comparison Table",
             "pattern": "bullets-table",
             "content": "Comparison against standard DFT and quantum Monte Carlo.\\n- **DFT Baseline:** PBE functional underestimates electron-phonon coupling $\\lambda$ by 31\\% due to missing van der Waals and anharmonic corrections.\\n- **DMC Accuracy:** Diffusion Monte Carlo at fixed-node approximation achieves $\\pm3\\,\\text{meV}$ energy error -- our neural wavefunction matches DMC at 8.1x higher throughput.\\n- **Key Result:** Predicted $T_c = 287\\,\\text{K}$ at 182 GPa for LaH$_{10}$; experimental reports cluster at 250--260 K, within our 12 K uncertainty band from anharmonic corrections.",
@@ -4580,7 +4606,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_nqs_p6",
+            "id": "card_nqs_poster_phase",
             "title": "Phase Diagram & Pairing Map",
             "pattern": "bullets-two-images",
             "content": "Pairing symmetry and gap function mapped across pressure gradients.\\n- **Gap Function:** Isotropic $s$-wave pairing symmetry confirmed across all pressure points; anisotropy parameter $\\Delta_k/\\Delta_0 < 0.08$ consistent with conventional phonon-mediated mechanism.\\n- **Pressure Dependence:** $T_c$ rises steeply from 190 K at 150 GPa, peaks at 287 K at 182 GPa, then decreases to 241 K at 250 GPa as the Fermi surface topology changes.\\n- **Phonon Renormalisation:** Self-consistent phonon theory with neural force constants reduces zone-centre imaginary frequencies by 64\\% vs. harmonic DFT, confirming lattice stability.",
@@ -4608,7 +4634,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_nqs_p7",
+            "id": "card_nqs_poster_takeaway",
             "title": "Take-home",
             "pattern": "metric-card",
             "content": "**287 K** $T_c$ at 182 GPa\n**Stable** Hydride Phase",
@@ -4625,7 +4651,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_nqs_p8",
+            "id": "card_nqs_poster_references",
             "title": "References",
             "pattern": "references",
             "content": "\\cite{pfau2020abinitio,brohan2023rt2,vaswani2017attention}",
@@ -5215,7 +5241,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
         "themeColor": "#E45756",
         "cards": [
           {
-            "id": "card_cas13_p1",
+            "id": "card_cas13_poster_escape",
             "title": "Targeting Viral Escape Mutations",
             "pattern": "bullets",
             "content": "RNA respiratory viruses rapidly acquire single-nucleotide escape variants.\n\n- **Guide Ensembles:** Multi-guide cocktail prevents single-point resistance emergence.\n- **Secondary Structure:** Structure-aware scoring eliminates steric accessibility traps.\n- **In-Vitro Validation:** 0 escape cultures out of 48 serial challenges.\\n- **Pan-Viral Scope:** Ensemble simultaneously suppresses SARS-CoV-2, Influenza A/H1N1, RSV, and two coronaviruses across 480 replicates -- zero escape despite 30 serial passages.\\n- **Delivery:** LNP-formulated Cas13d-guide RNP achieves >90% lung epithelial transfection in Syrian hamster models with no detectable off-target effects at 10x therapeutic dose.\\n- **Design Speed:** Structure-aware GNN screens 12-guide ensembles in 6.8 hours on a single A100, enabling rapid pandemic response.",
@@ -5232,7 +5258,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_cas13_p2",
+            "id": "card_cas13_poster_selection",
             "title": "Selection Optimization",
             "pattern": "bullets",
             "content": "$$\\max_{\\mathcal{S} \\subseteq \\mathcal{G}, |\\mathcal{S}| \\le 4} f_{\\text{coverage}}(\\mathcal{S}) - \\lambda f_{\\text{off-target}}(\\mathcal{S})$$\n\nSubmodular greedy selection achieves provable $(1 - 1/e)$ approximation bound.\\n- **Accessibility Scoring:** A pangenome transformer rates guide binding efficiency across 50,000 viral variants; guides with accessibility $>0.8$ are prioritised to ensure activity in low-GC-content secondary structures.\\n- **Multi-Target Redundancy:** At least 3 active guides per target region ensure viral suppression even after single-nucleotide mutations in any one binding site.\\n- **Experimental Validation:** All 12 ensemble guides validated by RNA-seq knockdown assay; only guides with $>95\\%$ depletion at 10 nM Cas13d concentration are included.",
@@ -5249,7 +5275,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_cas13_p3",
+            "id": "card_cas13_poster_architecture",
             "title": "EvoGuide Architecture",
             "pattern": "bullets-image",
             "content": "Pangenome transformer scores accessibility and escape risk across viral phylogenies.\\n- **Input Representation:** Crystal structure of Cas13d-crRNA complex (PDB 6IV9) provides steric constraints; torsional angles encoded as equivariant SO(3) features.\\n- **Training Data:** Fine-tuned on 2.4 million guide-target efficiency pairs from CRISPR screen libraries spanning 28 RNA viruses.\\n- **Zero-Shot Transfer:** Without retraining, achieves 0.81 Spearman correlation on held-out guide activities for novel Orthopneumovirus targets.",
@@ -5272,7 +5298,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_cas13_p4",
+            "id": "card_cas13_poster_efficacy",
             "title": "Efficacy Metrics",
             "pattern": "stats",
             "content": "**99.2%** Viral Knockdown | in-vitro viral load\n**0 / 48** Escape Cultures | 30-day serial passaging\n**6.8 h** Design Cycle | automated synthesis pipeline",
@@ -5289,7 +5315,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_cas13_p5",
+            "id": "card_cas13_poster_benchmark",
             "title": "Controlled Benchmark",
             "pattern": "bullets-table",
             "content": "Knockdown and escape suppression compared to standard guide designs.",
@@ -5337,7 +5363,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_cas13_p6",
+            "id": "card_cas13_poster_culture",
             "title": "Long-term Culture Analysis",
             "pattern": "bullets-two-images",
             "content": "Serial passage viral titre quantification over 30 days.",
@@ -5365,7 +5391,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_cas13_p7",
+            "id": "card_cas13_poster_takeaway",
             "title": "Take-home",
             "pattern": "metric-card",
             "content": "**99.2%** Knockdown\n**Zero** Escape Variants",
@@ -5382,7 +5408,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "sourceIds": []
           },
           {
-            "id": "card_cas13_p8",
+            "id": "card_cas13_poster_references",
             "title": "References",
             "pattern": "references",
             "content": "\\cite{abudayyeh2017rna,vaswani2017attention}",
@@ -6734,7 +6760,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
         "themeColor": "#003366",
         "cards": [
           {
-            "id": "card_jwst_rev_1",
+            "id": "card_jwst_review_criterion_1_originality_novelt",
             "title": "Criterion 1: Originality & Novelty",
             "column": null,
             "order": 0,
@@ -6753,7 +6779,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             ]
           },
           {
-            "id": "card_jwst_rev_2",
+            "id": "card_jwst_review_criterion_2_theoretical_formul",
             "title": "Criterion 2: Theoretical Formulation",
             "column": null,
             "order": 1,
@@ -6772,7 +6798,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             ]
           },
           {
-            "id": "card_jwst_rev_3",
+            "id": "card_jwst_review_criterion_3_computational_meth",
             "title": "Criterion 3: Computational Methods",
             "column": null,
             "order": 2,
@@ -6791,7 +6817,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             ]
           },
           {
-            "id": "card_jwst_rev_4",
+            "id": "card_jwst_review_criterion_4_observational_data",
             "title": "Criterion 4: Observational Data Provenance",
             "column": null,
             "order": 3,
@@ -6810,7 +6836,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             ]
           },
           {
-            "id": "card_jwst_rev_5",
+            "id": "card_jwst_review_criterion_5_statistical_rigor",
             "title": "Criterion 5: Statistical Rigor & Bayes Analysis",
             "column": null,
             "order": 4,
@@ -6829,7 +6855,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             ]
           },
           {
-            "id": "card_jwst_rev_6",
+            "id": "card_jwst_review_criterion_6_empirical_results",
             "title": "Criterion 6: Empirical Results & Sensitivity",
             "column": null,
             "order": 5,
@@ -6848,7 +6874,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             ]
           },
           {
-            "id": "card_jwst_rev_7",
+            "id": "card_jwst_review_criterion_7_astrophysical_vali",
             "title": "Criterion 7: Astrophysical Validation & Robustness",
             "column": null,
             "order": 6,
@@ -6867,7 +6893,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             ]
           },
           {
-            "id": "card_jwst_rev_8",
+            "id": "card_jwst_review_criterion_8_reproducibility_op",
             "title": "Criterion 8: Reproducibility & Open Science",
             "column": null,
             "order": 7,
@@ -6886,7 +6912,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             ]
           },
           {
-            "id": "card_jwst_rev_9",
+            "id": "card_jwst_review_criterion_9_scientific_writing",
             "title": "Criterion 9: Scientific Writing & Presentation",
             "column": null,
             "order": 8,
@@ -6905,7 +6931,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             ]
           },
           {
-            "id": "card_jwst_rev_10",
+            "id": "card_jwst_review_criterion_10_research_ethics_a",
             "title": "Criterion 10: Research Ethics & Attribution",
             "column": null,
             "order": 9,
@@ -6924,7 +6950,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             ]
           },
           {
-            "id": "card_jwst_rev_11",
+            "id": "card_jwst_review_criterion_11_discussion_of_lim",
             "title": "Criterion 11: Discussion of Limitations",
             "column": null,
             "order": 10,
@@ -6943,7 +6969,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             ]
           },
           {
-            "id": "card_jwst_rev_12",
+            "id": "card_jwst_review_criterion_12_astrophysical_imp",
             "title": "Criterion 12: Astrophysical Impact & Outlook",
             "column": null,
             "order": 11,
@@ -8019,7 +8045,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
         "themeColor": "#0F766E",
         "cards": [
           {
-            "id": "card_mamba_slide_1",
+            "id": "card_mamba_slides_mamba_selective_state_spaces",
             "title": "Mamba: Selective State Spaces",
             "column": 1,
             "order": 0,
@@ -8036,7 +8062,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_slide_2",
+            "id": "card_mamba_slides_the_quadratic_attention_bottle",
             "title": "The Quadratic Attention Bottleneck",
             "column": 1,
             "order": 1,
@@ -8049,7 +8075,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_slide_3",
+            "id": "card_mamba_slides_selective_state_spaces_s6",
             "title": "Selective State Spaces (S6)",
             "column": 1,
             "order": 2,
@@ -8062,7 +8088,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_slide_4",
+            "id": "card_mamba_slides_hardware_aware_parallel_scan",
             "title": "Hardware-Aware Parallel Scan",
             "column": 1,
             "order": 3,
@@ -8075,7 +8101,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_slide_5",
+            "id": "card_mamba_slides_mamba_block_architecture",
             "title": "Mamba Block Architecture",
             "column": 1,
             "order": 4,
@@ -8088,7 +8114,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_slide_6",
+            "id": "card_mamba_slides_discretization",
             "title": "Discretization",
             "column": 1,
             "order": 5,
@@ -8101,7 +8127,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_slide_7",
+            "id": "card_mamba_slides_language_modeling_results",
             "title": "Language Modeling Results",
             "column": 1,
             "order": 6,
@@ -8114,7 +8140,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_slide_8",
+            "id": "card_mamba_slides_long_context_extrapolation",
             "title": "Long-Context Extrapolation",
             "column": 1,
             "order": 7,
@@ -8127,7 +8153,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_slide_9",
+            "id": "card_mamba_slides_multi_modal_benchmarks",
             "title": "Multi-Modal Benchmarks",
             "column": 1,
             "order": 8,
@@ -8140,7 +8166,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_slide_10",
+            "id": "card_mamba_slides_ablation_selection_is_essentia",
             "title": "Ablation: Selection Is Essential",
             "column": 1,
             "order": 9,
@@ -8153,7 +8179,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_slide_11",
+            "id": "card_mamba_slides_limitations_and_future_work",
             "title": "Limitations and Future Work",
             "column": 1,
             "order": 10,
@@ -8166,7 +8192,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_slide_12",
+            "id": "card_mamba_slides_conclusion",
             "title": "Conclusion",
             "column": 1,
             "order": 11,
@@ -8188,7 +8214,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
         "themeColor": "#0F766E",
         "cards": [
           {
-            "id": "card_mamba_paper_1",
+            "id": "card_mamba_paper_abstract",
             "title": "Abstract",
             "column": 1,
             "order": 0,
@@ -8205,7 +8231,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_paper_2",
+            "id": "card_mamba_paper_introduction",
             "title": "Introduction",
             "column": 1,
             "order": 1,
@@ -8218,7 +8244,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_paper_3",
+            "id": "card_mamba_paper_related_work",
             "title": "Related Work",
             "column": 1,
             "order": 2,
@@ -8231,7 +8257,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_paper_4",
+            "id": "card_mamba_paper_methods",
             "title": "Methods",
             "column": 1,
             "order": 3,
@@ -8244,7 +8270,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_paper_5",
+            "id": "card_mamba_paper_experiments",
             "title": "Experiments",
             "column": 1,
             "order": 4,
@@ -8257,7 +8283,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_paper_6",
+            "id": "card_mamba_paper_ablation_studies",
             "title": "Ablation Studies",
             "column": 1,
             "order": 5,
@@ -8270,7 +8296,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_paper_7",
+            "id": "card_mamba_paper_discussion",
             "title": "Discussion",
             "column": 1,
             "order": 6,
@@ -8283,7 +8309,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_paper_8",
+            "id": "card_mamba_paper_conclusion",
             "title": "Conclusion",
             "column": 1,
             "order": 7,
@@ -8296,7 +8322,7 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
-            "id": "card_mamba_paper_9",
+            "id": "card_mamba_paper_references",
             "title": "References",
             "column": 1,
             "order": 8,
@@ -8332,6 +8358,1046 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
         "confidence": "high",
         "caption": "Long-context perplexity vs. Transformers"
       }
+    ],
+    "ingestFiles": []
+  },
+  {
+    "id": "aurora-topological-photonics",
+    "name": "Aurora: Topological Photonic Crystals with Synthetic Dimensions",
+    "posterTitle": "Aurora Topological Photonic Crystals: Non-Abelian Braiding in Synthetic Frequency Dimensions",
+    "authors": "Kenji Tanaka, Elena Varga, Amir Hassan, Sophia Liu",
+    "venue": "Nature Photonics 2027 • Topological Photonics",
+    "templateName": "aurora",
+    "activeOutputId": "out_aurora_poster",
+    "outputs": [
+      {
+        "id": "out_aurora_poster",
+        "outputType": "poster",
+        "templateId": "aurora",
+        "title": "Topological Photonic Crystals: Non-Abelian Braiding in Synthetic Dimensions",
+        "themeColor": "#6C3CE0",
+        "cards": [
+          {
+            "id": "card_aurora_intro_challenge",
+            "title": "Topological Photonics Challenge",
+            "pattern": "bullets",
+            "content": "Topological protection promises disorder-robust routing of light, but scalable on-chip implementations face fundamental limits.\n\n- **Scalability Bottleneck:** Conventional 2D photonic crystals require $\\gtrsim 10^4$ unit cells for robust edge states at $\\lambda = 1550$ nm, exceeding foundry reticle limits.\n- **Synthetic Dimensions:** Mapping frequency modes $\\omega_n = \\omega_0 + n \\cdot \\Omega$ to a lattice coordinate enables $(2+1)$D topology in a single ring resonator \cite{yuan2018photonic}.\n- **Non-Abelian Gap:** Achieving non-Abelian braiding requires $\\mathcal{PT}$-symmetric gain/loss balance with $\\gamma < 0.3 \\kappa$, where $\\kappa$ is the inter-mode coupling.",
+            "column": 1,
+            "order": 0,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": []
+          },
+          {
+            "id": "card_aurora_theory_hamiltonian",
+            "title": "Synthetic Frequency Hamiltonian",
+            "pattern": "bullets",
+            "content": "$$\\hat{H} = \\sum_{n} \\omega_n \\hat{a}^{\\dagger}_n \\hat{a}_n + \\kappa \\sum_{n} (e^{i \\phi(t)} \\hat{a}^{\\dagger}_{n+1} \\hat{a}_n + \\text{h.c.}) + i\\gamma \\sum_n (-1)^n \\hat{a}^{\\dagger}_n \\hat{a}_n$$\n\nThe Floquet modulation phase $\\phi(t) = \\phi_0 + \\delta \\phi \\sin(\\Omega t)$ induces an effective gauge field $A_{\\text{eff}} = \\delta \\phi \\cdot \\Omega / \\kappa$ with Chern number $C = 1$ in the $(k, \\phi)$ Brillouin zone. Edge states exhibit unidirectional transport with $> 40$ dB isolation.",
+            "column": 1,
+            "order": 1,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": []
+          },
+          {
+            "id": "card_aurora_design_architecture",
+            "title": "Aurora Device Architecture",
+            "pattern": "bullets-image",
+            "content": "Silicon nitride microring ($\\mathbf{Q = 2.1 \\times 10^6}$) with integrated electro-optic modulators realizes the synthetic lattice.\n\n- **Ring Geometry:** Radius $R = 120$ \\textmu m, FSR $\\Omega / 2\\pi = 25$ GHz, providing $N = 21$ accessible frequency sites within the 500 GHz modulation bandwidth.\n- **Modulation:** Two-tone RF drive at $\\Omega$ and $2\\Omega$ creates next-nearest-neighbor coupling $\\kappa_2 = 0.35 \\kappa$ for flat-band engineering \cite{ozawa2019topological}.\n- **Readout:** Heterodyne spectroscopy resolves individual synthetic lattice sites with $> 35$ dB extinction.",
+            "column": 2,
+            "order": 0,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [{ "id": "fig_aurora_arch", "url": "/api/workspaces/aurora-topological-photonics/assets/architecture.png", "caption": "Aurora Device: Microring with Synthetic Frequency Lattice" }],
+            "sourceIds": []
+          },
+          {
+            "id": "card_aurora_results_metrics",
+            "title": "Topological Transport Metrics",
+            "pattern": "stats",
+            "content": "**42 dB** Isolation | unidirectional edge transport\n**0.98** Fidelity | non-Abelian braiding\n**21** Sites | synthetic lattice size",
+            "column": 2,
+            "order": 1,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": []
+          },
+          {
+            "id": "card_aurora_benchmark_table",
+            "title": "Benchmark vs. State of the Art",
+            "pattern": "bullets-table",
+            "content": "Aurora exceeds electronic and photonic baselines in isolation and lattice size.",
+            "column": 3,
+            "order": 0,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": {
+              "hasHeader": true,
+              "caption": "Topological Platform Comparison",
+              "rows": [
+                ["Platform", "Isolation (dB)", "Sites", "Loss (dB/cm)"],
+                ["2D Photonic Crystal", "28", "—", "2.1"],
+                ["Coupled Rings", "34", "8", "1.4"],
+                ["Fiber Loop Synthetic", "31", "15", "0.8"],
+                ["Aurora (This Work)", "42", "21", "0.12"]
+              ]
+            },
+            "figures": [],
+            "sourceIds": []
+          },
+          {
+            "id": "card_aurora_braiding_results",
+            "title": "Non-Abelian Braiding Demonstration",
+            "pattern": "bullets-two-images",
+            "content": "Adiabatic encircling of exceptional points braids $\\mathbf{\\Psi}_1$ and $\\mathbf{\\Psi}_2$ with fidelity $\\mathcal{F} = |\\langle \\Psi_{\\text{target}} | \\Psi_{\\text{out}} \\rangle|^2 = 0.98 \\pm 0.01$ across $n=500$ trials.",
+            "column": 3,
+            "order": 1,
+            "figureLayout": "two-up",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [
+              { "id": "fig_aurora_braid", "url": "/api/workspaces/aurora-topological-photonics/assets/benchmark.png", "caption": "Braiding Fidelity vs. Encircling Rate" },
+              { "id": "fig_aurora_edge", "url": "/api/workspaces/aurora-topological-photonics/assets/architecture.png", "caption": "Edge State Dispersion" }
+            ],
+            "sourceIds": []
+          },
+          {
+            "id": "card_aurora_takeaway_conclusion",
+            "title": "Outlook",
+            "pattern": "metric-card",
+            "content": "**21-site** Synthetic Lattice | largest to date\n**$\\mathcal{PT}$-Symmetric** | exceptional-point braiding",
+            "column": 1,
+            "order": 2,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": []
+          },
+          {
+            "id": "card_aurora_references_citations",
+            "title": "References",
+            "pattern": "references",
+            "content": "\\cite{yuan2018photonic,ozawa2019topological,el2018non}",
+            "column": 2,
+            "order": 2,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": []
+          }
+        ]
+      },
+      {
+        "id": "out_aurora_slides",
+        "outputType": "slides",
+        "templateId": "beamer-editorial",
+        "title": "Aurora Topological Photonics: Slides",
+        "themeColor": "#6C3CE0",
+        "cards": [
+          {
+            "id": "card_aurora_slides_title",
+            "title": "Title",
+            "pattern": "title-slide",
+            "content": "Aurora: Topological Photonic Crystals with Synthetic Dimensions",
+            "column": null,
+            "order": 0,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_aurora_slides_motivation",
+            "title": "Why Synthetic Dimensions?",
+            "pattern": "bullets",
+            "content": "- **Topological Protection:** Immunity to fabrication disorder requires large lattices.\n- **Synthetic Advantage:** Frequency lattice compresses $(2+1)$D topology into a single resonator with $N=21$ sites.\n- **Application:** Non-Abelian braiding for topologically protected photonic gates.",
+            "column": null,
+            "order": 1,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_aurora_slides_hamiltonian",
+            "title": "Hamiltonian & Gauge Field",
+            "pattern": "two-column",
+            "content": "$$\\hat{H} = \\sum_n \\omega_n \\hat{a}^{\\dagger}_n \\hat{a}_n + \\kappa \\sum_n (e^{i\\phi(t)}\\hat{a}^{\\dagger}_{n+1}\\hat{a}_n + h.c.)$$ Synthetic gauge field $A_{\\text{eff}} = \\delta\\phi \\cdot \\Omega / \\kappa$ yields Chern number $C=1$.",
+            "column": null,
+            "order": 2,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_aurora_slides_device",
+            "title": "Aurora Device",
+            "pattern": "figure-slide",
+            "content": "SiN microring with $Q=2.1\\times10^6$, $R=120$ \\textmu m, FSR 25 GHz, two-tone modulation for $\\kappa_2$ coupling.",
+            "column": null,
+            "order": 3,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [{ "id": "fig_aurora_dev_s", "url": "/api/workspaces/aurora-topological-photonics/assets/architecture.png", "caption": "Device schematic" }],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_aurora_slides_results",
+            "title": "Braiding & Transport",
+            "pattern": "bullets",
+            "content": "- **Isolation:** 42 dB unidirectional edge transport.\n- **Fidelity:** 0.98 braiding fidelity ($n=500$).\n- **Lattice:** 21 synthetic sites, largest to date.",
+            "column": null,
+            "order": 4,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_aurora_slides_conclusion",
+            "title": "Conclusion",
+            "pattern": "bullets",
+            "content": "- Synthetic frequency dimensions compress topology into single resonator.\n- Non-Abelian braiding at 0.98 fidelity enables photonic gates.\n- Next: scaling to $N=51$ with lithium niobate modulators.",
+            "column": null,
+            "order": 5,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          }
+        ]
+      },
+      {
+        "id": "out_aurora_paper",
+        "outputType": "paper",
+        "templateId": "article-twocol",
+        "title": "Aurora: Paper",
+        "themeColor": "#6C3CE0",
+        "cards": [
+          {
+            "id": "card_aurora_paper_abstract",
+            "title": "Abstract",
+            "pattern": "section",
+            "content": "We demonstrate non-Abelian braiding of photonic modes in a synthetic frequency dimension realized by a modulated silicon nitride microring. By mapping $N=21$ frequency modes to lattice sites with tunable coupling $\\kappa/2\\pi = 180$ MHz and implementing $\\mathcal{PT}$-symmetric gain/loss $\\gamma = 0.25\\kappa$, we realize a $(2+1)$D Chern insulator with $C=1$. Adiabatic encircling of exceptional points braids degenerate edge states with fidelity $0.98 \\pm 0.01$. Unidirectional edge transport exhibits 42 dB isolation, surpassing 2D photonic crystal baselines by 14 dB. Our 120-\\textmu m single-resonator platform compresses $10^4$-cell topology into CMOS-compatible footprint, opening routes to topologically protected photonic logic.",
+            "column": null,
+            "order": 0,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_aurora_paper_intro",
+            "title": "Introduction",
+            "pattern": "section",
+            "content": "Topological photonics leverages band topology to achieve disorder-robust light transport \\cite{lu2014topological}. However, 2D implementations require large footprints and precise disorder control. Synthetic dimensions offer an alternative by using internal degrees of freedom as lattice coordinates \\cite{yuan2018photonic}. Frequency synthetic dimensions are particularly attractive: a single resonator hosts $N \\sim 20$ modes within telecom bandwidth, and electro-optic modulation provides reconfigurable coupling. Non-Abelian braiding, essential for topological quantum gates, further requires exceptional-point encircling in non-Hermitian systems. Here we unite these concepts in the Aurora platform.",
+            "column": null,
+            "order": 1,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [{ "id": "fig_aurora_intro_p", "url": "/api/workspaces/aurora-topological-photonics/assets/architecture.png", "caption": "Figure 1: Aurora synthetic dimension concept and device." }],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_aurora_paper_methods",
+            "title": "Hamiltonian Engineering",
+            "pattern": "section",
+            "content": "The synthetic lattice Hamiltonian is $\\hat{H} = \\sum_n \\omega_n \\hat{a}^{\\dagger}_n \\hat{a}_n + \\kappa \\sum_n (e^{i\\phi(t)}\\hat{a}^{\\dagger}_{n+1}\\hat{a}_n + \\text{h.c.}) + i\\gamma \\sum_n (-1)^n \\hat{a}^{\\dagger}_n \\hat{a}_n$ with Floquet phase $\\phi(t)=\\phi_0+\\delta\\phi \\sin(\\Omega t)$. The effective gauge field $A_{\\text{eff}} = \\delta\\phi \\Omega / \\kappa$ opens a topological gap $\\Delta_{\\text{top}} = 2\\kappa \\sqrt{1-(\\gamma/\\kappa)^2} \\approx 1.9\\kappa$ for $\\gamma=0.25\\kappa$. Two-tone modulation adds $\\kappa_2=0.35\\kappa$ next-nearest-neighbor coupling to flatten the edge dispersion to $v_g$ variation $<5\\%$.",
+            "column": null,
+            "order": 2,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_aurora_paper_results",
+            "title": "Results: Braiding & Isolation",
+            "pattern": "section-table",
+            "content": "We characterize edge transport and braiding fidelity:",
+            "column": null,
+            "order": 3,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": {
+              "hasHeader": true,
+              "caption": "Table 1: Topological metrics vs. baselines.",
+              "rows": [
+                ["Platform", "Isolation (dB)", "Sites", "Fidelity"],
+                ["2D PhC", "28", "—", "—"],
+                ["Coupled Rings", "34", "8", "0.82"],
+                ["Fiber Loop", "31", "15", "0.88"],
+                ["Aurora", "42", "21", "0.98"]
+              ]
+            },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_aurora_paper_discussion",
+            "title": "Discussion",
+            "pattern": "section",
+            "content": "Aurora's 42 dB isolation exceeds prior synthetic dimension records by 8 dB, attributable to the high $Q=2.1\\times10^6$ and low propagation loss 0.12 dB/cm. The 0.98 braiding fidelity is limited by residual non-adiabatic transitions ($\\approx 1.2\\%$) and detection shot noise ($0.8\\%$). Scaling to $N=51$ requires 1.2 THz bandwidth, achievable with thin-film lithium niobate modulators ($V_\\pi=1.2$ V). Hybrid integration with superconducting detectors could enable single-photon topological gates with $g^{(2)}(0) < 0.05$.",
+            "column": null,
+            "order": 4,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [{ "id": "fig_aurora_braid_p", "url": "/api/workspaces/aurora-topological-photonics/assets/benchmark.png", "caption": "Figure 2: Braiding fidelity and isolation spectra." }],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_aurora_paper_conclusion",
+            "title": "Conclusion",
+            "pattern": "section",
+            "content": "We realized non-Abelian braiding in a synthetic frequency dimension with 21 sites, 42 dB topological isolation, and 0.98 fidelity. The single-resonator Aurora platform demonstrates that synthetic dimensions can compress large-scale topology into foundry-compatible footprints while preserving non-Hermitian braiding capabilities. This establishes synthetic frequency lattices as a platform for topologically protected photonic information processing.",
+            "column": null,
+            "order": 5,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_aurora_paper_references",
+            "title": "References",
+            "pattern": "references",
+            "content": "\\cite{yuan2018photonic,ozawa2019topological,el2018non,lu2014topological}",
+            "column": null,
+            "order": 6,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          }
+        ]
+      }
+    ],
+    "assets": [
+      { "id": "ast_aurora_arch", "fileId": "architecture.png", "filename": "architecture.png", "url": "/api/workspaces/aurora-topological-photonics/assets/architecture.png", "kind": "figure", "page": 1, "confidence": "high", "caption": "Aurora device architecture" },
+      { "id": "ast_aurora_bench", "fileId": "benchmark.png", "filename": "benchmark.png", "url": "/api/workspaces/aurora-topological-photonics/assets/benchmark.png", "kind": "figure", "page": 1, "confidence": "high", "caption": "Braiding and transport benchmarks" }
+    ],
+    "ingestFiles": []
+  },
+  {
+    "id": "landscape-ocean-circulation",
+    "name": "Landscape: Atlantic Meridional Overturning Early Warning",
+    "posterTitle": "Early Warning of AMOC Tipping: Landscape Analysis of Critical Slowing Down",
+    "authors": "Isabella Rossi, Kwame Asante, Yuki Nakamura, Pierre Dubois",
+    "venue": "Nature Climate Change 2027 • Tipping Points",
+    "templateName": "landscape",
+    "activeOutputId": "out_landscape_poster",
+    "outputs": [
+      {
+        "id": "out_landscape_poster",
+        "outputType": "poster",
+        "templateId": "landscape",
+        "title": "Early Warning of AMOC Tipping: Critical Slowing Down in a $1/12^\\circ$ Ocean Model",
+        "themeColor": "#0F4C75",
+        "cards": [
+          {
+            "id": "card_landscape_intro_motivation",
+            "title": "AMOC Tipping Risk",
+            "pattern": "bullets",
+            "content": "The Atlantic Meridional Overturning Circulation (AMOC) transports $\\sim 18$ Sv ($1$ Sv $=10^6$ m$^3$/s) northward, regulating European climate by $\\sim 5^{\\circ}$C. Paleo records show abrupt $\\Delta T > 8^{\\circ}$C collapses within decades.\n\n- **Model Spread:** CMIP6 models disagree on tipping threshold: freshwater forcing $F_{\\text{crit}} = 0.18$–$0.42$ Sv.\n- **Early Warning:** Critical slowing down predicts variance $\\sigma^2 \\propto (\\lambda)^{-1}$ and autocorrelation $\\rho_1 \\to 1$ as eigenvalue $\\lambda \\to 0$.\n- **Resolution Gap:** $1^\\circ$ models misrepresent mesoscale eddies ($\\sim 10$ km) that stabilize AMOC by $\\Delta F \\approx 0.1$ Sv \cite{weijer2019atlantic}.",
+            "column": 1,
+            "order": 0,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": []
+          },
+          {
+            "id": "card_landscape_theory_dynamical",
+            "title": "Dynamical Landscape Theory",
+            "pattern": "bullets",
+            "content": "$$\\frac{d\\mathbf{x}}{dt} = -\\nabla U(\\mathbf{x}; \\mu) + \\sigma \\eta(t), \\quad U(x; \\mu) = \\frac{1}{4}x^4 - \\frac{1}{2}\\mu x^2 - hx$$\n\nCusp catastrophe with bifurcation at $\\mu_c = 0$; restoring rate $\\lambda = U''(x^*; \\mu)$ vanishes as $\\lambda \\sim \\sqrt{\\mu - \\mu_c}$. Variance and lag-1 autocorrelation: $\\text{Var} = \\sigma^2/(2\\lambda)$, $\\rho_1 = \\exp(-\\lambda \\Delta t) \\approx 1 - \\lambda \\Delta t$. Detrended fluctuation analysis exponent $\\alpha \\to 1.5$ at tipping.",
+            "column": 1,
+            "order": 1,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": []
+          },
+          {
+            "id": "card_landscape_model_hr",
+            "title": "High-Resolution Ocean Model",
+            "pattern": "bullets-image",
+            "content": "$1/12^\\circ$ NEMO4-SI$^3$ global configuration (2.3B grid cells) forced by JRA-55 reanalysis plus idealized freshwater hosing.\n\n- **Resolution:** 8 km at $50^\\circ$N resolves mesoscale eddies; Gent-McWilliams parameterization disabled, explicit eddy transport.\n- **Integration:** 1,200-year spin-up + 800-year hosing ramps $F = 0$ to $0.6$ Sv at $0.05$ Sv/century; $\\Delta t = 270$ s, 4.2M core-hours on Levante HPC.\n- **Observable:** AMOC strength $\\Psi_{\\max}$ at $26.5^\\circ$N, plus fingerprint SST dipole $\\Delta$SST $= $ SST$_{\\text{subpolar}} - $SST$_{\\text{Gulf Stream}}$ \\cite{caesar2018observed}.",
+            "column": 2,
+            "order": 0,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [{ "id": "fig_landscape_model", "url": "/api/workspaces/landscape-ocean-circulation/assets/architecture.png", "caption": "Model Bathymetry and AMOC Streamfunction" }],
+            "sourceIds": []
+          },
+          {
+            "id": "card_landscape_metrics_ewi",
+            "title": "Early Warning Indicators",
+            "pattern": "stats",
+            "content": "**3.2×** Variance Rise | 50 yr before tipping\n**0.92** $\\rho_1$ | at $F=0.28$ Sv\n**18 yr** Lead Time | $\\alpha$ cross 1.2",
+            "column": 2,
+            "order": 1,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": []
+          },
+          {
+            "id": "card_landscape_comparison_table",
+            "title": "Early Warning Skill",
+            "pattern": "bullets-table",
+            "content": "Landscape indicators outperform classical variance-only methods.",
+            "column": 3,
+            "order": 0,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": {
+              "hasHeader": true,
+              "caption": "EWI Performance (AUC) on Synthetic Tipping Ensembles",
+              "rows": [
+                ["Indicator", "AUC", "Lead (yr)", "False Pos."],
+                ["Variance only", "0.68", "12", "0.31"],
+                ["$\\rho_1$ only", "0.71", "15", "0.28"],
+                ["DFA $\\alpha$", "0.79", "22", "0.18"],
+                ["Landscape (all)", "0.91", "38", "0.07"]
+              ]
+            },
+            "figures": [],
+            "sourceIds": []
+          },
+          {
+            "id": "card_landscape_spatial_results",
+            "title": "Spatial Tipping Map & Hysteresis",
+            "pattern": "bullets-two-images",
+            "content": "Restoring rate $\\lambda$ mapped via $\\text{Var}/\\rho_1$ inversion shows weakest stability in Labrador Sea ($\\lambda = 0.08$ yr$^{-1}$ vs basin mean $0.21$ yr$^{-1}$). Hysteresis width $\\Delta F = 0.18$ Sv implies 180 yr recovery timescale.",
+            "column": 3,
+            "order": 1,
+            "figureLayout": "two-up",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [
+              { "id": "fig_landscape_map", "url": "/api/workspaces/landscape-ocean-circulation/assets/benchmark.png", "caption": "Spatial $\\lambda$ Map" },
+              { "id": "fig_landscape_hyst", "url": "/api/workspaces/landscape-ocean-circulation/assets/architecture.png", "caption": "Hysteresis Loop $\\Psi(F)$" }
+            ],
+            "sourceIds": []
+          },
+          {
+            "id": "card_landscape_takeaway_policy",
+            "title": "Policy Implication",
+            "pattern": "metric-card",
+            "content": "**$F_{\\text{crit}} = 0.32 \\pm 0.03$ Sv** | high-res estimate\n**2025 $F\\approx0.14$ Sv** | 44\\% to tipping",
+            "column": 1,
+            "order": 2,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": []
+          },
+          {
+            "id": "card_landscape_references_citations",
+            "title": "References",
+            "pattern": "references",
+            "content": "\\cite{weijer2019atlantic,caesar2018observed,boettner2021critical}",
+            "column": 2,
+            "order": 2,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": []
+          }
+        ]
+      },
+      {
+        "id": "out_landscape_slides",
+        "outputType": "slides",
+        "templateId": "beamer-default",
+        "title": "AMOC Early Warning: Slides",
+        "themeColor": "#0F4C75",
+        "cards": [
+          {
+            "id": "card_landscape_slides_title",
+            "title": "Title",
+            "pattern": "title-slide",
+            "content": "Early Warning of AMOC Tipping: Landscape Analysis",
+            "column": null,
+            "order": 0,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_landscape_slides_risk",
+            "title": "AMOC Tipping Risk",
+            "pattern": "bullets",
+            "content": "- **18 Sv** northward transport, $5^{\\circ}$C European warming.\n- **CMIP6 spread:** $F_{\\text{crit}} = 0.18$–$0.42$ Sv.\n- **Critical slowing down:** $\\sigma^2 \\propto 1/\\lambda$, $\\rho_1 \\to 1$.",
+            "column": null,
+            "order": 1,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_landscape_slides_theory",
+            "title": "Landscape Theory",
+            "pattern": "two-column",
+            "content": "$$U(x;\\mu)=\\frac14x^4-\\frac12\\mu x^2-hx,\\quad \\lambda=U''(x^*;\\mu)\\to0$$ Variance $\\sigma^2/2\\lambda$, $\\rho_1=e^{-\\lambda\\Delta t}$.",
+            "column": null,
+            "order": 2,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_landscape_slides_model",
+            "title": "$1/12^\\circ$ Ocean Model",
+            "pattern": "figure-slide",
+            "content": "NEMO4 global 2.3B cells, 8 km at $50^\\circ$N, 800-yr hosing ramp $0$–$0.6$ Sv.",
+            "column": null,
+            "order": 3,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [{ "id": "fig_landscape_model_s", "url": "/api/workspaces/landscape-ocean-circulation/assets/architecture.png", "caption": "Streamfunction" }],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_landscape_slides_results",
+            "title": "Early Warning Results",
+            "pattern": "bullets",
+            "content": "- **3.2× variance** 50 yr before tipping.\n- **$\\rho_1=0.92$** at $F=0.28$ Sv.\n- **AUC 0.91**, 38 yr lead, 7\\% false positives.",
+            "column": null,
+            "order": 4,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_landscape_slides_conclusion",
+            "title": "Conclusion",
+            "pattern": "bullets",
+            "content": "- $F_{\\text{crit}}=0.32\\pm0.03$ Sv, 44\\% of tipping distance covered by 2025.\n- Landscape indicators give 38-yr lead vs 12-yr for variance alone.\n- Policy: track Labrador Sea $\\lambda$ via $\\Delta$SST.",
+            "column": null,
+            "order": 5,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          }
+        ]
+      },
+      {
+        "id": "out_landscape_paper",
+        "outputType": "paper",
+        "templateId": "ieee-conf",
+        "title": "Landscape: Paper",
+        "themeColor": "#0F4C75",
+        "cards": [
+          {
+            "id": "card_landscape_paper_abstract",
+            "title": "Abstract",
+            "pattern": "section",
+            "content": "We present a 1/12$^\\circ$ global ocean simulation to quantify early warning signals of Atlantic Meridional Overturning Circulation (AMOC) collapse. Across 800-year freshwater hosing ramps ($0$–$0.6$ Sv), we track variance, lag-1 autocorrelation $\\rho_1$, and detrended fluctuation exponent $\\alpha$ of the AMOC strength $\\Psi_{\\max}$ and SST dipole $\\Delta$SST. The high-resolution model, which explicitly resolves mesoscale eddies, yields $F_{\\text{crit}} = 0.32 \\pm 0.03$ Sv, 0.10 Sv higher than $1^\\circ$ counterparts. A combined landscape indicator achieves AUC $0.91$ with 38-year lead time and 7\\% false-positive rate, vs AUC $0.68$ for variance alone. Spatial mapping of the restoring rate $\\lambda$ identifies the Labrador Sea as the stability bottleneck ($\\lambda=0.08$ yr$^{-1}$). Hysteresis width $\\Delta F=0.18$ Sv implies centennial recovery times. Current freshwater input $F\\approx0.14$ Sv in 2025 places the system at 44\\% of the tipping distance.",
+            "column": null,
+            "order": 0,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_landscape_paper_intro",
+            "title": "Introduction",
+            "pattern": "section",
+            "content": "The AMOC is a key tipping element with paleo evidence for abrupt transitions \\cite{weijer2019atlantic}. CMIP6 $1^\\circ$ models span $F_{\\text{crit}}=0.18$–$0.42$ Sv due to eddy parameterization uncertainty \\cite{caesar2018observed}. Critical slowing down theory predicts $\\text{Var} \\propto \\lambda^{-1}$, $\\rho_1 \\to 1$ near bifurcation, but skill on high-resolution dynamics is untested. We address this with the first $1/12^\\circ$ early warning assessment using the NEMO4-SI$^3$ framework on Levante HPC (4.2M core-hours).",
+            "column": null,
+            "order": 1,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [{ "id": "fig_landscape_intro_p", "url": "/api/workspaces/landscape-ocean-circulation/assets/architecture.png", "caption": "Figure 1: Model and AMOC mean state." }],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_landscape_paper_model",
+            "title": "High-Resolution Model & Hosing Protocol",
+            "pattern": "section",
+            "content": "NEMO4 at $1/12^\\circ$ ($\\approx 8$ km at $50^\\circ$N, 2.3B cells, 75 vertical levels) with explicit eddies (Gent-McWilliams disabled) is spun up 1,200 years under JRA-55 forcing. Freshwater hosing applies $F(t)=r t$ with $r=0.05$ Sv/century uniformly over $50$–$70^\\circ$N, $\\Delta t=270$ s. We diagnose $\\Psi_{\\max}$ at $26.5^\\circ$N and $\\Delta$SST, detrending with 50-year Gaussian kernel before computing $\\sigma^2$, $\\rho_1$ (50-year windows), and DFA $\\alpha$ (window $10$–$100$ yr).",
+            "column": null,
+            "order": 2,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_landscape_paper_evaluation",
+            "title": "Early Warning Skill",
+            "pattern": "section-table",
+            "content": "Landscape combination outperforms single-indicator baselines:",
+            "column": null,
+            "order": 3,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": {
+              "hasHeader": true,
+              "caption": "Table 1: EWI AUC on 200-member synthetic tipping ensemble.",
+              "rows": [
+                ["Indicator", "AUC", "Lead (yr)", "FPR"],
+                ["Variance", "0.68", "12", "0.31"],
+                ["$\\rho_1$", "0.71", "15", "0.28"],
+                ["DFA $\\alpha$", "0.79", "22", "0.18"],
+                ["Landscape", "0.91", "38", "0.07"]
+              ]
+            },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_landscape_paper_spatial",
+            "title": "Spatial Structure & Hysteresis",
+            "pattern": "section-figure",
+            "content": "Inversion of $\\lambda$ from $\\sigma^2$ and $\\rho_1$ yields a spatial stability map: Labrador Sea $\\lambda=0.08$ yr$^{-1}$ (weakest), Irminger Sea $0.14$ yr$^{-1}$, basin mean $0.21$ yr$^{-1}$. Hysteresis experiments (reverse hosing) show recovery at $F_{\\text{rec}}=0.14$ Sv vs collapse at $0.32$ Sv, width $\\Delta F=0.18$ Sv, implying $\\tau_{\\text{rec}} \\sim \\Delta F / r \\approx 360$ yr at current rates. This asymmetry challenges reversibility assumptions in integrated assessment models.",
+            "column": null,
+            "order": 4,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [{ "id": "fig_landscape_spatial_p", "url": "/api/workspaces/landscape-ocean-circulation/assets/benchmark.png", "caption": "Figure 2: Spatial $\\lambda$ and hysteresis." }],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_landscape_paper_conclusion",
+            "title": "Conclusion",
+            "pattern": "section",
+            "content": "High-resolution eddy-resolving simulation raises $F_{\\text{crit}}$ by 0.10 Sv vs coarse models and enables 38-year early warning lead time via landscape indicators. The Labrador Sea emerges as the sentinel region for monitoring via $\\Delta$SST. With $F\\approx0.14$ Sv in 2025 (44\\% to tipping), sustained observation of $\\rho_1$ and $\\alpha$ is warranted. Future work couples the ocean landscape to an active atmosphere for fully coupled tipping risk.",
+            "column": null,
+            "order": 5,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_landscape_paper_references",
+            "title": "References",
+            "pattern": "references",
+            "content": "\\cite{weijer2019atlantic,caesar2018observed,boettner2021critical,ditlevsen2023warning}",
+            "column": null,
+            "order": 6,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          }
+        ]
+      }
+    ],
+    "assets": [
+      { "id": "ast_landscape_arch", "fileId": "architecture.png", "filename": "architecture.png", "url": "/api/workspaces/landscape-ocean-circulation/assets/architecture.png", "kind": "figure", "page": 1, "confidence": "high", "caption": "Ocean model and streamfunction" },
+      { "id": "ast_landscape_bench", "fileId": "benchmark.png", "filename": "benchmark.png", "url": "/api/workspaces/landscape-ocean-circulation/assets/benchmark.png", "kind": "figure", "page": 1, "confidence": "high", "caption": "Early warning indicators" }
+    ],
+    "ingestFiles": []
+  },
+  {
+    "id": "betterposter-single-cell-atlas",
+    "name": "Betterposter: Human Cell Atlas at Single-Cell Resolution",
+    "posterTitle": "Mapping 12M Cells: Betterposter Atlas of Human Tissue Niches",
+    "authors": "Fatima Al-Zahra, James Park, Lina Gomez, David Kim",
+    "venue": "Cell 2027 • Human Cell Atlas",
+    "templateName": "betterposter",
+    "activeOutputId": "out_betterposter_poster",
+    "outputs": [
+      {
+        "id": "out_betterposter_poster",
+        "outputType": "poster",
+        "templateId": "betterposter",
+        "title": "Mapping 12M Cells: Single-Cell Atlas of Human Tissue Niches",
+        "themeColor": "#E63946",
+        "cards": [
+          {
+            "id": "card_betterposter_intro_challenge",
+            "title": "Atlas Challenge",
+            "pattern": "bullets",
+            "content": "The Human Cell Atlas aims to map all $\\sim 37.2 \\times 10^{12}$ cells across 200+ cell types, but batch effects and rare cell detection limit completeness.\n\n- **Scale:** 12M cells from 48 donors, 18 tissues, 3′ scRNA-seq plus CITE-seq (184 surface proteins). Rare niches ($<0.05\\%$) require $>10$M cells for $95\\%$ detection power.\n- **Batch:** $N_{\\text{batch}}=142$ 10x lanes with donor, tissue, and chemistry confounders; kBET acceptance $<0.6$ before correction.\n- **Trajectory:** Differentiation continua (e.g., hematopoiesis) violate discrete clustering assumptions ($\\sim 30\\%$ of cells in transition states).",
+            "column": 1,
+            "order": 0,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": []
+          },
+          {
+            "id": "card_betterposter_theory_model",
+            "title": "Latent Space Model",
+            "pattern": "bullets",
+            "content": "$$\\mathbf{z}_n \\sim \\mathcal{N}(0, I),\\quad \\mathbf{\\rho}_n = f_{\\theta}(\\mathbf{z}_n, s_n),\\quad x_{ng} \\sim \\text{NB}(\\ell_n \\rho_{ng}, \\theta_g)$$\n\nVariational autoencoder with batch covariate $s_n$ and library size $\\ell_n$; decoder $f_{\\theta}$ is a 3-layer MLP (128-128-256). Loss: $\\mathcal{L} = \\mathbb{E}_{q}[\\log p(x|z,s)] - \\beta \\cdot \\text{KL}(q(z|x)||p(z))$ with $\\beta=0.6$ annealing. Graph-based clustering on $k=30$ NN graph of $\\mathbf{z}$ with Leiden $\\gamma=1.2$ yields 284 clusters.",
+            "column": 1,
+            "order": 1,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": []
+          },
+          {
+            "id": "card_betterposter_methods_pipeline",
+            "title": "Betterposter Pipeline",
+            "pattern": "bullets-image",
+            "content": "Harmony-SCVI hybrid: scVI batch correction followed by Harmony on $\\mathbf{z}$.\n\n- **QC:** 11.7M cells pass (97.5\\% retention) after QC (mito <15\\%).\n- **Integration:** kBET $0.94$ vs $0.58$ before; LISI $2.1$.\n- **Annotation:** CellTypist logistic regression + manual curation; 284 clusters map to 187 types \cite{domcke2020human}.",
+            "column": 2,
+            "order": 0,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [{ "id": "fig_betterposter_pipeline", "url": "/api/workspaces/betterposter-single-cell-atlas/assets/architecture.png", "caption": "Integration Pipeline" }],
+            "sourceIds": []
+          },
+          {
+            "id": "card_betterposter_metrics_stats",
+            "title": "Atlas Scale Metrics",
+            "pattern": "stats",
+            "content": "**11.7M** Cells | after QC\n**284** Clusters | 187 types\n**0.94** kBET | integration score",
+            "column": 2,
+            "order": 1,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": []
+          },
+          {
+            "id": "card_betterposter_discovery_table",
+            "title": "Novel Niches Discovered",
+            "pattern": "bullets-table",
+            "content": "Rare cell discovery enabled by scale and trajectory analysis.",
+            "column": 3,
+            "order": 0,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": {
+              "hasHeader": true,
+              "caption": "Novel Populations (Validated by smFISH)",
+              "rows": [
+                ["Niche", "Freq.", "Marker", "Tissue"],
+                ["ALVEOLAR_ION", "0.03%", "FOXI1+CFTR high", "Lung"],
+                ["CRYPT_PLASTIC", "0.08%", "LGR5+KRT19+", "Colon"],
+                ["STELLATE_AXON", "0.02%", "GFAP+NGFR+", "Liver"]
+              ]
+            },
+            "figures": [],
+            "sourceIds": []
+          },
+          {
+            "id": "card_betterposter_trajectory_results",
+            "title": "Trajectory & Validation",
+            "pattern": "bullets-two-images",
+            "content": "Pseudotime via diffusion maps ($\\mathbf{P} = \\mathbf{D}^{-1} \\mathbf{W}$, $\\psi_t = \\sum_i \\lambda_i^t \\psi_i$) recovers hematopoietic branching with $0.89$ correlation to known lineage \\cite{trapnell2014pseudo}. smFISH validation confirms spatial colocalization ($p < 10^{-6}$).",
+            "column": 3,
+            "order": 1,
+            "figureLayout": "two-up",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [
+              { "id": "fig_betterposter_traj", "url": "/api/workspaces/betterposter-single-cell-atlas/assets/benchmark.png", "caption": "Diffusion Pseudotime" },
+              { "id": "fig_betterposter_spatial", "url": "/api/workspaces/betterposter-single-cell-atlas/assets/architecture.png", "caption": "smFISH Validation" }
+            ],
+            "sourceIds": []
+          },
+          {
+            "id": "card_betterposter_takeaway_impact",
+            "title": "Impact",
+            "pattern": "metric-card",
+            "content": "**3 Novel** Niches | $<0.1\\%$ frequency\n**0.89** Trajectory $r$ | vs lineage",
+            "column": 1,
+            "order": 2,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": []
+          },
+          {
+            "id": "card_betterposter_references_citations",
+            "title": "References",
+            "pattern": "references",
+            "content": "\\cite{domcke2020human,trapnell2014pseudo,rozenblatt2018human}",
+            "column": 2,
+            "order": 2,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": []
+          }
+        ]
+      },
+      {
+        "id": "out_betterposter_slides",
+        "outputType": "slides",
+        "templateId": "beamer-madrid",
+        "title": "Single-Cell Atlas: Slides",
+        "themeColor": "#E63946",
+        "cards": [
+          {
+            "id": "card_betterposter_slides_title",
+            "title": "Title",
+            "pattern": "title-slide",
+            "content": "Mapping 12M Cells: Human Tissue Niches",
+            "column": null,
+            "order": 0,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_betterposter_slides_challenge",
+            "title": "Why 12M Cells?",
+            "pattern": "bullets",
+            "content": "- **Rare niches** $<0.05\\%$ need $>10$M cells for detection.\n- **Batch:** 142 lanes, kBET $0.58$ before correction.\n- **Continuum:** 30\\% cells in transition states.",
+            "column": null,
+            "order": 1,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_betterposter_slides_model",
+            "title": "Generative Model",
+            "pattern": "two-column",
+            "content": "$$\\mathbf{z}_n\\sim\\mathcal{N}(0,I),\\quad x_{ng}\\sim\\text{NB}(\\ell_n\\rho_{ng},\\theta_g)$$ $\\rho_n=f_{\\theta}(z_n,s_n)$, scVI+Harmony, kBET 0.94.",
+            "column": null,
+            "order": 2,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_betterposter_slides_results",
+            "title": "Discovery",
+            "pattern": "figure-slide",
+            "content": "284 clusters, 187 types, 3 novel niches validated by smFISH, diffusion pseudotime $r=0.89$.",
+            "column": null,
+            "order": 3,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [{ "id": "fig_betterposter_res_s", "url": "/api/workspaces/betterposter-single-cell-atlas/assets/benchmark.png", "caption": "Atlas UMAP" }],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_betterposter_slides_conclusion",
+            "title": "Conclusion",
+            "pattern": "bullets",
+            "content": "- 11.7M-cell atlas with 0.94 kBET integration.\n- 3 novel rare niches at $<0.1\\%$ frequency.\n- Trajectory model enables regenerative target discovery.",
+            "column": null,
+            "order": 4,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          }
+        ]
+      },
+      {
+        "id": "out_betterposter_paper",
+        "outputType": "paper",
+        "templateId": "acm-sigconf",
+        "title": "Betterposter: Paper",
+        "themeColor": "#E63946",
+        "cards": [
+          {
+            "id": "card_betterposter_paper_abstract",
+            "title": "Abstract",
+            "pattern": "section",
+            "content": "We present a single-cell atlas of 11.7M cells from 48 donors and 18 tissues, integrating 3' scRNA-seq and CITE-seq (184 proteins) via a scVI-Harmony hybrid latent space ($\\mathbf{z}\\in\\mathbb{R}^{30}$). The model $x_{ng}\\sim\\text{NB}(\\ell_n\\rho_{ng},\\theta_g)$ with $\\rho_n=f_{\\theta}(z_n,s_n)$ achieves kBET acceptance $0.94$ and LISI $2.1$, correcting 142 batch lanes. Leiden clustering ($\\gamma=1.2$, $k=30$) yields 284 clusters mapping to 187 reference types at 0.92 precision. We discover three ultra-rare niches ($<0.1\\%$ frequency) validated by smFISH and recover hematopoietic trajectories with $r=0.89$ lineage correlation via diffusion pseudotime. The atlas is the largest harmonized human tissue resource to date and identifies progenitor plasticity states for regenerative medicine.",
+            "column": null,
+            "order": 0,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_betterposter_paper_intro",
+            "title": "Introduction",
+            "pattern": "section",
+            "content": "The Human Cell Atlas (HCA) seeks complete molecular maps of human tissues \\cite{roznblatt2018human}. Prior atlases ($\\sim 1$M cells) lack power for niches at $0.05\\%$ frequency, requiring $>10$M cells for 95\\% detection \\cite{domcke2020human}. Batch effects across donors and chemistries further confound integration, with kBET often $<0.6$. We address both with a 12M-cell resource spanning 18 tissues, using variational autoencoders with explicit batch covariates and graph-based trajectory inference \\cite{trapnell2014pseudo}.",
+            "column": null,
+            "order": 1,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [{ "id": "fig_betterposter_intro_p", "url": "/api/workspaces/betterposter-single-cell-atlas/assets/architecture.png", "caption": "Figure 1: Atlas overview." }],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_betterposter_paper_methods",
+            "title": "Generative Model & Integration",
+            "pattern": "section",
+            "content": "We model counts as $x_{ng}\\sim\\text{NB}(\\ell_n\\rho_{ng},\\theta_g)$ where $\\ell_n$ is library size, $\\rho_n=\\text{softmax}(f_{\\theta}(z_n,s_n))$, $z_n\\sim\\mathcal{N}(0,I)$, $s_n$ is batch embedding, $f_{\\theta}$ is 3-layer MLP. Variational posterior $q_{\\phi}(z_n|x_n,s_n)=\\mathcal{N}(\\mu_{\\phi}(x_n,s_n),\\text{diag}(\\sigma^2_{\\phi}))$. Training optimizes ELBO $\\mathcal{L}=\\mathbb{E}_q[\\log p(x|z,s)]-\\beta\\cdot\\text{KL}$ with $\\beta$ annealing 0$\\to$0.6 over 10k steps. Post-scVI, Harmony corrects residual tissue effects on $z$ with $\\theta=2.0$. Clustering uses $k=30$ NN + Leiden $\\gamma=1.2$; annotation via CellTypist + manual curation.",
+            "column": null,
+            "order": 2,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_betterposter_paper_results",
+            "title": "Atlas Scale & Novel Niches",
+            "pattern": "section-table",
+            "content": "QC retains 11.7M cells (97.5\\%); kBET rises from 0.58 to 0.94, LISI from 1.3 to 2.1. Three novel niches validated by smFISH:",
+            "column": null,
+            "order": 3,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": {
+              "hasHeader": true,
+              "caption": "Table 1: Novel niches.",
+              "rows": [
+                ["Niche", "Freq.", "Marker", "Tissue"],
+                ["ALVEOLAR_ION", "0.03%", "FOXI1+CFTR high", "Lung"],
+                ["CRYPT_PLASTIC", "0.08%", "LGR5+KRT19+", "Colon"],
+                ["STELLATE_AXON", "0.02%", "GFAP+NGFR+", "Liver"]
+              ]
+            },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_betterposter_paper_trajectory",
+            "title": "Trajectory Inference",
+            "pattern": "section-figure",
+            "content": "Diffusion pseudotime ($\\mathbf{P}=\\mathbf{D}^{-1}\\mathbf{W}$, $\\psi_t=\\sum_i \\lambda_i^t\\psi_i$) on hematopoietic cells (n=340k) recovers stem$\\to$myeloid/lymphoid branching with $r=0.89$ to FACS-sorted ground truth. The CRYPT_PLASTIC population lies at a bifurcation point (branch probability $0.52$), suggesting transdifferentiation potential. smFISH colocalization $p<10^{-6}$ confirms spatial adjacency to LGR5+ stem cells.",
+            "column": null,
+            "order": 4,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [{ "id": "fig_betterposter_traj_p", "url": "/api/workspaces/betterposter-single-cell-atlas/assets/benchmark.png", "caption": "Figure 2: Trajectory and validation." }],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_betterposter_paper_conclusion",
+            "title": "Conclusion",
+            "pattern": "section",
+            "content": "The 11.7M-cell atlas demonstrates that variational batch-corrected latent spaces enable rare niche discovery at $<0.1\\%$ frequency. The three validated niches expand known human cell diversity and point to progenitor plasticity for regeneration. The resource, with 0.94 kBET integration, is available via CELLxGENE. Future work scales to 50M cells with spatial transcriptomics overlay.",
+            "column": null,
+            "order": 5,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          },
+          {
+            "id": "card_betterposter_paper_references",
+            "title": "References",
+            "pattern": "references",
+            "content": "\\cite{domcke2020human,trapnell2014pseudo,roznblatt2018human,becht2018umap}",
+            "column": null,
+            "order": 6,
+            "figureLayout": "single",
+            "validation": "valid",
+            "table": { "hasHeader": false, "caption": "", "rows": [] },
+            "figures": [],
+            "sourceIds": ["manuscript"],
+            "heightBudget": null
+          }
+        ]
+      }
+    ],
+    "assets": [
+      { "id": "ast_betterposter_arch", "fileId": "architecture.png", "filename": "architecture.png", "url": "/api/workspaces/betterposter-single-cell-atlas/assets/architecture.png", "kind": "figure", "page": 1, "confidence": "high", "caption": "Pipeline" },
+      { "id": "ast_betterposter_bench", "fileId": "benchmark.png", "filename": "benchmark.png", "url": "/api/workspaces/betterposter-single-cell-atlas/assets/benchmark.png", "kind": "figure", "page": 1, "confidence": "high", "caption": "Trajectory benchmarks" }
     ],
     "ingestFiles": []
   }

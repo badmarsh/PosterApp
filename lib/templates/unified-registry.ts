@@ -37,9 +37,13 @@
 import type { TemplateDef, OutputType, TemplateColor } from "@/lib/output-types"
 import { TEMPLATE_REGISTRY, getTemplateDef, PATTERNS_FOR_TYPE } from "@/lib/output-types"
 import type { LatexGenerator } from "@/lib/latex/types"
-import { getGenerator } from "@/lib/latex/generator"
+import { TikzPosterGenerator } from "@/lib/latex/generator-poster"
+import { BeamerSlidesGenerator } from "@/lib/latex/generator-slides"
+import { StandardPaperGenerator } from "@/lib/latex/generator-paper"
+import { ThesisReviewLatexGenerator } from "@/lib/latex/generator-thesis-review"
 import { renderTemplatePreviewSvg, getPreviewArt, hasBespokePreviewArt as previewHasBespoke, type TemplatePreviewArt } from "@/lib/template-preview-art"
-import type { BlockPattern } from "@/lib/poster-types"
+import type { BlockPattern, Project } from "@/lib/poster-types"
+import { POSTER_PREAMBLE_BY_ID, SLIDES_PREAMBLE_BY_ID, PAPER_PREAMBLE_BY_ID } from "@/lib/latex/template-map"
 
 /** The column slots a seed layout should place cards into. */
 export type ScaffoldCard = {
@@ -65,6 +69,8 @@ export interface TemplateDefinition {
   colors: TemplateColor[]
   /** Construct the LaTeX generator responsible for this template. */
   createGenerator(): LatexGenerator
+  /** Resolve the LaTeX preamble for this template (single dispatch, no switch). */
+  getPreamble(project: Project, themeColor?: string, workspaceId?: string): string
   /** The LaTeX document class this template targets (from meta). */
   latexClass: string
   /** Bespoke (non-derived) preview artwork. */
@@ -122,12 +128,32 @@ export function scaffoldFor(outputType: OutputType): ScaffoldCard[] {
 }
 
 function build(def: TemplateDef): TemplateDefinition {
+  const preambleFactory = (() => {
+    if (def.outputType === "poster") return POSTER_PREAMBLE_BY_ID[def.id.toLowerCase()] ?? POSTER_PREAMBLE_BY_ID["atlas"]
+    if (def.outputType === "slides") return SLIDES_PREAMBLE_BY_ID[def.id.toLowerCase()] ?? SLIDES_PREAMBLE_BY_ID["beamer-atlas"]
+    if (def.outputType === "paper") return PAPER_PREAMBLE_BY_ID[def.id.toLowerCase()] ?? PAPER_PREAMBLE_BY_ID["article-twocol"]
+    // thesis-review has its own generator; no poster/slides/paper preamble
+    return null
+  })()
+
   return {
     id: def.id,
     outputType: def.outputType,
     meta: def,
     colors: def.colors,
-    createGenerator: () => getGenerator(def.outputType, def.id),
+    createGenerator: () => {
+      if (def.outputType === "poster") return new TikzPosterGenerator(def.id)
+      if (def.outputType === "slides") return new BeamerSlidesGenerator(def.id)
+      if (def.outputType === "paper") return new StandardPaperGenerator(def.id)
+      if (def.outputType === "thesis-review") return new ThesisReviewLatexGenerator(def.id)
+      throw new Error(`No generator for ${def.outputType}/${def.id}`)
+    },
+    getPreamble: (project: Project, themeColor?: string, workspaceId?: string) => {
+      if (!preambleFactory) {
+        return `% thesis-review preamble for ${def.id} — use ThesisReviewLatexGenerator`
+      }
+      return preambleFactory(project, themeColor, workspaceId)
+    },
     latexClass: def.latexClass,
     previewArt: getPreviewArt(def.id, def),
     hasBespokeArt: isBespoke(def.id),

@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-22 · **Scope:** `lib/output-types.ts`, `lib/latex/**`, `lib/showcases-data.ts`,
 `components/research-lab-templates.tsx`, `lib/template-preview-art.ts`, `lib/templates/unified-registry.ts`
-· **Status:** phase 1 shipped; phases 2–3 planned.
+· **Status:** phases 1–2 shipped; phase 3 planned.
 
 ## 1. The problem
 
@@ -61,13 +61,19 @@ a generator of the matching output type, has preview art, and offers a legal sca
 - `lib/templates/unified-registry.ts` + tests: the composed `TemplateDefinition`.
 - New templates `aurora` (poster) and `beamer-editorial` (slides) registered end-to-end.
 
-### Phase 2 — route the generators through the registry
-- Replace the string `switch`es in `generator-poster/slides/paper.ts` with a lookup keyed by
-  `TemplateDefinition.createGenerator()`. This deletes the duplicated `templateId → preamble`
-  mapping and makes the registry the only dispatch table.
-- Move each LaTeX preamble into a `TemplateDefinition.latex.preamble(project, ctx)` closure (or
-  keep `lib/latex/templates.ts` functions but reference them from the registry), so a template can
-  no longer be “registered but unwired”.
+### Phase 2 — done (2026-09-22): route the generators through the registry
+- Created `lib/latex/template-map.ts` as the single `templateId → preamble` dispatch table
+  (`POSTER_PREAMBLE_BY_ID`, `SLIDES_PREAMBLE_BY_ID`, `PAPER_PREAMBLE_BY_ID` with helpers
+  `getPosterPreamble`/`getSlidesPreamble`/`getPaperPreamble`).
+- Replaced the duplicated string `switch`es in `generator-poster.ts` / `generator-slides.ts` /
+  `generator-paper.ts` with lookups via `template-map.ts`; the generators no longer contain
+  hard-coded preamble wiring.
+- Extended `lib/templates/unified-registry.ts` to expose `TemplateDefinition.getPreamble()` and
+  to build `createGenerator()` via direct class instantiation (no `require("@/lib/latex/generator")`
+  cycle); the registry now composes `template-map.ts` and is the single source of truth for
+  `templateId` resolution, preamble, generator, preview art, and scaffold.
+- Added validation that every `TEMPLATE_REGISTRY` entry resolves to a preamble and a generator
+  (covered by `lib/templates/__tests__/unified-registry.test.ts` + `lib/latex/__tests__/template-static-audit.test.ts`).
 
 ### Phase 3 — derive demo workspaces from scaffolds
 - Generate the `lib/showcases-data.ts` card graphs from `defaultCards` + curated content, instead
@@ -76,10 +82,11 @@ a generator of the matching output type, has preview art, and offers a legal sca
 - Validate `components/research-lab-templates.tsx` `SeedCard.pattern` values against
   `PATTERNS_FOR_TYPE` at build time (they currently use ad-hoc `"methods"`/`"results"` labels).
 
-## 4. What we deliberately did NOT do
+## 4. What we deliberately did NOT do (updated)
 
-- We did **not** move the LaTeX preamble strings into the registry yet (phase 2) — that is a large
-  mechanical change best done behind the new dispatch table.
+- Phase 2 kept the preamble strings in `lib/latex/templates.ts` and re-exported them via
+  `lib/latex/template-map.ts` rather than inlining them into `unified-registry.ts`; this avoids
+  a single massive file while still making the registry the only dispatch table.
 - We did **not** change the DB schema; templates remain a code-level registry, which matches the
   current Prisma model (`Output.templateId` is a string, not an FK).
 

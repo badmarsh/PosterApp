@@ -1,7 +1,7 @@
 import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
-import { getAtlasTemplate, getMinimalTemplate, getGeminiTemplate, getTikzposterTemplate, getA0PosterTemplate, getLandscapeTemplate, getBetterPosterTemplate, getConferenceTemplate, getAuroraTemplate } from "./templates"
+import { getPosterPreamble } from "./template-map"
 import type { LatexGenerator } from "./types"
 import { indent, assetUrlToLatexPath, normalizeLatexPath, cleanCaption } from "./helpers"
 import { columnBudgetFor, estimateHeight } from "./layout"
@@ -278,39 +278,17 @@ export class TikzPosterGenerator implements LatexGenerator {
     let endColumns = "\\end{columns}";
 
     const themeColor = outputConfig.themeColor ?? undefined
-    switch (outputConfig.templateId?.toLowerCase()) {
-      case "minimal":
-        templateContent = getMinimalTemplate(projectForMeta, themeColor);
-        break;
-      case "conference":
-        templateContent = getConferenceTemplate(projectForMeta, themeColor);
-        break;
-      case "gemini":
-        templateContent = getGeminiTemplate(projectForMeta, themeColor);
-        beginColumns = "\\begin{columns}[t]";
-        endDocumentContent = "\\end{frame}\n\\end{document}";
-        break;
-      case "tikzposter":
-        templateContent = getTikzposterTemplate(projectForMeta, themeColor);
-        break;
-      case "a0poster":
-        templateContent = getA0PosterTemplate(projectForMeta, themeColor);
-        beginColumns = "\\begin{multicols}{3}";
-        endColumns = "\\end{multicols}";
-        break;
-      case "landscape":
-        templateContent = getLandscapeTemplate(projectForMeta, themeColor);
-        break;
-      case "betterposter":
-        templateContent = getBetterPosterTemplate(projectForMeta, themeColor);
-        break;
-      case "aurora":
-        templateContent = getAuroraTemplate(projectForMeta, themeColor);
-        break;
-      case "atlas":
-      default:
-        templateContent = getAtlasTemplate(projectForMeta, themeColor, workspaceId);
-        break;
+    // Single dispatch via unified template-map (phase 2) — no duplicated switch
+    templateContent = getPosterPreamble(outputConfig.templateId ?? "atlas", projectForMeta, themeColor, workspaceId)
+
+    // Gemini and a0poster require non-standard wrappers
+    const normalizedId = (outputConfig.templateId ?? "atlas").toLowerCase()
+    if (normalizedId === "gemini") {
+      beginColumns = "\\begin{columns}[t]";
+      endDocumentContent = "\\end{frame}\n\\end{document}";
+    } else if (normalizedId === "a0poster") {
+      beginColumns = "\\begin{multicols}{3}";
+      endColumns = "\\end{multicols}";
     }
 
     return "% =============================================================================\n" +
