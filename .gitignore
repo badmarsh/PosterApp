@@ -72,3 +72,12 @@ test-results.log
 .dev.pid
 .qwen/
 .cache/
+
+# Agent/debug temp files
+temp_*
+__*.tmp
+__*.cjs
+*.tmp
+patch*.py
+verify_patch.py
+tmp_*.js
