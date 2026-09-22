@@ -1,37 +1,38 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { apiFetch } from "@/lib/api-fetch"
-import { TEMPLATE_REGISTRY as TEMPLATES } from "@/lib/output-types"
-import { FolderOpen, Plus, FlaskConical, Sparkles, Copy, Check, AlertCircle } from "lucide-react"
+import { TEMPLATE_REGISTRY as TEMPLATES, type OutputType } from "@/lib/output-types"
+import {
+  FolderOpen, Sparkles, Copy, AlertCircle, Search, X, ArrowRight,
+  Layers, Presentation, FileText, Award, Atom, Cpu, Dna, Clock,
+} from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { ResearchLabTemplates, type ScientificTask } from "@/components/research-lab-templates"
-import { ShowcaseGallery } from "@/components/showcase-gallery"
 import { ALL_SHOWCASE_PROJECTS } from "@/lib/showcases-data"
-import type { Project } from "@/lib/poster-types"
-import { AGENT_SCOPE_PRESETS, buildDeerFlowLaunchBundle } from "@/lib/agent-launch"
-
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
+  Dialog, DialogContent, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+const FLAGSHIP_SHOWCASES = [
+  { id: "atlas-bose-einstein-correlations", posterImg: "/showcases/atlas-bose-einstein-correlations.png", icon: Atom, field: "Casticova fyzika", venue: "CERN LHC", title: "Two-Particle Bose-Einstein Correlations in 13 TeV pp Collisions", authors: "R. Astalos, ATLAS Collaboration", color: "#C8102E" },
+  { id: "speculative-decoding-guarantees", posterImg: "/showcases/speculative-decoding-guarantees.png", icon: Cpu, field: "AI LLM Inference", venue: "NeurIPS 2026", title: "MartingaleTree: Lossless Speculative Decoding", authors: "Julian Richter, Maya Lin, Aris Thorne", color: "#4F46E5" },
+  { id: "alphafold-protein-folding", posterImg: "/showcases/alphafold-protein-folding.png", icon: Dna, field: "Strukturna biologia", venue: "Nature 596", title: "Highly Accurate Protein Structure Prediction with AlphaFold 2", authors: "John Jumper, Richard Evans, Demis Hassabis et al.", color: "#059669" },
+  { id: "vla-autonomous-surgery", posterImg: "/showcases/vla-autonomous-surgery.png", icon: Sparkles, field: "Robotika", venue: "CVPR 2027", title: "SurgiVLA: Safety-Constrained VLA Microsurgery", authors: "Maya Chen, Elias Novak, Priya Raman", color: "#00A6A6" },
+  { id: "neural-wavefunction-superconductors", posterImg: "/showcases/neural-wavefunction-superconductors.png", icon: Cpu, field: "Kvantova fyzika", venue: "PRL", title: "Neural Quantum States for High-Temperature Superconductors", authors: "Elena Marchetti, Kai Nakamura, Tomas Barta", color: "#7C3AED" },
+]
+
+const FORMAT_OPTIONS: { id: OutputType; title: string; badge: string; icon: typeof Layers; defaultTemplate: string }[] = [
+  { id: "poster", title: "Konferencny poster", badge: "A0 / A3", icon: Layers, defaultTemplate: "atlas" },
+  { id: "slides", title: "Prezentacia", badge: "16:9 Beamer", icon: Presentation, defaultTemplate: "beamer-metropolis" },
+  { id: "paper", title: "Vedecky clanok", badge: "Journal / Preprint", icon: FileText, defaultTemplate: "article-twocol" },
+  { id: "thesis-review", title: "Akademicky posudok", badge: "ECTS normy", icon: Award, defaultTemplate: "posudok-sk" },
+]
 export function WorkspaceSelector({
   onSelect,
   onClose,
@@ -41,775 +42,234 @@ export function WorkspaceSelector({
   onClose: () => void
   initialCreating?: boolean
 }) {
-  const [activeTab, setActiveTab] = useState<"workspaces" | "showcases" | "research-lab">("workspaces")
+  const [activeShowcase, setActiveShowcase] = useState<string | null>(null)
   const [workspaces, setWorkspaces] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
-
-  const [isCreating, setIsCreating] = useState(initialCreating)
-
-  useEffect(() => {
-    if (initialCreating) {
-      setIsCreating(true)
-    }
-  }, [initialCreating])
+  const [searchExisting, setSearchExisting] = useState("")
   const [newId, setNewId] = useState("")
   const [newName, setNewName] = useState("")
-  const [newOutputType, setNewOutputType] = useState<"poster" | "slides" | "paper" | "thesis-review">("poster")
+  const [newOutputType, setNewOutputType] = useState<OutputType>("poster")
   const [newTemplate, setNewTemplate] = useState("atlas")
   const [idTouched, setIdTouched] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [launchedTaskBundle, setLaunchedTaskBundle] = useState<{
-    workspaceId: string
-    workspaceName: string
-    rawKey: string
-    bundle: string
-  } | null>(null)
-  const [hasCopiedBundle, setHasCopiedBundle] = useState(false)
-  const [hasCopiedKey, setHasCopiedKey] = useState(false)
+  const [createMode, setCreateMode] = useState<"showcases" | "blank">(initialCreating ? "blank" : "showcases")
 
   useEffect(() => {
-    apiFetch("/api/workspaces")
-      .then(async (r) => {
-        const contentType = r.headers.get("content-type") || ""
-        if (!r.ok) {
-          if (contentType.includes("application/json")) {
-            const errData = await r.json().catch(() => ({}))
-            throw new Error(errData.error || errData.message || `HTTP ${r.status}`)
-          }
-          const text = await r.text().catch(() => "")
-          if (r.status === 401 || text.includes("sign-in") || text.includes("Unauthorized")) {
-            throw new Error("Unauthorized: Sign in required")
-          }
-          throw new Error(`HTTP ${r.status}`)
-        }
-        if (!contentType.includes("application/json")) {
-          const text = await r.text().catch(() => "")
-          if (text.includes("sign-in") || text.includes("<!DOCTYPE") || text.includes("<html")) {
-            throw new Error("Unauthorized: Sign in required")
-          }
-          throw new Error("Invalid response format (expected JSON)")
-        }
-        return r.json()
-      })
-      .then((data) => {
-        if (!Array.isArray(data)) {
-          throw new Error("Invalid workspaces data received")
-        }
-        setWorkspaces(data)
-        setLoading(false)
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : String(err))
-        setLoading(false)
-      })
+    apiFetch("/api/workspaces").then(async (r) => {
+      if (!r.ok) throw new Error("HTTP " + r.status)
+      const data = await r.json()
+      if (!Array.isArray(data)) throw new Error("Neplatna odpoved")
+      setWorkspaces(data); setLoading(false)
+    }).catch((err) => { setError(err instanceof Error ? err.message : String(err)); setLoading(false) })
   }, [retryKey])
 
   const slugify = (v: string) =>
-    v.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32)
+    v.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/, "").slice(0, 32)
 
-  const handleNameChange = (v: string) => {
-    setNewName(v)
-    if (!idTouched) setNewId(slugify(v))
-  }
-
-  const templateOptions = TEMPLATES.filter((t) => t.outputType === newOutputType)
-
-  useEffect(() => {
-    if (!templateOptions.some((t) => t.id === newTemplate)) {
-      setNewTemplate(templateOptions[0]?.id ?? "")
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [newOutputType])
+  const handleNameChange = (v: string) => { setNewName(v); if (!idTouched) setNewId(slugify(v)) }
+  const templateOptions = useMemo(() => TEMPLATES.filter((t) => t.outputType === newOutputType), [newOutputType])
+  useEffect(() => { if (!templateOptions.some((t) => t.id === newTemplate)) setNewTemplate(templateOptions[0]?.id ?? "") }, [newOutputType, templateOptions, newTemplate])
 
   const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setCreateError(null)
-
+    e.preventDefault(); setCreateError(null)
     const trimmedName = newName.trim()
     let effectiveId = newId.trim()
-    if (!effectiveId && trimmedName) {
-      effectiveId = slugify(trimmedName)
-      setNewId(effectiveId)
-    }
-
-    if (!trimmedName) {
-      setCreateError("Project name is required")
-      return
-    }
-    if (!/^[a-zA-Z0-9_-]{3,32}$/.test(effectiveId)) {
-      setCreateError("ID must be 3-32 characters, alphanumeric and dashes only")
-      return
-    }
-
+    if (!effectiveId && trimmedName) { effectiveId = slugify(trimmedName); setNewId(effectiveId) }
+    if (!trimmedName) { setCreateError("Zadajte nazov projektu"); return }
+    if (!/^[a-zA-Z0-9_-]{3,32}$/.test(effectiveId)) { setCreateError("ID musi mat 3-32 znakov"); return }
     setIsSubmitting(true)
     try {
       const res = await apiFetch("/api/workspaces", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: effectiveId, name: trimmedName, outputType: newOutputType, templateId: newTemplate || undefined }),
       })
-      const contentType = res.headers.get("content-type") || ""
-      if (!res.ok) {
-        if (contentType.includes("application/json")) {
-          const err = await res.json().catch(() => ({}))
-          throw new Error(err.error || err.message || `HTTP ${res.status}`)
-        }
-        const text = await res.text().catch(() => "")
-        if (res.status === 401 || text.includes("sign-in")) {
-          throw new Error("Unauthorized: Sign in required")
-        }
-        throw new Error(`HTTP ${res.status}`)
-      }
-      if (!contentType.includes("application/json")) {
-        throw new Error("Invalid response format from server")
-      }
-      toast.success("Workspace created")
-      onSelect(effectiveId)
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : String(err))
-      setIsSubmitting(false)
-    }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || err.message || "HTTP " + res.status) }
+      toast.success("Projekt vytvoreny"); onSelect(effectiveId)
+    } catch (err) { setCreateError(err instanceof Error ? err.message : String(err)); setIsSubmitting(false) }
   }
 
-    const handleDuplicateShowcase = async (showcase: Project) => {
+  const handleDuplicateShowcase = async (showcaseId: string) => {
+    const showcase = ALL_SHOWCASE_PROJECTS.find((p) => p.id === showcaseId)
+    if (!showcase) return
     setIsSubmitting(true)
-    setCreateError(null)
     try {
       const suffix = Date.now().toString(36).slice(-4)
       const cleanBase = showcase.id.replace(/^demo_/, "").replace(/[^a-zA-Z0-9_-]/g, "-")
-      const newId = (cleanBase + "-copy-" + suffix).slice(0, 64)
-      const newName = showcase.name + " (Kópia)"
-      const activeOut = showcase.outputs.find(o => o.id === showcase.activeOutputId) || showcase.outputs[0]
-
+      const nId = (cleanBase + "-copy-" + suffix).slice(0, 64)
+      const nName = showcase.name + " (Kopia)"
+      const activeOut = showcase.outputs.find((o) => o.id === showcase.activeOutputId) || showcase.outputs[0]
       const res = await apiFetch("/api/workspaces", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: newId,
-          name: newName,
-          outputType: activeOut?.outputType ?? "poster",
-          templateId: activeOut?.templateId ?? "atlas",
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: nId, name: nName, outputType: activeOut?.outputType ?? "poster", templateId: activeOut?.templateId ?? "atlas" }),
       })
-
-      if (!res.ok) {
-        toast.info("Ukážka otvorená v demo režime")
-        onSelect(showcase.id)
-        onClose()
-        return
-      }
-
+      if (!res.ok) { toast.info("Demo rezim"); onSelect(showcase.id); onClose(); return }
       const created = await res.json() as { revision?: number }
-
       const outputs = showcase.outputs.map((o, i) => ({
-        ...o,
-        id: "out_" + o.outputType + "_" + suffix + "_" + i,
-        cards: (o.cards || []).map((card, j) => ({
-          ...card,
-          id: "card_" + suffix + "_" + i + "_" + j,
-          figures: card.figures ?? [],
-        })),
+        ...o, id: "out_" + o.outputType + "_" + suffix + "_" + i,
+        cards: (o.cards || []).map((card: any, j: number) => ({ ...card, id: "card_" + suffix + "_" + i + "_" + j, figures: card.figures ?? [] })),
       }))
-
-      await apiFetch("/api/workspaces/" + newId, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newName,
-          authors: showcase.authors,
-          venue: showcase.venue,
-          outputs,
-          activeOutputId: outputs[0]?.id,
-          expectedRevision: created.revision ?? 0,
-        }),
+      await apiFetch("/api/workspaces/" + nId, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nName, authors: showcase.authors, venue: showcase.venue, outputs, activeOutputId: outputs[0]?.id, expectedRevision: created.revision ?? 0 }),
       })
-
-      toast.success(`Ukážka duplikovaná ako "${newName}"`)
-      onSelect(newId)
-      onClose()
-    } catch (err: any) {
-      console.error("Duplicate showcase failed:", err)
-      onSelect(showcase.id)
-      onClose()
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-  const handleLaunchLabTask = async (task: ScientificTask) => {
-    setIsSubmitting(true)
-    setCreateError(null)
-    try {
-      const slugBase = slugify(task.shortTitle || task.title)
-      const uniqueSuffix = Date.now().toString(36).slice(-4)
-      const generatedId = `${slugBase}-${uniqueSuffix}`.slice(0, 32)
-
-      const res = await apiFetch("/api/workspaces", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: generatedId,
-          name: task.title,
-          outputType: "poster",
-          templateId: "atlas",
-        }),
-      })
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || err.message || `HTTP ${res.status}`)
-      }
-
-      const project = await res.json()
-      const activeOutId = project.activeOutputId || project.outputs?.[0]?.id || `out_poster_${Date.now().toString(36)}`
-
-      const setupCards = (task.setupCards || task.initialCards?.filter((c) => c.pattern !== "results") || []).map((c, idx) => ({
-        id: `card_${Date.now().toString(36)}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
-        title: c.title,
-        column: idx % 3,
-        order: Math.floor(idx / 3),
-        pattern: c.pattern || "text",
-        content: c.content,
-        figureLayout: "auto",
-        validation: "valid",
-        table: { hasHeader: true, caption: "", rows: [] },
-        figures: [],
-        sourceIds: [],
-      }))
-
-      const placeholderCards = (task.placeholderResultCards || task.initialCards?.filter((c) => c.pattern === "results") || []).map((c, idx) => {
-        const globalIdx = setupCards.length + idx
-        return {
-          id: `card_${Date.now().toString(36)}_${globalIdx}_${Math.random().toString(36).substring(2, 6)}`,
-          title: c.title,
-          column: globalIdx % 3,
-          order: Math.floor(globalIdx / 3),
-          pattern: c.pattern || "text",
-          content: `[PLACEHOLDER — no experiment has run yet]\n\n${c.content}`,
-          figureLayout: "auto",
-          validation: "pending",
-          table: { hasHeader: true, caption: "", rows: [] },
-          figures: [],
-          sourceIds: [],
-        }
-      })
-
-      const initialCards = [...setupCards, ...placeholderCards]
-
-      await apiFetch(`/api/workspaces/${generatedId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: generatedId,
-          name: task.title,
-          revision: project.revision ?? 0,
-          activeOutputId: activeOutId,
-          outputs: [
-            {
-              id: activeOutId,
-              outputType: "poster",
-              templateId: "atlas",
-              title: task.title,
-              isActive: true,
-              cards: initialCards,
-            },
-          ],
-        }),
-      }).catch((putErr) => {
-        console.warn("Could not populate initial cards:", putErr)
-      })
-
-      // Compute restrictCardIds if task has restrictCardPatterns (§12.2)
-      let restrictCardIds: string[] = []
-      if (task.restrictCardPatterns && task.restrictCardPatterns.length > 0) {
-        restrictCardIds = initialCards
-          .filter((c) => task.restrictCardPatterns?.includes(c.pattern))
-          .map((c) => c.id)
-      }
-
-      // Mint scoped agent key: preset "Research + propose", 30d expiry (§12.2)
-      const keyRes = await apiFetch("/api/agent-keys", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: `Lab: ${task.shortTitle || task.title}`,
-          workspaceId: generatedId,
-          scopes: AGENT_SCOPE_PRESETS["research-propose"],
-          restrictCardIds,
-          expiresInDays: 30,
-        }),
-      })
-
-      if (!keyRes.ok) {
-        const err = await keyRes.json().catch(() => ({}))
-        throw new Error(err.error || err.message || "Failed to mint scoped agent key for lab task")
-      }
-
-      const keyData = await keyRes.json()
-      // The key endpoint returns the one-time credential as `key`.
-      // Keep the launch bundle contract explicit so it cannot copy `undefined`.
-      const rawKey =
-        typeof keyData.key === "string"
-          ? keyData.key
-          : typeof keyData.rawKey === "string"
-          ? keyData.rawKey
-          : ""
-      if (!rawKey) throw new Error("Agent key response did not include a one-time key")
-
-      // Build canonical 3-step DeerFlow launch bundle (§14.1)
-      const bundle = buildDeerFlowLaunchBundle({
-        workspaceId: generatedId,
-        rawKey,
-        prompt: task.prompt,
-      })
-
-      try {
-        await navigator.clipboard.writeText(bundle)
-        toast.success("Lab workspace created & DeerFlow launch bundle copied to clipboard!")
-      } catch {
-        toast.success("Lab workspace created!")
-      }
-
-      setHasCopiedBundle(false)
-      setHasCopiedKey(false)
-      setLaunchedTaskBundle({
-        workspaceId: generatedId,
-        workspaceName: task.title,
-        rawKey,
-        bundle,
-      })
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setIsSubmitting(false)
-    }
+      toast.success("Klonovanie dokoncene"); onSelect(nId); onClose()
+    } catch (err) { console.error(err); onSelect(showcaseId); onClose() }
+    finally { setIsSubmitting(false) }
   }
 
-  const isDbDown = error?.includes("Database offline")
-  const isAuthRequired = error?.includes("Unauthorized") || error?.includes("Sign in required")
+  const filteredWorkspaces = useMemo(() => {
+    if (!searchExisting.trim()) return workspaces
+    const q = searchExisting.toLowerCase()
+    return workspaces.filter((ws) => ws.name?.toLowerCase().includes(q) || ws.id?.toLowerCase().includes(q))
+  }, [workspaces, searchExisting])
+
+
+
 
   return (
-    <>
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent
-        className={
-          activeTab === "showcases"
-            ? "z-[60] w-[96vw] max-w-[1560px] sm:max-w-[96vw] lg:max-w-[96vw] 2xl:max-w-[1560px] h-[92vh] max-h-[92vh] flex flex-col p-6 overflow-hidden"
-            : activeTab === "research-lab"
-            ? "z-[60] sm:max-w-4xl lg:max-w-5xl max-h-[92vh] flex flex-col p-6"
-            : "z-[60] sm:max-w-md"
-        }
+        className="z-[60] w-[96vw] max-w-[1080px] p-0 overflow-hidden rounded-2xl border border-border/70 shadow-2xl bg-background flex flex-col"
+        style={{ height: "88vh", maxHeight: "880px" }}
         showCloseButton
       >
-        <DialogHeader>
-          <div className="flex items-center justify-between pr-6">
-            <div>
-              <DialogTitle>
-                {activeTab === "research-lab" ? "Research Lab Templates" : activeTab === "showcases" ? "Vedecké ukážky & Demos" : "Select a Workspace"}
-              </DialogTitle>
-              <DialogDescription>
-                {activeTab === "research-lab" ? "Long-horizon scientific task protocols designed for autonomous DeerFlow execution." : activeTab === "showcases" ? "Preskúmajte špičkové vedecké ukážky (CERN ATLAS, SurgiVLA, Kvantové počítače, AlphaFold 2, Cas13, NeurIPS/CVPR, Posudky) s hotovým LaTeXom." : "Open an existing project or create a new one."}
-              </DialogDescription>
-            </div>
+        {/* LOGO HEADER */}
+        <div className="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-border/60 shrink-0">
+          <img src="/apple-icon.png" alt="PosterApp" className="size-8 rounded-lg" />
+          <div>
+            <DialogTitle className="text-sm font-bold tracking-tight leading-none text-foreground">PosterApp</DialogTitle>
+            <DialogDescription className="text-[11px] text-muted-foreground mt-0.5 leading-none">Vedecke studio · LaTeX · AI</DialogDescription>
           </div>
-        </DialogHeader>
-
-        {/* Tab switcher */}
-        <div className="flex items-center gap-1.5 border-b pb-2.5 -mt-1">
-          <button
-            type="button"
-            onClick={() => setActiveTab("workspaces")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer",
-              activeTab === "workspaces"
-                ? "bg-muted text-foreground font-semibold shadow-xs"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-            )}
-          >
-            <FolderOpen className="size-3.5" />
-            My Workspaces
-            {workspaces.length > 0 && (
-              <span className="ml-1 rounded-full bg-muted-foreground/15 text-muted-foreground px-1.5 py-0.2 text-[10px] font-mono">
-                {workspaces.length}
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("showcases")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer",
-              activeTab === "showcases"
-                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold shadow-xs ring-1 ring-amber-500/20"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-            )}
-          >
-            <Sparkles className="size-3.5 text-amber-500" />
-            Ukážky & Demos
-            <span className="ml-1 rounded-full bg-muted-foreground/15 text-muted-foreground px-1.5 py-0.2 text-[10px]">
-              {ALL_SHOWCASE_PROJECTS.length}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("research-lab")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer",
-              activeTab === "research-lab"
-                ? "bg-primary/10 text-primary font-semibold shadow-xs ring-1 ring-primary/20"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-            )}
-          >
-            <FlaskConical className="size-3.5 text-primary" />
-            Research Lab (DeerFlow)
-            <span className="ml-1 rounded-full bg-muted-foreground/15 text-muted-foreground px-1.5 py-0.2 text-[10px]">
-              6
-            </span>
-          </button>
         </div>
 
-        {createError && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
-            {createError}
-          </div>
-        )}
+        {/* BODY: two columns, each with their own header */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
 
-        {isDbDown && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm">
-            <p className="font-medium text-destructive mb-0.5">Database Connection Failed</p>
-            <p className="text-destructive/80 text-xs">Cannot reach the database. Make sure the PostgreSQL container is running.</p>
-          </div>
-        )}
-        {error && !isDbDown && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-medium text-destructive">
-                {isAuthRequired ? "Authentication Required" : "Failed to load workspaces"}
-              </p>
-              {isAuthRequired && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-6 text-[11px] px-2.5 border-destructive/40 text-destructive hover:bg-destructive/10 cursor-pointer"
-                  onClick={() => { window.location.href = "/sign-in" }}
-                >
-                  Sign In
-                </Button>
+          {/* ── LEFT COLUMN ── */}
+          <div className="w-[260px] shrink-0 border-r border-border/60 flex flex-col overflow-hidden" className="bg-muted/40">
+
+            {/* Left header — fixed 44px height, border-b */}
+            <div className="h-[44px] flex items-center px-4 border-b border-border/60 shrink-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Otvorit existujuci</p>
+            </div>
+
+            {/* Search */}
+            <div className="px-3 pt-2.5 pb-2 shrink-0">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                <Input value={searchExisting} onChange={(e) => setSearchExisting(e.target.value)} placeholder="Hladat..." className="h-8 pl-8 pr-7 text-xs bg-background border-border/50 focus-visible:ring-1" />
+                {searchExisting && <button type="button" onClick={() => setSearchExisting("")} className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"><X className="size-3.5" /></button>}
+              </div>
+            </div>
+
+            {/* Workspace list */}
+            <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-1">
+              {loading ? Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="p-3 rounded-lg border border-border/50 bg-card space-y-1.5"><Skeleton className="h-3 w-3/4" /><Skeleton className="h-2.5 w-1/2" /></div>
+              )) : error ? (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs space-y-2">
+                  <p className="font-medium text-destructive">{error}</p>
+                  <button onClick={() => { setError(null); setLoading(true); setRetryKey((k) => k + 1) }} className="text-destructive/70 underline text-[11px] cursor-pointer">Skusit znova</button>
+                </div>
+              ) : filteredWorkspaces.length > 0 ? filteredWorkspaces.map((ws) => (
+                <button key={ws.id} onClick={() => onSelect(ws.id)} className="group w-full text-left p-3 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer">
+                  <div className="flex items-center justify-between gap-1 mb-0.5">
+                    <span className="text-[10px] font-mono text-muted-foreground/60 truncate">{ws.id}</span>
+                    <Clock className="size-3 text-muted-foreground/40 shrink-0" />
+                  </div>
+                  <p className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-2">{ws.name}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{ws.outputs?.length ? ws.outputs.length + " dokumenty" : "1 dokument"}</p>
+                </button>
+              )) : (
+                <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
+                  <FolderOpen className="size-8 text-muted-foreground/30 stroke-1" />
+                  <p className="text-xs text-muted-foreground">Ziadne ulozene projekty</p>
+                </div>
               )}
             </div>
-            <p className="text-destructive/80 text-xs">
-              {isAuthRequired
-                ? "Your session has expired or you are not signed in. Please sign in to access your projects."
-                : error}
-            </p>
-            {!isAuthRequired && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-6 text-[11px] px-2.5 border-destructive/40 text-destructive hover:bg-destructive/10 cursor-pointer"
-                onClick={() => {
-                  setError(null)
-                  setLoading(true)
-                  setRetryKey((k) => k + 1)
-                }}
-              >
-                Retry
-              </Button>
-            )}
           </div>
-        )}
 
-        {activeTab === "showcases" ? (
-          <div className="flex-1 overflow-hidden min-h-0 pt-1.5 flex flex-col">
-            <ShowcaseGallery
-              onSelectShowcase={(id) => {
-                onSelect(id)
-                onClose()
-              }}
-              onDuplicateShowcase={handleDuplicateShowcase}
-              isDuplicating={isSubmitting}
-            />
-          </div>
-        ) : activeTab === "research-lab" ? (
-          <div className="flex-1 overflow-hidden min-h-0 pt-1">
-            <ResearchLabTemplates
-              onLaunchTask={handleLaunchLabTask}
-              onCopyPrompt={() => {
-                toast.success("DeerFlow prompt copied to clipboard!")
-              }}
-              isCreating={isSubmitting}
-            />
-          </div>
-        ) : (
-          <>
-            {isDbDown && (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm">
-                <p className="font-medium text-destructive mb-0.5">Database Connection Failed</p>
-                <p className="text-destructive/80 text-xs">Cannot reach the database. Make sure the PostgreSQL container is running.</p>
-              </div>
-            )}
-            {error && !isDbDown && (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium text-destructive">
-                    {isAuthRequired ? "Authentication Required" : "Failed to load workspaces"}
-                  </p>
-                  {isAuthRequired && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-6 text-[11px] px-2.5 border-destructive/40 text-destructive hover:bg-destructive/10 cursor-pointer"
-                      onClick={() => { window.location.href = "/sign-in" }}
-                    >
-                      Sign In
-                    </Button>
-                  )}
+          {/* ── RIGHT COLUMN ── */}
+          <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+
+            {/* Right header — same fixed 44px height, border-b, with toggles */}
+            <div className="h-[44px] flex items-center gap-2 px-5 border-b border-border/60 shrink-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex-1">Vytvorit novy</p>
+              <button type="button" onClick={() => setCreateMode("showcases")} className={cn("text-xs font-semibold px-3 py-1 rounded-lg transition-all cursor-pointer", createMode === "showcases" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground hover:bg-muted/60")}>S predpripravenym obsahom</button>
+              <button type="button" onClick={() => setCreateMode("blank")} className={cn("text-xs font-semibold px-3 py-1 rounded-lg transition-all cursor-pointer", createMode === "blank" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground hover:bg-muted/60")}>Prazdny projekt</button>
+            </div>
+
+            {/* Right content */}
+            <div className="flex-1 overflow-y-auto">
+              {createMode === "showcases" ? (
+                <div className="p-5 pb-8">
+                  <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+                    {FLAGSHIP_SHOWCASES.map((item) => {
+                      const isActive = activeShowcase === item.id
+                      return (
+                        <div key={item.id} className={cn("group relative flex flex-col rounded-xl border overflow-hidden cursor-pointer transition-all duration-150", isActive ? "border-primary shadow-md ring-2 ring-primary/20" : "border-border/70 hover:border-primary/50 hover:shadow-sm")} onClick={() => setActiveShowcase(isActive ? null : item.id)}>
+                          <div className="relative aspect-[4/5] overflow-hidden bg-muted/30">
+                            <img src={item.posterImg} alt={item.title} className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.04]" loading="lazy" />
+                            <div className="absolute top-2 left-2">
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md text-white border border-white/10" style={{ backgroundColor: item.color + "cc" }}>{item.field}</span>
+                            </div>
+                          </div>
+                          <div className="p-3 bg-background flex flex-col gap-0.5">
+                            <p className="text-[10px] text-muted-foreground font-medium truncate">{item.venue}</p>
+                            <h4 className={cn("text-xs font-bold leading-snug line-clamp-2 transition-colors", isActive ? "text-primary" : "text-foreground group-hover:text-primary")}>{item.title}</h4>
+                            <p className="text-[10px] text-muted-foreground truncate">{item.authors}</p>
+                          </div>
+                          {isActive && (
+                            <div className="px-3 pb-3 bg-background flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <Button size="sm" variant="outline" className="flex-1 h-7 text-[11px] gap-1 cursor-pointer" disabled={isSubmitting} onClick={() => handleDuplicateShowcase(item.id)}><Copy className="size-3" />Klonovat</Button>
+                              <Button size="sm" className="flex-1 h-7 text-[11px] gap-1 cursor-pointer" onClick={() => { onSelect(item.id); onClose() }}>Otvorit<ArrowRight className="size-3" /></Button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
-                <p className="text-destructive/80 text-xs">
-                  {isAuthRequired
-                    ? "Your session has expired or you are not signed in. Please sign in to access your projects."
-                    : error}
-                </p>
-              </div>
-            )}
-
-            {loading ? (
-              <div className="flex flex-col gap-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-lg border border-border/60 bg-card px-3 py-2.5">
-                    <Skeleton className="size-4 shrink-0 rounded" />
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <Skeleton className="h-4 w-2/3" />
-                      <Skeleton className="h-3 w-1/2" />
+              ) : (
+                <div className="p-6 max-w-md">
+                  <p className="text-sm font-semibold text-foreground mb-4">Novy prazdny projekt</p>
+                  <div className="grid grid-cols-2 gap-2 mb-5">
+                    {FORMAT_OPTIONS.map((f) => {
+                      const Icon = f.icon
+                      const isSelected = newOutputType === f.id
+                      return (
+                        <button key={f.id} type="button" onClick={() => { setNewOutputType(f.id); const opt = FORMAT_OPTIONS.find((x) => x.id === f.id); if (opt) setNewTemplate(opt.defaultTemplate) }} className={cn("flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all cursor-pointer", isSelected ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border/70 bg-card hover:border-primary/40")}>
+                          <span className={cn("size-7 rounded-lg flex items-center justify-center shrink-0", isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}><Icon className="size-3.5" /></span>
+                          <div className="min-w-0"><p className="text-xs font-semibold text-foreground leading-tight">{f.title}</p><p className="text-[10px] text-muted-foreground">{f.badge}</p></div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {createError && <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center gap-2 mb-4"><AlertCircle className="size-3.5 shrink-0" /><span>{createError}</span></div>}
+                  <form onSubmit={handleCreate} className="flex flex-col gap-3">
+                    <div>
+                      <Label htmlFor="ws-name" className="text-xs font-semibold mb-1.5 block">Nazov projektu</Label>
+                      <Input id="ws-name" autoFocus value={newName} onChange={(e) => handleNameChange(e.target.value)} placeholder="Napr. Vyskum supravodivosti" disabled={isSubmitting} className="h-9 text-xs bg-background" />
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : !isDbDown ? (
-              <div className="flex flex-col gap-1.5 max-h-[40vh] overflow-y-auto -mx-1 px-1">
-                {workspaces.map((ws) => (
-                  <button
-                    key={ws.id}
-                    type="button"
-                    onClick={() => onSelect(ws.id)}
-                    className="flex items-center gap-3 rounded-lg border border-border/60 bg-card px-3 py-2.5 text-left transition-colors hover:bg-accent hover:text-accent-foreground hover:border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
-                  >
-                    <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm leading-tight">{ws.name}</p>
-                      <div className="flex items-center justify-between gap-2 mt-0.5">
-                        <p className="text-xs text-muted-foreground truncate">{ws.id} · {ws.templateName}</p>
-                        {Boolean(ws.pendingChangesCount && ws.pendingChangesCount > 0) && (
-                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-warning/20 text-warning border border-warning/40 shrink-0">
-                            {ws.pendingChangesCount} pending
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-                {workspaces.length === 0 && !error && (
-                  <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-6 text-center">
-                    <p className="text-sm font-medium">No workspaces yet</p>
-                    <p className="text-xs text-muted-foreground max-w-xs">Create a workspace to build a poster, slides or paper from a PDF, or explore the Research Lab templates.</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Button size="sm" className="gap-1.5" onClick={() => setIsCreating(true)}>
-                        <Plus className="size-3.5" />
-                        Create blank workspace
-                      </Button>
-                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setActiveTab("showcases")}>
-                        <Sparkles className="size-3.5 text-amber-500" />
-                        Ukážky & Demos
-                      </Button>
-                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setActiveTab("research-lab")}>
-                        <FlaskConical className="size-3.5 text-primary" />
-                        Explore Research Lab
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : null}
-
-            {!isDbDown && (
-              isCreating ? (
-                <form onSubmit={handleCreate} className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold">New Workspace</p>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => { setIsCreating(false); setCreateError(null); }}
-                      className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      Back to list
-                    </Button>
-                  </div>
-                  {createError && (
-                    <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center gap-2">
-                      <AlertCircle className="size-3.5 shrink-0" />
-                      <span>{createError}</span>
-                    </div>
-                  )}
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="ws-name">Project Name</Label>
-                    <Input id="ws-name" autoFocus value={newName} onChange={(e) => handleNameChange(e.target.value)} placeholder="My Cool Project" disabled={isSubmitting} />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="ws-id" className="text-xs text-muted-foreground">Workspace ID (auto-generated, editable)</Label>
-                    <Input id="ws-id" value={newId} onChange={(e) => { setIdTouched(true); setNewId(e.target.value) }} placeholder="my-cool-project" disabled={isSubmitting} className="font-mono text-xs" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="ws-output">Output type</Label>
-                    <Select value={newOutputType} onValueChange={(val) => val && setNewOutputType(val as typeof newOutputType)} disabled={isSubmitting}>
-                      <SelectTrigger id="ws-output" className="w-full"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="poster">Poster</SelectItem>
-                        <SelectItem value="slides">Slides</SelectItem>
-                        <SelectItem value="paper">Paper</SelectItem>
-                        <SelectItem value="thesis-review">Thesis review</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {templateOptions.length > 0 && (
-                    <div className="flex flex-col gap-1.5">
-                      <Label htmlFor="ws-template">Template</Label>
+                    <div>
+                      <Label htmlFor="ws-template" className="text-xs font-semibold mb-1.5 block">Sablona</Label>
                       <Select value={newTemplate} onValueChange={(val) => val && setNewTemplate(val)} disabled={isSubmitting}>
-                        <SelectTrigger id="ws-template" className="w-full"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {templateOptions.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
-                          ))}
-                        </SelectContent>
+                        <SelectTrigger id="ws-template" className="h-9 text-xs bg-background"><SelectValue /></SelectTrigger>
+                        <SelectContent>{templateOptions.map((t) => (<SelectItem key={t.id} value={t.id} className="text-xs">{t.label} ({t.latexClass || t.id})</SelectItem>))}</SelectContent>
                       </Select>
                     </div>
-                  )}
-                  <div className="flex justify-end gap-2 pt-1">
-                    <Button type="button" variant="outline" size="sm" onClick={() => setIsCreating(false)} disabled={isSubmitting}>Cancel</Button>
-                    <Button type="submit" size="sm" disabled={isSubmitting}>{isSubmitting ? "Creating..." : "Create"}</Button>
-                  </div>
-                </form>
-              ) : (
-                <DialogFooter className="-mx-4 -mb-4 pt-2">
-                  <Button variant="outline" size="sm" onClick={() => setIsCreating(true)} className="gap-1.5">
-                    <Plus className="size-3.5" />
-                    Create Blank Project
-                  </Button>
-                </DialogFooter>
-              )
-            )}
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
-
-    {launchedTaskBundle && (
-      <Dialog
-        open
-        onOpenChange={(open) => {
-          if (!open) {
-            const wsId = launchedTaskBundle.workspaceId
-            setLaunchedTaskBundle(null)
-            onSelect(wsId)
-          }
-        }}
-      >
-        <DialogContent className="z-[70] sm:max-w-2xl max-h-[90vh] flex flex-col p-6" showCloseButton>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-              <FlaskConical className="h-5 w-5 text-primary" />
-              Research Lab Task Launched
-            </DialogTitle>
-            <DialogDescription>
-              Workspace <strong className="text-foreground">{launchedTaskBundle.workspaceName}</strong> ({launchedTaskBundle.workspaceId}) is initialized and ready in PosterApp.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 my-2 overflow-y-auto pr-1">
-            <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs text-warning flex flex-col gap-1">
-              <div className="font-semibold flex items-center gap-1.5 text-warning">
-                <span>⚠️</span> Scoped One-Time API Key Minted
-              </div>
-              <p>
-                This key is pre-scoped exclusively to this workspace with 30-day expiry. It will <strong>never be shown again</strong>.
-              </p>
-              <div className="mt-2 flex items-center gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={launchedTaskBundle.rawKey}
-                  className="flex-1 bg-black/40 border border-warning/40 rounded px-2.5 py-1 text-xs font-mono text-warning select-all"
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs border-warning/40 hover:bg-warning/20 text-warning gap-1"
-                  onClick={() => {
-                    navigator.clipboard.writeText(launchedTaskBundle.rawKey)
-                    setHasCopiedKey(true)
-                    setTimeout(() => setHasCopiedKey(false), 2000)
-                    toast.success("API key copied to clipboard")
-                  }}
-                >
-                  {hasCopiedKey ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
-                  {hasCopiedKey ? "Copied" : "Copy Key"}
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  DeerFlow Launch Configuration Bundle (§14.1)
-                </Label>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-xs flex items-center gap-1 text-primary hover:text-primary"
-                  onClick={() => {
-                    navigator.clipboard.writeText(launchedTaskBundle.bundle)
-                    setHasCopiedBundle(true)
-                    setTimeout(() => setHasCopiedBundle(false), 2000)
-                    toast.success("Launch bundle copied to clipboard")
-                  }}
-                >
-                  {hasCopiedBundle ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
-                  {hasCopiedBundle ? "Copied Bundle" : "Copy Bundle"}
-                </Button>
-              </div>
-              <pre className="text-xs font-mono bg-muted/60 border rounded-lg p-3 overflow-x-auto max-h-60 whitespace-pre leading-relaxed text-foreground select-all">
-                {launchedTaskBundle.bundle}
-              </pre>
-            </div>
-
-            <div className="text-xs text-muted-foreground bg-muted/30 p-2.5 rounded border leading-normal space-y-1">
-              <div className="font-medium text-foreground">How to run:</div>
-              <ol className="list-decimal list-inside space-y-0.5 pl-1">
-                <li>Add the <code>posterapp</code> entry into DeerFlow <code>extensions_config.json</code> under <code>mcpServers</code>.</li>
-                <li>Restart DeerFlow Gateway so the new MCP server is discovered.</li>
-                <li>Paste Step 3 into a new DeerFlow thread. The agent will read your setup cards and propose experiment updates!</li>
-              </ol>
+                    {newId && <p className="text-[10px] text-muted-foreground font-mono">ID: {newId}</p>}
+                    <Button type="submit" disabled={isSubmitting} className="h-9 text-xs font-semibold gap-1.5 cursor-pointer mt-1"><span>Vytvorit projekt</span><ArrowRight className="size-3.5" /></Button>
+                  </form>
+                </div>
+              )}
             </div>
           </div>
-
-          <DialogFooter className="mt-2 flex sm:justify-end gap-2">
-            <Button
-              onClick={() => {
-                const wsId = launchedTaskBundle.workspaceId
-                setLaunchedTaskBundle(null)
-                onSelect(wsId)
-              }}
-              className="gap-2"
-            >
-              Open Workspace
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    )}
-    </>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
