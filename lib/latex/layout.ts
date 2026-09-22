@@ -5,7 +5,7 @@ import type { Card } from "@/lib/poster-types"
  * estimateHeight. Calibrated against the 3-column A0 *portrait* tikzposter
  * templates (atlas / minimal / tikzposter / gemini / a0poster).
  */
-export const COLUMN_BUDGET = 900
+export const COLUMN_BUDGET = 1250
 
 /**
  * Per-template column budgets.
@@ -18,7 +18,7 @@ export const COLUMN_BUDGET = 900
  * A0 portrait is 841mm x 1189mm; A0 landscape is 1189mm x 841mm. A landscape
  * column is therefore ~29% shorter but ~41% wider. Shorter cuts the budget;
  * wider means each unit of content is cheaper. The net is roughly
- * 900 * (841/1189) * (1189/841) ≈ 900 in theory — but the title block and
+ * 1250 * (841/1189) * (1189/841) ≈ 1250 in theory — but the title block and
  * inter-block spacing do not scale, and in practice landscape boards hold
  * noticeably less per column, hence 700.
  *
@@ -29,22 +29,22 @@ export const COLUMN_BUDGET = 900
  */
 export const COLUMN_BUDGET_BY_TEMPLATE: Record<string, number> = {
   // 3-column A0 portrait (the original calibration target)
-  atlas: 900,
-  minimal: 900,
-  tikzposter: 900,
-  gemini: 900,
-  conference: 900,
+  atlas: 1250,
+  minimal: 1250,
+  tikzposter: 1250,
+  gemini: 1250,
+  conference: 1250,
   // Aurora is A0 portrait with the same three-column geometry as the others;
   // its square-cornered, outline-free cards have marginally less chrome, but
   // not enough to justify a separate (unmeasured) number.
-  aurora: 900,
+  aurora: 1250,
   // a0poster uses multicols at a smaller base font, so more fits per column
-  a0poster: 1000,
+  a0poster: 1380,
   // A0 landscape: shorter columns
-  landscape: 700,
+  landscape: 970,
   // Better Poster: the narrow flanking columns are the constraint, and the
   // centre column is meant to hold ONE sentence in very large type.
-  betterposter: 520,
+  betterposter: 720,
 }
 
 /**
@@ -131,7 +131,8 @@ export function estimateHeightBreakdown(card: Card): HeightBreakdown {
     card.pattern === "section-figure" ||
     card.pattern === "section-two-figures" ||
     card.pattern === "figure-slide" ||
-    card.pattern === "image-focused"
+    card.pattern === "image-focused" ||
+    card.pattern === "graph"
   let figures = 0
   if (rendersFigures && validFigCount > 0) {
     const twoUp =

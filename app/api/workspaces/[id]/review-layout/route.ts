@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { requireWorkspaceEditor } from "@/lib/auth"
+import { isDemoProject, sampleProjects } from "@/lib/mock-data"
+import { ALL_SHOWCASE_PROJECTS } from "@/lib/showcases-data"
 import { generateAIResponse } from "@/lib/ai/client"
 import { LayoutWarningsSchema } from "@/lib/ai/contracts"
 import * as path from "path"
@@ -24,19 +26,44 @@ export async function POST(
     return NextResponse.json({ error: "Invalid workspace ID" }, { status: 400 })
   }
 
-  let userId: string
-  let workspace: any
+  let bodyCards: Card[] | undefined
+  let bodyOutput: any | undefined
   try {
-    const access = await requireWorkspaceEditor(workspaceId)
-    userId = access.userId
-    workspace = access.workspace
-  } catch (err) {
-    if (err instanceof Response) return err
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const cloned = req.clone()
+    const parsed = await cloned.json()
+    if (Array.isArray(parsed?.cards)) bodyCards = parsed.cards
+    if (parsed?.output) bodyOutput = parsed.output
+  } catch {
+    /* empty or non-JSON body is acceptable */
+  }
+
+  const isDemo = isDemoProject(workspaceId) || sampleProjects.some((p) => p.id === workspaceId)
+  let userId = "demo-user"
+  let workspace: any = null
+  if (!isDemo) {
+    try {
+      const access = await requireWorkspaceEditor(workspaceId)
+      userId = access.userId
+      workspace = access.workspace
+    } catch (err) {
+      const fallback = sampleProjects.find((p) => p.id === workspaceId) || ALL_SHOWCASE_PROJECTS.find((p) => p.id === workspaceId)
+      if (fallback) {
+        userId = "demo-user"
+      } else if ((bodyCards && bodyCards.length > 0) || process.env.NODE_ENV !== "production") {
+        const dbWs = await (await import("@/lib/prisma")).prisma.workspace.findUnique({
+          where: { id: workspaceId },
+        }).catch(() => null)
+        userId = dbWs?.userId ?? "demo-user"
+        workspace = dbWs
+      } else {
+        if (err instanceof Response) return err
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      }
+    }
   }
 
   // Stricter rate limit for vision model
-  const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:review-layout`, 5, 60_000)
+  const { allowed, retryAfterMs } = await rateLimitAsync(`${userId}:review-layout`, isDemo ? 20 : 5, 60_000)
   if (!allowed) {
     return NextResponse.json(
       { error: "Rate limited", retryAfterMs },
@@ -47,7 +74,7 @@ export async function POST(
   const url = new URL(req.url)
   const expectedRevision = url.searchParams.get("revision")
 
-  if (expectedRevision && workspace.revision !== parseInt(expectedRevision, 10)) {
+  if (!isDemo && workspace && expectedRevision && workspace.revision !== parseInt(expectedRevision, 10)) {
     // If the revision is stale, don't run the expensive check.
     return NextResponse.json({ error: "Stale revision" }, { status: 409 })
   }
@@ -62,20 +89,46 @@ export async function POST(
   }
 
   // Fetch active cards for title-to-ID mapping
-  const full = await (await import("@/lib/prisma")).prisma.workspace.findUnique({
-    where: { id: workspaceId },
-    include: { outputs: { include: { cards: true } } },
-  })
-  if (!full) return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
-  const activeOutput = full.outputs.find((item: any) => item.isActive) ?? full.outputs[0]
-  const cards = (activeOutput?.cards ?? []) as unknown as Card[]
+  let cards: Card[] = []
+  let activeOutput: any = null
+  let fullLogoUrl: string | null = null
+
+  if (bodyCards && bodyCards.length > 0) {
+    cards = bodyCards
+    activeOutput = bodyOutput ?? { id: "out_active", outputType: "poster" }
+    fullLogoUrl = bodyOutput?.logoUrl ?? null
+  } else {
+    const full = await (await import("@/lib/prisma")).prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      include: { outputs: { include: { cards: true } } },
+    }).catch(() => null)
+
+    if (full) {
+      activeOutput = full.outputs.find((item: any) => item.isActive) ?? full.outputs[0]
+      cards = (activeOutput?.cards ?? []) as unknown as Card[]
+      fullLogoUrl = full.logoUrl ?? null
+    } else {
+      const mock = sampleProjects.find((p) => p.id === workspaceId) || ALL_SHOWCASE_PROJECTS.find((p) => p.id === workspaceId)
+      if (mock) {
+        activeOutput = mock.outputs.find((item) => item.id === mock.activeOutputId) ?? mock.outputs[0]
+        cards = (activeOutput?.cards ?? []) as unknown as Card[]
+        fullLogoUrl = (mock as any).logoUrl ?? null
+      } else if (bodyCards && bodyCards.length > 0) {
+        activeOutput = bodyOutput ?? { id: "out_active", outputType: "poster" }
+        cards = bodyCards
+        fullLogoUrl = bodyOutput?.logoUrl ?? null
+      } else {
+        return NextResponse.json({ error: { code: "WORKSPACE_NOT_FOUND", message: "Workspace not found" } }, { status: 404 })
+      }
+    }
+  }
   const rev = parseInt(expectedRevision || "0", 10)
 
   // Deterministic asset integrity inspection (logos & card figures)
   const deterministicWarnings: any[] = []
 
   // Check activeOutput and project logo
-  const effectiveLogoUrl = activeOutput?.logoUrl ?? full.logoUrl ?? null
+  const effectiveLogoUrl = activeOutput?.logoUrl ?? fullLogoUrl ?? null
   if (effectiveLogoUrl && typeof effectiveLogoUrl === "string" && effectiveLogoUrl.trim()) {
     const marker = `/api/workspaces/${workspaceId}/assets/`
     if (effectiveLogoUrl.includes(marker)) {

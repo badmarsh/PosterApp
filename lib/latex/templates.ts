@@ -1076,6 +1076,7 @@ export function getCVPRTemplate(project: Project): string {
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{booktabs}
+\\usepackage{hyperref}
 
 ${FITMATH_MACRO}
 
