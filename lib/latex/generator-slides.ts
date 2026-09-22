@@ -1,4 +1,4 @@
-import type { Card, Project, OutputConfig } from "@/lib/poster-types"
+﻿import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
 import type { LatexGenerator } from "./types"
@@ -28,6 +28,13 @@ export class BeamerSlidesGenerator implements LatexGenerator {
     const sortedCards = [...outputConfig.cards].sort((a, b) => (a.column || 1) - (b.column || 1) || a.order - b.order)
 
     const slides = sortedCards.map((c) => {
+      if (c.pattern === "title-slide") {
+        if (c.slideNotes) {
+          return `\\begin{frame}\n\\titlepage\n\\note{${ parseMarkdownToLatex(c.slideNotes)}}\n\\end{frame}`
+        }
+        return null
+      }
+
       // ── References slide ──────────────────────────────────────────────────
       if (c.pattern === "references") {
         const nociteCmd = usedKeysArray.length > 0
@@ -82,6 +89,43 @@ export class BeamerSlidesGenerator implements LatexGenerator {
         return tex
       }
 
+      if (c.pattern === "stats") {
+        const statLines = c.content.split("\n").filter((l: string) => l.trim().length > 0)
+        let statsBody = "\\begin{columns}[t]\n"
+        statLines.forEach((line: string, i: number) => {
+          if (i % 2 === 0) statsBody += "  \\begin{column}{0.48\\textwidth}\n"
+          const rendered = parseMarkdownToLatex(line).replace(
+            /\\textbf\{([^}]*)\}/g, "{\\color{structure}\\textbf{$1}}"
+          )
+          statsBody += `    ${rendered}\\\\\n`
+          if (i % 2 === 1 || i === statLines.length - 1) statsBody += "  \\end{column}\n"
+        })
+        statsBody += "\\end{columns}"
+        let tex = `\\begin{frame}{${parseMarkdownToLatex(c.title)}}\n${statsBody}\n`
+        if (c.slideNotes) tex += `\\note{${parseMarkdownToLatex(c.slideNotes)}}\n`
+        tex += "\\end{frame}"
+        return tex
+      }
+
+      if (c.pattern === "graph") {
+        let tex = `\\begin{frame}{${parseMarkdownToLatex(c.title)}}\n`
+        tex += parseMarkdownToLatex(c.content) + "\n"
+        if (c.figures && c.figures.length > 0) {
+          const f = c.figures[0]
+          const imgPath = f?.url?.trim()
+            ? normalizeLatexPath(workspaceId ? assetUrlToLatexPath(f.url, workspaceId) : f.url)
+            : ""
+          if (imgPath.length > 0) {
+            tex += `\\begin{center}\n\\includegraphics[height=0.62\\textheight,width=0.9\\linewidth,keepaspectratio]{${imgPath}}\n`
+            if (f.caption) tex += `\\\\\n{\ \\footnotesize ${parseMarkdownToLatex(f.caption)}}\n`
+            tex += "\\end{center}\n"
+          }
+        }
+        if (c.slideNotes) tex += `\\note{${parseMarkdownToLatex(c.slideNotes)}}\n`
+        tex += "\\end{frame}"
+        return tex
+      }
+
       // ── Standard slide ────────────────────────────────────────────────────
       let content = parseMarkdownToLatex(c.content)
       let tex = `\\begin{frame}{${parseMarkdownToLatex(c.title)}}\n`
@@ -103,7 +147,7 @@ export class BeamerSlidesGenerator implements LatexGenerator {
               ? (bulletLines > 3 ? "0.32\\textheight" : bulletLines > 1 ? "0.36\\textheight" : "0.42\\textheight")
               : "0.62\\textheight"
             tex += `\\begin{center}\n\\includegraphics[height=${imgHeight},width=0.9\\linewidth,keepaspectratio]{${imgPath}}\n`
-            if (f.caption) tex += `\\\\{\\footnotesize ${parseMarkdownToLatex(f.caption)}}\n`
+            if (f.caption) tex += `\\\\\n{\\footnotesize ${parseMarkdownToLatex(f.caption)}}\n`
             tex += `\\end{center}\n`
           }
         }
@@ -123,7 +167,7 @@ export class BeamerSlidesGenerator implements LatexGenerator {
 
       tex += `\\end{frame}`
       return tex
-    }).join("\n\n")
+    }).filter(Boolean).join("\n\n")
 
     let templateContent = "";
     const themeColor = outputConfig.themeColor ?? undefined

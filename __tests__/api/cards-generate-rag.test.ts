@@ -233,7 +233,7 @@ describe("POST /cards/[cardId]/generate — layout height compliance", () => {
       makeParams()
     )
     const prompt = generateAIMock.mock.calls[0][1].userPrompt as string
-    // betterposter column budget = 520 units (COLUMN_BUDGET_BY_TEMPLATE).
-    expect(prompt).toContain("520 height units")
+    // betterposter column budget = 720 units (COLUMN_BUDGET_BY_TEMPLATE, recalibrated 2026-09-22).
+    expect(prompt).toContain("720 height units")
   })
 })
