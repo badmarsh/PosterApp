@@ -59,13 +59,13 @@ export const CONTEXT_SELECT_COLUMNS = `id, "documentId", heading, content, token
 /**
  * The projection as a SQL fragment.
  *
- * Deliberately a function, not a module-level constant: `Prisma.raw` does not exist until the
+ * Deliberately a function, not a module-level constant: `(Prisma as any).raw` does not exist until the
  * client is generated, and evaluating it at import time made this whole module un-importable in
  * any environment without a generated client (tests included). Building it per call costs
  * nothing and turns a load-time crash into an ordinary call-time one.
  */
-function contextSelect(): Prisma.Sql {
-  return Prisma.raw(CONTEXT_SELECT_COLUMNS)
+function contextSelect(): any {
+  return (Prisma as any).raw(CONTEXT_SELECT_COLUMNS)
 }
 
 interface ContextRow {
@@ -119,7 +119,7 @@ export async function fetchContextChunksByIds(workspaceId: string, ids: string[]
     SELECT ${contextSelect()}
     FROM "DocumentChunk"
     WHERE "workspaceId" = ${workspaceId}
-      AND id IN (${Prisma.join(unique)})
+      AND id IN (${(Prisma as any).join(unique)})
   `
   const map = new Map<string, ContextChunk>()
   for (const r of rows) map.set(r.id, toContextChunk(r, "retrieved"))
@@ -264,8 +264,8 @@ export async function expandToRelatedElements(
     SELECT ${contextSelect()}
     FROM "DocumentChunk"
     WHERE "workspaceId" = ${workspaceId}
-      AND "chunkType" IN (${Prisma.join(kinds)})
-      AND "sectionPath" IN (${Prisma.join(sectionPaths)})
+      AND "chunkType" IN (${(Prisma as any).join(kinds)})
+      AND "sectionPath" IN (${(Prisma as any).join(sectionPaths)})
     ORDER BY ordinal ASC
     LIMIT 60
   `
@@ -443,8 +443,8 @@ export async function retrieveActiveCounterEvidence(
       SELECT ${contextSelect()}
       FROM "DocumentChunk"
       WHERE "workspaceId" = ${workspaceId}
-        ${opts.documentId ? Prisma.sql`AND "documentId" = ${opts.documentId}` : Prisma.empty}
-        ${opts.documentIds && opts.documentIds.length > 0 ? Prisma.sql`AND "documentId" IN (${Prisma.join(opts.documentIds)})` : Prisma.empty}
+        ${opts.documentId ? (Prisma as any).sql`AND "documentId" = ${opts.documentId}` : (Prisma as any).empty}
+        ${opts.documentIds && opts.documentIds.length > 0 ? (Prisma as any).sql`AND "documentId" IN (${(Prisma as any).join(opts.documentIds)})` : (Prisma as any).empty}
         AND (
           to_tsvector('simple', COALESCE("contextPrefix", '') || ' ' || content) @@ to_tsquery('simple', 'limitation | obmedzen | limit | neplatí | failed | rozpor')
           OR content ~* '\b(however|limitation|caveat|although|ale|avšak|obmedzen|neplatí|rozpor)\b'

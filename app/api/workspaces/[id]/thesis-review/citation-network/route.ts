@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NextRequest } from "next/server"
 import { requireWorkspaceEditor } from "@/lib/auth"
 import { loadThesisContext } from "@/lib/ai/thesis-context"

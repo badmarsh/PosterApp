@@ -7,7 +7,8 @@ export function extractMath(input: string): { text: string; slots: Slot[] } {
   const slots: Slot[] = []
   let idx = 0
 
-  const text = input
+  // Display math is unambiguous — always extract.
+  let text = input
     .replace(/\$\$([\s\S]+?)\$\$/g, (match) => {
       const placeholder = `\x00MATH${idx++}\x00`
       slots.push({ placeholder, original: match })
@@ -23,13 +24,67 @@ export function extractMath(input: string): { text: string; slots: Slot[] } {
       slots.push({ placeholder, original: match })
       return placeholder
     })
-    .replace(/\$([^$\n]+?)\$/g, (match) => {
-      const placeholder = `\x00MATH${idx++}\x00`
-      slots.push({ placeholder, original: match })
-      return placeholder
-    })
 
-  return { text, slots }
+  // Inline $...$ is ambiguous with currency and stray dollars. We scan
+  // manually and only treat a pair as math when the body looks like math.
+  // This prevents "$100 and math $x^2$" from consuming "$100 and math $"
+  // as a single math run and breaking the real "$x^2$".
+  const MATH_LIKE = /[\\^_{}=<>|]/
+  const looksLikeMath = (body: string): boolean => {
+    const t = body.trim()
+    if (!t) return false
+    // Single-letter variables like $x$ or $a$ are valid math even without symbols.
+    if (t.length <= 2 && /^[A-Za-z0-9]$/.test(t)) return true
+    if (MATH_LIKE.test(t)) return true
+    if (/\\[A-Za-z]+/.test(t)) return true
+    // Inequalities and relations like $a < b$ or $x > 0$ should be math.
+    if (/[<>]/.test(t) && /[A-Za-z]/.test(t)) return true
+    return false
+  }
+
+  let out = ""
+  let i = 0
+  while (i < text.length) {
+    const ch = text[i]
+    if (ch === "\\" && i + 1 < text.length && text[i + 1] === "$") {
+      // Escaped dollar — not a delimiter, keep both chars for later escaping.
+      out += "\\$"
+      i += 2
+      continue
+    }
+    if (ch === "$") {
+      // Find the next unescaped $ on the same line
+      let j = -1
+      for (let k = i + 1; k < text.length; k++) {
+        if (text[k] === "\n") break
+        if (text[k] === "$") {
+          if (k + 1 < text.length && text[k + 1] === "$") break
+          if (text[k - 1] === "\\") continue
+          j = k
+          break
+        }
+      }
+      if (j !== -1) {
+        const body = text.slice(i + 1, j)
+        const original = text.slice(i, j + 1)
+        if (looksLikeMath(body)) {
+          const placeholder = `\x00MATH${idx++}\x00`
+          slots.push({ placeholder, original })
+          out += placeholder
+          i = j + 1
+          continue
+        }
+      }
+      // Not math — leave $ for escapeLatex to handle as \& \%
+      out += "$"
+      i++
+      continue
+    }
+    out += ch
+    i++
+  }
+
+  return { text: out, slots }
 }
 
 /**
@@ -105,12 +160,12 @@ function extractCitations(input: string): { text: string; slots: Slot[] } {
   let idx = 0
 
   const text = input
-    .replace(/\\(?:cite[pt]?|nocite|autocite)\{([A-Za-z0-9_:\-,\s]+)\}/g, (match) => {
+    .replace(/\\(?:cite[pt]?|nocite|autocite)\{([^\}]+)\}/g, (match) => {
       const placeholder = `\x00CITE${idx++}\x00`
       slots.push({ placeholder, original: match })
       return placeholder
     })
-    .replace(/\[@([A-Za-z0-9_:\-,\s@;]+)\]/g, (_match: string, keys: string) => {
+    .replace(/\[@([^\]]+)\]/g, (_match: string, keys: string) => {
       const placeholder = `\x00CITE${idx++}\x00`
       const cleanKeys = keys
         .split(/[,;]/)
@@ -270,7 +325,7 @@ export function parseMarkdownToLatex(input: string): string {
   // rather than a leftover `**` pair. Inner single-stars are allowed; a second
   // `**` still terminates the span.
   text = text.replace(/\*\*((?:[^*]|\*(?!\*))+?)\*\*/g, "\\textbf{$1}")
-  text = text.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "\\textit{$1}")
+  text = text.replace(/(?<!\*)\*([^*\\n]+)\*(?!\*)/g, "\\textit{$1}")
   text = text.replace(/`([^`\n]+)`/g, "\\texttt{$1}")
   // http(s) links were placeheld before escaping (see extractLinks); anything
   // still bracketed here has a non-web target, so keep the text and drop it.

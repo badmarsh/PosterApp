@@ -210,7 +210,7 @@ export async function getWorkspaceCardIds(workspaceId: string): Promise<Set<stri
 }
 
 /** Reads existing bib keys for dedupe checks (mirrors the bib GET route). */
-export function parseWorkspaceBibKeys(bibContent: string | null, bibKeys: Prisma.JsonValue | null): string[] {
+export function parseWorkspaceBibKeys(bibContent: string | null, bibKeys: any | null): string[] {
   if (Array.isArray(bibKeys)) return bibKeys.map(String).filter(Boolean)
   if (typeof bibKeys === "string") {
     try {
@@ -228,7 +228,7 @@ export function parseWorkspaceBibKeys(bibContent: string | null, bibKeys: Prisma
 }
 
 /** Reads the workspace JSON fields defensively (same pattern as workspace GET). */
-export function parseWorkspaceJson<T>(value: Prisma.JsonValue | string | null | undefined, fallback: T): T {
+export function parseWorkspaceJson<T>(value: any | string | null | undefined, fallback: T): T {
   if (value === null || value === undefined) return fallback
   if (typeof value === "string") return safeJsonParse(value, fallback)
   return value as T

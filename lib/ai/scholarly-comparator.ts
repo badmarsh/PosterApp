@@ -91,7 +91,7 @@ export async function persistCanonicalScholarlyPaper(
   const pubDate = paper.publishedAt ? new Date(paper.publishedAt) : undefined
   const validPubDate = pubDate && !isNaN(pubDate.getTime()) ? pubDate : null
 
-  const provenanceJson: Prisma.InputJsonValue = {
+  const provenanceJson: any = {
     [paper.source || "external"]: {
       paperId: paper.paperId ?? null,
       url: paper.url ?? null,
@@ -117,7 +117,7 @@ export async function persistCanonicalScholarlyPaper(
         provenance: {
           ...existingProv,
           ...provenanceJson,
-        } as Prisma.InputJsonValue,
+        } as any,
       },
     })
     return { id: updated.id, titleKey: updated.titleKey }

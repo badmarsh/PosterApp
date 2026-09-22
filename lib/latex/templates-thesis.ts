@@ -8,6 +8,7 @@
  */
 
 import { FITMATH_MACRO } from "./templates"
+import { escapeLatex } from "./parser"
 
 export type ThesisReviewTemplate =
   | "posudok-sk"
@@ -47,7 +48,11 @@ export function reportLanguageFor(template: ThesisReviewTemplate): ReportLanguag
 export function getThesisReviewPreamble(template: ThesisReviewTemplate, runningTitle?: string): string {
   const lang = reportLanguageFor(template)
   const labels = THESIS_REVIEW_LABELS[lang]
-  const headerTitle = runningTitle ?? labels.title
+  // Escape runningTitle — user-provided titles may contain %, &, $, #, _ etc.
+  // Previously this was interpolated raw into \lhead, causing "Missing $ inserted"
+  // or "Illegal parameter number" compile failures. Use escapeLatex for safe text.
+  const rawHeader = runningTitle ?? labels.title
+  const headerTitle = escapeLatex(rawHeader)
 
   const babel: Record<ReportLanguage, string> = {
     sk: "\\usepackage[slovak]{babel}",

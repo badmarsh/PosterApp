@@ -12,7 +12,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
-// Minimal Prisma.Sql stand-in (same semantics as the supabase harness).
+// Minimal any stand-in (same semantics as the supabase harness).
 type FakeSql = { text: string; values: unknown[] }
 const isSql = (v: unknown): v is FakeSql =>
   Boolean(v && typeof v === "object" && "text" in (v as object) && "values" in (v as object))
@@ -236,7 +236,7 @@ $$\\alpha = \\frac{p}{q}$$
     expect(res.skipped).toBe(0)
 
     // INSERT writes the contextPrefix column. The column list is a developer-controlled
-    // constant interpolated with Prisma.raw, so assert on the shared list (which is what
+    // constant interpolated with (Prisma as any).raw, so assert on the shared list (which is what
     // actually reaches the database) rather than on the captured SQL text.
     expect(captured.insertSql.join(" ")).toContain("INSERT INTO \"DocumentChunk\"")
     const { DOCUMENT_CHUNK_INSERT_COLUMNS } = await import("@/lib/ai/document-chunker")
@@ -244,7 +244,7 @@ $$\\alpha = \\frac{p}{q}$$
     expect(DOCUMENT_CHUNK_INSERT_COLUMNS).toContain('"chunkType"')
     expect(DOCUMENT_CHUNK_INSERT_COLUMNS).toContain('"parentChunkId"')
     expect(DOCUMENT_CHUNK_INSERT_COLUMNS).toContain("ordinal")
-    // …one row per chunk. The mocked Prisma.join flattens all bound values, so
+    // …one row per chunk. The mocked (Prisma as any).join flattens all bound values, so
     // regroup by the shared row width exported by the writer.
     const { DOCUMENT_CHUNK_INSERT_BIND_COUNT: ROW_WIDTH } = await import("@/lib/ai/document-chunker")
     const flat = captured.insertValues.flatMap((v) => v.values)

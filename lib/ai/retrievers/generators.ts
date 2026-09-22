@@ -65,7 +65,7 @@ export const denseRetriever: CandidateGenerator = {
         if (ctx.signal?.aborted) break
         const embStr = `[${emb.join(",")}]`
         const rows = await client.$queryRaw<Array<ChunkRow & { similarity: number }>>`
-          SELECT ${Prisma.raw(CHUNK_SELECT_COLUMNS)},
+          SELECT ${(Prisma as any).raw(CHUNK_SELECT_COLUMNS)},
                  1.0 - (embedding <=> ${embStr}::vector) AS similarity
           FROM "DocumentChunk"
           WHERE "workspaceId" = ${ctx.workspaceId}
@@ -103,7 +103,7 @@ export async function denseExactFallback(ctx: RetrievalContext, embedding: numbe
   const filter = retrievalJoin(baseFilter(ctx))
   const embStr = `[${embedding.join(",")}]`
   const rows = await prisma.$queryRaw<Array<ChunkRow & { similarity: number }>>`
-    SELECT ${Prisma.raw(CHUNK_SELECT_COLUMNS)},
+    SELECT ${(Prisma as any).raw(CHUNK_SELECT_COLUMNS)},
            1.0 - (embedding <=> ${embStr}::vector) AS similarity
     FROM "DocumentChunk"
     WHERE "workspaceId" = ${ctx.workspaceId}
@@ -127,7 +127,7 @@ export const lexicalRetriever: CandidateGenerator = {
     if (!fts) return []
     const filter = retrievalJoin(baseFilter(ctx))
     const rows = await prisma.$queryRaw<Array<ChunkRow & { rank: number }>>`
-      SELECT ${Prisma.raw(CHUNK_SELECT_COLUMNS)},
+      SELECT ${(Prisma as any).raw(CHUNK_SELECT_COLUMNS)},
              ts_rank(to_tsvector('simple', COALESCE("contextPrefix", '') || ' ' || content),
                      websearch_to_tsquery('simple', ${fts})) AS rank
       FROM "DocumentChunk"
@@ -161,23 +161,23 @@ export const metadataRetriever: CandidateGenerator = {
     flag("METADATA_RETRIEVAL_ENABLED") &&
     Boolean((ctx.chunkTypes && ctx.chunkTypes.length > 0) || (ctx.sectionPathPrefixes && ctx.sectionPathPrefixes.length > 0) || ctx.pageRange),
   async retrieve(ctx) {
-    const parts: Prisma.Sql[] = []
+    const parts: any[] = []
     const types = ctx.chunkTypes ?? []
     const prefixes = ctx.sectionPathPrefixes ?? []
-    if (types.length > 0) parts.push(Prisma.sql`"chunkType" IN (${Prisma.join(types)})`)
+    if (types.length > 0) parts.push((Prisma as any).sql`"chunkType" IN (${(Prisma as any).join(types)})`)
     if (prefixes.length > 0) {
       parts.push(
-        Prisma.sql`(${Prisma.join(
-          prefixes.map((p) => Prisma.sql`"sectionPath" ILIKE ${`%${p}%`}`),
+        (Prisma as any).sql`(${(Prisma as any).join(
+          prefixes.map((p) => (Prisma as any).sql`"sectionPath" ILIKE ${`%${p}%`}`),
           " OR "
         )})`
       )
     }
-    const structural = parts.length > 0 ? Prisma.sql`AND (${Prisma.join(parts, " OR ")})` : Prisma.empty
+    const structural = parts.length > 0 ? (Prisma as any).sql`AND (${(Prisma as any).join(parts, " OR ")})` : (Prisma as any).empty
     const filter = retrievalJoin(baseFilter(ctx, { chunkTypes: undefined }))
 
     const rows = await prisma.$queryRaw<Array<ChunkRow>>`
-      SELECT ${Prisma.raw(CHUNK_SELECT_COLUMNS)}
+      SELECT ${(Prisma as any).raw(CHUNK_SELECT_COLUMNS)}
       FROM "DocumentChunk"
       WHERE "workspaceId" = ${ctx.workspaceId}
         ${filter}
@@ -207,17 +207,17 @@ export const citationRetriever: CandidateGenerator = {
   async retrieve(ctx) {
     const fts = buildFtsQuery(ctx.query)
     const filter = retrievalJoin(baseFilter(ctx))
-    const tsvector = Prisma.sql`to_tsvector('simple', COALESCE("contextPrefix", '') || ' ' || content)`
+    const tsvector = (Prisma as any).sql`to_tsvector('simple', COALESCE("contextPrefix", '') || ' ' || content)`
     // Bibliography entries plus any chunk that carries an in-text citation marker.
     const rows = await prisma.$queryRaw<Array<ChunkRow & { rank: number | null }>>`
-      SELECT ${Prisma.raw(CHUNK_SELECT_COLUMNS)},
-             ${fts ? Prisma.sql`ts_rank(${tsvector}, websearch_to_tsquery('simple', ${fts}))` : Prisma.sql`0.0`} AS rank
+      SELECT ${(Prisma as any).raw(CHUNK_SELECT_COLUMNS)},
+             ${fts ? (Prisma as any).sql`ts_rank(${tsvector}, websearch_to_tsquery('simple', ${fts}))` : (Prisma as any).sql`0.0`} AS rank
       FROM "DocumentChunk"
       WHERE "workspaceId" = ${ctx.workspaceId}
         ${filter}
         AND ("chunkType" = 'citation' OR content ~ '\\[[A-Za-z0-9À-ž][^\\]]{0,40}(19|20)[0-9]{2}[^\\]]{0,6}\\]|\\[[0-9]{1,3}\\]')
-        ${fts ? Prisma.sql`AND ${tsvector} @@ websearch_to_tsquery('simple', ${fts})` : Prisma.empty}
-      ORDER BY ${fts ? Prisma.sql`rank DESC` : Prisma.sql`ordinal ASC`}
+        ${fts ? (Prisma as any).sql`AND ${tsvector} @@ websearch_to_tsquery('simple', ${fts})` : (Prisma as any).empty}
+      ORDER BY ${fts ? (Prisma as any).sql`rank DESC` : (Prisma as any).sql`ordinal ASC`}
       LIMIT ${ctx.limit}
     `
     const out = rows.map((r) =>
@@ -288,10 +288,10 @@ export const graphRetriever: CandidateGenerator = {
     if (chunkIds.length === 0) return []
 
     const rows = await prisma.$queryRaw<Array<ChunkRow>>`
-      SELECT ${Prisma.raw(CHUNK_SELECT_COLUMNS)}
+      SELECT ${(Prisma as any).raw(CHUNK_SELECT_COLUMNS)}
       FROM "DocumentChunk"
       WHERE "workspaceId" = ${ctx.workspaceId}
-        AND id IN (${Prisma.join(chunkIds)})
+        AND id IN (${(Prisma as any).join(chunkIds)})
       ORDER BY ordinal ASC
     `
     const confidenceByChunk = new Map<string, number>()
@@ -352,7 +352,7 @@ export const graphDriftRetriever: CandidateGenerator = {
       // Retrieve chunks from documents that contain the expanded nodes
       const filter = retrievalJoin(baseFilter(ctx, { documentIds }))
       const rows = await prisma.$queryRaw<Array<ChunkRow>>`
-        SELECT ${Prisma.raw(CHUNK_SELECT_COLUMNS)}
+        SELECT ${(Prisma as any).raw(CHUNK_SELECT_COLUMNS)}
         FROM "DocumentChunk"
         WHERE "workspaceId" = ${ctx.workspaceId}
           ${filter}

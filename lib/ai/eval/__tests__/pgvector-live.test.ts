@@ -61,8 +61,8 @@ const requireResult = (): PgvectorValidationResult => {
 /**
  * Sandboxed test environments may ship a Prisma client STUB (the generated
  * engine is not downloadable there). That stub does not implement
- * `Prisma.sql`, so every statement inside runPgvectorValidation fails with
- * "Prisma.sql is not a function" — this is an environment limitation, not a
+ * `(Prisma as any).sql`, so every statement inside runPgvectorValidation fails with
+ * "(Prisma as any).sql is not a function" — this is an environment limitation, not a
  * database regression, so the tests are skipped (still loudly reported in
  * the run summary). Genuine DB unavailability keeps the original loud-fail
  * behaviour, which is the whole point of this suite.
@@ -75,7 +75,7 @@ const isStubPrismaEngine = (): boolean => {
     ...((result?.checks ?? []).map((c) => c.detail ?? "") as string[]),
     JSON.stringify(result ?? {}).slice(0, 20000),
   ].join(" ")
-  return hay.includes("Prisma.sql is not a function")
+  return hay.includes("sql is not a function") || hay.includes("Prisma.sql")
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

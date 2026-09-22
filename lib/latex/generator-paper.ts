@@ -1,7 +1,7 @@
 import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
-import { getTwoColumnTemplate, getSingleColumnTemplate, getIEEEConfTemplate, getACMSigconfTemplate, getSpringerLLNCSTemplate, getJinstProceedingsTemplate, getPosProceedingsTemplate, getElsarticleTemplate, getRevtexTemplate, getEpjWocTemplate, getIopartTemplate, getNeurIPSTemplate, getICMLTemplate, getICLRTemplate, getACLTemplate, getCVPRTemplate, getAAAITemplate } from "./templates"
+import { getPaperPreamble } from "./template-map"
 import type { LatexGenerator } from "./types"
 import { assetUrlToLatexPath, normalizeLatexPath } from "./helpers"
 
@@ -245,61 +245,8 @@ export class StandardPaperGenerator implements LatexGenerator {
         .join("\n\n")
     }
 
-    let templateContent = "";
-    switch (this.templateId) {
-      case "article-single":
-        templateContent = getSingleColumnTemplate(project);
-        break;
-      case "ieee-conf":
-        templateContent = getIEEEConfTemplate(project);
-        break;
-      case "acm-sigconf":
-        templateContent = getACMSigconfTemplate(project);
-        break;
-      case "springer-llncs":
-        templateContent = getSpringerLLNCSTemplate(project);
-        break;
-      case "jinst-proceedings":
-        templateContent = getJinstProceedingsTemplate(project);
-        break;
-      case "pos-proceedings":
-        templateContent = getPosProceedingsTemplate(project);
-        break;
-      case "elsarticle":
-        templateContent = getElsarticleTemplate(project);
-        break;
-      case "revtex-aps":
-        templateContent = getRevtexTemplate(project);
-        break;
-      case "epj-woc":
-        templateContent = getEpjWocTemplate(project);
-        break;
-      case "iopart":
-        templateContent = getIopartTemplate(project);
-        break;
-      case "neurips":
-        templateContent = getNeurIPSTemplate(project);
-        break;
-      case "icml":
-        templateContent = getICMLTemplate(project);
-        break;
-      case "iclr":
-        templateContent = getICLRTemplate(project);
-        break;
-      case "acl":
-        templateContent = getACLTemplate(project);
-        break;
-      case "cvpr":
-        templateContent = getCVPRTemplate(project);
-        break;
-      case "aaai":
-        templateContent = getAAAITemplate(project);
-        break;
-      case "article-twocol":
-      default:
-        templateContent = getTwoColumnTemplate(project);
-        break;
-    }
+    // Single dispatch via unified template-map — no duplicated switch
+    let templateContent = getPaperPreamble(this.templateId ?? "article-twocol", project)
 
     if (this.templateId === "jinst-proceedings" && injectAbstractCommand) {
       templateContent = templateContent.replace("\\maketitle", `${injectAbstractCommand}\n\\maketitle`)

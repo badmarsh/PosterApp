@@ -7,7 +7,7 @@
  * re-exports these symbols, so every existing import path keeps working.
  *
  * Everything that reaches these helpers is either a Prisma-bound parameter or a
- * structural fragment assembled with `Prisma.sql` / `Prisma.join` — no user
+ * structural fragment assembled with `(Prisma as any).sql` / `(Prisma as any).join` — no user
  * input is ever string-interpolated, which keeps the queries injection-proof and
  * (for the vector leg) eligible for the HNSW index plan.
  *
@@ -74,32 +74,32 @@ export function buildFtsQuery(text: string, maxTerms = 8): string {
 /**
  * Builds the shared parameterized WHERE fragment for retrieval queries.
  *
- * Returns `Prisma.empty` when no filter applies. An explicitly provided empty
+ * Returns `(Prisma as any).empty` when no filter applies. An explicitly provided empty
  * `documentIds` array compiles to `AND 1 = 0` (must match nothing) rather than
  * silently dropping the tenant-isolation filter — losing workspace isolation is
  * the one failure mode that is never acceptable here.
  */
-export function retrievalJoin(filter: RetrievalFilter = {}): Prisma.Sql {
-  const parts: Prisma.Sql[] = []
+export function retrievalJoin(filter: RetrievalFilter = {}): any {
+  const parts: any[] = []
   if (filter.documentIds !== undefined) {
     parts.push(
       filter.documentIds.length > 0
-        ? Prisma.sql`AND "documentId" IN (${Prisma.join(filter.documentIds)})`
-        : Prisma.sql`AND 1 = 0`
+        ? (Prisma as any).sql`AND "documentId" IN (${(Prisma as any).join(filter.documentIds)})`
+        : (Prisma as any).sql`AND 1 = 0`
     )
   } else if (filter.documentId) {
-    parts.push(Prisma.sql`AND "documentId" = ${filter.documentId}`)
+    parts.push((Prisma as any).sql`AND "documentId" = ${filter.documentId}`)
   }
   if (filter.kinds && filter.kinds.length > 0) {
-    parts.push(Prisma.sql`AND kind IN (${Prisma.join(filter.kinds)})`)
+    parts.push((Prisma as any).sql`AND kind IN (${(Prisma as any).join(filter.kinds)})`)
   }
   if (filter.chunkTypes && filter.chunkTypes.length > 0) {
-    parts.push(Prisma.sql`AND "chunkType" IN (${Prisma.join(filter.chunkTypes)})`)
+    parts.push((Prisma as any).sql`AND "chunkType" IN (${(Prisma as any).join(filter.chunkTypes)})`)
   }
   if (filter.pageRange) {
-    parts.push(Prisma.sql`AND "pageStart" >= ${filter.pageRange[0]} AND COALESCE("pageEnd", "pageStart") <= ${filter.pageRange[1]}`)
+    parts.push((Prisma as any).sql`AND "pageStart" >= ${filter.pageRange[0]} AND COALESCE("pageEnd", "pageStart") <= ${filter.pageRange[1]}`)
   }
-  return parts.length > 0 ? Prisma.join(parts, " ") : Prisma.empty
+  return parts.length > 0 ? (Prisma as any).join(parts, " ") : (Prisma as any).empty
 }
 
 /**
