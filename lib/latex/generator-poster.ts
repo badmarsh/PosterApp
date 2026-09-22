@@ -1,7 +1,7 @@
 import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
-import { getAtlasTemplate, getMinimalTemplate, getGeminiTemplate, getTikzposterTemplate, getA0PosterTemplate, getLandscapeTemplate, getBetterPosterTemplate, getConferenceTemplate } from "./templates"
+import { getAtlasTemplate, getMinimalTemplate, getGeminiTemplate, getTikzposterTemplate, getA0PosterTemplate, getLandscapeTemplate, getBetterPosterTemplate, getConferenceTemplate, getAuroraTemplate } from "./templates"
 import type { LatexGenerator } from "./types"
 import { indent, assetUrlToLatexPath, normalizeLatexPath, cleanCaption } from "./helpers"
 import { columnBudgetFor, estimateHeight } from "./layout"
@@ -303,6 +303,9 @@ export class TikzPosterGenerator implements LatexGenerator {
         break;
       case "betterposter":
         templateContent = getBetterPosterTemplate(projectForMeta, themeColor);
+        break;
+      case "aurora":
+        templateContent = getAuroraTemplate(projectForMeta, themeColor);
         break;
       case "atlas":
       default:

@@ -66,45 +66,52 @@ ${body}
 }
 
 function generateFigures(card: Card, workspaceId = "", isTwoColumn = false): string {
-  const figs = (card.figures ?? []).filter((f): f is NonNullable<typeof f> => Boolean(f?.url?.trim()))
-  if (!figs.length) return "% no figures"
-
   function latexPath(url: string): string {
     return normalizeLatexPath(workspaceId ? assetUrlToLatexPath(url, workspaceId) : url)
   }
+
+  // A URL made only of TeX-special characters normalises to the empty string;
+  // `\includegraphics{}` aborts the whole compile ("File `' not found"), so
+  // those figures are dropped rather than emitted. Mirrors the guard the
+  // poster generator has always had.
+  const figs = (card.figures ?? [])
+    .filter((f): f is NonNullable<typeof f> => Boolean(f?.url?.trim()))
+    .map((f) => ({ fig: f, path: latexPath(f.url) }))
+    .filter((item) => item.path.length > 0)
+  if (!figs.length) return "% no figures"
 
   const env = isTwoColumn ? "figure*" : "figure"
 
   if (figs.length >= 2) {
     const [a, b] = figs.slice(0, 2)
-    const rawCapA = cleanCaption(a.caption, "Figure")
-    const rawCapB = cleanCaption(b.caption, "Figure")
+    const rawCapA = cleanCaption(a.fig.caption, "Figure")
+    const rawCapB = cleanCaption(b.fig.caption, "Figure")
     const captionA = rawCapA ? `\\caption{${parseMarkdownToLatex(rawCapA)}}` : ""
     const captionB = rawCapB ? `\\caption{${parseMarkdownToLatex(rawCapB)}}` : ""
     return `\\begin{${env}}[htbp]
   \\centering
   \\begin{minipage}[b]{0.48\\linewidth}
     \\centering
-    \\includegraphics[width=\\linewidth,keepaspectratio]{${latexPath(a.url)}}
+    \\includegraphics[width=\\linewidth,keepaspectratio]{${a.path}}
     ${captionA}
   \\end{minipage}
   \\hfill
   \\begin{minipage}[b]{0.48\\linewidth}
     \\centering
-    \\includegraphics[width=\\linewidth,keepaspectratio]{${latexPath(b.url)}}
+    \\includegraphics[width=\\linewidth,keepaspectratio]{${b.path}}
     ${captionB}
   \\end{minipage}
 \\end{${env}}`
   }
 
   const f = figs[0]
-  const rawCap = cleanCaption(f.caption, "Figure")
+  const rawCap = cleanCaption(f.fig.caption, "Figure")
   const captionLine = rawCap
     ? `  \\caption{${parseMarkdownToLatex(rawCap)}}\n`
     : ""
   return `\\begin{${env}}[htbp]
   \\centering
-  \\includegraphics[width=\\linewidth,keepaspectratio]{${latexPath(f.url)}}
+  \\includegraphics[width=\\linewidth,keepaspectratio]{${f.path}}
 ${captionLine}\\end{${env}}`
 }
 
