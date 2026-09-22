@@ -402,3 +402,29 @@ Pri vytváraní, úprave alebo rozširovaní demo plagátov a ukážok (showcase
 ## General Agent Guidelines
 - **E2E Testing:** Playwright is configured to run on port `3333`. Run `pnpm test:e2e` to verify full browser workflows. E2E tests leverage the `NEXT_PUBLIC_E2E_TEST=1` bypass in `proxy.ts` (Next.js 16 renamed `middleware.ts` → `proxy.ts`) to execute authenticated flows without requiring live external Clerk network tokens.
 - **API Authentication:** All internal `/api/*` routes are protected by Clerk (`clerkMiddleware`). In production/dev mode, requests are verified via Clerk session tokens; for local automated E2E tests, the test environment flag bypasses the middleware gate.
+
+---
+## OpenVPM-AI Architectural Principles & Development Standards
+
+When working on this repository, you must follow the standards established in `openvpm-ai`:
+
+1. **Verification Discipline**:
+   - Always run verification in strict order: `lint` -> `typecheck` (`tsc --noEmit`) -> `test` (`pnpm test`).
+   - Zero tolerance for unresolved TypeScript errors. Do not suppress types with `@ts-ignore` or loose `any`.
+
+2. **Template Unification Architecture**:
+   - Do NOT create separate parallel definitions for workspace demo templates and LaTeX generator templates.
+   - Use a single source of truth: A unified `TemplateRegistry` defining:
+     * `id` & `name`: Unique identifier (e.g. `atlas`, `conference`, `posudok-sk`).
+     * `category`: `poster` | `slides` | `paper` | `thesis-review`.
+     * `defaultLayout`: Card slot arrangements and dimensions.
+     * `latexPreamble` / `generator`: Associated LaTeX rendering engine.
+     * `previewUrl` / `mockupAsset`: Associated graphic assets.
+
+3. **Database & Demo Data Hygiene**:
+   - Maintain full compatibility between mock demo fixtures (`showcases-data.ts`, `template-demos.ts`) and real database models.
+   - Ensure foreign keys, asset paths, and document relationships remain consistent and unbroken.
+
+4. **LaTeX Compilation Safety**:
+   - Math formulas must be safely bounded using `\fitmath` macros to prevent horizontal overflow in multi-column layouts.
+   - All dynamic text strings (titles, abstracts, author names, captions) must be sanitized against TeX break characters (`%`, `_`, `&`, `#`, `~`, `^`).
