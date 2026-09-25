@@ -52,6 +52,7 @@ function EquationMathPreview({ formula, className }: { formula: string; classNam
       return katex.renderToString(clean, {
         throwOnError: false,
         displayMode: true,
+        trust: false,
       })
     } catch {
       return null

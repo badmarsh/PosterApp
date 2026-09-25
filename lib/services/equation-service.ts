@@ -85,6 +85,7 @@ export function validateEquationKaTeX(formula: string): { valid: boolean; error?
     const html = katex.renderToString(cleaned, {
       throwOnError: true,
       displayMode: true,
+      trust: false,
     })
     return { valid: true, html }
   } catch (err: any) {

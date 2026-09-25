@@ -167,6 +167,8 @@ describe("UX Polish — design token sweep (2026-09-17 audit, friction #5)", () 
     "components/thesis-review/analysis-plan-panel.tsx",
     "components/thesis-review/defense-prep-panel.tsx",
     "components/academic-search-dialog.tsx",
+    "components/showcase-gallery.tsx",
+    "components/deerflow/deerflow-panel.tsx",
   ]
 
   it.each(FILES)("semantic-only tokens in %s (no amber/emerald/green/blue/red-500)", async (file) => {
@@ -182,5 +184,42 @@ describe("UX Polish — design token sweep (2026-09-17 audit, friction #5)", () 
     expect(panel).toContain("bg-success/10")
     expect(panel).toContain("RehearsalTimer")
     expect(panel).toContain("buildDefensePackMarkdown")
+  })
+})
+
+describe("UX Polish — KaTeX HTML injection safety (debug-polish sprint)", () => {
+  const KATEX_HTML_SITES = [
+    "components/equation-registry-dialog.tsx",
+    "components/ingestion/asset-list.tsx",
+    "components/scanner/image-ocr-dialog.tsx",
+    "components/thesis-review/evidence-quote-viewer.tsx",
+    "lib/services/equation-service.ts",
+  ]
+
+  it.each(KATEX_HTML_SITES)("%s pins trust:false on every DOM-bound katex render", async (file) => {
+    const src = await fs.readFile(file, "utf-8")
+    expect(src).toContain("trust: false")
+    // Every rendered-HTML call must pass an options object that includes trust: false.
+    // (A validation-only call whose output is discarded is exempt.)
+    const renderCalls = src.split("katex.renderToString(").slice(1)
+    expect(renderCalls.length).toBeGreaterThan(0)
+    for (const call of renderCalls) {
+      const optionsStart = call.indexOf("{")
+      if (optionsStart === -1) continue
+      const options = call.slice(optionsStart, call.indexOf(")", optionsStart))
+      // Formula-validation probes ({ throwOnError: true }) never reach the DOM.
+      const isValidationProbe = options.includes("throwOnError: true") && !options.includes("displayMode")
+      if (isValidationProbe) continue
+      expect(options).toContain("trust: false")
+    }
+  })
+
+  it("showcase gallery and deerflow panel stay free of raw palette classes", async () => {
+    for (const file of ["components/showcase-gallery.tsx", "components/deerflow/deerflow-panel.tsx"]) {
+      const src = await fs.readFile(file, "utf-8")
+      expect(src).not.toMatch(/(?:bg|text|border)-(?:amber|emerald|green|blue|red|rose|sky|indigo|zinc|gray|slate)-\d/)
+      expect(src).not.toContain("text-white")
+      expect(src).not.toContain("bg-black/")
+    }
   })
 })

@@ -197,6 +197,7 @@ export function ContentTab({ card }: { card: Card }) {
                     key={entry.key}
                     type="button"
                     role="option"
+                    aria-selected={false}
                     className="flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => insertAutocompleteCitation(entry.key)}
@@ -233,7 +234,7 @@ export function ContentTab({ card }: { card: Card }) {
           <FieldLabel>Insert cite key</FieldLabel>
           <select
             aria-label="Insert citation key"
-            className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             defaultValue=""
             onChange={(e) => {
               insertCiteKey(e.target.value)

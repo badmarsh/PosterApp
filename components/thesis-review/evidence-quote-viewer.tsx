@@ -54,6 +54,7 @@ function renderKatexCached(formula: string, displayMode = false): string {
     const html = katex.renderToString(formula, {
       throwOnError: false,
       displayMode,
+      trust: false,
     })
     if (katexRenderCache.size >= MAX_KATEX_CACHE) {
       const firstKey = katexRenderCache.keys().next().value

@@ -656,7 +656,7 @@ function ChatComposer() {
         autoComplete="off"
         className={cn(
           "min-h-[40px] w-full resize-none bg-transparent px-3 py-2.5 text-xs leading-relaxed placeholder:text-muted-foreground",
-          "focus:outline-none",
+          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40",
           "max-h-[120px] overflow-y-auto"
         )}
         onKeyDown={(e) => {
