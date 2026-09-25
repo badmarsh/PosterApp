@@ -116,6 +116,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
   const [results, setResults] = useState<AcademicPaperResult[]>([])
   const [isSearching, startSearch] = useTransition()
   const [hasSearched, setHasSearched] = useState(false)
+  const [searchFailed, setSearchFailed] = useState(false)
   const [importedKeys, setImportedKeys] = useState<Set<string>>(new Set())
   const [expandedAbstracts, setExpandedAbstracts] = useState<Set<string>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
@@ -136,6 +137,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
     if (!trimmed || trimmed.length < 2) return
 
     setHasSearched(true)
+    setSearchFailed(false)
     startSearch(async () => {
       try {
         let yearFrom: number | undefined
@@ -160,10 +162,12 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
           setResults(data.results || [])
         } else {
           setResults([])
+          setSearchFailed(true)
         }
       } catch (err) {
         console.error("Search error:", err)
         setResults([])
+        setSearchFailed(true)
       }
     })
   }
@@ -302,7 +306,7 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
               <select
                 value={yearFilter}
                 onChange={(e) => setYearFilter(e.target.value)}
-                className="h-7 text-[11px] font-medium rounded-md border bg-background px-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                className="h-7 text-[11px] font-medium rounded-md border bg-background px-2.5 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="all">{t.yearsAll}</option>
                 <option value="2y">{t.years2}</option>
@@ -517,6 +521,18 @@ export function AcademicSearchDialog({ open, onOpenChange }: Props) {
                 </div>
               )
             })
+          ) : hasSearched && searchFailed ? (
+            <EmptyState
+              icon={BookOpen}
+              title={t.searchFailed}
+              description={t.searchFailedHint}
+              action={
+                <Button size="sm" variant="outline" className="mt-2 h-7 text-xs gap-1.5" onClick={() => executeSearch(query)}>
+                  <Search className="h-3.5 w-3.5" />
+                  {t.search}
+                </Button>
+              }
+            />
           ) : hasSearched ? (
             <EmptyState
               icon={BookOpen}

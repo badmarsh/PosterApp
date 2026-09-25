@@ -350,6 +350,9 @@ export const createIngestionSlice: EditorSlice<IngestionSlice> = (set, get) => {
         })
       } catch (e) {
         console.error("Failed to persist renamed file:", e)
+        notify.error("File rename failed", {
+          description: e instanceof Error ? e.message : String(e),
+        })
       }
       await get().saveProject()
     },

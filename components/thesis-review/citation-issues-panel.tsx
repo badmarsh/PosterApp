@@ -8,6 +8,7 @@
  */
 
 import { useState } from "react"
+import { toast } from "sonner"
 import {
   AlertTriangle,
   BookOpen,
@@ -125,6 +126,9 @@ export function CitationIssuesPanel({ issues, lang, workspaceId }: Props) {
       setImportedKeys((prev) => new Set([...prev, entry.key]))
     } catch (err) {
       console.error("[CitationIssuesPanel] Failed to import BibTeX entry:", err)
+      toast.error("Failed to import citation", {
+        description: err instanceof Error ? err.message : String(err),
+      })
     } finally {
       setIsImporting(null)
     }

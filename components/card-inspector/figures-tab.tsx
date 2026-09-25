@@ -100,6 +100,9 @@ export function FiguresTab({ card }: { card: Card }) {
       setFigure(i, { url: data.asset.url })
     } catch (err) {
       console.error(err)
+      toast.error("Figure upload failed", {
+        description: err instanceof Error ? err.message : String(err),
+      })
     } finally {
       URL.revokeObjectURL(blobUrl)
     }

@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import type { ExtractedAsset } from "@/lib/ingestion"
 import { apiFetch } from "@/lib/api-fetch"
+import { toast } from "sonner"
 
 const QUICK_OPS: { id: string; label: string; icon: React.ReactNode; filter: string }[] = [
   { id: "remove-bg", label: "Remove background", icon: <Eraser className="size-3" />, filter: "" },
@@ -223,9 +224,12 @@ export function FigureEditor({
                   updateAssetUrl(asset.id, data.url)
                   setResult(null)
                   onClose()
-                } else throw new Error("Accept failed")
-              } catch(err) {
-                console.error(err)
+                } else {
+                  const err = await res.json().catch(() => ({}))
+                  throw new Error(err.error || err.message || `HTTP ${res.status}`)
+                }
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : String(err))
               } finally {
                 setApplying(false)
               }
@@ -239,13 +243,24 @@ export function FigureEditor({
             variant="ghost"
             className="h-6 gap-1 px-2 text-[10px]"
             disabled={applying}
-            onClick={() => {
-              apiFetch("/api/ingestion/image-edit", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ assetUrl: result.url, workspaceId, operation: "discard" }),
-              }).catch(() => {})
-              setResult(null)
+            onClick={async () => {
+              setApplying(true)
+              try {
+                const res = await apiFetch("/api/ingestion/image-edit", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ assetUrl: result.url, workspaceId, operation: "discard" }),
+                })
+                if (!res.ok) {
+                  const err = await res.json().catch(() => ({}))
+                  throw new Error(err.error || err.message || `HTTP ${res.status}`)
+                }
+                setResult(null)
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : String(err))
+              } finally {
+                setApplying(false)
+              }
             }}
           >
             Discard
