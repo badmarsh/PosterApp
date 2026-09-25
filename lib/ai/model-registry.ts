@@ -769,9 +769,7 @@ let _pyRerankQueue: Array<{ resolve: (s: number[] | null) => void }> = []
 
 function startPythonReranker(): void {
   if (_pyRerankProc) return
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { spawn } = require("child_process") as typeof import("child_process")
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const path = require("path") as typeof import("path")
   const scriptPath = path.resolve(process.cwd(), "lib/ai/eval/qwen-reranker-server.py")
   const env = { ...process.env, RERANKER_MODEL: getRegistryConfig().rerankerModel }

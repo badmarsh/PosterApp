@@ -4,13 +4,14 @@ import { useEffect, useState, useMemo } from "react"
 import { apiFetch } from "@/lib/api-fetch"
 import { TEMPLATE_REGISTRY as TEMPLATES, type OutputType } from "@/lib/output-types"
 import {
-  FolderOpen, Sparkles, Copy, AlertCircle, Search, X, ArrowRight,
-  Layers, Presentation, FileText, Award, Atom, Cpu, Dna, Clock,
+  FolderOpen, AlertCircle, Search, X, ArrowRight,
+  Layers, Presentation, FileText, Award, Clock,
 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { ALL_SHOWCASE_PROJECTS } from "@/lib/showcases-data"
+import { ShowcaseGallery } from "@/components/showcase-gallery"
 import {
   Dialog, DialogContent, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog"
@@ -19,20 +20,28 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-const FLAGSHIP_SHOWCASES = [
-  { id: "atlas-bose-einstein-correlations", posterImg: "/showcases/atlas-bose-einstein-correlations.png", icon: Atom, field: "Casticova fyzika", venue: "CERN LHC", title: "Two-Particle Bose-Einstein Correlations in 13 TeV pp Collisions", authors: "R. Astalos, ATLAS Collaboration", color: "#C8102E" },
-  { id: "speculative-decoding-guarantees", posterImg: "/showcases/speculative-decoding-guarantees.png", icon: Cpu, field: "AI LLM Inference", venue: "NeurIPS 2026", title: "MartingaleTree: Lossless Speculative Decoding", authors: "Julian Richter, Maya Lin, Aris Thorne", color: "#4F46E5" },
-  { id: "alphafold-protein-folding", posterImg: "/showcases/alphafold-protein-folding.png", icon: Dna, field: "Strukturna biologia", venue: "Nature 596", title: "Highly Accurate Protein Structure Prediction with AlphaFold 2", authors: "John Jumper, Richard Evans, Demis Hassabis et al.", color: "#059669" },
-  { id: "vla-autonomous-surgery", posterImg: "/showcases/vla-autonomous-surgery.png", icon: Sparkles, field: "Robotika", venue: "CVPR 2027", title: "SurgiVLA: Safety-Constrained VLA Microsurgery", authors: "Maya Chen, Elias Novak, Priya Raman", color: "#00A6A6" },
-  { id: "neural-wavefunction-superconductors", posterImg: "/showcases/neural-wavefunction-superconductors.png", icon: Cpu, field: "Kvantova fyzika", venue: "PRL", title: "Neural Quantum States for High-Temperature Superconductors", authors: "Elena Marchetti, Kai Nakamura, Tomas Barta", color: "#7C3AED" },
-]
-
 const FORMAT_OPTIONS: { id: OutputType; title: string; badge: string; icon: typeof Layers; defaultTemplate: string }[] = [
   { id: "poster", title: "Konferencny poster", badge: "A0 / A3", icon: Layers, defaultTemplate: "atlas" },
   { id: "slides", title: "Prezentacia", badge: "16:9 Beamer", icon: Presentation, defaultTemplate: "beamer-metropolis" },
   { id: "paper", title: "Vedecky clanok", badge: "Journal / Preprint", icon: FileText, defaultTemplate: "article-twocol" },
   { id: "thesis-review", title: "Akademicky posudok", badge: "ECTS normy", icon: Award, defaultTemplate: "posudok-sk" },
 ]
+/** Minimal shape of `GET /api/workspaces` items used by this dialog. */
+type WorkspaceListItem = {
+  id: string
+  name?: string | null
+  outputs?: { id?: string }[] | null
+}
+
+/**
+ * Short time-based suffix for duplicated showcase IDs.
+ * Module-scope on purpose: ID generation is an event-time side effect and must
+ * stay out of component render scope (react-hooks/purity).
+ */
+function copyIdSuffix(): string {
+  return Date.now().toString(36).slice(-4)
+}
+
 export function WorkspaceSelector({
   onSelect,
   onClose,
@@ -42,8 +51,7 @@ export function WorkspaceSelector({
   onClose: () => void
   initialCreating?: boolean
 }) {
-  const [activeShowcase, setActiveShowcase] = useState<string | null>(null)
-  const [workspaces, setWorkspaces] = useState<any[]>([])
+  const [workspaces, setWorkspaces] = useState<WorkspaceListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
@@ -96,7 +104,7 @@ export function WorkspaceSelector({
     if (!showcase) return
     setIsSubmitting(true)
     try {
-      const suffix = Date.now().toString(36).slice(-4)
+      const suffix = copyIdSuffix()
       const cleanBase = showcase.id.replace(/^demo_/, "").replace(/[^a-zA-Z0-9_-]/g, "-")
       const nId = (cleanBase + "-copy-" + suffix).slice(0, 64)
       const nName = showcase.name + " (Kopia)"
@@ -109,14 +117,19 @@ export function WorkspaceSelector({
       const created = await res.json() as { revision?: number }
       const outputs = showcase.outputs.map((o, i) => ({
         ...o, id: "out_" + o.outputType + "_" + suffix + "_" + i,
-        cards: (o.cards || []).map((card: any, j: number) => ({ ...card, id: "card_" + suffix + "_" + i + "_" + j, figures: card.figures ?? [] })),
+        cards: (o.cards || []).map((card, j) => ({ ...card, id: "card_" + suffix + "_" + i + "_" + j, figures: card.figures ?? [] })),
       }))
       await apiFetch("/api/workspaces/" + nId, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: nName, authors: showcase.authors, venue: showcase.venue, outputs, activeOutputId: outputs[0]?.id, expectedRevision: created.revision ?? 0 }),
       })
       toast.success("Klonovanie dokoncene"); onSelect(nId); onClose()
-    } catch (err) { console.error(err); onSelect(showcaseId); onClose() }
+    } catch (err) {
+      console.error(err)
+      toast.info("Demo rezim")
+      onSelect(showcaseId)
+      onClose()
+    }
     finally { setIsSubmitting(false) }
   }
 
@@ -207,33 +220,12 @@ export function WorkspaceSelector({
             {/* Right content */}
             <div className="flex-1 overflow-y-auto">
               {createMode === "showcases" ? (
-                <div className="p-5 pb-8">
-                  <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
-                    {FLAGSHIP_SHOWCASES.map((item) => {
-                      const isActive = activeShowcase === item.id
-                      return (
-                        <div key={item.id} className={cn("group relative flex flex-col rounded-xl border overflow-hidden cursor-pointer transition-all duration-150", isActive ? "border-primary shadow-md ring-2 ring-primary/20" : "border-border/70 hover:border-primary/50 hover:shadow-sm")} onClick={() => setActiveShowcase(isActive ? null : item.id)}>
-                          <div className="relative aspect-[4/5] overflow-hidden bg-muted/30">
-                            <img src={item.posterImg} alt={item.title} className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.04]" loading="lazy" />
-                            <div className="absolute top-2 left-2">
-                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md text-white border border-white/10" style={{ backgroundColor: item.color + "cc" }}>{item.field}</span>
-                            </div>
-                          </div>
-                          <div className="p-3 bg-background flex flex-col gap-0.5">
-                            <p className="text-[10px] text-muted-foreground font-medium truncate">{item.venue}</p>
-                            <h4 className={cn("text-xs font-bold leading-snug line-clamp-2 transition-colors", isActive ? "text-primary" : "text-foreground group-hover:text-primary")}>{item.title}</h4>
-                            <p className="text-[10px] text-muted-foreground truncate">{item.authors}</p>
-                          </div>
-                          {isActive && (
-                            <div className="px-3 pb-3 bg-background flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              <Button size="sm" variant="outline" className="flex-1 h-7 text-[11px] gap-1 cursor-pointer" disabled={isSubmitting} onClick={() => handleDuplicateShowcase(item.id)}><Copy className="size-3" />Klonovat</Button>
-                              <Button size="sm" className="flex-1 h-7 text-[11px] gap-1 cursor-pointer" onClick={() => { onSelect(item.id); onClose() }}>Otvorit<ArrowRight className="size-3" /></Button>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
+                <div className="h-full min-h-0 p-5 pb-6">
+                  <ShowcaseGallery
+                    onSelectShowcase={(id) => { onSelect(id); onClose() }}
+                    onDuplicateShowcase={(project) => { void handleDuplicateShowcase(project.id) }}
+                    isDuplicating={isSubmitting}
+                  />
                 </div>
               ) : (
                 <div className="p-6 max-w-md">

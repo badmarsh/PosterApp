@@ -73,6 +73,7 @@ function EquationPreview({ formula }: { formula: string }) {
       return katex.renderToString(clean, {
         throwOnError: false,
         displayMode: true,
+        trust: false,
       })
     } catch {
       return null
@@ -118,7 +119,7 @@ function CellContent({ text }: { text: string }) {
       {parts.map((p, i) => {
         if (p.kind === "text") return <span key={i}>{p.value}</span>
         try {
-          const html = katex.renderToString(p.value, { throwOnError: false, displayMode: false })
+          const html = katex.renderToString(p.value, { throwOnError: false, displayMode: false, trust: false })
           return <span key={i} dangerouslySetInnerHTML={{ __html: html }} />
         } catch {
           return <span key={i}>{p.value}</span>

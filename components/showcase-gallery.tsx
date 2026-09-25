@@ -62,31 +62,31 @@ function getTemplateMeta(templateId?: string) {
       return {
         label: "Morrison BetterPoster",
         desc: "Dominantný stredový záver (50%) + bočné stĺpce",
-        colorClass: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+        colorClass: "text-warning bg-warning/10 border-warning/20",
       }
     case "atlas":
       return {
         label: "CERN ATLAS",
         desc: "Dvojité inštitucionálne logá + zaoblená hlavička",
-        colorClass: "text-rose-500 bg-rose-500/10 border-rose-500/20",
+        colorClass: "text-destructive bg-destructive/10 border-destructive/20",
       }
     case "conference":
       return {
         label: "Conference Modern",
         desc: "Vysoko-kontrastné karty + hero stat callouts",
-        colorClass: "text-sky-500 bg-sky-500/10 border-sky-500/20",
+        colorClass: "text-info bg-info/10 border-info/20",
       }
     case "gemini":
       return {
         label: "Beamerposter Gemini",
         desc: "Plochý konferenčný layout s Beamer blokmi",
-        colorClass: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
+        colorClass: "text-status-ambiguous bg-status-ambiguous/10 border-status-ambiguous/20",
       }
     case "minimal":
       return {
         label: "Minimal Blue",
         desc: "Čisté bezlogové bloky, klasický akademický vzhľad",
-        colorClass: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+        colorClass: "text-status-interpretation bg-status-interpretation/10 border-status-interpretation/20",
       }
     case "posudok-sk":
     case "posudok-cs":
@@ -94,7 +94,7 @@ function getTemplateMeta(templateId?: string) {
       return {
         label: "Oficiálny posudok",
         desc: "Univerzitná hlavička, tabuľka kritérií a otázky",
-        colorClass: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+        colorClass: "text-success bg-success/10 border-success/20",
       }
     default:
       return {
@@ -140,19 +140,19 @@ function ShowcaseCard({
     switch (id) {
       case "atlas-bose-einstein-correlations":
       case "neural-wavefunction-superconductors":
-        return <Atom className="size-3.5 text-rose-500" />
+        return <Atom className="size-3.5 text-destructive" />
       case "jwst-gravitational-lensing":
-        return <Atom className="size-3.5 text-sky-500" />
+        return <Atom className="size-3.5 text-info" />
       case "quantum-supremacy-sycamore":
       case "speculative-decoding-guarantees":
-        return <Cpu className="size-3.5 text-indigo-500" />
+        return <Cpu className="size-3.5 text-status-ambiguous" />
       case "alphafold-protein-folding":
       case "cas13-panviral-immunity":
-        return <Dna className="size-3.5 text-emerald-500" />
+        return <Dna className="size-3.5 text-success" />
       case "posudok-diplomovka-ai":
-        return <GraduationCap className="size-3.5 text-sky-500" />
+        return <GraduationCap className="size-3.5 text-info" />
       default:
-        return <Layers className="size-3.5 text-indigo-500" />
+        return <Layers className="size-3.5 text-status-ambiguous" />
     }
   }
 
@@ -175,14 +175,14 @@ function ShowcaseCard({
                   onError={() => setImgError(true)}
                   loading="lazy"
                 />
-                <div className="absolute bottom-1.5 left-2 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-md text-[10px] font-mono text-white flex items-center gap-1.5 pointer-events-none border border-white/10">
-                  <Box className="size-3 text-amber-400" />
+                <div className="absolute bottom-1.5 left-2 px-2 py-0.5 rounded-md bg-card/90 backdrop-blur-md text-[10px] font-mono text-foreground flex items-center gap-1.5 pointer-events-none border border-white/10">
+                  <Box className="size-3 text-warning" />
                   <span>3D Mockup: Poster · Slides · Paper</span>
                 </div>
               </div>
             ) : previewMode === "triad" && hasTriad ? (
               /* Live Compiled LaTeX 3-in-1 Suite */
-              <div className="w-full h-full flex bg-black/5">
+              <div className="w-full h-full flex bg-muted/30">
                 {/* Left: Poster (44% width) */}
                 <div className="relative w-[44%] h-full border-r border-border/60 overflow-hidden group/sub">
                   <img
@@ -192,15 +192,15 @@ function ShowcaseCard({
                     onError={() => setImgError(true)}
                     loading="lazy"
                   />
-                  <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-xs text-[9px] font-mono text-white flex items-center gap-1 pointer-events-none">
-                    <Layers className="size-2.5 text-indigo-400" /> Poster
+                  <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-card/90 backdrop-blur-xs text-[9px] font-mono text-foreground flex items-center gap-1 pointer-events-none">
+                    <Layers className="size-2.5 text-status-ambiguous" /> Poster
                   </div>
                 </div>
 
                 {/* Right: Slides (top 50%) + Paper (bottom 50%) */}
                 <div className="w-[56%] h-full flex flex-col">
                   {/* Top: 16:9 Beamer Slides */}
-                  <div className="relative h-1/2 border-b border-border/60 overflow-hidden group/sub bg-black/10">
+                  <div className="relative h-1/2 border-b border-border/60 overflow-hidden group/sub bg-muted/40">
                     <img
                       src={slidesUrl}
                       alt="Prezentácia"
@@ -208,13 +208,13 @@ function ShowcaseCard({
                       onError={() => setImgError(true)}
                       loading="lazy"
                     />
-                    <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-xs text-[9px] font-mono text-white flex items-center gap-1 pointer-events-none">
-                      <Presentation className="size-2.5 text-amber-400" /> Prezentácia
+                    <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-card/90 backdrop-blur-xs text-[9px] font-mono text-foreground flex items-center gap-1 pointer-events-none">
+                      <Presentation className="size-2.5 text-warning" /> Prezentácia
                     </div>
                   </div>
 
                   {/* Bottom: 2-column Paper */}
-                  <div className="relative h-1/2 overflow-hidden group/sub bg-black/5">
+                  <div className="relative h-1/2 overflow-hidden group/sub bg-muted/30">
                     <img
                       src={paperUrl}
                       alt="Článok"
@@ -222,8 +222,8 @@ function ShowcaseCard({
                       onError={() => setImgError(true)}
                       loading="lazy"
                     />
-                    <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-xs text-[9px] font-mono text-white flex items-center gap-1 pointer-events-none">
-                      <FileText className="size-2.5 text-emerald-400" /> Článok
+                    <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-card/90 backdrop-blur-xs text-[9px] font-mono text-foreground flex items-center gap-1 pointer-events-none">
+                      <FileText className="size-2.5 text-success" /> Článok
                     </div>
                   </div>
                 </div>
@@ -244,18 +244,18 @@ function ShowcaseCard({
                   onError={() => setImgError(true)}
                   loading="lazy"
                 />
-                <div className="absolute bottom-1.5 left-2 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-md text-[10px] font-mono text-white flex items-center gap-1.5 pointer-events-none border border-white/10">
+                <div className="absolute bottom-1.5 left-2 px-2 py-0.5 rounded-md bg-card/90 backdrop-blur-md text-[10px] font-mono text-foreground flex items-center gap-1.5 pointer-events-none border border-white/10">
                   {previewMode === "slides" ? (
                     <>
-                      <Presentation className="size-3 text-amber-400" /> Prezentácia (16:9 Beamer)
+                      <Presentation className="size-3 text-warning" /> Prezentácia (16:9 Beamer)
                     </>
                   ) : previewMode === "paper" ? (
                     <>
-                      <FileText className="size-3 text-emerald-400" /> Vedecký článok (2 stĺpce)
+                      <FileText className="size-3 text-success" /> Vedecký článok (2 stĺpce)
                     </>
                   ) : (
                     <>
-                      <Layers className="size-3 text-indigo-400" /> Konferenčný poster (A0)
+                      <Layers className="size-3 text-status-ambiguous" /> Konferenčný poster (A0)
                     </>
                   )}
                 </div>
@@ -280,7 +280,7 @@ function ShowcaseCard({
 
           {/* Template Badge on Preview */}
           <div className="absolute top-2 left-2 flex items-center gap-1.5">
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-black/80 backdrop-blur-md px-2 py-0.5 text-[10px] font-mono font-medium text-white shadow-xs border border-white/10">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-card/90 backdrop-blur-md px-2 py-0.5 text-[10px] font-mono font-medium text-foreground shadow-xs border border-border/50">
               <span
                 className="size-2 rounded-full ring-1 ring-white/20 shrink-0"
                 style={{ backgroundColor: activeOutput?.themeColor || "#4F46E5" }}
@@ -292,12 +292,12 @@ function ShowcaseCard({
           {/* Trojkompozícia Flag Badge */}
           <div className="absolute top-2 right-2 flex items-center gap-1">
             {hasTriad ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/95 text-white backdrop-blur-md px-2 py-0.5 text-[10px] font-semibold shadow-xs border border-amber-400/40">
-                <Sparkles className="size-2.5 text-white" />
+              <span className="inline-flex items-center gap-1 rounded-md bg-warning/95 text-warning-foreground backdrop-blur-md px-2 py-0.5 text-[10px] font-semibold shadow-xs border border-warning/40">
+                <Sparkles className="size-2.5 text-warning-foreground" />
                 Trojkompozícia
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-md bg-black/80 backdrop-blur-md px-2 py-0.5 text-[10px] font-medium text-white shadow-xs border border-white/10">
+              <span className="inline-flex items-center gap-1 rounded-md bg-card/90 backdrop-blur-md px-2 py-0.5 text-[10px] font-medium text-foreground shadow-xs border border-border/50">
                 {outputsCount > 1 ? outputsCount + " formáty" : "1 formát"}
               </span>
             )}
@@ -322,7 +322,7 @@ function ShowcaseCard({
               className={cn(
                 "px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors shrink-0",
                 previewMode === "mockup"
-                  ? "bg-amber-500 text-white font-semibold shadow-2xs"
+                  ? "bg-warning text-warning-foreground font-semibold shadow-2xs"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
@@ -457,10 +457,10 @@ function ShowcaseCard({
                 className="inline-flex items-center gap-1 rounded-md bg-muted/60 border border-border/40 px-1.5 py-0.5 text-[10px] text-muted-foreground font-medium"
                 title={out.outputType + " (" + out.templateId + ")"}
               >
-                {out.outputType === "poster" && <Layers className="size-2.5 text-indigo-500 shrink-0" />}
-                {out.outputType === "slides" && <Presentation className="size-2.5 text-amber-500 shrink-0" />}
-                {out.outputType === "paper" && <FileText className="size-2.5 text-emerald-500 shrink-0" />}
-                {out.outputType === "thesis-review" && <Award className="size-2.5 text-sky-500 shrink-0" />}
+                {out.outputType === "poster" && <Layers className="size-2.5 text-status-ambiguous shrink-0" />}
+                {out.outputType === "slides" && <Presentation className="size-2.5 text-warning shrink-0" />}
+                {out.outputType === "paper" && <FileText className="size-2.5 text-success shrink-0" />}
+                {out.outputType === "thesis-review" && <Award className="size-2.5 text-info shrink-0" />}
                 <span className="capitalize">{out.outputType}</span>
               </span>
             ))}
@@ -580,8 +580,8 @@ export function ShowcaseGallery({
             className={cn(
               "px-3 py-1 text-xs font-semibold rounded-full transition-all shrink-0 cursor-pointer flex items-center gap-1.5",
               selectedCategory === "triad-suites"
-                ? "bg-amber-500 text-white shadow-xs ring-1 ring-amber-400"
-                : "bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/30"
+                ? "bg-warning text-warning-foreground shadow-xs ring-1 ring-warning/70"
+                : "bg-warning/10 text-warning hover:bg-warning/20 border border-warning/30"
             )}
           >
             <Sparkles className="size-3" />

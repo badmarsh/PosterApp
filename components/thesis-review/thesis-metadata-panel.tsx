@@ -6,6 +6,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -516,6 +517,9 @@ export function ThesisMetadataPanel({ workspaceId }: Props) {
       }
     } catch (err) {
       console.error("Failed to delete source file:", err)
+      toast.error("Failed to delete source file", {
+        description: err instanceof Error ? err.message : String(err),
+      })
     } finally {
       setIsDeleting(false)
     }

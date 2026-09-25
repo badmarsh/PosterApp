@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -234,9 +235,13 @@ export function AgentIntegrationPanel() {
       const res = await fetch(`/api/agent-keys/${id}`, { method: "DELETE" })
       if (res.ok) {
         fetchKeys()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error("Couldn't revoke key", { description: data.error || `HTTP ${res.status}` })
       }
     } catch (e) {
       console.error("Failed to revoke key:", e)
+      toast.error("Couldn't revoke key", { description: e instanceof Error ? e.message : String(e) })
     }
   }
 

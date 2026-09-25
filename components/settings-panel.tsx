@@ -1377,7 +1377,7 @@ function AiModelSettings({
                       toast.success(`Hlavný model nastavený: ${val}`)
                     }
                   }}
-                  className="w-full h-9 rounded-lg border border-primary/40 bg-card px-3 text-xs font-mono font-medium text-foreground shadow-xs focus:outline-hidden focus:ring-1 focus:ring-primary"
+                  className="w-full h-9 rounded-lg border border-primary/40 bg-card px-3 text-xs font-mono font-medium text-foreground shadow-xs focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-primary"
                 >
                   <option value="" disabled>
                     -- Select model from loaded endpoints --
@@ -1760,7 +1760,7 @@ function AiModelRow({
                 }
               }}
               className={cn(
-                "h-8 w-full rounded-md border bg-background px-2 text-xs font-mono transition-colors focus:outline-hidden focus:ring-1 focus:ring-primary",
+                "h-8 w-full rounded-md border bg-background px-2 text-xs font-mono transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-primary",
                 isOverridden
                   ? "border-primary/60 text-foreground font-semibold"
                   : "border-border text-muted-foreground"

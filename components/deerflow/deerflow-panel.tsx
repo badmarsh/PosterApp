@@ -168,8 +168,8 @@ function ImprovePosterResult({
               className={cn(
                 "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
                 proposal.cleanCompile
-                  ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
-                  : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+                  ? "bg-success/15 text-success"
+                  : "bg-warning/15 text-warning"
               )}
             >
               {proposal.cleanCompile ? "✓ Čistá kompilácia" : "⚠ Kompilácia s varovaním"}
@@ -238,7 +238,7 @@ function ImprovePosterResult({
 
         {applied && (
           <div className="space-y-1">
-            <p className="text-[11px] text-green-600 dark:text-green-400">
+            <p className="text-[11px] text-success">
               ✓ Zmeny boli potvrdené. Snímky sú uložené pre prípadné vrátenie.
             </p>
             <button

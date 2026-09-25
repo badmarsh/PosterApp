@@ -1,7 +1,13 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "entry": ["server.ts", "scripts/*.mjs", "__tests__/stubs/*.ts"],
+  "entry": [
+    "scripts/*.mjs",
+    "scripts/*.ts",
+    "scripts/*.js",
+    "scripts/*.cjs",
+    "__tests__/stubs/*.ts"
+  ],
   "ignoreDependencies": ["y-leveldb"],
-  "ignoreBinaries": ["wsl", "docker"],
-  "ignore": ["components/ui/**"]
+  "ignoreBinaries": ["wsl"],
+  "ignore": ["components/ui/**", "lib/template-demos.ts"]
 }

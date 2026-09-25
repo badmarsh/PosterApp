@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { toast } from "sonner"
 import { apiFetch } from "@/lib/api-fetch"
 
 import { useEditor } from "@/components/editor-store"
@@ -75,6 +76,7 @@ export function ProjectSettingsSidebar() {
       }
     } catch (err: any) {
       console.error("Logo upload error:", err)
+      toast.error("Logo upload failed", { description: err?.message || "Failed to upload logo" })
     } finally {
       setUploading(false)
     }

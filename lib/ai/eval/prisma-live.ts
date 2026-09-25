@@ -28,7 +28,6 @@
 import type { LivePg } from "./pg-live"
 
 // Prisma's runtime exports the tagged template as `sqltag` in the library build.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const runtime = require("@prisma/client/runtime/library") as {
   sqltag: (strings: TemplateStringsArray | string[], ...values: unknown[]) => PrismaSqlLike
   join: (values: unknown[], separator?: string) => PrismaSqlLike

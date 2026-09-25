@@ -22,7 +22,6 @@ export function indent(s: string, n = 2): string {
 export function normalizeLatexPath(p: string): string {
   return p
     .replace(/\\/g, "/")
-    // eslint-disable-next-line no-control-regex
     .replace(/[{}%#~$&^\u0000-\u001f\u007f\s]/g, "")
 }
 
