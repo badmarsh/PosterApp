@@ -1,0 +1,1313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Firecrawl — The Web Data API for AI Agents (Clone)</title>
+<meta name="description" content="Educational recreation of the firecrawl.dev landing page. Search, scrape, and interact with the web at scale." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🔥</text></svg>" />
+<style>
+  :root{
+    --bg:#08080a;
+    --bg-soft:#0d0d10;
+    --card:#0f0f14;
+    --card-2:#121218;
+    --line:rgba(255,255,255,.08);
+    --line-strong:rgba(255,255,255,.14);
+    --text:#ececf1;
+    --muted:#9b9ba6;
+    --faint:#6e6e78;
+    --accent:#fa5d19;
+    --accent-2:#ff8a3d;
+    --accent-soft:rgba(250,93,25,.12);
+    --green:#3ecf8e;
+    --blue:#5b9dff;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --max:1200px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);color:var(--text);font-family:var(--sans);
+    font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  ::selection{background:rgba(250,93,25,.35)}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;cursor:pointer}
+  .wrap{max-width:var(--max);margin:0 auto;padding:0 24px}
+  .mono{font-family:var(--mono)}
+
+  /* ---------- background texture ---------- */
+  .bg-fx{position:fixed;inset:0;z-index:-2;pointer-events:none}
+  .bg-fx .grid{
+    position:absolute;inset:0;
+    background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+    background-size:56px 56px;
+    mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,black 30%,transparent 75%);
+  }
+  .bg-fx .glow{
+    position:absolute;top:-220px;left:50%;transform:translateX(-50%);
+    width:1100px;height:640px;border-radius:50%;
+    background:radial-gradient(closest-side,rgba(250,93,25,.22),rgba(250,93,25,.05) 55%,transparent 75%);
+    filter:blur(30px);
+  }
+
+  /* ---------- banner ---------- */
+  .banner{
+    position:relative;z-index:60;text-align:center;
+    padding:9px 48px;font-size:13.5px;color:#d8d8de;
+    background:linear-gradient(90deg,#1a0f08,#2a1206 50%,#1a0f08);
+    border-bottom:1px solid rgba(250,93,25,.25);
+  }
+  .banner b{color:#ffb38a;font-weight:600}
+  .banner a{color:var(--accent-2);font-weight:600;white-space:nowrap}
+  .banner a:hover{text-decoration:underline}
+
+  /* ---------- nav ---------- */
+  .nav{
+    position:sticky;top:0;z-index:50;
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    background:rgba(8,8,10,.72);
+    border-bottom:1px solid transparent;
+    transition:border-color .3s;
+  }
+  .nav.scrolled{border-bottom-color:var(--line)}
+  .nav-inner{max-width:var(--max);margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;gap:28px}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:700;font-size:17.5px;letter-spacing:-.02em}
+  .logo svg{width:22px;height:22px}
+  .nav-links{display:flex;gap:4px;flex:1}
+  .nav-links a,.nav-links .drop-btn{
+    padding:7px 12px;border-radius:8px;font-size:14px;color:var(--muted);
+    background:none;border:none;font-weight:500;display:inline-flex;align-items:center;gap:5px;
+  }
+  .nav-links a:hover,.nav-links .drop-btn:hover{color:var(--text);background:rgba(255,255,255,.05)}
+  .caret{font-size:9px;opacity:.7;transform:translateY(1px)}
+  .nav-right{display:flex;align-items:center;gap:14px}
+  .gh-stars{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);font-family:var(--mono);
+    border:1px solid var(--line);padding:5px 10px;border-radius:8px}
+  .gh-stars:hover{border-color:var(--line-strong);color:var(--text)}
+  .nav-right .signin{font-size:14px;color:var(--muted);font-weight:500}
+  .nav-right .signin:hover{color:var(--text)}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    border-radius:999px;font-weight:600;font-size:14.5px;padding:10px 20px;
+    border:1px solid transparent;transition:all .2s;white-space:nowrap;
+  }
+  .btn-primary{
+    background:linear-gradient(180deg,#ff7a35,#f4520f);color:#fff;
+    box-shadow:0 0 0 1px rgba(250,93,25,.4),0 8px 24px -8px rgba(250,93,25,.55);
+  }
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 0 1px rgba(250,93,25,.55),0 12px 32px -8px rgba(250,93,25,.7)}
+  .btn-ghost{border-color:var(--line-strong);color:var(--text);background:rgba(255,255,255,.03)}
+  .btn-ghost:hover{background:rgba(255,255,255,.07)}
+  .btn-sm{padding:8px 16px;font-size:13.5px}
+  .btn-lg{padding:13px 26px;font-size:15.5px}
+
+  /* ---------- hero ---------- */
+  .hero{padding:84px 0 40px;text-align:center;position:relative}
+  .hero-badge{
+    display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#ffc59e;
+    border:1px solid rgba(250,93,25,.35);background:var(--accent-soft);
+    padding:6px 14px;border-radius:999px;margin-bottom:28px;
+  }
+  .hero-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+  .hero h1{
+    font-size:clamp(42px,7vw,76px);line-height:1.04;letter-spacing:-.045em;font-weight:700;
+    max-width:900px;margin:0 auto 22px;
+  }
+  .hero h1 .accent{
+    background:linear-gradient(100deg,#ffb27a,#fa5d19 60%,#ff8a3d);
+    -webkit-background-clip:text;background-clip:text;color:transparent;font-style:normal;
+  }
+  .hero p.sub{color:var(--muted);font-size:clamp(16px,2vw,19px);max-width:620px;margin:0 auto 12px}
+  .hero p.oss{font-size:14px;color:var(--faint);margin-bottom:34px}
+  .hero p.oss a{color:var(--muted);border-bottom:1px dotted var(--faint)}
+  .hero p.oss a:hover{color:var(--text)}
+  .hero-ctas{display:flex;gap:14px;justify-content:center;margin-bottom:20px;flex-wrap:wrap}
+
+  /* ---------- demo window ---------- */
+  .demo{
+    max-width:1040px;margin:56px auto 0;text-align:left;
+    border:1px solid var(--line);border-radius:16px;background:rgba(13,13,16,.85);
+    box-shadow:0 30px 80px -30px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.02),0 0 90px -30px rgba(250,93,25,.28);
+    overflow:hidden;backdrop-filter:blur(8px);
+  }
+  .demo-tabs{display:flex;gap:4px;padding:10px 12px 0;border-bottom:1px solid var(--line);overflow-x:auto}
+  .demo-tabs button{
+    background:none;border:none;color:var(--muted);font-size:13.5px;font-weight:500;
+    padding:9px 14px;border-radius:9px 9px 0 0;border-bottom:2px solid transparent;white-space:nowrap;
+  }
+  .demo-tabs button:hover{color:var(--text)}
+  .demo-tabs button.active{color:var(--text);border-bottom-color:var(--accent);background:rgba(255,255,255,.03)}
+  .demo-body{display:grid;grid-template-columns:1fr 1fr;min-height:380px}
+  @media(max-width:860px){.demo-body{grid-template-columns:1fr}.demo-pane.res{border-left:none;border-top:1px solid var(--line)}}
+  .demo-pane{padding:0;position:relative;min-width:0}
+  .demo-pane.req{border-right:1px solid var(--line)}
+  .pane-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 16px;border-bottom:1px solid var(--line);font-size:12px;color:var(--faint);
+  }
+  .pane-head .chip{
+    font-family:var(--mono);font-size:11px;color:var(--accent-2);
+    border:1px solid rgba(250,93,25,.4);background:var(--accent-soft);padding:2px 8px;border-radius:6px;
+  }
+  .lang-tabs{display:flex;gap:2px}
+  .lang-tabs button{background:none;border:none;color:var(--faint);font-size:12px;padding:4px 9px;border-radius:6px}
+  .lang-tabs button:hover{color:var(--text)}
+  .lang-tabs button.active{color:var(--text);background:rgba(255,255,255,.07)}
+  .code-area{padding:16px 18px;font-family:var(--mono);font-size:12.8px;line-height:1.75;overflow:auto;min-height:330px;max-height:420px}
+  .code-area .ln{display:flex;gap:14px;opacity:0;animation:lineIn .35s forwards}
+  .code-area .ln .no{color:#3d3d46;user-select:none;min-width:16px;text-align:right}
+  @keyframes lineIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .tok-k{color:#c792ea}.tok-s{color:#a5d6a7}.tok-f{color:#82aaff}.tok-c{color:#5d5d68}.tok-n{color:#f78c6c}.tok-p{color:#89ddff}
+  .run-meta{display:flex;gap:14px;font-family:var(--mono);font-size:11.5px;color:var(--green)}
+  .run-meta .lat{color:var(--faint)}
+  .prompt-box{
+    margin:16px;border:1px dashed rgba(250,93,25,.45);border-radius:10px;padding:16px;
+    font-family:var(--mono);font-size:13px;line-height:1.8;color:#ffd9c0;background:rgba(250,93,25,.05);
+  }
+
+  /* ---------- logos ---------- */
+  .logos{padding:64px 0 20px;text-align:center}
+  .logos p{font-size:13px;color:var(--faint);letter-spacing:.08em;text-transform:uppercase;margin-bottom:26px}
+  .logos p b{color:var(--muted);font-weight:600}
+  .marquee{overflow:hidden;position:relative;mask-image:linear-gradient(90deg,transparent,black 12%,black 88%,transparent)}
+  .marquee-track{display:flex;gap:56px;width:max-content;animation:scroll 38s linear infinite}
+  .marquee:hover .marquee-track{animation-play-state:paused}
+  @keyframes scroll{to{transform:translateX(-50%)}}
+  .logo-item{
+    display:flex;align-items:center;gap:10px;color:#b9b9c2;font-weight:600;font-size:17px;
+    letter-spacing:-.01em;white-space:nowrap;opacity:.75;transition:opacity .2s;
+  }
+  .logo-item:hover{opacity:1}
+  .logo-item .glyph{width:20px;height:20px;border-radius:6px;display:inline-block;flex:none}
+
+  /* ---------- sections ---------- */
+  section.block{padding:110px 0}
+  .sec-head{margin-bottom:48px}
+  .kicker{
+    display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:12px;
+    color:var(--faint);margin-bottom:20px;flex-wrap:wrap;
+  }
+  .kicker .idx{color:var(--accent-2)}
+  .kicker .sep{opacity:.5}
+  .kicker .tag{color:var(--muted)}
+  .sec-head h2{font-size:clamp(30px,4.5vw,48px);letter-spacing:-.035em;line-height:1.1;font-weight:700;max-width:760px}
+  .sec-head h2 em{font-style:normal;color:var(--accent)}
+  .sec-head p.lead{color:var(--muted);margin-top:16px;font-size:17px;max-width:600px}
+
+  /* capability cards (01) */
+  .cap-grid{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:stretch}
+  @media(max-width:960px){.cap-grid{grid-template-columns:1fr}}
+  .cap-list{display:flex;flex-direction:column;gap:12px}
+  .cap-card{
+    text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:18px 20px;color:var(--text);transition:all .2s;position:relative;
+  }
+  .cap-card:hover{border-color:var(--line-strong)}
+  .cap-card.active{border-color:rgba(250,93,25,.55);background:linear-gradient(180deg,rgba(250,93,25,.08),var(--card));box-shadow:0 0 40px -18px rgba(250,93,25,.5)}
+  .cap-card h4{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .cap-card .new{
+    font-size:10px;font-family:var(--mono);color:var(--accent-2);border:1px solid rgba(250,93,25,.5);
+    background:var(--accent-soft);padding:1px 7px;border-radius:5px;letter-spacing:.06em;
+  }
+  .cap-card p{font-size:13.5px;color:var(--muted);line-height:1.55}
+  .cap-card .more{display:inline-block;margin-top:10px;font-size:13px;color:var(--accent-2);font-weight:600}
+
+  /* agent section (02) */
+  .agent-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:960px){.agent-grid{grid-template-columns:1fr}}
+  .panel{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+  }
+  .panel-head{
+    display:flex;align-items:center;justify-content:space-between;padding:13px 18px;
+    border-bottom:1px solid var(--line);font-size:13px;color:var(--muted);
+  }
+  .panel-head .seg{display:flex;gap:2px;background:rgba(255,255,255,.05);border-radius:8px;padding:3px}
+  .panel-head .seg button{background:none;border:none;color:var(--muted);font-size:12.5px;padding:5px 12px;border-radius:6px}
+  .panel-head .seg button.active{background:rgba(255,255,255,.1);color:var(--text)}
+  .panel-body{padding:20px 18px;font-family:var(--mono);font-size:13px;line-height:1.8}
+  .copy-btn{
+    background:none;border:1px solid var(--line);color:var(--muted);font-size:11.5px;
+    padding:4px 10px;border-radius:6px;display:inline-flex;align-items:center;gap:6px;
+  }
+  .copy-btn:hover{color:var(--text);border-color:var(--line-strong)}
+  .panel-note{padding:14px 18px;border-top:1px solid var(--line);font-size:13px;color:var(--faint);display:flex;gap:8px;align-items:baseline}
+  .panel-note a{color:var(--accent-2);font-weight:600;white-space:nowrap}
+
+  /* bento (03 / 04) */
+  .bento{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  @media(max-width:860px){.bento{grid-template-columns:1fr}}
+  .bento .wide{grid-column:1/-1}
+  .bcard{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px;
+    display:flex;flex-direction:column;gap:8px;transition:border-color .25s;position:relative;overflow:hidden;
+  }
+  .bcard:hover{border-color:var(--line-strong)}
+  .bcard h4{font-size:17px;font-weight:600;letter-spacing:-.01em}
+  .bcard>p{font-size:14px;color:var(--muted)}
+  .bcard .vis{margin-top:18px;flex:1;display:flex;flex-direction:column;justify-content:flex-end}
+  .bcard .more{margin-top:12px;font-size:13.5px;color:var(--accent-2);font-weight:600}
+
+  .bench-row{margin-bottom:16px}
+  .bench-row .lbl{display:flex;justify-content:space-between;font-size:13px;margin-bottom:7px}
+  .bench-row .lbl .name{display:flex;gap:8px;align-items:center;color:var(--muted)}
+  .bench-row .lbl .pct{font-family:var(--mono);color:var(--text)}
+  .bench-row .bar{height:8px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden}
+  .bench-row .fill{height:100%;border-radius:99px;width:0;transition:width 1.2s cubic-bezier(.2,.7,.2,1)}
+  .bench-row.top .fill{background:linear-gradient(90deg,#fa5d19,#ff9a55);box-shadow:0 0 14px rgba(250,93,25,.6)}
+  .bench-row .fill.dim{background:rgba(255,255,255,.22)}
+
+  .lat-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px}
+  .lat-table td{padding:9px 6px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--muted)}
+  .lat-table td:last-child{text-align:right;color:var(--green)}
+  .lat-table tr:last-child td{border-bottom:none}
+
+  .token-vis{display:flex;flex-direction:column;gap:12px}
+  .token-vis .trow{display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--muted);font-family:var(--mono)}
+  .token-vis .tbar{height:10px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden;flex:1}
+  .token-vis .tfill{height:100%;border-radius:99px;width:0;transition:width 1.2s cubic-bezier(.2,.7,.2,1)}
+
+  .gh-card .repo{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:13.5px;margin-bottom:4px}
+  .gh-card .repo .pub{font-size:11px;border:1px solid var(--line);border-radius:6px;padding:1px 7px;color:var(--faint)}
+  .gh-card .stars{display:flex;align-items:center;gap:8px;margin:10px 0 16px}
+  .gh-card .stars .n{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .gh-card .stars .s{font-size:12.5px;color:var(--faint)}
+  .pr-item{
+    display:flex;gap:12px;padding:11px 0;border-top:1px solid rgba(255,255,255,.05);
+    font-size:13px;align-items:flex-start;
+  }
+  .pr-item .ava{width:26px;height:26px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;color:#0b0b0d}
+  .pr-item .t{color:var(--text);line-height:1.45}
+  .pr-item .m{color:var(--faint);font-family:var(--mono);font-size:11.5px;margin-top:2px}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chip-s{
+    font-family:var(--mono);font-size:11.5px;color:#ffbd97;border:1px solid rgba(250,93,25,.35);
+    background:rgba(250,93,25,.08);padding:4px 10px;border-radius:7px;
+  }
+  .chip-s.gray{color:var(--muted);border-color:var(--line);background:rgba(255,255,255,.04)}
+  .file-row{
+    display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:12px;
+    border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin-top:8px;color:var(--muted);
+  }
+  .file-row .st{font-size:11px;color:var(--accent-2)}
+  .file-row .st.done{color:var(--green)}
+  .mini-chat{display:flex;flex-direction:column;gap:10px;font-size:13px}
+  .mini-chat .msg{max-width:85%;padding:9px 13px;border-radius:12px;line-height:1.5}
+  .mini-chat .u{align-self:flex-end;background:rgba(250,93,25,.14);border:1px solid rgba(250,93,25,.3);color:#ffd7bd}
+  .mini-chat .a{align-self:flex-start;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--muted)}
+  .steps{display:flex;flex-wrap:wrap;gap:6px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .steps span{border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+
+  /* use cases (05) */
+  .uc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:960px){.uc-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:640px){.uc-grid{grid-template-columns:1fr}}
+  .uc-card{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;
+    transition:all .2s;display:flex;flex-direction:column;gap:6px;
+  }
+  .uc-card:hover{border-color:rgba(250,93,25,.5);transform:translateY(-2px)}
+  .uc-card h4{font-size:15.5px;font-weight:600}
+  .uc-card p{font-size:13.5px;color:var(--muted);flex:1}
+  .uc-card .more{font-size:13px;color:var(--accent-2);font-weight:600;margin-top:8px}
+  .uc-show{
+    margin-top:22px;border:1px solid var(--line);border-radius:16px;background:var(--card);
+    display:grid;grid-template-columns:280px 1fr;overflow:hidden;
+  }
+  @media(max-width:860px){.uc-show{grid-template-columns:1fr}}
+  .uc-show .side{border-right:1px solid var(--line);padding:22px;display:flex;flex-direction:column;gap:14px}
+  @media(max-width:860px){.uc-show .side{border-right:none;border-bottom:1px solid var(--line)}}
+  .uc-show .side h5{font-size:15px}
+  .uc-show .side p{font-size:13px;color:var(--muted)}
+  .task-list{display:flex;flex-direction:column;gap:9px;font-size:13px}
+  .task-list .t{display:flex;gap:10px;align-items:center;color:var(--faint);transition:color .3s}
+  .task-list .t .box{width:15px;height:15px;border-radius:5px;border:1px solid var(--line-strong);flex:none;display:flex;align-items:center;justify-content:center;font-size:10px;color:#0b0b0d}
+  .task-list .t.done{color:var(--muted)}
+  .task-list .t.done .box{background:var(--green);border-color:var(--green)}
+  .uc-show .main{padding:22px;font-family:var(--mono);font-size:12.8px;line-height:1.8;color:var(--muted);min-height:240px}
+  .uc-show .main .hl{color:#ffd7bd}
+
+  /* alexandria */
+  .alex{position:relative;border-block:1px solid var(--line);overflow:hidden}
+  .alex .inner{padding:120px 24px;max-width:var(--max);margin:0 auto;text-align:center;position:relative}
+  .alex .stars{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.14) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(ellipse 70% 80% at 50% 50%,black,transparent 75%)}
+  .alex .badge{font-family:var(--mono);font-size:12px;color:var(--accent-2);letter-spacing:.14em;text-transform:uppercase;margin-bottom:22px;display:block}
+  .alex h2{font-size:clamp(34px,5.5vw,60px);letter-spacing:-.04em;line-height:1.06;font-weight:700;max-width:760px;margin:0 auto 18px}
+  .alex h2 .grad{background:linear-gradient(100deg,#ffd7bd,#fa5d19 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .alex p{color:var(--muted);max-width:520px;margin:0 auto 30px}
+  .alex-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:900px;margin:56px auto 0}
+  @media(max-width:760px){.alex-stats{grid-template-columns:1fr 1fr}}
+  .alex-stat{border:1px solid var(--line);border-radius:14px;padding:20px;background:rgba(13,13,16,.6);text-align:left}
+  .alex-stat .n{font-size:30px;font-weight:700;letter-spacing:-.03em;font-family:var(--mono)}
+  .alex-stat .l{font-size:13px;color:var(--text);font-weight:600;margin-top:2px}
+  .alex-stat .d{font-size:12px;color:var(--faint)}
+
+  /* testimonials */
+  .t-rows{display:flex;flex-direction:column;gap:18px}
+  .t-marquee{overflow:hidden;mask-image:linear-gradient(90deg,transparent,black 8%,black 92%,transparent)}
+  .t-track{display:flex;gap:18px;width:max-content;animation:scroll 55s linear infinite}
+  .t-track.rev{animation-direction:reverse;animation-duration:62s}
+  .t-card{
+    width:360px;flex:none;background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:20px;display:flex;flex-direction:column;gap:12px;transition:border-color .2s;
+  }
+  .t-card:hover{border-color:var(--line-strong)}
+  .t-who{display:flex;align-items:center;gap:11px}
+  .t-ava{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#0b0b0d;flex:none}
+  .t-who .nm{font-size:14px;font-weight:600;line-height:1.3}
+  .t-who .hd{font-size:12.5px;color:var(--faint);font-family:var(--mono)}
+  .t-card q{font-size:14px;color:#c9c9d2;quotes:'“' '”';line-height:1.65}
+
+  /* cta */
+  .cta-box{
+    border:1px solid rgba(250,93,25,.3);border-radius:20px;text-align:center;
+    padding:80px 24px;position:relative;overflow:hidden;
+    background:
+      radial-gradient(600px 240px at 50% 120%,rgba(250,93,25,.25),transparent 70%),
+      var(--card);
+  }
+  .cta-box h2{font-size:clamp(32px,5vw,52px);letter-spacing:-.04em;margin-bottom:14px}
+  .cta-box p{color:var(--muted);max-width:520px;margin:0 auto 30px}
+  .cta-box .agent-hint{margin-top:22px;font-size:12.5px;color:var(--faint)}
+  .cta-box .agent-hint a{color:var(--muted);border-bottom:1px dotted var(--faint)}
+  .cta-box .agent-hint a:hover{color:var(--text)}
+
+  /* faq */
+  .faq-grid{display:grid;grid-template-columns:320px 1fr;gap:48px;align-items:start}
+  @media(max-width:900px){.faq-grid{grid-template-columns:1fr;gap:24px}}
+  .faq-cats{display:flex;flex-direction:column;gap:6px;position:sticky;top:96px}
+  .faq-cats button{
+    text-align:left;background:none;border:none;color:var(--muted);font-size:14px;
+    padding:9px 14px;border-radius:9px;font-weight:500;
+  }
+  .faq-cats button:hover{background:rgba(255,255,255,.05);color:var(--text)}
+  .faq-cats button.active{background:var(--accent-soft);color:var(--accent-2)}
+  .faq-item{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:var(--card);overflow:hidden}
+  .faq-item button.q{
+    width:100%;text-align:left;background:none;border:none;color:var(--text);
+    padding:17px 20px;font-size:15px;font-weight:600;display:flex;justify-content:space-between;gap:16px;align-items:center;
+  }
+  .faq-item .ico{transition:transform .25s;color:var(--faint);flex:none;font-size:18px;line-height:1}
+  .faq-item.open .ico{transform:rotate(45deg);color:var(--accent-2)}
+  .faq-item .a{max-height:0;overflow:hidden;transition:max-height .3s ease}
+  .faq-item .a p{padding:0 20px 18px;color:var(--muted);font-size:14px}
+
+  /* footer */
+  footer{border-top:1px solid var(--line);padding:70px 0 40px;position:relative;overflow:hidden}
+  .foot-grid{display:grid;grid-template-columns:1.4fr repeat(4,1fr);gap:36px;margin-bottom:70px}
+  @media(max-width:960px){.foot-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:560px){.foot-grid{grid-template-columns:1fr}}
+  .foot-brand p{font-size:13.5px;color:var(--faint);margin-top:14px;max-width:260px}
+  .socials{display:flex;gap:10px;margin-top:20px}
+  .socials a{
+    width:34px;height:34px;border:1px solid var(--line);border-radius:9px;
+    display:flex;align-items:center;justify-content:center;color:var(--muted);
+  }
+  .socials a:hover{color:var(--text);border-color:var(--line-strong)}
+  .foot-col h5{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);margin-bottom:16px;font-family:var(--mono)}
+  .foot-col a{display:block;font-size:14px;color:var(--muted);padding:5px 0}
+  .foot-col a:hover{color:var(--text)}
+  .wordmark{
+    font-size:clamp(64px,14vw,190px);font-weight:800;letter-spacing:-.05em;line-height:.9;
+    text-align:center;color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.10);
+    user-select:none;margin-bottom:28px;
+  }
+  .foot-bottom{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:26px;font-size:13px;color:var(--faint)}
+  .foot-bottom .note{opacity:.75}
+
+  /* reveal */
+  .rv{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
+  .rv.in{opacity:1;transform:none}
+
+  .mobile-hide{display:inline-flex}
+  @media(max-width:900px){
+    .nav-links{display:none}
+    .gh-stars{display:none}
+    .mobile-hide{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-fx"><div class="grid"></div><div class="glow"></div></div>
+
+<!-- announcement banner -->
+<div class="banner">
+  <b>Introducing Alexandria</b> — our knowledge library for agents, and our $75M Series B.&nbsp;
+  <a href="#alexandria">Read the announcement →</a>
+</div>
+
+<!-- nav -->
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="logo" href="#top" aria-label="Firecrawl home">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 2c.6 3.2-.9 5-2.5 6.7C7.8 10.5 6 12.4 6 15.5 6 19 8.7 22 12 22s6-3 6-6.5c0-2-.8-3.6-1.8-5-.3 1-.9 1.8-1.7 2.3.3-3.4-.8-8-2.5-10.8z" fill="url(#fg)"/>
+        <defs><linearGradient id="fg" x1="6" y1="2" x2="18" y2="22"><stop stop-color="#ff9a55"/><stop offset="1" stop-color="#fa5d19"/></linearGradient></defs>
+      </svg>
+      Firecrawl
+    </a>
+    <div class="nav-links">
+      <button class="drop-btn">Products <span class="caret">▼</span></button>
+      <a href="#use-cases">Use Cases</a>
+      <a href="#performance">Benchmarks</a>
+      <a href="#alexandria">Alexandria</a>
+      <a href="#faq">FAQ</a>
+      <a href="#" onclick="return false">Blog</a>
+    </div>
+    <div class="nav-right">
+      <a class="gh-stars" href="#" onclick="return false">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        180k
+      </a>
+      <a class="signin mobile-hide" href="#" onclick="return false">Sign in</a>
+      <a class="btn btn-primary btn-sm" href="#get-started">Start for free</a>
+    </div>
+  </div>
+</nav>
+
+<!-- hero -->
+<header class="hero" id="top">
+  <div class="wrap">
+    <div class="hero-badge"><span class="dot"></span> 2 months free — billed annually</div>
+    <h1>Power AI agents with <em class="accent">clean web data</em></h1>
+    <p class="sub">The web data API to search, scrape, and interact with the live web at scale.</p>
+    <p class="oss">It's also <a href="#" onclick="return false">open source</a> — star the repo and read every line.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary btn-lg" href="#get-started">Start for free</a>
+      <a class="btn btn-ghost btn-lg" href="#features">Explore the API</a>
+    </div>
+
+    <!-- demo window -->
+    <div class="demo rv" id="demo">
+      <div class="demo-tabs" id="demoTabs"></div>
+      <div class="demo-body">
+        <div class="demo-pane req">
+          <div class="pane-head">
+            <span class="chip" id="demoReqChip">request</span>
+            <div class="lang-tabs" id="demoLangs"></div>
+          </div>
+          <div class="code-area" id="demoReq"></div>
+        </div>
+        <div class="demo-pane res">
+          <div class="pane-head">
+            <span class="chip" id="demoResChip">.JSON</span>
+            <span class="run-meta"><span id="demoStatus">● 200 OK</span><span class="lat" id="demoLat">412ms</span></span>
+          </div>
+          <div class="code-area" id="demoRes"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- logos -->
+<div class="logos">
+  <p>Trusted by <b>150,000+</b> companies of all sizes</p>
+  <div class="marquee"><div class="marquee-track" id="logoTrack"></div></div>
+</div>
+
+<!-- 01 features -->
+<section class="block" id="features">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div class="kicker"><span class="idx">[ 01 / 07 ]</span><span class="sep">·</span><span class="tag">Main Features</span><span class="sep">//</span><span class="tag">Developer First</span><span class="sep">//</span></div>
+      <h2>Start <em>searching</em> today</h2>
+      <p class="lead">One infrastructure layer that helps AI find, read, and act on the live web — returning clean, structured output every time.</p>
+    </div>
+    <div class="cap-grid rv">
+      <div class="cap-list" id="capList"></div>
+      <div class="panel">
+        <div class="panel-head">
+          <div class="lang-tabs" id="capLangs"></div>
+          <button class="copy-btn" data-copy="capReq">⧉ Copy code</button>
+        </div>
+        <div class="code-area" id="capReq" style="min-height:300px"></div>
+        <div class="pane-head" style="border-top:1px solid var(--line)">
+          <span class="chip" id="capResChip">.JSON</span>
+          <span class="run-meta"><span>● 200 OK</span><span class="lat" id="capLat">388ms</span></span>
+        </div>
+        <div class="code-area" id="capRes" style="min-height:220px"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 agent ready -->
+<section class="block" id="agents" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div class="kicker"><span class="idx">[ 02 / 07 ]</span><span class="sep">·</span><span class="tag">Power your agent</span><span class="sep">//</span><span class="tag">Agent Ready</span><span class="sep">//</span></div>
+      <h2>Easily connect with your <em>AI agents</em></h2>
+      <p class="lead">Plug Firecrawl into any MCP client or coding agent in minutes — one command, no boilerplate.</p>
+    </div>
+    <div class="agent-grid rv">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="seg" id="agentSeg">
+            <button class="active">Prompt</button>
+            <button>MCP</button>
+            <button>CLI</button>
+          </div>
+          <button class="copy-btn" data-copy="agentCode">⧉ Copy</button>
+        </div>
+        <div class="panel-body" style="min-height:210px" id="agentCode"></div>
+        <div class="panel-note"><span>Copy and paste this straight into your AI agent.</span><a href="#faq">View the docs →</a></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <span>Agent onboarding skill</span>
+          <span class="chip" style="font-size:11px">SKILL.md</span>
+        </div>
+        <div class="panel-body" style="min-height:210px;color:var(--muted)">
+          <div><span class="tok-c"># fetch the skill, get a key, start building</span></div>
+          <div><span class="tok-p">curl</span> -s https://example.com/agent-onboarding/SKILL.md</div>
+          <div style="margin-top:14px"><span class="tok-c"># the skill walks your agent through:</span></div>
+          <div>→ account setup &amp; API keys</div>
+          <div>→ installing the CLI &amp; SDKs</div>
+          <div>→ first search / scrape / interact calls</div>
+        </div>
+        <div class="panel-note"><span>Are you an AI agent? Fetch this skill to get an API key and start building.</span><a href="#get-started">View the skill →</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 performance -->
+<section class="block" id="performance" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div class="kicker"><span class="idx">[ 03 / 07 ]</span><span class="sep">·</span><span class="tag">Core</span><span class="sep">//</span><span class="tag">Built for Performance</span><span class="sep">//</span></div>
+      <h2>Fast, reliable, token-efficient. <em>And it's open source.</em></h2>
+      <p class="lead">Web data infrastructure built from the ground up for agents that can't afford to guess.</p>
+    </div>
+    <div class="bento rv">
+      <div class="bcard">
+        <h4>Reliable on any page</h4>
+        <p>Industry-leading coverage. Every query and URL comes back as clean, usable data — no dead ends.</p>
+        <div class="vis" id="benchVis">
+          <div class="bench-row top"><div class="lbl"><span class="name">🔥 Firecrawl</span><span class="pct">96%</span></div><div class="bar"><div class="fill" data-w="96%"></div></div></div>
+          <div class="bench-row"><div class="lbl"><span class="name">Headless browser</span><span class="pct">79%</span></div><div class="bar"><div class="fill dim" data-w="79%"></div></div></div>
+          <div class="bench-row"><div class="lbl"><span class="name">cURL</span><span class="pct">75%</span></div><div class="bar"><div class="fill dim" data-w="75%"></div></div></div>
+          <a class="more" href="#" onclick="return false">See benchmarks →</a>
+        </div>
+      </div>
+      <div class="bcard">
+        <h4>Speed that feels invisible</h4>
+        <p>Built for real-time agents and dynamic apps — median responses land before your users notice.</p>
+        <div class="vis">
+          <table class="lat-table">
+            <tr><td>example.com/pricing</td><td>51ms</td><td>50ms</td></tr>
+            <tr><td>example.com/docs</td><td>49ms</td><td>50ms</td></tr>
+            <tr><td>example.com/blog/launch</td><td>52ms</td><td>50ms</td></tr>
+            <tr><td>example.com/about</td><td>49ms</td><td>50ms</td></tr>
+          </table>
+          <a class="more" href="#" onclick="return false">See comparisons →</a>
+        </div>
+      </div>
+      <div class="bcard">
+        <h4>Token-efficient by default</h4>
+        <p>Only the content that matters. No navs, footers, or ads — just clean markdown, with far fewer input tokens for your model.</p>
+        <div class="vis token-vis">
+          <div class="trow"><span style="width:74px">raw page</span><div class="tbar"><div class="tfill" data-w="100%" style="background:rgba(255,255,255,.25)"></div></div><span>38.4k</span></div>
+          <div class="trow"><span style="width:74px">firecrawl</span><div class="tbar"><div class="tfill" data-w="14%" style="background:linear-gradient(90deg,#fa5d19,#ff9a55)"></div></div><span>2.7k</span></div>
+          <a class="more" href="#" onclick="return false">Calculate your savings →</a>
+        </div>
+      </div>
+      <div class="bcard gh-card">
+        <h4>Open source, in the open</h4>
+        <div class="vis" style="justify-content:flex-start">
+          <div class="repo"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg> firecrawl/firecrawl <span class="pub">Public</span></div>
+          <div class="stars"><span class="n">180K+</span><span class="s">GitHub stars · top 100 repo</span></div>
+          <div class="pr-item"><span class="ava" style="background:#ffb27a">rs</span><div><div class="t">feat(extract): configurable cost limits</div><div class="m">#1473 · merged last week</div></div></div>
+          <div class="pr-item"><span class="ava" style="background:#8ecfff">mg</span><div><div class="t">feat(scrape): stream results from object storage</div><div class="m">#1461 · merged</div></div></div>
+          <div class="pr-item"><span class="ava" style="background:#b9f5c9">mt</span><div><div class="t">perf: rerank improvements for v2 extraction</div><div class="m">#1437 · merged</div></div></div>
+          <a class="more" href="#" onclick="return false">Check out the repo →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 zero config -->
+<section class="block" id="platform" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div class="kicker"><span class="idx">[ 04 / 07 ]</span><span class="sep">·</span><span class="tag">Features</span><span class="sep">//</span><span class="tag">Zero configuration</span><span class="sep">//</span></div>
+      <h2>We handle the <em>hard stuff</em></h2>
+      <p class="lead">JavaScript rendering, smart waiting, media parsing, actions, and everything else you'd rather not build.</p>
+    </div>
+    <div class="bento rv">
+      <div class="bcard">
+        <h4>Docs to data</h4>
+        <p>Media parsing built in — pull structured content out of PDFs, DOCX files, and more.</p>
+        <div class="vis">
+          <div class="file-row"><span>example.com/docs/report.pdf</span><span class="st" data-tick>pdf · parsing…</span></div>
+          <div class="file-row"><span>example.com/files/brief.docx</span><span class="st" data-tick>docx · parsing…</span></div>
+          <div class="file-row"><span>example.com/docs/guide.html</span><span class="st done">html ✓</span></div>
+        </div>
+      </div>
+      <div class="bcard">
+        <h4>Knows the moment</h4>
+        <p>Smart wait. Content that loads late still makes it into the response — reliably, every time.</p>
+        <div class="vis">
+          <div class="file-row"><span>example-spa.com</span><span class="st done">rendered ✓</span></div>
+          <div class="steps" style="margin-top:12px"><span>request sent</span><span>js executed</span><span>content settled</span><span>markdown ✓</span></div>
+        </div>
+      </div>
+      <div class="bcard">
+        <h4>Live web data</h4>
+        <p>A growing web index when you want speed, a live fetch when you need freshness. Search and scrape in one call.</p>
+        <div class="vis mini-chat">
+          <div class="u">What changed on their pricing page this week?</div>
+          <div class="a">Checked the live page — the Pro plan dropped from $49 to $39. <span class="mono" style="font-size:11px;color:var(--faint)">· fetched 30s ago</span></div>
+        </div>
+      </div>
+      <div class="bcard">
+        <h4>Interact with pages</h4>
+        <p>Actions. Click, scroll, type, wait, press — drive any page with prompts or code.</p>
+        <div class="vis">
+          <div class="chips">
+            <span class="chip-s">Navigate</span><span class="chip-s">Click</span><span class="chip-s">Type</span>
+            <span class="chip-s">Wait</span><span class="chip-s">Scroll</span><span class="chip-s">Press</span>
+            <span class="chip-s">Screenshot</span><span class="chip-s gray">Scrape</span>
+          </div>
+        </div>
+      </div>
+      <div class="bcard wide">
+        <h4>How it's sourced matters</h4>
+        <p>Fair access to web content, starting with formal partnerships with the sources that matter — with more on the way.</p>
+        <div class="vis">
+          <div class="file-row" style="max-width:440px"><span>en.wikipedia.org/wiki/NASA</span><span class="st done">partner source ✓</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 use cases -->
+<section class="block" id="use-cases" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div class="kicker"><span class="idx">[ 05 / 07 ]</span><span class="sep">·</span><span class="tag">Use Cases</span><span class="sep">//</span><span class="tag">Solutions</span><span class="sep">//</span></div>
+      <h2>Transform web data into <em>AI-powered solutions</em></h2>
+      <p class="lead">Give your AI better access to the web — for research, chats, agents, onboarding, and beyond.</p>
+    </div>
+    <div class="uc-grid rv">
+      <div class="uc-card"><h4>Deep research</h4><p>Compile comprehensive information from across the web for in-depth reports.</p><a class="more" href="#" onclick="return false">Learn more →</a></div>
+      <div class="uc-card"><h4>Smarter AI chats</h4><p>Ground your assistants in real-time, accurate web content.</p><a class="more" href="#" onclick="return false">Learn more →</a></div>
+      <div class="uc-card"><h4>AI agent tools</h4><p>Hand agents high-quality web data with a single command.</p><a class="more" href="#" onclick="return false">Learn more →</a></div>
+      <div class="uc-card"><h4>Onboarding</h4><p>Pre-populate workflows with content scraped straight from the web.</p><a class="more" href="#" onclick="return false">Learn more →</a></div>
+      <div class="uc-card"><h4>Lead enrichment</h4><p>Freshen up your sales data with live company and contact info.</p><a class="more" href="#" onclick="return false">Learn more →</a></div>
+      <div class="uc-card"><h4>Monitoring</h4><p>Track pricing, docs, and competitors as the web changes.</p><a class="more" href="#" onclick="return false">Learn more →</a></div>
+    </div>
+
+    <div class="uc-show rv">
+      <div class="side">
+        <div>
+          <h5>Deep research in progress…</h5>
+          <p style="margin-top:4px">One query, five sources of truth.</p>
+        </div>
+        <div class="task-list" id="taskList">
+          <div class="t"><span class="box"></span> Academic papers</div>
+          <div class="t"><span class="box"></span> News articles</div>
+          <div class="t"><span class="box"></span> Expert opinions</div>
+          <div class="t"><span class="box"></span> Research reports</div>
+          <div class="t"><span class="box"></span> Industry data</div>
+        </div>
+      </div>
+      <div class="main" id="ucTerminal">
+        <div><span class="hl">$</span> research "state of open source LLMs 2026"</div>
+        <div style="margin-top:10px;color:var(--faint)">planning searches…</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- alexandria -->
+<section class="alex" id="alexandria">
+  <div class="inner">
+    <div class="stars"></div>
+    <span class="badge rv">Introducing Firecrawl Alexandria</span>
+    <h2 class="rv">The <span class="grad">knowledge library</span> for superintelligence.</h2>
+    <p class="rv">Give your agents tools that go further — the live web, official providers, and specialized indexes, all through one interface.</p>
+    <div class="rv" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <a class="btn btn-primary" href="#" onclick="return false">Explore Alexandria</a>
+      <a class="btn btn-ghost" href="#" onclick="return false">Become a provider</a>
+    </div>
+    <div class="alex-stats rv">
+      <div class="alex-stat"><div class="n" data-count="113" data-suffix="M+">0</div><div class="l">Indexed sources</div><div class="d">Papers, READMEs, issues, docs</div></div>
+      <div class="alex-stat"><div class="n" data-count="93">0</div><div class="l">Providers</div><div class="d">Official APIs, registries, publishers</div></div>
+      <div class="alex-stat"><div class="n" data-count="640">0</div><div class="l">Capabilities</div><div class="d">Defined inputs, outputs, pricing</div></div>
+      <div class="alex-stat"><div class="n" data-count="20">0</div><div class="l">Categories</div><div class="d">From procurement to podcasts</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 06 testimonials -->
+<section class="block" id="community">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <div class="kicker"><span class="idx">[ 06 / 07 ]</span><span class="sep">·</span><span class="tag">Testimonials</span><span class="sep">//</span><span class="tag">Community</span><span class="sep">//</span></div>
+      <h2>People love <em>building</em> with Firecrawl</h2>
+      <p class="lead">Why developers reach for Firecrawl every day.</p>
+    </div>
+  </div>
+  <div class="t-rows rv">
+    <div class="t-marquee"><div class="t-track" id="tRow1"></div></div>
+    <div class="t-marquee"><div class="t-track rev" id="tRow2"></div></div>
+  </div>
+</section>
+
+<!-- cta -->
+<section class="block" id="get-started" style="padding-top:0">
+  <div class="wrap">
+    <div class="cta-box rv">
+      <div class="kicker" style="justify-content:center"><span class="sep">//</span><span class="tag">Get started</span><span class="sep">//</span></div>
+      <h2>Ready to build?</h2>
+      <p>Start getting web context for free and scale seamlessly as your project grows. No credit card needed.</p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a class="btn btn-primary btn-lg" href="#" onclick="return false">Start for free</a>
+        <a class="btn btn-ghost btn-lg" href="#faq">See our plans</a>
+      </div>
+      <div class="agent-hint">Are you an AI agent? <a href="#" onclick="return false">See setup options</a></div>
+    </div>
+  </div>
+</section>
+
+<!-- 07 faq -->
+<section class="block" id="faq" style="padding-top:0">
+  <div class="wrap faq-grid">
+    <div class="rv">
+      <div class="kicker"><span class="idx">[ 07 / 07 ]</span><span class="sep">·</span><span class="tag">FAQ</span><span class="sep">//</span></div>
+      <h2 style="font-size:clamp(28px,4vw,40px);letter-spacing:-.03em;margin-bottom:8px">Frequently asked <em style="font-style:normal;color:var(--accent)">questions</em></h2>
+      <p style="color:var(--muted);font-size:15px;margin-bottom:26px">Everything you need to know about Firecrawl.</p>
+      <div class="faq-cats" id="faqCats">
+        <button class="active" data-cat="general">General</button>
+        <button data-cat="how">How it works</button>
+        <button data-cat="api">API &amp; SDKs</button>
+        <button data-cat="billing">Billing</button>
+      </div>
+    </div>
+    <div id="faqList" class="rv"></div>
+  </div>
+</section>
+
+<!-- footer -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="logo" href="#top">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" width="22" height="22">
+            <path d="M12 2c.6 3.2-.9 5-2.5 6.7C7.8 10.5 6 12.4 6 15.5 6 19 8.7 22 12 22s6-3 6-6.5c0-2-.8-3.6-1.8-5-.3 1-.9 1.8-1.7 2.3.3-3.4-.8-8-2.5-10.8z" fill="url(#fg2)"/>
+            <defs><linearGradient id="fg2" x1="6" y1="2" x2="18" y2="22"><stop stop-color="#ff9a55"/><stop offset="1" stop-color="#fa5d19"/></linearGradient></defs>
+          </svg>
+          Firecrawl
+        </a>
+        <p>The web data API for AI agents. Search, scrape, and interact with the live web at scale.</p>
+        <div class="socials">
+          <a href="#" onclick="return false" aria-label="GitHub"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
+          <a href="#" onclick="return false" aria-label="X"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 1.2h3.7l-8.1 9.3L24 22.8h-7.5l-5.9-7.7-6.7 7.7H.2l8.7-9.9L0 1.2h7.7l5.3 7 5.9-7zm-1.3 19.4h2L6.6 3.3h-2.2l13.2 17.3z"/></svg></a>
+          <a href="#" onclick="return false" aria-label="Discord"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.9 3l-.2.4c1.6.4 2.9 1 4.2 1.9a16.2 16.2 0 0 0-14 0c1.3-.9 2.7-1.5 4.2-1.9L9.9 3a19.8 19.8 0 0 0-4.4 1.4C2.9 8.6 2.2 12.7 2.5 16.7c1.8 1.3 3.5 2.1 5.2 2.6l1.1-1.5c-.9-.3-1.7-.7-2.5-1.3l.6-.5c3.1 1.5 6.6 1.5 9.7 0l.6.5c-.8.6-1.6 1-2.5 1.3l1.1 1.5c1.7-.5 3.4-1.3 5.2-2.6.4-4.6-.7-8.6-3.7-12.3zM9.7 14.4c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2zm6.4 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2z"/></svg></a>
+          <a href="#" onclick="return false" aria-label="LinkedIn"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M20.4 20.4h-3.6v-5.6c0-1.3 0-3-1.9-3-1.9 0-2.1 1.4-2.1 2.9v5.7H9.2V9h3.4v1.6h.1c.5-.9 1.7-1.9 3.4-1.9 3.6 0 4.3 2.4 4.3 5.5v6.2zM5.3 7.4a2.1 2.1 0 1 1 0-4.2 2.1 2.1 0 0 1 0 4.2zM7.1 20.4H3.5V9h3.6v11.4z"/></svg></a>
+        </div>
+      </div>
+      <div class="foot-col">
+        <h5>Product</h5>
+        <a href="#features">Search</a><a href="#features">Scrape</a><a href="#features">Interact</a>
+        <a href="#agents">MCP Server</a><a href="#alexandria">Alexandria</a><a href="#" onclick="return false">Pricing</a>
+      </div>
+      <div class="foot-col">
+        <h5>Resources</h5>
+        <a href="#" onclick="return false">Documentation</a><a href="#" onclick="return false">Blog</a>
+        <a href="#use-cases">Use Cases</a><a href="#" onclick="return false">Templates</a><a href="#faq">FAQ</a>
+      </div>
+      <div class="foot-col">
+        <h5>Open Source</h5>
+        <a href="#" onclick="return false">GitHub</a><a href="#" onclick="return false">SDKs</a>
+        <a href="#" onclick="return false">Changelog</a><a href="#" onclick="return false">Contributing</a><a href="#" onclick="return false">Status</a>
+      </div>
+      <div class="foot-col">
+        <h5>Company</h5>
+        <a href="#" onclick="return false">About</a><a href="#" onclick="return false">Careers</a>
+        <a href="#" onclick="return false">Terms</a><a href="#" onclick="return false">Privacy</a><a href="#" onclick="return false">Contact</a>
+      </div>
+    </div>
+    <div class="wordmark">FIRECRAWL</div>
+    <div class="foot-bottom">
+      <span>© <span id="year">2026</span> Firecrawl clone — built as a study project.</span>
+      <span class="note">Unofficial recreation for educational purposes. Not affiliated with firecrawl.dev.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ============ helpers ============ */
+const $ = (s, el=document) => el.querySelector(s);
+const lines = (arr) => arr.map((l,i)=>`<div class="ln" style="animation-delay:${i*45}ms"><span class="no">${i+1}</span><span>${l}</span></div>`).join('');
+
+/* syntax-ish highlight (very light) */
+function hl(code){
+  return code
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/("(?:[^"\\]|\\.)*")/g,'<span class="tok-s">$1</span>')
+    .replace(/('#'[^<]*)/g,'<span class="tok-c">$1</span>')
+    .replace(/\b(from|import|const|await|new|async|def|return|print|curl|for|in|True|False|null|true|false)\b/g,'<span class="tok-k">$1</span>')
+    .replace(/\b(app|result|json|scrape|search|map|crawl|interact)\b(?![^<]*>)/g,'<span class="tok-f">$1</span>')
+    .replace(/\b(\d+(?:\.\d+)?)\b/g,'<span class="tok-n">$1</span>');
+}
+const code = (arr) => lines(arr.map(hl));
+
+/* ============ hero demo data ============ */
+const HERO = {
+  agents:{
+    chip:'prompt', langs:null, lat:'—', status:'● connected',
+    req:["Run npx -y firecrawl-cli@latest init --all --browser.",
+         "Use my existing Firecrawl login or help me log in.",
+         "Read the installed skills before running queries."],
+    resType:'.MD',
+    res:["# Firecrawl CLI","",
+         "✔ Installed firecrawl-cli v2.4.0",
+         "✔ Authenticated · key fc-…e91b",
+         "✔ Skills installed: search, scrape, interact",
+         "✔ MCP server registered (claude, cursor)",
+         "",
+         "Try: `firecrawl search \"latest AI news\"`"]
+  },
+  search:{
+    chip:'POST /v2/search', lat:'612ms',
+    langs:{
+      Python:["from firecrawl import Firecrawl","",
+              'app = Firecrawl(api_key="fc-YOUR_API_KEY")',"",
+              'result = app.search(',
+              '    "best mechanical keyboards 2026",',
+              "    limit=5,",
+              ")",
+              "print(result)"],
+      "Node.js":['import Firecrawl from "@firecrawl/firecrawl";',"",
+                 'const app = new Firecrawl({ apiKey: "fc-YOUR_API_KEY" });',"",
+                 'const result = await app.search(',
+                 '  "best mechanical keyboards 2026",',
+                 "  { limit: 5 }",
+                 ");",
+                 "console.log(result);"],
+      cURL:["curl -X POST https://api.example.com/v2/search \\",
+            '  -H "Authorization: Bearer fc-YOUR_API_KEY" \\',
+            '  -H "Content-Type: application/json" \\',
+            `  -d '{"query":"best mechanical keyboards 2026","limit":5}'`]
+    },
+    resType:'.JSON',
+    res:["[",
+         "  {",
+         '    "url": "https://example.com/best-keyboards",',
+         '    "title": "Best mechanical keyboards of 2026",',
+         '    "description": "We tested 40 boards so you dont have to…",',
+         '    "markdown": "# Best keyboards\\nAfter 200 hours…",',
+         '    "score": 0.97',
+         "  },",
+         "  { … 4 more results }",
+         "]"]
+  },
+  scrape:{
+    chip:'POST /v2/scrape', lat:'412ms',
+    langs:{
+      Python:["from firecrawl import Firecrawl","",
+              'app = Firecrawl(api_key="fc-YOUR_API_KEY")',"",
+              'result = app.scrape(',
+              '    "https://example.com/pricing",',
+              '    formats=["markdown"],',
+              ")"],
+      "Node.js":['import Firecrawl from "@firecrawl/firecrawl";',"",
+                 "const app = new Firecrawl({ apiKey: KEY });","",
+                 'const result = await app.scrape(',
+                 '  "https://example.com/pricing",',
+                 '  { formats: ["markdown"] }',
+                 ");"],
+      cURL:["curl -X POST https://api.example.com/v2/scrape \\",
+            '  -H "Authorization: Bearer fc-YOUR_API_KEY" \\',
+            `  -d '{"url":"https://example.com/pricing","formats":["markdown"]}'`]
+    },
+    resType:'.MD',
+    res:["# Example · Pricing","",
+         "## Starter — $16/mo",
+         "- Unlimited projects",
+         "- Community support","",
+         "## Pro — $49/mo",
+         "- Everything in Starter",
+         "- Priority rendering",
+         "- 5 team seats","",
+         "## Enterprise — Talk to us"]
+  },
+  map:{
+    chip:'POST /v2/map', lat:'287ms',
+    langs:{
+      Python:["from firecrawl import Firecrawl","",
+              'app = Firecrawl(api_key="fc-YOUR_API_KEY")',"",
+              'links = app.map(',
+              '    "https://example.com",',
+              "    limit=50,",
+              ")"],
+      "Node.js":['import Firecrawl from "@firecrawl/firecrawl";',"",
+                 "const app = new Firecrawl({ apiKey: KEY });","",
+                 'const links = await app.map(',
+                 '  "https://example.com",',
+                 "  { limit: 50 }",
+                 ");"],
+      cURL:["curl -X POST https://api.example.com/v2/map \\",
+            '  -H "Authorization: Bearer fc-YOUR_API_KEY" \\',
+            `  -d '{"url":"https://example.com","limit":50}'`]
+    },
+    resType:'.JSON',
+    res:["{",
+         '  "success": true,',
+         '  "links": [',
+         '    { "url": "https://example.com", "title": "Home" },',
+         '    { "url": "https://example.com/pricing", "title": "Pricing" },',
+         '    { "url": "https://example.com/docs", "title": "Docs" },',
+         '    { "url": "https://example.com/blog", "title": "Blog" },',
+         "    … 46 more",
+         "  ]",
+         "}"]
+  },
+  crawl:{
+    chip:'POST /v2/crawl', lat:'async',
+    langs:{
+      Python:["from firecrawl import Firecrawl","",
+              'app = Firecrawl(api_key="fc-YOUR_API_KEY")',"",
+              'job = app.crawl(',
+              '    "https://example.com",',
+              "    limit=100,",
+              "    scrape_options={\"formats\": [\"markdown\"]},",
+              ")"],
+      "Node.js":['import Firecrawl from "@firecrawl/firecrawl";',"",
+                 "const app = new Firecrawl({ apiKey: KEY });","",
+                 'const job = await app.crawl(',
+                 '  "https://example.com",',
+                 '  { limit: 100 }',
+                 ");"],
+      cURL:["curl -X POST https://api.example.com/v2/crawl \\",
+            '  -H "Authorization: Bearer fc-YOUR_API_KEY" \\',
+            `  -d '{"url":"https://example.com","limit":100}'`]
+    },
+    resType:'.JSON',
+    res:["{",
+         '  "id": "crawl_8f3a91",',
+         '  "status": "active",',
+         '  "completed": 37,',
+         '  "total": 100,',
+         '  "data": [',
+         '    { "url": "https://example.com", "markdown": "# Home…" },',
+         "    …",
+         "  ]",
+         "}"]
+  }
+};
+
+/* ============ hero demo render ============ */
+const demoTabs = $('#demoTabs'), demoLangs = $('#demoLangs');
+let heroKey = 'search', heroLang = 'Python';
+
+function renderHeroTabs(){
+  demoTabs.innerHTML = Object.keys(HERO).map(k=>{
+    const label = k==='agents' ? 'Setup for agents' : k[0].toUpperCase()+k.slice(1);
+    return `<button data-k="${k}" class="${k===heroKey?'active':''}">${label}</button>`;
+  }).join('');
+}
+function renderHeroLangs(){
+  const langs = HERO[heroKey].langs;
+  demoLangs.innerHTML = langs ? Object.keys(langs).map(l=>
+    `<button data-l="${l}" class="${l===heroLang?'active':''}">${l}</button>`).join('') : '';
+  demoLangs.style.display = langs ? 'flex' : 'none';
+}
+function renderHero(){
+  const d = HERO[heroKey];
+  $('#demoReqChip').textContent = d.chip;
+  $('#demoResChip').textContent = d.resType;
+  $('#demoLat').textContent = d.lat;
+  $('#demoStatus').textContent = d.status || '● 200 OK';
+  const reqCode = d.langs ? d.langs[heroLang] : d.req;
+  $('#demoReq').innerHTML = code(reqCode);
+  $('#demoRes').innerHTML = lines(d.res.map(l=>l
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/(".*?")/g,'<span class="tok-s">$1</span>')
+    .replace(/\b(\d+)\b/g,'<span class="tok-n">$1</span>')
+    .replace(/(#[^\s<][^<]*)/g,'<span class="tok-f">$1</span>')
+    .replace(/(✔)/g,'<span style="color:var(--green)">$1</span>')));
+}
+demoTabs.addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  heroKey = b.dataset.k;
+  const langs = HERO[heroKey].langs;
+  if(langs && !langs[heroLang]) heroLang = Object.keys(langs)[0];
+  renderHeroTabs(); renderHeroLangs(); renderHero();
+});
+demoLangs.addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  heroLang = b.dataset.l; renderHeroLangs(); renderHero();
+});
+renderHeroTabs(); renderHeroLangs(); renderHero();
+setInterval(()=>{ // auto-cycle like the original
+  const keys = Object.keys(HERO);
+  heroKey = keys[(keys.indexOf(heroKey)+1)%keys.length];
+  const langs = HERO[heroKey].langs;
+  if(langs) heroLang = Object.keys(langs)[0];
+  renderHeroTabs(); renderHeroLangs(); renderHero();
+}, 9000);
+
+/* ============ capability section (01) ============ */
+const CAPS = {
+  search:{
+    label:'Search', desc:'Search the web and get full content back from every result — no second call needed.',
+    code:{
+      Python:["from firecrawl import Firecrawl","","app = Firecrawl(api_key=KEY)","","result = app.search(","    \"latest news on edge AI\",","    limit=5,",")"],
+      "Node.js":["const result = await app.search(","  \"latest news on edge AI\",","  { limit: 5 }",");"],
+      cURL:["curl -X POST https://api.example.com/v2/search \\","  -d '{\"query\":\"latest news on edge AI\",\"limit\":5}'"]
+    },
+    resType:'.JSON',
+    res:["[","  {","    \"url\": \"https://news.example/edge-ai\",","    \"title\": \"Edge AI weekly roundup\",","    \"markdown\": \"# Edge AI…\",","    \"score\": 0.95","  },","  … ]"]
+  },
+  scrape:{
+    label:'Scrape', desc:'Turn any URL into LLM-ready data — markdown, structured JSON, screenshots, and more.',
+    code:{
+      Python:["result = app.scrape(","    \"https://example.com/docs\",","    formats=[\"markdown\"],",")"],
+      "Node.js":["const result = await app.scrape(","  \"https://example.com/docs\",","  { formats: [\"markdown\"] }",");"],
+      cURL:["curl -X POST https://api.example.com/v2/scrape \\","  -d '{\"url\":\"https://example.com/docs\"}'"]
+    },
+    resType:'.MD',
+    res:["# Example Docs","","## Quickstart","Install the SDK and make your","first call in under a minute.","","## Authentication","Use a bearer token with every","request. Rotate keys anytime."]
+  },
+  interact:{
+    label:'Interact', isNew:true, desc:'Scrape a page, then drive it with AI prompts or code — click, type, navigate, extract.',
+    code:{
+      Python:["result = app.scrape(\"https://shop.example.com\")","","app.interact(result.id,","    prompt=\"Search for mechanical keyboard\")","app.interact(result.id,","    prompt=\"Click the first result\")"],
+      "Node.js":["const result = await app.scrape(\"https://shop.example.com\");","","await app.interact(result.id,","  { prompt: \"Search for mechanical keyboard\" });","await app.interact(result.id,","  { prompt: \"Click the first result\" });"],
+      cURL:["curl -X POST https://api.example.com/v2/interact \\","  -d '{\"id\":\"scp_123\",\"prompt\":\"Click the first result\"}'"]
+    },
+    resType:'.JSON',
+    res:["{","  \"success\": true,","  \"output\": \"Keyboard in stock — $99\",","  \"actions\": [ \"typed\", \"clicked\" ],","  \"liveViewUrl\": \"https://liveview…\"","}"]
+  }
+};
+let capKey='search', capLang='Python';
+function renderCaps(){
+  $('#capList').innerHTML = Object.entries(CAPS).map(([k,c])=>`
+    <button class="cap-card ${k===capKey?'active':''}" data-k="${k}">
+      <h4>${c.label}${c.isNew?'<span class="new">NEW</span>':''}</h4>
+      <p>${c.desc}</p>
+      <span class="more">Learn more →</span>
+    </button>`).join('');
+  $('#capLangs').innerHTML = Object.keys(CAPS[capKey].code).map(l=>
+    `<button data-l="${l}" class="${l===capLang?'active':''}">${l}</button>`).join('');
+  $('#capReq').innerHTML = code(CAPS[capKey].code[capLang]);
+  $('#capResChip').textContent = CAPS[capKey].resType;
+  $('#capLat').textContent = (300+Math.floor(Math.random()*400))+'ms';
+  $('#capRes').innerHTML = lines(CAPS[capKey].res.map(l=>l
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/(".*?")/g,'<span class="tok-s">$1</span>')
+    .replace(/\b(\d+)\b/g,'<span class="tok-n">$1</span>')));
+}
+$('#capList').addEventListener('click',e=>{
+  const b=e.target.closest('.cap-card'); if(!b)return;
+  capKey=b.dataset.k; const ls=Object.keys(CAPS[capKey].code);
+  if(!ls.includes(capLang)) capLang=ls[0];
+  renderCaps();
+});
+$('#capLangs').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  capLang=b.dataset.l; renderCaps();
+});
+renderCaps();
+
+/* ============ agent panel (02) ============ */
+const AGENT = {
+  Prompt:["Run npx -y firecrawl-cli@latest init --all --browser.","Use my existing Firecrawl login or help me log in.","Read the installed skills before running queries."],
+  MCP:["# Claude Desktop · claude_config.json","{","  \"mcpServers\": {","    \"firecrawl\": {","      \"command\": \"npx\",","      \"args\": [\"-y\", \"firecrawl-mcp\"],","      \"env\": { \"FIRECRAWL_API_KEY\": \"fc-…\" }","    }","  }","}"],
+  CLI:["# install + authenticate","npx -y firecrawl-cli@latest init --all --browser","","# then, from any agent","firecrawl search \"who is using pgvector\"","firecrawl scrape https://example.com --md"]
+};
+function renderAgent(key){
+  $('#agentCode').innerHTML = lines(AGENT[key].map(hl));
+}
+$('#agentSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  document.querySelectorAll('#agentSeg button').forEach(x=>x.classList.toggle('active',x===b));
+  renderAgent(b.textContent.trim());
+});
+renderAgent('Prompt');
+
+/* ============ copy buttons ============ */
+document.querySelectorAll('.copy-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const el=document.getElementById(btn.dataset.copy);
+    const txt=el?el.innerText:'';
+    try{ navigator.clipboard.writeText(txt); }catch(e){}
+    const old=btn.textContent; btn.textContent='✓ Copied';
+    setTimeout(()=>btn.textContent=old,1400);
+  });
+});
+
+/* ============ logos ============ */
+const LOGOS=[['Shopify','#95bf47'],['Canva','#8b3dff'],['Zapier','#ff4f00'],['Apple','#c9c9d2'],
+  ['Replit','#f26207'],['Alibaba','#ff8a3d'],['DoorDash','#ff3008'],['Gamma','#8a63ff'],
+  ['You.com','#5b9dff'],['Sprinklr','#3b82f6'],['Cognism','#00b4d8'],['Ada','#ff6b6b'],
+  ['11x','#a1a1aa'],['Botpress','#7c5cff'],['Sierra','#e2e2e8'],['Lovable','#ff4d94']];
+const glyph=(c)=>`<span class="glyph" style="background:${c}"></span>`;
+const logoHTML=LOGOS.map(([n,c])=>`<span class="logo-item">${glyph(c)}${n}</span>`).join('');
+$('#logoTrack').innerHTML=logoHTML+logoHTML;
+
+/* ============ testimonials (fictional) ============ */
+const TWEETS=[
+  ['Sana Okafor','@buildwithsana','Replaced three scraping libraries with one API call. Our RAG pipeline has never been cleaner.','#ffb27a'],
+  ['Devon Park','@devoncodes','The markdown output is shockingly good. Zero post-processing needed on our side.','#8ecfff'],
+  ['Mara Posada','@marapos','Wired it into our agent in under ten minutes. It just works.','#b9f5c9'],
+  ['Kenji Tanaka','@k__tanaka','Search + scrape in one endpoint saved us weeks of plumbing.','#ffd166'],
+  ['Liam Byrne','@liam.builds','Finally a scraper that handles SPAs without me babysitting proxies.','#c4b5fd'],
+  ['Renata Souza','@renata.dev','We benchmarked it against our in-house crawler. It was not close.','#ffa8a8'],
+  ['Omar Haddad','@ops_in_motion','The CLI onboarding for agents is a genuinely clever touch.','#9be7d0'],
+  ['Priya Nair','@gtm_robotics','Our lead-enrichment pipeline went from duct tape to a single function call.','#f0abfc'],
+];
+const tCard=([n,h,q,c])=>`<div class="t-card">
+  <div class="t-who"><span class="t-ava" style="background:${c}">${n.split(' ').map(w=>w[0]).join('')}</span>
+  <div><div class="nm">${n}</div><div class="hd">${h}</div></div></div>
+  <q>${q}</q></div>`;
+const row1=TWEETS.slice(0,4).map(tCard).join(''), row2=TWEETS.slice(4).map(tCard).join('');
+$('#tRow1').innerHTML=row1+row1; $('#tRow2').innerHTML=row2+row2;
+
+/* ============ FAQ ============ */
+const FAQ={
+  general:[
+    ['What is Firecrawl?','Firecrawl is a web data API that lets you search, scrape, and interact with the web at scale — one interface that turns messy websites into clean, structured data your AI can use.'],
+    ['Why do AI systems need this?','AI is only as good as the context it gets, and the web is the biggest source of live context — but it was built for humans, not machines. Firecrawl closes that gap by turning dynamic, human-oriented pages into machine-usable data.'],
+    ['What are Search, Scrape, and Interact?','They are the three core capabilities. Search finds relevant pages and returns their content. Scrape converts a URL into clean markdown, JSON, or screenshots. Interact handles the hard cases where an agent has to click, type, or navigate to reach the data.'],
+    ['Does it work with AI agents and MCP clients?','Yes — there is an official MCP server, a CLI for terminal workflows, and agent skills that handle setup automatically. Most coding agents can be connected in minutes.'],
+    ['Is Firecrawl open source?','Yes. The core repo is developed in the open and is one of the most-starred projects in the space, with SDKs downloaded millions of times a week.']
+  ],
+  how:[
+    ['How does /search work?','Send a query and get relevant results back with full-page markdown already attached — one call instead of search-then-scrape. Ideal for RAG pipelines and any workflow that starts with a question rather than a URL.'],
+    ['How does /scrape work?','Give it a URL and receive clean, structured content. JavaScript rendering, dynamic content, and complex layouts are handled automatically — one call, one page, clean output.'],
+    ['How does /interact work?','Interact lets your code operate a page: clicking buttons, filling forms, and stepping through multi-step flows, extracting data along the way. Use it when a plain scrape cannot reach the information.'],
+    ['Can I extract structured data?','Yes. Pass a JSON schema to /scrape and get data back in exactly that shape — product listings, pricing tables, contact info — with no post-processing.'],
+    ['Does it handle JavaScript-rendered pages?','Yes. Pages are rendered automatically, so SPAs and dynamically loaded content come back complete, with zero extra configuration.']
+  ],
+  api:[
+    ['What SDKs are available?','Official SDKs exist for Python, Node.js, Go, Rust, Java, and more, plus a CLI for terminal workflows. You can also call the REST API directly from any language.'],
+    ['Where do I find my API key?','Sign in and open the dashboard — your key is on the main screen and under API Keys. Agents can follow the onboarding skill to get set up automatically.'],
+    ['Which formats can I get back?','Clean markdown by default, plus raw HTML, screenshots, page metadata, and structured JSON via schemas — whatever your application needs.'],
+    ['Is it suitable for large-scale projects?','Yes. Batch scraping, crawling, and scheduled syncs are designed to handle millions of pages on the higher tiers.']
+  ],
+  billing:[
+    ['Is there a free plan?','You get free credits every month — roughly a thousand pages — with no card required. Paid plans add capacity and features when you need them.'],
+    ['How do credits work?','Most endpoints cost one credit per page; search costs a couple of credits per batch of results and browser-based interaction is metered by the minute. Advanced formats like structured extraction cost a little extra.'],
+    ['Do you charge for failed requests?','A scrape that returns no result is not charged. Pages that respond with an error status are still delivered and count as a normal request.'],
+    ['What payment methods do you accept?','Major credit and debit cards through a standard payment provider, with invoices available for business accounts.']
+  ]
+};
+let faqCat='general';
+function renderFAQ(){
+  $('#faqList').innerHTML = FAQ[faqCat].map(([q,a])=>`
+    <div class="faq-item">
+      <button class="q">${q}<span class="ico">+</span></button>
+      <div class="a"><p>${a}</p></div>
+    </div>`).join('');
+}
+$('#faqCats').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  faqCat=b.dataset.cat;
+  document.querySelectorAll('#faqCats button').forEach(x=>x.classList.toggle('active',x===b));
+  renderFAQ();
+});
+$('#faqList').addEventListener('click',e=>{
+  const q=e.target.closest('.q'); if(!q)return;
+  const item=q.parentElement, a=item.querySelector('.a'), open=item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(i=>{i.classList.remove('open');i.querySelector('.a').style.maxHeight=null;});
+  if(!open){ item.classList.add('open'); a.style.maxHeight=a.scrollHeight+'px'; }
+});
+renderFAQ();
+
+/* ============ use-case terminal ============ */
+const tasks=[...document.querySelectorAll('#taskList .t')];
+const termLines=[
+  '<div><span class="hl">$</span> research "state of open source LLMs 2026"</div>',
+  '<div style="margin-top:8px">→ searching academic papers… <span style="color:var(--green)">12 found</span></div>',
+  '<div>→ searching news… <span style="color:var(--green)">8 found</span></div>',
+  '<div>→ collecting expert opinions… <span style="color:var(--green)">6 found</span></div>',
+  '<div>→ pulling research reports… <span style="color:var(--green)">5 found</span></div>',
+  '<div>→ gathering industry data… <span style="color:var(--green)">9 found</span></div>',
+  '<div style="margin-top:8px;color:var(--green)">✓ report ready · 40 sources · 4.2s</div>'
+];
+let ucI=0;
+function ucStep(){
+  if(ucI<termLines.length){
+    $('#ucTerminal').insertAdjacentHTML('beforeend',termLines[ucI]);
+    if(ucI>0 && ucI-1<tasks.length) tasks[ucI-1].classList.add('done');
+    ucI++;
+    setTimeout(ucStep, 900);
+  }else{
+    setTimeout(()=>{ ucI=0; tasks.forEach(t=>t.classList.remove('done')); $('#ucTerminal').innerHTML=''; ucStep(); }, 6000);
+  }
+}
+const ucObs=new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(e.isIntersecting){ ucStep(); ucObs.disconnect(); } });
+},{threshold:.3});
+ucObs.observe($('#ucTerminal'));
+
+/* ============ file rows ticking ============ */
+setInterval(()=>{
+  document.querySelectorAll('[data-tick]').forEach(el=>{
+    const dots=el.dataset.d||0; el.dataset.d=(dots+1)%4;
+    el.textContent=el.textContent.replace(/…|✓/,'')+'.'.repeat(dots+1).slice(-3)+(Math.random()>.85?'':'');
+    if(el.textContent.length>26) el.textContent=el.textContent.slice(0,26)+'…';
+  });
+},700);
+
+/* ============ reveal on scroll ============ */
+const obs=new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); obs.unobserve(e.target);} });
+},{threshold:.12});
+document.querySelectorAll('.rv').forEach(el=>obs.observe(el));
+
+/* ============ benchmark + token bars ============ */
+const barObs=new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.querySelectorAll('[data-w]').forEach(f=>{ setTimeout(()=>f.style.width=f.dataset.w,150); });
+      barObs.unobserve(e.target);
+    }
+  });
+},{threshold:.4});
+document.querySelectorAll('.bento').forEach(b=>barObs.observe(b));
+
+/* ============ counters ============ */
+const cntObs=new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(!e.isIntersecting) return;
+    const el=e.target, target=+el.dataset.count, suf=el.dataset.suffix||'', t0=performance.now();
+    const tick=(t)=>{
+      const p=Math.min((t-t0)/1200,1), v=Math.floor(target*(1-Math.pow(1-p,3)));
+      el.textContent=v+suf;
+      if(p<1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    cntObs.unobserve(el);
+  });
+},{threshold:.5});
+document.querySelectorAll('[data-count]').forEach(el=>cntObs.observe(el));
+
+/* ============ nav scroll ============ */
+window.addEventListener('scroll',()=>{
+  $('#nav').classList.toggle('scrolled',window.scrollY>8);
+},{passive:true});
+
+$('#year').textContent=new Date().getFullYear();
+</script>
+</body>
+</html>
