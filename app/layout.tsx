@@ -1,4 +1,3 @@
-import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 // Self-hosted Geist (npm package) — no Google Fonts fetch at build time, so
 // builds are reproducible in air-gapped CI/containers.
@@ -83,7 +82,7 @@ export default function RootLayout({
             <TooltipProvider delay={200}>{children}</TooltipProvider>
             <Toaster />
           </ThemeProvider>
-          {process.env.VERCEL === '1' && <Analytics />}
+        
         </body>
       </html>
     </ClerkProvider>
