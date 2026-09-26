@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-26T10:57:11.722Z",
+  "timestamp": "2026-09-26T11:02:27.486Z",
   "methodology": "simulated",
   "methodologyNote": "This benchmark uses hash-based deterministic simulation (simulateRetrieval) with hardcoded baseHitProb values per architecture family. It does NOT run real retrieval against actual documents. For empirical measurements, use pnpm eval:real which runs against a live PGlite/ONNX engine with real documents and annotated golden judgments.",
   "datasetSize": 104,

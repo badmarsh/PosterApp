@@ -614,30 +614,42 @@ function renderPosudok(art: PosudokPreviewArt, p: PreviewPalette, width: number,
   afterTable += H * 0.02
 
   // -- classification panel + signature --------------------------------------
+  // Each design states the grade its own way; the chip is drawn twice (once on
+  // the classification line, once inside the closing panel), so it lives in a
+  // helper rather than in a duplicated switch.
   const gradeH = H * 0.036
-  switch (style.gradeStyle) {
-    case "fbox":
-      parts.push(textBar(pad, afterTable + gradeH * 0.25, innerW * 0.3, gradeH * 0.4, withAlpha(p.ink, 0.7)))
-      parts.push(`<rect x="${r(pad + innerW * 0.34)}" y="${r(afterTable)}" width="${r(gradeH * 1.5)}" height="${r(gradeH * 0.85)}" fill="none" stroke="${withAlpha(p.ink, 0.75)}" stroke-width="1.4"/>`)
-      parts.push(`<text x="${r(pad + innerW * 0.34 + gradeH * 0.75)}" y="${r(afterTable + gradeH * 0.66)}" font-size="${r(gradeH * 0.6)}" text-anchor="middle" font-family="Times New Roman, serif" fill="${INK}">A</text>`)
-      break
-    case "table-cell":
-      parts.push(textBar(pad, afterTable + gradeH * 0.25, innerW * 0.3, gradeH * 0.4, withAlpha(p.ink, 0.7)))
-      parts.push(`<rect x="${r(pad + innerW * 0.34)}" y="${r(afterTable)}" width="${r(gradeH * 1.6)}" height="${r(gradeH * 0.85)}" fill="${p.accent}"/>`)
-      parts.push(`<text x="${r(pad + innerW * 0.34 + gradeH * 0.8)}" y="${r(afterTable + gradeH * 0.66)}" font-size="${r(gradeH * 0.6)}" text-anchor="middle" font-family="Times New Roman, serif" fill="#FFFFFF">A</text>`)
-      break
-    case "circled":
-      parts.push(textBar(pad, afterTable + gradeH * 0.25, innerW * 0.3, gradeH * 0.4, withAlpha(p.ink, 0.7)))
-      parts.push(`<circle cx="${r(pad + innerW * 0.36 + gradeH * 0.5)}" cy="${r(afterTable + gradeH * 0.42)}" r="${r(gradeH * 0.45)}" fill="none" stroke="${p.accent}" stroke-width="1.8"/>`)
-      parts.push(`<text x="${r(pad + innerW * 0.36 + gradeH * 0.5)}" y="${r(afterTable + gradeH * 0.64)}" font-size="${r(gradeH * 0.58)}" text-anchor="middle" font-family="Times New Roman, serif" fill="${INK}">A</text>`)
-      break
-    case "inline-bold":
-      parts.push(textBar(pad, afterTable + gradeH * 0.25, innerW * 0.3, gradeH * 0.4, withAlpha(p.ink, 0.7)))
-      parts.push(textBar(pad + innerW * 0.34, afterTable + gradeH * 0.18, innerW * 0.08, gradeH * 0.55, p.accent))
-      break
-    default:
-      parts.push(textBar(pad, afterTable + gradeH * 0.22, innerW * 0.44, gradeH * 0.34, withAlpha(p.ink, 0.5)))
-      parts.push(textBar(pad, afterTable + gradeH * 0.7, innerW * 0.52, gradeH * 0.34, withAlpha(p.ink, 0.35)))
+  const drawGrade = (x: number, yTop: number, h: number) => {
+    switch (style.gradeStyle) {
+      case "fbox":
+        parts.push(`<rect x="${r(x)}" y="${r(yTop)}" width="${r(h * 1.5)}" height="${r(h * 0.85)}" fill="none" stroke="${withAlpha(p.ink, 0.75)}" stroke-width="1.4"/>`)
+        parts.push(`<text x="${r(x + h * 0.75)}" y="${r(yTop + h * 0.66)}" font-size="${r(h * 0.6)}" text-anchor="middle" font-family="Times New Roman, serif" fill="${INK}">A</text>`)
+        break
+      case "table-cell":
+        parts.push(`<rect x="${r(x)}" y="${r(yTop)}" width="${r(h * 1.6)}" height="${r(h * 0.85)}" fill="${p.accent}"/>`)
+        parts.push(`<text x="${r(x + h * 0.8)}" y="${r(yTop + h * 0.66)}" font-size="${r(h * 0.6)}" text-anchor="middle" font-family="Times New Roman, serif" fill="#FFFFFF">A</text>`)
+        break
+      case "circled":
+        parts.push(`<circle cx="${r(x + h * 0.5)}" cy="${r(yTop + h * 0.42)}" r="${r(h * 0.45)}" fill="none" stroke="${p.accent}" stroke-width="1.8"/>`)
+        parts.push(`<text x="${r(x + h * 0.5)}" y="${r(yTop + h * 0.64)}" font-size="${r(h * 0.58)}" text-anchor="middle" font-family="Times New Roman, serif" fill="${INK}">A</text>`)
+        break
+      case "inline-bold":
+        parts.push(textBar(x, yTop + h * 0.18, Math.min(innerW * 0.08, W - pad - x), h * 0.55, p.accent))
+        break
+      default: {
+        // A two-line grade/number pair (panel, band). The bars are clamped to the
+        // page so the closing panel cannot push them past the right margin.
+        const w = Math.min(innerW * 0.22, W - pad - x)
+        parts.push(textBar(x, yTop + h * 0.14, w, h * 0.3, withAlpha(p.ink, 0.5)))
+        parts.push(textBar(x, yTop + h * 0.6, Math.min(w * 1.15, W - pad - x), h * 0.3, withAlpha(p.ink, 0.35)))
+      }
+    }
+  }
+  if (style.gradeStyle === "panel") {
+    parts.push(textBar(pad, afterTable + gradeH * 0.22, innerW * 0.44, gradeH * 0.34, withAlpha(p.ink, 0.5)))
+    parts.push(textBar(pad, afterTable + gradeH * 0.7, innerW * 0.52, gradeH * 0.34, withAlpha(p.ink, 0.35)))
+  } else {
+    parts.push(textBar(pad, afterTable + gradeH * 0.25, innerW * 0.3, gradeH * 0.4, withAlpha(p.ink, 0.7)))
+    drawGrade(pad + innerW * 0.35, afterTable, gradeH)
   }
 
   // -- per-criterion assessment + defence questions --------------------------
@@ -687,6 +699,29 @@ function renderPosudok(art: PosudokPreviewArt, p: PreviewPalette, width: number,
   }
   void sigY
   void sectionGap
+
+  // -- closing assessment panel + signature ----------------------------------
+  // The real posudok ends with an assessment panel above the signature line.
+  // Anchoring it to the bottom and letting the commentary above flow into the
+  // remaining room keeps the page full on every design instead of leaving a
+  // band of blank paper above the signatures.
+  const panelH = H * 0.115
+  const panelTop = sigY - H * 0.02 - panelH
+  let extra = 0
+  while (extra < 3 && panelTop - bodyY > lineH * 7) {
+    heading("", style.sectionMarker)
+    const room = Math.floor((panelTop - bodyY) / (lineH * 1.25)) - 1
+    paragraph(Math.max(2, Math.min(5, room)))
+    extra++
+  }
+  if (panelTop - bodyY > lineH * 1.2) {
+    parts.push(`<rect x="${r(pad)}" y="${r(panelTop)}" width="${r(innerW)}" height="${r(panelH)}" fill="${withAlpha(p.ink, 0.05)}" stroke="${withAlpha(p.ink, 0.16)}"/>`)
+    parts.push(textBar(pad + H * 0.012, panelTop + panelH * 0.16, innerW * 0.32, lineH * 0.95, withAlpha(p.ink, 0.8)))
+    parts.push(textBar(pad + H * 0.012, panelTop + panelH * 0.42, innerW * 0.46, lineH * 0.6, withAlpha(p.ink, 0.35)))
+    parts.push(textBar(pad + H * 0.012, panelTop + panelH * 0.62, innerW * 0.38, lineH * 0.6, withAlpha(p.ink, 0.28)))
+    parts.push(textBar(W - pad - H * 0.012 - innerW * 0.2, panelTop + panelH * 0.24, innerW * 0.2, lineH * 0.7, p.accent, 0.9))
+    drawGrade(W - pad - innerW * 0.22, panelTop + panelH * 0.52, gradeH * 0.95)
+  }
 
   parts.push(`<rect x="${r(pad)}" y="${r(sigY)}" width="${r(innerW * 0.44)}" height="1" fill="${withAlpha(p.ink, 0.6)}"/>`)
   parts.push(`<rect x="${r(W - pad - innerW * 0.28)}" y="${r(sigY)}" width="${r(innerW * 0.28)}" height="1" fill="${withAlpha(p.ink, 0.6)}"/>`)
