@@ -57,6 +57,7 @@ import { cn } from "@/lib/utils"
 import type { OutputType } from "@/lib/output-types"
 import { OUTPUT_TYPE_LABELS, TEMPLATE_REGISTRY, getTemplatesForType } from "@/lib/output-types"
 import { ThesisReviewPanel } from "@/components/thesis-review/thesis-review-panel"
+import { isDemoProject } from "@/lib/mock-data"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { getExistingThesisReviewStore } from "@/components/thesis-review/use-thesis-review-store"
@@ -65,6 +66,7 @@ import { SlideDeckView } from "@/components/preview/slide-deck-view"
 import { SlideCanvas } from "@/components/preview/slide-canvas"
 import { PaperDocumentView } from "@/components/preview/paper-document-view"
 import { PaperCanvas } from "@/components/preview/paper-canvas"
+import { ThesisReviewCanvas } from "@/components/preview/thesis-review-canvas"
 import { PreviewToolbar } from "@/components/preview/preview-toolbar"
 import { EvidenceChip } from "@/components/grounding/evidence-chip"
 import { SuggestedAssetsTray } from "@/components/grounding/suggested-assets-tray"
@@ -1509,10 +1511,71 @@ function StructureView() {
   })
   const workspaceId = useEditor((s) => s.project.id)
 
-  if (activeOutputType === "thesis-review") return <ThesisReviewPanel workspaceId={workspaceId} />
+  if (activeOutputType === "thesis-review") return <ThesisReviewView workspaceId={workspaceId} />
   if (activeOutputType === "slides") return <SlidesView />
   if (activeOutputType === "paper") return <PaperView />
   return <PosterStructureView />
+}
+
+/**
+ * Thesis-review (posudok) view.
+ *
+ * Two surfaces matter for a posudok and they answer different questions:
+ *
+ *  - **Posudok** — the live A4 canvas: what the printed form will look like,
+ *    page by page, with the real letterhead, the weighted criteria table, the
+ *    ratings and the classification. This is the default for curated showcases
+ *    and hand-authored posudky, which have cards but no AI review record.
+ *  - **AI workspace** — the reviewer tooling (rubric, evidence, findings,
+ *    citation audit, export) that produces a review record.
+ *
+ * A workspace that already owns a review record opens in the AI workspace; a
+ * demo/showcase posudok opens on the document, where the user can see what they
+ * are about to export.
+ */
+function ThesisReviewView({ workspaceId }: { workspaceId: string }) {
+  const projectId = useEditor((s) => s.project.id)
+  const hasStoredReview = useEditor((s) => {
+    const output = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
+    if (!output) return false
+    return Boolean(getExistingThesisReviewStore(`${s.project.id}:${output.id}`))
+  })
+  const demo = isDemoProject(projectId)
+  const [mode, setMode] = useState<"document" | "workspace">(demo || !hasStoredReview ? "document" : "workspace")
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border bg-card px-3">
+        {([
+          { id: "document" as const, label: "Posudok", icon: FileText },
+          { id: "workspace" as const, label: "AI pracovný priestor", icon: GraduationCap },
+        ]).map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setMode(tab.id)}
+            aria-pressed={mode === tab.id}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+              mode === tab.id
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <tab.icon className="size-3" />
+            {tab.label}
+          </button>
+        ))}
+        <span className="ml-auto text-[10px] text-muted-foreground">
+          {mode === "document"
+            ? "Živý náhľad vyexportovaného posudku (A4)"
+            : "Hodnotenie kritérií, dôkazy a export"}
+        </span>
+      </div>
+
+      {mode === "document" ? <ThesisReviewCanvas /> : <ThesisReviewPanel workspaceId={workspaceId} />}
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------------------
