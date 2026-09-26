@@ -94,6 +94,18 @@ describe("PosterCanvas", () => {
     }
   })
 
+  it("tells the truth about what the PDF does with leftover column space", () => {
+    // gemini (stretch glue) fills the board in print; tikzposter fills most of
+    // it with an explicit vspace. The canvas must not label either as "white"
+    // without saying what happens at compile time.
+    const gemini = renderCanvas("gemini", galleryCards("gemini"))
+    if (gemini.includes("% white")) {
+      expect(gemini).toContain("filled in print")
+    }
+    const atlas = renderCanvas("atlas", galleryCards("atlas"))
+    expect(atlas).toMatch(/% white|filled to the board edge|prints full|filled in print/)
+  })
+
   it("shows the honest fill read-out for the gallery content", () => {
     const html = renderCanvas("atlas", galleryCards("atlas"))
     // Per-column percentages, a coverage pill and the balance control.

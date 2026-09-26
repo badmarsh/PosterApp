@@ -6,6 +6,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Demo content, canvases and print-accurate poster fill (2026-09-26 session)
+
+Templates used to demo one and the same document re-tinted per template, a new
+project started from empty blocks, and the previews were lists rather than
+canvases. Changes:
+
+- **Curated galleries, not re-tinted copies.** `lib/template-showcase-data.ts` ships four
+  complete research subjects (HEP di-photon resonance search, CRISPR antiviral programme,
+  surgical-robotics VLA, speculative decoding) with their own prose, tables, figures and
+  bibliographies, composed per template *and* per output type: poster editions (classic,
+  dense, wide, Better-Poster hero), slide editions (classic, statement, editorial) and paper
+  editions (full two-column, single-column, compact, proceedings). Poster editions are placed
+  with `planPosterColumns` and topped up with a spare block so no column is left mostly white;
+  every content slide carries speaker notes. `lib/__tests__/template-gallery.test.ts` fails if
+  two templates ever ship identical card sets again, if a poster column is empty or >10% over
+  budget, if a gallery cites a key its bibliography lacks, or if a gallery figure path could
+  not be materialised at compile time.
+- **Real demo figures.** `scripts/generate-demo-figures.mjs` draws eight deterministic
+  vector figures (learning curves with confidence bands, grouped bars with error bars,
+  detector cross-section, invariant-mass spectrum, cryo-EM dose response, knockdown screen,
+  convergence map, model architecture) into `public/figures/*.svg|png`. `materializePublicFigures()`
+  copies exactly the referenced files into the LaTeX staging directory (traversal- and
+  `/api/`-guarded), for both the compile stage and the export ZIP; `outputFileTracingIncludes`
+  keeps them in a serverless trace.
+- **New projects are seeded.** `POST /api/workspaces` seeds the template's example cards and
+  bibliography (`seedContent: false` opts out); `addOutput` in the editor store does the same
+  for additional outputs; the template picker previews what each template starts with. The
+  in-memory demo project (`demo_ws`) is assembled from the galleries, so all three of its
+  outputs tell one story with one bibliography.
+- **Slides get a canvas.** `components/preview/slide-canvas.tsx` draws each slide on a real
+  160 × 90 mm frame at the template's own title proportions, with dark-ground themes drawn
+  dark, a running footline, the metropolis progress bar, and per-pattern body rendering
+  (prose, `stats` tiles, figures with captions, tables, two-column).
+- **Poster fill is print-accurate.** The generator and the canvas now share one decision table
+  (`posterStretchModeFor`, `posterResidualWhite`, `POSTER_STRETCH_SAFETY`): stretch glue
+  (gemini, a0poster) fills the board exactly; tikzposter-class boards get an explicit
+  `\vspace{Nem}` with a documented safety factor. The canvas reports what *prints*
+  ("~N% prints white" vs "filled in print") instead of the raw estimate, and a project's theme
+  override only colours the output that owns it.
+
 ### Audit Fixes (2026-09-21 session — `docs/audits/addendum-fixes-2026-09-21.md`)
 
 Implementation of the findings from the deep technical audit (`docs/audit/deep-analysis-2026-09-21.md`).

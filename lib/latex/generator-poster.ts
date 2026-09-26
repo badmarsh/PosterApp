@@ -4,7 +4,14 @@ import { extractCiteKeys } from "@/lib/bib-parser"
 import { getPosterPreamble } from "./template-map"
 import type { LatexGenerator } from "./types"
 import { indent, assetUrlToLatexPath, normalizeLatexPath, cleanCaption } from "./helpers"
-import { columnBudgetFor, estimateHeight, posterStretchEm, type PosterColumnPlan } from "./layout"
+import {
+  POSTER_STRETCH_SAFETY,
+  columnBudgetFor,
+  estimateHeight,
+  posterStretchEm,
+  posterStretchModeFor,
+  type PosterColumnPlan,
+} from "./layout"
 
 function generateTable(card: Card): string {
   const rows = card.table?.rows
@@ -255,14 +262,16 @@ export class TikzPosterGenerator implements LatexGenerator {
     //    A 0.7 safety factor keeps the estimate's error from pushing content
     //    past the board edge, and the value is capped at 8em.
     //  * any other class keeps the historical `\n\n` separation.
-    const isTikzPoster = ["atlas", "minimal", "tikzposter", "conference", "aurora", "landscape", "betterposter"].includes(
-      this.templateId,
-    )
+    // Single source of truth for "which mechanism fills this board": the preview
+    // canvas asks the same function, so what the canvas promises about the
+    // printed board stays true.
+    const stretchMode = posterStretchModeFor(this.templateId)
+    const isTikzPoster = stretchMode === "explicit-vspace"
     const gapFor = (plan: PosterColumnPlan, cardCount: number) => {
       const underBudget = cardCount > 0 && plan.fill < 1
       if (!underBudget) return "\n\n"
       if (isTikzPoster) {
-        const extra = Number((posterStretchEm(plan, cardCount - 1) * 0.7).toFixed(2))
+        const extra = Number((posterStretchEm(plan, cardCount - 1) * POSTER_STRETCH_SAFETY).toFixed(2))
         return extra > 0.05 ? `\n\n\\vspace{${extra}em}\n\n` : "\n\n"
       }
       return "\n\n\\vspace{\\stretch{1}}\n\n"

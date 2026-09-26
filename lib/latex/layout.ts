@@ -479,6 +479,64 @@ export function planPosterColumns(
  * keeps the number meaningful at every template font size. The value is capped
  * so a nearly empty column grows airy rather than absurd.
  */
+/**
+ * How a template's column fills the vertical space it does not use.
+ *
+ * The generator picks one of three mechanisms (see the gap logic in
+ * `generator-poster.ts`) and the preview canvas has to *show the same thing*,
+ * otherwise "the poster fills the canvas" on screen contradicts the PDF.
+ *
+ *  - `stretch-glue`: the column is typeset in a box of fixed height
+ *    (beamerposter / a0poster+multicols), so `\vspace{\stretch{1}}` between
+ *    blocks spreads the leftover over the whole column — the board ends up full.
+ *  - `explicit-vspace`: tikzposter typesets a natural-height vbox where stretch
+ *    glue collapses, so the generator emits an explicit `\vspace{Nem}`
+ *    computed from the leftover fraction, with a safety factor and a cap — the
+ *    column fills *most* of the way and the remainder prints white.
+ *  - `none`: no mechanism, leftover space stays white.
+ */
+export type PosterStretchMode = "stretch-glue" | "explicit-vspace" | "none"
+
+const EXPLICIT_VSPACE_TEMPLATES = new Set([
+  "atlas",
+  "minimal",
+  "tikzposter",
+  "conference",
+  "aurora",
+  "landscape",
+  "betterposter",
+])
+
+/** Safety factor applied to the explicit `\vspace` value (estimate error). */
+export const POSTER_STRETCH_SAFETY = 0.7
+
+export function posterStretchModeFor(templateId?: string | null): PosterStretchMode {
+  if (!templateId) return "stretch-glue"
+  return EXPLICIT_VSPACE_TEMPLATES.has(templateId) ? "explicit-vspace" : "stretch-glue"
+}
+
+/**
+ * Fraction of a column that still prints white after the generator's stretching
+ * — 0 means the PDF fills the column (possibly with wider gaps between blocks).
+ */
+export function posterResidualWhite(
+  plan: PosterColumnPlan,
+  gapCount: number,
+  templateId?: string | null,
+): number {
+  const leftover = Math.max(0, 1 - plan.fill)
+  if (leftover <= 0 || gapCount < 1) return leftover
+  const mode = posterStretchModeFor(templateId)
+  if (mode === "none") return leftover
+  if (mode === "stretch-glue") return 0
+  // explicit-vspace: the generator spends `min(8em, intended) * 0.7`, and
+  // `posterStretchEm` spends 5% of the column per 0.35em.
+  const intended = posterStretchEm(plan, gapCount, Number.POSITIVE_INFINITY)
+  const spentEm = Math.min(8, intended) * POSTER_STRETCH_SAFETY
+  const spentFraction = spentEm * (0.05 / 0.35)
+  return Math.max(0, leftover - spentFraction)
+}
+
 export function posterStretchEm(plan: PosterColumnPlan, gapCount: number, maxEm = 8): number {
   if (gapCount < 1) return 0
   const leftoverUnits = Math.max(0, plan.budget - plan.estimatedHeight)

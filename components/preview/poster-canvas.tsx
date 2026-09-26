@@ -9,7 +9,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils"
 import { TEMPLATE_REGISTRY } from "@/lib/output-types"
 import { resolveOutputMetadata } from "@/lib/poster-types"
-import { columnBudgetFor, estimateHeight, posterBoardFor, posterColumnHeightMm } from "@/lib/latex"
+import {
+  columnBudgetFor,
+  estimateHeight,
+  posterBoardFor,
+  posterColumnHeightMm,
+  posterResidualWhite,
+  posterStretchModeFor,
+} from "@/lib/latex"
 import type { Card, ColumnIndex } from "@/lib/poster-types"
 
 const COLUMN_GAP_MM = 12
@@ -117,10 +124,26 @@ export function PosterCanvas({
         fill: budget > 0 ? estimated / budget : 0,
         usedPx: used,
         emptyPx: Math.max(0, columnHeightPx - used),
+        // What the *exported PDF* does with the leftover: the generator spreads
+        // it with stretch glue (board ends up full) or an explicit \vspace
+        // (fills most of the way, remainder prints white). Showing the raw
+        // estimate here without this would misreport the printed board.
+        residualWhite: posterResidualWhite(
+          { column, cards: columnCards, estimatedHeight: estimated, budget, fill: budget > 0 ? estimated / budget : 0, headroom: Math.max(0, budget - estimated) },
+          Math.max(0, columnCards.length - 1),
+          templateId ?? activeOutput?.templateId,
+        ),
       }
     })
-  }, [cards, board.columnWidths.length, budget, columnHeightPx])
+  }, [cards, board.columnWidths.length, budget, columnHeightPx, templateId, activeOutput?.templateId])
 
+  const stretchMode = posterStretchModeFor(templateId ?? activeOutput?.templateId)
+  const stretchNote =
+    stretchMode === "stretch-glue"
+      ? "the exported PDF spreads leftover space between blocks, so the board prints full"
+      : stretchMode === "explicit-vspace"
+        ? "the exported PDF expands block spacing to close most of it"
+        : "leftover space prints white"
   const fillValues = columnPlans.map((c) => c.fill)
   const coverage = fillValues.length ? fillValues.reduce((a, b) => a + Math.min(1, b), 0) / fillValues.length : 0
   const overBudget = columnPlans.filter((c) => c.fill > 1.02)
@@ -178,7 +201,11 @@ export function PosterCanvas({
                 />
                 <TooltipContent>
                   Column {plan.column}: {plan.estimated}u of {plan.budget}u ({t.label})
-                  {plan.emptyPx > 24 ? ` · ~${Math.round((plan.emptyPx / columnHeightPx) * 100)}% will print white` : ""}
+                  {plan.residualWhite > 0.01
+                    ? ` · ~${Math.round(plan.residualWhite * 100)}% prints white`
+                    : plan.fill < 0.999
+                      ? " · filled to the board edge in print"
+                      : ""}
                 </TooltipContent>
               </Tooltip>
             )
@@ -321,6 +348,7 @@ export function PosterCanvas({
                       >
                         <span className="font-mono text-[0.95em] font-semibold">
                           {Math.round((plan.emptyPx / columnHeightPx) * 100)}% white
+                          {plan.residualWhite <= 0.01 && " → filled in print"}
                         </span>
                         <span className="flex items-center gap-1">
                           <Plus className="size-3" /> add content to fill the board
