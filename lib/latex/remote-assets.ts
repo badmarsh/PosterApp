@@ -149,3 +149,73 @@ export function rewriteTexRemoteUrls(tex: string, mapping: Map<string, string>):
   }
   return rewritten
 }
+// ---------------------------------------------------------------------------
+// App-relative figures (figures shipped with the app in `public/`)
+// ---------------------------------------------------------------------------
+/**
+ * Figures referenced as `/figures/…` are served by Next from `public/`, which
+ * pdflatex cannot read: inside the sandbox only the staging directory exists.
+ * Demo/curated content and template galleries therefore use public-relative
+ * paths, and this function copies the referenced files into the stage under
+ * `assets/public/` so the very same `.tex` compiles — both in the app and in an
+ * exported ZIP opened in Overleaf.
+ *
+ * Only paths that resolve inside `public/` are accepted (no `..` traversal, no
+ * absolute paths, no `/api/…` routes), and only image extensions pdflatex can
+ * include are copied. Unresolved paths are left untouched so the generator's
+ * `\PosterIncludeGraphics` fallback keeps working.
+ */
+const PUBLIC_FIGURE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".pdf", ".png", ".gif"]
+
+/** App-relative figure URLs referenced by any output card. */
+export function collectPublicFigureUrls(project: Project): string[] {
+  const urls = new Set<string>()
+  for (const output of project.outputs) {
+    for (const card of output.cards) {
+      for (const fig of card.figures ?? []) {
+        const url = fig?.url?.trim()
+        if (!url) continue
+        if (isRemoteUrl(url)) continue
+        if (!url.startsWith("/")) continue
+        if (url.startsWith("/api/")) continue
+        urls.add(url.split("?")[0].split("#")[0])
+      }
+    }
+  }
+  return [...urls]
+}
+
+export function publicFigureFileName(url: string): string {
+  const ext = PUBLIC_FIGURE_EXTENSIONS.find((candidate) => url.toLowerCase().endsWith(candidate)) ?? ".png"
+  const hash = createHash("sha256").update(url).digest("hex").slice(0, 16)
+  const base = path.basename(url).replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 40)
+  return `${base || "figure"}-${hash}${ext}`
+}
+
+export async function materializePublicFigures(
+  project: Project,
+  stageDir: string,
+  publicDir = path.join(process.cwd(), "public"),
+): Promise<Map<string, string>> {
+  const mapping = new Map<string, string>()
+  for (const url of collectPublicFigureUrls(project)) {
+    const candidate = path.resolve(publicDir, `.${url}`)
+    // Resolve-then-check keeps `..` and absolute-path tricks out of the stage.
+    if (!candidate.startsWith(path.resolve(publicDir) + path.sep)) continue
+    let buffer: Buffer
+    try {
+      // turbopackIgnore: the path is already resolved inside `publicDir` and
+      // verified above; without the hint the bundler treats this as arbitrary
+      // filesystem access and traces the whole project into the server output.
+      buffer = await fs.readFile(/* turbopackIgnore: true */ candidate)
+    } catch {
+      continue
+    }
+    const relative = path.posix.join("assets", "public", publicFigureFileName(url))
+    const absolute = path.join(stageDir, relative)
+    await fs.mkdir(path.dirname(absolute), { recursive: true })
+    await fs.writeFile(absolute, buffer)
+    mapping.set(url, relative)
+  }
+  return mapping
+}

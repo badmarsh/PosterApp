@@ -49,6 +49,8 @@ import {
   columnBudgetFor,
   estimateHeight,
   generateFullTemplate,
+  planPosterColumns,
+  posterBoardFor,
 } from "@/lib/latex"
 import type { Card, ColumnIndex, OutputConfig, Project } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
@@ -61,6 +63,7 @@ import { getExistingThesisReviewStore } from "@/components/thesis-review/use-the
 import { PosterCanvas } from "@/components/preview/poster-canvas"
 import { SlideDeckView } from "@/components/preview/slide-deck-view"
 import { PaperDocumentView } from "@/components/preview/paper-document-view"
+import { PaperCanvas } from "@/components/preview/paper-canvas"
 import { PreviewToolbar } from "@/components/preview/preview-toolbar"
 import { EvidenceChip } from "@/components/grounding/evidence-chip"
 import { SuggestedAssetsTray } from "@/components/grounding/suggested-assets-tray"
@@ -1096,6 +1099,27 @@ function PosterStructureView() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
+  const activeOutput = project.outputs?.find((output) => output.id === project.activeOutputId)
+
+  /**
+   * "Fill canvas": redistribute the active output's cards across its columns so
+   * every column ends up as close to the budget as possible; the generator then
+   * stretches the remaining slack. Uses the same estimator as the fill meters,
+   * so the button and the read-out can never disagree.
+   */
+  const handleBalanceColumns = useCallback(() => {
+    if (!activeOutput) return
+    const plan = planPosterColumns(activeOutput.cards, activeOutput.templateId, {
+      columns: posterBoardFor(activeOutput.templateId).columnWidths.length,
+    })
+    if (!plan.changes) return
+    for (const column of plan.columns) {
+      column.cards.forEach((card, index) => {
+        if (card.column !== column.column || card.order !== index) moveCard(card.id, column.column, index)
+      })
+    }
+  }, [activeOutput, moveCard])
+
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string)
   }
@@ -1157,21 +1181,18 @@ function PosterStructureView() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="mx-auto w-full max-w-5xl p-5 pb-20">
+          <div className="mx-auto w-full max-w-6xl p-5 pb-20">
             <PosterCanvas
-              cards={project.outputs?.find((output) => output.id === project.activeOutputId)?.cards ?? []}
-              templateId={project.outputs?.find((output) => output.id === project.activeOutputId)?.templateId}
+              cards={activeOutput?.cards ?? []}
+              templateId={activeOutput?.templateId}
               renderCard={(card) => <CardBoundary key={card.id} card={card}><MiniBlock card={card} /></CardBoundary>}
-              renderColumn={(column, columnCards) => (
+              renderColumn={(column, columnCards, children) => (
                 <SortableContext items={columnCards.map((card) => card.id)} strategy={verticalListSortingStrategy}>
-                  {columnCards.length ? columnCards.map((card) => (
-                    <CardBoundary key={card.id} card={card}><MiniBlock card={card} /></CardBoundary>
-                  )) : (
-                    <div className="rounded-md border border-dashed border-border px-2 py-6 text-center text-[10px] leading-snug text-muted-foreground">Drop cards here</div>
-                  )}
+                  {children}
                 </SortableContext>
               )}
               onAddCard={(column) => addCard(column)}
+              onBalance={handleBalanceColumns}
             />
           </div>
           
@@ -1385,6 +1406,9 @@ function PaperView() {
     }))
   )
   const [activeId, setActiveId] = useState<string | null>(null)
+  // Canvas is the default: it is the only view that shows the real page flow.
+  // The outline keeps the drag-and-drop reordering affordance.
+  const [view, setView] = useState<"canvas" | "outline">("canvas")
   const cards = useMemo(() => {
     const activeCards = project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []
     return [...activeCards].sort((a, b) => a.order - b.order)
@@ -1406,7 +1430,54 @@ function PaperView() {
 
   if (isSwitchingProject) return <PosterSkeleton />
 
+  const viewToggle = (
+    <div className="flex shrink-0 items-center justify-between border-b border-border bg-card/70 px-3 py-1">
+      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <FileText className="size-3" />
+        <span className="font-medium text-foreground">Paper</span>
+        <span>· {cards.length} sections</span>
+      </div>
+      <div className="flex items-center gap-0.5 rounded-md border border-border bg-muted/40 p-0.5" role="tablist" aria-label="Paper view">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "canvas"}
+          onClick={() => setView("canvas")}
+          className={cn(
+            "flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+            view === "canvas" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <BookOpen className="size-3" /> Canvas
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "outline"}
+          onClick={() => setView("outline")}
+          className={cn(
+            "flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+            view === "outline" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <List className="size-3" /> Outline
+        </button>
+      </div>
+    </div>
+  )
+
+  if (view === "canvas") {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        {viewToggle}
+        <PaperCanvas />
+      </div>
+    )
+  }
+
   return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {viewToggle}
     <ScrollArea className="min-h-0 flex-1">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <PaperDocumentView
@@ -1424,6 +1495,7 @@ function PaperView() {
         </DragOverlay>
       </DndContext>
     </ScrollArea>
+    </div>
   )
 }
 

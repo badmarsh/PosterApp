@@ -1,4 +1,4 @@
-import type { Card } from "@/lib/poster-types"
+import type { Card, ColumnIndex } from "@/lib/poster-types"
 
 /**
  * Default column height budget, in the arbitrary "units" produced by
@@ -260,4 +260,231 @@ export function heightUnitsToCharacters(budgetUnits: number, reservedUnits = 0):
 export function charactersToHeightUnits(chars: number): number {
   if (!Number.isFinite(chars) || chars <= 0) return 0
   return Math.ceil(chars * HEIGHT_UNITS_PER_CHAR)
+}
+
+// ---------------------------------------------------------------------------
+// Poster board geometry (print truth for the live canvas and the generator)
+// ---------------------------------------------------------------------------
+// The preview used to be a fixed-width HTML mockup with `min-w-[720px]` and no
+// relationship to the printed board: a column that looked full on screen could
+// be half empty on paper. These numbers describe the physical board each
+// template prints on, so the canvas can show the same proportions and the
+// generator can distribute vertical space to fill it.
+
+/** A0 in millimetres — the size every poster template prints. */
+export const A0_PORTRAIT = { widthMm: 841, heightMm: 1189 }
+/** A0 landscape: the board is rotated, not resized. */
+export const A0_LANDSCAPE = { widthMm: 1189, heightMm: 841 }
+
+export type PosterBoard = {
+  /** Template id this board belongs to. */
+  id: string
+  label: string
+  orientation: "portrait" | "landscape"
+  widthMm: number
+  heightMm: number
+  /** Outer white margin the template leaves around the columns. */
+  marginMm: number
+  /** Height consumed by the title band (drawn by the class). */
+  titleBandMm: number
+  /** Column widths as fractions of the usable width; they sum to ~1. */
+  columnWidths: number[]
+  /** Human label shown in the canvas chrome, e.g. "A0 portrait · 3 columns". */
+  description: string
+}
+
+function board(
+  id: string,
+  orientation: "portrait" | "landscape",
+  titleBandMm: number,
+  columnWidths: number[],
+  marginMm = 40,
+): PosterBoard {
+  const page = orientation === "portrait" ? A0_PORTRAIT : A0_LANDSCAPE
+  return {
+    id,
+    label: orientation === "portrait" ? "A0 portrait" : "A0 landscape",
+    orientation,
+    ...page,
+    marginMm,
+    titleBandMm,
+    columnWidths,
+    description: `${orientation === "portrait" ? "A0 portrait" : "A0 landscape"} · ${columnWidths.length} columns`,
+  }
+}
+
+/**
+ * Board geometry per poster template. Keep in sync with the `\documentclass`
+ * options and the `\column{...}` widths in `lib/latex/templates.ts` /
+ * `generator-poster.ts` (betterposter is the asymmetric 0.28/0.42/0.28 layout).
+ */
+export const POSTER_BOARD_BY_TEMPLATE: Record<string, PosterBoard> = {
+  atlas: board("atlas", "portrait", 165, [1 / 3, 1 / 3, 1 / 3]),
+  minimal: board("minimal", "portrait", 150, [1 / 3, 1 / 3, 1 / 3]),
+  conference: board("conference", "portrait", 165, [1 / 3, 1 / 3, 1 / 3]),
+  tikzposter: board("tikzposter", "portrait", 150, [1 / 3, 1 / 3, 1 / 3]),
+  aurora: board("aurora", "portrait", 150, [1 / 3, 1 / 3, 1 / 3]),
+  gemini: board("gemini", "portrait", 160, [1 / 3, 1 / 3, 1 / 3]),
+  a0poster: board("a0poster", "portrait", 135, [1 / 3, 1 / 3, 1 / 3], 35),
+  landscape: board("landscape", "landscape", 140, [1 / 3, 1 / 3, 1 / 3]),
+  betterposter: board("betterposter", "landscape", 130, [0.28, 0.42, 0.28]),
+}
+
+/** Board geometry for a poster template; A0 portrait three-column by default. */
+export function posterBoardFor(templateId?: string | null): PosterBoard {
+  if (!templateId) return POSTER_BOARD_BY_TEMPLATE.atlas
+  return POSTER_BOARD_BY_TEMPLATE[templateId] ?? POSTER_BOARD_BY_TEMPLATE.atlas
+}
+
+/** Usable width inside the margins, in mm. */
+export function posterUsableWidthMm(b: PosterBoard): number {
+  return b.widthMm - b.marginMm * 2
+}
+
+/**
+ * Height of one column, in mm: the board minus margins, the title band and the
+ * inter-block breathing room the class adds at the bottom.
+ */
+export function posterColumnHeightMm(b: PosterBoard, reserveBottomMm = 30): number {
+  return Math.max(120, b.heightMm - b.marginMm * 2 - b.titleBandMm - reserveBottomMm)
+}
+
+/** Column width in mm for a given index. */
+export function posterColumnWidthMm(b: PosterBoard, index: number): number {
+  const gutter = 12
+  const usable = posterUsableWidthMm(b) - gutter * (b.columnWidths.length - 1)
+  return usable * (b.columnWidths[index] ?? 1 / 3)
+}
+
+// ---------------------------------------------------------------------------
+// Column planning / balancing
+// ---------------------------------------------------------------------------
+
+export type PosterColumnPlan = {
+  column: ColumnIndex
+  cards: Card[]
+  estimatedHeight: number
+  budget: number
+  /** 0…2 — 1 means exactly at budget. */
+  fill: number
+  /** Height still available, in units (0 when over budget). */
+  headroom: number
+}
+
+export type PosterPlan = {
+  board: PosterBoard
+  columns: PosterColumnPlan[]
+  /** Assignments keyed by card id, for `moveCard`-style application. */
+  assignments: Record<string, ColumnIndex>
+  /** Mean fill of the three columns, 0…2. */
+  averageFill: number
+  /** True when the plan moves at least one card away from its current column. */
+  changes: boolean
+}
+
+/**
+ * Assign cards to columns so the board is filled as evenly as possible.
+ *
+ * Greedy longest-processing-time: cards are placed highest-estimate-first into
+ * the column with the most headroom. That is within ~11% of optimal for three
+ * machines and, unlike round-robin, it respects the fact that one figure-heavy
+ * card can cost as much as six bullets cards. The user's column *order* is
+ * preserved inside each column: cards keep their relative sequence.
+ */
+export function planPosterColumns(
+  cards: Card[],
+  templateId?: string | null,
+  opts: { columns?: number; respectCurrent?: boolean } = {},
+): PosterPlan {
+  const board = posterBoardFor(templateId)
+  const columnCount = Math.min(3, Math.max(1, opts.columns ?? board.columnWidths.length))
+  const budget = columnBudgetFor(templateId)
+  const colIds = ([1, 2, 3] as ColumnIndex[]).slice(0, columnCount)
+
+  const estimate = (card: Card) => estimateHeight(card)
+
+  // Seed with the current columns when asked to (keeps the user in control and
+  // only *tops up* empty space); otherwise start from an empty board.
+  if (opts.respectCurrent) {
+    const columns = colIds.map((column) => {
+      const colCards = cards
+        .filter((c) => c.column === column)
+        .sort((a, b) => a.order - b.order)
+      const estimatedHeight = colCards.reduce((sum, c) => sum + estimate(c), 0)
+      return {
+        column,
+        cards: colCards,
+        estimatedHeight,
+        budget,
+        fill: estimatedHeight / budget,
+        headroom: Math.max(0, budget - estimatedHeight),
+      }
+    })
+    return {
+      board,
+      columns,
+      assignments: Object.fromEntries(columns.flatMap((c) => c.cards.map((card) => [card.id, c.column]))) as Record<string, ColumnIndex>,
+      averageFill: columns.reduce((s, c) => s + c.fill, 0) / columns.length,
+      changes: false,
+    }
+  }
+
+  const buckets: Card[][] = colIds.map(() => [])
+  const heights = colIds.map(() => 0)
+
+  const ordered = [...cards].sort((a, b) => estimate(b) - estimate(a) || (a.column ?? 1) - (b.column ?? 1) || a.order - b.order)
+  for (const card of ordered) {
+    let target = 0
+    for (let i = 1; i < columnCount; i++) if (heights[i] < heights[target]) target = i
+    buckets[target].push(card)
+    heights[target] += estimate(card)
+  }
+
+  // Restore the author's reading order inside every column.
+  buckets.forEach((bucket, i) => {
+    bucket.sort((a, b) => (a.column ?? 1) - (b.column ?? 1) || a.order - b.order)
+    heights[i] = bucket.reduce((sum, c) => sum + estimate(c), 0)
+  })
+
+  const columns = colIds.map((column, i) => ({
+    column,
+    cards: buckets[i],
+    estimatedHeight: heights[i],
+    budget,
+    fill: heights[i] / budget,
+    headroom: Math.max(0, budget - heights[i]),
+  }))
+
+  const current = new Map(cards.map((c) => [c.id, c.column]))
+  const assignments: Record<string, ColumnIndex> = {}
+  for (const col of columns) for (const card of col.cards) assignments[card.id] = col.column
+  const changes = cards.some((card, i) => current.get(card.id) !== assignments[card.id])
+
+  return {
+    board,
+    columns,
+    assignments,
+    averageFill: columns.reduce((s, c) => s + c.fill, 0) / columns.length,
+    changes,
+  }
+}
+
+/**
+ * Extra inter-block spacing (as a multiple of `em`) that would spread a column's
+ * content over the full board height.
+ *
+ * `estimateHeight` units are proportional to printed area, so the leftover
+ * fraction of the budget maps directly onto the leftover fraction of the
+ * column. Spreading it across `n-1` gaps and expressing the result in `em`
+ * keeps the number meaningful at every template font size. The value is capped
+ * so a nearly empty column grows airy rather than absurd.
+ */
+export function posterStretchEm(plan: PosterColumnPlan, gapCount: number, maxEm = 8): number {
+  if (gapCount < 1) return 0
+  const leftoverUnits = Math.max(0, plan.budget - plan.estimatedHeight)
+  const leftoverFraction = leftoverUnits / plan.budget
+  // ~2.2em of block spacing ≈ 5% of a column's height for the A0 poster sizes,
+  // so fraction/0.05 gives the em multiplier that spends the leftover.
+  const em = (leftoverFraction / 0.05) * 0.35
+  return Math.max(0, Math.min(maxEm, Number(em.toFixed(2))))
 }

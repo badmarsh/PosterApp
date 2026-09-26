@@ -11,6 +11,7 @@ vi.mock("@/lib/latex/compiler-runner", () => ({
 }))
 vi.mock("@/lib/latex/remote-assets", () => ({
   materializeRemoteFigures: vi.fn(async () => new Map()),
+  materializePublicFigures: vi.fn(async () => new Map()),
   rewriteTexRemoteUrls: vi.fn((tex) => tex),
 }))
 vi.mock("fs/promises", () => ({

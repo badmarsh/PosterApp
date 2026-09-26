@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { WorkspaceCreateSchema } from "@/lib/validations/workspace"
 import { auth } from "@/lib/auth"
 import { getDefaultTemplateId, getTemplateDef } from "@/lib/output-types"
+import { formatBibEntry } from "@/lib/bib-types"
+import { galleryBibEntriesFor, templateGalleryFor } from "@/lib/template-showcase-data"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { safeApiError, readJsonBodyCapped, PayloadTooLargeError } from "@/lib/security"
 
@@ -165,7 +167,7 @@ export async function POST(req: Request) {
       )
     }
     
-    const { id, name, outputType = "poster", templateId } = parsed.data
+    const { id, name, outputType = "poster", templateId, seedContent = true } = parsed.data
 
     const existing = await prisma.workspace.findUnique({
       where: { id },
@@ -180,7 +182,33 @@ export async function POST(req: Request) {
 
     const resolvedTemplateId = templateId || getDefaultTemplateId(outputType)
     const outputId = `out_${outputType}_${Date.now().toString(36)}`
-    
+
+    // Seed the new workspace with the template's curated example. Creating a
+    // workspace used to produce an empty output, which meant the first compile
+    // was a blank page — the "one lazy A4" the demo content exists to avoid.
+    // Passing `seedContent: false` still gives an empty project.
+    const gallery = seedContent ? templateGalleryFor(resolvedTemplateId) : null
+    const seededCards = gallery
+      ? gallery.cards.map((card) => ({
+          id: card.id,
+          title: card.title,
+          column: card.column ?? null,
+          order: card.order,
+          pattern: card.pattern,
+          content: card.content,
+          figureLayout: card.figureLayout ?? "single",
+          heightBudget: null,
+          validation: "valid",
+          slideNotes: card.slideNotes ?? null,
+          table: card.table ?? undefined,
+          figures: card.figures ?? undefined,
+          sourceIds: card.sourceIds ?? undefined,
+        }))
+      : []
+    const seededBib = gallery
+      ? galleryBibEntriesFor(resolvedTemplateId).map((entry) => entry.rawBibtex || formatBibEntry(entry)).join("\n\n")
+      : ""
+
     const project = await prisma.workspace.create({
       data: {
         id,
@@ -188,6 +216,7 @@ export async function POST(req: Request) {
         authors: "",
         venue: "",
         userId,
+        bibContent: seededBib || null,
         outputs: {
           create: {
             id: outputId,
@@ -196,6 +225,7 @@ export async function POST(req: Request) {
             title: outputType === "thesis-review" ? "Posudok školiteľa" : name,
             themeColor: getTemplateDef(resolvedTemplateId)?.colors[0]?.hex ?? null,
             isActive: true,
+            ...(seededCards.length ? { cards: { create: seededCards } } : {}),
           },
         },
       },
@@ -209,7 +239,7 @@ export async function POST(req: Request) {
     })
 
     // Return in the expected Project format for the frontend
-    const activeOutput = project.outputs.find((o) => o.isActive) || project.outputs[0]
+    const activeOutput = project.outputs.find((o: { isActive: boolean }) => o.isActive) || project.outputs[0]
     return NextResponse.json({
       ...project,
       // Legacy flat fields for backward compat

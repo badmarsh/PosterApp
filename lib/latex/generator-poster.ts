@@ -4,7 +4,7 @@ import { extractCiteKeys } from "@/lib/bib-parser"
 import { getPosterPreamble } from "./template-map"
 import type { LatexGenerator } from "./types"
 import { indent, assetUrlToLatexPath, normalizeLatexPath, cleanCaption } from "./helpers"
-import { columnBudgetFor, estimateHeight } from "./layout"
+import { columnBudgetFor, estimateHeight, posterStretchEm, type PosterColumnPlan } from "./layout"
 
 function generateTable(card: Card): string {
   const rows = card.table?.rows
@@ -243,6 +243,31 @@ export class TikzPosterGenerator implements LatexGenerator {
     const budget = columnBudgetFor(this.templateId)
     const activeCards = outputConfig.cards ?? []
 
+    // Gap between blocks, chosen so the column actually reaches the bottom of
+    // the board. Three mechanisms, in order of how well they survive TeX:
+    //
+    //  * beamerposter (gemini) and a0poster/multicols place their columns in a
+    //    box of fixed height, so `\vspace{\stretch{1}}` genuinely spreads the
+    //    blocks over the whole column.
+    //  * tikzposter typesets each column as a natural-height vbox, where
+    //    stretch glue collapses to zero — so there we emit an *explicit*
+    //    `\vspace{Nem}` computed from the leftover fraction of the budget.
+    //    A 0.7 safety factor keeps the estimate's error from pushing content
+    //    past the board edge, and the value is capped at 8em.
+    //  * any other class keeps the historical `\n\n` separation.
+    const isTikzPoster = ["atlas", "minimal", "tikzposter", "conference", "aurora", "landscape", "betterposter"].includes(
+      this.templateId,
+    )
+    const gapFor = (plan: PosterColumnPlan, cardCount: number) => {
+      const underBudget = cardCount > 0 && plan.fill < 1
+      if (!underBudget) return "\n\n"
+      if (isTikzPoster) {
+        const extra = Number((posterStretchEm(plan, cardCount - 1) * 0.7).toFixed(2))
+        return extra > 0.05 ? `\n\n\\vspace{${extra}em}\n\n` : "\n\n"
+      }
+      return "\n\n\\vspace{\\stretch{1}}\n\n"
+    }
+
     const columns = [1, 2, 3]
       .map((col) => {
         const cards = activeCards
@@ -250,15 +275,23 @@ export class TikzPosterGenerator implements LatexGenerator {
           .sort((a, b) => a.order - b.order)
 
         const colHeight = cards.reduce((sum, c) => sum + estimateHeight(c), 0)
-        // Adaptive vertical space budgeting: if below 75% of budget, expand vertical separation
+        const plan: PosterColumnPlan = {
+          column: col as 1 | 2 | 3,
+          cards,
+          estimatedHeight: colHeight,
+          budget,
+          fill: budget > 0 ? colHeight / budget : 0,
+          headroom: Math.max(0, budget - colHeight),
+        }
         const isUnderBudget = cards.length > 0 && colHeight < 0.75 * budget
+        const gap = gapFor(plan, cards.length)
 
         const blocks = cards
           .map((c) => indent(generateLatexForCard(c, workspaceId, usedKeysArray, this.templateId, isUnderBudget)))
-          .join(this.templateId === "gemini" && isUnderBudget ? "\n\n\\vfill\n\n" : "\n\n")
+          .join(gap)
 
         if (this.templateId === "gemini") {
-          const trailingVfill = isUnderBudget ? "\n\\vfill" : ""
+          const trailingVfill = isUnderBudget ? "\n\\vfill\n\\vfill" : ""
           return "% ===== Column " + col + " =====\n\\begin{column}{0.31\\textwidth}\n" + blocks + trailingVfill + "\n\\end{column}"
         }
         if (this.templateId === "a0poster") {

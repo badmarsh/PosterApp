@@ -93,6 +93,17 @@ const nextConfig = {
     unoptimized: true,
   },
   serverExternalPackages: ["yjs"],
+  /**
+   * Figures shipped with the app live in `public/figures` and are copied into
+   * the LaTeX staging directory at compile/export time (`materializePublicFigures`
+   * reads them from disk). Without this, a serverless trace would not include
+   * them and the compiled PDF would silently fall back to placeholder boxes.
+   */
+  outputFileTracingIncludes: {
+    "/api/workspaces/[id]/compile": ["./public/figures/**", "./public/latex-styles/**", "./public/logos/**"],
+    "/api/workspaces/[id]/export": ["./public/figures/**", "./public/latex-styles/**", "./public/logos/**"],
+    "/api/agent/workspaces/[id]/compile": ["./public/figures/**", "./public/latex-styles/**", "./public/logos/**"],
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "210mb",

@@ -49,4 +49,48 @@ describe('project-slice', () => {
     expect(store.getState().project.outputs?.find((output) => output.id === posterId)?.cards
       .find((card) => card.id === posterCardId)?.title).toBe('Poster-only change');
   });
+
+  it('seeds a new output with the template example instead of empty blocks', () => {
+    const store = createEditorStore();
+
+    store.getState().addOutput('poster', 'atlas');
+    const output = store.getState().project.outputs!.find(
+      (o) => o.id === store.getState().project.activeOutputId,
+    )!;
+
+    // Real content, not a skeleton of empty blocks.
+    expect(output.cards.length).toBeGreaterThan(8);
+    expect(output.cards.every((c) => c.content.trim().length > 0 || c.pattern === 'references')).toBe(true);
+    expect(output.cards.some((c) => c.figures.length > 0)).toBe(true);
+    expect(output.cards.some((c) => (c.table?.rows?.length ?? 0) > 0)).toBe(true);
+
+    // Citations resolve: the example's bibliography travels with the cards.
+    const cited = output.cards
+      .flatMap((c) => [...c.content.matchAll(/\\cite\{([^}]+)\}/g)])
+      .flatMap((m) => m[1].split(',').map((k) => k.trim()));
+    expect(cited.length).toBeGreaterThan(0);
+    const keys = new Set(store.getState().bibEntries.map((e) => e.key || e.id));
+    expect([...new Set(cited)].filter((k) => !keys.has(k))).toEqual([]);
+    expect(store.getState().bibContent).toContain('@');
+  });
+
+  it('still creates empty blocks when a count is requested', () => {
+    const store = createEditorStore();
+    store.getState().addOutput('paper', 'ieee-conf', 4);
+    const output = store.getState().project.outputs!.find(
+      (o) => o.id === store.getState().project.activeOutputId,
+    )!;
+    expect(output.cards).toHaveLength(4);
+    expect(output.cards.every((c) => c.content === '')).toBe(true);
+  });
+
+  it('does not duplicate bibliography keys when two outputs share a subject', () => {
+    const store = createEditorStore();
+    store.getState().addOutput('paper', 'article-twocol');
+    const afterFirst = store.getState().bibEntries.length;
+    store.getState().addOutput('paper', 'article-single');
+    const keys = store.getState().bibEntries.map((e) => e.key || e.id);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(store.getState().bibEntries.length).toBeGreaterThanOrEqual(afterFirst);
+  });
 });

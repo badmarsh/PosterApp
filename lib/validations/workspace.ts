@@ -164,4 +164,10 @@ export const WorkspaceCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   outputType: z.enum(["poster", "slides", "paper", "thesis-review"]).optional().default("poster"),
   templateId: z.string().optional(),
+  /**
+   * Seed the workspace with the template's curated example content (default).
+   * `false` creates an empty workspace — useful for tests and for users who
+   * want to start from a blank board.
+   */
+  seedContent: z.boolean().optional().default(true),
 })

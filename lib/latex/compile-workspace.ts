@@ -5,7 +5,7 @@ import os from "os"
 import { prisma } from "@/lib/prisma"
 import { generateFullTemplate } from "@/lib/latex"
 import { resolveBibSource } from "@/lib/latex/bib-source"
-import { materializeRemoteFigures, rewriteTexRemoteUrls } from "@/lib/latex/remote-assets"
+import { materializePublicFigures, materializeRemoteFigures, rewriteTexRemoteUrls } from "@/lib/latex/remote-assets"
 import { WORKSPACES_ROOT, workspacePath } from "@/lib/workspace-files"
 import { safeLog, runSandboxedLatex } from "@/lib/latex/compiler-runner"
 import type { Card, Project } from "@/lib/poster-types"
@@ -172,9 +172,12 @@ export async function compileWorkspace(
     let tex = generateFullTemplate(project, output, workspaceId)
     stage = await fs.mkdtemp(path.join(os.tmpdir(), `posterapp-${workspaceId}-`))
 
-    // Materialize remote figures and rewrite .tex
+    // Materialize remote figures (and figures shipped inside `public/`) so the
+    // generated .tex only references files that exist in the staging directory.
     const remoteMapping = await materializeRemoteFigures(project, stage)
     tex = rewriteTexRemoteUrls(tex, remoteMapping)
+    const publicMapping = await materializePublicFigures(project, stage)
+    tex = rewriteTexRemoteUrls(tex, publicMapping)
 
     await fs.writeFile(path.join(stage, "main.tex"), tex, "utf8")
 

@@ -7,6 +7,8 @@ import { apiFetch } from "@/lib/api-fetch"
 import { notify } from "@/lib/notify"
 import type { OutputType } from "@/lib/output-types"
 import { getDefaultTemplateId, DEFAULT_STRUCTURES, getTemplateDef, buildDefaultStructure } from "@/lib/output-types"
+import { galleryBibEntriesFor, templateGalleryFor } from "@/lib/template-showcase-data"
+import { formatBibEntry } from "@/lib/bib-types"
 import { jobQueue } from "@/lib/job-queue"
 import { sanitizeCiteKeys } from "@/lib/ai/prompts"
 import { destroyThesisReviewStore, clearThesisReviewStoreRegistry, getExistingThesisReviewStore } from "@/components/thesis-review/use-thesis-review-store"
@@ -414,24 +416,52 @@ export const createProjectSlice: EditorSlice<ProjectSlice> = (set, get) => {
   addOutput: (outputType, templateId, count) => set((s) => {
     const resolvedTemplate = templateId || getDefaultTemplateId(outputType)
     const id = `out_${outputType}_${Date.now().toString(36)}`
-    
+
+    // A brand-new output used to arrive as a list of empty blocks ("one lazy
+    // A4"), so the first compile produced a blank document. When the template
+    // has a curated example, that example becomes the starting document: real
+    // prose, real tables, real figures, and the bibliography its \cite keys
+    // point at. `count` still means "just give me N empty blocks".
+    const gallery = count === undefined ? templateGalleryFor(resolvedTemplate) : null
+
     const structure = (count !== undefined)
       ? buildDefaultStructure(outputType, count)
       : DEFAULT_STRUCTURES[outputType]
-    const newCards = structure.map((def, i) => ({
-      id: `blk_${id}_${i}`,
-      title: def.title,
-      column: (def.column ?? null) as 1 | 2 | 3 | null,
-      order: i,
-      pattern: def.pattern as BlockPattern,
-      content: "",
-      table: { hasHeader: true, caption: "", rows: [] },
-      figures: [],
-      figureLayout: "single" as const,
-      sourceIds: [],
-      heightBudget: null,
-      validation: "warning" as const,
-    }))
+    const newCards = gallery
+      ? gallery.cards.map((card, i) => ({
+          ...card,
+          // Fresh ids: the gallery's ids are stable per template, and a project
+          // may hold the same template twice.
+          id: `blk_${id}_${i}`,
+          order: card.order ?? i,
+        }))
+      : structure.map((def, i) => ({
+          id: `blk_${id}_${i}`,
+          title: def.title,
+          column: (def.column ?? null) as 1 | 2 | 3 | null,
+          order: i,
+          pattern: def.pattern as BlockPattern,
+          content: "",
+          table: { hasHeader: true, caption: "", rows: [] },
+          figures: [],
+          figureLayout: "single" as const,
+          sourceIds: [],
+          heightBudget: null,
+          validation: "warning" as const,
+        }))
+
+    // Merge the example's references so the citations resolve on first compile.
+    if (gallery) {
+      const existingKeys = new Set(
+        (s.bibEntries || []).map((entry) => entry.key || entry.id),
+      )
+      for (const entry of galleryBibEntriesFor(resolvedTemplate)) {
+        if (existingKeys.has(entry.key || entry.id)) continue
+        s.bibEntries = [...(s.bibEntries || []), entry]
+        s.bibContent = `${s.bibContent ? s.bibContent.trimEnd() + "\n\n" : ""}${entry.rawBibtex || formatBibEntry(entry)}`
+        s.bibKeys = [...(s.bibKeys || []), entry.key || entry.id]
+      }
+    }
 
     let outputTitle = s.project.name
     if (outputType === "thesis-review") {
