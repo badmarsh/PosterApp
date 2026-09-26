@@ -110,6 +110,52 @@ function nl2par(text: string): string {
     .join("\n\n")
 }
 
+/**
+ * Normalise prose for LaTeX without flattening bullet lists.
+ *
+ * Card content mixes lead paragraphs with `- **Label:** value` bullets and no
+ * blank line in between. Collapsing every newline (as `nl2par` does) welded
+ * those bullets into one run-on sentence, so each bullet keeps its own line and
+ * the markdown parser can turn it into a real `itemize` item.
+ */
+function renderProse(text: string): string {
+  const blocks: string[] = []
+  let paragraph: string[] = []
+  let list: string[] = []
+  const flushParagraph = () => {
+    if (paragraph.length > 0) {
+      blocks.push(paragraph.join(" ").trim())
+      paragraph = []
+    }
+  }
+  const flushList = () => {
+    if (list.length > 0) {
+      blocks.push(list.join("\n"))
+      list = []
+    }
+  }
+
+  for (const raw of (text || "").split("\n")) {
+    const line = raw.trim()
+    if (/^(?:[-*+]|\d+[.)])\s+/.test(line)) {
+      flushParagraph()
+      list.push(line)
+      continue
+    }
+    if (!line) {
+      flushParagraph()
+      flushList()
+      continue
+    }
+    flushList()
+    paragraph.push(line)
+  }
+  flushParagraph()
+  flushList()
+
+  return blocks.join("\n\n")
+}
+
 // ---------------------------------------------------------------------------
 // Criteria — the shape both entry paths normalise to
 // ---------------------------------------------------------------------------
@@ -291,23 +337,34 @@ function buildCriteriaOverview(
   if (!anyRating && !style.showWeights) return ""
 
   const notRated = labels.notRatedLabel
+  // `compact-weights` folds the weight into the criterion cell (Polish recenzja
+  // style) so the table reads as three columns; every other design keeps the
+  // weight as its own right-aligned column.
+  const compactWeights = style.criteriaTable === "compact-weights"
+  const weightCell = (c: GeneratedCriterion) =>
+    c.weight === null ? "---" : `${c.weight}\\,\\%`
+  const nameCell = (c: GeneratedCriterion) =>
+    compactWeights && c.weight !== null
+      ? `${escapeLatex(c.name)} {\\footnotesize\\textcolor{rulegrey}(${c.weight}\\,\\%)}`
+      : escapeLatex(c.name)
+
   const cell = (c: GeneratedCriterion) => [
-    escapeLatex(c.name),
-    style.showWeights ? (c.weight === null ? "---" : `${c.weight}\\,\\%`) : null,
+    nameCell(c),
+    !compactWeights && style.showWeights ? weightCell(c) : null,
     style.showPoints ? (c.points === null ? "---" : `${c.points}`) : null,
     c.rating ? `\\ratingsymbol{${escapeLatex(c.rating)}}` : `\\textit{${escapeLatex(notRated)}}`,
   ].filter((v): v is string => v !== null)
 
   const headerCells = [
     labels.criterionLabel,
-    style.showWeights ? labels.weightLabel : null,
+    !compactWeights && style.showWeights ? labels.weightLabel : null,
     style.showPoints ? labels.pointsLabel : null,
     labels.ratingLabel,
   ].filter((v): v is string => v !== null)
 
   const columnSpec = [
     "@{}X",
-    style.showWeights ? "r" : null,
+    !compactWeights && style.showWeights ? "r" : null,
     style.showPoints ? "r" : null,
     "r@{}",
   ].filter((v): v is string => v !== null).join(" ")
@@ -321,13 +378,22 @@ function buildCriteriaOverview(
       const body = chunk
         .map((c, index) => {
           const cells = cell(c).join(" & ")
-          const striped = style.criteriaTable === "band-rows" && index % 2 === 1
-          return `${striped ? "\\rowcolor{formgrey} " : ""}  ${cells} \\\\`
+          const striped =
+            (style.criteriaTable === "band-rows" || style.criteriaTable === "weighted-shaded") && index % 2 === 1
+          const ruled = style.criteriaTable === "ruled-rows" && index > 0
+          const lead = ruled ? "\\midrule\n" : ""
+          return `${lead}${striped ? "\\rowcolor{formgrey} " : ""}  ${cells} \\\\`
         })
         .join("\n")
-      const header = style.letterhead === "shaded-table"
+      const header = style.criteriaTable === "weighted-shaded"
         ? `\\rowcolor{accent}\\color{white}\\textbf{${headerCells.join("} & \\textbf{")}} \\\\`
-        : `\\textbf{${headerCells.join("} & \\textbf{")}} \\\\`
+        : style.criteriaTable === "band-rows"
+          ? `\\rowcolor{formgrey}\\textbf{${headerCells.join("} & \\textbf{")}} \\\\`
+          : `\\textbf{${headerCells.join("} & \\textbf{")}} \\\\`
+      const summary = weightedScoreFor(chunk)
+      const summaryLine = summary.score === null
+        ? ""
+        : `\n\n{\\footnotesize ${escapeLatex(labels.weightedAverageLabel)}: \\textbf{${summary.score.toFixed(1)}\\,\\%}${summary.grade ? ` (${escapeLatex(summary.grade)})` : ""} $\\cdot$ ${summary.rated}\\,/\\,${summary.total} ${escapeLatex(labels.ratedCountLabel)}}`
       return `\\noindent\\begin{tabularx}{\\textwidth}{${columnSpec}}
 \\toprule
 ${header}
@@ -336,7 +402,7 @@ ${body}
 \\bottomrule
 \\end{tabularx}
 
-{\\footnotesize\\itshape ${escapeLatex(labels.gradingScaleLabel)}}`
+{\\footnotesize\\itshape ${escapeLatex(labels.gradingScaleLabel)}}${summaryLine}`
     })
     .join("\n\n")
 }
@@ -356,7 +422,7 @@ function buildCriteriaTable(
   let index = 0
 
   for (const criterion of criteria) {
-    const text = nl2par(criterion.text || "")
+    const text = renderProse(criterion.text || "")
     const suggestions = criterion.suggestions.filter(Boolean)
     if (!text && suggestions.length === 0 && !criterion.rating) continue
 
@@ -396,6 +462,26 @@ ${suggestions.map((s) => `  \\item ${escapeProse(s)}`).join("\n")}
   return rows.join("\n\n")
 }
 
+/**
+ * Weighted average over the criteria that actually carry a rating, plus an ECTS
+ * band. Mirrors `pointsForRating` in thesis-review-meta so the printed document
+ * and the live canvas always report the same number.
+ */
+function weightedScoreFor(criteria: GeneratedCriterion[]): {
+  score: number | null
+  grade: string | null
+  rated: number
+  total: number
+} {
+  const rated = criteria.filter((c) => c.points !== null && c.weight !== null && c.weight > 0)
+  const totalWeight = rated.reduce((sum, c) => sum + (c.weight ?? 0), 0)
+  const total = criteria.filter((c) => c.name).length
+  if (totalWeight <= 0) return { score: null, grade: null, rated: rated.length, total }
+  const score = Math.round((rated.reduce((sum, c) => sum + (c.points ?? 0) * (c.weight ?? 0), 0) / totalWeight) * 10) / 10
+  const grade = score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : score >= 50 ? "E" : "F"
+  return { score, grade, rated: rated.length, total }
+}
+
 type EvaluationBlock = { heading: string; body: string }
 
 /**
@@ -420,7 +506,7 @@ function buildEvaluationBlocks(
         isPaper ? "Shrnutí rukopisu (Manuscript Summary)" : "Shrnutí práce a hlavní přínos (Executive Summary)",
         isPaper ? "Manuscript Summary" : "Executive Summary"
       ),
-      body: escapeProse(nl2par(input.summary)),
+      body: escapeProse(renderProse(input.summary)),
     })
   }
 
@@ -456,7 +542,7 @@ function buildEvaluationBlocks(
   const renderFinding = (f: ReviewFinding) => {
     const cat = (f.category || "general").toUpperCase()
     const title = `[${cat}] ${f.title}`
-    const expl = nl2par(f.explanation || "")
+    const expl = renderProse(f.explanation || "")
     const rec = f.recommendation
       ? "\\par\\noindent\\textit{\\textbf{" + escapeLatex(recPrefix) + "} " + escapeProse(f.recommendation) + "}"
       : ""
@@ -529,7 +615,7 @@ function buildConfidentialNotes(labels: ThesisReviewLabels, comments: string): s
   return `\\Needspace{8\\baselineskip}
 \\section{${escapeLatex(labels.confidentialLabel)}}
 {\\small
-${escapeProse(nl2par(comments))}
+${escapeProse(renderProse(comments))}
 }`
 }
 
@@ -550,6 +636,11 @@ function buildGradePanel(
     includeGrade: boolean
     place?: string | null
     date?: string | null
+    /** Weighted average over the rated criteria, computed from the table. */
+    weightedScore?: number | null
+    weightedGrade?: string | null
+    ratedCount?: number
+    criteriaCount?: number
   }
 ): string {
   const parts: string[] = []
@@ -565,7 +656,21 @@ function buildGradePanel(
     parts.push(`\\posudokpanel{${escapeLatex(labels.scoreLabel)}}{${score}${ects}}`)
   }
 
-  const recText = options.recommendation ? escapeProse(options.recommendation) : ""
+  // The declared percentage and the weighted average over the assessed criteria
+  // are two different numbers (a reviewer may round, or only assess a subset).
+  // Printing both makes the classification checkable instead of magical.
+  if (options.includeGrade && options.weightedScore != null) {
+    const grade = options.weightedGrade ? ` (${escapeLatex(options.weightedGrade)})` : ""
+    const counts =
+      options.ratedCount != null && options.criteriaCount != null
+        ? ` $\\cdot$ ${options.ratedCount}\\,/\\,${options.criteriaCount} ${escapeLatex(labels.ratedCountLabel)}`
+        : ""
+    parts.push(
+      `\\posudokpanel{${escapeLatex(labels.weightedAverageLabel)}}{\\textbf{${options.weightedScore.toFixed(1)}\\,\\%}${grade}${counts}}`,
+    )
+  }
+
+  const recText = options.recommendation ? escapeProse(renderProse(options.recommendation)) : ""
   parts.push(`\\thesisfield{${escapeLatex(labels.recommendationLabel)}}{${recText}}`)
 
   if (options.includeGrade) {
@@ -751,6 +856,7 @@ ${criteriaBlock}`)
 
   const weightedEcts = computeEctsBand(input.scorePercent ?? null)
   const scorePercent = input.scorePercent ?? computeOverallScore(input.sections)
+  const weighted = weightedScoreFor(criteria)
   const gradePanel = buildGradePanel(labels, style, {
     grade: input.grade,
     scorePercent: typeof scorePercent === "number" ? scorePercent : null,
@@ -759,6 +865,10 @@ ${criteriaBlock}`)
     includeGrade: isThesis,
     place: input.place,
     date: input.date,
+    weightedScore: weighted.score,
+    weightedGrade: weighted.grade,
+    ratedCount: weighted.rated,
+    criteriaCount: weighted.total,
   })
   const aiDisclosureBlock = buildAiDisclosure(lang)
 

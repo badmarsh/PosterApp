@@ -251,7 +251,9 @@ export function ratingFromCard(content: string): string {
   }
 
   // 2. German/Polish numeric scales: 1,0–1,5 → A … 4,0 → F.
-  const decimal = /(?:note|ocena|grade)\D{0,12}([1-5])[,.]([0-9])/.exec(folded)
+  // Run on the raw lowercase text: `fold()` removes punctuation, which deleted
+  // the decimal comma in "Bewertung: 1,3" before it could be read.
+  const decimal = /(?:note|ocena|grade|bewertung|ertekeles|znamka|klasifikacia|wertung)\D{0,12}([1-5])[,.]([0-9])/.exec(content.toLowerCase())
   if (decimal) {
     const value = Number(`${decimal[1]}.${decimal[2]}`)
     if (value <= 1.5) return "A"
@@ -265,10 +267,19 @@ export function ratingFromCard(content: string): string {
   const bracketed = /\[([A-F])\]/.exec(content.toUpperCase())
   if (bracketed) return bracketed[1]
 
-  // 4. A numeric score, mapped the same way the rubric engine maps it.
-  const score = /(\d{1,3}(?:[.,]\d)?)\s*%/.exec(content)
-  if (score) {
-    const value = Number(score[1].replace(",", "."))
+  // 4. A numeric score, mapped the same way the rubric engine maps it — but
+  //    only when the number is *labelled* as a grade. Prose frequently carries
+  //    percentages that are results, not ratings ("+4.2 % Dice coefficient"),
+  //    and reading those as a grade produced a spurious F.
+  const score = /(\d{1,3}(?:[.,]\d)?)\s*%/g
+  let match: RegExpExecArray | null
+  while ((match = score.exec(content)) !== null) {
+    const context = fold(content.slice(Math.max(0, match.index - 40), match.index))
+    const labelled =
+      RATING_NEEDLES.some((needle) => context.includes(needle)) ||
+      /(priemer|average|score|points|body|punkty|celkom|gesamt|sucet|vysledn)/.test(context)
+    if (!labelled) continue
+    const value = Number(match[1].replace(",", "."))
     if (value >= 90) return "A"
     if (value >= 80) return "B"
     if (value >= 70) return "C"
@@ -379,12 +390,15 @@ export function commentaryFor(content: string): string {
       continue
     }
     const field = cardFields(line)[0]
+    // Rating and identification lines describe the *document*, not the
+    // assessment: they feed the identification table, the rating symbol and the
+    // classification panel. Keeping them here printed "Hodnotenie: A" a second
+    // time inside the reviewer's paragraph.
     const isMetaLine =
       Boolean(field?.label) &&
       (IDENTIFICATION_NEEDLES.some((n) => field.foldedLabel.includes(n)) ||
         RATING_NEEDLES.some((n) => field.foldedLabel.includes(n)))
-    if (isMetaLine && !BULLET_RE.test(line)) continue
-    if (isMetaLine && field && !field.value) continue
+    if (isMetaLine) continue
     kept.push(line)
   }
   return kept

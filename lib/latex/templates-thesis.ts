@@ -81,6 +81,7 @@ export function getThesisReviewPreamble(template: ThesisReviewTemplate, runningT
   const headingMacro = HEADING_MACROS[style.sectionMarker]
   const gradeMacro = GRADE_MACROS[style.gradeStyle]
   const markerMacro = MARKER_MACROS[style.sectionMarker]
+  const ratingMacro = RATING_MACROS[style.ratingSymbol]
 
   return String.raw`\documentclass[12pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
@@ -136,7 +137,7 @@ ${FITMATH_MACRO}
   \noindent\textbf{#1:} #2\par\smallskip
 }
 \newcommand{\ratingsymbol}[1]{%
-  \fbox{\textbf{#1}}%
+${ratingMacro}%
 }
 \newcommand{\posudoksubhead}[1]{%
   \Needspace{6\baselineskip}%
@@ -167,6 +168,15 @@ ${gradeMacro}
   \end{tabularx}%
 }
 `
+}
+
+const RATING_MACROS: Record<string, string> = {
+  fbox: String.raw`  \fbox{\textbf{#1}}`,
+  shaded: String.raw`  \colorbox{formgrey}{\textbf{#1}}`,
+  bold: String.raw`  \textbf{#1}`,
+  dark: String.raw`  \colorbox{accent}{\color{white}\textbf{#1}}`,
+  circled: String.raw`  \textcircled{\scriptsize\textbf{#1}}`,
+  band: String.raw`  \colorbox{accenttint}{\color{white}\bfseries\footnotesize\,#1\,}`,
 }
 
 const LETTERHEAD_MACROS: Record<string, string> = {
@@ -301,6 +311,10 @@ export interface ThesisReviewLabels {
   facultyLabel: string
   placeLabel: string
   notRatedLabel: string
+  /** Line under the criteria table: weighted average of the rated criteria. */
+  weightedAverageLabel: string
+  /** “5 of 12 criteria rated”. */
+  ratedCountLabel: string
   gradingScaleLabel: string
   thesisTypes: { bachelor: string; master: string; phd: string }
   roles: { supervisor: string; opponent: string; self?: string; reviewer?: string; [key: string]: string | undefined }
@@ -333,13 +347,15 @@ export const THESIS_REVIEW_LABELS: Record<ReportLanguage, ThesisReviewLabels> = 
     criteriaOverviewLabel: "PREHĽAD HODNOTENIA KRITÉRIÍ",
     weightLabel: "Váha",
     pointsLabel: "Body",
-    scoreLabel: "Vážený výsledok",
+    scoreLabel: "Celkové hodnotenie",
     ectsLabel: "ECTS",
     finalGradeLabel: "Výsledná klasifikácia",
     studyProgrammeLabel: "Študijný program",
     facultyLabel: "Fakulta",
     placeLabel: "Miesto",
     notRatedLabel: "nehodnotené",
+    weightedAverageLabel: "Vážený priemer hodnotených kritérií",
+    ratedCountLabel: "hodnotených kritérií",
     gradingScaleLabel: "Stupnica: A – výborne · B – veľmi dobre · C – dobre · D – uspokojivo · E – dostatočne · F – nedostatočne",
     thesisTypes: { bachelor: "Bakalárska práca", master: "Diplomová práca", phd: "Dizertačná práca" },
     roles: { supervisor: "Vedúci/a práce", opponent: "Oponent/ka", self: "Predkonzultačný rozbor", reviewer: "Recenzent" },
@@ -370,13 +386,15 @@ export const THESIS_REVIEW_LABELS: Record<ReportLanguage, ThesisReviewLabels> = 
     criteriaOverviewLabel: "PŘEHLED HODNOCENÍ KRITÉRIÍ",
     weightLabel: "Váha",
     pointsLabel: "Body",
-    scoreLabel: "Vážený výsledek",
+    scoreLabel: "Celkové hodnocení",
     ectsLabel: "ECTS",
     finalGradeLabel: "Výsledná klasifikace",
     studyProgrammeLabel: "Studijní program",
     facultyLabel: "Fakulta",
     placeLabel: "Místo",
     notRatedLabel: "nehodnoceno",
+    weightedAverageLabel: "Vážený průměr hodnocených kritérií",
+    ratedCountLabel: "hodnocených kritérií",
     gradingScaleLabel: "Stupnice: A – výborně · B – velmi dobře · C – dobře · D – uspokojivě · E – dostatečně · F – nedostatečně",
     thesisTypes: { bachelor: "Bakalářská práce", master: "Diplomová práce", phd: "Disertační práce" },
     roles: { supervisor: "Vedoucí práce", opponent: "Oponent/ka", self: "Předkonzultační rozbor", reviewer: "Recenzent" },
@@ -407,13 +425,15 @@ export const THESIS_REVIEW_LABELS: Record<ReportLanguage, ThesisReviewLabels> = 
     criteriaOverviewLabel: "CRITERIA OVERVIEW",
     weightLabel: "Weight",
     pointsLabel: "Points",
-    scoreLabel: "Weighted result",
+    scoreLabel: "Overall assessment",
     ectsLabel: "ECTS",
     finalGradeLabel: "Final classification",
     studyProgrammeLabel: "Study programme",
     facultyLabel: "Faculty",
     placeLabel: "Place",
     notRatedLabel: "not rated",
+    weightedAverageLabel: "Weighted average of the rated criteria",
+    ratedCountLabel: "criteria rated",
     gradingScaleLabel: "Scale: A – excellent · B – very good · C – good · D – satisfactory · E – sufficient · F – fail",
     thesisTypes: { bachelor: "Bachelor's thesis", master: "Master's thesis", phd: "PhD dissertation" },
     roles: { supervisor: "Supervisor", opponent: "Opponent", self: "Pre-consultation triage", reviewer: "Reviewer" },
@@ -444,13 +464,15 @@ export const THESIS_REVIEW_LABELS: Record<ReportLanguage, ThesisReviewLabels> = 
     criteriaOverviewLabel: "ÜBERSICHT DER BEWERTUNG",
     weightLabel: "Gewichtung",
     pointsLabel: "Punkte",
-    scoreLabel: "Gewichtetes Ergebnis",
+    scoreLabel: "Gesamtbewertung",
     ectsLabel: "ECTS",
     finalGradeLabel: "Endnote",
     studyProgrammeLabel: "Studiengang",
     facultyLabel: "Fakultät",
     placeLabel: "Ort",
     notRatedLabel: "nicht bewertet",
+    weightedAverageLabel: "Gewichteter Mittelwert der bewerteten Kriterien",
+    ratedCountLabel: "Kriterien bewertet",
     gradingScaleLabel: "Notenskala: A – sehr gut · B – gut · C – befriedigend · D – ausreichend · E – genügend · F – nicht bestanden",
     thesisTypes: { bachelor: "Bachelorarbeit", master: "Masterarbeit", phd: "Dissertation" },
     roles: { supervisor: "Betreuer/in", opponent: "Zweitgutachter/in", self: "Vorbegutachtung", reviewer: "Gutachter/in" },
@@ -481,13 +503,15 @@ export const THESIS_REVIEW_LABELS: Record<ReportLanguage, ThesisReviewLabels> = 
     criteriaOverviewLabel: "PRZEGLĄD OCEN KRYTERIÓW",
     weightLabel: "Waga",
     pointsLabel: "Punkty",
-    scoreLabel: "Wynik ważony",
+    scoreLabel: "Ocena ogólna",
     ectsLabel: "ECTS",
     finalGradeLabel: "Ocena końcowa",
     studyProgrammeLabel: "Kierunek studiów",
     facultyLabel: "Wydział",
     placeLabel: "Miejscowość",
     notRatedLabel: "nieoceniane",
+    weightedAverageLabel: "Średnia ważona ocenionych kryteriów",
+    ratedCountLabel: "ocenionych kryteriów",
     gradingScaleLabel: "Skala: A – bardzo dobry · B – dobry plus · C – dobry · D – dostateczny · E – dostateczny plus · F – niedostateczny",
     thesisTypes: { bachelor: "Praca licencjacka", master: "Praca magisterska", phd: "Rozprawa doktorska" },
     roles: { supervisor: "Promotor/ka", opponent: "Recenzent/ka", self: "Analiza wstępna", reviewer: "Recenzent/ka" },
@@ -518,13 +542,15 @@ export const THESIS_REVIEW_LABELS: Record<ReportLanguage, ThesisReviewLabels> = 
     criteriaOverviewLabel: "AZ ÉRTÉKELÉS ÁTTEKINTÉSE",
     weightLabel: "Súlyozás",
     pointsLabel: "Pontszám",
-    scoreLabel: "Súlyozott eredmény",
+    scoreLabel: "Összesített értékelés",
     ectsLabel: "ECTS",
     finalGradeLabel: "Végjegy",
     studyProgrammeLabel: "Szak",
     facultyLabel: "Kar",
     placeLabel: "Hely",
     notRatedLabel: "nem értékelt",
+    weightedAverageLabel: "Az értékelt szempontok súlyozott átlaga",
+    ratedCountLabel: "értékelt szempont",
     gradingScaleLabel: "Osztályzat: A – jeles · B – jó · C – közepes · D – elégséges · E – megfelelt · F – elégtelen",
     thesisTypes: { bachelor: "Szakdolgozat (BSc/BA)", master: "Diplomamunka (MSc/MA)", phd: "Doktori értekezés" },
     roles: { supervisor: "Témavezető", opponent: "Opponens", self: "Előzetes elemzés", reviewer: "Bíráló" },

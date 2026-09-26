@@ -56,6 +56,9 @@ export type ThesisGradeStyle =
   | "band"
 
 /** Marker in front of per-criterion headings. */
+/** How a rating letter is drawn inside the criteria table and headings. */
+export type ThesisRatingSymbol = "fbox" | "shaded" | "bold" | "dark" | "circled" | "band"
+
 export type ThesisSectionMarker = "rule" | "square" | "none" | "band" | "number-circle" | "bar"
 
 export type ThesisReviewStyle = {
@@ -74,6 +77,8 @@ export type ThesisReviewStyle = {
   showWeights: boolean
   /** Criteria table shows converted points (0–100). */
   showPoints: boolean
+  /** Rating presentation, so the six designs do not share one symbol. */
+  ratingSymbol: ThesisRatingSymbol
   gradeStyle: ThesisGradeStyle
   sectionMarker: ThesisSectionMarker
   /** Page margins in mm — also drives the live canvas geometry. */
@@ -92,8 +97,9 @@ export const THESIS_REVIEW_STYLES: Record<ThesisReviewTemplate, ThesisReviewStyl
     letterhead: "stacked-rule",
     titleStyle: "centered-double-rule",
     criteriaTable: "boxed-ratings",
-    showWeights: false,
-    showPoints: false,
+    showWeights: true,
+    showPoints: true,
+    ratingSymbol: "fbox",
     gradeStyle: "fbox",
     sectionMarker: "rule",
     margins: { top: 25, bottom: 25, left: 25, right: 20 },
@@ -110,6 +116,7 @@ export const THESIS_REVIEW_STYLES: Record<ThesisReviewTemplate, ThesisReviewStyl
     criteriaTable: "weighted-shaded",
     showWeights: true,
     showPoints: true,
+    ratingSymbol: "shaded",
     gradeStyle: "table-cell",
     sectionMarker: "bar",
     margins: { top: 22, bottom: 22, left: 24, right: 24 },
@@ -124,8 +131,9 @@ export const THESIS_REVIEW_STYLES: Record<ThesisReviewTemplate, ThesisReviewStyl
     letterhead: "minimal",
     titleStyle: "plain-left",
     criteriaTable: "points-column",
-    showWeights: false,
+    showWeights: true,
     showPoints: true,
+    ratingSymbol: "bold",
     gradeStyle: "inline-bold",
     sectionMarker: "none",
     margins: { top: 25, bottom: 25, left: 25, right: 25 },
@@ -142,6 +150,7 @@ export const THESIS_REVIEW_STYLES: Record<ThesisReviewTemplate, ThesisReviewStyl
     criteriaTable: "ruled-rows",
     showWeights: true,
     showPoints: true,
+    ratingSymbol: "dark",
     gradeStyle: "panel",
     sectionMarker: "number-circle",
     margins: { top: 20, bottom: 20, left: 22, right: 20 },
@@ -157,7 +166,8 @@ export const THESIS_REVIEW_STYLES: Record<ThesisReviewTemplate, ThesisReviewStyl
     titleStyle: "rule-pair",
     criteriaTable: "compact-weights",
     showWeights: true,
-    showPoints: false,
+    showPoints: true,
+    ratingSymbol: "circled",
     gradeStyle: "circled",
     sectionMarker: "square",
     margins: { top: 22, bottom: 22, left: 24, right: 22 },
@@ -173,7 +183,8 @@ export const THESIS_REVIEW_STYLES: Record<ThesisReviewTemplate, ThesisReviewStyl
     titleStyle: "centered-band",
     criteriaTable: "band-rows",
     showWeights: true,
-    showPoints: false,
+    showPoints: true,
+    ratingSymbol: "band",
     gradeStyle: "band",
     sectionMarker: "none",
     margins: { top: 24, bottom: 24, left: 24, right: 24 },
@@ -202,6 +213,7 @@ export function styleSignature(style: ThesisReviewStyle): string {
     style.gradeStyle,
     style.sectionMarker,
     style.numbered ? "numbered" : "unnumbered",
+    style.ratingSymbol,
     style.showWeights ? "weights" : "no-weights",
     style.showPoints ? "points" : "no-points",
   ].join("|")

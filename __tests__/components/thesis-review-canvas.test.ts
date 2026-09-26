@@ -85,11 +85,24 @@ describe("ThesisReviewCanvas", () => {
       return [style.letterhead, style.titleStyle, style.criteriaTable, style.gradeStyle, style.sectionMarker].join("|")
     }))
     expect(uniqueSignatures.size).toBe(6)
-    // Weighted/points columns exist only where the template declares them.
+    // Every posudok carries the weighted table — criterion, weight, points and
+    // rating — in its own language; an assessment without weights or points was
+    // exactly the gap this revamp closed.
     const withWeights = renderCanvas(showcaseProject("posudok-cs"))
     expect(withWeights).toContain("Váha")
-    const withoutWeights = renderCanvas(showcaseProject("posudok-en"))
-    expect(withoutWeights).not.toContain("Weight</th>")
+    expect(withWeights).toContain("Body")
+    const english = renderCanvas(showcaseProject("posudok-en"))
+    expect(english).toContain("Criterion")
+    expect(english).toContain("Weight")
+    expect(english).toContain("Points")
+    // …and the rating symbol itself is per template, not one shared box.
+    const symbols = TEMPLATES.map((t) => {
+      const html = renderCanvas(showcaseProject(t))
+      const match = html.match(/data-rating-symbol="([^"]+)"/)
+      return match?.[1] ?? ""
+    })
+    expect(symbols.every(Boolean)).toBe(true)
+    expect(new Set(symbols).size).toBe(6)
   })
 
   it("prints the narrative blocks a reviewer supplied (strengths, citations)", () => {

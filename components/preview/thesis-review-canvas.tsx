@@ -564,18 +564,34 @@ function HeadingMarker({ style, index, accent }: { style: ThesisReviewStyle; ind
   }
 }
 
+/**
+ * The rating letter, drawn with the same symbol the exported document uses.
+ *
+ * The six posudok designs do not share one rating look: a Slovak form boxes the
+ * letter, a Czech posudek shades it, a German Gutachten prints it as a solid
+ * accent chip, a Polish recenzja circles it. Driving this off
+ * `style.ratingSymbol` (the field the LaTeX macro reads) keeps the canvas and
+ * the PDF in agreement.
+ */
 function RatingChip({ style, letter, accent }: { style: ThesisReviewStyle; letter: string; accent: string }) {
-  switch (style.gradeStyle) {
+  const shared = { "data-rating-symbol": style.ratingSymbol }
+  switch (style.ratingSymbol) {
     case "fbox":
-      return <span className="border border-black/70 px-[0.45em] font-semibold">{letter}</span>
+      return <span {...shared} className="border border-black/70 px-[0.45em] font-semibold">{letter}</span>
+    case "shaded":
+      return <span {...shared} className="px-[0.5em] font-semibold" style={{ background: "rgba(0,0,0,0.09)" }}>{letter}</span>
+    case "bold":
+      return <span {...shared} className="font-bold">{letter}</span>
+    case "dark":
+      return <span {...shared} className="px-[0.5em] font-semibold text-white" style={{ background: accent }}>{letter}</span>
     case "circled":
-      return <span className="border-2 border-double border-black/70 px-[0.5em] font-semibold">{letter}</span>
-    case "table-cell":
-      return <span className="rounded-sm px-[0.5em] font-semibold text-white" style={{ background: accent }}>{letter}</span>
-    case "panel":
-      return <span className="bg-black/[0.07] px-[0.5em] font-semibold">{letter}</span>
+      return (
+        <span {...shared} className="inline-flex size-[1.55em] items-center justify-center rounded-full border border-black/70 text-[0.85em] font-semibold">
+          {letter}
+        </span>
+      )
     default:
-      return <span className="font-semibold" style={{ color: accent }}>{letter}</span>
+      return <span {...shared} className="px-[0.5em] font-semibold text-white" style={{ background: accent, opacity: 0.92 }}>{letter}</span>
   }
 }
 
@@ -740,8 +756,8 @@ function CriteriaTable({ style, accent, accentDark, columns, rows, note }: {
   rows: string[][]
   note?: string
 }) {
-  const shadedHeader = style.letterhead === "shaded-table"
-  const banded = style.criteriaTable === "band-rows"
+  const shadedHeader = style.criteriaTable === "weighted-shaded"
+  const banded = style.criteriaTable === "band-rows" || style.criteriaTable === "weighted-shaded"
   return (
     <div>
       <table className="w-full border-collapse">
