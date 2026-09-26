@@ -221,7 +221,7 @@ export function ensureScriptPackages(tex: string): string {
  */
 export function ensureHyperrefPreamble(tex: string, templateId?: string | null): string {
   if (/\\usepackage(\[[^\]]*\])?\{hyperref\}/.test(tex)) return tex
-  const skip = new Set(["aaai", "acm-sigconf", "revtex-aps"])
+  const skip = new Set(["aaai", "acm-sigconf", "revtex-aps", "icml"])
   if (templateId && skip.has(templateId)) return tex
   if (/\\documentclass(\[[^\]]*\])?\{acmart\}/.test(tex)) return tex
   if (/\\usepackage\{aaai2026\}/.test(tex)) return tex

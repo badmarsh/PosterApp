@@ -264,6 +264,7 @@ ${(injectElsarticleAbstract
 
 ${contentBlocks}
 
+${this.templateId === "icml" ? "\\printAffiliationsAndNotice{}" : ""}
 \\end{document}`
   }
 }

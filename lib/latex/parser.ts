@@ -29,14 +29,22 @@ export function extractMath(input: string): { text: string; slots: Slot[] } {
   // manually and only treat a pair as math when the body looks like math.
   // This prevents "$100 and math $x^2$" from consuming "$100 and math $"
   // as a single math run and breaking the real "$x^2$".
-  const MATH_LIKE = /[\\^_{}=<>|]/
+  const MATH_LIKE = /[+\-*/=<>~^_\\{}|±×÷]/
   const looksLikeMath = (body: string): boolean => {
     const t = body.trim()
     if (!t) return false
-    // Single-letter variables like $x$ or $a$ are valid math even without symbols.
-    if (t.length <= 2 && /^[A-Za-z0-9]$/.test(t)) return true
+    // Reject strings that are clearly markdown markup or multi-line
+    if (t.includes("**") || t.includes("\n")) return false
+    // Reject prose sentences that happen to be surrounded by dollars (e.g. currency spans "$100 and $200")
+    if (!t.includes("\\text") && /\b(and|or|to|for|from|with|the|of|in|at|by|is|are)\b/i.test(t)) return false
+    // Numbers, decimals, percentages, primes/units like $0.52$, $100$, $0.028''$, $7.7$, $95\%$
+    if (/^[0-9]+(\.[0-9]+)?(?:['"]+|%|\\%)?$/.test(t)) return true
+    // Single-letter or short variable/identifier like $x$, $a$, $ep$, $pp$, $p1$, $M2$
+    if (t.length <= 4 && /^[A-Za-z][A-Za-z0-9]*$/.test(t)) return true
     if (MATH_LIKE.test(t)) return true
     if (/\\[A-Za-z]+/.test(t)) return true
+    // Parenthesized or bracketed expressions like $(1 - 1/e)$ or $[0, 1]$
+    if (/^[(\[][^()\[\]]+[)\]]$/.test(t)) return true
     // Inequalities and relations like $a < b$ or $x > 0$ should be math.
     if (/[<>]/.test(t) && /[A-Za-z]/.test(t)) return true
     return false
@@ -53,6 +61,12 @@ export function extractMath(input: string): { text: string; slots: Slot[] } {
       continue
     }
     if (ch === "$") {
+      // Opening $ must not be followed by whitespace
+      if (i + 1 < text.length && (text[i + 1] === " " || text[i + 1] === "\t")) {
+        out += "$"
+        i++
+        continue
+      }
       // Find the next unescaped $ on the same line
       let j = -1
       for (let k = i + 1; k < text.length; k++) {
@@ -60,6 +74,8 @@ export function extractMath(input: string): { text: string; slots: Slot[] } {
         if (text[k] === "$") {
           if (k + 1 < text.length && text[k + 1] === "$") break
           if (text[k - 1] === "\\") continue
+          // Closing $ must not be preceded by whitespace
+          if (text[k - 1] === " " || text[k - 1] === "\t") continue
           j = k
           break
         }
@@ -308,6 +324,9 @@ export function mapUnicodeToLatex(input: string): string {
     // correctly and users/tests expect them to pass through verbatim.
     "†": "\\textdagger{}", "‡": "\\textdaggerdbl{}",
     "©": "\\textcopyright{}", "®": "\\textregistered{}", "™": "\\texttrademark{}", "€": "\\texteuro{}",
+    "′": "'", "″": "''", "‴": "'''",
+    "☉": "$\\odot$",
+    "•": "\\textbullet{}",
   }
   for (const [char, repl] of Object.entries(unicodeMap)) {
     text = text.split(char).join(repl)
@@ -316,7 +335,9 @@ export function mapUnicodeToLatex(input: string): string {
 }
 
 export function parseMarkdownToLatex(input: string): string {
-  const { text: afterMath, slots: mathSlots } = extractMath(input)
+  // Normalize any literal escaped newlines like '\n- ' that may come from user input or JSON
+  const normalized = typeof input === "string" ? input.replace(/\\n(?=\s*[-*\d])/g, "\n") : ""
+  const { text: afterMath, slots: mathSlots } = extractMath(normalized)
   const { text: afterCites, slots: citeSlots } = extractCitations(afterMath)
   const { text: afterLinks, slots: linkSlots } = extractLinks(afterCites)
   let text = escapeLatex(afterLinks)

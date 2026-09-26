@@ -369,6 +369,11 @@ export function getGeminiTemplate(project: Project, themeColor?: string): string
 \\usepackage{amssymb}
 \\usepackage{booktabs}
 
+% Safety: prevent IEEEtran from crashing on empty bibliography
+\makeatletter
+\def\endthebibliography{\let\@noitemerr\relax\endlist}
+\makeatother
+
 ${FITMATH_MACRO}
 
 \\usetheme{Madrid}
@@ -718,6 +723,11 @@ export function getIEEEConfTemplate(project: Project): string {
 \\usepackage{amssymb}
 \\usepackage{booktabs}
 
+% Safety: prevent IEEEtran from crashing on empty bibliography
+\makeatletter
+\def\endthebibliography{\let\@noitemerr\relax\endlist}
+\makeatother
+
 ${FITMATH_MACRO}
 
 \\title{${title}}
@@ -743,6 +753,11 @@ export function getACMSigconfTemplate(project: Project): string {
 \\settopmatter{printacmref=false}
 \\renewcommand\\footnotetextcopyrightpermission[1]{}
 \\usepackage{booktabs}
+
+% Safety: prevent IEEEtran from crashing on empty bibliography
+\makeatletter
+\def\endthebibliography{\let\@noitemerr\relax\endlist}
+\makeatother
 
 ${FITMATH_MACRO}
 
@@ -919,7 +934,15 @@ export function getIopartTemplate(project: Project): string {
 % Use standard \\section{}, \\subsection{} commands.
 \\documentclass[12pt]{iopart}
 \\usepackage{graphicx}
+% iopart.cls defines its own \\equation* via \\@namedef; amsmath redefines it,
+% which triggers "Command \\equation* already defined".  Clearing both ends
+% before loading amsmath lets amsmath take ownership without a clash.
+\\makeatletter
+\\expandafter\\let\\csname equation*\\endcsname\\relax
+\\expandafter\\let\\csname endequation*\\endcsname\\relax
+\\makeatother
 \\usepackage{amsmath}
+\\usepackage{amssymb}
 \\usepackage{booktabs}
 
 ${FITMATH_MACRO}

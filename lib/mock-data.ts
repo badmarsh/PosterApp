@@ -466,4 +466,7 @@ export const sampleProjects: Project[] = [
 /** ID of the in-memory demo project shown before a workspace is selected. */
 export const DEMO_PROJECT_ID = defaultDemoProject.id
 export const isDemoProject = (id: string) =>
-  id === DEMO_PROJECT_ID || id.startsWith("demo_") || (DEMO_WORKSPACE_IDS as readonly string[]).includes(id)
+  id === DEMO_PROJECT_ID ||
+  id.startsWith("demo_") ||
+  (DEMO_WORKSPACE_IDS as readonly string[]).includes(id) ||
+  ALL_SHOWCASE_PROJECTS.some((p) => p.id === id)
