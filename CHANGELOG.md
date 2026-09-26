@@ -6,6 +6,53 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Posudok revamp — live A4 canvas, real letterhead, six distinct designs (2026-09-26)
+
+The thesis review (posudok) output was the last one without a canvas, and its six
+templates shared a byte-identical preamble: the same form with different colours.
+A demo posudok assessed two criteria it had no text for and printed one of them as
+an `F` because the prose contained a result percentage.
+
+- **Live posudok canvas.** `lib/preview/thesis-layout.ts` + `components/preview/thesis-review-canvas.tsx`
+  render the A4 pages the export typesets: hidden probe measurement, pagination into whole
+  pages, fit-width/zoom/guides chrome reporting pages, criteria and rated counts, and
+  click-to-select blocks that highlight the backing card. The posudok tab of the preview
+  switches between this document view and the AI review workspace.
+- **Card → document mapping.** `lib/latex/thesis-review-meta.ts` derives every field the form
+  needs (student, thesis title, reviewer *role*, institution, grade, recommendation, weighted
+  score, strengths, defence questions, citation notes) with a documented precedence:
+  explicit `reviewMeta` → six-language card labels → project text. Ratings are read from
+  `Hodnotenie: A`, `Klasifikácia: B`, German `Note 1,7`, `[A]` or a *labelled* percentage;
+  a percentage inside prose no longer becomes a grade. Unmatched criteria keep their own title
+  instead of being dropped.
+- **Letterhead, weighted table, classification.** `lib/latex/templates-thesis.ts` grows real
+  letterhead/title/rating macros and six structurally distinct designs (stacked rule, shaded
+  table, minimal, rule bar, two-column, band) with their own rating symbols and criteria-table
+  treatments. Every template prints criterion, weight, points and rating columns, a
+  weighted-average footer, and a classification panel that shows both the declared percentage
+  and the weighted average over the rated criteria — two numbers that legitimately differ.
+- **Stored reviews print too.** `lib/ai/review-record-meta.ts` folds a stored `ThesisReview`
+  record into output metadata, so the compile route and the export ZIP print the confirmed
+  classification and the per-criterion ratings even when a workspace's cards are empty; the
+  compile cache key includes the review metadata hash.
+- **Curated six-language galleries.** `lib/posudok-gallery-data.ts` ships a complete posudok per
+  template in its own language (Slovak medical imaging, Czech predictive maintenance, English
+  federated de-identification, German data-centre RL, Polish disinformation detection,
+  Hungarian autonomous driving) with rubric-linked `criterionId`s, per-criterion commentary,
+  strengths, citation notes and defence questions — so creating a posudok workspace no longer
+  produces empty cards.
+- **Per-language result figures.** `scripts/generate-demo-figures.mjs` draws a criteria-profile
+  radar and a weighted-result chart for each language into `public/figures/`, replacing the one
+  generic radar every posudok used to share.
+- **Showcase thumbnail and picker previews.** `scripts/generate-posudok-thumbnail.mjs` renders
+  the regenerated `public/showcases/posudok-diplomovka-ai.png` from the actual curated review,
+  and `lib/template-preview-art.ts` gains a posudok mockup renderer driven by each template's
+  own style descriptor.
+- **Test contract.** `__tests__/components/thesis-review-canvas.test.ts` (8 tests) covers the
+  chrome, the derived student/reviewer, the weighted table, the six distinct designs and their
+  rating symbols, pagination geometry and the empty state; the gallery contract now covers
+  thesis-review templates as well.
+
 ### Demo content, canvases and print-accurate poster fill (2026-09-26 session)
 
 Templates used to demo one and the same document re-tinted per template, a new
