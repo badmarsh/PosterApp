@@ -44,23 +44,31 @@ import {
 } from "@/components/ui/dialog"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
+import { useStore } from "zustand"
 import { StatusIcon } from "@/components/status"
 import {
   columnBudgetFor,
   estimateHeight,
   generateFullTemplate,
+  planPosterColumns,
+  posterBoardFor,
 } from "@/lib/latex"
 import type { Card, ColumnIndex, OutputConfig, Project } from "@/lib/poster-types"
 import { cn } from "@/lib/utils"
 import type { OutputType } from "@/lib/output-types"
 import { OUTPUT_TYPE_LABELS, TEMPLATE_REGISTRY, getTemplatesForType } from "@/lib/output-types"
 import { ThesisReviewPanel } from "@/components/thesis-review/thesis-review-panel"
+import { isDemoProject } from "@/lib/mock-data"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ErrorBoundary } from "@/components/error-boundary"
-import { getExistingThesisReviewStore } from "@/components/thesis-review/use-thesis-review-store"
+import { getExistingThesisReviewStore, getThesisReviewStore } from "@/components/thesis-review/use-thesis-review-store"
+import { reviewMetaFromRecord } from "@/lib/latex/thesis-review-meta"
 import { PosterCanvas } from "@/components/preview/poster-canvas"
 import { SlideDeckView } from "@/components/preview/slide-deck-view"
+import { SlideCanvas } from "@/components/preview/slide-canvas"
 import { PaperDocumentView } from "@/components/preview/paper-document-view"
+import { PaperCanvas } from "@/components/preview/paper-canvas"
+import { ThesisReviewCanvas } from "@/components/preview/thesis-review-canvas"
 import { PreviewToolbar } from "@/components/preview/preview-toolbar"
 import { EvidenceChip } from "@/components/grounding/evidence-chip"
 import { SuggestedAssetsTray } from "@/components/grounding/suggested-assets-tray"
@@ -1096,6 +1104,27 @@ function PosterStructureView() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
+  const activeOutput = project.outputs?.find((output) => output.id === project.activeOutputId)
+
+  /**
+   * "Fill canvas": redistribute the active output's cards across its columns so
+   * every column ends up as close to the budget as possible; the generator then
+   * stretches the remaining slack. Uses the same estimator as the fill meters,
+   * so the button and the read-out can never disagree.
+   */
+  const handleBalanceColumns = useCallback(() => {
+    if (!activeOutput) return
+    const plan = planPosterColumns(activeOutput.cards, activeOutput.templateId, {
+      columns: posterBoardFor(activeOutput.templateId).columnWidths.length,
+    })
+    if (!plan.changes) return
+    for (const column of plan.columns) {
+      column.cards.forEach((card, index) => {
+        if (card.column !== column.column || card.order !== index) moveCard(card.id, column.column, index)
+      })
+    }
+  }, [activeOutput, moveCard])
+
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string)
   }
@@ -1157,21 +1186,18 @@ function PosterStructureView() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="mx-auto w-full max-w-5xl p-5 pb-20">
+          <div className="mx-auto w-full max-w-6xl p-5 pb-20">
             <PosterCanvas
-              cards={project.outputs?.find((output) => output.id === project.activeOutputId)?.cards ?? []}
-              templateId={project.outputs?.find((output) => output.id === project.activeOutputId)?.templateId}
+              cards={activeOutput?.cards ?? []}
+              templateId={activeOutput?.templateId}
               renderCard={(card) => <CardBoundary key={card.id} card={card}><MiniBlock card={card} /></CardBoundary>}
-              renderColumn={(column, columnCards) => (
+              renderColumn={(column, columnCards, children) => (
                 <SortableContext items={columnCards.map((card) => card.id)} strategy={verticalListSortingStrategy}>
-                  {columnCards.length ? columnCards.map((card) => (
-                    <CardBoundary key={card.id} card={card}><MiniBlock card={card} /></CardBoundary>
-                  )) : (
-                    <div className="rounded-md border border-dashed border-border px-2 py-6 text-center text-[10px] leading-snug text-muted-foreground">Drop cards here</div>
-                  )}
+                  {children}
                 </SortableContext>
               )}
               onAddCard={(column) => addCard(column)}
+              onBalance={handleBalanceColumns}
             />
           </div>
           
@@ -1358,9 +1384,7 @@ function SlidesView() {
           cards={cards}
           renderCard={(card, index) => <CardBoundary key={card.id} card={card}><SlideCard card={card} index={index} /></CardBoundary>}
           renderContent={() => (
-            <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
-              {cards.map((card, index) => <CardBoundary key={card.id} card={card}><SlideCard card={card} index={index} /></CardBoundary>)}
-            </SortableContext>
+            <SlideCanvas cards={cards} onAddSlide={() => addCard(null)} />
           )}
           onAdd={() => addCard(null)}
         />
@@ -1385,6 +1409,9 @@ function PaperView() {
     }))
   )
   const [activeId, setActiveId] = useState<string | null>(null)
+  // Canvas is the default: it is the only view that shows the real page flow.
+  // The outline keeps the drag-and-drop reordering affordance.
+  const [view, setView] = useState<"canvas" | "outline">("canvas")
   const cards = useMemo(() => {
     const activeCards = project.outputs?.find(o => o.id === project.activeOutputId)?.cards ?? []
     return [...activeCards].sort((a, b) => a.order - b.order)
@@ -1406,7 +1433,54 @@ function PaperView() {
 
   if (isSwitchingProject) return <PosterSkeleton />
 
+  const viewToggle = (
+    <div className="flex shrink-0 items-center justify-between border-b border-border bg-card/70 px-3 py-1">
+      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <FileText className="size-3" />
+        <span className="font-medium text-foreground">Paper</span>
+        <span>· {cards.length} sections</span>
+      </div>
+      <div className="flex items-center gap-0.5 rounded-md border border-border bg-muted/40 p-0.5" role="tablist" aria-label="Paper view">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "canvas"}
+          onClick={() => setView("canvas")}
+          className={cn(
+            "flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+            view === "canvas" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <BookOpen className="size-3" /> Canvas
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "outline"}
+          onClick={() => setView("outline")}
+          className={cn(
+            "flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+            view === "outline" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <List className="size-3" /> Outline
+        </button>
+      </div>
+    </div>
+  )
+
+  if (view === "canvas") {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        {viewToggle}
+        <PaperCanvas />
+      </div>
+    )
+  }
+
   return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {viewToggle}
     <ScrollArea className="min-h-0 flex-1">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <PaperDocumentView
@@ -1424,6 +1498,7 @@ function PaperView() {
         </DragOverlay>
       </DndContext>
     </ScrollArea>
+    </div>
   )
 }
 
@@ -1438,10 +1513,91 @@ function StructureView() {
   })
   const workspaceId = useEditor((s) => s.project.id)
 
-  if (activeOutputType === "thesis-review") return <ThesisReviewPanel workspaceId={workspaceId} />
+  if (activeOutputType === "thesis-review") return <ThesisReviewView workspaceId={workspaceId} />
   if (activeOutputType === "slides") return <SlidesView />
   if (activeOutputType === "paper") return <PaperView />
   return <PosterStructureView />
+}
+
+/**
+ * Thesis-review (posudok) view.
+ *
+ * Two surfaces matter for a posudok and they answer different questions:
+ *
+ *  - **Posudok** — the live A4 canvas: what the printed form will look like,
+ *    page by page, with the real letterhead, the weighted criteria table, the
+ *    ratings and the classification. This is the default for curated showcases
+ *    and hand-authored posudky, which have cards but no AI review record.
+ *  - **AI workspace** — the reviewer tooling (rubric, evidence, findings,
+ *    citation audit, export) that produces a review record.
+ *
+ * A workspace that already owns a review record opens in the AI workspace; a
+ * demo/showcase posudok opens on the document, where the user can see what they
+ * are about to export.
+ */
+function ThesisReviewView({ workspaceId }: { workspaceId: string }) {
+  const projectId = useEditor((s) => s.project.id)
+  const activeOutputId = useEditor((s) => s.project.activeOutputId ?? s.project.outputs?.[0]?.id ?? "")
+  const hasStoredReview = useEditor((s) => {
+    const output = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
+    if (!output) return false
+    return Boolean(getExistingThesisReviewStore(`${s.project.id}:${output.id}`))
+  })
+  const demo = isDemoProject(projectId)
+  const [mode, setMode] = useState<"document" | "workspace">(demo || !hasStoredReview ? "document" : "workspace")
+
+  // The stored review record is the authoritative posudok: load it for real
+  // workspaces so the document view can print the confirmed classification,
+  // criteria and findings even when the workspace's cards are stale or empty.
+  const outputKey = `${projectId}:${activeOutputId}`
+  const reviewStore = useMemo(() => getThesisReviewStore(outputKey), [outputKey])
+  const activeReview = useStore(reviewStore, (s) => s.activeReview)
+  const reviews = useStore(reviewStore, (s) => s.reviews)
+  const reviewMeta = useMemo(() => (activeReview ? reviewMetaFromRecord(activeReview) : null), [activeReview])
+
+  useEffect(() => {
+    if (demo || activeReview || reviews.length > 0) return
+    void reviewStore.getState().loadReviews(projectId)
+  }, [demo, activeReview, reviews.length, reviewStore, projectId])
+
+  useEffect(() => {
+    if (demo || activeReview || reviews.length === 0) return
+    void reviewStore.getState().loadReview(projectId, reviews[0].id)
+  }, [demo, activeReview, reviews, reviewStore, projectId])
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border bg-card px-3">
+        {([
+          { id: "document" as const, label: "Posudok", icon: FileText },
+          { id: "workspace" as const, label: "AI pracovný priestor", icon: GraduationCap },
+        ]).map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setMode(tab.id)}
+            aria-pressed={mode === tab.id}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors",
+              mode === tab.id
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <tab.icon className="size-3" />
+            {tab.label}
+          </button>
+        ))}
+        <span className="ml-auto text-[10px] text-muted-foreground">
+          {mode === "document"
+            ? "Živý náhľad vyexportovaného posudku (A4)"
+            : "Hodnotenie kritérií, dôkazy a export"}
+        </span>
+      </div>
+
+      {mode === "document" ? <ThesisReviewCanvas reviewMeta={reviewMeta} /> : <ThesisReviewPanel workspaceId={workspaceId} />}
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------------------

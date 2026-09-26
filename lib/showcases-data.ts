@@ -2443,7 +2443,24 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "column": 1,
             "order": 0,
             "pattern": "bullets",
-            "content": "- **Autor práce:** Bc. Martin Kováč\n- **Názov diplomovej práce:** Hlboké reziduálne siete pre sémantickú segmentáciu medicínskych obrazov\n- **Študijný program:** Aplikovaná informatika a biofyzika\n- **Školiace pracovisko:** Katedra jadrovej fyziky a biofyziky, FMFI UK v Bratislave\n- **Cieľ práce:** Návrh a evaluácia modifikovanej ResNet/U-Net architektúry pre automatickú segmentáciu pľúcnych lézií z CT skenov.",
+            "content": "- **Autor práce:** Bc. Martin Kováč\n- **Názov diplomovej práce:** Hlboké reziduálne siete pre sémantickú segmentáciu medicínskych obrazov\n- **Typ práce:** Diplomová práca\n- **Študijný program:** Aplikovaná informatika a biofyzika\n- **Školiace pracovisko:** Katedra jadrovej fyziky a biofyziky, FMFI UK v Bratislave\n- **Akademický rok:** 2025/2026\n- **Cieľ práce:** Návrh a evaluácia modifikovanej ResNet/U-Net architektúry pre automatickú segmentáciu pľúcnych lézií z CT skenov.",
+            "figureLayout": "single",
+            "table": {
+              "hasHeader": false,
+              "caption": "",
+              "rows": []
+            },
+            "figures": [],
+            "sourceIds": [],
+            "validation": "valid"
+          },
+          {
+            "id": "card_pos_review_summary",
+            "title": "Zhrnutie práce a hlavný prínos",
+            "column": 1,
+            "order": 1,
+            "pattern": "bullets",
+            "content": "Práca rieši sémantickú segmentáciu pľúcnych lézií z CT skenov pomocou hlbokých reziduálnych sietí. Autor navrhol modifikovanú ResNet/U-Net architektúru s hybridnou dice-loss funkciou a attention-gated prepojeniami a dôsledne ju validoval na verejnom referenčnom korpuse LIDC-IDRI.\n\nPráca je po odbornej aj formálnej stránke nadpriemerná: experimentálny protokol je reprodukovateľný, výsledky sú štatisticky vyhodnotené a diskusia ich porovnáva s aktuálnym stavom poznania. Navrhnutá metóda dosahuje zlepšenie +4,2 % Dice oproti publikovanému baseline.",
             "figureLayout": "single",
             "table": {
               "hasHeader": false,
@@ -2456,11 +2473,12 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
           },
           {
             "id": "card_pos_review_goals",
-            "title": "Splnenie stanovených cieľov",
+            "title": "Splnenie stanovených cieľov a náročnosť zadania",
+            "criterionId": "objectives_clarity",
             "column": 1,
-            "order": 1,
+            "order": 2,
             "pattern": "bullets",
-            "content": "Diplomant preukázal mimoriadnu samostatnosť a systematický prístup pri riešení všetkých bodov zadania.\n\n- **Kompletná realizácia:** Všetky čiastkové ciele formulované v zadaní diplomovej práce boli splnené v plnom rozsahu.\n- **Inovatívny prínos:** Integrácia hybridného dice-loss a attention-gated spojení priniesla signifikantné zvýšenie Dice koeficientu o 4.2% oproti existujúcim klinickým baseline modelom.",
+            "content": "Zadanie bolo formulované jasne a jeho náročnosť zodpovedá úrovni diplomovej práce; študent tému samostatne rozpracoval do merateľných výskumných otázok.\n\n- **Splnenie zadania:** Všetky body zadania boli splnené v plnom rozsahu, vrátane nadstavbovej časti venovanej neistote predikcie.\n- **Výskumné otázky:** Tri formulované otázky sú testovateľné a priamo naviazané na experimentálny plán práce.\n- **Hodnotenie:** A",
             "figureLayout": "single",
             "table": {
               "hasHeader": false,
@@ -2474,10 +2492,11 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
           {
             "id": "card_pos_review_theory",
             "title": "Odborná úroveň a teoretická báza",
+            "criterionId": "theoretical_background",
             "column": 1,
-            "order": 2,
+            "order": 3,
             "pattern": "bullets",
-            "content": "- **Práca s literatúrou:** Teoretická časť obsahuje reprezentatívny prehľad modernej literatúry (viac než 45 relevantných zahraničných zdrojov, vrátane IEEE TMI a Medical Image Analysis z rokov 2022-2026).\n- **Matematická formalizácia:** Konvolučné vrstvy, reziduálne prepojenia aj optimalizačné funkcie sú formalizované s vysokou matematickou presnosťou.",
+            "content": "Miera spracovania teoretických východísk je nadpriemerná a rešerš je vedená kriticky, nie opisne.\n\n- **Práca s literatúrou:** Využitých viac než 45 relevantných zahraničných zdrojov (IEEE TMI, Medical Image Analysis, 2022–2026) vrátane prehľadu aktuálnych SOTA architektúr.\n- **Matematická formalizácia:** Konvolučné vrstvy, reziduálne prepojenia aj optimalizačné funkcie sú formalizované korektne a v jednotnej notácii.\n- **Hodnotenie:** A",
             "figureLayout": "single",
             "table": {
               "hasHeader": false,
@@ -2491,10 +2510,11 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
           {
             "id": "card_pos_review_experiments",
             "title": "Metodika, experimenty a softvér",
+            "criterionId": "methodology_rigor",
             "column": 1,
-            "order": 3,
+            "order": 4,
             "pattern": "bullets-image",
-            "content": "**Experimentálna rigoróznosť a kódová báza:**\n- **Dataset:** Trénované a validované na verejnom referenčnom korpuse LIDC-IDRI (1018 pacientov) s prísnou 5-násobnou krížovou validáciou.\n- **Kvalita implementácie:** Repozitár v PyTorch je plne modulárny, pokrytý unit testami a pripravený na reprodukovateľný deployment.",
+            "content": "Experimentálna časť je metodicky solídna; výhrady smerujú k voľbe hyperparametrov.\n\n- **Dataset a protokol:** Verejný referenčný korpus LIDC-IDRI (1018 pacientov) s prísnou 5-násobnou krížovou validáciou a fixným náhodným semienkom.\n- **Kvalita implementácie:** Modulárny PyTorch repozitár s unit testami, konfiguračnými súbormi a skriptom reprodukujúcim všetky tabuľky.\n- **Výhrada:** Sieť hyperparametrov nebola predmetom systematického vyhľadávania; vplyv learning rate je dokumentovaný len pre tri hodnoty.\n- **Hodnotenie:** B",
             "figureLayout": "single",
             "table": {
               "hasHeader": false,
@@ -2512,12 +2532,82 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "validation": "valid"
           },
           {
+            "id": "card_pos_review_results",
+            "title": "Dosiahnuté výsledky a ich validita",
+            "criterionId": "results_validity",
+            "column": 1,
+            "order": 5,
+            "pattern": "bullets",
+            "content": "Prezentované výsledky sú presvedčivé a podložené štatistickým vyhodnotením.\n\n- **Kvantitatívne výsledky:** Dice 0,912 a HD95 4,8 mm na validačnej množine, teda +4,2 % Dice oproti publikovanému baseline.\n- **Štatistická významnosť:** Párový Wilcoxonov test (p < 0,001) pre všetky tri porovnávané konfigurácie.\n- **Analýza chýb:** Chybová analýza podľa veľkosti lézie je súčasťou kapitoly 6 a pomenúva limity pre lézie pod 5 mm.\n- **Hodnotenie:** A",
+            "figureLayout": "single",
+            "table": {
+              "hasHeader": false,
+              "caption": "",
+              "rows": []
+            },
+            "figures": [],
+            "sourceIds": [],
+            "validation": "valid"
+          },
+          {
+            "id": "card_pos_review_discussion",
+            "title": "Diskusia a vzťah k súčasnému stavu poznania",
+            "criterionId": "discussion_relation",
+            "column": 1,
+            "order": 6,
+            "pattern": "bullets",
+            "content": "Diskusia je vedená na úrovni porovnania s publikovanými metódami a nevyhýba sa ani odchýlkam vo výsledkoch.\n\n- **Zasadenie do kontextu:** Výsledky sú porovnané s piatimi recentnými prácami a rozdiely sú vecne komentované.\n- **Limity:** Autor otvorene pomenúva obmedzenia malého počtu anotátorov a absenciu externého testovacieho korpusu.\n- **Návrh pokračovania:** Plán ďalšieho výskumu (odhad neistoty, multimodálne vstupy) je realistický a konkrétny.\n- **Hodnotenie:** A",
+            "figureLayout": "single",
+            "table": {
+              "hasHeader": false,
+              "caption": "",
+              "rows": []
+            },
+            "figures": [],
+            "sourceIds": [],
+            "validation": "valid"
+          },
+          {
+            "id": "card_pos_review_strengths",
+            "title": "Silné stránky práce",
+            "column": 1,
+            "order": 7,
+            "pattern": "bullets",
+            "content": "- **Samostatnosť a iniciatíva:** Študent si sám dohodol spoluprácu s klinickým pracoviskom a zabezpečil anotácie pre validačnú množinu.\n- **Reprodukovateľnosť:** Kód, konfigurácie aj predtrénované váhy sú zverejnené s návodom na reprodukciu všetkých tabuliek.\n- **Klinická relevancia:** Metóda je validovaná spôsobom, ktorý zodpovedá reálnemu diagnostickému pracovnému postupu.",
+            "figureLayout": "single",
+            "table": {
+              "hasHeader": false,
+              "caption": "",
+              "rows": []
+            },
+            "figures": [],
+            "sourceIds": [],
+            "validation": "valid"
+          },
+          {
+            "id": "card_pos_review_citations",
+            "title": "Poznámky k citáciám a bibliografii",
+            "column": 1,
+            "order": 8,
+            "pattern": "bullets",
+            "content": "- **Chýbajúce DOI:** Pri položkách č. 12 a 27 chýba DOI alebo trvalý identifikátor; obe sú dohľadateľné v Crossref.\n- **Nekonzistentný štýl:** Tri položky v zozname literatúry skracujú názvy konferencií odlišne od zvyšku práce.\n- **Prevzaté obrázky:** Kapitola 3 preberá tri obrázky bez uvedenia sekundárneho zdroja v popise.",
+            "figureLayout": "single",
+            "table": {
+              "hasHeader": false,
+              "caption": "",
+              "rows": []
+            },
+            "figures": [],
+            "sourceIds": [],
+            "validation": "valid"
+          },
+          {
             "id": "card_pos_review_questions",
             "title": "Otázky k obhajobe",
             "column": 1,
-            "order": 4,
+            "order": 9,
             "pattern": "bullets",
-            "content": "1. Ako by navrhovaný model reagoval na prítomnosť obrazových artefaktov spôsobených pohybom pacienta pri nízko-dávkovom CT protokole?\n2. Aká je výpočtová zložitosť inferencie jedného 3D objemu a bolo by možné model nasadiť do real-time klinickej diagnostickej stanice?",
+            "content": "1. Ako by navrhovaný model reagoval na prítomnosť obrazových artefaktov spôsobených pohybom pacienta pri nízko-dávkovom CT protokole?\n2. Aká je výpočtová zložitosť inferencie jedného 3D objemu a bolo by možné model nasadiť do real-time klinickej diagnostickej stanice?\n3. Ako by ste metódu rozšírili o odhad neistoty a aké klinické rozhodnutia by také rozšírenie umožnilo?",
             "figureLayout": "single",
             "table": {
               "hasHeader": false,
@@ -2532,9 +2622,9 @@ export const ALL_SHOWCASE_PROJECTS: Project[] = [
             "id": "card_pos_review_conclusion",
             "title": "Záverečné zhodnotenie a klasifikácia",
             "column": 1,
-            "order": 5,
+            "order": 10,
             "pattern": "stats",
-            "content": "- **Hodnotenie A** Výborne | Celkový priemer hodnotenia 96.4%\n- **Odporúčanie** Prácu odporúčam k obhajobe | Pred komisiou pre ŠSZ na FMFI UK\n- **Podpis vedúceho** doc. RNDr. Róbert Astaloš, PhD. | V Bratislave dňa 21. mája 2026",
+            "content": "- **Hodnotenie A** Výborne | Celkový vážený priemer hodnotenia 96.4%\n- **Odporúčanie** Prácu odporúčam k obhajobe | Pred komisiou pre štátne záverečné skúšky na FMFI UK\n- **Podpis vedúceho** doc. RNDr. Róbert Astaloš, PhD. | V Bratislave dňa 21. mája 2026",
             "figureLayout": "single",
             "table": {
               "hasHeader": false,

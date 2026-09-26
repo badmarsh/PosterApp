@@ -18,6 +18,7 @@
  */
 
 import type { TemplateColor, TemplateDef } from "./output-types"
+import { THESIS_REVIEW_STYLES, thesisReviewStyleFor } from "./latex/thesis-review-styles"
 
 export type PosterCardStyle =
   /** Solid accent title bar, white-on-accent text (atlas / minimal / tikzposter). */
@@ -63,7 +64,64 @@ export type SlidePreviewArt = {
   darkTitleSlide: boolean
 }
 
-export type TemplatePreviewArt = PosterPreviewArt | SlidePreviewArt
+/**
+ * Posudok (thesis-review) mockup. A posudok is neither a poster nor a deck: it
+ * is an A4 form, and what distinguishes the six templates is the *form*
+ * — letterhead, criteria table, grade panel, signature block — so the artwork is
+ * derived from the same `THESIS_REVIEW_STYLES` descriptor the generator and the
+ * live canvas read, rather than from generic body rules.
+ */
+export type PosudokPreviewArt = {
+  kind: "posudok"
+  /** Style descriptor id, resolved through `thesisReviewStyleFor`. */
+  styleId: string
+  /** How many criterion rows the mockup shows. */
+  rows: number
+  /** Criterion labels drawn in the first column. */
+  labels: string[]
+  /** Rating letters drawn with the style's own rating symbol. */
+  ratings: string[]
+}
+
+export type TemplatePreviewArt = PosterPreviewArt | SlidePreviewArt | PosudokPreviewArt
+
+/**
+ * Criterion rows per posudok template. The German and Czech forms assess more
+ * criteria than the compact Hungarian one, so the mockups differ in density as
+ * well as in treatment.
+ */
+const POSUDOK_ART_ROWS: Record<string, { rows: number; labels: string[]; ratings: string[] }> = {
+  "posudok-sk": {
+    rows: 5,
+    labels: ["Ciele práce", "Teoretická báza", "Metodika", "Výsledky", "Diskusia"],
+    ratings: ["A", "A", "B", "A", "A"],
+  },
+  "posudok-cs": {
+    rows: 5,
+    labels: ["Relevance tématu", "Metodický postup", "Analytické zpracování", "Výsledky", "Citace"],
+    ratings: ["A", "B", "A", "B", "C"],
+  },
+  "posudok-en": {
+    rows: 6,
+    labels: ["Objectives", "Method", "Execution", "Ethics", "Limitations", "Citations"],
+    ratings: ["A", "A", "A", "A", "B", "A"],
+  },
+  "posudok-de": {
+    rows: 5,
+    labels: ["Relevanz", "Methodik", "Durchführung", "Ergebnisse", "Aufbau"],
+    ratings: ["A", "B", "A", "B", "B"],
+  },
+  "posudok-pl": {
+    rows: 5,
+    labels: ["Oryginalność", "Metodyka", "Realizacja", "Wyniki", "Cytowania"],
+    ratings: ["A", "B", "A", "A", "B"],
+  },
+  "posudok-hu": {
+    rows: 5,
+    labels: ["Célkitűzés", "Elmélet", "Módszertan", "Végrehajtás", "Korlátok"],
+    ratings: ["A", "B", "B", "A", "B"],
+  },
+}
 
 const INK = "#0F172A"
 
@@ -160,6 +218,17 @@ export function derivePreviewArt(t: TemplateDef): TemplatePreviewArt {
   if (t.outputType === "slides") {
     return { kind: "slide", header: "plain", titleWeight: "plain", footer: "none", body: "bullets", darkTitleSlide: false }
   }
+  if (t.outputType === "thesis-review") {
+    const style = THESIS_REVIEW_STYLES[posudokStyleIdFor(t.id)]
+    const rows = POSUDOK_ART_ROWS[t.id]
+    return {
+      kind: "posudok",
+      styleId: style?.templateId ?? "posudok-sk",
+      rows: rows?.rows ?? 5,
+      labels: rows?.labels ?? [],
+      ratings: rows?.ratings ?? [],
+    }
+  }
   if (t.outputType === "poster") {
     return {
       kind: "poster", orientation: "portrait", columnWidths: [1 / 3, 1 / 3, 1 / 3],
@@ -179,7 +248,22 @@ export function derivePreviewArt(t: TemplateDef): TemplatePreviewArt {
 }
 
 export function getPreviewArt(templateId: string, def?: TemplateDef): TemplatePreviewArt {
-  return PREVIEW_ART[templateId] ?? (def ? derivePreviewArt(def) : derivePreviewArt({ layoutPreview: "poster-3col" } as TemplateDef))
+  if (PREVIEW_ART[templateId]) return PREVIEW_ART[templateId]
+  if (THESIS_REVIEW_STYLES[posudokStyleIdFor(templateId)]) {
+    return derivePreviewArt({ ...(def ?? {}), id: templateId, outputType: "thesis-review" } as TemplateDef)
+  }
+  return def ? derivePreviewArt(def) : derivePreviewArt({ layoutPreview: "poster-3col" } as TemplateDef)
+}
+
+type ThesisReviewTemplateId = keyof typeof THESIS_REVIEW_STYLES
+
+/** Map a template id to a posudok style id (tolerates legacy aliases). */
+function posudokStyleIdFor(templateId: string): ThesisReviewTemplateId {
+  if (templateId in THESIS_REVIEW_STYLES) return templateId as ThesisReviewTemplateId
+  const match = (Object.keys(THESIS_REVIEW_STYLES) as ThesisReviewTemplateId[]).find(
+    (id) => id.replace(/^posudok-/, "") === templateId.replace(/^(posudok|posudek|gutachten|recenzja|biralat)-/, ""),
+  )
+  return match ?? "posudok-sk"
 }
 
 /** True when the preview art for a template is bespoke rather than derived. */
@@ -239,6 +323,7 @@ export function renderTemplatePreviewSvg(
 ): string {
   const art = getPreviewArt(templateId, def)
   const p = paletteFrom(colors)
+  if (art.kind === "posudok") return renderPosudok(art, p, width, templateId)
   return art.kind === "poster"
     ? renderPoster(art, p, width, templateId)
     : renderSlide(art, p, width, templateId)
@@ -367,6 +452,280 @@ function renderPoster(art: PosterPreviewArt, p: PreviewPalette, width: number, i
     }
     x += colW + gutter
   })
+
+  parts.push("</svg>")
+  return parts.join("")
+}
+
+/**
+ * A4 posudok mockup: letterhead, title, identification block, weighted criteria
+ * table, classification panel and signature line — drawn from the template's
+ * own style descriptor (`letterhead`, `titleStyle`, `criteriaTable`,
+ * `ratingSymbol`, `gradeStyle`), so the picker shows the form the user gets.
+ */
+function renderPosudok(art: PosudokPreviewArt, p: PreviewPalette, width: number, id: string): string {
+  const style = thesisReviewStyleFor(art.styleId as Parameters<typeof thesisReviewStyleFor>[0])
+  const W = width
+  const H = width * (297 / 210)
+  const pad = W * 0.075
+  const innerW = W - pad * 2
+  const parts: string[] = [svgOpen(W, H, id)]
+  parts.push(`<rect width="${r(W)}" height="${r(H)}" fill="${p.paper}"/>`)
+  parts.push(`<rect x="0.5" y="0.5" width="${r(W - 1)}" height="${r(H - 1)}" fill="none" stroke="${withAlpha(p.ink, 0.12)}"/>`)
+
+  let y = pad
+
+  // -- letterhead ------------------------------------------------------------
+  const headH = H * 0.055
+  if (style.letterhead === "stacked-rule") {
+    parts.push(textBar(pad, y, innerW * 0.62, headH * 0.34, p.ink, 0.88))
+    parts.push(textBar(pad, y + headH * 0.44, innerW * 0.44, headH * 0.24, p.ink, 0.45))
+    parts.push(textBar(W - pad - innerW * 0.26, y, innerW * 0.26, headH * 0.2, p.ink, 0.35))
+    parts.push(`<rect x="${r(pad)}" y="${r(y + headH * 0.85)}" width="${r(innerW)}" height="${r(H * 0.004)}" fill="${p.accent}"/>`)
+    parts.push(`<rect x="${r(pad)}" y="${r(y + headH * 1.15)}" width="${r(innerW)}" height="${r(Math.max(1, H * 0.0012))}" fill="${p.accent}"/>`)
+  } else if (style.letterhead === "shaded-table") {
+    parts.push(`<rect x="${r(pad)}" y="${r(y)}" width="${r(innerW)}" height="${r(headH * 0.6)}" fill="${withAlpha(p.accent, 0.16)}"/>`)
+    parts.push(textBar(pad + innerW * 0.03, y + headH * 0.18, innerW * 0.5, headH * 0.26, p.ink, 0.88))
+    parts.push(`<rect x="${r(pad)}" y="${r(y + headH * 0.85)}" width="${r(innerW)}" height="${r(Math.max(1.4, H * 0.002))}" fill="${p.accent}"/>`)
+  } else if (style.letterhead === "rule-bar") {
+    parts.push(`<rect x="${r(pad)}" y="${r(y)}" width="${r(innerW)}" height="${r(H * 0.007)}" fill="${p.accent}"/>`)
+    parts.push(textBar(pad, y + headH * 0.5, innerW * 0.58, headH * 0.3, p.ink, 0.88))
+    parts.push(textBar(W - pad - innerW * 0.28, y + headH * 0.55, innerW * 0.28, headH * 0.2, p.ink, 0.4))
+  } else if (style.letterhead === "two-column") {
+    parts.push(textBar(pad, y + headH * 0.15, innerW * 0.5, headH * 0.3, p.ink, 0.9))
+    parts.push(textBar(W - pad - innerW * 0.3, y + headH * 0.2, innerW * 0.3, headH * 0.2, p.ink, 0.4))
+    parts.push(`<rect x="${r(pad)}" y="${r(y + headH * 0.9)}" width="${r(innerW)}" height="${r(Math.max(1.6, H * 0.0026))}" fill="${p.accent}"/>`)
+  } else if (style.letterhead === "band") {
+    parts.push(`<rect x="${r(pad)}" y="${r(y)}" width="${r(innerW)}" height="${r(headH * 0.66)}" fill="${p.accent}"/>`)
+    parts.push(textBar(pad + innerW * 0.03, y + headH * 0.22, innerW * 0.46, headH * 0.24, "#FFFFFF", 0.95))
+  } else {
+    parts.push(textBar(pad, y, innerW * 0.5, headH * 0.24, p.ink, 0.7))
+    parts.push(`<rect x="${r(pad)}" y="${r(y + headH * 0.6)}" width="${r(innerW)}" height="${r(Math.max(1, H * 0.0012))}" fill="${withAlpha(p.ink, 0.4)}"/>`)
+  }
+  y += headH * 1.6
+
+  // -- title -----------------------------------------------------------------
+  const titleH = H * 0.03
+  switch (style.titleStyle) {
+    case "centered-double-rule":
+      parts.push(textBar(W / 2 - innerW * 0.28, y, innerW * 0.56, titleH * 0.5, p.ink, 0.9))
+      parts.push(`<rect x="${r(W / 2 - innerW * 0.31)}" y="${r(y + titleH)}" width="${r(innerW * 0.62)}" height="${r(H * 0.0035)}" fill="${p.accent}"/>`)
+      parts.push(`<rect x="${r(W / 2 - innerW * 0.2)}" y="${r(y + titleH * 1.35)}" width="${r(innerW * 0.4)}" height="${r(Math.max(1, H * 0.0016))}" fill="${p.accent}"/>`)
+      break
+    case "left-accent":
+      parts.push(`<rect x="${r(pad)}" y="${r(y)}" width="${r(H * 0.006)}" height="${r(titleH * 0.9)}" fill="${p.accent}"/>`)
+      parts.push(textBar(pad + H * 0.014, y + titleH * 0.1, innerW * 0.66, titleH * 0.5, p.ink, 0.9))
+      parts.push(`<rect x="${r(pad)}" y="${r(y + titleH * 1.2)}" width="${r(innerW)}" height="${r(Math.max(1, H * 0.0012))}" fill="${withAlpha(p.ink, 0.3)}"/>`)
+      break
+    case "band":
+      parts.push(`<rect x="${r(pad)}" y="${r(y)}" width="${r(innerW)}" height="${r(titleH * 1.1)}" fill="${p.accent}"/>`)
+      parts.push(textBar(W / 2 - innerW * 0.24, y + titleH * 0.3, innerW * 0.48, titleH * 0.42, "#FFFFFF", 0.95))
+      break
+    case "rule-pair":
+      parts.push(`<rect x="${r(pad)}" y="${r(y)}" width="${r(innerW)}" height="${r(H * 0.004)}" fill="${p.accent}"/>`)
+      parts.push(textBar(pad, y + titleH * 0.5, innerW * 0.52, titleH * 0.44, p.ink, 0.9))
+      parts.push(`<rect x="${r(pad)}" y="${r(y + titleH * 1.2)}" width="${r(innerW)}" height="${r(H * 0.004)}" fill="${p.accent}"/>`)
+      break
+    case "centered-band":
+      parts.push(textBar(W / 2 - innerW * 0.3, y, innerW * 0.6, titleH * 0.5, p.ink, 0.9))
+      parts.push(`<rect x="${r(W / 2 - innerW * 0.25)}" y="${r(y + titleH * 0.85)}" width="${r(innerW * 0.5)}" height="${r(H * 0.005)}" fill="${p.accent}"/>`)
+      break
+    default:
+      parts.push(textBar(pad, y, innerW * 0.54, titleH * 0.5, p.ink, 0.9))
+      parts.push(`<rect x="${r(pad)}" y="${r(y + titleH * 0.9)}" width="${r(innerW)}" height="${r(Math.max(1.4, H * 0.002))}" fill="${p.accent}"/>`)
+  }
+  y += titleH * 1.9
+
+  // -- identification block --------------------------------------------------
+  const rowH = H * 0.0165
+  for (let i = 0; i < 4; i++) {
+    const labelW = innerW * (i === 1 ? 0.34 : 0.26)
+    parts.push(textBar(pad, y + i * rowH, labelW, rowH * 0.42, withAlpha(p.ink, 0.55)))
+    parts.push(textBar(pad + labelW + innerW * 0.03, y + i * rowH, innerW * (i === 1 ? 0.6 : 0.42), rowH * 0.42, p.ink, 0.8))
+  }
+  y += rowH * 4 + H * 0.018
+
+  // -- weighted criteria table ----------------------------------------------
+  const tableHead = y
+  const colW = innerW * (style.showWeights ? 0.12 : 0)
+  const pointsW = style.showPoints ? innerW * 0.11 : 0
+  const ratingW = innerW * 0.1
+  const nameW = innerW - colW - pointsW - ratingW
+  parts.push(textBar(pad, tableHead, nameW * 0.7, rowH * 0.4, withAlpha(p.ink, 0.6)))
+  if (style.showWeights) parts.push(textBar(pad + nameW + colW * 0.2, tableHead, colW * 0.6, rowH * 0.4, withAlpha(p.ink, 0.6)))
+  if (style.showPoints) parts.push(textBar(pad + nameW + colW + pointsW * 0.2, tableHead, pointsW * 0.6, rowH * 0.4, withAlpha(p.ink, 0.6)))
+  parts.push(textBar(pad + nameW + colW + pointsW + ratingW * 0.2, tableHead, ratingW * 0.6, rowH * 0.4, withAlpha(p.ink, 0.6)))
+  parts.push(`<rect x="${r(pad)}" y="${r(tableHead + rowH * 0.75)}" width="${r(innerW)}" height="${r(Math.max(1.2, H * 0.0022))}" fill="${withAlpha(p.ink, style.criteriaTable === "boxed-ratings" ? 0.5 : 0.28)}"/>`)
+  if (style.criteriaTable === "weighted-shaded") {
+    parts.push(`<rect x="${r(pad)}" y="${r(tableHead - rowH * 0.3)}" width="${r(innerW)}" height="${r(rowH * 1.05)}" fill="${p.accent}" opacity="0.9"/>`)
+  } else if (style.criteriaTable === "band-rows") {
+    parts.push(`<rect x="${r(pad)}" y="${r(tableHead - rowH * 0.3)}" width="${r(innerW)}" height="${r(rowH * 1.05)}" fill="${withAlpha(p.ink, 0.08)}"/>`)
+  }
+
+  const tableTop = tableHead + rowH * 1.1
+  for (let i = 0; i < art.rows; i++) {
+    const rowY = tableTop + i * rowH * 1.05
+    const banded =
+      (style.criteriaTable === "band-rows" || style.criteriaTable === "weighted-shaded") && i % 2 === 1
+    if (banded) {
+      parts.push(`<rect x="${r(pad)}" y="${r(rowY - rowH * 0.15)}" width="${r(innerW)}" height="${r(rowH * 0.85)}" fill="${withAlpha(p.ink, 0.05)}"/>`)
+    }
+    if (style.criteriaTable === "ruled-rows" && i > 0) {
+      parts.push(`<rect x="${r(pad)}" y="${r(rowY - rowH * 0.2)}" width="${r(innerW)}" height="1" fill="${withAlpha(p.ink, 0.2)}"/>`)
+    }
+    parts.push(textBar(pad, rowY, nameW * (i % 2 ? 0.62 : 0.78), rowH * 0.38, withAlpha(p.ink, 0.75)))
+    if (style.showWeights) parts.push(textBar(pad + nameW + colW * 0.25, rowY, colW * 0.5, rowH * 0.34, withAlpha(p.ink, 0.4)))
+    if (style.showPoints) parts.push(textBar(pad + nameW + colW + pointsW * 0.25, rowY, pointsW * 0.5, rowH * 0.34, withAlpha(p.ink, 0.4)))
+    // the rating cell, drawn with the style's own rating symbol
+    const letter = art.ratings[i] ?? "A"
+    const cx = pad + nameW + colW + pointsW
+    const boxW = ratingW * 0.44
+    const boxH = rowH * 0.62
+    switch (style.ratingSymbol) {
+      case "fbox":
+        parts.push(`<rect x="${r(cx)}" y="${r(rowY - rowH * 0.08)}" width="${r(boxW)}" height="${r(boxH)}" fill="none" stroke="${withAlpha(p.ink, 0.7)}" stroke-width="1"/>`)
+        break
+      case "shaded":
+        parts.push(`<rect x="${r(cx)}" y="${r(rowY - rowH * 0.08)}" width="${r(boxW)}" height="${r(boxH)}" fill="${withAlpha(p.ink, 0.12)}"/>`)
+        break
+      case "bold":
+        break
+      case "dark":
+        parts.push(`<rect x="${r(cx)}" y="${r(rowY - rowH * 0.08)}" width="${r(boxW)}" height="${r(boxH)}" fill="${p.accent}"/>`)
+        break
+      case "circled":
+        parts.push(`<circle cx="${r(cx + boxW / 2)}" cy="${r(rowY + rowH * 0.23)}" r="${r(boxH / 2)}" fill="none" stroke="${withAlpha(p.ink, 0.7)}" stroke-width="1"/>`)
+        break
+      default:
+        parts.push(`<rect x="${r(cx)}" y="${r(rowY - rowH * 0.08)}" width="${r(boxW)}" height="${r(boxH)}" fill="${withAlpha(p.accent, 0.92)}"/>`)
+    }
+    parts.push(
+      `<text x="${r(cx + boxW / 2)}" y="${r(rowY + rowH * 0.3)}" font-size="${r(Math.max(6, rowH * 0.56))}" ` +
+        `text-anchor="middle" font-family="Times New Roman, serif" ` +
+        `fill="${["dark", "band"].includes(style.ratingSymbol) ? "#FFFFFF" : INK}">${letter}</text>`,
+    )
+  }
+  let afterTable = tableTop + art.rows * rowH * 1.05 + H * 0.012
+  parts.push(`<rect x="${r(pad)}" y="${r(afterTable)}" width="${r(innerW)}" height="${r(Math.max(1.2, H * 0.0022))}" fill="${withAlpha(p.ink, 0.28)}"/>`)
+  afterTable += H * 0.012
+  // weighted-average footer
+  parts.push(textBar(pad, afterTable, innerW * 0.44, rowH * 0.34, withAlpha(p.ink, 0.5)))
+  parts.push(textBar(pad + innerW * 0.46, afterTable, innerW * 0.18, rowH * 0.34, p.accent, 0.85))
+  afterTable += H * 0.02
+
+  // -- classification panel + signature --------------------------------------
+  // Each design states the grade its own way; the chip is drawn twice (once on
+  // the classification line, once inside the closing panel), so it lives in a
+  // helper rather than in a duplicated switch.
+  const gradeH = H * 0.036
+  const drawGrade = (x: number, yTop: number, h: number) => {
+    switch (style.gradeStyle) {
+      case "fbox":
+        parts.push(`<rect x="${r(x)}" y="${r(yTop)}" width="${r(h * 1.5)}" height="${r(h * 0.85)}" fill="none" stroke="${withAlpha(p.ink, 0.75)}" stroke-width="1.4"/>`)
+        parts.push(`<text x="${r(x + h * 0.75)}" y="${r(yTop + h * 0.66)}" font-size="${r(h * 0.6)}" text-anchor="middle" font-family="Times New Roman, serif" fill="${INK}">A</text>`)
+        break
+      case "table-cell":
+        parts.push(`<rect x="${r(x)}" y="${r(yTop)}" width="${r(h * 1.6)}" height="${r(h * 0.85)}" fill="${p.accent}"/>`)
+        parts.push(`<text x="${r(x + h * 0.8)}" y="${r(yTop + h * 0.66)}" font-size="${r(h * 0.6)}" text-anchor="middle" font-family="Times New Roman, serif" fill="#FFFFFF">A</text>`)
+        break
+      case "circled":
+        parts.push(`<circle cx="${r(x + h * 0.5)}" cy="${r(yTop + h * 0.42)}" r="${r(h * 0.45)}" fill="none" stroke="${p.accent}" stroke-width="1.8"/>`)
+        parts.push(`<text x="${r(x + h * 0.5)}" y="${r(yTop + h * 0.64)}" font-size="${r(h * 0.58)}" text-anchor="middle" font-family="Times New Roman, serif" fill="${INK}">A</text>`)
+        break
+      case "inline-bold":
+        parts.push(textBar(x, yTop + h * 0.18, Math.min(innerW * 0.08, W - pad - x), h * 0.55, p.accent))
+        break
+      default: {
+        // A two-line grade/number pair (panel, band). The bars are clamped to the
+        // page so the closing panel cannot push them past the right margin.
+        const w = Math.min(innerW * 0.22, W - pad - x)
+        parts.push(textBar(x, yTop + h * 0.14, w, h * 0.3, withAlpha(p.ink, 0.5)))
+        parts.push(textBar(x, yTop + h * 0.6, Math.min(w * 1.15, W - pad - x), h * 0.3, withAlpha(p.ink, 0.35)))
+      }
+    }
+  }
+  if (style.gradeStyle === "panel") {
+    parts.push(textBar(pad, afterTable + gradeH * 0.22, innerW * 0.44, gradeH * 0.34, withAlpha(p.ink, 0.5)))
+    parts.push(textBar(pad, afterTable + gradeH * 0.7, innerW * 0.52, gradeH * 0.34, withAlpha(p.ink, 0.35)))
+  } else {
+    parts.push(textBar(pad, afterTable + gradeH * 0.25, innerW * 0.3, gradeH * 0.4, withAlpha(p.ink, 0.7)))
+    drawGrade(pad + innerW * 0.35, afterTable, gradeH)
+  }
+
+  // -- per-criterion assessment + defence questions --------------------------
+  // A real posudok is a full page: after the table it continues with the
+  // reviewer's commentary per criterion and the questions for the defence. A
+  // mockup with two thirds of the page blank would misrepresent the document.
+  let bodyY = afterTable + gradeH * 1.9
+  const sigY = H - pad - H * 0.045
+  const lineH = H * 0.0095
+  const sectionGap = H * 0.018
+
+  const heading = (title: string, marker: string) => {
+    if (marker === "rule" || marker === "square") {
+      parts.push(`<rect x="${r(pad)}" y="${r(bodyY)}" width="${r(H * 0.004)}" height="${r(lineH * 1.3)}" fill="${p.accent}"/>`)
+      parts.push(textBar(pad + H * 0.01, bodyY, innerW * 0.34, lineH * 0.95, withAlpha(p.ink, 0.8)))
+    } else if (marker === "bar") {
+      parts.push(`<rect x="${r(pad)}" y="${r(bodyY - lineH * 0.15)}" width="${r(innerW * 0.3)}" height="${r(lineH * 1.4)}" fill="${p.accent}"/>`)
+      parts.push(textBar(pad + innerW * 0.02, bodyY + lineH * 0.2, innerW * 0.2, lineH * 0.7, "#FFFFFF", 0.92))
+    } else if (marker === "band") {
+      parts.push(`<rect x="${r(pad)}" y="${r(bodyY - lineH * 0.15)}" width="${r(innerW)}" height="${r(lineH * 1.5)}" fill="${withAlpha(p.ink, 0.08)}"/>`)
+      parts.push(textBar(pad + H * 0.01, bodyY + lineH * 0.15, innerW * 0.34, lineH * 0.95, withAlpha(p.ink, 0.8)))
+    } else {
+      parts.push(textBar(pad, bodyY, innerW * 0.34, lineH * 0.95, withAlpha(p.ink, 0.8)))
+    }
+    void title
+    bodyY += lineH * 2.4
+  }
+
+  const paragraph = (lines: number, widths: number[] = [0.96, 0.88, 0.93, 0.7]) => {
+    for (let i = 0; i < lines; i++) {
+      parts.push(textBar(pad, bodyY, innerW * widths[i % widths.length], lineH * 0.62, withAlpha(p.ink, 0.3)))
+      bodyY += lineH * 1.25
+    }
+    bodyY += sectionGap * 0.35
+  }
+
+  // Two assessed criteria with a heading each, then the defence questions:
+  // the page fills the way a real posudok does.
+  for (let block = 0; block < 2; block++) {
+    heading("", style.sectionMarker)
+    paragraph(block === 0 ? 4 : 5)
+  }
+  heading("", style.sectionMarker)
+  for (let q = 0; q < 3; q++) {
+    parts.push(textBar(pad + innerW * 0.02, bodyY, innerW * (q % 2 ? 0.66 : 0.78), lineH * 0.62, withAlpha(p.ink, 0.3)))
+    bodyY += lineH * 1.3
+  }
+  void sigY
+  void sectionGap
+
+  // -- closing assessment panel + signature ----------------------------------
+  // The real posudok ends with an assessment panel above the signature line.
+  // Anchoring it to the bottom and letting the commentary above flow into the
+  // remaining room keeps the page full on every design instead of leaving a
+  // band of blank paper above the signatures.
+  const panelH = H * 0.115
+  const panelTop = sigY - H * 0.02 - panelH
+  let extra = 0
+  while (extra < 3 && panelTop - bodyY > lineH * 7) {
+    heading("", style.sectionMarker)
+    const room = Math.floor((panelTop - bodyY) / (lineH * 1.25)) - 1
+    paragraph(Math.max(2, Math.min(5, room)))
+    extra++
+  }
+  if (panelTop - bodyY > lineH * 1.2) {
+    parts.push(`<rect x="${r(pad)}" y="${r(panelTop)}" width="${r(innerW)}" height="${r(panelH)}" fill="${withAlpha(p.ink, 0.05)}" stroke="${withAlpha(p.ink, 0.16)}"/>`)
+    parts.push(textBar(pad + H * 0.012, panelTop + panelH * 0.16, innerW * 0.32, lineH * 0.95, withAlpha(p.ink, 0.8)))
+    parts.push(textBar(pad + H * 0.012, panelTop + panelH * 0.42, innerW * 0.46, lineH * 0.6, withAlpha(p.ink, 0.35)))
+    parts.push(textBar(pad + H * 0.012, panelTop + panelH * 0.62, innerW * 0.38, lineH * 0.6, withAlpha(p.ink, 0.28)))
+    parts.push(textBar(W - pad - H * 0.012 - innerW * 0.2, panelTop + panelH * 0.24, innerW * 0.2, lineH * 0.7, p.accent, 0.9))
+    drawGrade(W - pad - innerW * 0.22, panelTop + panelH * 0.52, gradeH * 0.95)
+  }
+
+  parts.push(`<rect x="${r(pad)}" y="${r(sigY)}" width="${r(innerW * 0.44)}" height="1" fill="${withAlpha(p.ink, 0.6)}"/>`)
+  parts.push(`<rect x="${r(W - pad - innerW * 0.28)}" y="${r(sigY)}" width="${r(innerW * 0.28)}" height="1" fill="${withAlpha(p.ink, 0.6)}"/>`)
+  parts.push(textBar(pad, sigY + H * 0.008, innerW * 0.22, rowH * 0.3, withAlpha(p.ink, 0.35)))
 
   parts.push("</svg>")
   return parts.join("")

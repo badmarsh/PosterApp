@@ -6,6 +6,93 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Posudok revamp — live A4 canvas, real letterhead, six distinct designs (2026-09-26)
+
+The thesis review (posudok) output was the last one without a canvas, and its six
+templates shared a byte-identical preamble: the same form with different colours.
+A demo posudok assessed two criteria it had no text for and printed one of them as
+an `F` because the prose contained a result percentage.
+
+- **Live posudok canvas.** `lib/preview/thesis-layout.ts` + `components/preview/thesis-review-canvas.tsx`
+  render the A4 pages the export typesets: hidden probe measurement, pagination into whole
+  pages, fit-width/zoom/guides chrome reporting pages, criteria and rated counts, and
+  click-to-select blocks that highlight the backing card. The posudok tab of the preview
+  switches between this document view and the AI review workspace.
+- **Card → document mapping.** `lib/latex/thesis-review-meta.ts` derives every field the form
+  needs (student, thesis title, reviewer *role*, institution, grade, recommendation, weighted
+  score, strengths, defence questions, citation notes) with a documented precedence:
+  explicit `reviewMeta` → six-language card labels → project text. Ratings are read from
+  `Hodnotenie: A`, `Klasifikácia: B`, German `Note 1,7`, `[A]` or a *labelled* percentage;
+  a percentage inside prose no longer becomes a grade. Unmatched criteria keep their own title
+  instead of being dropped.
+- **Letterhead, weighted table, classification.** `lib/latex/templates-thesis.ts` grows real
+  letterhead/title/rating macros and six structurally distinct designs (stacked rule, shaded
+  table, minimal, rule bar, two-column, band) with their own rating symbols and criteria-table
+  treatments. Every template prints criterion, weight, points and rating columns, a
+  weighted-average footer, and a classification panel that shows both the declared percentage
+  and the weighted average over the rated criteria — two numbers that legitimately differ.
+- **Stored reviews print too.** `lib/ai/review-record-meta.ts` folds a stored `ThesisReview`
+  record into output metadata, so the compile route and the export ZIP print the confirmed
+  classification and the per-criterion ratings even when a workspace's cards are empty; the
+  compile cache key includes the review metadata hash.
+- **Curated six-language galleries.** `lib/posudok-gallery-data.ts` ships a complete posudok per
+  template in its own language (Slovak medical imaging, Czech predictive maintenance, English
+  federated de-identification, German data-centre RL, Polish disinformation detection,
+  Hungarian autonomous driving) with rubric-linked `criterionId`s, per-criterion commentary,
+  strengths, citation notes and defence questions — so creating a posudok workspace no longer
+  produces empty cards.
+- **Per-language result figures.** `scripts/generate-demo-figures.mjs` draws a criteria-profile
+  radar and a weighted-result chart for each language into `public/figures/`, replacing the one
+  generic radar every posudok used to share.
+- **Showcase thumbnail and picker previews.** `scripts/generate-posudok-thumbnail.mjs` renders
+  the regenerated `public/showcases/posudok-diplomovka-ai.png` from the actual curated review,
+  and `lib/template-preview-art.ts` gains a posudok mockup renderer driven by each template's
+  own style descriptor.
+- **Test contract.** `__tests__/components/thesis-review-canvas.test.ts` (8 tests) covers the
+  chrome, the derived student/reviewer, the weighted table, the six distinct designs and their
+  rating symbols, pagination geometry and the empty state; the gallery contract now covers
+  thesis-review templates as well.
+
+### Demo content, canvases and print-accurate poster fill (2026-09-26 session)
+
+Templates used to demo one and the same document re-tinted per template, a new
+project started from empty blocks, and the previews were lists rather than
+canvases. Changes:
+
+- **Curated galleries, not re-tinted copies.** `lib/template-showcase-data.ts` ships four
+  complete research subjects (HEP di-photon resonance search, CRISPR antiviral programme,
+  surgical-robotics VLA, speculative decoding) with their own prose, tables, figures and
+  bibliographies, composed per template *and* per output type: poster editions (classic,
+  dense, wide, Better-Poster hero), slide editions (classic, statement, editorial) and paper
+  editions (full two-column, single-column, compact, proceedings). Poster editions are placed
+  with `planPosterColumns` and topped up with a spare block so no column is left mostly white;
+  every content slide carries speaker notes. `lib/__tests__/template-gallery.test.ts` fails if
+  two templates ever ship identical card sets again, if a poster column is empty or >10% over
+  budget, if a gallery cites a key its bibliography lacks, or if a gallery figure path could
+  not be materialised at compile time.
+- **Real demo figures.** `scripts/generate-demo-figures.mjs` draws eight deterministic
+  vector figures (learning curves with confidence bands, grouped bars with error bars,
+  detector cross-section, invariant-mass spectrum, cryo-EM dose response, knockdown screen,
+  convergence map, model architecture) into `public/figures/*.svg|png`. `materializePublicFigures()`
+  copies exactly the referenced files into the LaTeX staging directory (traversal- and
+  `/api/`-guarded), for both the compile stage and the export ZIP; `outputFileTracingIncludes`
+  keeps them in a serverless trace.
+- **New projects are seeded.** `POST /api/workspaces` seeds the template's example cards and
+  bibliography (`seedContent: false` opts out); `addOutput` in the editor store does the same
+  for additional outputs; the template picker previews what each template starts with. The
+  in-memory demo project (`demo_ws`) is assembled from the galleries, so all three of its
+  outputs tell one story with one bibliography.
+- **Slides get a canvas.** `components/preview/slide-canvas.tsx` draws each slide on a real
+  160 × 90 mm frame at the template's own title proportions, with dark-ground themes drawn
+  dark, a running footline, the metropolis progress bar, and per-pattern body rendering
+  (prose, `stats` tiles, figures with captions, tables, two-column).
+- **Poster fill is print-accurate.** The generator and the canvas now share one decision table
+  (`posterStretchModeFor`, `posterResidualWhite`, `POSTER_STRETCH_SAFETY`): stretch glue
+  (gemini, a0poster) fills the board exactly; tikzposter-class boards get an explicit
+  `\vspace{Nem}` with a documented safety factor. The canvas reports what *prints*
+  ("~N% prints white" vs "filled in print") instead of the raw estimate, and a project's theme
+  override only colours the output that owns it.
+
 ### Audit Fixes (2026-09-21 session — `docs/audits/addendum-fixes-2026-09-21.md`)
 
 Implementation of the findings from the deep technical audit (`docs/audit/deep-analysis-2026-09-21.md`).

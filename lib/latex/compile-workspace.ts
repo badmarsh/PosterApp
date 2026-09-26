@@ -5,11 +5,12 @@ import os from "os"
 import { prisma } from "@/lib/prisma"
 import { generateFullTemplate } from "@/lib/latex"
 import { resolveBibSource } from "@/lib/latex/bib-source"
-import { materializeRemoteFigures, rewriteTexRemoteUrls } from "@/lib/latex/remote-assets"
+import { materializePublicFigures, materializeRemoteFigures, rewriteTexRemoteUrls } from "@/lib/latex/remote-assets"
 import { WORKSPACES_ROOT, workspacePath } from "@/lib/workspace-files"
 import { safeLog, runSandboxedLatex } from "@/lib/latex/compiler-runner"
 import type { Card, Project } from "@/lib/poster-types"
-import { sampleProjects } from "@/lib/mock-data"
+import { sampleProjects, isDemoProject } from "@/lib/mock-data"
+import { loadReviewMetaForWorkspace, mergeReviewMeta } from "@/lib/ai/review-record-meta"
 
 /** Per-workspace mutex to guarantee serial, atomic PDF installation (B3) */
 const workspaceCompileLocks = new Map<string, Promise<void>>()
@@ -134,8 +135,21 @@ export async function compileWorkspace(
       output.cards = overrideCards
     }
 
+    // A posudok prints from the stored review record when the workspace has one:
+    // the record carries the confirmed classification, the per-criterion ratings
+    // and the narrative blocks, which a fresh thesis-review output's cards do
+    // not. Explicit client metadata still wins field by field.
+    if (output.outputType === "thesis-review" && !isDemoProject(workspaceId)) {
+      const stored = await loadReviewMetaForWorkspace(workspaceId)
+      const merged = mergeReviewMeta(stored, output.reviewMeta)
+      if (merged) output.reviewMeta = merged
+    }
+
     const currentCards = output.cards || []
     const currentCardsHash = computeCardsHash(currentCards)
+    const currentReviewMetaHash = output.reviewMeta
+      ? crypto.createHash("sha256").update(JSON.stringify(output.reviewMeta)).digest("hex")
+      : ""
 
     const targetDir = workspacePath(workspaceId)
     const targetPdf = path.join(targetDir, "main.pdf")
@@ -152,7 +166,10 @@ export async function compileWorkspace(
           meta.cardCount === currentCards.length &&
           meta.cardsHash === currentCardsHash &&
           meta.templateId === output.templateId &&
-          meta.themeColor === (output.themeColor ?? "")
+          meta.themeColor === (output.themeColor ?? "") &&
+          // Cache files written before review metadata existed have no hash;
+          // they are equivalent to "this output carries no review metadata".
+          (meta.reviewMetaHash ?? "") === currentReviewMetaHash
         ) {
           const pdfStat = await fs.stat(targetPdf)
           if (pdfStat.size > 0) {
@@ -172,9 +189,12 @@ export async function compileWorkspace(
     let tex = generateFullTemplate(project, output, workspaceId)
     stage = await fs.mkdtemp(path.join(os.tmpdir(), `posterapp-${workspaceId}-`))
 
-    // Materialize remote figures and rewrite .tex
+    // Materialize remote figures (and figures shipped inside `public/`) so the
+    // generated .tex only references files that exist in the staging directory.
     const remoteMapping = await materializeRemoteFigures(project, stage)
     tex = rewriteTexRemoteUrls(tex, remoteMapping)
+    const publicMapping = await materializePublicFigures(project, stage)
+    tex = rewriteTexRemoteUrls(tex, publicMapping)
 
     await fs.writeFile(path.join(stage, "main.tex"), tex, "utf8")
 

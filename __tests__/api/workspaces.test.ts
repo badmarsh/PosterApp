@@ -158,20 +158,51 @@ describe('POST /api/workspaces', () => {
     expect(res.status).toBe(201)
     expect(json.id).toBe('new-ws')
     expect(mockPrisma.workspace.create).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
         id: 'new-ws',
         name: 'My New Poster',
         authors: '',
         venue: '',
         userId: 'user_123',
         outputs: expect.any(Object),
-      },
+      }),
       include: {
         outputs: {
           include: { cards: true },
         },
       },
     })
+
+    // A new workspace is seeded with the template's curated example: cards with
+    // real content plus the bibliography their \cite keys point at. (An empty
+    // creation was the "one lazy blank page" failure mode.)
+    const data = (mockPrisma.workspace.create as any).mock.calls.at(-1)[0].data
+    const output = data.outputs.create
+    expect(output.cards.create.length).toBeGreaterThan(8)
+    expect(output.cards.create.every((c: { content: string; pattern: string }) =>
+      c.content.trim().length > 0 || c.pattern === 'references')).toBe(true)
+    expect(data.bibContent).toContain('@article')
+  })
+
+  it('creates an empty workspace when seedContent is false', async () => {
+    (mockAuth as any).mockResolvedValueOnce({ userId: 'user_123' } as any)
+    ;(mockPrisma.workspace.create as any).mockResolvedValueOnce({
+      id: 'blank-ws',
+      name: 'Blank',
+      outputs: [{ id: 'out_blank', outputType: 'poster', templateId: 'atlas', title: 'Blank', isActive: true, cards: [] }],
+    } as any)
+
+    const req = new Request('http://localhost/api/workspaces', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 'blank-ws', name: 'Blank', templateId: 'atlas', outputType: 'poster', seedContent: false }),
+    })
+    const res = await POST(req)
+    expect(res.status).toBe(201)
+
+    const data = (mockPrisma.workspace.create as any).mock.calls.at(-1)[0].data
+    expect(data.outputs.create.cards).toBeUndefined()
+    expect(data.bibContent).toBeNull()
   })
 
   it('defaults templateName to atlas when not specified', async () => {

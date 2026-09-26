@@ -1,8 +1,21 @@
 /**
- * LaTeX generator for thesis assessment reports (posudok diplomovej práce).
+ * LaTeX generator for thesis assessment reports (posudok / Gutachten / recenzja).
  *
- * Generates a complete, compilable LaTeX document from a ThesisReview record.
- * Templates: posudok-sk (Slovak), posudok-cs (Czech), posudok-en (English)
+ * Two entry paths share every renderer below:
+ *
+ *  - the AI review pipeline (app/api/…/thesis-review/…/export) hands a complete
+ *    `ThesisReviewGeneratorInput` in — metadata, sections with ratings, findings,
+ *    strengths, defence questions, citation issues;
+ *  - a workspace output (`ThesisReviewLatexGenerator.generateDocument`) only has
+ *    cards, so `lib/latex/thesis-review-meta.ts` derives the same shape from the
+ *    identification bullets, the rating lines and the conclusion tiles. This is
+ *    what previously printed the reviewer as the student and the output title as
+ *    the thesis title (audit finding P-01).
+ *
+ * The visual design is *not* in this file: `getThesisReviewPreamble` defines
+ * style macros (`\posudokletterhead`, `\posudokheading`, `\posudokgrade`, …) per
+ * template, so the six posudok templates produce structurally different
+ * documents while this generator stays style-agnostic.
  */
 
 import {
@@ -13,12 +26,17 @@ import {
   type ThesisReviewTemplate,
   type ThesisReviewLabels,
 } from "./templates-thesis"
-import { THESIS_CRITERIA, type ThesisSection, type ReviewLanguage } from "@/lib/ai/thesis-rubric"
+import { thesisReviewStyleFor, type ThesisReviewStyle } from "./thesis-review-styles"
+import { THESIS_CRITERIA, computeOverallScore, type ThesisSection, type ReviewLanguage } from "@/lib/ai/thesis-rubric"
 import { SK_ACADEMIC_RUBRIC_V1 } from "@/lib/ai/rubric-engine"
 import type { ReviewKind, ReviewFinding } from "@/lib/ai/review-types"
 import { getEligibleFindings } from "@/lib/ai/review-composer"
 import { bucketFindings } from "@/lib/ai/review-bucketing"
 import { mapUnicodeToLatex, parseMarkdownToLatex } from "./parser"
+import { assetUrlToLatexPath, normalizeLatexPath } from "./helpers"
+import { deriveThesisReview, pointsForRating, resolveCriterion, type ReportLanguageCode } from "./thesis-review-meta"
+import type { Project, OutputConfig } from "@/lib/poster-types"
+import type { LatexGenerator } from "./types"
 
 // ---------------------------------------------------------------------------
 // LaTeX escaping (Single-pass replacement)
@@ -92,22 +110,169 @@ function nl2par(text: string): string {
     .join("\n\n")
 }
 
+/**
+ * Normalise prose for LaTeX without flattening bullet lists.
+ *
+ * Card content mixes lead paragraphs with `- **Label:** value` bullets and no
+ * blank line in between. Collapsing every newline (as `nl2par` does) welded
+ * those bullets into one run-on sentence, so each bullet keeps its own line and
+ * the markdown parser can turn it into a real `itemize` item.
+ */
+function renderProse(text: string): string {
+  const blocks: string[] = []
+  let paragraph: string[] = []
+  let list: string[] = []
+  const flushParagraph = () => {
+    if (paragraph.length > 0) {
+      blocks.push(paragraph.join(" ").trim())
+      paragraph = []
+    }
+  }
+  const flushList = () => {
+    if (list.length > 0) {
+      blocks.push(list.join("\n"))
+      list = []
+    }
+  }
+
+  for (const raw of (text || "").split("\n")) {
+    const line = raw.trim()
+    if (/^(?:[-*+]|\d+[.)])\s+/.test(line)) {
+      flushParagraph()
+      list.push(line)
+      continue
+    }
+    if (!line) {
+      flushParagraph()
+      flushList()
+      continue
+    }
+    flushList()
+    paragraph.push(line)
+  }
+  flushParagraph()
+  flushList()
+
+  return blocks.join("\n\n")
+}
+
+// ---------------------------------------------------------------------------
+// Criteria — the shape both entry paths normalise to
+// ---------------------------------------------------------------------------
+
+export type GeneratedCriterion = {
+  /** Rubric criterion id, when it could be resolved. */
+  criterionId: string
+  name: string
+  text: string
+  /** Rating letter, or "" when the reviewer did not rate this criterion. */
+  rating: string
+  /** Rubric weight in percent, or null for custom/unmatched criteria. */
+  weight: number | null
+  /** Points from the rating (midpoint of its ECTS band), or null. */
+  points: number | null
+  suggestions: string[]
+  /** Figures attached to the criterion card (score profiles, plots). */
+  figures?: Array<{ url: string; caption: string }>
+}
+
+/** Rubric weights keyed by criterion id, v1 rubric first. */
+function rubricWeightIndex(): Map<string, number> {
+  const map = new Map<string, number>()
+  for (const c of THESIS_CRITERIA) map.set(c.id, c.weight)
+  for (const c of SK_ACADEMIC_RUBRIC_V1.criteria) map.set(c.id, c.weight)
+  return map
+}
+
+function criteriaFromSections(sections: ThesisSection[], lang: ReportLanguage): GeneratedCriterion[] {
+  return sections.map((section) => {
+    const id = (section.criterionId || section.sectionId || section.id || "").trim()
+    const rating = section.rating && section.rating !== "pending" ? section.rating : ""
+    const points = typeof section.numericScore === "number" && Number.isFinite(section.numericScore)
+      ? Math.round(section.numericScore)
+      : pointsForRating(rating)
+    // Resolution mirrors the workspace path exactly (id → rubric label by
+    // diacritic-folded title → humanized fallback), so a section that stores a
+    // human-readable criterion title still gets its real weight and name.
+    const resolved = resolveCriterion(
+      { id: section.id || id, title: section.criterionId || section.sectionId || section.id || "", criterionId: section.criterionId },
+      lang as ReportLanguageCode,
+    )
+    return {
+      criterionId: resolved.id,
+      name: resolved.name || resolveSectionName(section, lang),
+      text: section.text || "",
+      rating,
+      weight: resolved.weight ?? rubricWeightIndex().get(id) ?? null,
+      points,
+      suggestions: section.suggestions ?? [],
+    }
+  })
+}
+
+/**
+ * Workspace-relative path for a figure URL. The compile pipeline stages the
+ * workspace assets directory, and `ensureMissingGraphicsFallback` turns a
+ * missing file into a visible placeholder rather than a fatal error, so a
+ * stale attachment can never break an export.
+ */
+let activeWorkspaceId = ""
+export function setThesisReviewWorkspaceId(id: string): void {
+  activeWorkspaceId = id
+}
+
+function figurePath(url: string): string {
+  if (activeWorkspaceId) return normalizeLatexPath(assetUrlToLatexPath(url, activeWorkspaceId))
+  return normalizeLatexPath(url)
+}
+
+function normalizeRating(value: string): string {
+  const clean = (value || "").trim().toUpperCase()
+  return /^[A-F](X)?$/.test(clean) ? clean : ""
+}
+
 // ---------------------------------------------------------------------------
 // Section generators
 // ---------------------------------------------------------------------------
 
-function buildMetadataBlock(
+function buildLetterhead(
   labels: ThesisReviewLabels,
+  meta: {
+    institution?: string | null
+    faculty?: string | null
+    department?: string | null
+    reviewerName?: string | null
+    date?: string | null
+    place?: string | null
+    logoUrl?: string | null
+  }
+): string {
+  const institution = { institution: meta.institution ?? "", faculty: meta.faculty ?? "" }
+  const facultyLine = [institution.faculty, meta.department].filter(Boolean).join(" · ")
+  const rightMeta = [meta.place, meta.date].filter(Boolean).join(", ") || labels.title
+  if (!institution.institution && !facultyLine) return ""
+  const logo = meta.logoUrl
+    ? `\\noindent\\PosterIncludeGraphics[height=1.5cm]{${escapeLatex(meta.logoUrl)}}\\\\[0.4em]\n`
+    : ""
+  return `${logo}\\posudokletterhead{${escapeLatex(institution.institution)}}{${escapeLatex(facultyLine)}}{${escapeLatex(rightMeta)}}`
+}
+
+function buildIdentificationBlock(
+  labels: ThesisReviewLabels,
+  style: ThesisReviewStyle,
   meta: {
     studentName: string
     thesisTitle: string
     thesisType: "bachelor" | "master" | "phd"
-    reviewerRole: "supervisor" | "opponent" | "self" | "reviewer" | string
+    studyProgramme?: string | null
+    reviewerRole: string
     reviewerName?: string | null
     institution?: string | null
+    faculty?: string | null
     department?: string | null
     academicYear?: string | null
-  }
+  },
+  kind: "thesis" | "paper"
 ): string {
   const rows: string[] = [
     `  \\textbf{${escapeLatex(labels.studentLabel)}:} & ${escapeLatex(meta.studentName)} \\\\`,
@@ -115,6 +280,12 @@ function buildMetadataBlock(
     `  \\textbf{${escapeLatex(labels.thesisTypeLabel)}:} & ${escapeLatex(labels.thesisTypes[meta.thesisType] ?? meta.thesisType)} \\\\`,
   ]
 
+  if (meta.studyProgramme) {
+    rows.push(`  \\textbf{${escapeLatex(labels.studyProgrammeLabel)}:} & ${escapeLatex(meta.studyProgramme)} \\\\`)
+  }
+  if (meta.faculty) {
+    rows.push(`  \\textbf{${escapeLatex(labels.facultyLabel)}:} & ${escapeLatex(meta.faculty)} \\\\`)
+  }
   if (meta.reviewerName) {
     rows.push(`  \\textbf{${escapeLatex(labels.reviewerLabel)}:} & ${escapeLatex(meta.reviewerName)} \\\\`)
   }
@@ -130,154 +301,185 @@ function buildMetadataBlock(
     rows.push(`  \\textbf{${escapeLatex(labels.academicYearLabel)}:} & ${escapeLatex(meta.academicYear)} \\\\`)
   }
 
-  return `\\noindent
-\\begin{tabularx}{\\textwidth}{@{}l X@{}}
+  // Shaded-label styles print a filled grey label column; the others use the
+  // classic plain label column. Both are tabularx so long values wrap.
+  const columnSpec =
+    style.letterhead === "shaded-table"
+      ? "@{}>{\\columncolor{formgrey}\\bfseries}l X@{}"
+      : "@{}l X@{}"
+
+  const heading = kind === "thesis"
+    ? `\\section{${escapeLatex(labels.identificationLabel)}}\n\n`
+    : ""
+
+  return `${heading}\\noindent
+\\begin{tabularx}{\\textwidth}{${columnSpec}}
 ${rows.join("\n")}
 \\end{tabularx}`
 }
 
 /**
- * Criterion display name for a report language.
- *
- * THESIS_CRITERIA is part of the AI rubric and is only translated into
- * sk/cs/en. For a report rendered in de/pl/hu the criterion names fall back
- * to English rather than printing a raw id like "methodology_rigor".
+ * Weighted criteria overview table — the element that turns the review into an
+ * auditable assessment: every criterion with its rubric weight, the points the
+ * rating converts to, and the rating itself. Styles differ in which columns
+ * they show and in the row treatment, but all of them read the same numbers.
  */
-function resolveCriterionLabel(
-  criterion: (typeof THESIS_CRITERIA)[number],
-  lang: ReportLanguage,
-  fallbackId: string
+function buildCriteriaOverview(
+  labels: ThesisReviewLabels,
+  style: ThesisReviewStyle,
+  criteria: GeneratedCriterion[],
+  lang: ReportLanguage
 ): string {
-  const rubricLang: ReviewLanguage = lang === "sk" || lang === "cs" || lang === "en" ? lang : "en"
-  return criterion.labels[rubricLang] ?? criterion.labels.en ?? fallbackId
+  const rows = criteria.filter((c) => c.name)
+  if (rows.length === 0) return ""
+
+  const anyRating = rows.some((c) => c.rating)
+  if (!anyRating && !style.showWeights) return ""
+
+  const notRated = labels.notRatedLabel
+  // `compact-weights` folds the weight into the criterion cell (Polish recenzja
+  // style) so the table reads as three columns; every other design keeps the
+  // weight as its own right-aligned column.
+  const compactWeights = style.criteriaTable === "compact-weights"
+  const weightCell = (c: GeneratedCriterion) =>
+    c.weight === null ? "---" : `${c.weight}\\,\\%`
+  const nameCell = (c: GeneratedCriterion) =>
+    compactWeights && c.weight !== null
+      ? `${escapeLatex(c.name)} {\\footnotesize\\textcolor{rulegrey}(${c.weight}\\,\\%)}`
+      : escapeLatex(c.name)
+
+  const cell = (c: GeneratedCriterion) => [
+    nameCell(c),
+    !compactWeights && style.showWeights ? weightCell(c) : null,
+    style.showPoints ? (c.points === null ? "---" : `${c.points}`) : null,
+    c.rating ? `\\ratingsymbol{${escapeLatex(c.rating)}}` : `\\textit{${escapeLatex(notRated)}}`,
+  ].filter((v): v is string => v !== null)
+
+  const headerCells = [
+    labels.criterionLabel,
+    !compactWeights && style.showWeights ? labels.weightLabel : null,
+    style.showPoints ? labels.pointsLabel : null,
+    labels.ratingLabel,
+  ].filter((v): v is string => v !== null)
+
+  const columnSpec = [
+    "@{}X",
+    !compactWeights && style.showWeights ? "r" : null,
+    style.showPoints ? "r" : null,
+    "r@{}",
+  ].filter((v): v is string => v !== null).join(" ")
+
+  const chunkSize = 12
+  const chunks: GeneratedCriterion[][] = []
+  for (let i = 0; i < rows.length; i += chunkSize) chunks.push(rows.slice(i, i + chunkSize))
+
+  return chunks
+    .map((chunk) => {
+      const body = chunk
+        .map((c, index) => {
+          const cells = cell(c).join(" & ")
+          const striped =
+            (style.criteriaTable === "band-rows" || style.criteriaTable === "weighted-shaded") && index % 2 === 1
+          const ruled = style.criteriaTable === "ruled-rows" && index > 0
+          const lead = ruled ? "\\midrule\n" : ""
+          return `${lead}${striped ? "\\rowcolor{formgrey} " : ""}  ${cells} \\\\`
+        })
+        .join("\n")
+      const header = style.criteriaTable === "weighted-shaded"
+        ? `\\rowcolor{accent}\\color{white}\\textbf{${headerCells.join("} & \\textbf{")}} \\\\`
+        : style.criteriaTable === "band-rows"
+          ? `\\rowcolor{formgrey}\\textbf{${headerCells.join("} & \\textbf{")}} \\\\`
+          : `\\textbf{${headerCells.join("} & \\textbf{")}} \\\\`
+      const summary = weightedScoreFor(chunk)
+      const summaryLine = summary.score === null
+        ? ""
+        : `\n\n{\\footnotesize ${escapeLatex(labels.weightedAverageLabel)}: \\textbf{${summary.score.toFixed(1)}\\,\\%}${summary.grade ? ` (${escapeLatex(summary.grade)})` : ""} $\\cdot$ ${summary.rated}\\,/\\,${summary.total} ${escapeLatex(labels.ratedCountLabel)}}`
+      return `\\noindent\\begin{tabularx}{\\textwidth}{${columnSpec}}
+\\toprule
+${header}
+\\midrule
+${body}
+\\bottomrule
+\\end{tabularx}
+
+{\\footnotesize\\itshape ${escapeLatex(labels.gradingScaleLabel)}}${summaryLine}`
+    })
+    .join("\n\n")
 }
 
 /**
- * Unified criterion resolution for section rows (2026-09 audit fix F-04).
- *
- * Sections enter this generator from three different lineages and the old
- * code matched only the deprecated one, silently dropping the rest:
- *   1. the production review pipeline writes ids from SK_ACADEMIC_RUBRIC_V1
- *      (12 criteria) — these are tried FIRST,
- *   2. legacy/seeded drafts may still carry THESIS_CRITERIA ids (8 criteria),
- *   3. hand-built or imported sections may store a criterion *title* (in any
- *      of the translated labels) instead of an id — matched with
- *      diacritic/case folding.
- * An unresolved section is still rendered under a humanized heading instead
- * of vanishing from the export: losing a reviewer's paragraph is far worse
- * than an imperfect heading.
+ * Per-criterion commentary. Numbering, marker and rating placement come from
+ * the template's `\posudokheading` macro, so this code emits the same call for
+ * every style.
  */
-let v1CriterionMap: Map<string, (typeof SK_ACADEMIC_RUBRIC_V1.criteria)[number]> | null = null
-function getV1CriterionMap() {
-  if (!v1CriterionMap) {
-    v1CriterionMap = new Map(SK_ACADEMIC_RUBRIC_V1.criteria.map((c) => [c.id, c]))
-  }
-  return v1CriterionMap
-}
-
-function foldCriterionText(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[_\-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-}
-
-function humanizeCriterionId(id: string): string {
-  const words = foldCriterionText(id)
-  return words ? words[0].toUpperCase() + words.slice(1) : id
-}
-
-function rubricLabelsFor(
-  labels: Record<ReviewLanguage, string>,
-  lang: ReportLanguage
-): string[] {
-  const unique = new Set<string>([labels.sk, labels.cs, labels.en].filter(Boolean))
-  void lang
-  return [...unique]
-}
-
-function localizedLabel(
-  labels: Record<ReviewLanguage, string>,
-  lang: ReportLanguage,
-  fallback: string
-): string {
-  const rubricLang: ReviewLanguage = lang === "sk" || lang === "cs" || lang === "en" ? lang : "en"
-  return labels[rubricLang] ?? labels.en ?? fallback
-}
-
-function resolveSectionCriterion(
-  section: ThesisSection,
-  lang: ReportLanguage
-): { name: string; skip: boolean } {
-  const rawId = (section.criterionId || "").trim()
-  if (rawId) {
-    // 1. Active v1 rubric (what the production pipeline writes).
-    const v1 = getV1CriterionMap().get(rawId)
-    if (v1) {
-      return {
-        name: localizedLabel(v1.labels, lang, rawId),
-        skip: v1.weight === 0 || v1.category === "defense",
-      }
-    }
-    // 2. Deprecated legacy rubric (older drafts / seeds).
-    const legacy = THESIS_CRITERIA.find((c) => c.id === rawId)
-    if (legacy) {
-      return {
-        name: resolveCriterionLabel(legacy, lang, rawId),
-        skip: legacy.weight === 0 || legacy.category === "defense",
-      }
-    }
-    // 3. The id field actually contains a human title — match against the
-    //    label sets of both rubrics with diacritic/case folding.
-    const folded = foldCriterionText(rawId)
-    const matchesFold = (label: string) => foldCriterionText(label) === folded
-    for (const c of SK_ACADEMIC_RUBRIC_V1.criteria) {
-      if (foldCriterionText(c.id) === folded || rubricLabelsFor(c.labels, lang).some(matchesFold)) {
-        return { name: localizedLabel(c.labels, lang, rawId), skip: c.weight === 0 || c.category === "defense" }
-      }
-    }
-    for (const c of THESIS_CRITERIA) {
-      if (foldCriterionText(c.id) === folded || rubricLabelsFor(c.labels, lang).some(matchesFold)) {
-        return { name: resolveCriterionLabel(c, lang, rawId), skip: c.weight === 0 || c.category === "defense" }
-      }
-    }
-  }
-  // 4. Never drop: render whatever the reviewer wrote under a readable title.
-  return { name: humanizeCriterionId(rawId || section.id || "section"), skip: false }
-}
-
 function buildCriteriaTable(
   labels: ThesisReviewLabels,
-  sections: ThesisSection[],
+  criteria: GeneratedCriterion[],
   lang: ReportLanguage,
   includeRatings: boolean
 ): string {
   const rows: string[] = []
+  let index = 0
 
-  for (const section of sections) {
-    const resolved = resolveSectionCriterion(section, lang)
-    if (resolved.skip) continue
+  for (const criterion of criteria) {
+    const text = renderProse(criterion.text || "")
+    const suggestions = criterion.suggestions.filter(Boolean)
+    if (!text && suggestions.length === 0 && !criterion.rating) continue
 
-    const criterionName = resolved.name
-    const rating = section.rating && section.rating !== "pending" ? section.rating : "---"
-    const text = nl2par(section.text || "")
-
-    const ratingSuffix = includeRatings ? ` \\hfill \\ratingsymbol{${escapeLatex(rating)}}` : ""
-    rows.push(`\\Needspace{6\\baselineskip}
-\\subsection*{${escapeLatex(criterionName)}${ratingSuffix}}
+    const name = criterion.name || criterion.criterionId
+    if (!name) continue
+    index += 1
+    const letter = includeRatings ? normalizeRating(criterion.rating) : ""
+    const rating = letter ? `\\ratingsymbol{${escapeLatex(letter)}}` : ""
+    rows.push(`\\posudokheading{${index}}{${escapeLatex(name)}}{${rating}}
 ${escapeProse(text)}`)
 
-    if (section.suggestions && section.suggestions.length > 0) {
+    if (suggestions.length > 0) {
       rows.push(`\\begin{itemize}[leftmargin=*,noitemsep,topsep=2pt]\\small
-${section.suggestions.map((s) => `  \\item ${escapeProse(s)}`).join("\n")}
+${suggestions.map((s) => `  \\item ${escapeProse(s)}`).join("\n")}
 \\end{itemize}`)
+    }
+
+    const figures = (criterion.figures ?? []).filter((f) => f?.url)
+    if (figures.length > 0) {
+      rows.push(figures
+        .map((fig) => {
+          const path = figurePath(fig.url)
+          const caption = escapeProse(fig.caption || "")
+          const captionLine = caption
+            ? `\n  \\par\\smallskip{\\footnotesize\\itshape ${caption}}`
+            : ""
+          return `\\begin{center}
+  \\includegraphics[width=0.68\\linewidth,keepaspectratio]{${path}}${captionLine}
+\\end{center}`
+        })
+        .join("\n"))
     }
   }
 
+  void labels
+  void lang
   return rows.join("\n\n")
+}
+
+/**
+ * Weighted average over the criteria that actually carry a rating, plus an ECTS
+ * band. Mirrors `pointsForRating` in thesis-review-meta so the printed document
+ * and the live canvas always report the same number.
+ */
+function weightedScoreFor(criteria: GeneratedCriterion[]): {
+  score: number | null
+  grade: string | null
+  rated: number
+  total: number
+} {
+  const rated = criteria.filter((c) => c.points !== null && c.weight !== null && c.weight > 0)
+  const totalWeight = rated.reduce((sum, c) => sum + (c.weight ?? 0), 0)
+  const total = criteria.filter((c) => c.name).length
+  if (totalWeight <= 0) return { score: null, grade: null, rated: rated.length, total }
+  const score = Math.round((rated.reduce((sum, c) => sum + (c.points ?? 0) * (c.weight ?? 0), 0) / totalWeight) * 10) / 10
+  const grade = score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : score >= 50 ? "E" : "F"
+  return { score, grade, rated: rated.length, total }
 }
 
 type EvaluationBlock = { heading: string; body: string }
@@ -290,7 +492,7 @@ type EvaluationBlock = { heading: string; body: string }
  */
 function buildEvaluationBlocks(
   input: ThesisReviewGeneratorInput,
-  reviewKind: ReviewKind
+  reviewKind: "thesis" | "paper"
 ): EvaluationBlock[] {
   const lang = input.language
   const isPaper = reviewKind === "paper"
@@ -304,7 +506,7 @@ function buildEvaluationBlocks(
         isPaper ? "Shrnutí rukopisu (Manuscript Summary)" : "Shrnutí práce a hlavní přínos (Executive Summary)",
         isPaper ? "Manuscript Summary" : "Executive Summary"
       ),
-      body: escapeProse(nl2par(input.summary)),
+      body: escapeProse(renderProse(input.summary)),
     })
   }
 
@@ -340,12 +542,12 @@ function buildEvaluationBlocks(
   const renderFinding = (f: ReviewFinding) => {
     const cat = (f.category || "general").toUpperCase()
     const title = `[${cat}] ${f.title}`
-    const expl = nl2par(f.explanation || "")
+    const expl = renderProse(f.explanation || "")
     const rec = f.recommendation
       ? "\\par\\noindent\\textit{\\textbf{" + escapeLatex(recPrefix) + "} " + escapeProse(f.recommendation) + "}"
       : ""
     const ev = f.evidence?.[0]?.quote
-      ? "\\par\\noindent{\\small\\color{gray}\\textit{" + escapeLatex(evidencePrefix) + " ``" + escapeProse(f.evidence[0].quote) + "''}}"
+      ? "\\par\\noindent{\\small\\color{rulegrey}\\textit{" + escapeLatex(evidencePrefix) + " ``" + escapeProse(f.evidence[0].quote) + "''}}"
       : ""
     return "\\Needspace{5\\baselineskip}\n\\subsubsection*{" + escapeLatex(title) + "}\n" + escapeProse(expl) + rec + ev
   }
@@ -390,7 +592,6 @@ function buildEvaluationBlocks(
   return blocks
 }
 
-
 function buildDefenseQuestions(labels: ThesisReviewLabels, questions: string[]): string {
   if (!questions.length) return ""
   return `\\Needspace{8\\baselineskip}
@@ -414,33 +615,85 @@ function buildConfidentialNotes(labels: ThesisReviewLabels, comments: string): s
   return `\\Needspace{8\\baselineskip}
 \\section{${escapeLatex(labels.confidentialLabel)}}
 {\\small
-${escapeProse(nl2par(comments))}
+${escapeProse(renderProse(comments))}
 }`
 }
 
-function buildSummaryBlock(
+/**
+ * Grade panel: proposed classification, the weighted score it came from, the
+ * ECTS band and the reviewer's recommendation. Rendered with the template's own
+ * `\posudokgrade` macro so a Slovak form gets a boxed letter and a German
+ * Gutachten a shaded note panel.
+ */
+function buildGradePanel(
   labels: ThesisReviewLabels,
-  grade: string | null | undefined,
-  recommendation: string | null | undefined,
-  includeGrade: boolean
+  style: ThesisReviewStyle,
+  options: {
+    grade: string | null | undefined
+    scorePercent: number | null
+    ects: string | null
+    recommendation: string | null | undefined
+    includeGrade: boolean
+    place?: string | null
+    date?: string | null
+    /** Weighted average over the rated criteria, computed from the table. */
+    weightedScore?: number | null
+    weightedGrade?: string | null
+    ratedCount?: number
+    criteriaCount?: number
+  }
 ): string {
-  const gradeBox = grade ? `\\ratingsymbol{${escapeLatex(grade)}}` : "\\underline{\\hspace{3cm}}"
-  const recText = recommendation ? escapeProse(recommendation) : ""
-  const gradeField = includeGrade ? `\\thesisfield{${escapeLatex(labels.gradeLabel)}}{${gradeBox}}` : ""
+  const parts: string[] = []
+
+  if (options.includeGrade) {
+    const grade = options.grade ? escapeLatex(options.grade) : "\\rule{1.2cm}{0.4pt}"
+    parts.push(`\\posudokgrade{${escapeLatex(labels.gradeLabel)}}{${grade}}`)
+  }
+
+  if (options.includeGrade && options.scorePercent !== null) {
+    const score = `${options.scorePercent.toFixed(1)}\\,\\%`
+    const ects = options.ects ? ` \\hfill ${escapeLatex(labels.ectsLabel)}: \\textbf{${escapeLatex(options.ects)}}` : ""
+    parts.push(`\\posudokpanel{${escapeLatex(labels.scoreLabel)}}{${score}${ects}}`)
+  }
+
+  // The declared percentage and the weighted average over the assessed criteria
+  // are two different numbers (a reviewer may round, or only assess a subset).
+  // Printing both makes the classification checkable instead of magical.
+  if (options.includeGrade && options.weightedScore != null) {
+    const grade = options.weightedGrade ? ` (${escapeLatex(options.weightedGrade)})` : ""
+    const counts =
+      options.ratedCount != null && options.criteriaCount != null
+        ? ` $\\cdot$ ${options.ratedCount}\\,/\\,${options.criteriaCount} ${escapeLatex(labels.ratedCountLabel)}`
+        : ""
+    parts.push(
+      `\\posudokpanel{${escapeLatex(labels.weightedAverageLabel)}}{\\textbf{${options.weightedScore.toFixed(1)}\\,\\%}${grade}${counts}}`,
+    )
+  }
+
+  const recText = options.recommendation ? escapeProse(renderProse(options.recommendation)) : ""
+  parts.push(`\\thesisfield{${escapeLatex(labels.recommendationLabel)}}{${recText}}`)
+
+  if (options.includeGrade) {
+    parts.push(`{\\footnotesize\\itshape ${escapeLatex(labels.gradingScaleLabel)}}`)
+  }
+
+  const gradePanel = parts.join("\n\n")
+  const signatureRow = [
+    style.letterhead === "shaded-table" ? "\\rowcolor{formgrey}" : "",
+    `${escapeLatex(labels.signatureLabel)}: & ${escapeLatex(labels.dateLabel)}: \\\\[2.1cm]`,
+    "  \\hrulefill & \\hrulefill \\\\",
+  ].filter(Boolean).join("\n")
 
   return `\\Needspace{10\\baselineskip}
 \\section{${escapeLatex(labels.summaryLabel)}}
 
-${gradeField}
+${gradePanel}
 
-\\thesisfield{${escapeLatex(labels.recommendationLabel)}}{${recText}}
-
-\\vspace{2.5cm}
+\\vspace{2.2cm}
 
 \\noindent
 \\begin{tabular}{p{8cm}p{5cm}}
-  ${escapeLatex(labels.signatureLabel)}: & ${escapeLatex(labels.dateLabel)}: \\\\[1.8cm]
-  \\hrulefill & \\hrulefill \\\\
+${signatureRow}
 \\end{tabular}`
 }
 
@@ -460,7 +713,7 @@ function labelsForReviewKind(
   const scientificPaper = sk ? "Vedecký článok" : cs ? "Vědecký článek" : "Scientific paper"
   return {
     ...labels,
-    title: sk ? "ODBORNÁ RECENZIA VEDECKÉHO ČLÁNKU" : cs ? "ODBORNÁ RECENZE VĚDECKÉHO ČLÁNKU" : "SCIENTIFIC PAPER PEER REVIEW",
+    title: sk ? "ODBORNÁ RECENZIA VEDECKÉHO ČLÁNKU" : cs ? "ODBORNÁ RECENZE VEDECKÉHO ČLÁNKU" : "SCIENTIFIC PAPER PEER REVIEW",
     studentLabel: sk ? "Autor/Autorka článku" : cs ? "Autor/Autorka článku" : "Author(s)",
     thesisTitleLabel: sk ? "Názov článku" : cs ? "Název článku" : "Paper title",
     thesisTypeLabel: sk ? "Typ rukopisu" : cs ? "Typ rukopisu" : "Manuscript type",
@@ -471,6 +724,8 @@ function labelsForReviewKind(
     confidentialLabel: sk ? "DÔVERNÉ POZNÁMKY PRE EDITORA" : cs ? "DŮVĚRNÉ POZNÁMKY PRO EDITORA" : "CONFIDENTIAL COMMENTS TO THE EDITOR",
     recommendationLabel: sk ? "Odporúčanie editorovi" : cs ? "Doporučení editorovi" : "Recommendation to the editor",
     signatureLabel: sk ? "Podpis recenzenta/ky" : cs ? "Podpis recenzenta/ky" : "Reviewer's signature",
+    identificationLabel: sk ? "IDENTIFIKÁCIA RUKOPISU" : cs ? "IDENTIFIKACE RUKOPISU" : "MANUSCRIPT IDENTIFICATION",
+    criteriaOverviewLabel: sk ? "PREHĽAD POSÚDENIA KRITÉRIÍ" : cs ? "PŘEHLED POSOUZENÍ KRITÉRIÍ" : "REVIEW CRITERIA OVERVIEW",
     thesisTypes: { bachelor: scientificPaper, master: scientificPaper, phd: scientificPaper },
     roles: { ...labels.roles, supervisor: "Reviewer", opponent: "Reviewer", self: "Author triage", reviewer: "Reviewer" },
   }
@@ -481,8 +736,14 @@ function buildAiDisclosure(lang: ReportLanguage): string {
     ? "Koncept recenzie bol pripravený s podporou evidenciou podloženého AI asistenta PosterApp. Konečné odborné posúdenie a rozhodnutie vykonal ľudský recenzent."
     : lang === "cs"
       ? "Návrh recenze byl připraven s podporou AI asistenta PosterApp založeného na důkazech. Konečné odborné posouzení a rozhodnutí provedl lidský recenzent."
-      : "This review draft was prepared with PosterApp's evidence-grounded AI assistant. Final scholarly judgment and the decision remain with the human reviewer."
-  return `\\Needspace{5\\baselineskip}\n\\section*{${escapeLatex(lang === "sk" ? "Vyhlásenie o AI asistencii" : lang === "cs" ? "Prohlášení o AI asistenci" : "AI Assistance Disclosure")}}\n${escapeProse(disclosure)}`
+      : lang === "de"
+        ? "Der Entwurf dieses Gutachtens wurde mit Unterstützung des evidenzbasierten KI-Assistenten von PosterApp erstellt. Die abschließende fachliche Beurteilung und Entscheidung obliegt der menschlichen Begutachtung."
+        : lang === "pl"
+          ? "Projekt recenzji przygotowano z pomocą asystenta AI PosterApp opartego na dowodach. Ostateczna ocena merytoryczna i decyzja należą do recenzenta."
+          : lang === "hu"
+            ? "A bírálat tervezete a PosterApp bizonyítékokra támaszkodó AI-asszisztensének támogatásával készült. A végső szakmai értékelés és döntés a humán bíráló feladata."
+            : "This review draft was prepared with PosterApp's evidence-grounded AI assistant. Final scholarly judgment and the decision remain with the human reviewer."
+  return `\\Needspace{5\\baselineskip}\n\\section*{${escapeLatex(lang === "sk" ? "Vyhlásenie o AI asistencii" : lang === "cs" ? "Prohlášení o AI asistenci" : lang === "de" ? "Erklärung zur KI-Unterstützung" : lang === "pl" ? "Oświadczenie o wykorzystaniu AI" : lang === "hu" ? "Nyilatkozat az AI használatáról" : "AI Assistance Disclosure")}}\n${escapeProse(disclosure)}`
 }
 
 export interface ThesisReviewGeneratorInput {
@@ -493,11 +754,20 @@ export interface ThesisReviewGeneratorInput {
   reviewerRole: "supervisor" | "opponent" | "self" | "reviewer" | string
   reviewerName?: string | null
   institution?: string | null
+  /** Faculty / school line, printed under the institution where the style has a letterhead. */
+  faculty?: string | null
   department?: string | null
+  studyProgramme?: string | null
   academicYear?: string | null
+  place?: string | null
+  date?: string | null
+  logoUrl?: string | null
   grade?: string | null
+  scorePercent?: number | null
   recommendation?: string | null
   sections: ThesisSection[]
+  /** Criteria already resolved from workspace cards (see thesis-review-meta). */
+  criteria?: GeneratedCriterion[]
   findings?: ReviewFinding[]
   summary?: string | null
   strengths?: string[]
@@ -517,32 +787,58 @@ export interface ThesisReviewGeneratorInput {
  */
 export function generateThesisReviewLatex(input: ThesisReviewGeneratorInput): string {
   const lang = input.language
-  const reviewKind = input.reviewKind ?? "thesis"
+  const reviewKind: "thesis" | "paper" = input.reviewKind === "paper" ? "paper" : "thesis"
+  const style = thesisReviewStyleFor(input.template)
   const labels = labelsForReviewKind(THESIS_REVIEW_LABELS[lang], lang, reviewKind)
   const preamble = getThesisReviewPreamble(input.template, labels.title)
+  const isThesis = reviewKind !== "paper"
 
-  const metaBlock = buildMetadataBlock(labels, input)
-  const criteriaBlock = buildCriteriaTable(labels, input.sections, lang, reviewKind === "thesis")
+  const letterhead = buildLetterhead(labels, input)
+  const identification = buildIdentificationBlock(labels, style, {
+    studentName: input.studentName,
+    thesisTitle: input.thesisTitle,
+    thesisType: input.thesisType,
+    studyProgramme: input.studyProgramme,
+    reviewerRole: input.reviewerRole,
+    reviewerName: input.reviewerName,
+    institution: input.institution,
+    faculty: input.faculty,
+    department: input.department,
+    academicYear: input.academicYear,
+  }, reviewKind)
+
+  // Criteria may arrive pre-resolved (workspace cards) or as rubric sections.
+  const criteria: GeneratedCriterion[] = input.criteria && input.criteria.length > 0
+    ? input.criteria
+    : criteriaFromSections(input.sections, lang)
+
+  const overview = isThesis ? buildCriteriaOverview(labels, style, criteria, lang) : ""
+  const criteriaBlock = buildCriteriaTable(labels, criteria, lang, isThesis)
 
   // Numbered evaluation blocks (summary, strengths, concerns, statutory
-  // clause) followed by the per-criterion assessment. Numbers are assigned
-  // here so they stay sequential whatever subset of blocks is present.
+  // clause), then the weighted overview, then the per-criterion assessment.
+  // Numbers are assigned here so they stay sequential whatever subset of
+  // blocks is present, and the overview heading is only numbered when it
+  // actually renders.
   const blocks = buildEvaluationBlocks(input, reviewKind)
-  const isThesis = reviewKind !== "paper"
   let blockIndex = 0
-  const numbered = blocks.map((b) => {
-    const prefix = isThesis ? `${++blockIndex}. ` : ""
-    return `\\Needspace{6\\baselineskip}
-\\subsection*{${escapeLatex(prefix + b.heading)}}
-${b.body}`
-  })
+  const headingFor = (title: string) => (isThesis ? `\\subsection*{${escapeLatex(`${++blockIndex}. ${title}`)}}` : `\\subsection*{${escapeLatex(title)}}`)
+
+  const bodyParts: string[] = blocks.map((b) => `\\Needspace{6\\baselineskip}
+${headingFor(b.heading)}
+${b.body}`)
+
+  if (overview) {
+    bodyParts.push(`\\Needspace{8\\baselineskip}
+${headingFor(labels.criteriaOverviewLabel)}
+${overview}`)
+  }
+
   if (criteriaBlock) {
-    // Per-criterion assessment, numbered in the same sequence as the blocks above.
-    numbered.push(`\\Needspace{6\\baselineskip}
-\\subsection*{${escapeLatex(isThesis ? `${++blockIndex}. ${labels.gradingLabel}` : labels.gradingLabel)}}
+    bodyParts.push(`\\Needspace{6\\baselineskip}
+${headingFor(labels.gradingLabel)}
 ${criteriaBlock}`)
   }
-  const evaluationContent = numbered.filter(Boolean).join("\n\n\\vspace{0.4cm}\n\n")
 
   // Defense questions — may be in sections or top-level
   const defenseSection = input.sections.find((s) => s.criterionId === "defense_questions")
@@ -557,29 +853,38 @@ ${criteriaBlock}`)
     input.includeConfidential && input.confidentialComments?.trim()
       ? buildConfidentialNotes(labels, input.confidentialComments)
       : ""
-  const summaryBlock = buildSummaryBlock(labels, input.grade, input.recommendation, reviewKind === "thesis")
+
+  const weightedEcts = computeEctsBand(input.scorePercent ?? null)
+  const scorePercent = input.scorePercent ?? computeOverallScore(input.sections)
+  const weighted = weightedScoreFor(criteria)
+  const gradePanel = buildGradePanel(labels, style, {
+    grade: input.grade,
+    scorePercent: typeof scorePercent === "number" ? scorePercent : null,
+    ects: weightedEcts,
+    recommendation: input.recommendation,
+    includeGrade: isThesis,
+    place: input.place,
+    date: input.date,
+    weightedScore: weighted.score,
+    weightedGrade: weighted.grade,
+    ratedCount: weighted.rated,
+    criteriaCount: weighted.total,
+  })
   const aiDisclosureBlock = buildAiDisclosure(lang)
 
   return `${preamble}
 
 \\begin{document}
 
-\\begin{center}
-  {\\LARGE\\bfseries ${escapeLatex(labels.title)}}
-\\end{center}
+${letterhead ? `${letterhead}\n\n\\vspace{0.4cm}\n\n` : ""}\\posudoktitle{${escapeLatex(labels.title)}}
 
 \\vspace{0.5cm}
-\\hrule
-\\vspace{0.5cm}
 
-${metaBlock}
+${identification}
 
-\\vspace{0.5cm}
-\\hrule
-\\vspace{0.5cm}
+\\vspace{0.6cm}
 
-${criteriaBlock ? `\\section{${escapeLatex(labels.gradingLabel)}}\n\n` : ""}${evaluationContent}
-
+${bodyParts.join("\n\n\\vspace{0.4cm}\n\n")}
 
 ${defenseBlock}
 
@@ -587,7 +892,7 @@ ${citationBlock}
 
 ${confidentialBlock}
 
-${summaryBlock}
+${gradePanel}
 
 ${aiDisclosureBlock}
 
@@ -595,8 +900,32 @@ ${aiDisclosureBlock}
 `
 }
 
-import type { LatexGenerator } from "./types"
-import type { Project, OutputConfig } from "@/lib/poster-types"
+function resolveSectionName(section: ThesisSection | null, lang: ReportLanguage): string {
+  if (!section) return ""
+  const id = (section.criterionId || section.sectionId || section.id || "").trim()
+  if (!id) return ""
+  const rubricLang: ReviewLanguage = lang === "sk" || lang === "cs" || lang === "en" ? lang : "en"
+  const v1 = SK_ACADEMIC_RUBRIC_V1.criteria.find((c) => c.id === id)
+  if (v1) return v1.labels[rubricLang] ?? v1.labels.en ?? id
+  const legacy = THESIS_CRITERIA.find((c) => c.id === id)
+  if (legacy) return legacy.labels[rubricLang] ?? legacy.labels.en ?? id
+  return id
+}
+
+/** ECTS band label for a weighted score, per the rubric engine's own bands. */
+export function computeEctsBand(score: number | null): string | null {
+  if (score === null || !Number.isFinite(score)) return null
+  if (score >= 90) return "A"
+  if (score >= 80) return "B"
+  if (score >= 70) return "C"
+  if (score >= 60) return "D"
+  if (score >= 50) return "E"
+  return "F"
+}
+
+// ---------------------------------------------------------------------------
+// Workspace generator (cards → posudok)
+// ---------------------------------------------------------------------------
 
 export class ThesisReviewLatexGenerator implements LatexGenerator {
   readonly outputType = "thesis-review" as const
@@ -606,35 +935,59 @@ export class ThesisReviewLatexGenerator implements LatexGenerator {
     this.templateId = templateId
   }
 
-  generateDocument(project: Project, outputConfig: OutputConfig, _workspaceId = ""): string {
+  generateDocument(project: Project, outputConfig: OutputConfig, workspaceId = ""): string {
+    if (workspaceId) setThesisReviewWorkspaceId(workspaceId)
     const known: ThesisReviewTemplate[] = ["posudok-sk", "posudok-cs", "posudok-en", "posudok-de", "posudok-pl", "posudok-hu"]
     const template: ThesisReviewTemplate = known.includes(this.templateId as ThesisReviewTemplate)
       ? (this.templateId as ThesisReviewTemplate)
       : "posudok-sk"
     const lang = reportLanguageFor(template)
 
-    const sections: ThesisSection[] = outputConfig.cards.map((c) => ({
-      id: c.id,
-      sectionId: c.id,
-      criterionId: (c as any).criterionId || c.title || c.id,
-      text: c.content || "",
-      rating: "pending",
-      suggestions: [],
+    // Derive every printed fact from the output's explicit review metadata and
+    // the cards, in that order — see lib/latex/thesis-review-meta.ts.
+    const derived = deriveThesisReview(project, outputConfig, lang as ReportLanguageCode)
+
+    // Cards that hold narrative blocks (identification, defence questions,
+    // citations, conclusion…) are not criteria and must not be rendered as such.
+    const criteria: GeneratedCriterion[] = derived.criteria.map((c) => ({
+      criterionId: c.criterionId,
+      name: c.name,
+      text: c.text,
+      rating: normalizeRating(c.rating),
+      weight: c.weight,
+      points: c.points,
+      suggestions: c.suggestions,
+      figures: c.figures,
     }))
 
     return generateThesisReviewLatex({
-      studentName: outputConfig.authors || project.authors || "Student",
-      thesisTitle: outputConfig.title || project.name || "Diplomová práca",
-      thesisType: "master",
-      reviewerRole: "opponent",
-      reviewerName: project.venue || undefined,
-      grade: null,
-      recommendation: null,
-      sections,
-      defenseQuestions: [],
-      citationIssues: [],
+      reviewKind: derived.reviewKind,
+      studentName: derived.studentName || "Student",
+      thesisTitle: derived.thesisTitle || outputConfig.title || project.name || "",
+      thesisType: derived.thesisType,
+      reviewerRole: derived.reviewerRole,
+      reviewerName: derived.reviewerName || undefined,
+      institution: derived.institution || undefined,
+      faculty: derived.faculty || undefined,
+      department: derived.department || undefined,
+      studyProgramme: derived.studyProgramme || undefined,
+      academicYear: derived.academicYear || undefined,
+      place: derived.place || undefined,
+      date: derived.date || undefined,
+      logoUrl: outputConfig.logoUrl ?? project.logoUrl ?? null,
+      grade: derived.grade || null,
+      scorePercent: derived.scorePercent,
+      recommendation: derived.recommendation || null,
+      sections: [],
+      criteria,
+      summary: derived.summary || null,
+      strengths: derived.strengths,
+      defenseQuestions: derived.defenseQuestions,
+      citationIssues: derived.citationIssues,
       language: lang,
       template,
+      confidentialComments: derived.confidentialComments || null,
+      includeConfidential: derived.includeConfidential,
     })
   }
 }

@@ -88,11 +88,27 @@ const nextConfig = {
     "192.168.0.100:3333",
     "0.0.0.0",
     "0.0.0.0:3333",
+    // Hosted dev previews proxy the dev server under a per-sandbox origin
+    // (`https://<port>-<sandbox>.e2b.app`). Without an explicit entry Next.js
+    // treats those cross-origin dev asset requests as untrusted and the preview
+    // renders unstyled or not at all.
+    "*.e2b.app",
   ],
   images: {
     unoptimized: true,
   },
   serverExternalPackages: ["yjs"],
+  /**
+   * Figures shipped with the app live in `public/figures` and are copied into
+   * the LaTeX staging directory at compile/export time (`materializePublicFigures`
+   * reads them from disk). Without this, a serverless trace would not include
+   * them and the compiled PDF would silently fall back to placeholder boxes.
+   */
+  outputFileTracingIncludes: {
+    "/api/workspaces/[id]/compile": ["./public/figures/**", "./public/latex-styles/**", "./public/logos/**"],
+    "/api/workspaces/[id]/export": ["./public/figures/**", "./public/latex-styles/**", "./public/logos/**"],
+    "/api/agent/workspaces/[id]/compile": ["./public/figures/**", "./public/latex-styles/**", "./public/logos/**"],
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "210mb",

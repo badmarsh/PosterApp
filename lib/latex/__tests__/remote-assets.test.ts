@@ -7,6 +7,8 @@ import {
   collectRemoteFigureUrls,
   rewriteTexRemoteUrls,
   materializeRemoteFigures,
+  materializePublicFigures,
+  collectPublicFigureUrls,
   downloadRemoteImage
 } from "../remote-assets"
 import type { Project } from "@/lib/poster-types"
@@ -247,5 +249,71 @@ describe("downloadRemoteImage SSRF & content guards", () => {
   it("rejects non-image content types", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 200, headers: { "content-type": "application/json" } })))
     expect(await downloadRemoteImage("https://example.com/x")).toBeNull()
+  })
+
+  describe("materializePublicFigures", () => {
+    it("copies app-relative figures out of public/ into the stage", async () => {
+      const stage = await fs.mkdtemp(path.join(os.tmpdir(), "public-assets-"))
+      try {
+        const project = {
+          id: "ws1",
+          name: "Test",
+          authors: "",
+          venue: "",
+          outputs: [
+            {
+              id: "out1",
+              outputType: "poster",
+              templateId: "atlas",
+              title: "Poster",
+              cards: [
+                {
+                  id: "card1",
+                  title: "Card 1",
+                  column: 1,
+                  order: 0,
+                  pattern: "image-focused",
+                  content: "Content",
+                  table: { hasHeader: false, caption: "", rows: [] },
+                  figures: [
+                    { id: "fig1", url: "/figures/training-curves.png", caption: "Curves" },
+                    // A path that cannot exist in public/: must be skipped, not crash.
+                    { id: "fig2", url: "/figures/definitely-not-here.png", caption: "Missing" },
+                    // Traversal attempts are rejected.
+                    { id: "fig3", url: "/../../etc/passwd", caption: "Nope" },
+                    // API routes are workspace assets, not public files.
+                    { id: "fig4", url: "/api/workspaces/ws1/assets/x.png", caption: "Asset" },
+                  ],
+                  figureLayout: "single",
+                  validation: "valid",
+                },
+              ],
+            },
+          ],
+          assets: [],
+          ingestFiles: [],
+          activeOutputId: "out1",
+        } as unknown as Project
+
+        // `/api/...` is excluded (those are workspace assets, materialised by
+        // the compile stage itself); everything else is attempted and skipped
+        // if it does not resolve inside public/.
+        expect(collectPublicFigureUrls(project).sort()).toEqual([
+          "/../../etc/passwd",
+          "/figures/definitely-not-here.png",
+          "/figures/training-curves.png",
+        ])
+
+        const mapping = await materializePublicFigures(project, stage)
+        const mapped = mapping.get("/figures/training-curves.png")
+        expect(mapped).toMatch(/^assets\/public\/training-curves-[0-9a-f]{16}\.png$/)
+        const written = await fs.readFile(path.join(stage, ...(mapped ?? "").split("/")))
+        expect(written.length).toBeGreaterThan(1000)
+        expect(mapping.has("/figures/definitely-not-here.png")).toBe(false)
+        expect(mapping.has("/api/workspaces/ws1/assets/x.png")).toBe(false)
+      } finally {
+        await fs.rm(stage, { recursive: true, force: true })
+      }
+    })
   })
 })

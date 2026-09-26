@@ -9,11 +9,12 @@ import { type Project, type OutputConfig, type Card, resolveOutputMetadata } fro
 import type { ExtractedAsset } from "@/lib/ingestion"
 import { generateFullTemplate } from "@/lib/latex"
 import { resolveBibSource } from "@/lib/latex/bib-source"
-import { materializeRemoteFigures, rewriteTexRemoteUrls } from "@/lib/latex/remote-assets"
+import { materializePublicFigures, materializeRemoteFigures, rewriteTexRemoteUrls } from "@/lib/latex/remote-assets"
 import os from "node:os"
 import { WORKSPACES_ROOT } from "@/lib/workspace-files"
 import { safeContentDisposition, sanitizeFilename } from "@/lib/security"
 import { rateLimitAsync } from "@/lib/rate-limit"
+import { loadReviewMetaForWorkspace, mergeReviewMeta } from "@/lib/ai/review-record-meta"
 
 function parseDbCard(c: { table?: unknown; figures?: unknown; sourceIds?: unknown } & Record<string, unknown>) {
   const defaultTable = { hasHeader: true, caption: "", rows: [] }
@@ -74,8 +75,8 @@ export async function GET(
       logoUrl: workspace.logoUrl,
       secondaryLogoUrl: workspace.secondaryLogoUrl,
       templateName: "",
-      activeOutputId: workspace.outputs.find((o) => o.isActive)?.id || workspace.outputs[0]?.id || "",
-      assets: workspace.assets.map((a) => ({
+      activeOutputId: workspace.outputs.find((o: { isActive: boolean }) => o.isActive)?.id || workspace.outputs[0]?.id || "",
+      assets: workspace.assets.map((a: Record<string, any>) => ({
         id: a.id,
         filename: a.filename || "asset",
         url: a.url || "",
@@ -87,7 +88,7 @@ export async function GET(
         confidence: (a.confidence || "high") as ExtractedAsset["confidence"],
       })),
       ingestFiles: [],
-      outputs: workspace.outputs.map((out) => ({
+      outputs: workspace.outputs.map((out: Record<string, any>) => ({
         id: out.id,
         outputType: out.outputType as any,
         templateId: out.templateId,
@@ -97,12 +98,21 @@ export async function GET(
         logoUrl: out.logoUrl,
         secondaryLogoUrl: out.secondaryLogoUrl,
         themeColor: out.themeColor,
-        cards: out.cards.map((c) => parseDbCard(c) as unknown as Card),
+        cards: out.cards.map((c: Record<string, any>) => parseDbCard(c) as unknown as Card),
       })),
     }
 
     const activeOutputConfig: OutputConfig =
       project.outputs.find((o) => o.id === project.activeOutputId) || project.outputs[0]
+
+    // A posudok prints from the stored review record when the workspace has one
+    // (the record holds the confirmed classification and the criterion ratings,
+    // which an empty thesis-review output's cards do not).
+    if (activeOutputConfig.outputType === "thesis-review") {
+      const storedMeta = await loadReviewMetaForWorkspace(workspaceId)
+      const merged = mergeReviewMeta(storedMeta, activeOutputConfig.reviewMeta)
+      if (merged) activeOutputConfig.reviewMeta = merged
+    }
 
     // Generate main.tex
     const mainTex = generateFullTemplate(project, activeOutputConfig, workspaceId)
@@ -118,13 +128,18 @@ export async function GET(
     let exportTex = mainTex
     try {
       const remoteMapping = await materializeRemoteFigures(project, remoteStage)
-      exportTex = rewriteTexRemoteUrls(exportTex, remoteMapping)
+      // Figures the app ships in `public/` (curated demo content, template
+      // galleries) are copied into the same stage so the exported ZIP is
+      // self-contained and compiles in Overleaf without the PosterApp server.
+      const publicMapping = await materializePublicFigures(project, remoteStage)
+      const figureMapping = new Map([...remoteMapping, ...publicMapping])
+      exportTex = rewriteTexRemoteUrls(exportTex, figureMapping)
       zip.file("main.tex", exportTex)
       zip.file("references.bib", bibContent)
 
       // Read and bundle assets
       const assetsFolder = zip.folder("assets")
-      for (const [, relative] of remoteMapping) {
+      for (const [, relative] of figureMapping) {
         const data = await fs.readFile(path.join(remoteStage, relative))
         assetsFolder?.file(relative.replace(/^assets[\\/]/, ""), data)
       }

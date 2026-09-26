@@ -1,10 +1,15 @@
 import { describe, it, expect } from "vitest"
 import {
   COLUMN_BUDGET,
+  POSTER_STRETCH_SAFETY,
   columnBudgetFor,
   estimateHeight,
   estimateHeightBreakdown,
+  posterResidualWhite,
+  posterStretchEm,
+  posterStretchModeFor,
   suggestReductions,
+  type PosterColumnPlan,
 } from "@/lib/latex/layout"
 import {
   estimatePosterColumnOccupancy,
@@ -209,5 +214,43 @@ describe("aggregate poster column validation", () => {
     expect(messages).toContainEqual(
       expect.objectContaining({ level: "error", field: "column-1" }),
     )
+  })
+
+  it("fills under-budget columns through the mechanism its class supports", () => {
+    // gemini (beamerposter) and a0poster (multicol) typeset a fixed-height box:
+    // stretch glue genuinely spreads the leftover, so nothing prints white.
+    expect(posterStretchModeFor("gemini")).toBe("stretch-glue")
+    expect(posterStretchModeFor("a0poster")).toBe("stretch-glue")
+    // tikzposter classes typeset a natural-height vbox where stretch glue
+    // collapses, so they get an explicit vspace instead.
+    for (const id of ["atlas", "minimal", "tikzposter", "conference", "aurora", "landscape", "betterposter"]) {
+      expect(posterStretchModeFor(id), id).toBe("explicit-vspace")
+    }
+
+    const plan = (fill: number): PosterColumnPlan => ({
+      column: 1,
+      cards: [],
+      estimatedHeight: fill * COLUMN_BUDGET,
+      budget: COLUMN_BUDGET,
+      fill,
+      headroom: Math.max(0, COLUMN_BUDGET * (1 - fill)),
+    })
+
+    // Stretch glue: the board ends up full regardless of how light the column is.
+    expect(posterResidualWhite(plan(0.7), 3, "gemini")).toBe(0)
+    expect(posterResidualWhite(plan(0.7), 3, "a0poster")).toBe(0)
+
+    // Explicit vspace: most of the leftover is closed, and never all of it is
+    // claimed (the safety factor is deliberately conservative).
+    const light = plan(0.7)
+    const residual = posterResidualWhite(light, 3, "atlas")
+    expect(residual).toBeGreaterThan(0)
+    expect(residual).toBeLessThan(0.3)
+    expect(posterResidualWhite(plan(1.05), 3, "atlas")).toBe(0)
+    expect(posterResidualWhite(plan(0.5), 0, "atlas")).toBeCloseTo(0.5, 5)
+
+    // The em value handed to LaTeX stays inside the documented cap.
+    expect(posterStretchEm(light, 2)).toBeLessThanOrEqual(8)
+    expect(posterStretchEm(light, 2) * POSTER_STRETCH_SAFETY).toBeLessThan(8)
   })
 })

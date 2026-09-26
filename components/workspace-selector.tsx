@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { templateGalleryFor } from "@/lib/template-showcase-data"
 
 const FORMAT_OPTIONS: { id: OutputType; title: string; badge: string; icon: typeof Layers; defaultTemplate: string }[] = [
   { id: "poster", title: "Konferencny poster", badge: "A0 / A3", icon: Layers, defaultTemplate: "atlas" },
@@ -80,6 +81,9 @@ export function WorkspaceSelector({
   const handleNameChange = (v: string) => { setNewName(v); if (!idTouched) setNewId(slugify(v)) }
   const templateOptions = useMemo(() => TEMPLATES.filter((t) => t.outputType === newOutputType), [newOutputType])
   useEffect(() => { if (!templateOptions.some((t) => t.id === newTemplate)) setNewTemplate(templateOptions[0]?.id ?? "") }, [newOutputType, templateOptions, newTemplate])
+  // Each template starts from its own curated example — showing which one makes
+  // the difference between templates visible *before* the project is created.
+  const templateExample = useMemo(() => (newTemplate ? templateGalleryFor(newTemplate) : null), [newTemplate])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault(); setCreateError(null)
@@ -254,6 +258,14 @@ export function WorkspaceSelector({
                         <SelectTrigger id="ws-template" className="h-9 text-xs bg-background"><SelectValue /></SelectTrigger>
                         <SelectContent>{templateOptions.map((t) => (<SelectItem key={t.id} value={t.id} className="text-xs">{t.label} ({t.latexClass || t.id})</SelectItem>))}</SelectContent>
                       </Select>
+                      {templateExample && (
+                        <div className="mt-1.5 rounded border border-border/50 bg-muted/40 px-2 py-1.5">
+                          <p className="text-[10px] font-medium text-muted-foreground">
+                            Starts with a worked example — {templateExample.cards.length} blocks
+                          </p>
+                          <p className="text-[10px] text-foreground/80 leading-snug line-clamp-2">{templateExample.title}</p>
+                        </div>
+                      )}
                     </div>
                     {newId && <p className="text-[10px] text-muted-foreground font-mono">ID: {newId}</p>}
                     <Button type="submit" disabled={isSubmitting} className="h-9 text-xs font-semibold gap-1.5 cursor-pointer mt-1"><span>Vytvorit projekt</span><ArrowRight className="size-3.5" /></Button>

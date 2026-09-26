@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-22T19:43:49.821Z",
+  "timestamp": "2026-09-26T11:02:27.429Z",
   "methodology": "simulated",
   "methodologyNote": "Recall and latency values are estimated from model dimensions, not measured. For real benchmarks, run against actual corpus.",
   "evaluatedModels": [

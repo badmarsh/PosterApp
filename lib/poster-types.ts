@@ -207,6 +207,14 @@ export type AgentEvent = {
 export type Card = {
   id: string
   title: string
+  /**
+   * Rubric criterion this card assesses — only meaningful for thesis-review
+   * outputs, where every card is one criterion of the review form. When absent,
+   * `lib/latex/thesis-review-meta.ts` tries to resolve the card title against
+   * the known rubrics before falling back to the humanized title, so a card is
+   * never silently dropped from the posudok.
+   */
+  criterionId?: string | null
   /** Column index — only meaningful for poster layout (1|2|3). Null for slides/paper. */
   column: ColumnIndex | null
   order: number
@@ -224,6 +232,71 @@ export type Card = {
   slideNotes?: string
   /** Grounding, suggested-asset and layout metadata from the latest auto-fill. */
   grounding?: CardGrounding
+}
+
+/**
+ * Structured metadata for a thesis-review (posudok) output.
+ *
+ * The AI review pipeline stores a full `ThesisReview` record and exports
+ * straight from it. A workspace-authored posudok (hand-written, imported, or a
+ * curated showcase) only has cards, so every fact the printed form needs —
+ * student, thesis title, role, grade, defence date — used to be guessed from
+ * the free-text fields (`authors`, `venue`, `title`) and often came out wrong.
+ *
+ * These optional fields are the explicit override. Anything left out is
+ * derived from the cards by `lib/latex/thesis-review-meta.ts`, which parses the
+ * identification bullets, the rating lines and the conclusion tiles that the
+ * card templates already produce.
+ */
+/**
+ * One assessed criterion carried by a stored review record (or a client-side
+ * review store), independent of the card layout the workspace happens to use.
+ * `deriveThesisReview` prefers these over card-derived criteria so an exported
+ * posudok matches the review the reviewer actually confirmed.
+ */
+export type ThesisReviewMetaCriterion = {
+  criterionId: string
+  /** Localised rubric label; the rubric registry is consulted when omitted. */
+  name?: string | null
+  weight?: number | null
+  /** Rating letter (A–F). */
+  rating?: string | null
+  /** 0–100 numeric score, when the rubric scored numerically. */
+  numericScore?: number | null
+  text?: string | null
+  suggestions?: string[] | null
+}
+
+export type ThesisReviewOutputMeta = {
+  reviewKind?: "thesis" | "paper"
+  studentName?: string
+  thesisTitle?: string
+  thesisType?: "bachelor" | "master" | "phd"
+  studyProgramme?: string
+  reviewerName?: string
+  reviewerRole?: "supervisor" | "opponent" | "reviewer" | "self"
+  institution?: string
+  faculty?: string
+  department?: string
+  academicYear?: string
+  /** Final classification letter (A–F). */
+  grade?: string
+  /** Overall weighted score in percent, when the reviewer computed one. */
+  scorePercent?: number
+  recommendation?: string
+  place?: string
+  date?: string
+  includeConfidential?: boolean
+  confidentialComments?: string
+  /** Typesetting language of the exported posudok. */
+  language?: "sk" | "cs" | "en" | "de" | "pl" | "hu"
+  /** Structured per-criterion assessments from a stored review record. */
+  criteria?: ThesisReviewMetaCriterion[] | null
+  /** Narrative blocks kept outside the cards. */
+  summary?: string
+  strengths?: string[]
+  defenseQuestions?: string[]
+  citationIssues?: string[]
 }
 
 /**
@@ -248,6 +321,8 @@ export type OutputConfig = {
   themeColor?: string | null
   /** Document-level default source files to restrict Gemini RAG autofill context */
   sourceIds?: string[]
+  /** Explicit posudok metadata for thesis-review outputs (overrides derivation). */
+  reviewMeta?: ThesisReviewOutputMeta | null
   cards: Card[]
 }
 
