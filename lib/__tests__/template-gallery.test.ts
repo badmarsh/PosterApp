@@ -49,13 +49,41 @@ describe("template galleries", () => {
     expect(missing.map((t) => t.id)).toEqual([])
   })
 
-  it("returns null for thesis-review templates (their content path is the review record)", () => {
-    for (const t of TEMPLATE_REGISTRY.filter((x) => x.outputType === "thesis-review")) {
-      expect(templateGalleryFor(t.id), t.id).toBeNull()
+  it("ships a curated posudok for every thesis-review template, in its own language", () => {
+    const thesisTemplates = TEMPLATE_REGISTRY.filter((x) => x.outputType === "thesis-review")
+    expect(thesisTemplates.length).toBeGreaterThanOrEqual(4)
+    const titles = new Set<string>()
+    for (const t of thesisTemplates) {
+      const gallery = templateGalleryFor(t.id)
+      expect(gallery, t.id).not.toBeNull()
+      const cards = gallery!.cards
+      // A posudok needs the identification block, the assessed criteria and the
+      // closing classification — an empty gallery is the bug this replaced.
+      expect(cards.length, `${t.id} cards`).toBeGreaterThanOrEqual(8)
+      const criteria = cards.filter((c) => c.criterionId)
+      expect(criteria.length, `${t.id} criteria`).toBeGreaterThanOrEqual(4)
+      // Every criterion is rated and names the rating the way the language does,
+      // otherwise the weighted table prints "not rated" or an empty symbol.
+      const ratingWords: Record<string, RegExp> = {
+        "posudok-sk": /Hodnotenie:/,
+        "posudok-cs": /Hodnocení:/,
+        "posudok-en": /Rating:/,
+        "posudok-de": /Bewertung:/,
+        "posudok-pl": /Ocena:/,
+        "posudok-hu": /Értékelés:/,
+      }
+      for (const criterion of criteria) {
+        expect(criterion.content, `${t.id}:${criterion.criterionId}`).toMatch(ratingWords[t.id] ?? /Hodnotenie:/)
+      }
+      // The identification card names a student: a posudok without one is blank.
+      expect(cards[0].content, `${t.id} student`).toMatch(/Bc\.|Ing\.|Mgr\./)
+      titles.add(gallery!.title)
     }
+    // Different theses, not one review in six languages.
+    expect(titles.size).toBe(thesisTemplates.length)
   })
 
-  it.each(TEMPLATE_REGISTRY.filter((t) => t.outputType !== "thesis-review").map((t) => [t.id, t] as const))(
+  it.each(TEMPLATE_REGISTRY.map((t) => [t.id, t] as const))(
     "%s generates structurally clean LaTeX",
     (id) => {
       const { project, output } = projectFor(id)
@@ -189,7 +217,9 @@ describe("template galleries", () => {
       const output = templateGalleryFor(t.id)
       if (!output) continue
       const entries = galleryBibEntriesFor(t.id)
-      expect(entries.length, t.id).toBeGreaterThanOrEqual(3)
+      // Posudky cite the reviewed thesis as attached material, not a research
+      // bibliography; every other template ships a real reference list.
+      expect(entries.length, t.id).toBeGreaterThanOrEqual(t.outputType === "thesis-review" ? 1 : 3)
       // Every \cite key that appears in the gallery must exist in its .bib,
       // otherwise the compiled PDF prints [?].
       const body = output.cards.map((c) => c.content).join("\n")
@@ -259,7 +289,10 @@ describe("template galleries", () => {
         const unique = [...new Set(referenced)]
         // A poster is read at three metres and needs several distinct figures;
         // a deck needs at least two (the note/notes contract above enforces 2).
-        expect(unique.length, t.id).toBeGreaterThanOrEqual(output.outputType === "poster" ? 3 : 2)
+        // A posudok is a form, but it still documents its result graphically.
+        const figureFloor =
+          output.outputType === "poster" ? 3 : output.outputType === "thesis-review" ? 1 : 2
+        expect(unique.length, t.id).toBeGreaterThanOrEqual(figureFloor)
         for (const url of unique) {
           const staged = mapping.get(url)
           expect(staged, `${t.id}: ${url} was not staged`).toBeTruthy()

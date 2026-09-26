@@ -28,6 +28,7 @@ import type { BlockPattern, Card, ColumnIndex, Figure, OutputConfig } from "./po
 import { TEMPLATE_REGISTRY, getTemplateDef, type OutputType } from "./output-types"
 import { planPosterColumns, posterBoardFor } from "./latex/layout"
 import { formatBibEntry } from "./bib-types"
+import { posudokGalleryBibEntriesFor, posudokGalleryFor } from "./posudok-gallery-data"
 
 
 /**
@@ -1934,7 +1935,10 @@ function seedsFor(templateId: string, outputType: OutputType, subject: GallerySu
  */
 export function templateGalleryFor(templateId: string): OutputConfig | null {
   const def = getTemplateDef(templateId)
-  if (!def || def.outputType === "thesis-review") return null
+  if (!def) return null
+  // Thesis-review templates carry their own curated posudky, written in the
+  // template's language (see `posudok-gallery-data`).
+  if (def.outputType === "thesis-review") return posudokGalleryFor(templateId)
   const assignment = assignmentFor(templateId, def.outputType)
   if (!assignment) return null
   const { subject, edition } = assignment
@@ -1994,6 +1998,7 @@ export function galleryTemplateIds(): string[] {
 /** Bibliography for a gallery's subject, resolved from a gallery output. */
 export function galleryBibEntriesFor(templateId: string): BibEntry[] {
   const def = getTemplateDef(templateId)
-  if (!def || def.outputType === "thesis-review") return []
+  if (!def) return []
+  if (def.outputType === "thesis-review") return posudokGalleryBibEntriesFor(templateId)
   return assignmentFor(templateId, def.outputType)?.subject.bibEntries ?? []
 }

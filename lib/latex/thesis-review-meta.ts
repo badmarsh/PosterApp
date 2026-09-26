@@ -110,6 +110,17 @@ export function stripMarkup(text: string): string {
 function fold(s: string): string {
   return s
     .normalize("NFD")
+    // Letters NFD does not decompose (Polish ł/ż, Nordic ø/å, German ß …).
+    // Dropping them silently made "Tytuł pracy" fold to "tytu pracy" and no
+    // Polish field could ever be matched by its own label.
+    .replace(/[łŁ]/g, "l")
+    .replace(/[øØ]/g, "o")
+    .replace(/[đĐ]/g, "d")
+    .replace(/[ðÐ]/g, "d")
+    .replace(/[þÞ]/g, "th")
+    .replace(/[æÆ]/g, "ae")
+    .replace(/œŒ/g, "oe")
+    .replace(/[ßẞ]/g, "ss")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[_\-–—]+/g, " ")
@@ -458,7 +469,7 @@ export function roleFromText(text: string): ThesisReviewerRole | null {
 /** Drop a trailing parenthetical role marker: `doc. X, PhD. (Vedúci práce)` → `doc. X, PhD.`. */
 export function stripRoleSuffix(text: string): string {
   return text
-    .replace(/\s*[\(\[]\s*[^)\]]{0,60}(vedúci|vedouci|skoliteľ|školiteľ|supervisor|oponent|opponent|recenzent|reviewer|gutachter|bíráló|biralo|betreuer|promotor)[^)\]]{0,60}\s*[\)\]]\s*$/i, "")
+    .replace(/\s*[\(\[]\s*[^)\]]{0,60}(vedúci|vedouci|skoliteľ|školiteľ|supervisor|oponent|opponent|recenzent|reviewer|gutachter|bíráló|biralo|betreuer|promotor|témavezető|temavezeto)[^)\]]{0,60}\s*[\)\]]\s*$/i, "")
     .replace(/\s*[,–-]\s*(vedúci|vedouci|oponent|recenzent|reviewer|supervisor)\s*(práce|prace|práce)?\s*$/i, "")
     .trim()
 }
@@ -502,7 +513,11 @@ export function bulletsAsSuggestions(content: string): string[] {
  * `Dresden, den 12. Mai 2026`, `Warszawa, dnia 12 maja 2026`.
  */
 export function placeAndDate(text: string): { place: string; date: string } {
-  const clean = stripMarkup(text).replace(/^(podpis[^:]*:|signature[^:]*:)\s*/i, "").trim()
+  const stripped = stripMarkup(text).replace(/^(podpis[^:]*:|signature[^:]*:)\s*/i, "").trim()
+  // A signature line reads "doc. X, PhD. — V Bratislave, dňa 21. mája 2026"; the
+  // place is the segment after the separator, never the reviewer's name.
+  const segments = stripped.split(/\s+[—–|]\s+/).map((part) => part.trim()).filter(Boolean)
+  const clean = (segments.length > 1 ? segments[segments.length - 1] : stripped).trim()
   if (!clean) return { place: "", date: "" }
   const match = /^(.{2,60}?)[,\s]+(?:dňa|dna|den|dnia|on|am)\s+(.+)$/i.exec(clean)
   if (match && /\d{4}/.test(match[2])) {
@@ -530,17 +545,21 @@ type CardRole =
   | "criterion"
 
 const CARD_ROLE_NEEDLES: Array<{ role: CardRole; needles: string[] }> = [
-  { role: "identification", needles: ["identifikacia", "identifikace", "identification", "zakladne udaje", "metadata", "angaben", "dane podstawowe"] },
-  { role: "summary", needles: ["zhrnutie", "sumar", "shrnuti", "summary", "zusammenfassung", "streszczenie", "osszefoglalo", "abstract"] },
-  { role: "strengths", needles: ["silne stranky", "prednosti", "starken", "strengths", "zalety", "silne stranky prace", "eross"] },
+  { role: "identification", needles: ["identifikacia", "identifikace", "identyfikacja", "identification", "identifikation", "azonositas", "kennzeichnung", "zakladne udaje", "udaje o praci", "metadata", "angaben", "dane podstawowe", "dane pracy", "adatok"] },
+  { role: "summary", needles: ["zhrnutie", "sumar", "shrnuti", "summary", "zusammenfassung", "streszczenie", "osszefoglalo", "osszefoglalas", "abstract"] },
+  { role: "strengths", needles: ["silne stranky", "prednosti", "starken", "starke seiten", "strengths", "zalety", "mocne strony", "silne stranky prace", "eross"] },
   { role: "defense", needles: ["otazky", "otazky k obhajobe", "fragen", "questions", "pytania", "kerdesek"] },
-  { role: "citations", needles: ["citacie", "citaciam", "citations", "literatur", "zitate", "cytowan", "hivatkozas"] },
-  { role: "conclusion", needles: ["zaverecne", "celkove", "hodnotenie prace", "gesamtergebnis", "conclusion", "ocena koncowa", "osszegzo", "klasifikacia", "klasifikace"] },
+  { role: "citations", needles: ["citacie", "citaciam", "citacich", "citation", "citations", "literatur", "bibliograf", "zitate", "cytowan", "hivatkozas"] },
+  { role: "conclusion", needles: ["zaverecne", "celkove", "hodnotenie prace", "gesamtergebnis", "gesamtbewertung", "einstufung", "conclusion", "classification", "overall assessment", "final assessment", "ocena koncowa", "osszegzo", "vegeredmeny", "klasifikacia", "klasifikace", "egyseges"] },
   { role: "confidential", needles: ["doverne", "confidential", "vertraulich", "poufne", "bizalmas"] },
 ]
 
 /** Classify a posudok card by title (and, secondarily, by its criterion id). */
 export function cardRole(card: Pick<Card, "title" | "criterionId">): CardRole {
+  // A card that names its rubric criterion *is* a criterion, whatever its title
+  // says: "Kvalita citací a bibliografie" assesses a criterion, it is not the
+  // reviewer's list of citation problems.
+  if ((card.criterionId ?? "").trim()) return "criterion"
   const haystack = fold(`${card.title} ${card.criterionId ?? ""}`)
   if (/defense questions|defense_questions/.test(haystack)) return "defense"
   for (const { role, needles } of CARD_ROLE_NEEDLES) {
@@ -565,7 +584,7 @@ function pick(
 }
 
 const ID_NEEDLES = {
-  student: ["autor", "autorka", "student", "verfasser", "author", "szerzoje", "a dolgozat szerzoje", "autor prace"],
+  student: ["autor", "autorka", "student", "verfasser", "author", "szerzo", "szerzoje", "a dolgozat szerzoje", "autor prace"],
   thesisTitle: ["nazov zaverecnej prace", "nazov prace", "nazev prace", "thesis title", "titel der arbeit", "tytul pracy", "a dolgozat cime", "nazov diplomovej prace", "nazov bakalarskej prace", "paper title", "nazov clanku"],
   thesisType: ["typ prace", "thesis type", "art der arbeit", "rodzaj pracy", "tipusa", "manuscript type"],
   studyProgramme: ["studijny program", "studijni program", "study programme", "study program", "studiengang", "kierunek", "szak"],
@@ -620,9 +639,10 @@ export function deriveThesisReview(
   const reviewerFallback = authorsLooksLikeReviewer ? stripRoleSuffix(rawAuthors) : ""
 
   const reviewerName = rm.reviewerName?.trim()
-    || cardReviewer
-    || reviewerFallback
-    || stripRoleSuffix(resolved.venue)
+    ? rm.reviewerName.trim()
+    : cardReviewer
+      ? stripRoleSuffix(cardReviewer)
+      : reviewerFallback || stripRoleSuffix(resolved.venue)
 
   const reviewerRole: ThesisReviewerRole = rm.reviewerRole
     ?? roleFromCards

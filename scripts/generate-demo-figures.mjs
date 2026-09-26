@@ -516,6 +516,162 @@ function lensingMap() {
 // ---------------------------------------------------------------------------
 // Write SVG + PNG
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Posudok figures — the criteria profile and the weighted result of each
+// curated thesis review. Six languages, so a German Gutachten shows a German
+// chart rather than a Slovak one with a translated axis label.
+// ---------------------------------------------------------------------------
+
+const POSUDOK_LANGS = {
+  sk: {
+    profileTitle: "Profil hodnotenia kritérií",
+    resultTitle: "Vážený výsledok podľa kritérií",
+    criteria: ["Ciele", "Teória", "Metodika", "Výsledky", "Diskusia"],
+    weighted: "Vážený priemer",
+    declared: "Celkové hodnotenie",
+  },
+  cs: {
+    profileTitle: "Profil hodnocení kritérií",
+    resultTitle: "Vážený výsledek podle kritérií",
+    criteria: ["Téma", "Metodika", "Analýza", "Výsledky", "Citace"],
+    weighted: "Vážený průměr",
+    declared: "Celkové hodnocení",
+  },
+  en: {
+    profileTitle: "Criteria profile",
+    resultTitle: "Weighted result by criterion",
+    criteria: ["Objectives", "Method", "Execution", "Ethics", "Limits"],
+    weighted: "Weighted average",
+    declared: "Overall assessment",
+  },
+  de: {
+    profileTitle: "Profil der Kriterienbewertung",
+    resultTitle: "Gewichtetes Ergebnis je Kriterium",
+    criteria: ["Relevanz", "Methodik", "Durchführung", "Ergebnisse", "Aufbau"],
+    weighted: "Gewichteter Mittelwert",
+    declared: "Gesamtbewertung",
+  },
+  pl: {
+    profileTitle: "Profil oceny kryteriów",
+    resultTitle: "Wynik ważony według kryteriów",
+    criteria: ["Oryginalność", "Metodyka", "Realizacja", "Wyniki", "Cytowania"],
+    weighted: "Średnia ważona",
+    declared: "Ocena ogólna",
+  },
+  hu: {
+    profileTitle: "Szempontok értékelési profilja",
+    resultTitle: "Súlyozott eredmény szempontonként",
+    criteria: ["Célkitűzés", "Elmélet", "Módszertan", "Végrehajtás", "Korlátok"],
+    weighted: "Súlyozott átlag",
+    declared: "Összesített értékelés",
+  },
+}
+
+/** Per-language scores behind the two posudok figures (points 0–100). */
+const POSUDOK_DATA = {
+  sk: { points: [95, 95, 85, 95, 95], weights: [5, 15, 15, 10, 10], declared: 92.3, grade: "A" },
+  cs: { points: [95, 85, 95, 85, 75], weights: [5, 15, 10, 10, 5], declared: 85.0, grade: "B" },
+  en: { points: [95, 95, 95, 95, 85], weights: [5, 15, 10, 5, 5], declared: 90.0, grade: "A" },
+  de: { points: [95, 85, 95, 85, 85], weights: [5, 15, 10, 10, 5], declared: 84.2, grade: "B" },
+  pl: { points: [95, 85, 95, 95, 85], weights: [10, 15, 10, 10, 5], declared: 88.5, grade: "A" },
+  hu: { points: [95, 85, 85, 95, 85], weights: [5, 15, 15, 10, 5], declared: 82.0, grade: "B" },
+}
+
+/** Radar chart over the rubric criteria, one ring per ECTS band boundary. */
+function posudokProfile(lang) {
+  const copy = POSUDOK_LANGS[lang]
+  const data = POSUDOK_DATA[lang]
+  const cx = 300
+  const cy = 232
+  const R = 138
+  const n = data.points.length
+  const angle = (i) => -Math.PI / 2 + (i * 2 * Math.PI) / n
+  const at = (i, value) => [cx + Math.cos(angle(i)) * R * (value / 100), cy + Math.sin(angle(i)) * R * (value / 100)]
+
+  const rings = [50, 70, 85, 100]
+    .map((level) => {
+      const pts = Array.from({ length: n }, (_, i) => at(i, level).map((v) => v.toFixed(1)).join(",")).join(" ")
+      const band = level >= 85 ? "#9ecae1" : level >= 70 ? "#c7e3f4" : "#e8f1f8"
+      return `<polygon points="${pts}" fill="${level === 100 ? "#ffffff" : band}" fill-opacity="${level === 100 ? 1 : 0.5}" stroke="#94a3b8" stroke-width="1"/>`
+    })
+    .join("")
+
+  const spokes = Array.from({ length: n }, (_, i) => {
+    const [x, y] = at(i, 100)
+    const [lx, ly] = at(i, 122)
+    const anchor = Math.abs(lx - cx) < 6 ? "middle" : lx > cx ? "start" : "end"
+    return (
+      `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#94a3b8" stroke-width="1"/>` +
+      `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" font-size="12.5" fill="${INK}" text-anchor="${anchor}" font-family="Times New Roman, serif">${esc(copy.criteria[i])}</text>` +
+      `<text x="${lx.toFixed(1)}" y="${(ly + 19).toFixed(1)}" font-size="11" fill="${MUTED}" text-anchor="${anchor}" font-family="Times New Roman, serif">${data.points[i]} % \u00b7 w=${data.weights[i]} %</text>`
+    )
+  }).join("")
+
+  const polygon = Array.from({ length: n }, (_, i) => at(i, data.points[i]).map((v) => v.toFixed(1)).join(",")).join(" ")
+  const dots = Array.from({ length: n }, (_, i) => {
+    const [x, y] = at(i, data.points[i])
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.4" fill="${SERIES[0]}"/>`
+  }).join("")
+
+  return svg(
+    `<text x="40" y="46" font-size="17" font-weight="bold" fill="${INK}" font-family="Times New Roman, serif">${esc(copy.profileTitle)}</text>` +
+      `<text x="40" y="68" font-size="12.5" fill="${MUTED}" font-family="Times New Roman, serif">${esc(copy.weighted)}: ${data.declared.toFixed(1)} % (ECTS ${data.grade})</text>` +
+      rings +
+      spokes +
+      `<polygon points="${polygon}" fill="${SERIES[0]}" fill-opacity="0.22" stroke="${SERIES[0]}" stroke-width="2.2"/>` +
+      dots +
+      `<text x="680" y="448" font-size="11.5" text-anchor="end" fill="${MUTED}" font-family="Times New Roman, serif">100 = A, 85 = B, 70 = C, 50 = E</text>`,
+  )
+}
+
+/** Weighted result per criterion, against the declared overall percentage. */
+function posudokResult(lang) {
+  const copy = POSUDOK_LANGS[lang]
+  const data = POSUDOK_DATA[lang]
+  const x0 = 252
+  const y0 = 132
+  const w = 330
+  const barH = 26
+  const gap = 18
+  const h = data.points.length * (barH + gap) - gap
+
+  const bars = data.points
+    .map((point, i) => {
+      const y = y0 + i * (barH + gap)
+      const width = (point / 100) * w
+      const weightWidth = (data.weights[i] / 100) * width
+      return (
+        `<text x="${x0 - 12}" y="${y + barH / 2 + 4}" font-size="12.5" fill="${INK}" text-anchor="end" font-family="Times New Roman, serif">${esc(copy.criteria[i])}</text>` +
+        `<rect x="${x0}" y="${y}" width="${w}" height="${barH}" fill="#f1f5f9"/>` +
+        `<rect x="${x0}" y="${y}" width="${width.toFixed(1)}" height="${barH}" fill="${SERIES[0]}" fill-opacity="0.28"/>` +
+        `<rect x="${x0}" y="${y}" width="${weightWidth.toFixed(1)}" height="${barH}" fill="${SERIES[0]}"/>` +
+        `<text x="${x0 + w - 6}" y="${y + barH / 2 + 4}" font-size="11.5" fill="${MUTED}" text-anchor="end" font-family="Times New Roman, serif">${point} %</text>`
+      )
+    })
+    .join("")
+
+  const meanX = x0 + (data.declared / 100) * w
+  return svg(
+    `<text x="40" y="44" font-size="17" font-weight="bold" fill="${INK}" font-family="Times New Roman, serif">${esc(copy.resultTitle)}</text>` +
+      legend({ x: 40, y: 112, labels: [copy.weighted, copy.declared], colors: [SERIES[0], SERIES[1]] }) +
+      `<text x="40" y="204" font-size="12" fill="${MUTED}" font-family="Times New Roman, serif">ECTS ${data.grade}</text>` +
+      `<line x1="${x0}" y1="${y0 - 8}" x2="${x0 + w}" y2="${y0 - 8}" stroke="#cbd5e1" stroke-width="1"/>` +
+      `<line x1="${x0}" y1="${y0 + h}" x2="${x0 + w}" y2="${y0 + h}" stroke="#cbd5e1" stroke-width="1"/>` +
+      bars +
+      `<line x1="${meanX.toFixed(1)}" y1="${y0 - 26}" x2="${meanX.toFixed(1)}" y2="${y0 + h + 14}" stroke="${SERIES[1]}" stroke-width="2.2" stroke-dasharray="6 4"/>` +
+      `<text x="${meanX.toFixed(1)}" y="${y0 + h + 44}" font-size="12" fill="${SERIES[1]}" text-anchor="middle" font-family="Times New Roman, serif">${esc(copy.declared)}: ${data.declared.toFixed(1)} %</text>` +
+      `<text x="680" y="448" font-size="11.5" fill="${MUTED}" text-anchor="end" font-family="Times New Roman, serif">${copy.weighted} ${data.declared.toFixed(1)} % \u00b7 ECTS ${data.grade}</text>`,
+  )
+}
+
+const POSUDOK_FIGURES = Object.fromEntries(
+  Object.keys(POSUDOK_LANGS).flatMap((lang) => [
+    [`posudok-profile-${lang}`, posudokProfile(lang)],
+    [`posudok-result-${lang}`, posudokResult(lang)],
+  ]),
+)
+
 const FIGURES = {
   "pipeline-architecture": pipelineArchitecture(),
   "training-curves": trainingCurves(),
@@ -525,6 +681,7 @@ const FIGURES = {
   "dose-response": doseResponse(),
   "knockdown-screen": knockdownScreen(),
   "lensing-map": lensingMap(),
+  ...POSUDOK_FIGURES,
 }
 
 fs.mkdirSync(OUT, { recursive: true })
