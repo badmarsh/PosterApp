@@ -62,6 +62,7 @@ import { ErrorBoundary } from "@/components/error-boundary"
 import { getExistingThesisReviewStore } from "@/components/thesis-review/use-thesis-review-store"
 import { PosterCanvas } from "@/components/preview/poster-canvas"
 import { SlideDeckView } from "@/components/preview/slide-deck-view"
+import { SlideCanvas } from "@/components/preview/slide-canvas"
 import { PaperDocumentView } from "@/components/preview/paper-document-view"
 import { PaperCanvas } from "@/components/preview/paper-canvas"
 import { PreviewToolbar } from "@/components/preview/preview-toolbar"
@@ -1379,9 +1380,7 @@ function SlidesView() {
           cards={cards}
           renderCard={(card, index) => <CardBoundary key={card.id} card={card}><SlideCard card={card} index={index} /></CardBoundary>}
           renderContent={() => (
-            <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
-              {cards.map((card, index) => <CardBoundary key={card.id} card={card}><SlideCard card={card} index={index} /></CardBoundary>)}
-            </SortableContext>
+            <SlideCanvas cards={cards} onAddSlide={() => addCard(null)} />
           )}
           onAdd={() => addCard(null)}
         />
