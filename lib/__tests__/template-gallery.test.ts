@@ -5,6 +5,10 @@ import { checkLatexDocument } from "@/lib/latex/static-checks"
 import { estimatePosterColumnOccupancy } from "@/lib/latex/validation"
 import { estimateHeight, posterBoardFor } from "@/lib/latex/layout"
 import { GALLERY_SUBJECTS, galleryBibEntriesFor, templateGalleryFor } from "@/lib/template-showcase-data"
+import { materializePublicFigures, rewriteTexRemoteUrls } from "@/lib/latex/remote-assets"
+import fs from "fs/promises"
+import os from "os"
+import path from "path"
 import type { Project } from "@/lib/poster-types"
 
 /**
@@ -116,6 +120,11 @@ describe("template galleries", () => {
         (c) => !c.slideNotes && !["title", "references", "acknowledgements"].includes(c.title.toLowerCase()),
       )
       expect(bare.map((c) => c.title), `${t.id}: slides without notes`).toEqual([])
+
+      // A deck without a figure is not a professional deck: every gallery deck
+      // shows at least two distinct figures.
+      const figures = new Set(output.cards.flatMap((c) => c.figures.map((f) => f.url)))
+      expect(figures.size, `${t.id}: only ${figures.size} distinct figures`).toBeGreaterThanOrEqual(2)
     }
   })
 
@@ -214,6 +223,56 @@ describe("template galleries", () => {
       for (const card of output.cards) {
         expect(estimateHeight(card), `${t.id}/${card.id}`).toBeLessThan(700)
       }
+    }
+  })
+
+  it("materialises every gallery figure into the compile stage", async () => {
+    // The chain that has to hold for a figure to appear in the PDF:
+    //   card.figures[].url (/figures/x.png)
+    //     → materializePublicFigures() copies it into the stage
+    //     → rewriteTexRemoteUrls() replaces the URL with the staged path
+    // A break anywhere here means the deck/poster/paper compiles with the
+    // placeholder box (\IfFileExists falls through) instead of the figure.
+    const stage = await fs.mkdtemp(path.join(os.tmpdir(), "gallery-figs-"))
+    try {
+      for (const t of TEMPLATE_REGISTRY) {
+        const output = templateGalleryFor(t.id)
+        if (!output) continue
+        const project = {
+          id: `prj_${t.id}`,
+          revision: 1,
+          name: output.title,
+          posterTitle: output.title,
+          authors: output.authors ?? "",
+          venue: output.venue ?? "",
+          activeOutputId: output.id,
+          assets: [],
+          ingestFiles: [],
+          outputs: [output],
+        } as unknown as Project
+
+        const tex = generateFullTemplate(project, output, project.id)
+        const mapping = await materializePublicFigures(project, stage, path.join(process.cwd(), "public"))
+        const rewritten = rewriteTexRemoteUrls(tex, mapping)
+
+        const referenced = output.cards.flatMap((c) => c.figures.map((f) => f.url))
+        const unique = [...new Set(referenced)]
+        // A poster is read at three metres and needs several distinct figures;
+        // a deck needs at least two (the note/notes contract above enforces 2).
+        expect(unique.length, t.id).toBeGreaterThanOrEqual(output.outputType === "poster" ? 3 : 2)
+        for (const url of unique) {
+          const staged = mapping.get(url)
+          expect(staged, `${t.id}: ${url} was not staged`).toBeTruthy()
+          const bytes = await fs.stat(path.join(stage, ...(staged ?? "").split("/")))
+          expect(bytes.size, `${t.id}: ${url} staged empty`).toBeGreaterThan(500)
+          // Every reference in the .tex now points at the staged file …
+          expect(rewritten, `${t.id}: ${url} missing from .tex`).toContain(staged!)
+        }
+        // … and no root-absolute figure URL survives into LaTeX.
+        expect(rewritten.match(/\{\/figures\//g) ?? [], `${t.id} still references /figures/`).toEqual([])
+      }
+    } finally {
+      await fs.rm(stage, { recursive: true, force: true })
     }
   })
 })

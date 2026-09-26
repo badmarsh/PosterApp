@@ -1496,6 +1496,14 @@ const NLP: GallerySubject = {
       content: "- 70 B target, 7 B draft, batch 8, 8×A100",
     },
     {
+      slug: "acceptance",
+      title: "Acceptance vs. Draft Length",
+      pattern: "graph",
+      content: "The martingale bound tracks measured acceptance within 6% and turns it into a depth decision.",
+      figures: [{ url: FIG("training-curves"), caption: "Acceptance rate versus draft length for three draft models, with the bound overlaid." }],
+      notes: "The point of the figure is the gap between the bound and the measurement — it is conservative, which is what an SLA needs.",
+    },
+    {
       slug: "latency",
       title: "Latency Stages",
       pattern: "graph",
@@ -1549,9 +1557,15 @@ const NLP: GallerySubject = {
     {
       slug: "method",
       title: "Martingale Bound and Scheduler",
-      pattern: "section",
+      pattern: "section-figure",
       content:
         "Let $X_k$ denote the excess of accepted tokens over rejected ones after $k$ draft positions. Under the standard speculative sampling rule, $X_k$ is a martingale with increments in $[-1, 1]$, so Hoeffding–Azuma gives $\\Pr[X_n \\leq -t] \\leq \\exp(-t^2 / 2n)$. Requiring this to fall below a target tail probability $\\delta$ and solving for the depth $n$ yields the smallest draft length whose acceptance is guaranteed with probability $1 - \\delta$; the scheduler evaluates this expression once per step using an online estimate of the acceptance rate and truncates the draft tree accordingly. Verification itself is untouched, so the output distribution is unchanged by construction.",
+      figures: [
+        {
+          url: FIG("training-curves"),
+          caption: "Measured acceptance rate versus scheduled draft depth, with the martingale bound that the scheduler inverts.",
+        },
+      ],
     },
     {
       slug: "results",
@@ -1694,15 +1708,20 @@ function posterEditionSeeds(subject: GallerySubject, edition: PosterEdition): Ca
       // (pinned), narrow sidebars carrying just enough evidence to defend it.
       // Nothing else is pinned — the planner must stay free to keep the narrow
       // sidebars inside their much smaller budget.
-      return [
+      const hero: CardSeed[] = [
         { ...required(subject, problem), title: "Why It Matters" },
         required(subject, method),
         { ...subject.extras.poster.keyFinding, column: 2, pattern: "stats" as BlockPattern },
         required(subject, result),
         subject.extras.poster.sideBySide,
         { ...required(subject, conclusion), title: "Take-Home Message" },
-        references,
       ]
+      // A Better Poster still needs figures to be readable from three metres
+      // away: top up with the first figure-bearing block the edition dropped.
+      const used = new Set(hero.map((c) => c.slug))
+      const extraFigure = base.find((c) => !used.has(c.slug) && (c.figures?.length ?? 0) > 0)
+      if (extraFigure) hero.push({ ...extraFigure, title: extraFigure.title })
+      return [...hero, references]
     }
     case "wide": {
       // Landscape board: fewer, larger blocks. The paired-result card carries
@@ -1732,10 +1751,16 @@ function slidesEditionSeeds(subject: GallerySubject, edition: SlidesEdition): Ca
   switch (edition) {
     case "statement": {
       // A dark, minimal theme used for a short argument: fewer slides, bigger
-      // claims, heavier speaker notes.
+      // claims, heavier speaker notes — but never a deck without evidence, so
+      // up to two figure-bearing slides are always kept.
       const keep = new Set(["motivation", "problem", "method", "architecture", "design", "results", "conclusion"])
       const body = base.slice(1, -1).filter((c) => keep.has(c.slug))
-      return [title, subject.extras.slides.statement, ...body, subject.extras.slides.summary, references]
+      const keptSlugs = new Set(body.map((c) => c.slug))
+      const figureSlides = base
+        .slice(1, -1)
+        .filter((c) => !keptSlugs.has(c.slug) && (c.figures?.length ?? 0) > 0)
+        .slice(0, 2)
+      return [title, ...body, ...figureSlides, subject.extras.slides.statement, subject.extras.slides.summary, references]
     }
     case "editorial": {
       // 16:9 magazine deck: dense tables and dataset minutiae are cut in favour
@@ -1756,6 +1781,17 @@ function paperEditionSeeds(subject: GallerySubject, edition: PaperEdition): Card
   const pick = (slug: string) => base.find((c) => c.slug === slug)
   const references = base[base.length - 1]
 
+  /**
+   * One more figure-bearing section, for the compact formats. A short paper
+   * still needs to *show* its result: dropping every figure but one is how a
+   * four-page proceedings reads as a placeholder.
+   */
+  const extraFigure = (used: CardSeed[]): CardSeed[] => {
+    const usedSlugs = new Set(used.map((c) => c.slug))
+    const found = base.find((c) => !usedSlugs.has(c.slug) && (c.figures?.length ?? 0) > 0)
+    return found ? [found] : []
+  }
+
   /** Reorder the subject's own sections through its declared roles. */
   const spine = (): CardSeed[] => [
     pick("abstract")!,
@@ -1775,8 +1811,10 @@ function paperEditionSeeds(subject: GallerySubject, edition: PaperEdition): Card
       const closing = body.pop() ?? references
       return [...body, subject.extras.paper.implementation, subject.extras.paper.limitations, closing, references]
     }
-    case "singlecol-compact":
-      return [...spine(), subject.extras.paper.implementation, references]
+    case "singlecol-compact": {
+      const body = spine()
+      return [...body, ...extraFigure(body), subject.extras.paper.implementation, references]
+    }
     case "proceedings":
       // Proceedings papers run four to six pages: the abstract is spliced into
       // the frontmatter by the generator, so as a card it is only a paragraph.
@@ -1785,11 +1823,15 @@ function paperEditionSeeds(subject: GallerySubject, edition: PaperEdition): Card
       // IOP-style proceedings: a page or two longer than PoS, so the
       // implementation and limitations sections both fit.
       return [...spine(), subject.extras.paper.implementation, subject.extras.paper.limitations, references]
-    case "proceedings-compact":
-      return [...spine(), references]
+    case "proceedings-compact": {
+      const body = spine()
+      return [...body, ...extraFigure(body), references]
+    }
     case "twocol-compact":
-    default:
-      return [...spine(), subject.extras.paper.limitations, references]
+    default: {
+      const body = spine()
+      return [...body, ...extraFigure(body), subject.extras.paper.limitations, references]
+    }
   }
 }
 

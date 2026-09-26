@@ -88,6 +88,11 @@ const nextConfig = {
     "192.168.0.100:3333",
     "0.0.0.0",
     "0.0.0.0:3333",
+    // Hosted dev previews proxy the dev server under a per-sandbox origin
+    // (`https://<port>-<sandbox>.e2b.app`). Without an explicit entry Next.js
+    // treats those cross-origin dev asset requests as untrusted and the preview
+    // renders unstyled or not at all.
+    "*.e2b.app",
   ],
   images: {
     unoptimized: true,
