@@ -77,10 +77,7 @@ export function SlideCanvas({
   // being drawn *is* that output; a callback drawing another template must get
   // that template's own palette.
   const themeOverride = resolvedTemplate === activeOutput?.templateId ? activeOutput?.themeColor : null
-  const chrome = useMemo(
-    () => slideChromeFor(resolvedTemplate, themeOverride),
-    [resolvedTemplate, themeOverride],
-  )
+  const chrome = slideChromeFor(resolvedTemplate, themeOverride)
   const templateDef = TEMPLATE_REGISTRY.find((t) => t.id === resolvedTemplate)
 
   const frameRef = useRef<HTMLDivElement | null>(null)
