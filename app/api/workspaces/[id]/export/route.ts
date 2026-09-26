@@ -14,6 +14,7 @@ import os from "node:os"
 import { WORKSPACES_ROOT } from "@/lib/workspace-files"
 import { safeContentDisposition, sanitizeFilename } from "@/lib/security"
 import { rateLimitAsync } from "@/lib/rate-limit"
+import { loadReviewMetaForWorkspace, mergeReviewMeta } from "@/lib/ai/review-record-meta"
 
 function parseDbCard(c: { table?: unknown; figures?: unknown; sourceIds?: unknown } & Record<string, unknown>) {
   const defaultTable = { hasHeader: true, caption: "", rows: [] }
@@ -103,6 +104,15 @@ export async function GET(
 
     const activeOutputConfig: OutputConfig =
       project.outputs.find((o) => o.id === project.activeOutputId) || project.outputs[0]
+
+    // A posudok prints from the stored review record when the workspace has one
+    // (the record holds the confirmed classification and the criterion ratings,
+    // which an empty thesis-review output's cards do not).
+    if (activeOutputConfig.outputType === "thesis-review") {
+      const storedMeta = await loadReviewMetaForWorkspace(workspaceId)
+      const merged = mergeReviewMeta(storedMeta, activeOutputConfig.reviewMeta)
+      if (merged) activeOutputConfig.reviewMeta = merged
+    }
 
     // Generate main.tex
     const mainTex = generateFullTemplate(project, activeOutputConfig, workspaceId)

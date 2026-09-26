@@ -248,6 +248,25 @@ export type Card = {
  * identification bullets, the rating lines and the conclusion tiles that the
  * card templates already produce.
  */
+/**
+ * One assessed criterion carried by a stored review record (or a client-side
+ * review store), independent of the card layout the workspace happens to use.
+ * `deriveThesisReview` prefers these over card-derived criteria so an exported
+ * posudok matches the review the reviewer actually confirmed.
+ */
+export type ThesisReviewMetaCriterion = {
+  criterionId: string
+  /** Localised rubric label; the rubric registry is consulted when omitted. */
+  name?: string | null
+  weight?: number | null
+  /** Rating letter (A–F). */
+  rating?: string | null
+  /** 0–100 numeric score, when the rubric scored numerically. */
+  numericScore?: number | null
+  text?: string | null
+  suggestions?: string[] | null
+}
+
 export type ThesisReviewOutputMeta = {
   reviewKind?: "thesis" | "paper"
   studentName?: string
@@ -271,6 +290,8 @@ export type ThesisReviewOutputMeta = {
   confidentialComments?: string
   /** Typesetting language of the exported posudok. */
   language?: "sk" | "cs" | "en" | "de" | "pl" | "hu"
+  /** Structured per-criterion assessments from a stored review record. */
+  criteria?: ThesisReviewMetaCriterion[] | null
   /** Narrative blocks kept outside the cards. */
   summary?: string
   strengths?: string[]

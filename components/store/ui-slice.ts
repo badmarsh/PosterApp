@@ -245,7 +245,7 @@ export const createUiSlice: EditorSlice<UiSlice> = (set, get) => ({
             // Always send the current cards so the server compiles what the editor shows,
             // not a potentially stale DB or cache snapshot.
             cards: activeOutput.cards,
-            output: { id: activeOutput.id, outputType: activeOutput.outputType, templateId: (activeOutput as any).templateId, themeColor: (activeOutput as any).themeColor },
+            output: { id: activeOutput.id, outputType: activeOutput.outputType, templateId: (activeOutput as any).templateId, themeColor: (activeOutput as any).themeColor, reviewMeta: activeOutput.reviewMeta ?? undefined },
             // Force recompile for demo projects (saves are no-ops there) and when the
             // user has unsaved changes that were just flushed by saveProject() above.
             forceRecompile: isDemoProject(project.id),

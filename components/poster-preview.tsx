@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/dialog"
 import { useEditor } from "@/components/editor-store"
 import { useShallow } from "zustand/react/shallow"
+import { useStore } from "zustand"
 import { StatusIcon } from "@/components/status"
 import {
   columnBudgetFor,
@@ -60,7 +61,8 @@ import { ThesisReviewPanel } from "@/components/thesis-review/thesis-review-pane
 import { isDemoProject } from "@/lib/mock-data"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ErrorBoundary } from "@/components/error-boundary"
-import { getExistingThesisReviewStore } from "@/components/thesis-review/use-thesis-review-store"
+import { getExistingThesisReviewStore, getThesisReviewStore } from "@/components/thesis-review/use-thesis-review-store"
+import { reviewMetaFromRecord } from "@/lib/latex/thesis-review-meta"
 import { PosterCanvas } from "@/components/preview/poster-canvas"
 import { SlideDeckView } from "@/components/preview/slide-deck-view"
 import { SlideCanvas } from "@/components/preview/slide-canvas"
@@ -1535,6 +1537,7 @@ function StructureView() {
  */
 function ThesisReviewView({ workspaceId }: { workspaceId: string }) {
   const projectId = useEditor((s) => s.project.id)
+  const activeOutputId = useEditor((s) => s.project.activeOutputId ?? s.project.outputs?.[0]?.id ?? "")
   const hasStoredReview = useEditor((s) => {
     const output = s.project.outputs?.find((o) => o.id === s.project.activeOutputId)
     if (!output) return false
@@ -1542,6 +1545,25 @@ function ThesisReviewView({ workspaceId }: { workspaceId: string }) {
   })
   const demo = isDemoProject(projectId)
   const [mode, setMode] = useState<"document" | "workspace">(demo || !hasStoredReview ? "document" : "workspace")
+
+  // The stored review record is the authoritative posudok: load it for real
+  // workspaces so the document view can print the confirmed classification,
+  // criteria and findings even when the workspace's cards are stale or empty.
+  const outputKey = `${projectId}:${activeOutputId}`
+  const reviewStore = useMemo(() => getThesisReviewStore(outputKey), [outputKey])
+  const activeReview = useStore(reviewStore, (s) => s.activeReview)
+  const reviews = useStore(reviewStore, (s) => s.reviews)
+  const reviewMeta = useMemo(() => (activeReview ? reviewMetaFromRecord(activeReview) : null), [activeReview])
+
+  useEffect(() => {
+    if (demo || activeReview || reviews.length > 0) return
+    void reviewStore.getState().loadReviews(projectId)
+  }, [demo, activeReview, reviews.length, reviewStore, projectId])
+
+  useEffect(() => {
+    if (demo || activeReview || reviews.length === 0) return
+    void reviewStore.getState().loadReview(projectId, reviews[0].id)
+  }, [demo, activeReview, reviews, reviewStore, projectId])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -1573,7 +1595,7 @@ function ThesisReviewView({ workspaceId }: { workspaceId: string }) {
         </span>
       </div>
 
-      {mode === "document" ? <ThesisReviewCanvas /> : <ThesisReviewPanel workspaceId={workspaceId} />}
+      {mode === "document" ? <ThesisReviewCanvas reviewMeta={reviewMeta} /> : <ThesisReviewPanel workspaceId={workspaceId} />}
     </div>
   )
 }

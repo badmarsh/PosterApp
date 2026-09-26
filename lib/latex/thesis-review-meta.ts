@@ -21,7 +21,13 @@
  * LaTeX generator, and in tests without a database.
  */
 
-import type { Card, OutputConfig, Project, ThesisReviewOutputMeta } from "@/lib/poster-types"
+import type {
+  Card,
+  OutputConfig,
+  Project,
+  ThesisReviewMetaCriterion,
+  ThesisReviewOutputMeta,
+} from "@/lib/poster-types"
 import { resolveOutputMetadata } from "@/lib/poster-types"
 import { SK_ACADEMIC_RUBRIC_V1 } from "@/lib/ai/rubric-engine"
 import { THESIS_CRITERIA } from "@/lib/ai/thesis-rubric"
@@ -564,9 +570,15 @@ export function deriveThesisReview(
   project: Project,
   output: OutputConfig | null | undefined,
   language: ReportLanguageCode,
+  /**
+   * Explicit metadata that wins over `output.reviewMeta` — the workspace view
+   * passes the stored review record here, so the printed posudok matches the
+   * review the reviewer confirmed even when the cards are stale or empty.
+   */
+  reviewMetaOverride?: ThesisReviewOutputMeta | null,
 ): ThesisReviewDerived {
   const cards = output?.cards ?? []
-  const rm: ThesisReviewOutputMeta = output?.reviewMeta ?? {}
+  const rm: ThesisReviewOutputMeta = { ...(output?.reviewMeta ?? {}), ...(reviewMetaOverride ?? {}) }
   const resolved = resolveOutputMetadata(project, output ?? null)
   const provenance: ThesisReviewDerived["provenance"] = {}
 
@@ -666,7 +678,25 @@ export function deriveThesisReview(
   const includeConfidential = rm.includeConfidential ?? Boolean(confidentialComments)
 
   // -- criteria --------------------------------------------------------------
-  const criteria: DerivedCriterion[] = cards
+  const criteriaFromMeta = (rm.criteria ?? []).filter((c) => c && (c.criterionId || c.name))
+  const criteria: DerivedCriterion[] = criteriaFromMeta.length > 0 && cards.every((c) => cardRole(c) !== "criterion")
+    ? criteriaFromMeta.map((c, i) => {
+        const rubric = resolveCriterionById(c.criterionId, c.name ?? "", language)
+        const rating = normalizeRating(c.rating) || ratingFromScore(c.numericScore)
+        return {
+          criterionId: rubric.id,
+          cardId: `__meta_${i}`,
+          name: c.name?.trim() || rubric.name,
+          text: stripMarkup(c.text ?? ""),
+          rating,
+          weight: typeof c.weight === "number" ? c.weight : rubric.weight,
+          points: rating ? pointsForRating(rating) : pointsFromScore(c.numericScore),
+          suggestions: (c.suggestions ?? []).filter(Boolean),
+          figures: [],
+          matched: rubric.matched,
+        }
+      })
+    : cards
     .filter((c) => cardRole(c) === "criterion")
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     .map((card) => {
@@ -733,6 +763,188 @@ export function deriveThesisReview(
     weightedScore,
     weightedGrade,
     provenance,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Stored review record → output metadata
+// ---------------------------------------------------------------------------
+
+/**
+ * Shape of a stored `ThesisReview` row (Prisma) or the client-side
+ * `ThesisReviewRecord`. Loosely typed on purpose: both surfaces carry the same
+ * fields, but some arrive as JSON strings.
+ */
+export type ThesisReviewRecordLike = {
+  studentName?: string | null
+  thesisTitle?: string | null
+  thesisType?: string | null
+  reviewerRole?: string | null
+  reviewerName?: string | null
+  institution?: string | null
+  department?: string | null
+  grade?: string | null
+  finalGrade?: string | null
+  recommendation?: string | null
+  finalRecommendation?: string | null
+  summary?: string | null
+  strengths?: string[] | string | null
+  defenseQuestions?: string[] | string | null
+  questionsForAuthors?: string[] | string | null
+  citationIssues?: string[] | string | null
+  reviewKind?: string | null
+  language?: string | null
+  place?: string | null
+  date?: string | null
+  confidentialComments?: string | null
+  sections?: Array<{
+    criterionId?: string | null
+    text?: string | null
+    rating?: string | null
+    numericScore?: number | null
+    suggestions?: string[] | null
+  }> | string | null
+}
+
+const META_LANGUAGES: ReportLanguageCode[] = ["sk", "cs", "en", "de", "pl", "hu"]
+
+function stringList(value: string[] | string | null | undefined): string[] {
+  if (Array.isArray(value)) return value.map((v) => (typeof v === "string" ? v : String(v ?? ""))).filter(Boolean)
+  if (typeof value !== "string" || !value.trim()) return []
+  const trimmed = value.trim()
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) return parsed.map((v) => String(v ?? "")).filter(Boolean)
+    } catch {
+      /* fall through to line splitting */
+    }
+  }
+  return trimmed.split(/\n+/).map((line) => line.replace(BULLET_RE, "").trim()).filter(Boolean)
+}
+
+/** `A`, `Note: 1,7`, `96 %` → the canonical rating letter (or `""`). */
+export function normalizeRating(value: string | null | undefined): string {
+  if (!value) return ""
+  const clean = value.trim()
+  if (!clean) return ""
+  const letter = /^(?:[A-F]|FX)$/i.exec(clean.toUpperCase())
+  if (letter && letter[0].toUpperCase() !== "FX") return letter[0].toUpperCase()
+  return ratingFromCard(clean)
+}
+
+function ratingFromScore(score: number | null | undefined): string {
+  if (typeof score !== "number" || !Number.isFinite(score)) return ""
+  return score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : score >= 50 ? "E" : "F"
+}
+
+function pointsFromScore(score: number | null | undefined): number | null {
+  if (typeof score !== "number" || !Number.isFinite(score)) return null
+  return Math.max(0, Math.min(100, score))
+}
+
+/**
+ * Fold a stored thesis-review record into `ThesisReviewOutputMeta`.
+ *
+ * The record is the authoritative description of a posudok: it knows the
+ * student, the reviewer, the confirmed classification and the per-criterion
+ * ratings. Exporting or previewing a workspace must therefore be able to read
+ * it without caring whether the workspace's cards carry the same information.
+ */
+export function reviewMetaFromRecord(record: ThesisReviewRecordLike | null | undefined): ThesisReviewOutputMeta {
+  if (!record) return {}
+  const sections = typeof record.sections === "string" ? safeJsonArray(record.sections) : record.sections ?? []
+  const typedSections = (sections ?? []) as Array<{
+    criterionId?: string | null
+    rating?: string | null
+    numericScore?: number | null
+    text?: string | null
+    suggestions?: string[] | null
+  }>
+  const criteria: ThesisReviewMetaCriterion[] = typedSections
+    .map((section) => ({
+      criterionId: (section?.criterionId || "").trim(),
+      rating: section?.rating ?? null,
+      numericScore: typeof section?.numericScore === "number" ? section.numericScore : null,
+      text: section?.text ?? null,
+      suggestions: (section?.suggestions ?? []).filter(Boolean),
+    }))
+    .filter((c) => c.criterionId)
+
+  const language = META_LANGUAGES.includes((record.language ?? "") as ReportLanguageCode)
+    ? (record.language as ReportLanguageCode)
+    : undefined
+
+  const meta: ThesisReviewOutputMeta = {
+    studentName: record.studentName?.trim() || undefined,
+    thesisTitle: record.thesisTitle?.trim() || undefined,
+    thesisType: record.thesisType === "bachelor" || record.thesisType === "master" || record.thesisType === "phd"
+      ? record.thesisType
+      : undefined,
+    reviewerName: record.reviewerName?.trim() || undefined,
+    reviewerRole: reviewerRoleFromString(record.reviewerRole),
+    institution: record.institution?.trim() || undefined,
+    department: record.department?.trim() || undefined,
+    grade: (record.finalGrade || record.grade || "").trim().toUpperCase() || undefined,
+    recommendation: (record.finalRecommendation || record.recommendation || "").trim() || undefined,
+    summary: record.summary?.trim() || undefined,
+    strengths: stringList(record.strengths),
+    defenseQuestions: [...stringList(record.defenseQuestions), ...stringList(record.questionsForAuthors)],
+    citationIssues: stringList(record.citationIssues),
+    reviewKind: record.reviewKind === "paper" ? "paper" : "thesis",
+    language,
+    place: record.place?.trim() || undefined,
+    date: record.date?.trim() || undefined,
+    confidentialComments: record.confidentialComments?.trim() || undefined,
+    criteria,
+  }
+  if (meta.includeConfidential === undefined && meta.confidentialComments) meta.includeConfidential = true
+  return meta
+}
+
+function safeJsonArray(value: string): Array<Record<string, unknown>> {
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function reviewerRoleFromString(role: string | null | undefined): ThesisReviewOutputMeta["reviewerRole"] {
+  const folded = fold(role ?? "")
+  if (!folded) return undefined
+  if (folded.includes("supervisor") || folded.includes("veduc") || folded.includes("skolitel") || folded.includes("betreuer")) return "supervisor"
+  if (folded.includes("opponent") || folded.includes("oponent")) return "opponent"
+  if (folded.includes("self") || folded.includes("vlastn")) return "self"
+  return "reviewer"
+}
+
+/** Resolve a rubric criterion from an explicit id, falling back to its label. */
+export function resolveCriterionById(
+  id: string,
+  label: string,
+  lang: ReportLanguageCode,
+): ResolvedCriterion {
+  const index = rubricIndex(lang)
+  const rawId = (id || "").trim()
+  const foldedId = fold(rawId)
+  const byId = rawId
+    ? index.find((c) => c.id === rawId || fold(c.id) === foldedId || fold(c.label) === foldedId)
+    : undefined
+  if (byId) return { id: byId.id, name: byId.label || byId.id, weight: byId.weight, matched: true }
+
+  const foldedLabel = fold(label || "")
+  const byLabel = foldedLabel
+    ? index.find((c) => fold(c.label) === foldedLabel || fold(c.id) === foldedLabel)
+    : undefined
+  if (byLabel) return { id: byLabel.id, name: byLabel.label || byLabel.id, weight: byLabel.weight, matched: true }
+
+  return {
+    id: rawId || humanizeCriterionId(foldedLabel || "criterion"),
+    name: label?.trim() || humanizeCriterionId(rawId || "criterion"),
+    weight: null,
+    matched: false,
   }
 }
 

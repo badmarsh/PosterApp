@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils"
 import { THESIS_REVIEW_LABELS, reportLanguageFor, type ThesisReviewTemplate } from "@/lib/latex/templates-thesis"
 import { thesisReviewStyleFor, type ThesisReviewStyle } from "@/lib/latex/thesis-review-styles"
 import { deriveThesisReview, type ReportLanguageCode } from "@/lib/latex/thesis-review-meta"
+import type { ThesisReviewOutputMeta } from "@/lib/poster-types"
 import {
   PX_PER_MM,
   PX_PER_PT,
@@ -44,7 +45,18 @@ import {
 
 const ZOOM_STEPS = [0.55, 0.7, 0.85, 1, 1.2, 1.4, 1.65, 1.9]
 
-export function ThesisReviewCanvas({ className }: { className?: string }) {
+export function ThesisReviewCanvas({
+  className,
+  /**
+   * Stored review record folded into metadata. Wins over `output.reviewMeta`
+   * so a workspace whose posudok cards are stale (or empty) still previews the
+   * review the reviewer confirmed.
+   */
+  reviewMeta,
+}: {
+  className?: string
+  reviewMeta?: ThesisReviewOutputMeta | null
+}) {
   const { project, selectedCardId, selectCard, setInspectorTab } = useEditor(
     useShallow((s) => ({
       project: s.project,
@@ -61,8 +73,8 @@ export function ThesisReviewCanvas({ className }: { className?: string }) {
   const labels = THESIS_REVIEW_LABELS[reportLanguageFor(templateId as ThesisReviewTemplate)]
 
   const derived = useMemo(
-    () => deriveThesisReview(project, output, reportLanguageFor(templateId as ThesisReviewTemplate) as ReportLanguageCode),
-    [project, output, templateId],
+    () => deriveThesisReview(project, output, reportLanguageFor(templateId as ThesisReviewTemplate) as ReportLanguageCode, reviewMeta),
+    [project, output, templateId, reviewMeta],
   )
 
   const blocks = useMemo<ThesisBlock[]>(() => {
@@ -198,9 +210,12 @@ export function ThesisReviewCanvas({ className }: { className?: string }) {
     )
   }
 
-  // The form always has a letterhead and a signature line; "empty" means the
-  // workspace has no criterion cards to assess.
-  const hasContent = (output.cards?.length ?? 0) > 0
+  // The form always has a letterhead and a signature line; "empty" means there
+  // is nothing to assess — neither cards nor a stored review record.
+  const hasContent =
+    (output.cards?.length ?? 0) > 0 ||
+    derived.criteria.length > 0 ||
+    Boolean(reviewMeta?.studentName || reviewMeta?.thesisTitle || reviewMeta?.summary || reviewMeta?.grade)
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col bg-muted/40", className)}>
