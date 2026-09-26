@@ -1634,10 +1634,14 @@ const POSTER_ASSIGNMENT: Record<string, { subject: GallerySubject["id"]; edition
 }
 
 const SLIDES_ASSIGNMENT: Record<string, { subject: GallerySubject["id"]; edition: SlidesEdition }> = {
-  "beamer-metropolis": { subject: "nlp", edition: "classic" },
+  // Metropolis carries the VLA subject so that the flagship demo project
+  // (gemini poster + metropolis deck + article-twocol paper) tells *one* story:
+  // a project's outputs share a title, authors and venue, so they must not be
+  // three unrelated studies.
+  "beamer-metropolis": { subject: "vla", edition: "classic" },
   "beamer-atlas": { subject: "hep", edition: "classic" },
   "beamer-madrid": { subject: "bio", edition: "classic" },
-  "beamer-default": { subject: "vla", edition: "classic" },
+  "beamer-default": { subject: "nlp", edition: "classic" },
   "beamer-focus": { subject: "nlp", edition: "statement" },
   "beamer-editorial": { subject: "bio", edition: "editorial" },
 }

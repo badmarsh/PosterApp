@@ -67,9 +67,12 @@ export function PosterCanvas({
   )
   const activeOutput = project.outputs?.find((o) => o.id === project.activeOutputId)
   const metadata = resolveOutputMetadata(project, activeOutput)
+  // Same rule as the deck: the output's theme override only colours the output
+  // that owns it, not every template drawn with an explicit `templateId`.
+  const themeOverride = (templateId ?? activeOutput?.templateId) === activeOutput?.templateId ? activeOutput?.themeColor : null
   const accent = useMemo(
-    () => posterAccentFor(templateId ?? activeOutput?.templateId, activeOutput?.themeColor),
-    [templateId, activeOutput?.templateId, activeOutput?.themeColor],
+    () => posterAccentFor(templateId ?? activeOutput?.templateId, themeOverride),
+    [templateId, activeOutput?.templateId, themeOverride],
   )
 
   const board = useMemo(() => posterBoardFor(templateId ?? activeOutput?.templateId), [templateId, activeOutput?.templateId])
