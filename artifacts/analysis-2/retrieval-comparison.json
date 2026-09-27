@@ -1,0 +1,213 @@
+{
+  "domains": {
+    "missingMetadata": "STEM, Fyzika",
+    "filename": "Akademický výskum, STEM a aplikované vedy",
+    "chapterTitle": "Akademický výskum, STEM a aplikované vedy",
+    "spelledOut": "Akademický výskum, STEM a aplikované vedy"
+  },
+  "ftsExamples": {
+    "jes": "correction OR factors OR transverse OR momentum",
+    "jesAcronym": "jes OR correction OR factors OR 2 OR transverse OR momentum",
+    "xref": "unresolved OR section OR cross OR references",
+    "xrefAcronym": "unresolved OR section OR cross OR references"
+  },
+  "rows": [
+    {
+      "condition": "raw dense",
+      "finding_hit1": 0.4,
+      "finding_hit3": 0.6,
+      "finding_hit5": 0.6,
+      "finding_mrr": 0.511,
+      "criterion_hit1": 0,
+      "criterion_hit3": 0.143,
+      "criterion_hit5": 0.286,
+      "criterion_mrr": 0.116
+    },
+    {
+      "condition": "raw dense+domainprefix",
+      "finding_hit1": 0.3,
+      "finding_hit3": 0.4,
+      "finding_hit5": 0.4,
+      "finding_mrr": 0.393,
+      "criterion_hit1": 0,
+      "criterion_hit3": 0,
+      "criterion_hit5": 0,
+      "criterion_mrr": 0
+    },
+    {
+      "condition": "raw rrf current-fts",
+      "finding_hit1": 0.4,
+      "finding_hit3": 0.7,
+      "finding_hit5": 0.8,
+      "finding_mrr": 0.585,
+      "criterion_hit1": 0.143,
+      "criterion_hit3": 0.286,
+      "criterion_hit5": 0.286,
+      "criterion_mrr": 0.229
+    },
+    {
+      "condition": "raw rrf acronym-fts",
+      "finding_hit1": 0.5,
+      "finding_hit3": 0.7,
+      "finding_hit5": 0.8,
+      "finding_mrr": 0.634,
+      "criterion_hit1": 0.143,
+      "criterion_hit3": 0.286,
+      "criterion_hit5": 0.286,
+      "criterion_mrr": 0.232
+    },
+    {
+      "condition": "margin-only dense",
+      "finding_hit1": 0.4,
+      "finding_hit3": 0.7,
+      "finding_hit5": 0.7,
+      "finding_mrr": 0.563,
+      "criterion_hit1": 0.143,
+      "criterion_hit3": 0.429,
+      "criterion_hit5": 0.429,
+      "criterion_mrr": 0.286
+    },
+    {
+      "condition": "margin-only dense+domainprefix",
+      "finding_hit1": 0.2,
+      "finding_hit3": 0.4,
+      "finding_hit5": 0.7,
+      "finding_mrr": 0.348,
+      "criterion_hit1": 0,
+      "criterion_hit3": 0.143,
+      "criterion_hit5": 0.143,
+      "criterion_mrr": 0.09
+    },
+    {
+      "condition": "margin-only rrf current-fts",
+      "finding_hit1": 0.6,
+      "finding_hit3": 0.8,
+      "finding_hit5": 0.8,
+      "finding_mrr": 0.692,
+      "criterion_hit1": 0.286,
+      "criterion_hit3": 0.429,
+      "criterion_hit5": 0.429,
+      "criterion_mrr": 0.357
+    },
+    {
+      "condition": "margin-only rrf acronym-fts",
+      "finding_hit1": 0.6,
+      "finding_hit3": 0.8,
+      "finding_hit5": 0.8,
+      "finding_mrr": 0.692,
+      "criterion_hit1": 0.143,
+      "criterion_hit3": 0.429,
+      "criterion_hit5": 0.429,
+      "criterion_mrr": 0.286
+    },
+    {
+      "condition": "cleaned dense",
+      "finding_hit1": 0.4,
+      "finding_hit3": 0.7,
+      "finding_hit5": 0.8,
+      "finding_mrr": 0.565,
+      "criterion_hit1": 0.286,
+      "criterion_hit3": 0.286,
+      "criterion_hit5": 0.429,
+      "criterion_mrr": 0.314
+    },
+    {
+      "condition": "cleaned dense+domainprefix",
+      "finding_hit1": 0.2,
+      "finding_hit3": 0.5,
+      "finding_hit5": 0.6,
+      "finding_mrr": 0.415,
+      "criterion_hit1": 0,
+      "criterion_hit3": 0.143,
+      "criterion_hit5": 0.143,
+      "criterion_mrr": 0.084
+    },
+    {
+      "condition": "cleaned rrf current-fts",
+      "finding_hit1": 0.5,
+      "finding_hit3": 0.8,
+      "finding_hit5": 0.9,
+      "finding_mrr": 0.678,
+      "criterion_hit1": 0.286,
+      "criterion_hit3": 0.286,
+      "criterion_hit5": 0.429,
+      "criterion_mrr": 0.314
+    },
+    {
+      "condition": "cleaned rrf acronym-fts",
+      "finding_hit1": 0.6,
+      "finding_hit3": 0.8,
+      "finding_hit5": 0.8,
+      "finding_mrr": 0.723,
+      "criterion_hit1": 0.286,
+      "criterion_hit3": 0.286,
+      "criterion_hit5": 0.429,
+      "criterion_mrr": 0.314
+    },
+    {
+      "condition": "cleaned criterion-hyde",
+      "finding_hit1": 0.4,
+      "finding_hit3": 0.7,
+      "finding_hit5": 0.8,
+      "finding_mrr": 0.565,
+      "criterion_hit1": 0,
+      "criterion_hit3": 0.143,
+      "criterion_hit5": 0.143,
+      "criterion_mrr": 0.088
+    },
+    {
+      "condition": "cleaned criterion-expansion",
+      "finding_hit1": 0.4,
+      "finding_hit3": 0.7,
+      "finding_hit5": 0.8,
+      "finding_mrr": 0.565,
+      "criterion_hit1": 0.143,
+      "criterion_hit3": 0.286,
+      "criterion_hit5": 0.286,
+      "criterion_mrr": 0.222
+    }
+  ],
+  "misses": {
+    "dense": [
+      "xref",
+      "inverse",
+      "analytical_execution",
+      "discussion_relation",
+      "limitations_future_work",
+      "originality_contribution"
+    ],
+    "rrf": [
+      "xref",
+      "analytical_execution",
+      "discussion_relation",
+      "limitations_future_work",
+      "originality_contribution"
+    ],
+    "acronym": [
+      "jes",
+      "xref",
+      "analytical_execution",
+      "discussion_relation",
+      "limitations_future_work",
+      "originality_contribution"
+    ],
+    "hyde": [
+      "methodology_rigor",
+      "analytical_execution",
+      "results_validity",
+      "discussion_relation",
+      "limitations_future_work",
+      "originality_contribution"
+    ],
+    "expansion": [
+      "methodology_rigor",
+      "analytical_execution",
+      "discussion_relation",
+      "limitations_future_work",
+      "originality_contribution"
+    ]
+  },
+  "cleanUnits": 473,
+  "rawUnits": 455,
+  "marginUnits": 490
+}

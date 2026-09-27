@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest"
 vi.mock("@/lib/prisma", () => ({ prisma: {} }))
 vi.mock("@prisma/client", () => ({ Prisma: { sql: () => "", empty: "", join: () => "" } }))
-import { applyMMR, rerankChunks, compressChunks, buildFtsQuery, resolveCriterionFamily, resolveThesisDomainContext } from "@/lib/ai/vector-rag"
+import { applyMMR, rerankChunks, compressChunks, buildFtsQuery, domainQueryPrefix, resolveCriterionFamily, resolveThesisDomainContext } from "@/lib/ai/vector-rag"
 
 describe("vector-rag fixes", () => {
   it("buildFtsQuery OR-joins informative tokens", () => {
@@ -13,6 +13,18 @@ describe("vector-rag fixes", () => {
     expect(resolveCriterionFamily("goal_definition")).toBe("goals")
     expect(resolveCriterionFamily("citations_quality")).toBe("citations")
   })
+  it("classifies a jet-calibration title as physics, not generic academic", () => {
+    expect(resolveThesisDomainContext({ thesisTitle: "JES and JER from hadronic W bosons" } as any)).toContain("Fyzika")
+    expect(resolveThesisDomainContext({ thesisTitle: "Jet energy scale and resolution from hadronic W bosons" } as any)).toContain("Fyzika")
+  })
+
+  it("does not prepend a Slovak field label to an English dense query", () => {
+    expect(domainQueryPrefix("Akademický výskum, STEM a aplikované vedy", "en")).toBe("")
+    expect(domainQueryPrefix("STEM, Fyzika", "en")).toBe("")
+    expect(domainQueryPrefix("Časticová fyzika, femtoskopia", "sk")).toBe("Časticová fyzika, femtoskopia")
+    expect(domainQueryPrefix("Particle physics, ATLAS jet calibration", "en")).toBe("Particle physics, ATLAS jet calibration")
+  })
+
   it("domain regex no longer matches ai/it inside words", () => {
     expect(resolveThesisDomainContext({ thesisTitle: "Interný audit v bankovom sektore" } as any)).not.toContain("Informatika")
     expect(resolveThesisDomainContext({ thesisTitle: "Detailná analýza fotosyntézy" } as any)).not.toContain("Informatika")

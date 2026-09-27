@@ -30,6 +30,7 @@ import { runCandidateGenerators, DEFAULT_CANDIDATE_LIMITS, type CandidatePool } 
 import type { RetrievalCandidate } from "./retrievers/types"
 import { routeQuery, type RetrievalRoute } from "./query-router"
 import {
+  domainQueryPrefix,
   expandQuery,
   generateHypotheticalDocument,
   getThesisCriterionQueryExpansion,
@@ -251,8 +252,9 @@ export async function retrieveEvidence(opts: RetrieveEvidenceOptions): Promise<E
   t0 = Date.now()
   const queryEmbeddings: number[][] = []
   try {
-    const embedInputs = domain
-      ? variants.map((v) => (v.startsWith(domain) ? v : `${domain}: ${v}`))
+    const prefix = domainQueryPrefix(domain, lang)
+    const embedInputs = prefix
+      ? variants.map((v) => (v.startsWith(prefix) ? v : `${prefix}: ${v}`))
       : variants
     const embedded = await embedTexts(embedInputs, "query")
     for (const e of embedded) if (e && e.length > 0) queryEmbeddings.push(e)
