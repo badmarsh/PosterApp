@@ -148,6 +148,63 @@ export function truncateToTokenBudget(text: string, maxTokens: number, charsPerT
   return `${cut.trimEnd()} […]`
 }
 
+/**
+ * Fits `text` into an embedding window without silently dropping the tail.
+ *
+ * The tokenizer truncates at `maxTokens` and discards everything after that point.
+ * A contextual prefix plus a long table/equation description therefore loses the
+ * notable values and p-values, which the describers deliberately place at the end.
+ * This keeps a head (prefix and the opening of the passage) and a tail, joined by
+ * an ellipsis marker, and shrinks the tail until the result fits.
+ *
+ * Apply this only to embedding inputs. Stored chunk `content` must stay verbatim
+ * so evidence-quote checks still match the source.
+ */
+export function fitEmbeddingText(text: string, maxTokens: number, charsPerToken = 3.6): string {
+  if (!text || maxTokens <= 0 || fitsTokenBudget(text, maxTokens, charsPerToken)) return text
+  const marker = " […] "
+  const markerTokens = Math.max(1, countTokens(marker, charsPerToken))
+  const headBudget = Math.max(24, Math.floor(maxTokens * 0.62))
+  const tailBudget = Math.max(12, maxTokens - headBudget - markerTokens)
+  const head = truncateToTokenBudget(text, headBudget, charsPerToken).replace(/\s*\[…\]\s*$/u, "").trimEnd()
+  let tail = takeTokenTail(text, tailBudget, charsPerToken)
+  if (!tail || head.includes(tail)) return truncateToTokenBudget(text, maxTokens, charsPerToken)
+
+  let combined = `${head}${marker}${tail}`
+  while (!fitsTokenBudget(combined, maxTokens, charsPerToken) && tail.length > 24) {
+    tail = tail.slice(Math.ceil(tail.length * 0.2)).replace(/^\S*\s+/u, "")
+    if (!tail) break
+    combined = `${head}${marker}${tail}`
+  }
+  return fitsTokenBudget(combined, maxTokens, charsPerToken)
+    ? combined
+    : truncateToTokenBudget(text, maxTokens, charsPerToken)
+}
+
+/** Last `maxTokens` of `text`, snapped forward to a line or word boundary. */
+function takeTokenTail(text: string, maxTokens: number, charsPerToken: number): string {
+  const trimmed = text.trim()
+  if (!trimmed) return ""
+  if (fitsTokenBudget(trimmed, maxTokens, charsPerToken)) return trimmed
+  const limit = Math.max(24, charsForTokens(maxTokens, 1, charsPerToken))
+  let cut = trimmed.slice(-limit)
+  const nl = cut.search(/\n\s*\S/)
+  if (nl > 0 && nl < cut.length * 0.35) cut = cut.slice(nl + 1)
+  const space = cut.search(/\s+\S/)
+  if (space > 0 && space < cut.length * 0.3) cut = cut.slice(space).trimStart()
+  return cut.trim()
+}
+
+/** Token window the active embedding model will actually attend to. */
+export function embeddingWindowTokens(): number {
+  try {
+    const n = getEmbeddingModel().getMaxTokens()
+    return Number.isFinite(n) && n > 32 ? n : 512
+  } catch {
+    return 512
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Budget-aware packing
 // ---------------------------------------------------------------------------

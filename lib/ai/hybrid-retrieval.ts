@@ -30,6 +30,7 @@ import { runCandidateGenerators, DEFAULT_CANDIDATE_LIMITS, type CandidatePool } 
 import type { RetrievalCandidate } from "./retrievers/types"
 import { routeQuery, type RetrievalRoute } from "./query-router"
 import {
+  domainQueryPrefix,
   expandQuery,
   generateHypotheticalDocument,
   getThesisCriterionQueryExpansion,
@@ -81,6 +82,26 @@ export interface RetrieveEvidenceOptions {
   ablation?: AblationConfig
   lang?: "sk" | "cs" | "en"
   signal?: AbortSignal
+  /**
+   * Domain bias prepended to dense-query embeddings (`"Časticová fyzika: …"`).
+   * When omitted, template HyDE falls back to `resolveThesisDomainContext(metadata)`
+   * and query embeddings are not domain-prefixed — never a hardcoded physics prior.
+   */
+  domainContext?: string
+  /** Thesis metadata used only when `domainContext` is absent. */
+  metadata?: Partial<import("./thesis-rubric").ThesisMetadata>
+  /**
+   * LLM-written hypothetical passage (see `generateHypotheses`). Embedded as its own
+   * dense query when HyDE is on. Previously computed by the review pipeline and then
+   * dropped on this default path.
+   */
+  hypothesis?: string
+  /** Extra criterion terms. Overrides the expansion looked up from `criterionId`. */
+  criterionExpansion?: string
+  /** Restrict dense/lexical/metadata legs to these chunk kinds (`table`, `equation`, …). */
+  kinds?: string[]
+  /** Set false to suppress both template and LLM HyDE. Default: follow the route, but always honour an explicit hypothesis. */
+  useHyDE?: boolean
 }
 
 /** One chunk in the final evidence set. */
@@ -185,20 +206,39 @@ export async function retrieveEvidence(opts: RetrieveEvidenceOptions): Promise<E
   t0 = Date.now()
   const variants: string[] = []
   const appliedTransforms: string[] = []
+  const lang = opts.lang ?? "sk"
+  // Caller-supplied domain wins. Do not call resolveThesisDomainContext() with no
+  // arguments — that returns a hardcoded physics prior and shifts every query.
+  const domain =
+    opts.domainContext?.trim() ||
+    (opts.metadata ? resolveThesisDomainContext(opts.metadata) : "")
+  const criterionExpansion =
+    opts.criterionExpansion ??
+    (opts.criterionId ? getThesisCriterionQueryExpansion(opts.criterionId, lang) : "")
+
   if (!ablation.disableQueryTransform && route.queryTransform.expand) {
-    const expansion = opts.criterionId ? getThesisCriterionQueryExpansion(opts.criterionId, opts.lang ?? "sk") : ""
-    for (const v of expandQuery(opts.query, expansion)) if (!variants.includes(v)) variants.push(v)
+    for (const v of expandQuery(opts.query, criterionExpansion)) if (!variants.includes(v)) variants.push(v)
     appliedTransforms.push("expand")
   }
   if (variants.length === 0) variants.push(opts.query)
 
-  if (!ablation.disableQueryTransform && route.queryTransform.hyde) {
+  const hydeAllowed = !ablation.disableQueryTransform && opts.useHyDE !== false
+  if (hydeAllowed) {
     try {
-      const domain = resolveThesisDomainContext()
-      const hyde = await generateHypotheticalDocument(opts.query, domain, opts.lang ?? "sk")
-      if (hyde && !variants.includes(hyde)) {
-        variants.push(hyde)
-        appliedTransforms.push("hyde")
+      const hypothesis = opts.hypothesis?.trim()
+      if (hypothesis && !variants.includes(hypothesis)) {
+        variants.push(hypothesis)
+        appliedTransforms.push("hyde-llm")
+      }
+      // Template HyDE only when the route asks for it, or as a second view beside a real hypothesis
+      // (two shapes of the answer widen recall; the legacy searchHybrid path does the same).
+      if (route.queryTransform.hyde || hypothesis) {
+        const templateDomain = domain || resolveThesisDomainContext(opts.metadata)
+        const template = await generateHypotheticalDocument(opts.query, templateDomain, lang)
+        if (template && !variants.includes(template)) {
+          variants.push(template)
+          appliedTransforms.push("hyde")
+        }
       }
     } catch {
       // HyDE is an enhancement; a failure here must not cost the retrieval anything.
@@ -207,10 +247,16 @@ export async function retrieveEvidence(opts: RetrieveEvidenceOptions): Promise<E
   timings.queryTransform = Date.now() - t0
 
   // ---- 3. Embed the variants --------------------------------------------
+  // Domain is a dense-query prefix only. Lexical generators keep the raw query so FTS
+  // is not ANDed with boilerplate like "Časticová fyzika".
   t0 = Date.now()
   const queryEmbeddings: number[][] = []
   try {
-    const embedded = await embedTexts(variants, "query")
+    const prefix = domainQueryPrefix(domain, lang)
+    const embedInputs = prefix
+      ? variants.map((v) => (v.startsWith(prefix) ? v : `${prefix}: ${v}`))
+      : variants
+    const embedded = await embedTexts(embedInputs, "query")
     for (const e of embedded) if (e && e.length > 0) queryEmbeddings.push(e)
   } catch {
     // A leg without embeddings simply does not run; lexical/metadata/citation still do.
@@ -236,6 +282,7 @@ export async function retrieveEvidence(opts: RetrieveEvidenceOptions): Promise<E
       limit: topK * 6,
       documentId: opts.documentId,
       documentIds: opts.documentIds,
+      kinds: opts.kinds,
       chunkTypes: route.structuralTypes.length > 0 ? undefined : undefined, // structural types are a *boost*, not a filter
       sectionPathPrefixes: route.preferredSections,
       signal: opts.signal,

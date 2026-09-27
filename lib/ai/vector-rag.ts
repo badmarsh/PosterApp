@@ -58,7 +58,7 @@ export function resolveThesisDomainContext(metadata?: Partial<ThesisMetadata>): 
   if (/informatik|počítač|software|softvér|programov|\b(ai|it|ml|ict|ikt)\b|strojov[eé]h?o? učen|machine learning|neural|\bweb|cloud|kybernet|databáz|algoritm|počítačov[áé] grafik/i.test(combined)) {
     return "Informatika, Softvérové inžinierstvo, AI a dátové vedy"
   }
-  if (/fyzik|physics|matemat|optik|kvant|častic|astronom|jadrov|teoretick/i.test(combined)) {
+  if (/fyzik|physics|matemat|optik|kvant|častic|astronom|jadrov|teoretick|hadron|boson|calorimet|\batlas\b|jet energy|\bjes\b|\bjer\b/i.test(combined)) {
     return "STEM, Fyzika, Matematika a materiálové vedy"
   }
   if (/stroj|mechan|elektro|elektronik|energetik|automobil|robotik|stavb|architekt|materiál/i.test(combined)) {
@@ -71,6 +71,22 @@ export function resolveThesisDomainContext(metadata?: Partial<ThesisMetadata>): 
     return "Ekonómia, Manažment a podnikové financie"
   }
   return "Akademický výskum, STEM a aplikované vedy"
+}
+
+/**
+ * Domain string actually prepended to a dense query.
+ *
+ * A Slovak field label on an English query is not a mild prior. On the
+ * hadronic-W chapter it dropped criterion hit@5 from 3/7 to 1/7, because the
+ * prefix is not in the English passage text. English field labels are kept.
+ */
+export function domainQueryPrefix(domain: string | null | undefined, lang: ReviewLanguage = "sk"): string {
+  const value = domain?.trim() || ""
+  if (!value || lang !== "en") return value
+  if (/[áäčďéíĺľňóôŕšťúýž]/i.test(value) || /\b(fyzika|výskum|vedy|odbor|inžinierstvo|materiálové)\b/i.test(value)) {
+    return ""
+  }
+  return value
 }
 
 // ---------------------------------------------------------------------------
@@ -508,7 +524,8 @@ export async function searchHybrid(
   const queryVariants = expandQuery(query, criterionExpansion)
 
   // Embed all variants + HyDE in parallel (cache makes repeated calls free)
-  const embedInputs = queryVariants.map((q) => `${domainContext}: ${q}`)
+  const queryPrefix = domainQueryPrefix(domainContext, opts?.lang ?? "sk")
+  const embedInputs = queryVariants.map((q) => (queryPrefix ? `${queryPrefix}: ${q}` : q))
   if (useHyDE) {
     const hydeDoc = opts?.hypothesis?.trim() || await generateHypotheticalDocument(query, domainContext, opts?.lang)
     embedInputs.push(hydeDoc)
@@ -887,7 +904,16 @@ export async function retrieveForCriterion(
         documentIds: opts.documentIds,
         topK,
         lang: opts.lang,
-        ablation: { lambda: opts.lambda, disableQueryTransform: opts.useHyDE === false && !opts.criterionExpansion },
+        // Only a caller-supplied domain. The "STEM, Fyzika" fallback below is for the
+        // legacy searchHybrid path; applying it here would bias every multi-source query.
+        domainContext: opts.domainContext,
+        hypothesis: opts.hypothesis,
+        criterionExpansion: opts.criterionExpansion,
+        kinds: opts.kinds,
+        useHyDE: opts.useHyDE,
+        // Expansion and HyDE are independent. The old flag turned both off together,
+        // so a caller who only wanted to skip HyDE also lost criterion expansion.
+        ablation: { lambda: opts.lambda, disableQueryTransform: false },
       })
       if (result.evidence.length > 0 || opts.topK === 0) {
         await persistRetrievalTrace(workspaceId, {

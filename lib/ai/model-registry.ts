@@ -491,10 +491,24 @@ async function loadXenovaEmbedder(modelId: string): Promise<XenovaPipeline> {
   xenovaEmbedderModel = modelId
   xenovaEmbedder = (async () => {
     const path = await import("path")
+    const fs = await import("fs")
     const mod: any = await import("@xenova/transformers")
-    mod.env.allowLocalModels = false
+    const localRoot = process.env.EMBEDDING_LOCAL_PATH || path.join(process.cwd(), ".cache", "models")
+    const localDir = path.join(localRoot, modelId)
+    const hasQuantized = fs.existsSync(path.join(localDir, "onnx", "model_quantized.onnx"))
+    const hasFull = fs.existsSync(path.join(localDir, "onnx", "model.onnx"))
+    const hasLocal = hasQuantized || hasFull
+    mod.env.allowLocalModels = hasLocal || process.env.EMBEDDING_LOCAL_ONLY === "1"
+    mod.env.localModelPath = localRoot
+    // A present local ONNX is preferred. Remote Hugging Face is a fallback, not
+    // a requirement, so an offline review still embeds with a real model.
+    mod.env.allowRemoteModels = process.env.EMBEDDING_LOCAL_ONLY === "1" ? false : !hasLocal
     mod.env.cacheDir = process.env.CACHE_DIR || path.join(process.cwd(), ".cache")
-    const p = await mod.pipeline("feature-extraction", modelId)
+    const p = await mod.pipeline(
+      "feature-extraction",
+      modelId,
+      hasLocal ? { local_files_only: true, quantized: hasQuantized } : undefined,
+    )
     modelHealth.embedding.warmedUp = true
     return p as XenovaPipeline
   })().catch((err) => {
@@ -675,9 +689,23 @@ async function runBackend(info: ModelInfo, texts: string[]): Promise<number[][]>
     case "xenova-v2":
     default: {
       const p = await loadXenovaEmbedder(info.id)
+      const callOpts = { pooling: "mean", normalize: true, truncation: true, max_length: info.maxTokens }
+      // Transformers.js accepts a string[] and returns a [n, dim] tensor when the tokenizer
+      // can pad. A dissertation is hundreds of chunks; one call per chunk dominates ingest.
+      // If the batched shape is wrong (missing pad token, older pipeline), fall back per text.
+      if (texts.length > 1) {
+        try {
+          const batched = p as unknown as (input: string | string[], o?: Record<string, unknown>) => Promise<unknown>
+          const out = await batched(texts, callOpts)
+          const rows = splitBatchOutput(out as { data: ArrayLike<number>; dims?: number[] }, texts.length, info.dimensions)
+          if (rows.length === texts.length && rows.every((r) => r.length === info.dimensions)) return rows
+        } catch {
+          // Sequential fallback below.
+        }
+      }
       const results: number[][] = []
       for (const t of texts) {
-        const out = await p(t, { pooling: "mean", normalize: true, truncation: true, max_length: info.maxTokens })
+        const out = await p(t, callOpts)
         results.push(Array.from(out.data) as number[])
       }
       return results

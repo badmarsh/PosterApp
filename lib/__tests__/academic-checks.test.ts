@@ -54,6 +54,20 @@ Použili sme metódu z práce [?] a taktiež vzťah (cit. chyba).
     expect(audit.isCitationIntegrityOk).toBe(false)
   })
 
+  it("flags unresolved cross-references that embeddings do not rank", () => {
+    const markdown = `
+# Method
+The backgrounds are described in Section sec:background.
+The calibration follows Chapter ?? and Equation ??.
+`
+    const audit = auditCitationConsistency(extractDocumentStructure(markdown), markdown, "en")
+    expect(audit.potentialIssues.some((issue) => /unresolved cross-references/i.test(issue))).toBe(true)
+    expect(audit.isCitationIntegrityOk).toBe(false)
+    const finding = audit.findings.find((f) => f.id.startsWith("xref-unresolved"))
+    expect(finding?.severity).toBe("minor")
+    expect(finding?.evidence.map((e) => e.quote)).toEqual(expect.arrayContaining(["Chapter ??", "sec:background"]))
+  })
+
   it("matches numbered citations against bibliography labels and reports both directions", () => {
     const markdown = `
 # Results

@@ -6,9 +6,15 @@
  * This guarantees that uploaded PDF files are never dropped or left unparsed.
  */
 
+import { cleanExtractedPdfMarkdown } from "./margin-line-numbers"
+
 export interface ParsedPdfDocument {
   md_content: string
   pageCount: number
+  /** Margin line numbers removed before the text is chunked. 0 when the heuristic did not fire. */
+  marginLinesStripped?: number
+  /** Repeated running headers removed so they are not indexed as new sections. */
+  runningHeadersStripped?: number
 }
 
 async function initPdfJs() {
@@ -71,9 +77,12 @@ async function extractWithPdftotext(
         const titleHint = filename.replace(/\.pdf$/i, "").replace(/[_-]+/g, " ")
         const pages = stdout.split("\f").filter((p, idx, arr) => idx < arr.length - 1 || p.trim().length > 0)
         const mdPages = pages.map((pageText, idx) => `\n\n<!-- Page ${idx + 1} -->\n\n` + pageText.trim()).join("\n")
+        const cleaned = cleanExtractedPdfMarkdown(`# ${titleHint}\n\n` + mdPages.trim())
         return {
-          md_content: `# ${titleHint}\n\n` + mdPages.trim(),
+          md_content: cleaned.text,
           pageCount: Math.max(1, pages.length),
+          marginLinesStripped: cleaned.marginLinesStripped,
+          runningHeadersStripped: cleaned.runningHeadersStripped,
         }
       }
     } finally {
@@ -190,9 +199,13 @@ export async function parsePdfWithFallback(
     markdownPages.push(`\n\n<!-- Page ${pageNum} -->\n\n` + pageLines.join("\n"))
   }
 
+  const joined = markdownPages.join("\n").trim()
+  const cleaned = cleanExtractedPdfMarkdown(joined)
   return {
-    md_content: markdownPages.join("\n").trim(),
+    md_content: cleaned.text,
     pageCount,
+    marginLinesStripped: cleaned.marginLinesStripped,
+    runningHeadersStripped: cleaned.runningHeadersStripped,
   }
 } catch (pdfjsErr) {
   console.warn(`[pdf-fallback-parser] pdfjs-dist parsing failed (${pdfjsErr instanceof Error ? pdfjsErr.message : String(pdfjsErr)}), attempting pdftotext utility...`)

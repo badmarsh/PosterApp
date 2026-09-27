@@ -229,6 +229,41 @@ export function auditCitationConsistency(
     })
   }
 
+  // Dense retrieval does not rank `Section ??`: the token is punctuation.
+  // A mechanical scan is the check that actually finds an unresolved LaTeX
+  // cross-reference or a leaked label (`sec:background`).
+  const unresolvedXref = bodyText.match(/\b(?:Section|Chapter|Equation|Appendix|Figure|Table|Eq)\s+\?\?/g) || []
+  const leakedLabels = bodyText.match(/\b(?:sec|eq|fig|tab|chap):[A-Za-z][\w:-]*/g) || []
+  const xrefCount = unresolvedXref.length + leakedLabels.length
+  if (xrefCount > 0) {
+    const examples = [...new Set([...unresolvedXref, ...leakedLabels])].slice(0, 5)
+    potentialIssues.push(
+      lang === "sk"
+        ? `Nájdených ${xrefCount} nevyriešených krížových odkazov (${examples.join(", ")}).`
+        : `Found ${xrefCount} unresolved cross-references (${examples.join(", ")}).`
+    )
+    findings.push({
+      id: `xref-unresolved-${Date.now()}`,
+      criterionKey: "citations_quality",
+      category: "formal",
+      title: lang === "sk" ? "Nevyriešené krížové odkazy" : "Unresolved cross-references",
+      findingType: "weakness",
+      epistemicStatus: "SUPPORTED_FACT",
+      severity: xrefCount >= 5 ? "major" : "minor",
+      confidence: 0.95,
+      explanation: lang === "sk"
+        ? `Text obsahuje ${unresolvedXref.length} odkazov typu „Section ??“ a ${leakedLabels.length} nevyriešených LaTeX značiek. Čitateľ sa nedostane k systematike, na ktorú sa kapitola odvoláva.`
+        : `The text contains ${unresolvedXref.length} references of the form “Section ??” and ${leakedLabels.length} unresolved LaTeX labels. A reader cannot follow the sections this chapter depends on.`,
+      recommendation: lang === "sk"
+        ? "Doplniť cieľové sekcie a nahradiť značky typu sec:… čitateľným odkazom."
+        : "Resolve the cross-references and replace leaked labels such as sec:… with a readable reference.",
+      evidence: examples.map((quote) => ({ quote, verified: true, state: "verified-exact" as const })),
+      status: "unreviewed",
+      includeInExport: true,
+      createdBy: "ai",
+    })
+  }
+
   const citedReferenceIndexes = new Set<number>()
   const unmatchedInText = new Set<string>()
   let citationOccurrenceCount = 0
