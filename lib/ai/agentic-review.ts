@@ -14,6 +14,7 @@
  * criterion are near-free.
  */
 
+import { buildCriterionRetrievalQuery } from "./criterion-query"
 import { z } from "zod"
 import { generateAIResponse } from "./client"
 import { resolveAiModel, resolveAiModelWithOverrides, type AiModelRole } from "./models"
@@ -129,7 +130,7 @@ export async function reviewCriterionWithEvidence(
 
   // 1. Retrieve criterion-specific evidence (top chunks, compressed).
   const expansion = getThesisCriterionQueryExpansion(criterion.id, ctx.language)
-  const query = `${criterion.label} ${criterion.guidance}`.slice(0, 300)
+  const query = buildCriterionRetrievalQuery(criterion.id, criterion.label, criterion.guidance, ctx.language)
   const { chunks } = await retrieveForCriterion(ctx.workspaceId, query, {
     topK: 6,
     criterionId: criterion.id,

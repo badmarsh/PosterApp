@@ -1,3 +1,4 @@
+import { buildCriterionRetrievalQuery } from "./criterion-query"
 import { persistFindingsEvidence } from "./evidence-persister"
 /**
  * Shared review-generation pipeline used by:
@@ -282,7 +283,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       await Promise.all(
         batchC.map(async (c) => {
           const expansion = getThesisCriterionQueryExpansion(c.id, lang)
-          const query = `${c.labels[lang]} ${c.guidance[lang]}`.slice(0, 300)
+          const query = buildCriterionRetrievalQuery(c.id, c.labels[lang], c.guidance[lang], lang)
           const { chunks, communityContext } = await retrieveForCriterion(workspaceId, query, {
             topK: 8,
             lambda: 0.7,

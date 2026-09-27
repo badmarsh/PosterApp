@@ -1,0 +1,559 @@
+{
+  "scope": "Analysis_2 only; frozen substring relevance labels; in-memory cosine + substring lexical proxy + weighted RRF; no Postgres, reranker, MMR, compression or LLM HyDE. Pipeline uses historical text-only routing, not live criterion-aware routing.",
+  "indexSha256": "0897ff5e92833312328fac30cbe4e9638a7bf9fca6660dcbc33aaca344bf26ac",
+  "model": "Xenova/all-MiniLM-L6-v2",
+  "passageUnits": 473,
+  "queryFingerprint": "d2b246593a03bc14b920555407348870a25f1737eb2bf8cb3370aa81d79817ff",
+  "fallbackCount": 0,
+  "protectedIds": [
+    "methodology_rigor",
+    "results_validity",
+    "citations_quality"
+  ],
+  "targetIds": [
+    "analytical_execution",
+    "discussion_relation",
+    "limitations_future_work",
+    "originality_contribution"
+  ],
+  "conditions": [
+    {
+      "kind": "pipeline",
+      "baselineHit5": 3,
+      "candidateHit5": 6,
+      "baselineTargetHit5": 0,
+      "candidateTargetHit5": 3,
+      "baselineReproduced": true,
+      "protectedHitsRetained": true,
+      "noRegressions": true,
+      "accepted": true,
+      "detail": [
+        {
+          "id": "methodology_rigor",
+          "baselineQuery": "Methodological appropriateness and procedure Selection and rationale of methods, procedure description, sample/materials, and validation. Caution: Missing text in parser excerpt is not conclusive proof of total absence.",
+          "candidateQuery": "Methodological appropriateness and procedure Selection and rationale of methods, procedure description, sample/materials, and validation. Caution: Missing text in parser excerpt is not conclusive proof of total absence.",
+          "baseline": {
+            "hit5": true,
+            "top5": [
+              {
+                "id": "chk-282f0491b57337fbed236456",
+                "heading": "reconstruction [2/3]",
+                "page": null,
+                "relevant": true
+              },
+              {
+                "id": "chk-9323570a9c205191d3f45965",
+                "heading": "4.3 W -boson reconstruction efficiency [2/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-cb80e0de12498561be7079db",
+                "heading": "4.3 W -boson reconstruction efficiency [2/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-ca93500becd282077c4f8590",
+                "heading": "Analysis-specific object definitions [3/4]",
+                "page": null,
+                "relevant": true
+              },
+              {
+                "id": "chk-447e8bcbea2ad6d577809921",
+                "heading": "Analysis-specific object definitions [3/3]",
+                "page": null,
+                "relevant": false
+              }
+            ]
+          },
+          "candidate": {
+            "hit5": true,
+            "top5": [
+              {
+                "id": "chk-282f0491b57337fbed236456",
+                "heading": "reconstruction [2/3]",
+                "page": null,
+                "relevant": true
+              },
+              {
+                "id": "chk-9323570a9c205191d3f45965",
+                "heading": "4.3 W -boson reconstruction efficiency [2/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-cb80e0de12498561be7079db",
+                "heading": "4.3 W -boson reconstruction efficiency [2/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-ca93500becd282077c4f8590",
+                "heading": "Analysis-specific object definitions [3/4]",
+                "page": null,
+                "relevant": true
+              },
+              {
+                "id": "chk-447e8bcbea2ad6d577809921",
+                "heading": "Analysis-specific object definitions [3/3]",
+                "page": null,
+                "relevant": false
+              }
+            ]
+          }
+        },
+        {
+          "id": "analytical_execution",
+          "baselineQuery": "Execution and analytical rigor Quality of research execution, data processing, code implementation, and experimental runs. Caution: Evaluate only evidenced execution; do not speculate on unverified runtime errors.",
+          "candidateQuery": "Statistical uncertainties of fitted parameters from the likelihood function and the covariance matrix.",
+          "baseline": {
+            "hit5": false,
+            "top5": [
+              {
+                "id": "chk-deca2f9e1817dbce7184f61d",
+                "heading": "7.2 JES and JER correction factors [4/4]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-99570ecf5c1144f375ad169f",
+                "heading": "4.3 W -boson reconstruction efficiency [3/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-4773439a85e42c34d6cdb23f",
+                "heading": "7.2 JES and JER correction factors [2/4]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-d7a262cea5ccd951845b0c99",
+                "heading": "4.3 W -boson reconstruction efficiency [3/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-275a7fbb845ec483b3cc41b9",
+                "heading": "overview [1/2]",
+                "page": null,
+                "relevant": false
+              }
+            ]
+          },
+          "candidate": {
+            "hit5": true,
+            "top5": [
+              {
+                "id": "chk-126375779aa98b4afdc5a39d",
+                "heading": "6.2 Fit setup [1/2]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-01719ba7e738b9a18d7ce307",
+                "heading": "7.3 Fit validation",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-27b8e2aaed32144343625436",
+                "heading": "7.3 Fit validation",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-919f641af75c53170981697b",
+                "heading": "7.1 Pre-fit and post-fit W -mass distribution parame- [2/2]",
+                "page": null,
+                "relevant": true
+              },
+              {
+                "id": "chk-1a12648da096765c4a4bc5b4",
+                "heading": "7.3 Fit validation [1/2]",
+                "page": null,
+                "relevant": false
+              }
+            ]
+          }
+        },
+        {
+          "id": "results_validity",
+          "baselineQuery": "Validity of results and interpretation Presentation of achieved results, objective interpretation, and correctness of findings. Caution: Any criticism of invalid interpretation must quote the specific claim.",
+          "candidateQuery": "Validity of results and interpretation Presentation of achieved results, objective interpretation, and correctness of findings. Caution: Any criticism of invalid interpretation must quote the specific claim.",
+          "baseline": {
+            "hit5": true,
+            "top5": [
+              {
+                "id": "chk-01719ba7e738b9a18d7ce307",
+                "heading": "7.3 Fit validation",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-27b8e2aaed32144343625436",
+                "heading": "7.3 Fit validation",
+                "page": null,
+                "relevant": true
+              },
+              {
+                "id": "chk-0410586a4f68708005d8821a",
+                "heading": "Run 2 response distributions [10/11]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-9323570a9c205191d3f45965",
+                "heading": "4.3 W -boson reconstruction efficiency [2/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-e467b88a1f87a494475f5211",
+                "heading": "Run 2 response distributions [2/11]",
+                "page": null,
+                "relevant": false
+              }
+            ]
+          },
+          "candidate": {
+            "hit5": true,
+            "top5": [
+              {
+                "id": "chk-01719ba7e738b9a18d7ce307",
+                "heading": "7.3 Fit validation",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-27b8e2aaed32144343625436",
+                "heading": "7.3 Fit validation",
+                "page": null,
+                "relevant": true
+              },
+              {
+                "id": "chk-0410586a4f68708005d8821a",
+                "heading": "Run 2 response distributions [10/11]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-9323570a9c205191d3f45965",
+                "heading": "4.3 W -boson reconstruction efficiency [2/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-e467b88a1f87a494475f5211",
+                "heading": "Run 2 response distributions [2/11]",
+                "page": null,
+                "relevant": false
+              }
+            ]
+          }
+        },
+        {
+          "id": "discussion_relation",
+          "baselineQuery": "Discussion and relation to objectives Critical discussion of findings, comparison with existing literature, and evaluation of goal fulfillment. Caution: Discussion may be combined with results in a joint chapter.",
+          "candidateQuery": "Interpretation of the results: agreement between data and simulation and comparison with previous measurements.",
+          "baseline": {
+            "hit5": false,
+            "top5": [
+              {
+                "id": "chk-6fc2a8565c2833b7275899ec",
+                "heading": "7.2 JES and JER correction factors [4/4]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-5935fb3e1d1de72183dc9a5b",
+                "heading": "7.2 JES and JER correction factors [2/4]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-d3f1af94be305d86ecf410f6",
+                "heading": "Analysis-specific object definitions [1/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-a0e1dc22674561dd0dde5a3e",
+                "heading": "7.2 JES and JER correction factors [3/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-01719ba7e738b9a18d7ce307",
+                "heading": "7.3 Fit validation",
+                "page": null,
+                "relevant": false
+              }
+            ]
+          },
+          "candidate": {
+            "hit5": true,
+            "top5": [
+              {
+                "id": "chk-cebce442f55c801d1eee2412",
+                "heading": "overview [2/2]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-5b53e1d3e65144b2b4ea5fc5",
+                "heading": "Results",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-275a7fbb845ec483b3cc41b9",
+                "heading": "overview [1/2]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-021017b0c68d06604d20accd",
+                "heading": "ATLAS [2/2]",
+                "page": null,
+                "relevant": true
+              },
+              {
+                "id": "chk-a37d6875db8f51b802873058",
+                "heading": "7.1 Pre-fit and post-fit W -mass distribution parame- [1/2]",
+                "page": null,
+                "relevant": false
+              }
+            ]
+          }
+        },
+        {
+          "id": "limitations_future_work",
+          "baselineQuery": "Limitations and future work Critical self-assessment of research constraints, methodological boundaries, and future directions. Caution: Author-acknowledged limitations demonstrate academic maturity, not automatic flaws.",
+          "candidateQuery": "Remaining work: corrections not yet available and improvements to be implemented in the future.",
+          "baseline": {
+            "hit5": false,
+            "top5": [
+              {
+                "id": "chk-deca2f9e1817dbce7184f61d",
+                "heading": "7.2 JES and JER correction factors [4/4]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-d3f1af94be305d86ecf410f6",
+                "heading": "Analysis-specific object definitions [1/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-4773439a85e42c34d6cdb23f",
+                "heading": "7.2 JES and JER correction factors [2/4]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-550f0c3af2e3abbb97355d44",
+                "heading": "Analysis-specific object definitions [2/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-ca93500becd282077c4f8590",
+                "heading": "Analysis-specific object definitions [3/4]",
+                "page": null,
+                "relevant": false
+              }
+            ]
+          },
+          "candidate": {
+            "hit5": true,
+            "top5": [
+              {
+                "id": "chk-275a7fbb845ec483b3cc41b9",
+                "heading": "overview [1/2]",
+                "page": null,
+                "relevant": true
+              },
+              {
+                "id": "chk-2d6c4249f8444f0622406edc",
+                "heading": "4.2 Analysis regions [1/4]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-7ae6f143b8494c4ac110ba75",
+                "heading": "4.1 Hadronic W -boson kinematics reconstruction",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-b06afda3d6602a944b2ab43e",
+                "heading": "7.3 Fit validation [2/2]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-97e304085fdae365ea695aa4",
+                "heading": "Run 2 W -mass templates [3/3]",
+                "page": null,
+                "relevant": false
+              }
+            ]
+          }
+        },
+        {
+          "id": "citations_quality",
+          "baselineQuery": "Citation and bibliography quality Adherence to citation standards (ISO 690 / APA / IEEE), bibliography completeness, and citation ethics. Caution: Treat mechanical formatting variations as minor if the cited source is unambiguously identifiable.",
+          "candidateQuery": "Citation and bibliography quality Adherence to citation standards (ISO 690 / APA / IEEE), bibliography completeness, and citation ethics. Caution: Treat mechanical formatting variations as minor if the cited source is unambiguously identifiable.",
+          "baseline": {
+            "hit5": true,
+            "top5": [
+              {
+                "id": "chk-0d16e7e16a06e6d0fdcc7299",
+                "heading": "Bibliography 89",
+                "page": null,
+                "relevant": true
+              },
+              {
+                "id": "chk-e3971dcc583adddb1af3ef99",
+                "heading": "Bibliography",
+                "page": null,
+                "relevant": true
+              },
+              {
+                "id": "chk-93430b7e214d97d520586c0e",
+                "heading": "7.2 JES and JER correction factors",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-e53f727ad3da427973fd1b52",
+                "heading": "Bibliography 89",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-94b61a44427766e5480143b5",
+                "heading": "Bibliography 89",
+                "page": null,
+                "relevant": false
+              }
+            ]
+          },
+          "candidate": {
+            "hit5": true,
+            "top5": [
+              {
+                "id": "chk-0d16e7e16a06e6d0fdcc7299",
+                "heading": "Bibliography 89",
+                "page": null,
+                "relevant": true
+              },
+              {
+                "id": "chk-e3971dcc583adddb1af3ef99",
+                "heading": "Bibliography",
+                "page": null,
+                "relevant": true
+              },
+              {
+                "id": "chk-93430b7e214d97d520586c0e",
+                "heading": "7.2 JES and JER correction factors",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-e53f727ad3da427973fd1b52",
+                "heading": "Bibliography 89",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-94b61a44427766e5480143b5",
+                "heading": "Bibliography 89",
+                "page": null,
+                "relevant": false
+              }
+            ]
+          }
+        },
+        {
+          "id": "originality_contribution",
+          "baselineQuery": "Originality and contribution Extent of original author contribution, innovation, and value for science or industry. Caution: For bachelor theses, evaluate competent execution rather than pioneering scientific breakthroughs.",
+          "candidateQuery": "Originality and contribution Extent of original author contribution, innovation, and value for science or industry. Caution: For bachelor theses, evaluate competent execution rather than pioneering scientific breakthroughs.",
+          "baseline": {
+            "hit5": false,
+            "top5": [
+              {
+                "id": "chk-99570ecf5c1144f375ad169f",
+                "heading": "4.3 W -boson reconstruction efficiency [3/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-d7a262cea5ccd951845b0c99",
+                "heading": "4.3 W -boson reconstruction efficiency [3/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-60f26f9e946cf39cb74a513f",
+                "heading": "reconstruction [1/2]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-1e81b2c1ec908a7b80346bc2",
+                "heading": "reconstruction [1/2]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-7233dd4c3ba29deafda6c3ee",
+                "heading": "reconstruction [2/2]",
+                "page": null,
+                "relevant": false
+              }
+            ]
+          },
+          "candidate": {
+            "hit5": false,
+            "top5": [
+              {
+                "id": "chk-99570ecf5c1144f375ad169f",
+                "heading": "4.3 W -boson reconstruction efficiency [3/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-d7a262cea5ccd951845b0c99",
+                "heading": "4.3 W -boson reconstruction efficiency [3/3]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-60f26f9e946cf39cb74a513f",
+                "heading": "reconstruction [1/2]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-1e81b2c1ec908a7b80346bc2",
+                "heading": "reconstruction [1/2]",
+                "page": null,
+                "relevant": false
+              },
+              {
+                "id": "chk-7233dd4c3ba29deafda6c3ee",
+                "heading": "reconstruction [2/2]",
+                "page": null,
+                "relevant": false
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

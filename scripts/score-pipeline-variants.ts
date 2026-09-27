@@ -1,8 +1,13 @@
 /**
- * Scores the review pipeline's actual query mix on the cleaned Analysis_2 index.
+ * Scores the historical text-routed query mix on the cleaned Analysis_2 index.
+ * This is not the live criterion-aware router or Postgres pipeline.
  * Passage vectors are already in artifacts/analysis-2/embeddings.json.
+ * Use --cached-queries for an offline replay; otherwise embed queries only.
  */
-import { readFileSync } from "fs"
+import { readFileSync, writeFileSync } from "fs"
+import { createHash } from "crypto"
+import { buildCriterionRetrievalQuery } from "../lib/ai/criterion-query"
+import { getModelHealthSnapshot } from "../lib/ai/model-registry"
 import { generateLocalEmbeddings } from "../lib/ai/local-embeddings"
 import { fuseCandidates } from "../lib/ai/fusion"
 import { expandQuery, generateHypotheticalDocument, getThesisCriterionQueryExpansion, resolveThesisDomainContext } from "../lib/ai/vector-rag"
@@ -10,7 +15,7 @@ import { routeQuery } from "../lib/ai/query-router"
 import { SK_ACADEMIC_RUBRIC_V1 } from "../lib/ai/rubric-engine"
 import { buildFtsQuery } from "../lib/ai/retrieval-sql"
 
-interface Unit { norm: string; vector: Float32Array }
+interface Unit { id: string; heading: string | null; pageStart: number | null; norm: string; vector: Float32Array }
 
 function decode(b64: string): Float32Array {
   const buf = Buffer.from(b64, "base64")
@@ -63,69 +68,112 @@ function hits(units: Unit[], ranked: number[], expect: string[], k: number) {
   return ranked.slice(0, k).some((i) => needles.some((n) => units[i].norm.includes(n)))
 }
 
-async function main() {
-  process.env.TEST_REAL_EMBEDDINGS = "1"
-  process.env.EMBEDDING_LOCAL_ONLY = "1"
-  process.env.EMBEDDING_MODEL = "Xenova/all-MiniLM-L6-v2"
-  process.env.EMBEDDING_LOCAL_PATH = ".cache/models"
+export async function scoreCriterionQueries(
+  mode: "pipeline" | "comparison" = "pipeline",
+  options: { cachedQueries?: boolean; writeReport?: boolean } = {},
+) {
+  const cachedQueries = options.cachedQueries ?? process.argv.includes("--cached-queries")
+  const model = "Xenova/all-MiniLM-L6-v2"
+  if (!cachedQueries) {
+    process.env.TEST_REAL_EMBEDDINGS = "1"
+    process.env.EMBEDDING_LOCAL_ONLY = "1"
+    process.env.EMBEDDING_BACKEND = "xenova-v2"
+    process.env.EMBEDDING_MODEL = model
+    process.env.EMBEDDING_LOCAL_PATH = ".cache/models"
+  }
 
-  const index = JSON.parse(readFileSync("artifacts/analysis-2/embeddings.json", "utf8"))
-  const units: Unit[] = index.chunks.map((c: { content: string; embedding: string }) => ({
-    norm: norm(c.content),
-    vector: decode(c.embedding),
+  const indexBytes = readFileSync("artifacts/analysis-2/embeddings.json")
+  const index = JSON.parse(indexBytes.toString())
+  if (index.model !== model || index.dimensions !== 384) throw new Error("Wrong passage model")
+  const units: Unit[] = index.chunks.map((c: { id: string; heading: string | null; pageStart: number | null; content: string; embedding: string }) => ({
+    id: c.id, heading: c.heading, pageStart: c.pageStart,
+    norm: norm(c.content), vector: decode(c.embedding),
   }))
   const domain = resolveThesisDomainContext({ thesisTitle: "JES and JER from hadronic W bosons" })
   const ids = Object.keys(expectBy)
-  const queries = ids.map((id) => {
+  const baselineQueries = ids.map((id) => {
     const c = SK_ACADEMIC_RUBRIC_V1.criteria.find((x) => x.id === id)!
-    const guidance = `${c.description.en} Caution: ${c.cautionGuidance.en}`
-    return `${c.labels.en} ${guidance}`.slice(0, 300)
+    return `${c.labels.en} ${c.description.en} Caution: ${c.cautionGuidance.en}`.slice(0, 300)
   })
-
+  const candidateQueries = ids.map((id) => {
+    const c = SK_ACADEMIC_RUBRIC_V1.criteria.find((x) => x.id === id)!
+    return buildCriterionRetrievalQuery(id, c.labels.en, `${c.description.en} Caution: ${c.cautionGuidance.en}`, "en")
+  })
+  const queries = [...baselineQueries, ...candidateQueries]
   const packs: string[][] = []
-  for (const q of queries) {
+  for (const [i, q] of queries.entries()) {
+    // Preserve the historical harness's text-only routing (not live criterion routing).
     const route = routeQuery(q)
-    const variants = route.queryTransform.expand
-      ? expandQuery(q, getThesisCriterionQueryExpansion(ids[queries.indexOf(q)], "en"))
+    const row = route.queryTransform.expand
+      ? expandQuery(q, getThesisCriterionQueryExpansion(ids[i % ids.length], "en"))
       : [q]
-    const row = [...variants]
     if (route.queryTransform.hyde) row.push(await generateHypotheticalDocument(q, domain, "en"))
     packs.push(row)
-    console.log(q.slice(0, 48), "→", route.category, "variants", row.length, "hyde", route.queryTransform.hyde)
   }
-  const flat = packs.flat()
-  const prefixed = flat.map((v) => `${domain}: ${v}`)
-  console.log("embedding", flat.length * 2, "query variants")
-  const vecs = await generateLocalEmbeddings([...flat, ...prefixed], "query")
-  const bare = vecs.slice(0, flat.length)
-  const pref = vecs.slice(flat.length)
-
-  let offset = 0
-  const summary = { bareHit5: 0, prefixedHit5: 0, fusedBareHit5: 0, fusedPrefixedHit5: 0, n: ids.length }
-  const detail: Array<Record<string, unknown>> = []
-  ids.forEach((id, qi) => {
-    const pack = packs[qi]
-    const bareLists = pack.map((_, j) => denseTop(units, bare[offset + j]))
-    const prefLists = pack.map((_, j) => denseTop(units, pref[offset + j]))
-    const lex = lexTop(units, queries[qi])
-    const fusedBare = fuse([...bareLists, lex])
-    const fusedPref = fuse([...prefLists, lex])
-    const base = denseTop(units, bare[offset])
-    const expect = expectBy[id]
-    if (hits(units, base, expect, 5)) summary.bareHit5++
-    if (hits(units, denseTop(units, pref[offset]), expect, 5)) summary.prefixedHit5++
-    if (hits(units, fusedBare, expect, 5)) summary.fusedBareHit5++
-    if (hits(units, fusedPref, expect, 5)) summary.fusedPrefixedHit5++
-    detail.push({
-      id,
-      category: routeQuery(queries[qi]).category,
-      bare: hits(units, base, expect, 5),
-      fusedBare: hits(units, fusedBare, expect, 5),
-      fusedPrefixed: hits(units, fusedPref, expect, 5),
+  const flat = [...new Set(packs.flat())]
+  const cachePath = "artifacts/analysis-2/criterion-query-vectors.json"
+  const fingerprint = createHash("sha256").update(JSON.stringify({ model: index.model, flat })).digest("hex")
+  let vecs: number[][]
+  if (cachedQueries) {
+    const cache = JSON.parse(readFileSync(cachePath, "utf8"))
+    if (cache.model !== model || cache.fingerprint !== fingerprint || cache.fallbackCount !== 0
+      || JSON.stringify(cache.queries) !== JSON.stringify(flat)) throw new Error("Query cache mismatch")
+    vecs = cache.vectors.map((v: string) => Array.from(decode(v)))
+  } else {
+    vecs = await generateLocalEmbeddings(flat, "query")
+    if (getModelHealthSnapshot().embedding.fallbackCount !== 0) throw new Error("Hash fallback: invalid evaluation")
+  }
+  if (vecs.length !== flat.length || vecs.some(v => v.length !== 384 || v.some(x => !Number.isFinite(x)))) throw new Error("Invalid query vectors")
+  // Store float32 queries and score that same representation for exact offline reproduction.
+  vecs = vecs.map(v => Array.from(Float32Array.from(v)))
+  if (!cachedQueries) writeFileSync(cachePath, JSON.stringify({
+    model: index.model, fingerprint, fallbackCount: 0, queries: flat,
+    vectors: vecs.map(v => Buffer.from(Float32Array.from(v).buffer).toString("base64")),
+  }))
+  const byQuery = new Map(flat.map((q, i) => [q, vecs[i]]))
+  function rank(pack: string[], kind: string) {
+    const dense = denseTop(units, byQuery.get(pack[0])!)
+    if (kind === "dense") return dense
+    const lists = kind === "pipeline" ? pack.map(q => denseTop(units, byQuery.get(q)!)) : [dense]
+    return fuse([...lists, lexTop(units, pack[0])])
+  }
+  const protectedIds = ["methodology_rigor", "results_validity", "citations_quality"]
+  const targetIds = ids.filter(id => !protectedIds.includes(id))
+  const kinds = mode === "comparison" ? ["dense", "dense+fts"] : ["pipeline"]
+  const conditions = kinds.map(kind => {
+    const detail = ids.map((id, i) => {
+      const before = rank(packs[i], kind)
+      const after = rank(packs[i + ids.length], kind)
+      const describe = (ranked: number[]) => ({
+        hit5: hits(units, ranked, expectBy[id], 5),
+        top5: ranked.slice(0, 5).map(j => ({ id: units[j].id, heading: units[j].heading, page: units[j].pageStart,
+          relevant: hits(units, [j], expectBy[id], 1) })),
+      })
+      return { id, baselineQuery: baselineQueries[i], candidateQuery: candidateQueries[i],
+        baseline: describe(before), candidate: describe(after) }
     })
-    offset += pack.length
+    const count = (key: "baseline" | "candidate", subset = ids) => detail.filter(d => subset.includes(d.id) && d[key].hit5).length
+    const protectedHitsRetained = protectedIds.every(id => detail.find(d => d.id === id)!.candidate.hit5)
+    const targetGains = count("candidate", targetIds) - count("baseline", targetIds)
+    const baselineReproduced = detail.every(d => d.baseline.hit5 === protectedIds.includes(d.id))
+    const noRegressions = detail.every(d => !d.baseline.hit5 || d.candidate.hit5)
+    const accepted = baselineReproduced && noRegressions && protectedHitsRetained && targetGains > 0
+    return { kind, baselineHit5: count("baseline"), candidateHit5: count("candidate"),
+      baselineTargetHit5: count("baseline", targetIds), candidateTargetHit5: count("candidate", targetIds),
+      baselineReproduced, protectedHitsRetained, noRegressions, accepted, detail }
   })
-  console.log(JSON.stringify({ domain, summary, detail }, null, 2))
+  const report = {
+    scope: "Analysis_2 only; frozen substring relevance labels; in-memory cosine + substring lexical proxy + weighted RRF; no Postgres, reranker, MMR, compression or LLM HyDE. Pipeline uses historical text-only routing, not live criterion-aware routing.",
+    indexSha256: createHash("sha256").update(indexBytes).digest("hex"),
+    model: index.model, passageUnits: units.length, queryFingerprint: fingerprint, fallbackCount: 0,
+    protectedIds, targetIds, conditions,
+  }
+  if (options.writeReport !== false) writeFileSync(`artifacts/analysis-2/criterion-${mode}.json`, JSON.stringify(report, null, 2) + "\n")
+  if (options.writeReport !== false) console.log(JSON.stringify(conditions.map(({ detail, ...summary }) => summary), null, 2))
+  if (conditions.some(c => !c.accepted)) throw new Error("Criterion retrieval acceptance gate failed")
+  return report
 }
 
-main().catch((err) => { console.error(err); process.exit(1) })
+if (process.argv[1]?.endsWith("score-pipeline-variants.ts")) {
+  scoreCriterionQueries().catch((err) => { console.error(err); process.exit(1) })
+}
