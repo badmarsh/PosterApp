@@ -1,0 +1,19 @@
+# Gitleaks configuration — extends the default rule set.
+#
+# The three credentials below were accidentally committed in internal docs and
+# have been redacted (PR #32) AND rotated/invalidated. Their *removal* still
+# shows up in git diffs, which trips the scanner on every push. Allowlist the
+# exact strings so the scanner stays quiet about history while still flagging
+# anything new. Never add currently-valid secrets here.
+title = "PosterApp gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+  description = "Known-leaked, redacted and rotated credentials (docs history)"
+  regexes = [
+    '''P0sterApp2026SecureDb99''',
+    '''SilneHesloPrePosterAppDb123''',
+    '''posterapp_arena_pass_2026''',
+  ]

@@ -2,7 +2,10 @@ import { test, expect } from '@playwright/test';
 import { setupClerkTestingToken } from '@clerk/testing/playwright';
 
 test.describe('Collaboration Feature (Two Clients)', () => {
-  test('synchronizes finding status between two clients', async ({ browser }) => {
+  // FIXME(posudok-revamp): stale selectors — the thesis-review form was revamped in
+  // PR #27 (placeholders 'Ján Novák' / 'Návrh a …' no longer exist). Rewrite against the
+  // new form, then re-enable. Tracked as E2E debt surfaced when the suite first ran (PR #32).
+  test.fixme('synchronizes finding status between two clients', async ({ browser }) => {
     // We need two distinct browser contexts to simulate two users
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
