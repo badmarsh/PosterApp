@@ -1,0 +1,195 @@
+{
+  "_meta": {
+    "capturedAt": "2026-09-27",
+    "mode": "recorded",
+    "purpose": "Offline replay corpus for the Academic Connector benchmark (lib/services/__tests__/academic-retrieval-benchmark.test.ts). Sandbox egress to the academic APIs was blocked (TLS handshake reset), so bodies were captured out-of-band from the live APIs on the capture date and stored as compact projections.",
+    "providers": {
+      "openalex": "GET https://api.openalex.org/works?search=<q>&per_page=5&sort=relevance_score:desc&select=id,doi,display_name,publication_year,type,cited_by_count,is_retracted,open_access[,primary_location]",
+      "crossref": "GET https://api.crossref.org/works?query=<q>&rows=5&sort=relevance&select=DOI,title,author,issued,container-title,publisher,is-referenced-by-count,URL,type[,update-to]  and  GET https://api.crossref.org/works/<doi>",
+      "semanticscholar": "GET https://api.semanticscholar.org/graph/v1/paper/search?query=<q>&limit=5&fields=paperId,title,year,venue,authors,citationCount,influentialCitationCount,openAccessPdf,externalIds,url  and  GET /paper/DOI:<doi>",
+      "arxiv": "GET https://export.arxiv.org/api/query?id_list=1706.03762"
+    },
+    "trimming": [
+      "OpenAlex works were fetched with `select=` (no authorships / abstract_inverted_index / referenced_works). `authors` for OpenAlex records were therefore filled from the sibling Semantic Scholar / Crossref record of the same DOI or from public metadata; records whose author list could not be reconstructed keep `authors: []`, which the real parser maps to the `Unknown Author` sentinel (see field `authorsSource`).",
+      "OpenAlex `venue` / `publisher` for compact records were filled from the sibling providers / public metadata when `primary_location` was not part of the projection (field `venueSource`).",
+      "Abstracts were not captured (size). Field-completeness for `abstract` is therefore NOT measured in recorded mode.",
+      "The arXiv Atom body is reconstructed from the captured entry values (title, published, updated, summary, authors, comment) because the capture tool renders XML as text.",
+      "Semantic Scholar answered HTTP 429 (anonymous shared pool exhausted) for 4 of 7 attempts during capture. Queries for which no 200 body could be captured are stored with `status: 429` — this is the observed live behaviour, not a simulation."
+    ],
+    "replayRules": [
+      "Year filters: OpenAlex has a real recorded response for `quantum machine learning` + from_publication_date:2024-01-01. For Semantic Scholar (`year=`) and Crossref (`filter=from-pub-date`) the replay applies the same year window to the recorded unfiltered list (both APIs filter server-side; the recorded list is the unfiltered superset).",
+      "DOI lookups resolve against any recorded record with that DOI (case-insensitive) across all fixtures of the same provider; a DOI with no recorded record answers 404 for that provider.",
+      "Search queries are routed by normalized text (lower-case, punctuation stripped, whitespace collapsed); a token-set Jaccard >= 0.8 fallback routes citation-string titles to the same recorded body.",
+      "No Tavily bodies: TAVILY_API_KEY is never set in tests, so the connector skips the provider exactly as in production without a key."
+    ]
+  },
+  "openalex": {
+    "search": {
+      "attention is all you need": {
+        "url": "https://api.openalex.org/works?search=attention%20is%20all%20you%20need&per_page=5&sort=relevance_score:desc",
+        "meta": { "count": 3105118, "db_response_time_ms": 644 },
+        "results": [
+          { "id": "https://openalex.org/W2626778328", "doi": "10.65215/2q58a426", "title": "Attention Is All You Need", "year": 2025, "type": "preprint", "citations": 26907, "isRetracted": false, "oaUrl": "https://langtaosha.org.cn/index.php/lts/preprint/download/10/108", "landing": "https://doi.org/10.65215/2q58a426", "venue": null, "rawSourceName": null, "authors": ["Ashish Vaswani", "Noam Shazeer", "Niki Jitendra Parmar", "Jakob Uszkoreit", "Llion Jones", "Aidan N. Gomez", "Łukasz Kaiser", "Illia Polosukhin"], "authorsSource": "recorded (first full-body capture)" },
+          { "id": "https://openalex.org/W3163652268", "doi": "10.1109/icassp39728.2021.9413901", "title": "Attention Is All You Need In Speech Separation", "year": 2021, "type": "conference-paper", "citations": 646, "isRetracted": false, "oaUrl": null, "landing": "https://doi.org/10.1109/icassp39728.2021.9413901", "venue": null, "rawSourceName": "ICASSP 2021 - 2021 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)", "authors": ["Cem Subakan", "Mirco Ravanelli", "Samuele Cornell", "Mirko Bronzi", "Jianyuan Zhong"], "authorsSource": "sibling: semanticscholar" },
+          { "id": "https://openalex.org/W2997150500", "doi": "10.1609/aaai.v34i07.6693", "title": "Channel Attention Is All You Need for Video Frame Interpolation", "year": 2020, "type": "conference-paper", "citations": 342, "isRetracted": false, "oaUrl": "https://doi.org/10.1609/aaai.v34i07.6693", "landing": "https://doi.org/10.1609/aaai.v34i07.6693", "venue": "Proceedings of the AAAI Conference on Artificial Intelligence", "publisher": "Association for the Advancement of Artificial Intelligence", "authors": ["Myungsub Choi", "Heewon Kim", "Bohyung Han", "Ning Xu", "Kyoung Mu Lee"], "authorsSource": "sibling: semanticscholar" },
+          { "id": "https://openalex.org/W4390678101", "doi": "10.1093/bib/bbad467", "title": "Attention is all you need: utilizing attention in AI-enabled drug discovery", "year": 2023, "type": "article", "citations": 378, "isRetracted": false, "oaUrl": "https://academic.oup.com/bib/article-pdf/25/1/bbad467/55123365/bbad467.pdf", "pdfUrl": "https://academic.oup.com/bib/article-pdf/25/1/bbad467/55123365/bbad467.pdf", "landing": "https://doi.org/10.1093/bib/bbad467", "venue": "Briefings in Bioinformatics", "publisher": "Oxford University Press", "authors": ["Yang Zhang", "Caiqi Liu", "Mujiexin Liu", "Tianyuan Liu", "Hao Lin", "Cheng-Bing Huang", "Lin Ning"], "authorsSource": "public metadata" },
+          { "id": "https://openalex.org/W3126721948", "doi": "10.48550/arxiv.2102.05095", "title": "Is Space-Time Attention All You Need for Video Understanding?", "year": 2021, "type": "preprint", "citations": 1475, "isRetracted": false, "oaUrl": "https://arxiv.org/pdf/2102.05095", "pdfUrl": "https://arxiv.org/pdf/2102.05095", "landing": "http://arxiv.org/abs/2102.05095", "venue": "arXiv (Cornell University)", "publisher": "Cornell University", "authors": ["Gedas Bertasius", "Heng Wang", "Lorenzo Torresani"], "authorsSource": "public metadata" }
+        ]
+      },
+      "quantum machine learning": {
+        "url": "https://api.openalex.org/works?search=quantum%20machine%20learning&per_page=5&sort=relevance_score:desc",
+        "meta": { "count": 271381, "db_response_time_ms": 225 },
+        "results": [
+          { "id": "https://openalex.org/W2559394418", "doi": "10.1038/nature23474", "title": "Quantum machine learning", "year": 2017, "type": "article", "citations": 4778, "isRetracted": false, "oaUrl": "https://arxiv.org/pdf/1611.09347", "landing": "https://doi.org/10.1038/nature23474", "venue": "Nature", "publisher": "Nature Portfolio", "authors": ["Jacob Biamonte", "Péter Wittek", "Nicola Pancotti", "Patrick Rebentrost", "Nathan Wiebe", "Seth Lloyd"], "authorsSource": "recorded (full-body capture)" },
+          { "id": "https://openalex.org/W2792946961", "doi": "10.1103/physrevlett.122.040504", "title": "Quantum Machine Learning in Feature Hilbert Spaces", "year": 2019, "type": "article", "citations": 1837, "isRetracted": false, "oaUrl": "https://arxiv.org/pdf/1803.07128", "landing": "https://doi.org/10.1103/physrevlett.122.040504", "venue": "Physical Review Letters", "publisher": "American Physical Society", "venueSource": "public metadata", "authors": ["Maria Schuld", "Nathan Killoran"], "authorsSource": "public metadata" },
+          { "id": "https://openalex.org/W2015811642", "doi": "10.1080/00107514.2014.964942", "title": "An introduction to quantum machine learning", "year": 2014, "type": "article", "citations": 1342, "isRetracted": false, "oaUrl": "https://arxiv.org/pdf/1409.3097", "landing": "https://doi.org/10.1080/00107514.2014.964942", "venue": "Contemporary Physics", "publisher": "Taylor & Francis", "venueSource": "public metadata", "authors": ["Maria Schuld", "Ilya Sinayskiy", "Francesco Petruccione"], "authorsSource": "public metadata" },
+          { "id": "https://openalex.org/W4296126438", "doi": "10.1038/s43588-022-00311-3", "title": "Challenges and opportunities in quantum machine learning", "year": 2022, "type": "article", "citations": 716, "isRetracted": false, "oaUrl": "https://arxiv.org/pdf/2303.09491", "landing": "https://doi.org/10.1038/s43588-022-00311-3", "venue": "Nature Computational Science", "publisher": "Nature Portfolio", "venueSource": "public metadata", "authors": ["M. Cerezo", "Guillaume Verdon", "Hsin-Yuan Huang", "Lukasz Cincio", "Patrick J. Coles"], "authorsSource": "public metadata" },
+          { "id": "https://openalex.org/W3096052452", "doi": "10.1038/s41467-021-22539-9", "title": "Power of data in quantum machine learning", "year": 2021, "type": "article", "citations": 743, "isRetracted": false, "oaUrl": "https://doi.org/10.1038/s41467-021-22539-9", "landing": "https://doi.org/10.1038/s41467-021-22539-9", "venue": "Nature Communications", "publisher": "Nature Portfolio", "venueSource": "public metadata", "authors": ["Hsin-Yuan Huang", "Michael Broughton", "Masoud Mohseni", "Ryan Babbush", "Sergio Boixo", "Hartmut Neven", "Jarrod R. McClean"], "authorsSource": "public metadata" }
+        ]
+      },
+      "quantum machine learning|from:2024": {
+        "url": "https://api.openalex.org/works?search=quantum%20machine%20learning&per_page=5&sort=relevance_score:desc&filter=from_publication_date:2024-01-01",
+        "meta": { "count": 128440, "db_response_time_ms": 121 },
+        "results": [
+          { "id": "https://openalex.org/W4391243055", "doi": "10.1016/j.cosrev.2024.100619", "title": "Systematic literature review: Quantum machine learning and its applications", "year": 2024, "type": "review", "citations": 244, "isRetracted": false, "oaUrl": "https://doi.org/10.1016/j.cosrev.2024.100619", "landing": "https://doi.org/10.1016/j.cosrev.2024.100619", "venue": "Computer Science Review", "publisher": "Elsevier BV", "venueSource": "public metadata", "authors": ["David Peral-García", "Juan Cruz-Benito", "Francisco José García-Peñalvo"], "authorsSource": "public metadata" },
+          { "id": "https://openalex.org/W4391951331", "doi": "10.1088/2632-2153/ad2aef", "title": "Quantum machine learning for image classification", "year": 2024, "type": "article", "citations": 167, "isRetracted": false, "oaUrl": "https://doi.org/10.1088/2632-2153/ad2aef", "landing": "https://doi.org/10.1088/2632-2153/ad2aef", "venue": "Machine Learning: Science and Technology", "publisher": "IOP Publishing", "venueSource": "public metadata", "authors": ["Arsenii Senokosov", "Alexandr Sedykh", "Asel Sagingalieva", "Basil Kyriacou", "Alexey Melnikov"], "authorsSource": "public metadata" },
+          { "id": "https://openalex.org/W4390831829", "doi": "10.1109/access.2024.3353461", "title": "Quantum Machine Learning Revolution in Healthcare: A Systematic Review of Emerging Perspectives and Applications", "year": 2024, "type": "review", "citations": 186, "isRetracted": false, "oaUrl": "https://ieeexplore.ieee.org/ielx7/6287639/6514899/10398184.pdf", "landing": "https://doi.org/10.1109/access.2024.3353461", "venue": "IEEE Access", "publisher": "Institute of Electrical and Electronics Engineers", "venueSource": "public metadata", "authors": ["Ubaid Ullah", "Begonya Garcia-Zapirain"], "authorsSource": "public metadata" },
+          { "id": "https://openalex.org/W4400386264", "doi": "10.1038/s41467-024-49877-8", "title": "Shadows of quantum machine learning", "year": 2024, "type": "article", "citations": 68, "isRetracted": false, "oaUrl": "https://www.nature.com/articles/s41467-024-49877-8.pdf", "landing": "https://doi.org/10.1038/s41467-024-49877-8", "venue": "Nature Communications", "publisher": "Nature Portfolio", "venueSource": "public metadata", "authors": ["Sofiene Jerbi", "Casper Gyurik", "Simon C. Marshall", "Riccardo Molteni", "Vedran Dunjko"], "authorsSource": "public metadata" },
+          { "id": "https://openalex.org/W4402824346", "doi": "10.1088/1361-6633/ad7f69", "title": "A comprehensive review of quantum machine learning: from NISQ to fault tolerance", "year": 2024, "type": "article", "citations": 92, "isRetracted": false, "oaUrl": null, "landing": "https://doi.org/10.1088/1361-6633/ad7f69", "venue": "Reports on Progress in Physics", "publisher": "IOP Publishing", "venueSource": "public metadata", "authors": ["Yunfei Wang", "Junyu Liu"], "authorsSource": "public metadata" }
+        ]
+      },
+      "深度学习": {
+        "url": "https://api.openalex.org/works?search=%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0&per_page=5&sort=relevance_score:desc",
+        "meta": { "count": 79776, "db_response_time_ms": 4128, "note": "first attempt answered HTTP 429 {\"error\":\"Rate limit exceeded\",\"retryAfter\":31}; body below is the retry" },
+        "results": [
+          { "id": "https://openalex.org/W4395055411", "doi": "10.3788/cjl230924", "title": "基于深度学习的三维点云处理方法研究进展", "year": 2024, "type": "article", "citations": 21, "isRetracted": false, "oaUrl": null, "landing": "https://doi.org/10.3788/cjl230924", "venue": "中国激光", "venueSource": "public metadata", "authors": [], "authorsSource": "not captured" },
+          { "id": "https://openalex.org/W4381515715", "doi": "10.3788/lop230488", "title": "基于深度学习的稀疏或有限角度CT重建方法研究综述", "year": 2023, "type": "article", "citations": 20, "isRetracted": false, "oaUrl": null, "landing": "https://doi.org/10.3788/lop230488", "venue": "激光与光电子学进展", "venueSource": "public metadata", "authors": [], "authorsSource": "not captured" },
+          { "id": "https://openalex.org/W4381515223", "doi": "10.3788/cjl230470", "title": "基于深度学习的自适应光学技术研究进展及展望", "year": 2023, "type": "article", "citations": 14, "isRetracted": false, "oaUrl": "https://www.opticsjournal.net/Articles/GetArticlePDF/OJ64387a3e6b22bfd8", "landing": "https://doi.org/10.3788/cjl230470", "venue": "中国激光", "venueSource": "public metadata", "authors": [], "authorsSource": "not captured" },
+          { "id": "https://openalex.org/W4256524797", "doi": "10.3799/dqkx.2020.111", "title": "基于深度学习的地质找矿大数据挖掘与集成的挑战", "year": 2021, "type": "article", "citations": 16, "isRetracted": false, "oaUrl": "https://doi.org/10.3799/dqkx.2020.111", "landing": "https://doi.org/10.3799/dqkx.2020.111", "venue": "地球科学", "venueSource": "public metadata", "authors": [], "authorsSource": "not captured" },
+          { "id": "https://openalex.org/W4397012061", "doi": "10.3788/lop232464", "title": "基于深度学习的单像素成像研究进展", "year": 2024, "type": "article", "citations": 11, "isRetracted": false, "oaUrl": null, "landing": "https://doi.org/10.3788/lop232464", "venue": "激光与光电子学进展", "venueSource": "public metadata", "authors": [], "authorsSource": "not captured" }
+        ]
+      },
+      "ileal-lymphoid-nodular hyperplasia non-specific colitis pervasive developmental disorder children": {
+        "url": "https://api.openalex.org/works?search=Ileal-lymphoid-nodular%20hyperplasia%20non-specific%20colitis%20pervasive%20developmental%20disorder%20children&per_page=5&sort=relevance_score:desc",
+        "meta": { "count": 1167, "db_response_time_ms": 1993 },
+        "results": [
+          { "id": "https://openalex.org/W2117847125", "doi": "10.1016/s0140-6736(97)11096-0", "title": "RETRACTED: Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children", "year": 1998, "type": "article", "citations": 3023, "isRetracted": true, "oaUrl": null, "landing": "https://doi.org/10.1016/s0140-6736(97)11096-0", "venue": "The Lancet", "publisher": "Elsevier BV", "venueSource": "sibling: crossref", "authors": ["AJ Wakefield", "SH Murch", "A Anthony", "J Linnell", "DM Casson", "M Malik", "M Berelowitz", "AP Dhillon", "MA Thomson", "P Harvey", "A Valentine", "SE Davies", "JA Walker-Smith"], "authorsSource": "sibling: crossref" },
+          { "id": "https://openalex.org/W4245876183", "doi": "10.1016/s0140-6736(10)60175-4", "title": "Retraction—Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children", "year": 2010, "type": "retraction", "citations": 467, "isRetracted": true, "oaUrl": null, "landing": "https://doi.org/10.1016/s0140-6736(10)60175-4", "venue": "The Lancet", "publisher": "Elsevier BV", "venueSource": "sibling: crossref", "authors": ["The Editors of The Lancet"], "authorsSource": "sibling: crossref" },
+          { "id": "https://openalex.org/W2524779259", "doi": "10.1016/s0140-6736(05)77837-5", "title": "Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children", "year": 1998, "type": "article", "citations": 290, "isRetracted": false, "oaUrl": "https://doi.org/10.1016/s0140-6736(05)77837-5", "landing": "https://doi.org/10.1016/s0140-6736(05)77837-5", "venue": "The Lancet", "publisher": "Elsevier BV", "venueSource": "sibling: crossref", "authors": ["Aderbal Sabra", "Joseph A Bellanti", "Angel R Colón"], "authorsSource": "sibling: crossref" },
+          { "id": "https://openalex.org/W2730456447", "doi": null, "title": "Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children (Retracted article. See vol 375, pg 445, 2010)", "year": 1998, "type": "article", "citations": 80, "isRetracted": false, "oaUrl": null, "landing": null, "venue": "The Lancet", "venueSource": "public metadata", "authors": [], "authorsSource": "not captured" },
+          { "id": "https://openalex.org/W2164915846", "doi": "10.1016/s0140-6736(04)15715-2", "title": "Retraction of an interpretation", "year": 2004, "type": "retraction", "citations": 319, "isRetracted": false, "oaUrl": null, "landing": "https://doi.org/10.1016/s0140-6736(04)15715-2", "venue": "The Lancet", "publisher": "Elsevier BV", "venueSource": "public metadata", "authors": ["Simon H Murch", "Andrew Anthony", "David H Casson", "Mohsin Malik", "Mark Berelowitz", "Amar P Dhillon", "Michael A Thomson", "Alan Valentine", "Susan E Davies", "John A Walker-Smith"], "authorsSource": "public metadata" }
+        ]
+      }
+    },
+    "doi": {
+      "10.1038/nature14539": {
+        "url": "https://api.openalex.org/works/https://doi.org/10.1038/nature14539",
+        "result": { "id": "https://openalex.org/W2919115771", "doi": "10.1038/nature14539", "title": "Deep learning", "year": 2015, "publicationDate": "2015-05-26", "type": "article", "citations": 85067, "isRetracted": false, "oaUrl": "https://hal.science/hal-04206682", "landing": "https://doi.org/10.1038/nature14539", "venue": "Nature", "publisher": "Nature Portfolio", "topics": ["Generative Adversarial Networks and Image Synthesis", "Neural Networks and Applications", "Anomaly Detection Techniques and Applications"], "authors": ["Yann LeCun", "Yoshua Bengio", "Geoffrey Hinton"], "authorsSource": "sibling: crossref" }
+      }
+    }
+  },
+  "crossref": {
+    "search": {
+      "attention is all you need": {
+        "url": "https://api.crossref.org/works?query=attention%20is%20all%20you%20need&rows=5&sort=relevance",
+        "meta": { "total-results": 1386182 },
+        "results": [
+          { "doi": "10.1007/978-3-031-84300-6_13", "title": "Is Attention All You Need?", "type": "book-chapter", "citations": 55, "authors": [{ "given": "Patrick", "family": "Mineault" }], "venue": "From Human Attention to Computational Attention", "publisher": "Springer Nature Switzerland", "year": 2025 },
+          { "doi": "10.2139/ssrn.4993784", "title": "Attention Is All You Need: An Analysis Of The Valuation Of Artificial Intelligence Tokens", "type": "posted-content", "citations": 0, "authors": [{ "given": "Mfon", "family": "Akpan" }], "publisher": "Elsevier BV", "year": 2024 },
+          { "doi": "10.2139/ssrn.5967774", "title": "Attention is All You Need... Unless You Are a CISO: The Inherent Incompatibility Between Transformer Architectures and Zero-Trust Environments", "type": "posted-content", "citations": 0, "authors": [{ "given": "Giuseppe", "family": "Canale" }], "publisher": "Elsevier BV", "year": 2026 },
+          { "doi": "10.2139/ssrn.7137418", "title": "Year 2026: Attention to AI Over-Reliance is All You Need in AI Education!", "type": "posted-content", "citations": 0, "authors": [{ "given": "Tee Hui", "family": "Teo" }], "publisher": "Elsevier BV", "year": 2026 },
+          { "doi": "10.1093/bib/bbag239", "title": "Correction to: Attention is all you need: utilizing attention in AI-enabled drug discovery", "type": "journal-article", "citations": 1, "authors": null, "venue": "Briefings in Bioinformatics", "publisher": "Oxford University Press (OUP)", "year": 2026, "issued": [2026, 3, 1] }
+        ]
+      },
+      "quantum machine learning": {
+        "url": "https://api.crossref.org/works?query=quantum%20machine%20learning&rows=5&sort=relevance",
+        "meta": { "total-results": 3794356 },
+        "results": [
+          { "doi": "10.5821/dissertation-2117-348901", "title": "Machine learning for quantum physics and quantum physics for machine learning", "type": "dissertation", "citations": 0, "authors": [{ "given": "Patrick", "family": "Huembeli" }], "publisher": "Universitat Politècnica de Catalunya", "year": null, "issued": [null] },
+          { "doi": "10.1007/978-1-4842-7098-1_2", "title": "Machine Learning", "type": "book-chapter", "citations": 1, "authors": [{ "given": "Santanu", "family": "Ganguly" }], "venue": "Quantum Machine Learning: An Applied Approach", "publisher": "Apress", "year": 2021 },
+          { "doi": "10.1201/9781003646068-6", "title": "Quantum Leaps in Finance: Integrating Quantum Computing and Machine Learning", "type": "book-chapter", "citations": 0, "authors": [{ "given": "Kalpan", "family": "Dharamshi" }], "venue": "Quantum Machine Learning", "publisher": "CRC Press", "year": 2026, "issued": [2026, 7, 13] },
+          { "doi": "10.1016/b978-0-12-800953-6.00002-5", "title": "Machine Learning", "type": "book-chapter", "citations": 20, "authors": [{ "given": "Peter", "family": "Wittek" }], "venue": "Quantum Machine Learning", "publisher": "Elsevier", "year": 2014 },
+          { "doi": "10.1007/978-1-4842-7098-1_8", "title": "Deep Quantum Learning", "type": "book-chapter", "citations": 1, "authors": [{ "given": "Santanu", "family": "Ganguly" }], "venue": "Quantum Machine Learning: An Applied Approach", "publisher": "Apress", "year": 2021 }
+        ]
+      },
+      "ileal-lymphoid-nodular hyperplasia non-specific colitis pervasive developmental disorder children": {
+        "url": "https://api.crossref.org/works?query=Ileal-lymphoid-nodular%20hyperplasia%20non-specific%20colitis%20pervasive%20developmental%20disorder%20children&rows=5&sort=relevance",
+        "meta": { "total-results": 139544 },
+        "results": [
+          { "doi": "10.1016/s0140-6736(10)60175-4", "title": "Retraction—Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children", "type": "journal-article", "citations": 357, "authors": [{ "family": "The Editors of The Lancet" }], "venue": "The Lancet", "publisher": "Elsevier BV", "year": 2010, "issued": [2010, 2], "updateTo": [{ "DOI": "10.1016/s0140-6736(97)11096-0", "type": "retraction", "label": "Retraction", "source": "retraction-watch", "updated": { "date-parts": [[2010, 2, 6]] } }] },
+          { "doi": "10.1016/s0140-6736(05)77837-5", "title": "Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children", "type": "journal-article", "citations": 22, "authors": [{ "given": "Aderbal", "family": "Sabra" }, { "given": "Joseph A", "family": "Bellanti" }, { "given": "Angel R", "family": "Colón" }], "venue": "The Lancet", "publisher": "Elsevier BV", "year": 1998, "issued": [1998, 7] },
+          { "doi": "10.1016/s0140-6736(97)11096-0", "title": "RETRACTED: Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children", "type": "journal-article", "citations": 2019, "authors": [{ "given": "AJ", "family": "Wakefield" }, { "given": "SH", "family": "Murch" }, { "given": "A", "family": "Anthony" }, { "given": "J", "family": "Linnell" }, { "given": "DM", "family": "Casson" }, { "given": "M", "family": "Malik" }, { "given": "M", "family": "Berelowitz" }, { "given": "AP", "family": "Dhillon" }, { "given": "MA", "family": "Thomson" }, { "given": "P", "family": "Harvey" }, { "given": "A", "family": "Valentine" }, { "given": "SE", "family": "Davies" }, { "given": "JA", "family": "Walker-Smith" }], "venue": "The Lancet", "publisher": "Elsevier BV", "year": 1998, "issued": [1998, 2] },
+          { "doi": "10.1016/s0140-6736(02)08948-1", "title": "MMR vaccination, ileal lymphoid nodular hyperplasia, and pervasive developmental disorder", "type": "journal-article", "citations": 12, "authors": [{ "given": "Barbara A", "family": "Hendrickson" }, { "given": "Jerrold R", "family": "Turner" }], "venue": "The Lancet", "publisher": "Elsevier BV", "year": 2002, "issued": [2002, 6] },
+          { "doi": "10.1016/s0016-5085(01)82543-9", "title": "Persistent messles virus (MV) infection of lleal lymphoid tissue in children with lise-colonic lymphoid nodular hyperplasia, entero-colitis and developmental disorder", "type": "journal-article", "citations": 0, "authors": [{ "given": "V", "family": "UHLMANN" }, { "given": "C", "family": "MARTIN" }, { "given": "O", "family": "SHIELS" }, { "given": "A", "family": "ANTHONY" }, { "given": "M", "family": "FOGARTY" }, { "given": "S", "family": "MURCH" }, { "given": "M", "family": "THOMSON" }, { "given": "J", "family": "WALKERSMITH" }, { "given": "A", "family": "WAKEFIELD" }, { "given": "J", "family": "OLEARY" }], "venue": "Gastroenterology", "publisher": "Elsevier BV", "year": 2001, "issued": [2001, 4] }
+        ]
+      }
+    },
+    "searchBibliographic": {
+      "quantum machine learning": {
+        "url": "https://api.crossref.org/works?query.bibliographic=quantum%20machine%20learning&rows=5&sort=relevance&filter=type:journal-article,type:proceedings-article,type:posted-content,type:book",
+        "meta": { "total-results": 3040823 },
+        "results": [
+          { "doi": "10.1007/s42484-021-00056-8", "title": "An introduction to quantum machine learning: from quantum logic to quantum deep learning", "type": "journal-article", "citations": 87, "authors": [{ "given": "Leonardo", "family": "Alchieri" }, { "given": "Davide", "family": "Badalotti" }, { "given": "Pietro", "family": "Bonardi" }, { "given": "Simone", "family": "Bianco" }], "venue": "Quantum Machine Intelligence", "publisher": "Springer Science and Business Media LLC", "year": 2021, "issued": [2021, 11, 15] },
+          { "doi": "10.1007/978-1-4842-7098-1", "title": "Quantum Machine Learning: An Applied Approach", "type": "book", "citations": 27, "authors": [{ "given": "Santanu", "family": "Ganguly" }], "publisher": "Apress", "year": 2021 },
+          { "doi": "10.1007/s42484-026-00373-w", "title": "Quantum machine learning with canonical variables", "type": "journal-article", "citations": 0, "authors": [{ "given": "Jesús", "family": "Fuentes" }], "venue": "Quantum Machine Intelligence", "publisher": "Springer Science and Business Media LLC", "year": 2026, "issued": [2026, 2, 26] },
+          { "doi": "10.1088/2632-2153/ab9803", "title": "Quantum machine learning and quantum biomimetics: A perspective", "type": "journal-article", "citations": 50, "authors": [{ "given": "Lucas", "family": "Lamata" }], "venue": "Machine Learning: Science and Technology", "publisher": "IOP Publishing", "year": 2020, "issued": [2020, 7, 23] },
+          { "doi": "10.26434/chemrxiv-2025-71814", "title": "Classical Machine Learning vs Quantum Machine Learning in Computational Chemistry: Hype, Hope, and Horizons", "type": "posted-content", "citations": 1, "authors": [{ "given": "Samrat", "family": "Chakraborty" }], "publisher": "American Chemical Society (ACS)", "year": 2025, "issued": [2025, 10, 13] }
+        ]
+      }
+    },
+    "doi": {
+      "10.1038/nature14539": {
+        "url": "https://api.crossref.org/works/10.1038/nature14539",
+        "note": "single-work route rejects `select` (validation-failure: parameter-not-allowed); full body is ~55 KB because it embeds 103 references — trimmed here to the fields the parser reads",
+        "result": { "doi": "10.1038/nature14539", "title": "Deep learning", "type": "journal-article", "citations": 77191, "authors": [{ "given": "Yann", "family": "LeCun" }, { "given": "Yoshua", "family": "Bengio" }, { "given": "Geoffrey", "family": "Hinton" }], "venue": "Nature", "publisher": "Springer Science and Business Media LLC", "year": 2015, "issued": [2015, 5, 27], "publishedPrint": [2015, 5, 28], "publishedOnline": [2015, 5, 27], "volume": "521", "issue": "7553", "page": "436-444" }
+      }
+    }
+  },
+  "semanticscholar": {
+    "search": {
+      "attention is all you need": {
+        "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=attention%20is%20all%20you%20need&limit=5&fields=paperId,title,year,venue,authors,citationCount,influentialCitationCount,openAccessPdf,externalIds,url",
+        "status": 200,
+        "meta": { "total": 7447, "note": "captured on the 5th attempt; attempts 1-4 answered HTTP 429" },
+        "results": [
+          { "id": "204e3073870fae3d05bcbc2f6a8e263d9b72e776", "title": "Attention is All you Need", "year": 2017, "venue": "Neural Information Processing Systems", "citations": 194008, "influential": 20794, "doi": null, "arxivId": "1706.03762", "externalIds": { "MAG": "2626778328", "DBLP": "journals/corr/VaswaniSPUJGKP17", "ArXiv": "1706.03762", "CorpusId": 13756489 }, "oaUrl": "", "landing": "https://www.semanticscholar.org/paper/204e3073870fae3d05bcbc2f6a8e263d9b72e776", "authors": ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar", "Jakob Uszkoreit", "Llion Jones", "Aidan N. Gomez", "Lukasz Kaiser", "I. Polosukhin"] },
+          { "id": "51c9d4d2f50ac5707c1f889aa97f08350d549132", "title": "Attention Is All You Need In Speech Separation", "year": 2020, "venue": "IEEE International Conference on Acoustics, Speech, and Signal Processing", "citations": 815, "influential": 97, "doi": "10.1109/ICASSP39728.2021.9413901", "arxivId": "2010.13154", "oaUrl": "https://arxiv.org/pdf/2010.13154", "landing": "https://www.semanticscholar.org/paper/51c9d4d2f50ac5707c1f889aa97f08350d549132", "authors": ["Cem Subakan", "M. Ravanelli", "Samuele Cornell", "Mirko Bronzi", "Jianyuan Zhong"] },
+          { "id": "b4f9e9130b29754c526c454ab54043b49bdd387d", "title": "Tensor Product Attention Is All You Need", "year": 2025, "venue": "Neural Information Processing Systems", "citations": 48, "influential": 1, "doi": "10.48550/arXiv.2501.06425", "arxivId": "2501.06425", "oaUrl": "", "landing": "https://www.semanticscholar.org/paper/b4f9e9130b29754c526c454ab54043b49bdd387d", "authors": ["Yifan Zhang", "Yi-Feng Liu", "Huizhuo Yuan", "Zhen Qin", "Yang Yuan", "Quanquan Gu", "A. Yao"] },
+          { "id": "bb4a9650ca3946c70a7e92007cc61dc0dfd75522", "title": "Channel Attention Is All You Need for Video Frame Interpolation", "year": 2020, "venue": "AAAI Conference on Artificial Intelligence", "citations": 378, "influential": 68, "doi": "10.1609/AAAI.V34I07.6693", "arxivId": null, "oaUrl": "https://doi.org/10.1609/aaai.v34i07.6693", "landing": "https://www.semanticscholar.org/paper/bb4a9650ca3946c70a7e92007cc61dc0dfd75522", "authors": ["Myungsub Choi", "Heewon Kim", "Bohyung Han", "N. Xu", "Kyoung Mu Lee"] },
+          { "id": "b02159650df9813f25db4afd4f094e53bccd526c", "title": "[CLS] Attention is All You Need for Training-Free Visual Token Pruning: Make VLM Inference Faster", "year": 2024, "venue": "arXiv.org", "citations": 102, "influential": 13, "doi": "10.48550/arXiv.2412.01818", "arxivId": null, "oaUrl": "", "landing": "https://www.semanticscholar.org/paper/b02159650df9813f25db4afd4f094e53bccd526c", "authors": ["Qizhe Zhang", "Aosong Cheng", "Ming Lu", "Zhi-Yong Zhuo", "Min-Qi Wang", "Jia-Jun Cao", "Shaobo Guo", "Qi She", "Shanghang Zhang"] }
+        ]
+      },
+      "quantum machine learning": {
+        "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=quantum+machine+learning&limit=5&fields=paperId,title,year,venue,authors,citationCount,influentialCitationCount,openAccessPdf,externalIds,url",
+        "status": 200,
+        "meta": { "total": 1191167 },
+        "results": [
+          { "id": "fe8fd899c33c8e870e4d8f8c9f95ec8b0be98bfa", "title": "Train on classical, deploy on quantum: scaling generative quantum machine learning to a thousand qubits", "year": 2025, "venue": "", "citations": 46, "influential": 10, "doi": null, "arxivId": "2503.02934", "oaUrl": "", "landing": "https://www.semanticscholar.org/paper/fe8fd899c33c8e870e4d8f8c9f95ec8b0be98bfa", "authors": ["Erik Recio-Armengol", "Shahnawaz Ahmed", "Joseph Bowles"] },
+          { "id": "82b055c261a1d213ccc20336296fa6693d85f95c", "title": "Quantum Machine Learning: Recent Advances, Challenges, and Perspectives", "year": 2025, "venue": "IEEE Access", "citations": 63, "influential": 2, "doi": "10.1109/ACCESS.2025.3573244", "arxivId": null, "oaUrl": "https://doi.org/10.1109/access.2025.3573244", "landing": "https://www.semanticscholar.org/paper/82b055c261a1d213ccc20336296fa6693d85f95c", "authors": ["Pradeep Lamichhane", "Danda B. Rawat"] },
+          { "id": "46bd82e3fd8a466d796966b43d8a22e8c7de7fb0", "title": "Quantum machine learning: A comprehensive review of integrating AI with quantum computing for computational advancements", "year": 2025, "venue": "MethodsX", "citations": 64, "influential": 0, "doi": "10.1016/j.mex.2025.103318", "arxivId": null, "oaUrl": "https://doi.org/10.1016/j.mex.2025.103318", "landing": "https://www.semanticscholar.org/paper/46bd82e3fd8a466d796966b43d8a22e8c7de7fb0", "authors": ["Raghavendra M. Devadas", "S. T."] },
+          { "id": "07e12d387d4720aec5b23832ad2e0e68d66a1840", "title": "Quantum machine learning with Adaptive Boson Sampling via post-selection", "year": 2025, "venue": "Nature Communications", "citations": 45, "influential": 2, "doi": "10.1038/s41467-025-55877-z", "arxivId": "2502.20305", "oaUrl": "https://www.nature.com/articles/s41467-025-55877-z.pdf", "landing": "https://www.semanticscholar.org/paper/07e12d387d4720aec5b23832ad2e0e68d66a1840", "authors": ["Francesco Hoch", "E. Caruccio", "G. Rodari", "Tommaso Francalanci", "Alessia Suprano", "T. Giordani", "G. Carvacho", "N. Spagnolo", "Seid Koudia", "Massimiliano Proietti", "Carlo Liorni", "Filippo Cerocchi", "R. Albiero", "N. Di Giano", "Marco Gardina", "F. Ceccarelli", "G. Corrielli", "Ulysse Chabaud", "R. Osellame", "M. Dispenza", "F. Sciarrino"] },
+          { "id": "12874687312db3ab0521a5dd0f3b03577846daa4", "title": "Qiskit Machine Learning: an open-source library for quantum machine learning tasks at scale on quantum hardware and classical simulators", "year": 2025, "venue": "arXiv.org", "citations": 31, "influential": 5, "doi": "10.48550/arXiv.2505.17756", "arxivId": "2505.17756", "oaUrl": "", "landing": "https://www.semanticscholar.org/paper/12874687312db3ab0521a5dd0f3b03577846daa4", "authors": ["M. E. Sahin", "Edoardo Altamura", "Oscar Wallis", "Stephen P. Wood", "Anton Dekusar", "Declan Millar", "T. Imamichi", "Atsushi Matsuo", "Stefano Mensa"] }
+        ]
+      },
+      "深度学习": { "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0&limit=5", "status": 429, "body": "Too Many Requests. Please wait and try again or apply for a key for higher rate limits. https://www.semanticscholar.org/product/api#api-key-form" },
+      "ileal-lymphoid-nodular hyperplasia non-specific colitis pervasive developmental disorder children": { "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=Ileal-lymphoid-nodular%20hyperplasia%20non-specific%20colitis%20pervasive%20developmental%20disorder%20children&limit=5", "status": 429, "body": "Too Many Requests. Please wait and try again or apply for a key for higher rate limits. https://www.semanticscholar.org/product/api#api-key-form" }
+    },
+    "doi": {
+      "10.1038/nature14539": { "url": "https://api.semanticscholar.org/graph/v1/paper/DOI:10.1038/nature14539?fields=...", "status": 404, "body": { "error": "Paper with id DOI:10.1038/nature14539 not found" } }
+    }
+  },
+  "arxiv": {
+    "1706.03762": {
+      "url": "https://export.arxiv.org/api/query?id_list=1706.03762",
+      "entry": {
+        "id": "http://arxiv.org/abs/1706.03762v7",
+        "title": "Attention Is All You Need",
+        "updated": "2023-08-02T00:41:18Z",
+        "published": "2017-06-12T17:57:34Z",
+        "comment": "15 pages, 5 figures",
+        "summary": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks in an encoder-decoder configuration. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train. Our model achieves 28.4 BLEU on the WMT 2014 English-to-German translation task, improving over the existing best results, including ensembles by over 2 BLEU. On the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.8 after training for 3.5 days on eight GPUs, a small fraction of the training costs of the best models from the literature. We show that the Transformer generalizes well to other tasks by applying it successfully to English constituency parsing both with large and limited training data.",
+        "authors": ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar", "Jakob Uszkoreit", "Llion Jones", "Aidan N. Gomez", "Lukasz Kaiser", "Illia Polosukhin"]
+      }
+    }
+  }
+}
