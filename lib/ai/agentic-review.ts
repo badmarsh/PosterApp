@@ -130,7 +130,7 @@ export async function reviewCriterionWithEvidence(
 
   // 1. Retrieve criterion-specific evidence (top chunks, compressed).
   const expansion = getThesisCriterionQueryExpansion(criterion.id, ctx.language)
-  const query = buildCriterionRetrievalQuery(criterion.id, criterion.label, criterion.guidance, ctx.language)
+  const query = buildCriterionRetrievalQuery(criterion.id, criterion.label, criterion.guidance, ctx.language, { thesisTitle: ctx.documentTitle })
   const { chunks } = await retrieveForCriterion(ctx.workspaceId, query, {
     topK: 6,
     criterionId: criterion.id,

@@ -283,7 +283,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       await Promise.all(
         batchC.map(async (c) => {
           const expansion = getThesisCriterionQueryExpansion(c.id, lang)
-          const query = buildCriterionRetrievalQuery(c.id, c.labels[lang], c.guidance[lang], lang)
+          const query = buildCriterionRetrievalQuery(c.id, c.labels[lang], c.guidance[lang], lang, normalizedMetadata)
           const { chunks, communityContext } = await retrieveForCriterion(workspaceId, query, {
             topK: 8,
             lambda: 0.7,

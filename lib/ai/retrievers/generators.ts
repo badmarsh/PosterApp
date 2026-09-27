@@ -10,6 +10,7 @@
  * @module retrievers/generators
  */
 
+import { applySectionBoost, mergeDenseCandidates } from "./candidate-ranking"
 import { prisma } from "@/lib/prisma"
 import { Prisma } from "@prisma/client"
 import { applyHnswSessionTuning, buildFtsQuery, inTransaction, retrievalJoin, type RetrievalFilter } from "../retrieval-sql"
@@ -30,19 +31,6 @@ function baseFilter(ctx: RetrievalContext, extra: Partial<RetrievalFilter> = {})
     pageRange: ctx.pageRange,
     ...extra,
   }
-}
-
-/** Section-path boost: a soft preference, applied after the fact so it cannot hide a hit. */
-function applySectionBoost(candidates: RetrievalCandidate[], prefixes: string[] | undefined, boost = 1.15): RetrievalCandidate[] {
-  if (!prefixes || prefixes.length === 0) return candidates
-  const lowered = prefixes.map((p) => p.toLowerCase())
-  return candidates
-    .map((c) => {
-      const path = (c.sectionPath ?? "").toLowerCase()
-      const hit = lowered.some((p) => path.includes(p))
-      return hit ? { ...c, score: c.score * boost, meta: { ...(c.meta ?? {}), sectionBoost: true } } : c
-    })
-    .sort((a, b) => b.score - a.score)
 }
 
 // ---------------------------------------------------------------------------
@@ -81,13 +69,7 @@ export const denseRetriever: CandidateGenerator = {
 
     // Multiple query vectors (fan-out / HyDE): keep the best similarity per chunk.
     const all = await inTransaction(prisma, run)
-    const best = new Map<string, RetrievalCandidate>()
-    for (const c of all) {
-      const prev = best.get(c.id)
-      if (!prev || c.score > prev.score) best.set(c.id, c)
-    }
-    const merged = Array.from(best.values()).sort((a, b) => b.score - a.score)
-    return applySectionBoost(merged, ctx.sectionPathPrefixes).slice(0, ctx.limit)
+    return mergeDenseCandidates(all, ctx.sectionPathPrefixes, ctx.limit)
   },
 }
 

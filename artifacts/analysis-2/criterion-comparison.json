@@ -3,7 +3,7 @@
   "indexSha256": "0897ff5e92833312328fac30cbe4e9638a7bf9fca6660dcbc33aaca344bf26ac",
   "model": "Xenova/all-MiniLM-L6-v2",
   "passageUnits": 473,
-  "queryFingerprint": "d2b246593a03bc14b920555407348870a25f1737eb2bf8cb3370aa81d79817ff",
+  "queryFingerprint": "2b184e742c52d0ebf7137dcddb0467c1e4d3901eca7f2b832171850d2fe5686b",
   "fallbackCount": 0,
   "protectedIds": [
     "methodology_rigor",
@@ -31,7 +31,7 @@
         {
           "id": "methodology_rigor",
           "baselineQuery": "Methodological appropriateness and procedure Selection and rationale of methods, procedure description, sample/materials, and validation. Caution: Missing text in parser excerpt is not conclusive proof of total absence.",
-          "candidateQuery": "Methodological appropriateness and procedure Selection and rationale of methods, procedure description, sample/materials, and validation. Caution: Missing text in parser excerpt is not conclusive proof of total absence.",
+          "candidateQuery": "Measurement method, likelihood model and fitting procedure, with assumptions and parameter definitions.",
           "baseline": {
             "hit5": true,
             "top5": [
@@ -71,34 +71,34 @@
             "hit5": true,
             "top5": [
               {
-                "id": "chk-282f0491b57337fbed236456",
-                "heading": "reconstruction [2/3]",
+                "id": "chk-126375779aa98b4afdc5a39d",
+                "heading": "6.2 Fit setup [1/2]",
                 "page": null,
                 "relevant": true
               },
               {
-                "id": "chk-839729ac76b9553165532ad6",
-                "heading": "Run 2 response distributions [8/11]",
+                "id": "chk-c50d368f933a6ae6bce4647d",
+                "heading": "7.1 Pre-fit and post-fit W -mass distribution parame- [1/2]",
+                "page": null,
+                "relevant": true
+              },
+              {
+                "id": "chk-da6ba319ee11ad3535cf74dd",
+                "heading": "6.1 JES and JER parametrisation",
                 "page": null,
                 "relevant": false
               },
               {
-                "id": "chk-0410586a4f68708005d8821a",
-                "heading": "Run 2 response distributions [10/11]",
+                "id": "chk-1a12648da096765c4a4bc5b4",
+                "heading": "7.3 Fit validation [1/2]",
                 "page": null,
-                "relevant": false
+                "relevant": true
               },
               {
-                "id": "chk-7edb0f5b3dff1907d9029ab4",
-                "heading": "Run 2 response distributions [10/11]",
+                "id": "chk-c97c4f6f1ad1aaa34b3864cc",
+                "heading": "6.2 Fit setup [2/2]",
                 "page": null,
-                "relevant": false
-              },
-              {
-                "id": "chk-e467b88a1f87a494475f5211",
-                "heading": "Run 2 response distributions [2/11]",
-                "page": null,
-                "relevant": false
+                "relevant": true
               }
             ]
           }
@@ -569,7 +569,7 @@
         {
           "id": "methodology_rigor",
           "baselineQuery": "Methodological appropriateness and procedure Selection and rationale of methods, procedure description, sample/materials, and validation. Caution: Missing text in parser excerpt is not conclusive proof of total absence.",
-          "candidateQuery": "Methodological appropriateness and procedure Selection and rationale of methods, procedure description, sample/materials, and validation. Caution: Missing text in parser excerpt is not conclusive proof of total absence.",
+          "candidateQuery": "Measurement method, likelihood model and fitting procedure, with assumptions and parameter definitions.",
           "baseline": {
             "hit5": true,
             "top5": [
@@ -609,34 +609,34 @@
             "hit5": true,
             "top5": [
               {
-                "id": "chk-282f0491b57337fbed236456",
-                "heading": "reconstruction [2/3]",
+                "id": "chk-c50d368f933a6ae6bce4647d",
+                "heading": "7.1 Pre-fit and post-fit W -mass distribution parame- [1/2]",
                 "page": null,
                 "relevant": true
               },
               {
-                "id": "chk-ca93500becd282077c4f8590",
-                "heading": "Analysis-specific object definitions [3/4]",
+                "id": "chk-6b16abb4ce092fa317f5e497",
+                "heading": "6.2 Fit setup [1/2]",
                 "page": null,
                 "relevant": true
               },
               {
-                "id": "chk-955878aa705ad97fa43b3f79",
-                "heading": "Analysis-specific object definitions [1/4]",
+                "id": "chk-126375779aa98b4afdc5a39d",
+                "heading": "6.2 Fit setup [1/2]",
                 "page": null,
                 "relevant": true
               },
               {
-                "id": "chk-839729ac76b9553165532ad6",
-                "heading": "Run 2 response distributions [8/11]",
+                "id": "chk-da6ba319ee11ad3535cf74dd",
+                "heading": "6.1 JES and JER parametrisation",
                 "page": null,
                 "relevant": false
               },
               {
-                "id": "chk-0410586a4f68708005d8821a",
-                "heading": "Run 2 response distributions [10/11]",
+                "id": "chk-1a12648da096765c4a4bc5b4",
+                "heading": "7.3 Fit validation [1/2]",
                 "page": null,
-                "relevant": false
+                "relevant": true
               }
             ]
           }
