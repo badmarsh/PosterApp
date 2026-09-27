@@ -19,6 +19,8 @@ export function parseArxivId(input: string): string | null {
 }
 
 import { assertSafeExternalUrl, sanitizeFilename } from "@/lib/security"
+import { ACADEMIC_TIMEOUTS_MS, boundedSignal, isAbortLike } from "./academic-http"
+import { stripDoi } from "./academic-identifiers"
 
 export function resolvePdfUrl(input: string): { pdfUrl: string; arxivId?: string; filename: string } {
   const trimmed = input.trim()
@@ -47,41 +49,60 @@ export function resolvePdfUrl(input: string): { pdfUrl: string; arxivId?: string
   throw new Error("Invalid URL or arXiv identifier provided")
 }
 
-export async function fetchArxivMetadata(arxivId: string): Promise<PaperMetadata | null> {
+function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&")
+}
+
+export async function fetchArxivMetadata(
+  arxivId: string,
+  options?: { signal?: AbortSignal }
+): Promise<PaperMetadata | null> {
   try {
     const cleanId = arxivId.replace(/v\d+$/, "")
     const apiUrl = `https://export.arxiv.org/api/query?id_list=${encodeURIComponent(cleanId)}`
     const res = await fetch(apiUrl, {
       headers: { "User-Agent": "PosterApp-Scientific-Paper-Importer/1.0" },
-      signal: AbortSignal.timeout(10_000),
+      signal: boundedSignal(options?.signal, ACADEMIC_TIMEOUTS_MS.arxiv),
     })
 
     if (!res.ok) return null
 
     const xml = await res.text()
-    // Simple regex extraction to avoid heavy XML parser dependencies
-    const titleMatch = xml.match(/<entry>[\s\S]*?<title>([\s\S]*?)<\/title>/i)
-    const summaryMatch = xml.match(/<entry>[\s\S]*?<summary>([\s\S]*?)<\/summary>/i)
-    const publishedMatch = xml.match(/<entry>[\s\S]*?<published>(\d{4})/i)
-    
-    // Extract authors
-    const authorMatches = Array.from(xml.matchAll(/<author>[\s\S]*?<name>([\s\S]*?)<\/name>/gi))
-    const authors = authorMatches.map((m) => m[1].trim()).filter(Boolean)
+    const entryMatch = xml.match(/<entry>([\s\S]*?)<\/entry>/i)
+    if (!entryMatch) return null
+    const entry = entryMatch[1]
 
-    const title = titleMatch ? titleMatch[1].replace(/\s+/g, " ").trim() : undefined
-    const abstract = summaryMatch ? summaryMatch[1].replace(/\s+/g, " ").trim() : undefined
+    // Simple regex extraction to avoid heavy XML parser dependencies
+    const titleMatch = entry.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
+    const summaryMatch = entry.match(/<summary[^>]*>([\s\S]*?)<\/summary>/i)
+    const publishedMatch = entry.match(/<published>(\d{4})/i)
+    const doiMatch = entry.match(/<arxiv:doi[^>]*>([\s\S]*?)<\/arxiv:doi>/i)
+
+    // Extract authors
+    const authorMatches = Array.from(entry.matchAll(/<author>[\s\S]*?<name>([\s\S]*?)<\/name>/gi))
+    const authors = authorMatches.map((m) => decodeXmlEntities(m[1]).trim()).filter(Boolean)
+
+    const title = titleMatch ? decodeXmlEntities(titleMatch[1]).replace(/\s+/g, " ").trim() : undefined
+    const abstract = summaryMatch ? decodeXmlEntities(summaryMatch[1]).replace(/\s+/g, " ").trim() : undefined
     const publishedYear = publishedMatch ? publishedMatch[1] : undefined
+    const doi = doiMatch ? stripDoi(doiMatch[1]) || undefined : undefined
 
     return {
       arxivId: cleanId,
       title,
       authors,
       abstract,
+      doi,
       publishedYear,
       pdfUrl: `https://arxiv.org/pdf/${cleanId}.pdf`,
     }
   } catch (err) {
-    console.warn("Arxiv metadata fetch error:", err)
+    if (!isAbortLike(err)) console.warn("Arxiv metadata fetch error:", err)
     return null
   }
 }

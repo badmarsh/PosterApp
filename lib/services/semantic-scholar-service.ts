@@ -1,14 +1,25 @@
 /**
  * Semantic Scholar Graph API v1 client.
- * Free tier: 100 req/s without API key.
- * Optionally reads SEMANTIC_SCHOLAR_API_KEY from env for higher limits.
+ *
+ * Rate limits: unauthenticated calls share one global pool that is frequently exhausted —
+ * during the 2026-09-27 audit most anonymous requests answered HTTP 429. Set
+ * SEMANTIC_SCHOLAR_API_KEY for a dedicated quota. Callers must treat `rate_limited` as
+ * "unknown", never as "not found", and fall back to OpenAlex / Crossref.
  *
  * Docs: https://api.semanticscholar.org/api-docs/graph
  */
 
+import { ACADEMIC_TIMEOUTS_MS, abortableDelay, boundedSignal, isAbortLike } from "./academic-http"
+import { titleMatchConfidence } from "./academic-identifiers"
+
 const SS_BASE = "https://api.semanticscholar.org/graph/v1"
-const SS_TIMEOUT_MS = 10_000
 const MAX_ATTEMPTS = 3
+/**
+ * Longest back-off we are willing to sleep between attempts. A `Retry-After` beyond this
+ * means the shared pool is exhausted for minutes — retrying inside a 25 s audit budget is
+ * pointless, so we report `rate_limited` immediately (with the advertised delay).
+ */
+const MAX_RETRY_DELAY_MS = 5_000
 
 function ssHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
@@ -107,9 +118,7 @@ export async function ssFetch<T>(
     }
 
     try {
-      const fetchSignal = signal
-        ? AbortSignal.any([signal, AbortSignal.timeout(SS_TIMEOUT_MS)])
-        : AbortSignal.timeout(SS_TIMEOUT_MS)
+      const fetchSignal = boundedSignal(signal, ACADEMIC_TIMEOUTS_MS.semanticscholar)
 
       const res = await fetch(url.toString(), {
         headers: ssHeaders(),
@@ -150,17 +159,22 @@ export async function ssFetch<T>(
 
       if (attempt < MAX_ATTEMPTS) {
         const delay = (retryAfterMs ?? 1000) + Math.random() * 300
-        await new Promise((resolve) => setTimeout(resolve, delay))
+        if (delay > MAX_RETRY_DELAY_MS) break
+        const completed = await abortableDelay(delay, signal)
+        if (!completed) return { data: null, status: "timeout", statusCode: lastStatusCode, retryAfterMs }
       }
-    } catch (err: any) {
-      if (err?.name === "TimeoutError" || err?.name === "AbortError") {
+    } catch (err: unknown) {
+      if (isAbortLike(err)) {
         lastStatus = "timeout"
+        // The caller gave up (or our own timeout fired) — retrying cannot help.
+        if (signal?.aborted) return { data: null, status: "timeout", statusCode: lastStatusCode }
       } else {
         lastStatus = "service_error"
       }
 
       if (attempt < MAX_ATTEMPTS) {
-        await new Promise((resolve) => setTimeout(resolve, 500 * attempt + Math.random() * 200))
+        const completed = await abortableDelay(500 * attempt + Math.random() * 200, signal)
+        if (!completed) return { data: null, status: "timeout", statusCode: lastStatusCode }
       }
     }
   }
@@ -177,32 +191,47 @@ export async function ssFetch<T>(
 // Public API
 // ---------------------------------------------------------------------------
 
+export interface ScholarSearchFilters {
+  yearFrom?: number
+  yearTo?: number
+}
+
+/** Semantic Scholar `year` parameter: `2024-`, `-2026` or `2024-2026`. */
+function scholarYearParam(filters?: ScholarSearchFilters): string | undefined {
+  if (!filters?.yearFrom && !filters?.yearTo) return undefined
+  if (filters.yearFrom && filters.yearTo) return `${filters.yearFrom}-${filters.yearTo}`
+  return filters.yearFrom ? `${filters.yearFrom}-` : `-${filters.yearTo}`
+}
+
 /**
  * Search for papers by title/keywords. Returns up to `limit` results.
  */
 export async function searchPaperByTitle(
   query: string,
   limit = 5,
-  signal?: AbortSignal
-): Promise<{ papers: ScholarPaper[]; status: AcademicLookupStatus }> {
+  signal?: AbortSignal,
+  filters?: ScholarSearchFilters
+): Promise<{ papers: ScholarPaper[]; status: AcademicLookupStatus; statusCode?: number; retryAfterMs?: number }> {
   const cleanQuery = query.trim().slice(0, 250)
   if (cleanQuery.length < 3) {
     return { papers: [], status: "invalid_input" }
   }
 
-  const res = await ssFetch<{ data: ScholarPaper[] }>(
-    "/paper/search",
-    {
-      query: cleanQuery,
-      limit: String(limit),
-      fields: "paperId,title,year,venue,authors,abstract,tldr,citationCount,influentialCitationCount,openAccessPdf,externalIds,url",
-    },
-    signal
-  )
+  const params: Record<string, string> = {
+    query: cleanQuery,
+    limit: String(limit),
+    fields: "paperId,title,year,venue,authors,abstract,tldr,citationCount,influentialCitationCount,openAccessPdf,externalIds,url",
+  }
+  const year = scholarYearParam(filters)
+  if (year) params.year = year
+
+  const res = await ssFetch<{ data: ScholarPaper[] }>("/paper/search", params, signal)
 
   return {
     papers: res.data?.data ?? [],
     status: res.status,
+    statusCode: res.statusCode,
+    retryAfterMs: res.retryAfterMs,
   }
 }
 
@@ -284,35 +313,17 @@ export async function verifyCitation(
     return { found: false, status: "not_found", confidence: "not_found", paper: null }
   }
 
-  const topResult = papers[0]
-  const queryNorm = normalizeScholarQuery(cleanTitle)
-  const titleNorm = normalizeScholarQuery(topResult.title)
-
-  // Exact normalized match
-  if (titleNorm === queryNorm) {
-    return { found: true, status: "verified", confidence: "high", paper: topResult }
+  // Best title match among the top hits (the provider's #1 is not always the cited work).
+  const rank = { high: 3, medium: 2, low: 1 } as const
+  let best: { paper: ScholarPaper; confidence: "high" | "medium" | "low" } | null = null
+  for (const paper of papers) {
+    const confidence = titleMatchConfidence(cleanTitle, paper.title ?? "")
+    if (confidence && (!best || rank[confidence] > rank[best.confidence])) best = { paper, confidence }
+    if (best?.confidence === "high") break
   }
 
-  // Substring or Jaccard similarity
-  const qTokens = new Set(queryNorm.split(" ").filter((t) => t.length > 2))
-  const tTokens = new Set(titleNorm.split(" ").filter((t) => t.length > 2))
-
-  if (qTokens.size > 0 && tTokens.size > 0) {
-    const intersection = [...qTokens].filter((t) => tTokens.has(t)).length
-    const union = new Set([...qTokens, ...tTokens]).size
-    const jaccard = intersection / union
-
-    if (jaccard >= 0.65 || titleNorm.includes(queryNorm) || queryNorm.includes(titleNorm)) {
-      return { found: true, status: "verified", confidence: "high", paper: topResult }
-    }
-    if (jaccard >= 0.45) {
-      return { found: true, status: "verified", confidence: "medium", paper: topResult }
-    }
-    if (jaccard >= 0.25) {
-      return { found: true, status: "ambiguous", confidence: "low", paper: topResult }
-    }
-  }
-
-  return { found: false, status: "not_found", confidence: "not_found", paper: null }
+  if (!best) return { found: false, status: "not_found", confidence: "not_found", paper: null }
+  if (best.confidence === "low") return { found: true, status: "ambiguous", confidence: "low", paper: best.paper }
+  return { found: true, status: "verified", confidence: best.confidence, paper: best.paper }
 }
 
