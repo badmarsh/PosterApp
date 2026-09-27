@@ -109,6 +109,17 @@ const nextConfig = {
     "/api/workspaces/[id]/export": ["./public/figures/**", "./public/latex-styles/**", "./public/logos/**"],
     "/api/agent/workspaces/[id]/compile": ["./public/figures/**", "./public/latex-styles/**", "./public/logos/**"],
   },
+  /**
+   * `tmp/yjs` holds the live Yjs LevelDB persistence used by the dev
+   * server's realtime-collaboration backend. Its LOCK file is held
+   * exclusively while `pnpm dev` is running, and Turbopack's build-time
+   * file tracer walking the project root would otherwise fail to read it
+   * on Windows ("os error 32: used by another process") if a build runs
+   * while the dev server is still up. Exclude it from tracing entirely.
+   */
+  outputFileTracingExcludes: {
+    "*": ["./tmp/**"],
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "210mb",
