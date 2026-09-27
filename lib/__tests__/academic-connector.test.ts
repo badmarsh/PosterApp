@@ -56,12 +56,16 @@ describe("Academic Connector Service", () => {
       status: "not_found",
     })
     vi.spyOn(arxivService, "fetchArxivMetadata").mockResolvedValue(mockArxivMeta)
+    // Retraction/enrichment pass looks the DOI up in OpenAlex — keep the unit test offline.
+    const openAlexSpy = vi.spyOn(openalexService, "fetchOpenAlexByDoi").mockResolvedValue(null)
 
     const result = await verifySingleCitation("Smith, A. Physics AI. 2023. arXiv:2301.12345")
     expect(result.verification.found).toBe(true)
     expect(result.status).toBe("verified")
-    expect(result.enriched?.source).toBe("semanticscholar") // shaped into scholar result
+    expect(result.enriched?.source).toBe("arxiv") // provenance is the provider that answered
+    expect(result.enriched?.arxivId).toBe("2301.12345")
     expect(result.enriched?.title).toBe("Deep Learning for Physics Analysis")
+    expect(openAlexSpy).toHaveBeenCalledWith("10.1234/arxiv.2301.12345", undefined)
   })
 
   it("does not require DOI for book citations and checks access date for web resources", () => {
@@ -135,6 +139,9 @@ describe("Academic Connector Service", () => {
       paper: null,
       note: "Rate limited",
     })
+    // The connector now falls back to OpenAlex/Crossref; simulate an outage there too.
+    vi.spyOn(openalexService, "searchOpenAlexWorksDetailed").mockResolvedValue({ status: "timeout", latencyMs: 1, items: [] })
+    vi.spyOn(crossrefService, "searchCrossrefWorksDetailed").mockResolvedValue({ status: "error", latencyMs: 1, items: [] })
 
     const audit = await auditThesisCitations([
       "Attention Is All You Need. 2017.",
@@ -145,6 +152,8 @@ describe("Academic Connector Service", () => {
     expect(audit.unavailable).toBe(2)
     expect(audit.verified).toBe(0)
     expect(audit.summary.unavailable).toBe(2)
+    expect(audit.results[0].status).toBe("rate_limited") // never downgraded to not_found
+    expect(audit.skipped).toBe(0)
   })
 
   it("fetches academic author profile", async () => {
@@ -166,17 +175,21 @@ describe("Academic Connector Service", () => {
   })
 
   it("merges and deduplicates multi-source search results across OpenAlex and Crossref", async () => {
-    vi.spyOn(openalexService, "searchOpenAlexWorks").mockResolvedValue([
-      {
-        id: "https://openalex.org/W1234",
-        title: "Quantum Error Correction",
-        authors: ["Peter Shor"],
-        publicationYear: 1995,
-        citedByCount: 4500,
-        doi: "10.1103/PhysRevA.52.R2493",
-        openAccessPdfUrl: "https://arxiv.org/pdf/quant-ph/9506001.pdf",
-      },
-    ])
+    vi.spyOn(openalexService, "searchOpenAlexWorksDetailed").mockResolvedValue({
+      status: "ok",
+      latencyMs: 1,
+      items: [
+        {
+          id: "https://openalex.org/W1234",
+          title: "Quantum Error Correction",
+          authors: ["Peter Shor"],
+          publicationYear: 1995,
+          citedByCount: 4500,
+          doi: "10.1103/PhysRevA.52.R2493",
+          openAccessPdfUrl: "https://arxiv.org/pdf/quant-ph/9506001.pdf",
+        },
+      ],
+    })
     vi.spyOn(semanticScholarService, "searchPaperByTitle").mockResolvedValue({
       papers: [
         {
@@ -190,13 +203,14 @@ describe("Academic Connector Service", () => {
       ],
       status: "verified",
     })
-    vi.spyOn(crossrefService, "searchCrossrefWorks").mockResolvedValue([])
+    vi.spyOn(crossrefService, "searchCrossrefWorksDetailed").mockResolvedValue({ status: "empty", latencyMs: 1, items: [] })
 
     const results = await searchAcademicPaper("Quantum Error Correction", 5)
     expect(results.length).toBe(1)
     expect(results[0].title).toBe("Quantum Error Correction")
     expect(results[0].doi).toBe("10.1103/PhysRevA.52.R2493")
     expect(results[0].openAccessPdfUrl).toBe("https://arxiv.org/pdf/quant-ph/9506001.pdf")
+    expect(results[0].sources).toEqual(["openalex", "semanticscholar"])
   })
 
   it("handles empty or wildcard queries gracefully without HTTP 400", async () => {
