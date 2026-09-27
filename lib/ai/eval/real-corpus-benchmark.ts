@@ -16,6 +16,11 @@
 import * as fs from "fs"
 import * as path from "path"
 import { openLivePg, applyMigrations, toVectorLiteral } from "./pg-live"
+import {
+  assertGoldenChunkReferences,
+  loadAndValidateCorpus,
+  type EvalCorpusDocument,
+} from "./corpus-chunk-alignment"
 
 // ---------------------------------------------------------------------------
 // Public interfaces
@@ -153,11 +158,11 @@ export function loadGoldenJudgments(goldenDir: string): GoldenQuery[] {
     .sort()
   const queries: GoldenQuery[] = []
   for (const f of files) {
+    const filePath = path.join(goldenDir, f)
     try {
-      const raw = fs.readFileSync(path.join(goldenDir, f), "utf8")
-      queries.push(JSON.parse(raw) as GoldenQuery)
+      queries.push(JSON.parse(fs.readFileSync(filePath, "utf8")) as GoldenQuery)
     } catch (err) {
-      // skip malformed
+      throw new Error(`Could not load golden judgments from ${filePath}: ${String(err)}`)
     }
   }
   return queries
@@ -168,11 +173,12 @@ export function loadGoldenJudgments(goldenDir: string): GoldenQuery[] {
 // ---------------------------------------------------------------------------
 
 const ALIPROXY_URL = process.env.ALIPROXY_URL || "http://127.0.0.1:8080/v1/embeddings"
-const REAL_KEY = "sk-aliproxy-dcae3bef25eb00f79c6b32d8e49aaded8d38ce536f98324c"
-const ALIPROXY_KEY = (process.env.ALIPROXY_API_KEY && process.env.ALIPROXY_API_KEY.startsWith("sk-aliproxy-")) ? process.env.ALIPROXY_API_KEY : REAL_KEY
+const configuredAliProxyKey = process.env.ALIPROXY_API_KEY
+const ALIPROXY_KEY = configuredAliProxyKey?.startsWith("sk-aliproxy-") ? configuredAliProxyKey : ""
 const QWEN_MODEL = "qwen3.7-text-embedding"
 
 async function probeAliProxy(): Promise<boolean> {
+  if (!ALIPROXY_KEY) return false
   try {
     const res = await fetch("http://127.0.0.1:8080/v1/models", {
       headers: { Authorization: `Bearer ${ALIPROXY_KEY}` },
@@ -231,82 +237,11 @@ async function ensureWorkspace(db: Awaited<ReturnType<typeof openLivePg>>): Prom
 
 const contentCache = new Map<string, string>()
 
-interface ChunkRow {
-  id: string
-  content: string
-  heading: string | null
-}
-
-function splitMarkdownForEval(markdown: string, docId: string): ChunkRow[] {
-  const headingRe = /^#{1,4}\s+.+$/m
-  const lines = markdown.split("\n")
-  const sections: Array<{ heading: string | null; text: string }> = []
-  let currentHeading: string | null = null
-  let currentLines: string[] = []
-
-  for (const line of lines) {
-    if (headingRe.test(line)) {
-      if (currentLines.join("\n").trim().length > 20) {
-        sections.push({ heading: currentHeading, text: currentLines.join("\n").trim() })
-      }
-      currentHeading = line.replace(/^#+\s+/, "").trim()
-      currentLines = []
-    } else {
-      currentLines.push(line)
-    }
-  }
-  if (currentLines.join("\n").trim().length > 20) {
-    sections.push({ heading: currentHeading, text: currentLines.join("\n").trim() })
-  }
-
-  const chunks: ChunkRow[] = []
-  for (const section of sections) {
-    const text = section.text
-    if (text.length <= 800) {
-      const idx = chunks.length
-      chunks.push({
-        id: docId + "_" + String(idx).padStart(4, "0"),
-        content: text,
-        heading: section.heading,
-      })
-    } else {
-      const paras = text.split(/\n\n+/).filter((p) => p.trim().length > 20)
-      let buf = ""
-      let bufHeading = section.heading
-      for (const para of paras) {
-        if ((buf + "\n\n" + para).length > 800 && buf.length > 0) {
-          const idx = chunks.length
-          chunks.push({ id: docId + "_" + String(idx).padStart(4, "0"), content: buf.trim(), heading: bufHeading })
-          buf = para
-          bufHeading = section.heading
-        } else {
-          buf = buf ? buf + "\n\n" + para : para
-        }
-      }
-      if (buf.trim().length > 20) {
-        const idx = chunks.length
-        chunks.push({ id: docId + "_" + String(idx).padStart(4, "0"), content: buf.trim(), heading: bufHeading })
-      }
-    }
-  }
-  return chunks
-}
-
 async function ingestCorpus(
   db: Awaited<ReturnType<typeof openLivePg>>,
-  corpusDir: string,
+  documents: readonly EvalCorpusDocument[],
   has1024Dim: boolean
-): Promise<{ totalChunks: number; chunksByDoc: Record<string, ChunkRow[]> }> {
-  const manifestPath = path.join(corpusDir, "manifest.json")
-  if (!fs.existsSync(manifestPath)) {
-    return { totalChunks: 0, chunksByDoc: {} }
-  }
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as Array<{
-    docId: string
-    title: string
-    path: string
-  }>
-
+): Promise<{ totalChunks: number }> {
   await db.exec(
     'CREATE TABLE IF NOT EXISTS "Workspace" (' +
     '"id" TEXT PRIMARY KEY, "name" TEXT NOT NULL, "authors" TEXT NOT NULL,' +
@@ -358,15 +293,10 @@ async function ingestCorpus(
 
   contentCache.clear()
 
-  const chunksByDoc: Record<string, ChunkRow[]> = {}
   let totalChunks = 0
 
-  for (const doc of manifest) {
-    const mdPath = path.resolve(process.cwd(), doc.path)
-    if (!fs.existsSync(mdPath)) continue
-    const markdown = fs.readFileSync(mdPath, "utf8")
-    const chunks = splitMarkdownForEval(markdown, doc.docId)
-    chunksByDoc[doc.docId] = chunks
+  for (const doc of documents) {
+    const chunks = doc.chunks
 
     let embeddings: number[][] | null = null
     const embedInputs = chunks.map((c) => {
@@ -418,7 +348,7 @@ async function ingestCorpus(
     }
   }
 
-  return { totalChunks, chunksByDoc }
+  return { totalChunks }
 }
 
 // ---------------------------------------------------------------------------
@@ -770,7 +700,15 @@ export async function runRealCorpusBenchmark(
     return emptyReport
   }
 
-  // Probe AliProxy live availability for 1024-dim architectures
+  // Validate chunk IDs against the production chunker and committed index before
+  // any model, gateway, database, or retrieval work can produce metrics.
+  const absCorpusDir = path.isAbsolute(corpusDir) ? corpusDir : path.resolve(process.cwd(), corpusDir)
+  const corpusDocuments = loadAndValidateCorpus(absCorpusDir)
+  assertGoldenChunkReferences(queries, corpusDocuments)
+  const expectedCorpusChunks = corpusDocuments.reduce((total, document) => total + document.chunks.length, 0)
+
+  // Probe AliProxy live availability for 1024-dim architectures only after the
+  // frozen corpus and all relevance-label references have passed validation.
   const hasAliProxy = await probeAliProxy()
   if (!hasAliProxy) {
     limitations.push("AliProxy 1024-dim embedding gateway offline; 1024-dim dense and colbert architectures disabled")
@@ -779,7 +717,6 @@ export async function runRealCorpusBenchmark(
   // Boot PGlite
   let db: Awaited<ReturnType<typeof openLivePg>> | null = null
   let corpusChunks = 0
-  const absCorpusDir = path.isAbsolute(corpusDir) ? corpusDir : path.resolve(process.cwd(), corpusDir)
 
   try {
     db = await openLivePg({ flavor: "pglite" })
@@ -788,7 +725,10 @@ export async function runRealCorpusBenchmark(
     if (migrationsApplied === 0) {
       limitations.push("Prisma migrations not applied — using inline eval schema")
     }
-    const ingestResult = await ingestCorpus(db, absCorpusDir, hasAliProxy)
+    const ingestResult = await ingestCorpus(db, corpusDocuments, hasAliProxy)
+    if (ingestResult.totalChunks !== expectedCorpusChunks) {
+      throw new Error(`Ingested ${ingestResult.totalChunks} chunks; validated corpus contains ${expectedCorpusChunks}`)
+    }
     corpusChunks = ingestResult.totalChunks
     if (corpusChunks === 0) {
       limitations.push("No corpus chunks ingested — check corpusDir path")
@@ -848,8 +788,9 @@ export async function runRealCorpusBenchmark(
     timestamp,
     methodology: "empirical",
     methodologyNote:
-      "Retrieval benchmarked against " + queries.length + " golden queries " +
-      "(" + corpusChunks + " chunks ingested) using PGlite in-process. " +
+      "Retrieval benchmarked against " + queries.length + " frozen golden queries " +
+      "(" + corpusChunks + " production-chunked passages ingested) using PGlite in-process. " +
+      "Chunk IDs, headings, lengths, previews, and judgment references were validated against chunks-index.json before retrieval. " +
       "Metrics: Recall@5/10/20, nDCG@10, MRR.",
     goldenSetSize: queries.length,
     corpusChunks,
