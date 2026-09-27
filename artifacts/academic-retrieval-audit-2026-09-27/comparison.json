@@ -1,0 +1,337 @@
+{
+  "generatedAt": "2026-09-27T09:13:37.358Z",
+  "mode": {
+    "baseline": "recorded",
+    "optimized": "recorded"
+  },
+  "tunables": {
+    "ranking": {
+      "RRF_K": 60,
+      "PROVIDER_WEIGHTS": {
+        "openalex": 1,
+        "semanticscholar": 1,
+        "crossref": 0.8,
+        "arxiv": 0.9,
+        "tavily": 0.5
+      },
+      "EXACT_TITLE_BONUS": 0.05,
+      "NEAR_TITLE_BONUS": 0.02,
+      "NEAR_TITLE_JACCARD": 0.6,
+      "CITATION_WEIGHT": 0.004,
+      "CONSENSUS_BONUS": 0.01
+    },
+    "timeoutsMs": {
+      "openalex": 6000,
+      "crossref": 6000,
+      "semanticscholar": 10000,
+      "arxiv": 10000,
+      "tavily": 8000
+    }
+  },
+  "aggregate": [
+    {
+      "metric": "meanPrecisionAt1",
+      "baseline": 0.875,
+      "optimized": 1,
+      "delta": 0.125,
+      "better": "up",
+      "higherIsBetter": true
+    },
+    {
+      "metric": "meanReciprocalRank",
+      "baseline": 0.875,
+      "optimized": 1,
+      "delta": 0.125,
+      "better": "up",
+      "higherIsBetter": true
+    },
+    {
+      "metric": "meanNdcgAt5",
+      "baseline": 0.8464322750172694,
+      "optimized": 0.9891209428094931,
+      "delta": 0.14268866779222378,
+      "better": "up",
+      "higherIsBetter": true
+    },
+    {
+      "metric": "totalDuplicateRows",
+      "baseline": 1,
+      "optimized": 0,
+      "delta": -1,
+      "better": "up",
+      "higherIsBetter": false
+    },
+    {
+      "metric": "meanDuplicateRate",
+      "baseline": 0.015625,
+      "optimized": 0,
+      "delta": -0.015625,
+      "better": "up",
+      "higherIsBetter": false
+    },
+    {
+      "metric": "yearLeaks",
+      "baseline": 1,
+      "optimized": 0,
+      "delta": -1,
+      "better": "up",
+      "higherIsBetter": false
+    },
+    {
+      "metric": "violations",
+      "baseline": 3,
+      "optimized": 0,
+      "delta": -3,
+      "better": "up",
+      "higherIsBetter": false
+    },
+    {
+      "metric": "fieldCompleteness.doi",
+      "baseline": 0.6904761904761904,
+      "optimized": 0.8311011904761905,
+      "delta": 0.1406250000000001,
+      "better": "up",
+      "higherIsBetter": true
+    },
+    {
+      "metric": "fieldCompleteness.year",
+      "baseline": 0.8645833333333334,
+      "optimized": 1,
+      "delta": 0.13541666666666663,
+      "better": "up",
+      "higherIsBetter": true
+    },
+    {
+      "metric": "fieldCompleteness.venue",
+      "baseline": 0.8229166666666666,
+      "optimized": 0.9635416666666666,
+      "delta": 0.140625,
+      "better": "up",
+      "higherIsBetter": true
+    },
+    {
+      "metric": "fieldCompleteness.authors",
+      "baseline": 0.7321428571428571,
+      "optimized": 0.8415178571428571,
+      "delta": 0.109375,
+      "better": "up",
+      "higherIsBetter": true
+    },
+    {
+      "metric": "fieldCompleteness.citationCount",
+      "baseline": 0.693452380952381,
+      "optimized": 1,
+      "delta": 0.30654761904761896,
+      "better": "up",
+      "higherIsBetter": true
+    },
+    {
+      "metric": "fieldCompleteness.openAccess",
+      "baseline": 0.5782738095238096,
+      "optimized": 0.6876488095238096,
+      "delta": 0.109375,
+      "better": "up",
+      "higherIsBetter": true
+    },
+    {
+      "metric": "providerAgreement",
+      "baseline": null,
+      "optimized": 0.525,
+      "delta": null,
+      "better": "n/a",
+      "higherIsBetter": true
+    },
+    {
+      "metric": "verifiedRate",
+      "baseline": 0.6,
+      "optimized": 0.8,
+      "delta": 0.20000000000000007,
+      "better": "up",
+      "higherIsBetter": true
+    },
+    {
+      "metric": "correctClassificationRate",
+      "baseline": 0.8,
+      "optimized": 1,
+      "delta": 0.19999999999999996,
+      "better": "up",
+      "higherIsBetter": true
+    },
+    {
+      "metric": "unavailable",
+      "baseline": 0,
+      "optimized": 0,
+      "delta": 0,
+      "better": "same",
+      "higherIsBetter": false
+    }
+  ],
+  "perQuery": [
+    {
+      "id": "G1",
+      "label": "exact title (Transformer paper) — provider order vs citation sort, S2/OpenAlex duplicate",
+      "baselineTop": [
+        "Attention is All you Need",
+        "Attention Is All You Need [10.65215/2q58a426]",
+        "Is Space-Time Attention All You Need for Video Understanding? [10.48550/arxiv.2102.05095]"
+      ],
+      "optimizedTop": [
+        "Attention Is All You Need [10.65215/2q58a426]",
+        "Attention Is All You Need In Speech Separation [10.1109/icassp39728.2021.9413901]",
+        "Channel Attention Is All You Need for Video Frame Interpolation [10.1609/aaai.v34i07.6693]"
+      ],
+      "changed": true,
+      "baselineViolations": [
+        "1 duplicate row(s): #2≡#1 via attentionisallyouneed"
+      ],
+      "optimizedViolations": []
+    },
+    {
+      "id": "G2",
+      "label": "topical keyword query — classics vs recent, Crossref noise",
+      "baselineTop": [
+        "Quantum machine learning [10.1038/nature23474]",
+        "Quantum Machine Learning in Feature Hilbert Spaces [10.1103/physrevlett.122.040504]",
+        "An introduction to quantum machine learning [10.1080/00107514.2014.964942]"
+      ],
+      "optimizedTop": [
+        "Quantum machine learning [10.1038/nature23474]",
+        "Quantum Machine Learning in Feature Hilbert Spaces [10.1103/physrevlett.122.040504]",
+        "An introduction to quantum machine learning [10.1080/00107514.2014.964942]"
+      ],
+      "changed": false,
+      "baselineViolations": [],
+      "optimizedViolations": []
+    },
+    {
+      "id": "G3",
+      "label": "DOI lookup",
+      "baselineTop": [
+        "Deep learning [10.1038/nature14539]"
+      ],
+      "optimizedTop": [
+        "Deep learning [10.1038/nature14539]"
+      ],
+      "changed": false,
+      "baselineViolations": [],
+      "optimizedViolations": []
+    },
+    {
+      "id": "G4",
+      "label": "DOI pasted with sentence punctuation",
+      "baselineTop": [],
+      "optimizedTop": [
+        "Deep learning [10.1038/nature14539]"
+      ],
+      "changed": true,
+      "baselineViolations": [
+        "expected ≥ 1 results, got 0"
+      ],
+      "optimizedViolations": []
+    },
+    {
+      "id": "G5",
+      "label": "arXiv identifier",
+      "baselineTop": [
+        "Attention Is All You Need"
+      ],
+      "optimizedTop": [
+        "Attention Is All You Need"
+      ],
+      "changed": false,
+      "baselineViolations": [],
+      "optimizedViolations": []
+    },
+    {
+      "id": "G6",
+      "label": "topical query with 'last two years' filter — year-window parity across providers",
+      "baselineTop": [
+        "Systematic literature review: Quantum machine learning and its applications [10.1016/j.cosrev.2024.100619]",
+        "Quantum Machine Learning Revolution in Healthcare: A Systematic Review of Emerging Perspectives and Applications [10.1109/access.2024.3353461]",
+        "Quantum machine learning for image classification [10.1088/2632-2153/ad2aef]"
+      ],
+      "optimizedTop": [
+        "Systematic literature review: Quantum machine learning and its applications [10.1016/j.cosrev.2024.100619]",
+        "Quantum machine learning for image classification [10.1088/2632-2153/ad2aef]",
+        "Quantum Machine Learning Revolution in Healthcare: A Systematic Review of Emerging Perspectives and Applications [10.1109/access.2024.3353461]"
+      ],
+      "changed": true,
+      "baselineViolations": [
+        "1 result(s) older than 2024"
+      ],
+      "optimizedViolations": []
+    },
+    {
+      "id": "G7",
+      "label": "non-Latin (CJK) query — Unicode survival",
+      "baselineTop": [
+        "基于深度学习的三维点云处理方法研究进展 [10.3788/cjl230924]",
+        "基于深度学习的稀疏或有限角度CT重建方法研究综述 [10.3788/lop230488]",
+        "基于深度学习的地质找矿大数据挖掘与集成的挑战 [10.3799/dqkx.2020.111]"
+      ],
+      "optimizedTop": [
+        "基于深度学习的三维点云处理方法研究进展 [10.3788/cjl230924]",
+        "基于深度学习的稀疏或有限角度CT重建方法研究综述 [10.3788/lop230488]",
+        "基于深度学习的自适应光学技术研究进展及展望 [10.3788/cjl230470]"
+      ],
+      "changed": true,
+      "baselineViolations": [],
+      "optimizedViolations": []
+    },
+    {
+      "id": "G8",
+      "label": "retracted paper (Wakefield 1998) — retraction flag must survive merging",
+      "baselineTop": [
+        "RETRACTED: Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children [10.1016/s0140-6736(97)11096-0]",
+        "Retraction—Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children [10.1016/s0140-6736(10)60175-4]",
+        "Retraction of an interpretation [10.1016/s0140-6736(04)15715-2]"
+      ],
+      "optimizedTop": [
+        "RETRACTED: Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children [10.1016/s0140-6736(97)11096-0]",
+        "Retraction—Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children [10.1016/s0140-6736(10)60175-4]",
+        "Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children [10.1016/s0140-6736(05)77837-5]"
+      ],
+      "changed": true,
+      "baselineViolations": [],
+      "optimizedViolations": []
+    }
+  ],
+  "citations": [
+    {
+      "id": "C1",
+      "baseline": "verified",
+      "optimized": "verified",
+      "baselinePass": true,
+      "optimizedPass": true
+    },
+    {
+      "id": "C2",
+      "baseline": "verified",
+      "optimized": "verified",
+      "baselinePass": true,
+      "optimizedPass": true
+    },
+    {
+      "id": "C3",
+      "baseline": "verified",
+      "optimized": "verified",
+      "baselinePass": true,
+      "optimizedPass": true
+    },
+    {
+      "id": "C4",
+      "baseline": "not_found",
+      "optimized": "verified",
+      "baselinePass": false,
+      "optimizedPass": true
+    },
+    {
+      "id": "C5",
+      "baseline": "not_found",
+      "optimized": "not_found",
+      "baselinePass": true,
+      "optimizedPass": true
+    }
+  ],
+  "markdown": "| Metric | Baseline | Optimized | Δ | |\n|---|---:|---:|---:|---|\n| meanPrecisionAt1 | 0.875 | 1.000 | +0.125 | ▲ better |\n| meanReciprocalRank | 0.875 | 1.000 | +0.125 | ▲ better |\n| meanNdcgAt5 | 0.846 | 0.989 | +0.143 | ▲ better |\n| totalDuplicateRows | 1 | 0 | -1 | ▲ better |\n| meanDuplicateRate | 0.016 | 0.000 | -0.016 | ▲ better |\n| yearLeaks | 1 | 0 | -1 | ▲ better |\n| violations | 3 | 0 | -3 | ▲ better |\n| fieldCompleteness.doi | 0.690 | 0.831 | +0.141 | ▲ better |\n| fieldCompleteness.year | 0.865 | 1.000 | +0.135 | ▲ better |\n| fieldCompleteness.venue | 0.823 | 0.964 | +0.141 | ▲ better |\n| fieldCompleteness.authors | 0.732 | 0.842 | +0.109 | ▲ better |\n| fieldCompleteness.citationCount | 0.693 | 1.000 | +0.307 | ▲ better |\n| fieldCompleteness.openAccess | 0.578 | 0.688 | +0.109 | ▲ better |\n| providerAgreement | n/a | 0.525 | n/a | n/a |\n| verifiedRate | 0.600 | 0.800 | +0.200 | ▲ better |\n| correctClassificationRate | 0.800 | 1.000 | +0.200 | ▲ better |\n| unavailable | 0 | 0 | +0 | = |\n\n| Case | Baseline top-3 | Optimized top-3 | Baseline violations | Optimized violations |\n|---|---|---|---|---|\n| G1 | 1. Attention is All you Need<br>2. Attention Is All You Need [10.65215/2q58a426]<br>3. Is Space-Time Attention All You Need for Video Understanding? [10.48550/arxiv.2102.05095] | 1. Attention Is All You Need [10.65215/2q58a426]<br>2. Attention Is All You Need In Speech Separation [10.1109/icassp39728.2021.9413901]<br>3. Channel Attention Is All You Need for Video Frame Interpolation [10.1609/aaai.v34i07.6693] | 1 duplicate row(s): #2≡#1 via attentionisallyouneed | — |\n| G2 | 1. Quantum machine learning [10.1038/nature23474]<br>2. Quantum Machine Learning in Feature Hilbert Spaces [10.1103/physrevlett.122.040504]<br>3. An introduction to quantum machine learning [10.1080/00107514.2014.964942] | 1. Quantum machine learning [10.1038/nature23474]<br>2. Quantum Machine Learning in Feature Hilbert Spaces [10.1103/physrevlett.122.040504]<br>3. An introduction to quantum machine learning [10.1080/00107514.2014.964942] | — | — |\n| G3 | 1. Deep learning [10.1038/nature14539] | 1. Deep learning [10.1038/nature14539] | — | — |\n| G4 | — | 1. Deep learning [10.1038/nature14539] | expected ≥ 1 results, got 0 | — |\n| G5 | 1. Attention Is All You Need | 1. Attention Is All You Need | — | — |\n| G6 | 1. Systematic literature review: Quantum machine learning and its applications [10.1016/j.cosrev.2024.100619]<br>2. Quantum Machine Learning Revolution in Healthcare: A Systematic Review of Emerging Perspectives and Applications [10.1109/access.2024.3353461]<br>3. Quantum machine learning for image classification [10.1088/2632-2153/ad2aef] | 1. Systematic literature review: Quantum machine learning and its applications [10.1016/j.cosrev.2024.100619]<br>2. Quantum machine learning for image classification [10.1088/2632-2153/ad2aef]<br>3. Quantum Machine Learning Revolution in Healthcare: A Systematic Review of Emerging Perspectives and Applications [10.1109/access.2024.3353461] | 1 result(s) older than 2024 | — |\n| G7 | 1. 基于深度学习的三维点云处理方法研究进展 [10.3788/cjl230924]<br>2. 基于深度学习的稀疏或有限角度CT重建方法研究综述 [10.3788/lop230488]<br>3. 基于深度学习的地质找矿大数据挖掘与集成的挑战 [10.3799/dqkx.2020.111] | 1. 基于深度学习的三维点云处理方法研究进展 [10.3788/cjl230924]<br>2. 基于深度学习的稀疏或有限角度CT重建方法研究综述 [10.3788/lop230488]<br>3. 基于深度学习的自适应光学技术研究进展及展望 [10.3788/cjl230470] | — | — |\n| G8 | 1. RETRACTED: Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children [10.1016/s0140-6736(97)11096-0]<br>2. Retraction—Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children [10.1016/s0140-6736(10)60175-4]<br>3. Retraction of an interpretation [10.1016/s0140-6736(04)15715-2] | 1. RETRACTED: Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children [10.1016/s0140-6736(97)11096-0]<br>2. Retraction—Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children [10.1016/s0140-6736(10)60175-4]<br>3. Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children [10.1016/s0140-6736(05)77837-5] | — | — |\n\n| Citation | Baseline | Optimized | Pass (base → opt) |\n|---|---|---|---|\n| C1 | verified | verified | ✅ → ✅ |\n| C2 | verified | verified | ✅ → ✅ |\n| C3 | verified | verified | ✅ → ✅ |\n| C4 | not_found | verified | ❌ → ✅ |\n| C5 | not_found | not_found | ✅ → ✅ |"
+}

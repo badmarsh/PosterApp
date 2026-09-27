@@ -57,6 +57,7 @@ Detailné inštrukcie: skills/custom/posterapp-deploy/SKILL.md
 - `lib/ai/evidence-validator.ts` — Verbatim and normalized quote verification against source text, synthetic page number stripping, and epistemic status enforcement/calibration. **Approximate-match threshold**: ≥60 chars required (raised from 35), `confidence=0.45` (lowered from 0.7) — applied in both this file and `review-engine.ts:anchorEvidenceQuotes`.
 - `lib/ai/analysis-plan.ts` — Pre-flight evaluation planning engine combining document structure, quality reports, discipline classification, and reporting guideline recommendations.
 - `lib/ai/academic-checks.ts` — Objective alignment & research traceability checker, citation consistency audit, and calibrated defense questions generator.
+- `lib/services/academic-connector.ts` — Multi-source academic retrieval (OpenAlex, Crossref, Semantic Scholar, arXiv, optional Tavily). `searchAcademicPaperDetailed()` returns `{ results, mode, providers, degraded, filteredByYear }`; `verifySingleCitation()` / `auditThesisCitations()` power the posudok citation audit. Shared helpers: `academic-http.ts` (per-provider timeouts `ACADEMIC_TIMEOUTS_MS`, `ProviderOutcome`), `academic-identifiers.ts` (DOI/arXiv/title normalization, title-match confidence). **Offline benchmark**: `lib/services/__tests__/academic-connector-regressions.test.ts` + `academic-retrieval-benchmark.test.ts` replay `__fixtures__/academic/recorded.json` (no network); `ACADEMIC_WRITE_ARTIFACTS=<name>` writes a scored artifact, `scripts/academic-retrieval-compare.ts` diffs two. Audit prompt & results: `docs/prompts/academic-retrieval-audit-prompt.md`, `artifacts/academic-retrieval-audit-2026-09-27/report.md`.
 - `lib/ai/review-composer.ts` — 14-section formal academic review narrative composer with epistemic badges, ECTS grading, AI disclosure, and strict confidentiality isolation.
 - `lib/ai/local-embeddings.ts` — Self-hosted embedding via Transformers.js (`paraphrase-multilingual-MiniLM-L12-v2`). Singleton pipeline, `generateLocalEmbedding(text) → number[384]`. **In-process LRU cache** (1024 entries, SHA-256 key, oldest-insertion eviction) eliminates redundant WASM calls for repeated queries. `getEmbeddingCacheStats()` / `clearEmbeddingCache()` for diagnostics.
 - `lib/ai/document-chunker.ts` — **Sentence-aware & hierarchical ATX Markdown chunker** + `ingestDocumentChunks()` that writes to `DocumentChunk` table with embeddings. Prependuje hierarchické breadcrumbs (`Kapitola > Sekcia > Podsekcia`) do embedding textu pre uchovanie kontextu hlbokých podsekcií. Delenie rešpektuje hranice viet. Chunk size resolved via `resolveChunkSize()` from `chunking-config.ts` (1800 chars pre Bc/MSc/články, 3000 chars pre PhD dizertácie). Accepts `opts.ingestFileId` — when provided, transitions `IngestFile.vectorStatus`: `pending → indexing → ready/error` in DB so review route can detect race conditions. Vytvára HNSW index (m=16, ef_construction=128).
@@ -108,7 +109,10 @@ All AI/model configuration is via `.env.local`. Key vars:
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/posterapp` |
 | `NEXT_PUBLIC_YJS_WS_URL` | Yjs WebSocket URL (enables collaboration) | `ws://localhost:3333/api/yjs` |
 | `CLERK_SECRET_KEY` | Used by server.ts to verify WebSocket JWT tokens | required |
-| `SEMANTIC_SCHOLAR_API_KEY` | Academic Connector citation audit (optional but recommended) | 100 req/s with key vs. 100/5min without |
+| `SEMANTIC_SCHOLAR_API_KEY` | Academic Connector (optional but recommended) — anonymous calls share a global pool that is often exhausted (HTTP 429); the connector then falls back to OpenAlex/Crossref | dedicated quota with key |
+| `OPENALEX_API_KEY` / `OPENALEX_MAILTO` | OpenAlex polite pool / key (optional) — lifts the anonymous search throttle | unset / `support@posterapp.local` |
+| `CROSSREF_MAILTO` | Crossref polite-pool contact (optional) | `academic-connector@posterapp.local` |
+| `TAVILY_API_KEY` | Tavily web search — last-resort fallback for the Academic Connector, skipped when unset (paid) | unset |
 
 ## Architecture Overview
 
@@ -196,7 +200,10 @@ Pri vytváraní, úprave alebo rozširovaní demo plagátov a ukážok (showcase
 ### Still Open
 (None currently)
 
-### Fixed in This Session (2026-09-17 / 2026-09-18)
+### Fixed in This Session (2026-09-27)
+- ✅ **Academic Connector retrieval audit (`docs/prompts/academic-retrieval-audit-prompt.md`)**: 22 findings (AR-01…AR-22) fixed behind a 31-test regression contract and an offline replay benchmark. Highlights: non-Latin titles without DOI were dropped; a caller `AbortSignal` replaced provider timeouts (arXiv ignored it, Tavily had none); DOI-vs-title duplicates; year window applied to OpenAlex only; citation verification accepted an unrelated OpenAlex top-1 and gave up on Semantic Scholar 429; ISO 690 parser polluted titles with author lists; retraction signals unused; `auditThesisCitations` silently dropped citations beyond 30. Benchmark (replayed real provider bodies): P@1 0.875→1.0, nDCG@5 0.846→0.989, duplicates 1→0, year leaks 1→0, verified 60 %→80 % with 100 % correct classification. Details in `artifacts/academic-retrieval-audit-2026-09-27/report.md`.
+
+### Fixed in Previous Session (2026-09-17 / 2026-09-18)
 - ✅ **Doctoral Posudok Statutory Gating, Legal Citation Fix (§ 67), and Shared Finding Bucketing (Merged from `arena/01a0b34a-posterapp`)**:
   - **Legal Citation Accuracy (`lib/ai/review-bucketing.ts` & `review-engine.ts`)**: Fixed invalid citation of § 54 ods. 3 (habilitation/professorship proceedings) in Slovak doctoral opponent reviews to **§ 67 zákona č. 131/2002 Z. z.** (doctoral study defence), and § 54a odst. 3 zákona č. 111/1998 Sb. for Czech doctoral theses via `buildDoctoralStatutoryClause()`.
   - **Shared Finding Bucketing (`lib/ai/review-bucketing.ts`)**: Replaced duplicate inline severity filters in LaTeX, DOCX, and Markdown formatters with single source of truth `bucketFindings()`. Merits (`findingType: "strength"`) are strictly routed to strengths regardless of model-assigned severity (`suggestion`), preventing praises from leaking into "Drobné pripomienky (Minor Concerns)".

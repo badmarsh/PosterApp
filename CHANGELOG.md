@@ -6,6 +6,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Academic Connector — retrieval audit, replay harness and ranking v2 (2026-09-27)
+
+`docs/prompts/academic-retrieval-audit-prompt.md` audited, tested, optimized and compared the
+multi-source academic retrieval (`lib/services/academic-connector.ts` + OpenAlex / Crossref /
+Semantic Scholar / arXiv / Tavily services + `lib/ai/thesis-context.ts` bibliography parser).
+Results and the before/after comparison live in `artifacts/academic-retrieval-audit-2026-09-27/`
+(`report.md`, `baseline.json`, `optimized.json`, `comparison.json`).
+
+- **Offline replay harness.** `__fixtures__/academic/recorded.json` holds real provider bodies
+  captured on 2026-09-27; `lib/services/__tests__/academic-replay-fetch.ts` replays them through
+  `fetch` with fault injection (`hang`, `status`+`Retry-After`, `malformed`, `empty`, `network`).
+  `lib/services/academic-retrieval-eval.ts` scores a golden set (8 searches, 5 citations) with
+  P@1, MRR, duplicate-aware nDCG@5, duplicate rate, year leaks, field completeness,
+  provider agreement and verification classification; `ACADEMIC_WRITE_ARTIFACTS=<name>` writes a
+  JSON artifact and `scripts/academic-retrieval-compare.ts` diffs two of them.
+- **Regression contract.** `lib/services/__tests__/academic-connector-regressions.test.ts`
+  (31 tests, 28 red on the previous connector) pins every audit finding: non-Latin titles
+  without DOI are kept, provider timeouts survive a caller signal, arXiv/Tavily calls are bounded
+  and abortable, DOI-vs-title duplicates collapse, the year window applies to every provider,
+  citation verification neither accepts an unrelated top-1 nor gives up on a Semantic Scholar
+  429, retractions are surfaced, and `auditThesisCitations` reports how many citations it skipped.
+- **Connector rewrite.** `searchAcademicPaperDetailed()` returns `{ results, mode, providers,
+  degraded, filteredByYear }` (the `/api/academic/search` response gains those fields additively).
+  Identifier modes: DOI → all registries in parallel; arXiv → arXiv metadata enriched via its DOI
+  or Semantic Scholar `ARXIV:` lookup (citations, venue). Search mode merges providers by
+  DOI ∪ arXiv id ∪ normalized title, keeps the earliest credible year, prefers real author lists,
+  takes max citation counts and never lets an empty open-access URL override a real one; ranking
+  is reciprocal-rank fusion with provider weights, exact/near-title bonuses and a small
+  log-citation prior (`RANKING_TUNABLES`). Every provider has its own timeout
+  (`ACADEMIC_TIMEOUTS_MS`), Semantic Scholar back-off is capped and abortable, OpenAlex honours
+  `OPENALEX_API_KEY`/`OPENALEX_MAILTO`, Crossref uses `query.bibliographic` + `select` and
+  its retraction relations, Tavily only runs with `TAVILY_API_KEY`.
+- **Verification.** `verifySingleCitation` resolves DOIs across all registries, falls back to
+  title search gated by title-similarity + author overlap, distinguishes `not_found` (a registry
+  answered) from `rate_limited`/`timeout`/`service_error` (nobody could answer) and flags
+  retracted works. The ISO 690 parser strips author lists, `In:` containers and trailing
+  citation metadata from extracted titles.
+- **Measured.** On the replayed golden set: P@1 0.875 → 1.000, MRR 0.875 → 1.000,
+  nDCG@5 0.846 → 0.989, duplicate rows 1 → 0, year leaks 1 → 0, constraint violations 3 → 0,
+  verified citations 60 % → 80 % (the remaining one is fabricated and is now correctly
+  `not_found`), correct classification 80 % → 100 %.
+
 ### Posudok revamp — live A4 canvas, real letterhead, six distinct designs (2026-09-26)
 
 The thesis review (posudok) output was the last one without a canvas, and its six

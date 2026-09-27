@@ -1,6 +1,6 @@
 {
   "mode": "recorded",
-  "generatedAt": "2026-09-27T08:52:59.294Z",
+  "generatedAt": "2026-09-27T09:12:23.095Z",
   "searches": [
     {
       "id": "G1",
@@ -10,7 +10,7 @@
       "count": 8,
       "precisionAt1": 1,
       "reciprocalRank": 1,
-      "ndcgAt5": 0.8613098738256916,
+      "ndcgAt5": 0.8724997542842517,
       "duplicateRows": 1,
       "duplicateRate": 0.125,
       "fieldCompleteness": {
@@ -230,7 +230,7 @@
       "count": 1,
       "precisionAt1": 1,
       "reciprocalRank": 1,
-      "ndcgAt5": 0.6131471927654584,
+      "ndcgAt5": 1,
       "duplicateRows": 0,
       "duplicateRate": 0,
       "fieldCompleteness": {
@@ -361,7 +361,7 @@
       "yearLeaks": 0,
       "retractedTop": null,
       "providers": null,
-      "elapsedMs": 4657,
+      "elapsedMs": 4868,
       "top": [
         {
           "rank": 1,
@@ -439,7 +439,7 @@
       "yearLeaks": 0,
       "retractedTop": true,
       "providers": null,
-      "elapsedMs": 4763,
+      "elapsedMs": 4853,
       "top": [
         {
           "rank": 1,
@@ -567,7 +567,7 @@
     "searchCases": 8,
     "meanPrecisionAt1": 0.875,
     "meanReciprocalRank": 0.875,
-    "meanNdcgAt5": 0.7966769390556315,
+    "meanNdcgAt5": 0.8464322750172694,
     "totalDuplicateRows": 1,
     "meanDuplicateRate": 0.015625,
     "fieldCompleteness": {
