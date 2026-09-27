@@ -102,15 +102,17 @@ NEXT_PUBLIC_YJS_WS_URL="wss://poster.dev.significa.sk/api/yjs"
 # ------------------------------------------------------------------------------
 # Databáza (Možnosť A: Supabase Cloud — ODPORÚČANÉ)
 # ------------------------------------------------------------------------------
-DATABASE_URL="postgresql://postgres.gruuqqiazsqkcpnejwsb:P0sterApp2026SecureDb99@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true"
-DIRECT_URL="postgresql://postgres.gruuqqiazsqkcpnejwsb:P0sterApp2026SecureDb99@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require"
+> ⚠️ **SECURITY:** Skutočné heslá nikdy necommitujte. Tieto hodnoty boli v minulosti súčasťou histórie tohto repozitára — **produkčné DB heslo ihneď zrotujte** (Supabase → Settings → Database) a reálne hodnoty držte výhradne v Dokploy/secret store.
+
+DATABASE_URL="postgresql://<PROD_DB_USER>:<PROD_DB_PASSWORD>@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true"
+DIRECT_URL="postgresql://<PROD_DB_USER>:<PROD_DB_PASSWORD>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require"
 
 # (Alebo Možnosť B: Interný kontajner na Dokploy)
 # POSTGRES_USER=postgres
-# POSTGRES_PASSWORD=SilneHesloPrePosterAppDb123
+# POSTGRES_PASSWORD=<DB_PASSWORD>
 # POSTGRES_DB=posterapp
-# DATABASE_URL="postgresql://postgres:SilneHesloPrePosterAppDb123@postgres:5432/posterapp"
-# DIRECT_URL="postgresql://postgres:SilneHesloPrePosterAppDb123@postgres:5432/posterapp"
+# DATABASE_URL="postgresql://postgres:<DB_PASSWORD>@postgres:5432/posterapp"
+# DIRECT_URL="postgresql://postgres:<DB_PASSWORD>@postgres:5432/posterapp"
 
 # AI Modely & Provideri (Google Gemini Native + OpenRouter)
 GEMINI_API_KEY="AQ.Ab8RN6...alebo_AIzaSy..."
