@@ -97,9 +97,9 @@ export async function openLivePg(opts: OpenLivePgOptions = {}): Promise<LivePg> 
 }
 
 async function openNodePostgres(connectionString: string): Promise<LivePg> {
-  // `pg` is an *optional* peer: it is only needed to validate against a networked server, so it is
-  // resolved through a computed specifier. That keeps TypeScript from treating it as a build-time
-  // dependency (it is not in package.json) while still failing loudly at runtime when it is absent.
+  // `pg` is a dev dependency for CI validation against a networked server. Keep runtime
+  // loading so production/embedded-only installs need not bundle the driver; fail loudly
+  // when a networked validation run is requested without it.
   let Pool: new (cfg: { connectionString: string; max: number }) => AnyPool
   try {
     const specifier = "pg"
