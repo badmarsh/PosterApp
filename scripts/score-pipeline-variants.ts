@@ -18,7 +18,7 @@ function decode(b64: string): Float32Array {
   for (let i = 0; i < out.length; i++) out[i] = buf.readFloatLE(i * 4)
   return out
 }
-function cosine(a: Float32Array, b: Float32Array): number {
+function cosine(a: ArrayLike<number>, b: ArrayLike<number>): number {
   let d = 0, na = 0, nb = 0
   for (let i = 0; i < a.length; i++) { d += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i] }
   return d / (Math.sqrt(na) * Math.sqrt(nb) || 1)
@@ -35,7 +35,7 @@ const expectBy: Record<string, string[]> = {
   originality_contribution: ["already proposed long before"],
 }
 
-function denseTop(units: Unit[], q: Float32Array, k = 20): number[] {
+function denseTop(units: Unit[], q: ArrayLike<number>, k = 20): number[] {
   return units.map((u, i) => ({ i, s: cosine(u.vector, q) })).sort((a, b) => b.s - a.s).slice(0, k).map((x) => x.i)
 }
 function lexTop(units: Unit[], query: string): number[] {

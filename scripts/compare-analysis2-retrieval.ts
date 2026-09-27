@@ -39,7 +39,7 @@ function decode(b64: string): Float32Array {
   return out
 }
 
-function cosine(a: Float32Array, b: Float32Array): number {
+function cosine(a: ArrayLike<number>, b: ArrayLike<number>): number {
   let dot = 0
   let na = 0
   let nb = 0
@@ -105,7 +105,7 @@ function lexicalRank(units: Unit[], fts: string): number[] {
   return scored.slice(0, 20).map((s) => s.i)
 }
 
-function denseRank(units: Unit[], q: Float32Array): number[] {
+function denseRank(units: Unit[], q: ArrayLike<number>): number[] {
   return units
     .map((u, i) => ({ i, s: cosine(u.vector, q) }))
     .sort((a, b) => b.s - a.s)
@@ -282,7 +282,7 @@ async function main() {
   const qDom = qVecs.slice(n + 2 * criterionCases.length, n + 2 * criterionCases.length + n)
   const qPhys = qVecs.slice(n + 2 * criterionCases.length + n)
 
-  function pack(units: Unit[], vectors: Float32Array[], fts: (q: string) => string, which: "base" | "domain" | "physics"): Map<string, number[]> {
+  function pack(units: Unit[], vectors: ArrayLike<number>[], fts: (q: string) => string, which: "base" | "domain" | "physics"): Map<string, number[]> {
     const out = new Map<string, number[]>()
     cases.forEach((c, i) => {
       const qv = which === "base" ? vectors[i] : which === "domain" ? qDom[i] : qPhys[i]
