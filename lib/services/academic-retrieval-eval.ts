@@ -24,7 +24,18 @@ import type { AcademicPaperResult, CitationCheckResult } from "@/lib/services/ac
 // Golden set
 // ---------------------------------------------------------------------------
 
-export type RelevanceGrade = 1 | 2
+type RelevanceGrade = 1 | 2
+
+/**
+ * One judged document. `keys` are every identity under which providers return it
+ * (bare lower-case DOI, `arxiv:<id>`, normalised title — see `identityKeys`), so a paper
+ * that Semantic Scholar knows by title and OpenAlex by DOI is still ONE document.
+ */
+export interface JudgedDocument {
+  keys: string[]
+  grade: RelevanceGrade
+  why: string
+}
 
 export interface GoldenSearchCase {
   id: string
@@ -33,11 +44,8 @@ export interface GoldenSearchCase {
   query: string
   limit?: number
   yearFrom?: number
-  /**
-   * Graded relevance keyed by identity: bare lower-case DOI, `arxiv:<id>`, or the
-   * normalised title (see `identityKeys`). Anything absent is grade 0 (noise).
-   */
-  relevance: Record<string, RelevanceGrade>
+  /** Graded relevance: 2 = the paper a researcher wants, 1 = related, absent = noise. */
+  relevance: JudgedDocument[]
   /** Identity keys accepted at rank 1 for P@1 / MRR. */
   target: string[]
   expectedMode?: "doi" | "arxiv" | "search"
@@ -67,18 +75,16 @@ export const ACADEMIC_GOLDEN_SET: GoldenCase[] = [
     kind: "search",
     label: "exact title (Transformer paper) — provider order vs citation sort, S2/OpenAlex duplicate",
     query: "Attention Is All You Need",
-    relevance: {
-      [AIAYN]: 2,
-      "10.65215/2q58a426": 2, // OpenAlex's DOI for the same work
-      "arxiv:1706.03762": 2,
-      "10.1109/icassp39728.2021.9413901": 1,
-      "10.1609/aaai.v34i07.6693": 1,
-      "10.1093/bib/bbad467": 1,
-      "10.48550/arxiv.2102.05095": 1,
-      "10.48550/arxiv.2501.06425": 1,
-      "10.48550/arxiv.2412.01818": 1,
-      "10.1007/978-3-031-84300-6_13": 1,
-    },
+    relevance: [
+      { keys: [AIAYN, "10.65215/2q58a426", "arxiv:1706.03762"], grade: 2, why: "Vaswani et al. 2017 — the paper (S2 by title/arXiv, OpenAlex by a 2025 re-registration DOI)" },
+      { keys: ["10.1109/icassp39728.2021.9413901"], grade: 1, why: "title riff, transformer-based speech separation" },
+      { keys: ["10.1609/aaai.v34i07.6693"], grade: 1, why: "title riff, channel attention" },
+      { keys: ["10.1093/bib/bbad467"], grade: 1, why: "attention survey in drug discovery" },
+      { keys: ["10.48550/arxiv.2102.05095", "arxiv:2102.05095"], grade: 1, why: "TimeSformer, title riff" },
+      { keys: ["10.48550/arxiv.2501.06425", "arxiv:2501.06425"], grade: 1, why: "tensor product attention, title riff" },
+      { keys: ["10.48550/arxiv.2412.01818", "arxiv:2412.01818"], grade: 1, why: "[CLS] attention, title riff" },
+      { keys: ["10.1007/978-3-031-84300-6_13"], grade: 1, why: "book chapter discussing the paper" },
+    ],
     target: [AIAYN, "10.65215/2q58a426", "arxiv:1706.03762"],
     expectedMode: "search",
     minResults: 5,
@@ -88,25 +94,24 @@ export const ACADEMIC_GOLDEN_SET: GoldenCase[] = [
     kind: "search",
     label: "topical keyword query — classics vs recent, Crossref noise",
     query: "quantum machine learning",
-    relevance: {
-      "10.1038/nature23474": 2,
-      "10.1103/physrevlett.122.040504": 2,
-      "10.1080/00107514.2014.964942": 2,
-      "10.1038/s43588-022-00311-3": 2,
-      "10.1038/s41467-021-22539-9": 2,
-      "10.1109/access.2025.3573244": 2,
-      "10.1007/s42484-021-00056-8": 2,
-      "10.1016/j.mex.2025.103318": 1,
-      "10.1038/s41467-025-55877-z": 1,
-      "10.48550/arxiv.2505.17756": 1,
-      "arxiv:2503.02934": 1,
-      trainonclassicaldeployonquantumscalinggenerativequantummachinelearningtoathousandqubits: 1,
-      "10.5821/dissertation-2117-348901": 1,
-      "10.1007/978-1-4842-7098-1": 1,
-      "10.1007/s42484-026-00373-w": 1,
-      "10.1088/2632-2153/ab9803": 1,
-      "10.26434/chemrxiv-2025-71814": 1,
-    },
+    relevance: [
+      { keys: ["10.1038/nature23474"], grade: 2, why: "Biamonte et al. 2017 Nature review — the canonical QML reference" },
+      { keys: ["10.1103/physrevlett.122.040504"], grade: 2, why: "Schuld & Killoran 2019, foundational" },
+      { keys: ["10.1080/00107514.2014.964942"], grade: 2, why: "Schuld et al. 2014 introduction" },
+      { keys: ["10.1038/s43588-022-00311-3"], grade: 2, why: "Cerezo et al. 2022 perspective" },
+      { keys: ["10.1038/s41467-021-22539-9"], grade: 2, why: "Huang et al. 2021, power of data" },
+      { keys: ["10.1109/access.2025.3573244"], grade: 2, why: "2025 survey of QML" },
+      { keys: ["10.1007/s42484-021-00056-8"], grade: 2, why: "Alchieri et al. introduction" },
+      { keys: ["10.1016/j.mex.2025.103318"], grade: 1, why: "2025 methods review" },
+      { keys: ["10.1038/s41467-025-55877-z"], grade: 1, why: "specific QML method paper" },
+      { keys: ["10.48550/arxiv.2505.17756", "arxiv:2505.17756"], grade: 1, why: "Qiskit ML toolkit" },
+      { keys: ["arxiv:2503.02934", "trainonclassicaldeployonquantumscalinggenerativequantummachinelearningtoathousandqubits"], grade: 1, why: "specific QML result" },
+      { keys: ["10.5821/dissertation-2117-348901"], grade: 1, why: "dissertation on ML ↔ quantum physics" },
+      { keys: ["10.1007/978-1-4842-7098-1"], grade: 1, why: "applied QML textbook" },
+      { keys: ["10.1007/s42484-026-00373-w"], grade: 1, why: "specific QML paper" },
+      { keys: ["10.1088/2632-2153/ab9803"], grade: 1, why: "QML perspective" },
+      { keys: ["10.26434/chemrxiv-2025-71814"], grade: 1, why: "QML vs classical in chemistry" },
+    ],
     target: ["10.1038/nature23474"],
     expectedMode: "search",
     minResults: 5,
@@ -116,7 +121,7 @@ export const ACADEMIC_GOLDEN_SET: GoldenCase[] = [
     kind: "search",
     label: "DOI lookup",
     query: "10.1038/nature14539",
-    relevance: { "10.1038/nature14539": 2 },
+    relevance: [{ keys: ["10.1038/nature14539"], grade: 2, why: "LeCun, Bengio & Hinton 2015 — the DOI" }],
     target: ["10.1038/nature14539"],
     expectedMode: "doi",
     minResults: 1,
@@ -126,7 +131,7 @@ export const ACADEMIC_GOLDEN_SET: GoldenCase[] = [
     kind: "search",
     label: "DOI pasted with sentence punctuation",
     query: "10.1038/nature14539.",
-    relevance: { "10.1038/nature14539": 2 },
+    relevance: [{ keys: ["10.1038/nature14539"], grade: 2, why: "same DOI, trailing period" }],
     target: ["10.1038/nature14539"],
     expectedMode: "doi",
     minResults: 1,
@@ -136,7 +141,7 @@ export const ACADEMIC_GOLDEN_SET: GoldenCase[] = [
     kind: "search",
     label: "arXiv identifier",
     query: "arXiv:1706.03762",
-    relevance: { [AIAYN]: 2, "arxiv:1706.03762": 2 },
+    relevance: [{ keys: [AIAYN, "arxiv:1706.03762"], grade: 2, why: "the identified preprint" }],
     target: [AIAYN, "arxiv:1706.03762"],
     expectedMode: "arxiv",
     minResults: 1,
@@ -150,22 +155,21 @@ export const ACADEMIC_GOLDEN_SET: GoldenCase[] = [
     // push the out-of-window Crossref rows below the cut, which masks the leak.
     limit: 12,
     yearFrom: 2024,
-    relevance: {
-      "10.1016/j.cosrev.2024.100619": 2,
-      "10.1088/2632-2153/ad2aef": 2,
-      "10.1109/access.2024.3353461": 2,
-      "10.1038/s41467-024-49877-8": 2,
-      "10.1088/1361-6633/ad7f69": 2,
-      "10.1109/access.2025.3573244": 2,
-      "10.1016/j.mex.2025.103318": 1,
-      "10.1038/s41467-025-55877-z": 1,
-      "10.48550/arxiv.2505.17756": 1,
-      "arxiv:2503.02934": 1,
-      trainonclassicaldeployonquantumscalinggenerativequantummachinelearningtoathousandqubits: 1,
-      "10.1201/9781003646068-6": 1,
-      "10.1007/s42484-026-00373-w": 1,
-      "10.26434/chemrxiv-2025-71814": 1,
-    },
+    relevance: [
+      { keys: ["10.1016/j.cosrev.2024.100619"], grade: 2, why: "2024 systematic review" },
+      { keys: ["10.1088/2632-2153/ad2aef"], grade: 2, why: "2024 QML for image classification" },
+      { keys: ["10.1109/access.2024.3353461"], grade: 2, why: "2024 QML in healthcare review" },
+      { keys: ["10.1038/s41467-024-49877-8"], grade: 2, why: "2024 shadows of QML" },
+      { keys: ["10.1088/1361-6633/ad7f69"], grade: 2, why: "2024 comprehensive review" },
+      { keys: ["10.1109/access.2025.3573244"], grade: 2, why: "2025 survey" },
+      { keys: ["10.1016/j.mex.2025.103318"], grade: 1, why: "2025 methods review" },
+      { keys: ["10.1038/s41467-025-55877-z"], grade: 1, why: "2025 method paper" },
+      { keys: ["10.48550/arxiv.2505.17756", "arxiv:2505.17756"], grade: 1, why: "Qiskit ML toolkit" },
+      { keys: ["arxiv:2503.02934", "trainonclassicaldeployonquantumscalinggenerativequantummachinelearningtoathousandqubits"], grade: 1, why: "2025 result" },
+      { keys: ["10.1201/9781003646068-6"], grade: 1, why: "2026 book chapter" },
+      { keys: ["10.1007/s42484-026-00373-w"], grade: 1, why: "2026 paper" },
+      { keys: ["10.26434/chemrxiv-2025-71814"], grade: 1, why: "2025 preprint" },
+    ],
     target: ["10.1016/j.cosrev.2024.100619", "10.1109/access.2025.3573244", "10.1088/2632-2153/ad2aef", "10.1109/access.2024.3353461"],
     expectedMode: "search",
     minResults: 5,
@@ -176,13 +180,13 @@ export const ACADEMIC_GOLDEN_SET: GoldenCase[] = [
     kind: "search",
     label: "non-Latin (CJK) query — Unicode survival",
     query: "深度学习",
-    relevance: {
-      "10.3788/cjl230924": 2,
-      "10.3788/lop230488": 2,
-      "10.3788/cjl230470": 2,
-      "10.3799/dqkx.2020.111": 2,
-      "10.3788/lop232464": 2,
-    },
+    relevance: [
+      { keys: ["10.3788/cjl230924"], grade: 2, why: "深度学习 review (point clouds)" },
+      { keys: ["10.3788/lop230488"], grade: 2, why: "深度学习 review (CT reconstruction)" },
+      { keys: ["10.3788/cjl230470"], grade: 2, why: "深度学习 review (adaptive optics)" },
+      { keys: ["10.3799/dqkx.2020.111"], grade: 2, why: "深度学习 in geoscience" },
+      { keys: ["10.3788/lop232464"], grade: 2, why: "深度学习 review (single-pixel imaging)" },
+    ],
     target: ["10.3788/cjl230924", "10.3788/lop230488", "10.3788/cjl230470", "10.3799/dqkx.2020.111", "10.3788/lop232464"],
     expectedMode: "search",
     minResults: 5,
@@ -192,13 +196,13 @@ export const ACADEMIC_GOLDEN_SET: GoldenCase[] = [
     kind: "search",
     label: "retracted paper (Wakefield 1998) — retraction flag must survive merging",
     query: "Ileal-lymphoid-nodular hyperplasia non-specific colitis pervasive developmental disorder children",
-    relevance: {
-      "10.1016/s0140-6736(97)11096-0": 2,
-      "10.1016/s0140-6736(10)60175-4": 1,
-      "10.1016/s0140-6736(05)77837-5": 1,
-      "10.1016/s0140-6736(02)08948-1": 1,
-      ileallymphoidnodularhyperplasianonspecificcolitisandpervasivedevelopmentaldisorderinchildrenretractedarticleseevol375pg4452010: 1,
-    },
+    relevance: [
+      { keys: ["10.1016/s0140-6736(97)11096-0"], grade: 2, why: "Wakefield et al. 1998 — the (retracted) paper itself" },
+      { keys: ["10.1016/s0140-6736(10)60175-4"], grade: 1, why: "the 2010 retraction notice" },
+      { keys: ["10.1016/s0140-6736(05)77837-5"], grade: 1, why: "1998 reply letter with the same title" },
+      { keys: ["10.1016/s0140-6736(02)08948-1"], grade: 1, why: "MMR / hyperplasia follow-up" },
+      { keys: ["ileallymphoidnodularhyperplasianonspecificcolitisandpervasivedevelopmentaldisorderinchildrenretractedarticleseevol375pg4452010"], grade: 1, why: "no-DOI copy of the paper record" },
+    ],
     target: ["10.1016/s0140-6736(97)11096-0"],
     expectedMode: "search",
     minResults: 3,
@@ -271,13 +275,29 @@ export function identityKeys(r: Pick<AcademicPaperResult, "doi" | "arxivId" | "t
   return keys
 }
 
-export function gradeOf(r: AcademicPaperResult, relevance: Record<string, RelevanceGrade>): 0 | 1 | 2 {
-  let best: 0 | 1 | 2 = 0
-  for (const k of identityKeys(r)) {
-    const g = relevance[k]
-    if (g && g > best) best = g
-  }
-  return best
+/** Index of the judged document a result matches, or -1. */
+function judgedIndex(r: AcademicPaperResult, relevance: JudgedDocument[]): number {
+  const keys = new Set(identityKeys(r))
+  return relevance.findIndex((d) => d.keys.some((k) => keys.has(k)))
+}
+
+export function gradeOf(r: AcademicPaperResult, relevance: JudgedDocument[]): 0 | 1 | 2 {
+  const i = judgedIndex(r, relevance)
+  return i === -1 ? 0 : relevance[i].grade
+}
+
+/**
+ * Gains per rank; a document that already appeared earlier earns 0 again, so duplicate
+ * rows are penalised rather than rewarded.
+ */
+function gainsAtK(results: AcademicPaperResult[], relevance: JudgedDocument[], k: number): number[] {
+  const seen = new Set<number>()
+  return results.slice(0, k).map((r) => {
+    const i = judgedIndex(r, relevance)
+    if (i === -1 || seen.has(i)) return 0
+    seen.add(i)
+    return relevance[i].grade
+  })
 }
 
 export function isTarget(r: AcademicPaperResult, target: string[]): boolean {
@@ -294,13 +314,14 @@ export function reciprocalRank(results: AcademicPaperResult[], target: string[])
   return idx === -1 ? 0 : 1 / (idx + 1)
 }
 
-export function ndcgAtK(results: AcademicPaperResult[], relevance: Record<string, RelevanceGrade>, k = 5): number {
-  const gains = results.slice(0, k).map((r) => gradeOf(r, relevance))
+export function ndcgAtK(results: AcademicPaperResult[], relevance: JudgedDocument[], k = 5): number {
+  const gains = gainsAtK(results, relevance, k)
   const dcg = gains.reduce((acc, g, i) => acc + (Math.pow(2, g) - 1) / Math.log2(i + 2), 0)
-  const ideal = Object.values(relevance)
+  const idealGains: number[] = relevance
+    .map((d) => d.grade)
     .sort((a, b) => b - a)
     .slice(0, k)
-    .reduce((acc, g, i) => acc + (Math.pow(2, g) - 1) / Math.log2(i + 2), 0)
+  const ideal = idealGains.reduce((acc, g, i) => acc + (Math.pow(2, g) - 1) / Math.log2(i + 2), 0)
   return ideal === 0 ? 0 : dcg / ideal
 }
 

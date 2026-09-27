@@ -36,6 +36,11 @@ export interface ReplayOptions {
   faults?: Partial<Record<ReplayProvider, Fault>>
   /** Per-provider artificial latency in ms (advanced with fake timers). */
   latencyMs?: Partial<Record<ReplayProvider, number>>
+  /**
+   * Per-provider synthetic responders for scenarios the recorded corpus does not contain.
+   * Return `null` to fall through to the fixtures. Faults take precedence over stubs.
+   */
+  stubs?: Partial<Record<ReplayProvider, (url: URL, init?: RequestInit) => Response | null>>
 }
 
 interface CompactAuthor {
@@ -349,7 +354,7 @@ export interface ReplayFetch {
   reset(): void
 }
 
-function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
+export function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(typeof body === "string" ? body : JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json", ...headers },
@@ -435,6 +440,17 @@ export function createReplayFetch(options: ReplayOptions = {}): ReplayFetch {
     }
 
     const u = new URL(url)
+
+    const stub = options.stubs?.[provider]
+    if (stub) {
+      const stubbed = stub(u, init)
+      if (stubbed) {
+        call.kind = "other"
+        call.routedTo = "stub"
+        call.status = stubbed.status
+        return stubbed
+      }
+    }
 
     // ----- OpenAlex ----------------------------------------------------------
     if (provider === "openalex") {
@@ -536,6 +552,16 @@ export function createReplayFetch(options: ReplayOptions = {}): ReplayFetch {
       if (idMatch) {
         call.kind = "doi"
         const raw = decodeURIComponent(idMatch[1])
+        if (/^ARXIV:/i.test(raw)) {
+          const arxivId = raw.replace(/^ARXIV:/i, "").replace(/v\d+$/, "")
+          const hit = allProviderWorks("semanticscholar").find((w) => w.arxivId === arxivId)
+          if (!hit) {
+            call.status = 404
+            return jsonResponse({ error: `Paper with id ${raw} not found` }, 404)
+          }
+          call.routedTo = `arxiv:${arxivId}`
+          return jsonResponse(toScholarPaper(hit))
+        }
         const doi = raw.replace(/^DOI:/i, "").toLowerCase()
         const fixture = corpus.semanticscholar.doi[doi]
         if (fixture) {
