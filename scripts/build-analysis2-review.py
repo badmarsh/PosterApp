@@ -143,6 +143,26 @@ Q = {
         "The χ < 1 requirement significantly increases the fraction of events",
         "reaching ≈ 100 % in the 100 − 150 GeV and 150 − 200 GeV\ndiagonal regions.",
     ),
+    "jer_diag": grab(
+        "In the JER measurement, the diagonal region with jet p T between 150 and 200 GeV",
+        "poor statistical power in the separation of the different\nJER assumed values.",
+    ),
+    "s2_sel": grab(
+        "the event selection is re-evaluated using",
+        "for the sub-leading jet from W -boson decay.",
+    ),
+    "s2_idx": grab(
+        "does not match the indices for s = s 2 or r = r 2",
+        "corresponding to s = s 2 or r = r 2 are taken.",
+    ),
+    "bjet": grab(
+        "the χ calculation is either folded with the same s or r as one of the light jets from",
+        "or is left unchanged.",
+    ),
+    "threshold": grab(
+        "Jets with 15 GeV < p T < 20 GeV are kept, as",
+        "shifted above the 20 GeV threshold after the forward-folding procedure.",
+    ),
 }
 
 # Table 7.2 row must not be confused with a duplicate elsewhere.
@@ -161,7 +181,7 @@ comments = f"""# Reviewer comments on Analysis_2.pdf
 
 This note reviews the chapter in `Analysis_2.pdf` only: JES and JER from the hadronic W boson in single-lepton tt̄, using forward folding. The file is a chapter excerpt, not a full dissertation. In the PDF the running line numbers begin at 94, and the text cites chapters and sections that are not in this file. Nothing below is a score for the rest of the thesis. Displayed equations did not survive text extraction cleanly, so formula layout is not treated as an author error. Every quotation is an exact span of the cleaned extraction.
 
-The comments were written against a PosterApp index of this chapter, not against a substitute paper. Margin line numbers were stripped before chunking (771 of them). The index has 490 retrieval units, embedded with `Xenova/all-MiniLM-L6-v2` (384 dimensions, local ONNX, no hash fallback). Hugging Face was unreachable, so this index is not the production multilingual MiniLM. That model remains the default when the network is available. The vectors are in `artifacts/analysis-2/embeddings.json`. A probe query for the half-maximum likelihood sentence retrieved the §6.2 paragraph at cosine 0.58; the forward-folding formula retrieved §2.2 at 0.66.
+The comments were written against a PosterApp index of this chapter, not against a substitute paper. Margin line numbers (771) and repeated running headers (58) were stripped before chunking, so a page header is not a new section and a quote is not prefixed with the gutter number. The index uses `Xenova/all-MiniLM-L6-v2` (384 dimensions, local ONNX, no hash fallback). Hugging Face was unreachable, so this index is not the production multilingual MiniLM. That model remains the default when the network is available. The vectors are in `artifacts/analysis-2/embeddings.json`. A probe query for the half-maximum likelihood sentence retrieved the §6.2 paragraph at cosine 0.58; the forward-folding formula retrieved §2.2 at 0.66.
 
 ## What should be fixed in this chapter
 
@@ -199,7 +219,7 @@ The text is right that these factors were fitted on simulation, so the factor ap
 
 {block(Q["chapter_ref"])}
 
-This is the right thing to disclose. It is not yet a documented uncertainty. The sentence says the data/simulation JER difference “is currently accounted for in the considered systematic uncertainties”, and those uncertainties are the ones described in Section ?? and Chapter ??. This copy contains 37 unresolved `Section ??`, 4 `Chapter ??`, 1 `Equation ??`, and a literal `sec:background`. A reviewer cannot check whether the missing smearing is actually one of the nuisance parameters, or whether it is larger than the JER factors in Table 7.2. Resolve the labels, and add one row that shows the size of that particular uncertainty in each p_T bin. Until that row exists, the JER result is a constraint under an incomplete calibration, which the introduction already admits, and the result section should repeat the admission next to Table 7.2.
+This is the right thing to disclose. It is not yet a documented uncertainty. The sentence says the data/simulation JER difference “is currently accounted for in the considered systematic uncertainties”, and those uncertainties are the ones described in Section ?? and Chapter ??. This copy contains 37 unresolved `Section ??`, 4 `Chapter ??`, 2 `Appendix ??`, 1 `Equation ??`, and a literal `sec:background`. A reviewer cannot check whether the missing smearing is actually one of the nuisance parameters, or whether it is larger than the JER factors in Table 7.2. Resolve the labels, and add one row that shows the size of that particular uncertainty in each p_T bin. Until that row exists, the JER result is a constraint under an incomplete calibration, which the introduction already admits, and the result section should repeat the admission next to Table 7.2.
 
 ### 6. JES and JER are not fitted together
 
@@ -244,6 +264,26 @@ Assigning the discrete factor to a representative p_T rather than the bin centre
 {block(Q["purity"])}
 
 Five percent background after the χ² < 1 requirement (Equation 4.1; the superscript is lost in the text extraction), dominated by tW, is a useful inclusive number. The composition, the p_T dependence, and the fake-lepton estimate are in Section ??, and the comparison with the standard ATLAS in situ methods is in Chapter ??. The low-p_T bin is where both the JES central value and the JER uncertainty are worst, so an inclusive 5% is not automatically the purity of that bin. Give the background fraction in each analysis region in this chapter, even if the generator-level description lives elsewhere.
+
+### 10. The 150–200 GeV JER factor is not a diagonal measurement
+
+{block(Q["jer_diag"])}
+
+{block(Q["table_jer_high"])}
+
+Table 7.2 still quotes that bin: 0.997 ± 0.225 in Run 2 and 0.995 ± 0.281 in Run 3. The correlation paragraph explains the same structure for s_1, the 20–35 GeV factor that exists only because of the off-diagonal regions. It does not say that r in the highest bin is in the same position. The exclusion is in §6.1, two sections before the table, and the reason given is that the templates do not separate. That is why the total uncertainty is the largest in the table, and why the central value sitting on unity is not a measured resolution of 1. Put the exclusion in the Table 7.2 caption. The sentence that sends the reader to Appendix ?? for the low-p_T JES effect is the same kind of hole: the explanation of why s_1 cannot be separated from s_2 is not in this file.
+
+### 11. Three approximations are stated and not counted
+
+{block(Q["s2_sel"])}
+
+{block(Q["s2_idx"])}
+
+{block(Q["bjet"])}
+
+{block(Q["threshold"])}
+
+Each of these is a reasonable shortcut, and the text says so. None of them has a number. The selection and the missing transverse momentum for an off-diagonal event are evaluated at the sub-leading jet’s factor only. When the jet indices at s_1 disagree with those at s_2, the s_2 set is used. The b-jet in the χ² re-evaluation is left unfolded when it is not in the same p_T bin as a light jet from the W. And MC keeps jets between 15 and 20 GeV so that folding can move them over the data threshold. What is not said is how often any of this happens, or that a 15–20 GeV jet which does not migrate upward is then removed by the same 20 GeV cut applied to data. The approximation is least comfortable where the factors differ most, which is the 20–35 GeV bin against the 70–150 GeV bins. Give the fraction of events whose index set changes, the fraction whose b-jet is left unfolded, and one sentence confirming the post-folding MC selection is the data selection.
 
 ## What is already in good shape
 
@@ -454,6 +494,47 @@ findings = [
         "explanation": "After the χ² < 1 requirement, 5% of selected simulated events in the inclusive region are background, dominated by tW. The detailed description is cited as Section ??, and the introduction still contains the unresolved label sec:background. The 5% figure is not given per pT bin.",
         "recommendation": "Give the background fraction in each analysis region in this chapter. The low-pT bin is where the calibration uncertainty is largest.",
         "evidence": [evidence(Q["purity"], "Chapter 4"), evidence(Q["background_label"], "Chapter 1")],
+        "status": "unreviewed",
+        "decisionStatus": "needs_human_review",
+        "source": "reviewer",
+        "audience": "author",
+        "includeInExport": True,
+        "createdBy": "reviewer",
+    },
+    {
+        "id": "a2-jer-high-bin",
+        "criterionKey": "results_validity",
+        "category": "results",
+        "title": "The 150–200 GeV JER factor is not a diagonal measurement",
+        "findingType": "recommendation",
+        "severity": "major",
+        "confidence": 0.9,
+        "explanation": "Section 6.1 excludes the 150–200 GeV diagonal region from the JER fit because the templates do not separate. Table 7.2 still quotes r = 0.997 ± 0.225 (Run 2) and 0.995 ± 0.281 (Run 3) for that bin. The correlation text explains the analogous off-diagonal-only constraint for s_1, not for this r.",
+        "recommendation": "State in the Table 7.2 caption that this bin is constrained only by off-diagonal regions, and that the diagonal region was excluded for lack of template separation.",
+        "evidence": [evidence(Q["jer_diag"], "6.1 JES and JER parametrisation"), evidence(Q["table_jer_high"], "Table 7.2")],
+        "status": "unreviewed",
+        "decisionStatus": "needs_human_review",
+        "source": "reviewer",
+        "audience": "author",
+        "includeInExport": True,
+        "createdBy": "reviewer",
+    },
+    {
+        "id": "a2-approximations",
+        "criterionKey": "methodology_rigor",
+        "category": "methodology",
+        "title": "Off-diagonal approximations are disclosed but not quantified",
+        "findingType": "missing_evidence",
+        "severity": "minor",
+        "confidence": 0.75,
+        "explanation": "Off-diagonal events are selected at the sub-leading jet factor only. If the jet indices at s_1 and s_2 disagree, the s_2 set is used. The b-jet in the chi-squared re-evaluation is left unfolded when it is in a different pT bin. MC retains 15–20 GeV jets so folding can move them across the 20 GeV data threshold. None of these rates is given.",
+        "recommendation": "Quote the fraction of events whose index set changes and whose b-jet is left unfolded, and state that post-folding MC is cut at the same 20 GeV threshold as data.",
+        "evidence": [
+            evidence(Q["s2_sel"], "4.4 Re-evaluating the event selection"),
+            evidence(Q["s2_idx"], "Chapter 5"),
+            evidence(Q["bjet"], "Chapter 5"),
+            evidence(Q["threshold"], "Chapter 3"),
+        ],
         "status": "unreviewed",
         "decisionStatus": "needs_human_review",
         "source": "reviewer",

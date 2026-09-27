@@ -10,7 +10,7 @@
  * all-MiniLM-L6-v2. Do not commit that ONNX file.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "fs"
-import { stripMarginLineNumbers } from "../lib/services/margin-line-numbers"
+import { cleanExtractedPdfMarkdown } from "../lib/services/margin-line-numbers"
 import { chunkDocument } from "../lib/ai/chunker-v2"
 import { generateLocalEmbeddings } from "../lib/ai/local-embeddings"
 import { getModelHealthSnapshot } from "../lib/ai/model-registry"
@@ -33,8 +33,8 @@ async function main() {
   process.env.EMBEDDING_MODEL = process.env.EMBEDDING_MODEL || "Xenova/all-MiniLM-L6-v2"
   process.env.EMBEDDING_LOCAL_PATH = process.env.EMBEDDING_LOCAL_PATH || ".cache/models"
   const raw = readFileSync("artifacts/analysis-2/manuscript.md", "utf8")
-  const cleaned = stripMarginLineNumbers(raw)
-  if (!cleaned.applied) throw new Error("margin line-number stripper did not fire")
+  const cleaned = cleanExtractedPdfMarkdown(raw)
+  if (cleaned.marginLinesStripped < 40) throw new Error("margin line-number stripper did not fire")
   mkdirSync("artifacts/analysis-2", { recursive: true })
   writeFileSync("artifacts/analysis-2/manuscript.clean.md", cleaned.text)
 
@@ -44,7 +44,7 @@ async function main() {
     lang: "en",
   })
   const units = chunks.filter((c) => !c.isParent)
-  console.log(`chunks ${chunks.length} retrieval units ${units.length} margin lines stripped ${cleaned.stripped}`)
+  console.log(`chunks ${chunks.length} retrieval units ${units.length} margin lines stripped ${cleaned.marginLinesStripped} running headers stripped ${cleaned.runningHeadersStripped}`)
 
   const texts = units.map((c) => c.embeddingText)
   const started = Date.now()
@@ -66,7 +66,8 @@ async function main() {
     source: "Analysis_2.pdf",
     model: process.env.EMBEDDING_MODEL || "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
     dimensions: dim,
-    marginLinesStripped: cleaned.stripped,
+    marginLinesStripped: cleaned.marginLinesStripped,
+    runningHeadersStripped: cleaned.runningHeadersStripped,
     retrievalUnits: units.length,
     embedMs: elapsed,
     chunks: units.map((c, i) => ({

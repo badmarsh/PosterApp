@@ -5,7 +5,6 @@
 
 <!-- Page 1 -->
 
-1
 
 ### Chapter 1
 
@@ -49,7 +48,6 @@ are included in the light-quark jet definition adopted here, which simply exclud
 
 <!-- Page 2 -->
 
-2 Chapter 1. JES and JER from W - analysis overview
 radiation. This signature allows a clean event selection, with only a small contribution
 from background processes (described in Section sec:background).
 b
@@ -89,7 +87,6 @@ to simulated samples, while no in situ JES calibration is applied to data, as th
 <!-- Page 3 -->
 
 
-## Chapter 1. JES and JER from W - analysis overview 3
 
 correction is the quantity being measured. The in situ JER calibration consists of
 smearing the p T of jets in simulation to reproduce the typically worse JER in data,
@@ -113,7 +110,6 @@ tainties (see Chapter ?? ) are considered in the JES measurement and vice versa.
 
 <!-- Page 5 -->
 
-5
 
 ### Chapter 2
 
@@ -157,7 +153,6 @@ truth jets, or to only a fraction of the p T associated with one or more truth j
 
 <!-- Page 6 -->
 
-6 Chapter 2. Forward-folding method
 The forward-folding is not applied on jets that do not satisfy the matching and
 isolation criteria described above, and they are treated as a background for JES or JER,
 as they do not provide any separation between the different assumptions for JES and
@@ -216,7 +211,6 @@ estimated by fitting a Gaussian function around the peak of the jet response (de
 <!-- Page 7 -->
 
 
-## 2.2. Forward-folding formula 7
 
 Equation ?? in Chapter ?? ) distribution in the nominal MC simulation, separately for
 p T bins 0 − 20 GeV , 20 − 35 GeV , 35 − 50 GeV , 50 − 70 GeV , 70 − 100 GeV , 100 − 150 GeV ,
@@ -248,7 +242,6 @@ gluon-initiated jets.
 
 <!-- Page 8 -->
 
-8 Chapter 2. Forward-folding method
 Table 2.1: The mean values of Run 2 simulated response R from nominal MC for different
 p T bins and different jet flavours.
 jet p T [GeV ] b -jets c -jets gluon jets light jets
@@ -276,7 +269,6 @@ jet p T [GeV] b -jets c -jets gluon jets light jets
 <!-- Page 9 -->
 
 
-## 2.2. Forward-folding formula 9
 
 0.12 s = 13 TeV, 140 fb -1 0.14 s = 13 TeV, 140 fb -1
 t t PowhegPythia8 FS t t PowhegPythia8 FS
@@ -336,7 +328,6 @@ in the nominal t t ¯ Powheg+Pythia sample.
 
 <!-- Page 11 -->
 
-11
 
 ### Chapter 3
 
@@ -374,7 +365,6 @@ selections use their corresponding object definitions: the low- p T and the high
 
 <!-- Page 12 -->
 
-12 Chapter 3. Analysis-specific object definitions
 The primary difference between the two object definitions is the minimum p T
 requirement for jets. In the high- p T objects, jets are required to satisfy p T > 20 GeV ,
 while in the low- p T objects, jets satisfy p T > 15 GeV . This lower threshold is chosen
@@ -415,7 +405,6 @@ sample.
 <!-- Page 13 -->
 
 
-## Chapter 3. Analysis-specific object definitions 13
 
 3.0.1 Particle-level object definitions
 Particle-level leptons, referred to as the truth leptons, are selected as leptons originating
@@ -431,7 +420,6 @@ p T > 10 GeV and | η | < 2 . 5 .
 
 <!-- Page 15 -->
 
-15
 
 ### Chapter 4
 
@@ -480,7 +468,6 @@ used to produce the control plots comparing recorded data with the prediction an
 
 <!-- Page 16 -->
 
-16 Chapter 4. Event selection and hadronic W -boson reconstruction
 determine the jet response in MC simulation (defined in Section 2 by Equation 2.2).
 Figures 4.1 and 4.2 show the control plots for basic kinematic distributions in the
 Inclusive region for Run 2 data without the in situ correction applied. The remaining
@@ -506,7 +493,6 @@ order calculations in the MC generators [12].
 <!-- Page 17 -->
 
 
-## Chapter 4. Event selection and hadronic W -boson reconstruction 17
 
 3
 10 9 × 10
@@ -568,7 +554,6 @@ Section ?? . The bottom panels show the ratio of the data to the MC prediction.
 
 <!-- Page 18 -->
 
-18 Chapter 4. Event selection and hadronic W -boson reconstruction
 3
 10 9 300 × 10
 -1 Data -1 Data
@@ -635,7 +620,6 @@ the ratio of the data to the MCprediction.
 <!-- Page 19 -->
 
 
-## Chapter 4. Event selection and hadronic W -boson reconstruction 19
 
 no χ² cut
 (a)
@@ -646,7 +630,6 @@ Figure 4.3
 
 <!-- Page 20 -->
 
-20 Chapter 4. Event selection and hadronic W -boson reconstruction
 
 ### 4.1 Hadronic W -boson kinematics reconstruction
 
@@ -703,7 +686,6 @@ improve the matching efficiency, only events satisfying χ < 1 for the best perm
 <!-- Page 21 -->
 
 
-## 4.1. Hadronic W -boson kinematics reconstruction 21
 
 are considered further in the analysis. This requirement removes approximately half of
 the events satisfying all the other selection criteria.
@@ -765,7 +747,6 @@ data well. However, the W -boson mass peak distribution is reasonably well cover
 
 <!-- Page 22 -->
 
-22 Chapter 4. Event selection and hadronic W -boson reconstruction
 by the provided uncertainty band due to a large uncertainty originating from the t t ¯
 modelling (mainly Pythia versus Herwig comparison).
 
@@ -812,7 +793,6 @@ The diagonal-region where both jets have p T between 20 and 35 GeV is excluded f
 <!-- Page 23 -->
 
 
-## 4.3. W -boson reconstruction efficiency 23
 
 the measurement, as there are virtually no jets from the W -boson decay due to the
 kinematic restriction of the p T and the jet | η | requirements.
@@ -859,7 +839,6 @@ of the reconstructed jet, that can be uniquely assigned. Only unique matches are
 
 <!-- Page 24 -->
 
-24 Chapter 4. Event selection and hadronic W -boson reconstruction
 considered, i.e. if one parton falls within ∆ R < 0 . 4 of multiple reconstructed jets, these
 reconstructed jets are labeled as not matchable . If both jets from the W -boson decay
 can be matched to the partons, the event is considered matchable. The efficiency of the
@@ -889,7 +868,6 @@ W -boson decay.
 <!-- Page 25 -->
 
 
-## 4.3. W -boson reconstruction efficiency 25
 
 Table 4.2: Matching efficiency in the 20 - 35 GeV diagonal analysis region for events with
 2 2
@@ -929,7 +907,6 @@ Both jets matched relative to all 54% 46% 53% 45%
 
 <!-- Page 26 -->
 
-26 Chapter 4. Event selection and hadronic W -boson reconstruction
 Table 4.4: Matching efficiency in the 50 - 70 GeV diagonal analysis region for events with
 2 2
 χ < 1 and for events with no additional χ requirement, in the Run 2 and Run 3 simulated
@@ -969,7 +946,6 @@ Both jets matched relative to all 84% 62% 84% 62%
 <!-- Page 27 -->
 
 
-## 4.3. W -boson reconstruction efficiency 27
 
 Table 4.6: Matching efficiency in the 100 - 150 GeV diagonal analysis region for events with
 2 2
@@ -1009,7 +985,6 @@ Both jets matched relative to all 97% 65% 96% 64%
 
 <!-- Page 28 -->
 
-28 Chapter 4. Event selection and hadronic W -boson reconstruction
 
 ### 4.4 Re-evaluating the event selection
 
@@ -1061,7 +1036,6 @@ i
 <!-- Page 29 -->
 
 
-## 4.4. Re-evaluating the event selection 29
 
 miss jet
 where p ⃗ T is the missing transverse momentum vector and p ⃗ T is the transverse-
@@ -1070,7 +1044,6 @@ momentum vector of jet i .
 
 <!-- Page 31 -->
 
-31
 
 ### Chapter 5
 
@@ -1121,7 +1094,6 @@ W -boson mass
 
 <!-- Page 32 -->
 
-32 Chapter 5. W -boson mass templates
 2
 A Jet or the area of the isolation annulus A iso = πR iso − A Jet by the pile-up density ρ .
 The recommended requirement is f iso ≤ 0 . 3 .
@@ -1158,7 +1130,6 @@ In the diagonal regions, 11 templates with different values of s , ranging from 
 <!-- Page 33 -->
 
 
-## Chapter 5. W -boson mass templates 33
 
 In the off-diagonal regions, 121 templates are produced for the JES variations,
 corresponding to all combinations of 11 values of s 1 and 11 values of s 2 . Similarly, 121
@@ -1185,7 +1156,6 @@ is compensated by the fact that the s variation has a bigger effect for high p T
 
 <!-- Page 34 -->
 
-34 Chapter 5. W -boson mass templates
 Table 5.1:
 Passed all criteria Failed Failed to match Failed Category jet
 p
@@ -1226,7 +1196,6 @@ Inclusive
 <!-- Page 35 -->
 
 
-## Chapter 5. W -boson mass templates 35
 
 200
 − 0.0 1.4
@@ -1267,7 +1236,6 @@ Table 5.2:
 
 <!-- Page 36 -->
 
-36 Chapter 5. W -boson mass templates
 Figures 5.2-5.4 shows the effect of JES and JER variations in one representative
 diagonal and one representative off-diagonal regions in the Run 2 measurement. The
 shift of the peak of the reconstructed W -mass distribution caused by JES ( s , s 1 or
@@ -1296,7 +1264,6 @@ regions, are shown in Appendices D and E, respectively.
 <!-- Page 37 -->
 
 
-## Chapter 5. W -boson mass templates 37
 
 2000 ATLAS Simulation 2500 ATLAS Simulation
 JES JER
@@ -1364,7 +1331,6 @@ factor, r , is fixed to unity. [15]
 
 <!-- Page 38 -->
 
-38 Chapter 5. W -boson mass templates
 2200 2500
 -1 -1
 2000 s = 13 TeV, 140 fb JER s = 13 TeV, 140 fb JER
@@ -1399,7 +1365,6 @@ factor, s , is fixed to unity. [15]
 
 <!-- Page 39 -->
 
-39
 
 ### Chapter 6
 
@@ -1435,7 +1400,6 @@ fitted with one-dimensional quadratic function F ( r ) . In the off-diagonal reg
 
 <!-- Page 40 -->
 
-40 Chapter 6. Extraction of JES and JER
 extracted for every combination of r 1 and r 2 and the obtained values are fitted with
 two-dimensional quadratic function F ( r 1 , r 2 ) .
 The parametrisation was chosen to be as simple as possible while still providing a
@@ -1483,7 +1447,6 @@ deviation value to the fitted function F . [15]
 <!-- Page 41 -->
 
 
-## 6.2. Fit setup 41
 
 ATLAS Simulation ATLAS Simulation
 -1 -1
@@ -1552,7 +1515,6 @@ MINUIT2 library [17] implemented in RooFit [18].
 
 <!-- Page 42 -->
 
-42 Chapter 6. Extraction of JES and JER
 Similarly, for the JER measurement, it takes the form:
  
 data
@@ -1574,7 +1536,6 @@ variation).
 
 <!-- Page 43 -->
 
-43
 
 ### Chapter 7
 
@@ -1610,7 +1571,6 @@ by substituting the fitted s i into the parametrisation F . The comparison is pr
 
 <!-- Page 44 -->
 
-44 Chapter 7. Results
 separately for the Run 2 and Run 3 JES measurements. Similarly, Figure 7.2 compares
 the pre-fit and post-fit values of the W -mass distribution width, σ , obtained in the
 presented Run 2 and Run 3 JER measurements. It can be seen that the post-fit
@@ -1681,7 +1641,6 @@ and post-fit (solid line) predictions, with the dashed line representing the rat
 
 <!-- Page 46 -->
 
-46 Chapter 7. Results
 16
 ATLAS Data
 [GeV] -1
@@ -1731,7 +1690,6 @@ one.
 <!-- Page 47 -->
 
 
-## 7.2. JES and JER correction factors 47
 
 
 ### 7.2 JES and JER correction factors
@@ -1773,7 +1731,6 @@ the inverse of the Hessian matrix at the likelihood minimum. The correlation coe
 
 <!-- Page 48 -->
 
-48 Chapter 7. Results
 Table 7.1: The JES correction factors, s i , obtained from the fit to data for each reconstructed
 jet p T bin i , are shown for the Run 2 and Run 3 measurement, together with their uncertainties.
 The total uncertainty is calculated by adding the statistical and systematic uncertainties in
@@ -1803,7 +1760,6 @@ Region i [GeV ] Run 2 Run 3 Run 2 Run 3 Run 2 Run 3 Run 2 Run 3
 <!-- Page 49 -->
 
 
-## 7.2. JES and JER correction factors 49
 
 are obtained by dividing the corresponding covariance terms by the uncertainties of the
 two parameters. These correlations need to be taken into account when combining the
@@ -1820,7 +1776,6 @@ Appendix ?? ).
 
 <!-- Page 50 -->
 
-50 Chapter 7. Results
 1.1
 ATLAS Total unc.
 -1
@@ -1866,7 +1821,6 @@ The dashed horizontal line represents JES correction s i = 1 , i.e. no correctio
 <!-- Page 51 -->
 
 
-## 7.2. JES and JER correction factors 51
 
 1.6 ATLAS Total unc.
 -1 Total unc. w/o Herwig
@@ -1911,7 +1865,6 @@ p T bin. The dashed horizontal line represents JER correction r i = 1 , i.e. no 
 
 <!-- Page 52 -->
 
-52 Chapter 7. Results
 3 3
 × 10 × 10
 3000 Data 3000 Data
@@ -1944,7 +1897,6 @@ simulation, across all considered reconstructed jet p T bins in the Run 2 measur
 <!-- Page 53 -->
 
 
-## 7.2. JES and JER correction factors 53
 
 -1 -1
 ATLAS s = 13 TeV, 140 fb JES ATLAS s = 13.6 TeV, 52 fb JES
@@ -1972,7 +1924,6 @@ from the fit in the Run 2 (left) and Run 3 (right) JES (top) and JER (bottom) me
 
 <!-- Page 54 -->
 
-54 Chapter 7. Results
 
 ### 7.3 Fit validation
 
@@ -1998,7 +1949,6 @@ being close to unity.
 <!-- Page 55 -->
 
 
-## 7.3. Fit validation 55
 
 -1
 ATLAS Data 450 s = 13.6 TeV, 52 fb Data
@@ -2033,7 +1983,6 @@ representing the ratio of one. The arrows indicate a value outside of the displa
 
 <!-- Page 56 -->
 
-56 Chapter 7. Results
 600
 1400 ATLAS s = 13.6 TeV, 52 fb -1
 Data Data
@@ -2068,7 +2017,6 @@ representing the ratio of one. The arrows indicate a value outside of the displa
 
 <!-- Page 57 -->
 
-57
 
 ### Appendix A
 
@@ -2697,7 +2645,6 @@ nominal t t ¯ sample.
 
 <!-- Page 65 -->
 
-65
 
 ### Appendix B
 
@@ -2882,7 +2829,6 @@ all considered systematic uncertainties as described in Section ?? .
 
 <!-- Page 69 -->
 
-69
 
 ### Appendix C
 
@@ -3167,7 +3113,6 @@ all considered systematic uncertainties as described in Section ?? .
 
 <!-- Page 73 -->
 
-73
 
 ### Appendix D
 
@@ -3722,7 +3667,6 @@ different off-diagonal regions are shown. The JES correction factor, s , is fixe
 
 <!-- Page 79 -->
 
-79
 
 ### Appendix E
 
@@ -3869,7 +3813,6 @@ variations, the JER correction, r , is set to one, and vice versa.
 
 <!-- Page 81 -->
 
-81
 
 ### Appendix F
 
@@ -4294,7 +4237,6 @@ quadratic function F is shown in red.
 
 <!-- Page 87 -->
 
-87
 
 ## Bibliography
 

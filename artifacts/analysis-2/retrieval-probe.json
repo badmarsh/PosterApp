@@ -8,14 +8,14 @@
         "preview": "<!-- Page 12 -->"
       },
       {
+        "heading": "Analysis-specific object definitions",
+        "score": 0.223,
+        "preview": "<!-- Page 15 -->"
+      },
+      {
         "heading": "Bibliography",
         "score": 0.222,
         "preview": "[12] ATLAS Collaboration, Measurements of differential cross-sections in top-quark pair events with a high transverse momentum top quark and limits on beyond the Standard Model contributions to top-quark pair production "
-      },
-      {
-        "heading": "Analysis-specific object definitions",
-        "score": 0.222,
-        "preview": "<!-- Page 13 -->"
       }
     ]
   },
@@ -24,18 +24,18 @@
     "hits": [
       {
         "heading": "6.2 Fit setup [2/2]",
-        "score": 0.581,
+        "score": 0.539,
         "preview": "The statistical uncertainty is obtained as the difference between the correction factors for which the likelihood is maximised and the ones for which the likelihood is half of the maximum value (which corresponds to one "
       },
       {
-        "heading": "6.2 Fit setup [1/2]",
-        "score": 0.428,
-        "preview": "1 Once the parametrisation is available, a maximum-likelihood fit to μ or σ of the W -mass distribution reconstructed from recorded data is performed to extract the values of the JES and JER corrections, s i and r i , fo"
+        "heading": "reconstruction",
+        "score": 0.421,
+        "preview": "(A) Electron p T in logarithmic scale, (B) electron η , (C) muon p T in logarithmic scale and (D) muon η . The uncertainty represents all considered systematic uncertainties as described in Section ?? . The bottom panels"
       },
       {
-        "heading": "Chapter 4. Event selection and hadronic W -boson reconstruction 17",
-        "score": 0.399,
-        "preview": "(A) Electron p T in logarithmic scale, (B) electron η , (C) muon p T in logarithmic scale and (D) muon η . The uncertainty represents all considered systematic uncertainties as described in Section ?? . The bottom panels"
+        "heading": "6.2 Fit setup [1/2]",
+        "score": 0.42,
+        "preview": "1 Once the parametrisation is available, a maximum-likelihood fit to μ or σ of the W -mass distribution reconstructed from recorded data is performed to extract the values of the JES and JER corrections, s i and r i , fo"
       }
     ]
   },
@@ -43,19 +43,19 @@
     "query": "JES correction factors s_i Run 2 low pT",
     "hits": [
       {
-        "heading": "7.2. JES and JER correction factors 49",
-        "score": 0.583,
-        "preview": "50 Chapter 7. Results 1.1 ATLAS Total unc. -1 s = 13 TeV, 140 fb Stat. unc. 1.05 anti-k t R = 0.4 (PFlow+JES) | η | < 0.8 jet JES correction 1 0.95 0.9 0.85 0 20 40 60 80 100 120 140 160 180 200 220 reco jet p [GeV] T (a"
-      },
-      {
-        "heading": "7.2 JES and JER correction factors [1/3]",
-        "score": 0.577,
-        "preview": "The fitted central values of the JES correction factors, s i , with their uncertainties, are shown in Figure 7.3 for Run 2 and Run 3. Although the overall uncertainties are similar between the Run 2 and Run 3 measurement"
+        "heading": "7.2 JES and JER correction factors",
+        "score": 0.557,
+        "preview": "1.1 ATLAS Total unc. -1 s = 13 TeV, 140 fb Stat. unc. 1.05 anti-k t R = 0.4 (PFlow+JES) | η | < 0.8 jet JES correction 1 0.95 0.9 0.85 0 20 40 60 80 100 120 140 160 180 200 220 reco jet p [GeV] T (a) 1.1 ATLAS Total unc."
       },
       {
         "heading": "7.2 JES and JER correction factors [2/4]",
-        "score": 0.569,
+        "score": 0.555,
         "preview": "together with their uncertainties. The total uncertainty is calculated by adding the statistical and systematic uncertainties in quadrature and includes the pre-recommendation JER uncertainties. Central Statistical Syste"
+      },
+      {
+        "heading": "7.2 JES and JER correction factors [1/3]",
+        "score": 0.552,
+        "preview": "The fitted central values of the JES correction factors, s i , with their uncertainties, are shown in Figure 7.3 for Run 2 and Run 3. Although the overall uncertainties are similar between the Run 2 and Run 3 measurement"
       }
     ]
   },
@@ -63,19 +63,19 @@
     "query": "in situ JER smearing not yet derived",
     "hits": [
       {
-        "heading": "Chapter 1. JES and JER from W - analysis overview 3 [1/2]",
-        "score": 0.496,
+        "heading": "overview [1/2]",
+        "score": 0.449,
         "preview": "correction is the quantity being measured. The in situ JER calibration consists of smearing the p T of jets in simulation to reproduce the typically worse JER in data, as described in Section ?? . However, the correspond"
-      },
-      {
-        "heading": "Chapter 1. JES and JER from W - analysis overview 3 [2/2]",
-        "score": 0.409,
-        "preview": "The other will not include the in situ JER calibration and will be used for the JER measure- ment. Thus, the JES measurement will compare data without an in situ calibration to simulation with the in situ JER calibration"
       },
       {
         "heading": "2.2 Forward-folding formula [3/3]",
         "score": 0.406,
         "preview": "When smearing jets with different JES ( s ) values, the JER ( r ) values are set to unity and vice-versa to generate pure JES and pure JER variations. The values of R are estimated by fitting a Gaussian function around t"
+      },
+      {
+        "heading": "overview [2/2]",
+        "score": 0.397,
+        "preview": "The other will not include the in situ JER calibration and will be used for the JER measure- ment. Thus, the JES measurement will compare data without an in situ calibration to simulation with the in situ JER calibration"
       }
     ]
   },
@@ -83,19 +83,19 @@
     "query": "forward folding formula jet response mode",
     "hits": [
       {
+        "heading": "2.2 Forward-folding formula [2/2]",
+        "score": 0.669,
+        "preview": "jet p T [GeV] b -jets c -jets gluon jets light jets 0 - 20 1.11 1.18 1.18 1.23 20 - 35 1.08 1.04 1.02 1.07 35 - 50 0.97 1.01 0.99 1.04 50 - 70 0.98 1.01 0.99 1.03 70 - 100 0.98 1.01 0.99 1.02 100 - 150 1.00 1.01 0.99 1.0"
+      },
+      {
+        "heading": "2.2 Forward-folding formula",
+        "score": 0.667,
+        "preview": "Figure 2.1: The Run 2 simulated jet response distribution for jets with | η | < 0 . 8 and p T from 50 − 70 GeV bin. The distributions are shown for the nominal t t ¯ sample produced with"
+      },
+      {
         "heading": "2.2 Forward-folding formula [2/3]",
         "score": 0.659,
         "preview": "Equation 2.1 can be rewritten as: folded truth reco truth p T = s · R · p T + r · ( p T − R · p T ) , (2.2) truth where the term R · p is the reconstructed p T corresponding to the peak (mode) of T reco truth the respons"
-      },
-      {
-        "heading": "2.2. Forward-folding formula 7 [1/2]",
-        "score": 0.641,
-        "preview": "8 Chapter 2. Forward-folding method Table 2.1: The mean values of Run 2 simulated response R from nominal MC for different p T bins and different jet flavours. jet p T [GeV ] b -jets c -jets gluon jets light jets 0 - 20 "
-      },
-      {
-        "heading": "2.2. Forward-folding formula 7 [2/2]",
-        "score": 0.64,
-        "preview": "jet p T [GeV] b -jets c -jets gluon jets light jets 0 - 20 1.11 1.18 1.18 1.23 20 - 35 1.08 1.04 1.02 1.07 35 - 50 0.97 1.01 0.99 1.04 50 - 70 0.98 1.01 0.99 1.03 70 - 100 0.98 1.01 0.99 1.02 100 - 150 1.00 1.01 0.99 1.0"
       }
     ]
   }
