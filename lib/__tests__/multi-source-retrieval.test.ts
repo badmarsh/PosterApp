@@ -416,6 +416,71 @@ describe("degradation", () => {
   })
 })
 
+describe("retrieveEvidence — caller signals that used to be dropped", () => {
+  it("embeds the LLM hypothesis and the caller domain, and scopes kinds", async () => {
+    installPrisma()
+    const seen: string[][] = []
+    vi.doMock("@/lib/ai/model-registry", async () => {
+      const actual = await vi.importActual<typeof import("@/lib/ai/model-registry")>("@/lib/ai/model-registry")
+      return {
+        ...actual,
+        embedTexts: async (texts: string[]) => {
+          seen.push([...texts])
+          return texts.map(() => Array.from({ length: 384 }, () => 0.01))
+        },
+      }
+    })
+    const { retrieveEvidence } = await import("@/lib/ai/hybrid-retrieval")
+    const hypothesis = "V tejto práci meriame Bose-Einsteinove korelácie v zrážkach protón-protón pri 7 TeV."
+    const r = await retrieveEvidence({
+      workspaceId: "ws-1",
+      query: "Aká je metodika merania korelačnej funkcie?",
+      criterionId: "methodology_rigor",
+      topK: 3,
+      domainContext: "Časticová fyzika, femtoskopia",
+      hypothesis,
+      kinds: ["table"],
+      useHyDE: true,
+    })
+
+    expect(seen.length).toBeGreaterThan(0)
+    const embedded = seen[0].join("\n")
+    expect(embedded).toContain(hypothesis)
+    expect(embedded).toContain("Časticová fyzika, femtoskopia")
+    // The old default path called resolveThesisDomainContext() with no metadata
+    // and hardcoded this prior into every HyDE template.
+    expect(embedded).not.toContain("STEM, Fyzika")
+    expect(r.trace.queryTransform.applied).toContain("hyde-llm")
+    expect(queryLog.some((q) => /kind IN/.test(q))).toBe(true)
+  })
+
+  it("does not embed a hypothesis when the caller turns HyDE off", async () => {
+    installPrisma()
+    const seen: string[][] = []
+    vi.doMock("@/lib/ai/model-registry", async () => {
+      const actual = await vi.importActual<typeof import("@/lib/ai/model-registry")>("@/lib/ai/model-registry")
+      return {
+        ...actual,
+        embedTexts: async (texts: string[]) => {
+          seen.push([...texts])
+          return texts.map(() => Array.from({ length: 384 }, () => 0.01))
+        },
+      }
+    })
+    const { retrieveForCriterion } = await import("@/lib/ai/vector-rag")
+    const hypothesis = "Hypotetická pasáž, ktorá sa nesmie dostať do embeddingu."
+    await retrieveForCriterion("ws-1", "metodika experimentu", {
+      topK: 2,
+      criterionId: "methodology_rigor",
+      hypothesis,
+      useHyDE: false,
+      domainContext: "Časticová fyzika",
+    })
+    const embedded = seen.flat().join("\n")
+    expect(embedded).not.toContain(hypothesis)
+  })
+})
+
 describe("isMultiSourceRetrievalEnabled", () => {
   it("is on by default and honours the documented off switches", async () => {
     installPrisma()

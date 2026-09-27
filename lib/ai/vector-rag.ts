@@ -887,7 +887,16 @@ export async function retrieveForCriterion(
         documentIds: opts.documentIds,
         topK,
         lang: opts.lang,
-        ablation: { lambda: opts.lambda, disableQueryTransform: opts.useHyDE === false && !opts.criterionExpansion },
+        // Only a caller-supplied domain. The "STEM, Fyzika" fallback below is for the
+        // legacy searchHybrid path; applying it here would bias every multi-source query.
+        domainContext: opts.domainContext,
+        hypothesis: opts.hypothesis,
+        criterionExpansion: opts.criterionExpansion,
+        kinds: opts.kinds,
+        useHyDE: opts.useHyDE,
+        // Expansion and HyDE are independent. The old flag turned both off together,
+        // so a caller who only wanted to skip HyDE also lost criterion expansion.
+        ablation: { lambda: opts.lambda, disableQueryTransform: false },
       })
       if (result.evidence.length > 0 || opts.topK === 0) {
         await persistRetrievalTrace(workspaceId, {

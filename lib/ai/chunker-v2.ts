@@ -40,14 +40,14 @@ import { classifySectionKind, type SectionKind } from "./thesis-context"
 import { FIGURE_CAPTION_LINE_RE, type ChunkKind } from "./chunking-config"
 import { normalizeTablesToMarkdown, describeTableChunk } from "./text-splitter"
 import { buildContextualPrefix, describeEquationChunk, type ContextLang } from "./chunk-context"
-import { TOKEN_ESTIMATOR_VERSION, countTokens, packUnitsIntoTokenBudget, truncateToTokenBudget } from "./token-budget"
+import { TOKEN_ESTIMATOR_VERSION, countTokens, embeddingWindowTokens, fitEmbeddingText, packUnitsIntoTokenBudget, truncateToTokenBudget } from "./token-budget"
 
 // ---------------------------------------------------------------------------
 // Versions — recorded on every indexed object so reindexing can be triggered
 // ---------------------------------------------------------------------------
 
 /** Bump when the segmentation/hierarchy algorithm changes in a way that requires reindexing. */
-export const CHUNKER_VERSION = "2.0.0"
+export const CHUNKER_VERSION = "2.1.0"
 /** Bump when the upstream parser output format changes. */
 export const PARSER_VERSION = "mineru-md-1"
 
@@ -567,6 +567,10 @@ function buildChunk(
   } else {
     embeddingText = headingLabel ? `${contextPrefix} ${headingLabel}: ${part.content}` : `${contextPrefix} ${part.content}`
   }
+  // The model attends only to its window. Parents and oversized tables/equations are stored
+  // whole (content stays verbatim for quote checks) but the embedding input is head+tail
+  // fitted so a late p-value is not truncated away by the tokenizer.
+  embeddingText = fitEmbeddingText(embeddingText, embeddingWindowTokens(), opts.charsPerToken)
 
   return {
     id: `chk-${shortHash(`${ctx.documentId}|${CHUNKER_VERSION}|${headingPath}|${part.type}|${contentHash}|${part.startOffset}`, 24)}`,
