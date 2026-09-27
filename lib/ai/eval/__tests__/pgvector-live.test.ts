@@ -9,6 +9,9 @@
  * pgvector C extension. Set `DATABASE_URL` to point it at a real server (the project's
  * `pgvector/pgvector:pg16` container) instead; the flavour used is recorded in the emitted report.
  *
+ * CI sets PGVECTOR_TEST_DATABASE_URL to a separate empty database: this suite
+ * replays migrations itself and must not reuse the already-migrated application DB.
+ *
  * The report is written to `artifacts/eval/pgvector-live.json` so the numbers in the documentation
  * are traceable to a run rather than retyped.
  */
@@ -25,7 +28,7 @@ let openError: string | null = null
 
 beforeAll(async () => {
   try {
-    db = await openLivePg()
+    db = await openLivePg({ connectionString: process.env.PGVECTOR_TEST_DATABASE_URL })
     result = await runPgvectorValidation({
       db,
       // "large" (24k rows) is opt-in via LIVE_PG_LARGE=1: it is the interesting scale, but it makes
