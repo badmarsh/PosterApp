@@ -65,7 +65,23 @@ jobs:
         run: pnpm typecheck
       - name: Lint
         run: pnpm lint
+      - name: Create isolated pgvector validation database
+        # The live suite replays the complete migration chain from scratch.
+        # Do not point it at the application DB migrated above.
+        run: |
+          node --input-type=module <<'JS'
+          import pg from 'pg'
+          const client = new pg.Client({ connectionString: process.env.DATABASE_URL })
+          try {
+            await client.connect()
+            await client.query('CREATE DATABASE posterapp_pgvector_eval')
+          } finally {
+            await client.end()
+          }
+          JS
       - name: Unit tests
+        env:
+          PGVECTOR_TEST_DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/posterapp_pgvector_eval"
         run: pnpm test -- --run
       - name: Build
         # Must run even if an earlier quality gate fails so we always know
@@ -100,8 +116,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     needs: quality
-    # Playwright's Clerk testing token requires a real Clerk tenant; run only
-    # when the secret is available (never on forks).
+    # Playwright's Clerk testing token requires a real test tenant (never on forks).
+    # Missing credentials fail explicitly below; do not silently skip E2E.
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
 
     services:
@@ -119,6 +135,9 @@ jobs:
           --health-retries 5
 
     env:
+      # Override the build/unit-test placeholders with real test-tenant credentials.
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       # Client-only flag (skips sign-in redirect) + server-only bypass flag.
       NEXT_PUBLIC_E2E_TEST: "1"
       E2E_AUTH_BYPASS: "1"
@@ -126,6 +145,12 @@ jobs:
       CI: "true"
 
     steps:
+      - name: Check Clerk test-tenant configuration
+        run: |
+          if [ -z "$CLERK_SECRET_KEY" ] || [ -z "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" ]; then
+            echo "::error::Configure CLERK_SECRET_KEY and NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY for a Clerk test tenant in repository Actions secrets (the publishable key may also be an Actions variable). E2E cannot run with placeholder credentials."
+            exit 1
+          fi
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0

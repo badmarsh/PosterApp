@@ -6,10 +6,14 @@
  * chunker, the same FTS query builder, the same fusion function, and the
  * same criterion-query string the review pipeline sends.
  *
- * Usage: pnpm exec tsx scripts/compare-analysis2-retrieval.ts
+ * Clean-index criterion experiment (no passage embedding):
+ *   pnpm exec tsx scripts/compare-analysis2-retrieval.ts --criteria-only --cached-queries
+ * Historical raw/margin experiment:
+ *   pnpm exec tsx scripts/compare-analysis2-retrieval.ts
  */
 import { mkdirSync, readFileSync, writeFileSync } from "fs"
 import { chunkDocument } from "../lib/ai/chunker-v2"
+import { getModelHealthSnapshot } from "../lib/ai/model-registry"
 import { generateLocalEmbeddings } from "../lib/ai/local-embeddings"
 import { buildFtsQuery } from "../lib/ai/retrieval-sql"
 import { fuseCandidates } from "../lib/ai/fusion"
@@ -148,6 +152,7 @@ async function embedIndex(label: string, markdown: string): Promise<Unit[]> {
   const units = chunks.filter((c) => !c.isParent)
   console.log(`embedding ${label} ${units.length} units`)
   const vectors = await generateLocalEmbeddings(units.map((c) => c.embeddingText), "passage")
+  if (getModelHealthSnapshot().embedding.fallbackCount !== 0) throw new Error("Hash fallback: invalid evaluation")
   const payload = {
     label,
     chunks: units.map((c, i) => ({
@@ -204,6 +209,12 @@ function summarize(name: string, units: Unit[], ranks: Map<string, number[]>, ca
 }
 
 async function main() {
+  // Clean-index-only experiment: never chunk or embed passages in this mode.
+  if (process.argv.includes("--criteria-only")) {
+    const { scoreCriterionQueries } = await import("./score-pipeline-variants")
+    await scoreCriterionQueries("comparison")
+    return
+  }
   process.env.TEST_REAL_EMBEDDINGS = "1"
   process.env.EMBEDDING_LOCAL_ONLY = "1"
   process.env.EMBEDDING_MODEL = "Xenova/all-MiniLM-L6-v2"
@@ -275,6 +286,7 @@ async function main() {
   console.log("embedding queries")
   const allQ = [...queryTexts, ...expanded, ...hyde, ...prefixed, ...physicsPrefixed]
   const qVecs = await generateLocalEmbeddings(allQ, "query")
+  if (getModelHealthSnapshot().embedding.fallbackCount !== 0) throw new Error("Hash fallback: invalid evaluation")
   const n = cases.length
   const qBase = qVecs.slice(0, n)
   const qExp = qVecs.slice(n, n + criterionCases.length)
