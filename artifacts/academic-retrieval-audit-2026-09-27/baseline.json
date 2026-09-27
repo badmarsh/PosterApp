@@ -1,0 +1,895 @@
+{
+  "mode": "recorded",
+  "generatedAt": "2026-09-27T09:12:23.095Z",
+  "searches": [
+    {
+      "id": "G1",
+      "label": "exact title (Transformer paper) — provider order vs citation sort, S2/OpenAlex duplicate",
+      "query": "Attention Is All You Need",
+      "mode": null,
+      "count": 8,
+      "precisionAt1": 1,
+      "reciprocalRank": 1,
+      "ndcgAt5": 0.8724997542842517,
+      "duplicateRows": 1,
+      "duplicateRate": 0.125,
+      "fieldCompleteness": {
+        "doi": 0.875,
+        "year": 1,
+        "venue": 0.875,
+        "authors": 1,
+        "citationCount": 1,
+        "openAccess": 0.625
+      },
+      "providerAgreement": null,
+      "yearLeaks": 0,
+      "retractedTop": null,
+      "providers": null,
+      "elapsedMs": 0,
+      "top": [
+        {
+          "rank": 1,
+          "title": "Attention is All you Need",
+          "year": 2017,
+          "source": "semanticscholar",
+          "citationCount": 194008,
+          "grade": 2
+        },
+        {
+          "rank": 2,
+          "title": "Attention Is All You Need",
+          "doi": "10.65215/2q58a426",
+          "year": 2025,
+          "source": "openalex",
+          "citationCount": 26907,
+          "isRetracted": false,
+          "grade": 2
+        },
+        {
+          "rank": 3,
+          "title": "Is Space-Time Attention All You Need for Video Understanding?",
+          "doi": "10.48550/arxiv.2102.05095",
+          "year": 2021,
+          "source": "openalex",
+          "citationCount": 1475,
+          "isRetracted": false,
+          "grade": 1
+        },
+        {
+          "rank": 4,
+          "title": "Attention Is All You Need In Speech Separation",
+          "doi": "10.1109/icassp39728.2021.9413901",
+          "year": 2021,
+          "source": "openalex",
+          "citationCount": 815,
+          "grade": 1
+        },
+        {
+          "rank": 5,
+          "title": "Channel Attention Is All You Need for Video Frame Interpolation",
+          "doi": "10.1609/aaai.v34i07.6693",
+          "year": 2020,
+          "source": "openalex",
+          "citationCount": 378,
+          "grade": 1
+        }
+      ],
+      "violations": [
+        "1 duplicate row(s): #2≡#1 via attentionisallyouneed"
+      ]
+    },
+    {
+      "id": "G2",
+      "label": "topical keyword query — classics vs recent, Crossref noise",
+      "query": "quantum machine learning",
+      "mode": null,
+      "count": 8,
+      "precisionAt1": 1,
+      "reciprocalRank": 1,
+      "ndcgAt5": 1,
+      "duplicateRows": 0,
+      "duplicateRate": 0,
+      "fieldCompleteness": {
+        "doi": 0.875,
+        "year": 1,
+        "venue": 0.875,
+        "authors": 1,
+        "citationCount": 1,
+        "openAccess": 0.875
+      },
+      "providerAgreement": null,
+      "yearLeaks": 0,
+      "retractedTop": null,
+      "providers": null,
+      "elapsedMs": 0,
+      "top": [
+        {
+          "rank": 1,
+          "title": "Quantum machine learning",
+          "doi": "10.1038/nature23474",
+          "year": 2017,
+          "source": "openalex",
+          "citationCount": 4778,
+          "isRetracted": false,
+          "grade": 2
+        },
+        {
+          "rank": 2,
+          "title": "Quantum Machine Learning in Feature Hilbert Spaces",
+          "doi": "10.1103/physrevlett.122.040504",
+          "year": 2019,
+          "source": "openalex",
+          "citationCount": 1837,
+          "isRetracted": false,
+          "grade": 2
+        },
+        {
+          "rank": 3,
+          "title": "An introduction to quantum machine learning",
+          "doi": "10.1080/00107514.2014.964942",
+          "year": 2014,
+          "source": "openalex",
+          "citationCount": 1342,
+          "isRetracted": false,
+          "grade": 2
+        },
+        {
+          "rank": 4,
+          "title": "Power of data in quantum machine learning",
+          "doi": "10.1038/s41467-021-22539-9",
+          "year": 2021,
+          "source": "openalex",
+          "citationCount": 743,
+          "isRetracted": false,
+          "grade": 2
+        },
+        {
+          "rank": 5,
+          "title": "Challenges and opportunities in quantum machine learning",
+          "doi": "10.1038/s43588-022-00311-3",
+          "year": 2022,
+          "source": "openalex",
+          "citationCount": 716,
+          "isRetracted": false,
+          "grade": 2
+        }
+      ],
+      "violations": []
+    },
+    {
+      "id": "G3",
+      "label": "DOI lookup",
+      "query": "10.1038/nature14539",
+      "mode": null,
+      "count": 1,
+      "precisionAt1": 1,
+      "reciprocalRank": 1,
+      "ndcgAt5": 1,
+      "duplicateRows": 0,
+      "duplicateRate": 0,
+      "fieldCompleteness": {
+        "doi": 1,
+        "year": 1,
+        "venue": 1,
+        "authors": 1,
+        "citationCount": 1,
+        "openAccess": 1
+      },
+      "providerAgreement": null,
+      "yearLeaks": 0,
+      "retractedTop": null,
+      "providers": null,
+      "elapsedMs": 0,
+      "top": [
+        {
+          "rank": 1,
+          "title": "Deep learning",
+          "doi": "10.1038/nature14539",
+          "year": 2015,
+          "source": "openalex",
+          "citationCount": 85067,
+          "grade": 2
+        }
+      ],
+      "violations": []
+    },
+    {
+      "id": "G4",
+      "label": "DOI pasted with sentence punctuation",
+      "query": "10.1038/nature14539.",
+      "mode": null,
+      "count": 0,
+      "precisionAt1": 0,
+      "reciprocalRank": 0,
+      "ndcgAt5": 0,
+      "duplicateRows": 0,
+      "duplicateRate": 0,
+      "fieldCompleteness": {
+        "doi": 0,
+        "year": 0,
+        "venue": 0,
+        "authors": 0,
+        "citationCount": 0,
+        "openAccess": 0
+      },
+      "providerAgreement": null,
+      "yearLeaks": 0,
+      "retractedTop": null,
+      "providers": null,
+      "elapsedMs": 0,
+      "top": [],
+      "violations": [
+        "expected ≥ 1 results, got 0"
+      ]
+    },
+    {
+      "id": "G5",
+      "label": "arXiv identifier",
+      "query": "arXiv:1706.03762",
+      "mode": null,
+      "count": 1,
+      "precisionAt1": 1,
+      "reciprocalRank": 1,
+      "ndcgAt5": 1,
+      "duplicateRows": 0,
+      "duplicateRate": 0,
+      "fieldCompleteness": {
+        "doi": 0,
+        "year": 1,
+        "venue": 1,
+        "authors": 1,
+        "citationCount": 0,
+        "openAccess": 1
+      },
+      "providerAgreement": null,
+      "yearLeaks": 0,
+      "retractedTop": null,
+      "providers": null,
+      "elapsedMs": 0,
+      "top": [
+        {
+          "rank": 1,
+          "title": "Attention Is All You Need",
+          "year": 2017,
+          "source": "arxiv",
+          "grade": 2
+        }
+      ],
+      "violations": []
+    },
+    {
+      "id": "G6",
+      "label": "topical query with 'last two years' filter — year-window parity across providers",
+      "query": "quantum machine learning",
+      "yearFrom": 2024,
+      "mode": null,
+      "count": 12,
+      "precisionAt1": 1,
+      "reciprocalRank": 1,
+      "ndcgAt5": 1,
+      "duplicateRows": 0,
+      "duplicateRate": 0,
+      "fieldCompleteness": {
+        "doi": 0.9166666666666666,
+        "year": 0.9166666666666666,
+        "venue": 0.8333333333333334,
+        "authors": 1,
+        "citationCount": 0.8333333333333334,
+        "openAccess": 0.5833333333333334
+      },
+      "providerAgreement": null,
+      "yearLeaks": 1,
+      "retractedTop": null,
+      "providers": null,
+      "elapsedMs": 0,
+      "top": [
+        {
+          "rank": 1,
+          "title": "Systematic literature review: Quantum machine learning and its applications",
+          "doi": "10.1016/j.cosrev.2024.100619",
+          "year": 2024,
+          "source": "openalex",
+          "citationCount": 244,
+          "isRetracted": false,
+          "grade": 2
+        },
+        {
+          "rank": 2,
+          "title": "Quantum Machine Learning Revolution in Healthcare: A Systematic Review of Emerging Perspectives and Applications",
+          "doi": "10.1109/access.2024.3353461",
+          "year": 2024,
+          "source": "openalex",
+          "citationCount": 186,
+          "isRetracted": false,
+          "grade": 2
+        },
+        {
+          "rank": 3,
+          "title": "Quantum machine learning for image classification",
+          "doi": "10.1088/2632-2153/ad2aef",
+          "year": 2024,
+          "source": "openalex",
+          "citationCount": 167,
+          "isRetracted": false,
+          "grade": 2
+        },
+        {
+          "rank": 4,
+          "title": "A comprehensive review of quantum machine learning: from NISQ to fault tolerance",
+          "doi": "10.1088/1361-6633/ad7f69",
+          "year": 2024,
+          "source": "openalex",
+          "citationCount": 92,
+          "isRetracted": false,
+          "grade": 2
+        },
+        {
+          "rank": 5,
+          "title": "Shadows of quantum machine learning",
+          "doi": "10.1038/s41467-024-49877-8",
+          "year": 2024,
+          "source": "openalex",
+          "citationCount": 68,
+          "isRetracted": false,
+          "grade": 2
+        }
+      ],
+      "violations": [
+        "1 result(s) older than 2024"
+      ]
+    },
+    {
+      "id": "G7",
+      "label": "non-Latin (CJK) query — Unicode survival",
+      "query": "深度学习",
+      "mode": null,
+      "count": 5,
+      "precisionAt1": 1,
+      "reciprocalRank": 1,
+      "ndcgAt5": 1,
+      "duplicateRows": 0,
+      "duplicateRate": 0,
+      "fieldCompleteness": {
+        "doi": 1,
+        "year": 1,
+        "venue": 1,
+        "authors": 0,
+        "citationCount": 1,
+        "openAccess": 0.4
+      },
+      "providerAgreement": null,
+      "yearLeaks": 0,
+      "retractedTop": null,
+      "providers": null,
+      "elapsedMs": 4868,
+      "top": [
+        {
+          "rank": 1,
+          "title": "基于深度学习的三维点云处理方法研究进展",
+          "doi": "10.3788/cjl230924",
+          "year": 2024,
+          "source": "openalex",
+          "citationCount": 21,
+          "isRetracted": false,
+          "grade": 2
+        },
+        {
+          "rank": 2,
+          "title": "基于深度学习的稀疏或有限角度CT重建方法研究综述",
+          "doi": "10.3788/lop230488",
+          "year": 2023,
+          "source": "openalex",
+          "citationCount": 20,
+          "isRetracted": false,
+          "grade": 2
+        },
+        {
+          "rank": 3,
+          "title": "基于深度学习的地质找矿大数据挖掘与集成的挑战",
+          "doi": "10.3799/dqkx.2020.111",
+          "year": 2021,
+          "source": "openalex",
+          "citationCount": 16,
+          "isRetracted": false,
+          "grade": 2
+        },
+        {
+          "rank": 4,
+          "title": "基于深度学习的自适应光学技术研究进展及展望",
+          "doi": "10.3788/cjl230470",
+          "year": 2023,
+          "source": "openalex",
+          "citationCount": 14,
+          "isRetracted": false,
+          "grade": 2
+        },
+        {
+          "rank": 5,
+          "title": "基于深度学习的单像素成像研究进展",
+          "doi": "10.3788/lop232464",
+          "year": 2024,
+          "source": "openalex",
+          "citationCount": 11,
+          "isRetracted": false,
+          "grade": 2
+        }
+      ],
+      "violations": []
+    },
+    {
+      "id": "G8",
+      "label": "retracted paper (Wakefield 1998) — retraction flag must survive merging",
+      "query": "Ileal-lymphoid-nodular hyperplasia non-specific colitis pervasive developmental disorder children",
+      "mode": null,
+      "count": 7,
+      "precisionAt1": 1,
+      "reciprocalRank": 1,
+      "ndcgAt5": 0.8989584458539029,
+      "duplicateRows": 0,
+      "duplicateRate": 0,
+      "fieldCompleteness": {
+        "doi": 0.8571428571428571,
+        "year": 1,
+        "venue": 1,
+        "authors": 0.8571428571428571,
+        "citationCount": 0.7142857142857143,
+        "openAccess": 0.14285714285714285
+      },
+      "providerAgreement": null,
+      "yearLeaks": 0,
+      "retractedTop": true,
+      "providers": null,
+      "elapsedMs": 4853,
+      "top": [
+        {
+          "rank": 1,
+          "title": "RETRACTED: Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children",
+          "doi": "10.1016/s0140-6736(97)11096-0",
+          "year": 1998,
+          "source": "openalex",
+          "citationCount": 3023,
+          "isRetracted": true,
+          "grade": 2
+        },
+        {
+          "rank": 2,
+          "title": "Retraction—Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children",
+          "doi": "10.1016/s0140-6736(10)60175-4",
+          "year": 2010,
+          "source": "openalex",
+          "citationCount": 467,
+          "isRetracted": true,
+          "grade": 1
+        },
+        {
+          "rank": 3,
+          "title": "Retraction of an interpretation",
+          "doi": "10.1016/s0140-6736(04)15715-2",
+          "year": 2004,
+          "source": "openalex",
+          "citationCount": 319,
+          "isRetracted": false,
+          "grade": 0
+        },
+        {
+          "rank": 4,
+          "title": "Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children",
+          "doi": "10.1016/s0140-6736(05)77837-5",
+          "year": 1998,
+          "source": "openalex",
+          "citationCount": 290,
+          "grade": 1
+        },
+        {
+          "rank": 5,
+          "title": "Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children (Retracted article. See vol 375, pg 445, 2010)",
+          "year": 1998,
+          "source": "openalex",
+          "citationCount": 80,
+          "isRetracted": false,
+          "grade": 1
+        }
+      ],
+      "violations": []
+    }
+  ],
+  "citations": [
+    {
+      "id": "C1",
+      "label": "ISO 690 conference citation, no identifier — must verify even when Semantic Scholar is rate-limited",
+      "status": "verified",
+      "found": true,
+      "confidence": "high",
+      "matchedTitle": "Attention is All you Need",
+      "isRetracted": false,
+      "expected": "verified",
+      "pass": true,
+      "elapsedMs": 0,
+      "issues": []
+    },
+    {
+      "id": "C2",
+      "label": "journal citation with DOI (Semantic Scholar knows the DOI, OpenAlex too)",
+      "status": "verified",
+      "found": true,
+      "confidence": "high",
+      "matchedTitle": "Quantum machine learning",
+      "isRetracted": false,
+      "expected": "verified",
+      "pass": true,
+      "elapsedMs": 0,
+      "issues": []
+    },
+    {
+      "id": "C3",
+      "label": "journal citation with DOI URL — Semantic Scholar answers 404 for this DOI (recorded), OpenAlex resolves it",
+      "status": "verified",
+      "found": true,
+      "confidence": "high",
+      "matchedTitle": "Deep learning",
+      "isRetracted": false,
+      "expected": "verified",
+      "pass": true,
+      "elapsedMs": 0,
+      "issues": []
+    },
+    {
+      "id": "C4",
+      "label": "retracted paper cited by title — should verify AND surface the retraction",
+      "status": "not_found",
+      "found": false,
+      "confidence": "not_found",
+      "matchedTitle": null,
+      "isRetracted": false,
+      "expected": "verified",
+      "pass": false,
+      "elapsedMs": 0,
+      "issues": [
+        "expected verified, got not_found",
+        "retraction not surfaced"
+      ]
+    },
+    {
+      "id": "C5",
+      "label": "fabricated Slovak thesis citation — must be reported not_found (not 'unavailable')",
+      "status": "not_found",
+      "found": false,
+      "confidence": "not_found",
+      "matchedTitle": null,
+      "isRetracted": false,
+      "expected": "not_found",
+      "pass": true,
+      "elapsedMs": 0,
+      "issues": []
+    }
+  ],
+  "aggregate": {
+    "searchCases": 8,
+    "meanPrecisionAt1": 0.875,
+    "meanReciprocalRank": 0.875,
+    "meanNdcgAt5": 0.8464322750172694,
+    "totalDuplicateRows": 1,
+    "meanDuplicateRate": 0.015625,
+    "fieldCompleteness": {
+      "doi": 0.6904761904761904,
+      "year": 0.8645833333333334,
+      "venue": 0.8229166666666666,
+      "authors": 0.7321428571428571,
+      "citationCount": 0.693452380952381,
+      "openAccess": 0.5782738095238096
+    },
+    "providerAgreement": null,
+    "yearLeaks": 1,
+    "violations": 3,
+    "citationCases": 5,
+    "verifiedRate": 0.6,
+    "correctClassificationRate": 0.8,
+    "unavailable": 0
+  },
+  "replayCalls": [
+    {
+      "provider": "openalex",
+      "kind": "search",
+      "routedTo": "attention is all you need",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.openalex.org/works?search=Attention+Is+All+You+Need&per_page=8&sort=relevance_score%3Adesc"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "search",
+      "routedTo": "attention is all you need",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=Attention+Is+All+You+Need&limit=8&fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "crossref",
+      "kind": "search",
+      "routedTo": "attention is all you need",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.crossref.org/works?query=Attention+Is+All+You+Need&rows=8&sort=relevance"
+    },
+    {
+      "provider": "openalex",
+      "kind": "search",
+      "routedTo": "quantum machine learning",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.openalex.org/works?search=quantum+machine+learning&per_page=8&sort=relevance_score%3Adesc"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "search",
+      "routedTo": "quantum machine learning",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=quantum+machine+learning&limit=8&fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "crossref",
+      "kind": "search",
+      "routedTo": "quantum machine learning",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.crossref.org/works?query=quantum+machine+learning&rows=8&sort=relevance"
+    },
+    {
+      "provider": "openalex",
+      "kind": "doi",
+      "routedTo": "doi:10.1038/nature14539",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.openalex.org/works/https://doi.org/10.1038%2Fnature14539"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "doi",
+      "routedTo": null,
+      "status": 404,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/DOI%3A10.1038%2Fnature14539?fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "crossref",
+      "kind": "doi",
+      "routedTo": "doi:10.1038/nature14539",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.crossref.org/works/10.1038%2Fnature14539"
+    },
+    {
+      "provider": "openalex",
+      "kind": "doi",
+      "routedTo": null,
+      "status": 404,
+      "simulatedYearFilter": false,
+      "url": "https://api.openalex.org/works/https://doi.org/10.1038%2Fnature14539."
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "doi",
+      "routedTo": null,
+      "status": 404,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/DOI%3A10.1038%2Fnature14539.?fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "crossref",
+      "kind": "doi",
+      "routedTo": null,
+      "status": 404,
+      "simulatedYearFilter": false,
+      "url": "https://api.crossref.org/works/10.1038%2Fnature14539."
+    },
+    {
+      "provider": "openalex",
+      "kind": "search",
+      "routedTo": null,
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.openalex.org/works?search=10.1038%2Fnature14539.&per_page=8&sort=relevance_score%3Adesc"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "search",
+      "routedTo": null,
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=10.1038%2Fnature14539.&limit=8&fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "crossref",
+      "kind": "search",
+      "routedTo": null,
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.crossref.org/works?query=10.1038%2Fnature14539.&rows=8&sort=relevance"
+    },
+    {
+      "provider": "arxiv",
+      "kind": "arxiv",
+      "routedTo": "1706.03762",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://export.arxiv.org/api/query?id_list=1706.03762"
+    },
+    {
+      "provider": "openalex",
+      "kind": "search",
+      "routedTo": "quantum machine learning|from:2024",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.openalex.org/works?search=quantum+machine+learning&per_page=12&sort=relevance_score%3Adesc&filter=from_publication_date%3A2024-01-01"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "search",
+      "routedTo": "quantum machine learning",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=quantum+machine+learning&limit=12&fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "crossref",
+      "kind": "search",
+      "routedTo": "quantum machine learning",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.crossref.org/works?query=quantum+machine+learning&rows=10&sort=relevance"
+    },
+    {
+      "provider": "openalex",
+      "kind": "search",
+      "routedTo": "深度学习",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.openalex.org/works?search=%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0&per_page=8&sort=relevance_score%3Adesc"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "search",
+      "routedTo": "深度学习",
+      "status": 429,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0&limit=8&fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "crossref",
+      "kind": "search",
+      "routedTo": null,
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.crossref.org/works?query=%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0&rows=8&sort=relevance"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "search",
+      "routedTo": "深度学习",
+      "status": 429,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0&limit=8&fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "search",
+      "routedTo": "深度学习",
+      "status": 429,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0&limit=8&fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "openalex",
+      "kind": "search",
+      "routedTo": "ileal-lymphoid-nodular hyperplasia non-specific colitis pervasive developmental disorder children",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.openalex.org/works?search=Ileal-lymphoid-nodular+hyperplasia+non-specific+colitis+pervasive+developmental+disorder+children&per_page=8&sort=relevance_score%3Adesc"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "search",
+      "routedTo": "ileal-lymphoid-nodular hyperplasia non-specific colitis pervasive developmental disorder children",
+      "status": 429,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=Ileal-lymphoid-nodular+hyperplasia+non-specific+colitis+pervasive+developmental+disorder+children&limit=8&fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "crossref",
+      "kind": "search",
+      "routedTo": "ileal-lymphoid-nodular hyperplasia non-specific colitis pervasive developmental disorder children",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.crossref.org/works?query=Ileal-lymphoid-nodular+hyperplasia+non-specific+colitis+pervasive+developmental+disorder+children&rows=8&sort=relevance"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "search",
+      "routedTo": "ileal-lymphoid-nodular hyperplasia non-specific colitis pervasive developmental disorder children",
+      "status": 429,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=Ileal-lymphoid-nodular+hyperplasia+non-specific+colitis+pervasive+developmental+disorder+children&limit=8&fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "search",
+      "routedTo": "ileal-lymphoid-nodular hyperplasia non-specific colitis pervasive developmental disorder children",
+      "status": 429,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=Ileal-lymphoid-nodular+hyperplasia+non-specific+colitis+pervasive+developmental+disorder+children&limit=8&fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "search",
+      "routedTo": "attention is all you need",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=Attention+is+all+you+need.+In%3A&limit=3&fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "doi",
+      "routedTo": null,
+      "status": 404,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/DOI%3A10.1038%2Fnature23474?fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "openalex",
+      "kind": "doi",
+      "routedTo": "doi:10.1038/nature23474",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.openalex.org/works/https://doi.org/10.1038%2Fnature23474"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "doi",
+      "routedTo": null,
+      "status": 404,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/DOI%3A10.1038%2Fnature14539?fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "openalex",
+      "kind": "doi",
+      "routedTo": "doi:10.1038/nature14539",
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.openalex.org/works/https://doi.org/10.1038%2Fnature14539"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "search",
+      "routedTo": null,
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=1998.+Ileal-lymphoid-nodular+hyperplasia%2C+non-specific+colitis%2C+and+pervasive+developmental+disorder+in+children.+The+La&limit=3&fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "openalex",
+      "kind": "search",
+      "routedTo": null,
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.openalex.org/works?search=1998.+Ileal-lymphoid-nodular+hyperplasia%2C+non-specific+colitis%2C+and+pervasive+developmental+disorder+in+children.+The+La&per_page=1&sort=relevance_score%3Adesc"
+    },
+    {
+      "provider": "semanticscholar",
+      "kind": "search",
+      "routedTo": null,
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.semanticscholar.org/graph/v1/paper/search?query=2019.+Neexistuj%C3%BAca+pr%C3%A1ca+o+kvantov%C3%BDch+sie%C5%A5ach+v+priemysle.+Bratislava%3A+FMFI+UK.+84+s.&limit=3&fields=paperId%2Ctitle%2Cyear%2Cvenue%2Cauthors%2Cabstract%2Ctldr%2CcitationCount%2CinfluentialCitationCount%2CopenAccessPdf%2CexternalIds%2Curl"
+    },
+    {
+      "provider": "openalex",
+      "kind": "search",
+      "routedTo": null,
+      "status": 200,
+      "simulatedYearFilter": false,
+      "url": "https://api.openalex.org/works?search=2019.+Neexistuj%C3%BAca+pr%C3%A1ca+o+kvantov%C3%BDch+sie%C5%A5ach+v+priemysle.+Bratislava%3A+FMFI+UK.+84+s.&per_page=1&sort=relevance_score%3Adesc"
+    }
+  ]
+}

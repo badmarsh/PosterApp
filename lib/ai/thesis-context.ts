@@ -372,8 +372,9 @@ export function extractStructuredReferences(markdown: string): ExtractedReferenc
     // 2. ISO 690 style: AUTHOR, First. Year. Title. In:... or Author, A. (Year) Title.
     if (!title) {
       const titleMatch = raw.match(/(?:(?:19|20)\d{2}[a-z]?[\).:]\s*|\.\s+)(["'„]?([A-Z\p{Lu}][^.?!]{10,180}?)[.?!]["'“]?\s*(?:In:|Available|Dostupné|DOI|http|ISBN|pp\.|Vol\.))/u)
-      if (titleMatch && titleMatch[1]) {
-        title = titleMatch[1].replace(/^[„"']|[“"']$/g, "").trim()
+      if (titleMatch && titleMatch[2]) {
+        // Group 2 is the bare title; group 1 also swallows the terminator ("… In:", "… DOI").
+        title = titleMatch[2].replace(/^[„"']|[“"']$/g, "").trim()
       }
     }
 
@@ -404,8 +405,16 @@ export function extractStructuredReferences(markdown: string): ExtractedReferenc
         // Fallback: split on year or non-initial sentence period
         authorSeg = raw.split(/(?:19|20)\d{2}|(?<!\b[A-Za-z])\.\s+(?=[A-Z][a-z]{2,})|["“][A-Z]/)[0]
         if (!title) {
-          const rest = raw.slice(authorSeg.length).replace(/^[\(\)\[\]\.,;:\s]+/, "")
-          title = rest.slice(0, 120).trim() || raw.slice(0, 100).trim()
+          const rest = raw
+            .slice(authorSeg.length)
+            // Drop the year token the split stopped at ("1998. Title…" → "Title…").
+            .replace(/^(?:19|20)\d{2}[a-z]?/, "")
+            .replace(/^[\(\)\[\]\.,;:\s]+/, "")
+          // The title ends at the first sentence boundary followed by a capitalised
+          // container ("… in children. The Lancet, 351…"); keep the whole rest for
+          // titles too short to be meaningful on their own.
+          const firstSentence = rest.split(/[.?!]\s+(?=[\p{Lu}„"“])/u)[0]?.trim() ?? ""
+          title = (firstSentence.length >= 10 ? firstSentence : rest.slice(0, 120)).trim() || raw.slice(0, 100).trim()
         }
       }
     }

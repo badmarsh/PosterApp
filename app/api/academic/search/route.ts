@@ -3,10 +3,14 @@
  *
  * Perplexity-style multi-source academic literature search across
  * OpenAlex, Crossref, Semantic Scholar, and arXiv.
+ *
+ * Response: `{ results, mode, providers, degraded, filteredByYear }` — `results` is the
+ * ranked list (unchanged contract); the other fields are additive diagnostics so the UI
+ * can tell "no matches" from "every registry was down" (`degraded: true`, empty results).
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { searchAcademicPaper } from "@/lib/services/academic-connector"
+import { searchAcademicPaperDetailed } from "@/lib/services/academic-connector"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { auth } from "@/lib/auth"
 import { z } from "zod"
@@ -57,13 +61,23 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const papers = await searchAcademicPaper(body.query, body.limit, {
+    // Abort upstream calls when the client disconnects; every provider additionally
+    // enforces its own timeout, so this signal never replaces those bounds.
+    const { results, mode, providers, degraded, filteredByYear } = await searchAcademicPaperDetailed(body.query, body.limit, {
       yearFrom: body.yearFrom,
       yearTo: body.yearTo,
       domain: body.domain,
+      signal: req.signal,
     })
 
-    return NextResponse.json({ results: papers })
+    if (degraded) {
+      const failing = Object.entries(providers)
+        .filter(([, p]) => p.status === "error" || p.status === "timeout" || p.status === "rate_limited")
+        .map(([name, p]) => `${name}=${p.status}`)
+      console.warn(`[Academic Search] degraded (${failing.join(", ")}) for "${body.query.slice(0, 60)}"`)
+    }
+
+    return NextResponse.json({ results, mode, providers, degraded, filteredByYear })
   } catch (error: unknown) {
     console.error("[Academic Search] Error:", error)
     return NextResponse.json(

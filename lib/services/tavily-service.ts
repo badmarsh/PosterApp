@@ -1,3 +1,5 @@
+import { ACADEMIC_TIMEOUTS_MS, boundedSignal, isAbortLike } from "./academic-http"
+
 export interface TavilySearchResult {
   title: string
   url: string
@@ -8,7 +10,7 @@ export interface TavilySearchResult {
 export async function searchTavily(query: string, signal?: AbortSignal): Promise<TavilySearchResult[]> {
   const apiKey = process.env.TAVILY_API_KEY
   if (!apiKey) {
-    console.warn("TAVILY_API_KEY not configured, skipping Tavily search.")
+    // Optional provider — stay silent instead of warning on every search.
     return []
   }
 
@@ -25,7 +27,7 @@ export async function searchTavily(query: string, signal?: AbortSignal): Promise
         include_answer: false,
         max_results: 3,
       }),
-      signal,
+      signal: boundedSignal(signal, ACADEMIC_TIMEOUTS_MS.tavily),
     })
 
     if (!res.ok) {
@@ -36,7 +38,7 @@ export async function searchTavily(query: string, signal?: AbortSignal): Promise
     const data = await res.json()
     return data.results || []
   } catch (err) {
-    console.error("Tavily search error:", err)
+    if (!isAbortLike(err)) console.error("Tavily search error:", err)
     return []
   }
 }
