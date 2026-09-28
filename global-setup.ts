@@ -5,5 +5,5 @@ export default async function globalSetup() {
     console.log('[e2e] Skipping Clerk setup due to E2E_AUTH_BYPASS');
     return;
   }
-  return clerkSetup()();
+  await clerkSetup();
 }
