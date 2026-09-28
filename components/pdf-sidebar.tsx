@@ -332,7 +332,7 @@ export function PdfSidebar() {
       </div>
 
       {/* PDF render area */}
-      <div className="relative min-h-0 flex-1 bg-muted/20">
+      <div className="relative min-h-0 flex-1 bg-muted/20" data-testid="pdf-preview">
         {compiling && (
           <div
             className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-sm"

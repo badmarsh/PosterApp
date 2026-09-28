@@ -194,7 +194,7 @@ export function WorkspaceSelector({
                   <button onClick={() => { setError(null); setLoading(true); setRetryKey((k) => k + 1) }} className="text-destructive/70 underline text-[11px] cursor-pointer">Skusit znova</button>
                 </div>
               ) : filteredWorkspaces.length > 0 ? filteredWorkspaces.map((ws) => (
-                <button key={ws.id} onClick={() => onSelect(ws.id)} className="group w-full text-left p-3 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer">
+                <button key={ws.id} onClick={() => onSelect(ws.id)} data-testid="workspace-card" data-workspace-id={ws.id} className="group w-full text-left p-3 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer">
                   <div className="flex items-center justify-between gap-1 mb-0.5">
                     <span className="text-[10px] font-mono text-muted-foreground/60 truncate">{ws.id}</span>
                     <Clock className="size-3 text-muted-foreground/40 shrink-0" />

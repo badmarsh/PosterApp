@@ -176,6 +176,8 @@ export function ManageWorkspaces() {
           return (
             <div
               key={ws.id}
+              data-testid="workspace-card"
+              data-workspace-id={ws.id}
               className={`flex flex-col gap-3 p-4 border rounded-lg transition-colors ${
                 isActive ? "border-primary/40 bg-primary/5" : "border-border bg-card hover:border-border/80"
               }`}

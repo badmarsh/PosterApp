@@ -342,6 +342,20 @@ export function Shell() {
   }, [isDirty, isSaving])
 
   useEffect(() => {
+    const isE2e = typeof window !== "undefined" && process.env.NEXT_PUBLIC_E2E_TEST === "1"
+    if (isE2e) {
+      if (!hasAutoLoaded) {
+        const linked = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("workspace") : null
+        if (linked && /^[A-Za-z0-9_-]{3,64}$/.test(linked)) {
+          switchProject(linked)
+          window.history.replaceState({}, "", window.location.pathname)
+        } else if (lastWorkspaceId && lastWorkspaceId !== DEMO_PROJECT_ID) {
+          switchProject(lastWorkspaceId)
+        }
+        setHasAutoLoaded(true)
+      }
+      return
+    }
     if (!hasAutoLoaded) {
       // Deep link from a shared invite: /?workspace=<id> wins over the remembered workspace.
       const linked = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("workspace") : null

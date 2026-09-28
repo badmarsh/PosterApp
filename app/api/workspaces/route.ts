@@ -123,7 +123,15 @@ export async function GET() {
       msg.includes("PrismaClientInitializationError") ||
       msg.includes("P2021") ||
       msg.includes("does not exist") ||
-      msg.includes("Invalid `prisma.workspace")
+      msg.includes("Invalid `prisma.workspace") ||
+      msg.includes("did not initialize yet") ||
+      msg.includes("prisma generate") ||
+      msg.includes("P1001") ||
+      msg.includes("P1002") ||
+      msg.includes("ECONNREFUSED") ||
+      msg.includes("ENOTFOUND") ||
+      msg.includes("database") ||
+      msg.toLowerCase().includes("prisma")
     ) {
       const hint =
         process.env.NODE_ENV !== "production"
@@ -254,7 +262,14 @@ export async function POST(req: Request) {
       msg.includes("PrismaClientInitializationError") ||
       msg.includes("P2021") ||
       msg.includes("does not exist") ||
-      msg.includes("Invalid `prisma.workspace")
+      msg.includes("Invalid `prisma.workspace") ||
+      msg.includes("did not initialize yet") ||
+      msg.includes("prisma generate") ||
+      msg.includes("P1001") ||
+      msg.includes("P1002") ||
+      msg.includes("ECONNREFUSED") ||
+      msg.includes("ENOTFOUND") ||
+      msg.toLowerCase().includes("prisma")
     ) {
       const hint =
         process.env.NODE_ENV !== "production"
