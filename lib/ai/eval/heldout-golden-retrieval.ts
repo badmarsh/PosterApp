@@ -54,25 +54,58 @@ interface ChunkRow {
   heading: string | null
 }
 
-/** Split markdown into heading-bounded sections, mirroring the ingest used by real-corpus-benchmark. */
+/** Split markdown into heading-bounded sections — exact replica of pre-PR#31 real-corpus-benchmark.ts. */
 function splitMarkdownForEval(markdown: string, docId: string): ChunkRow[] {
   const headingRe = /^#{1,4}\s+.+$/m
   const lines = markdown.split("\n")
   const sections: Array<{ heading: string | null; text: string }> = []
-  let current: { heading: string | null; lines: string[] } = { heading: null, lines: [] }
+  let currentHeading: string | null = null
+  let currentLines: string[] = []
+
   for (const line of lines) {
     if (headingRe.test(line)) {
-      if (current.lines.length > 0) sections.push({ heading: current.heading, text: current.lines.join("\n").trim() })
-      current = { heading: line.trim(), lines: [] }
+      if (currentLines.join("\n").trim().length > 20) {
+        sections.push({ heading: currentHeading, text: currentLines.join("\n").trim() })
+      }
+      currentHeading = line.replace(/^#+\s+/, "").trim()
+      currentLines = []
     } else {
-      current.lines.push(line)
+      currentLines.push(line)
     }
   }
-  if (current.lines.length > 0) sections.push({ heading: current.heading, text: current.lines.join("\n").trim() })
-  return sections
-    .filter((s) => s.text.length > 40)
-    .map((s, i) => ({ id: `${docId}::split::${i}`, content: s.text, heading: s.heading }))
+  if (currentLines.join("\n").trim().length > 20) {
+    sections.push({ heading: currentHeading, text: currentLines.join("\n").trim() })
+  }
+
+  const chunks: ChunkRow[] = []
+  for (const section of sections) {
+    const text = section.text
+    if (text.length <= 800) {
+      const idx = chunks.length
+      chunks.push({ id: docId + "_" + String(idx).padStart(4, "0"), content: text, heading: section.heading })
+    } else {
+      const paras = text.split(/\n\n+/).filter((p) => p.trim().length > 20)
+      let buf = ""
+      let bufHeading = section.heading
+      for (const para of paras) {
+        if ((buf + "\n\n" + para).length > 800 && buf.length > 0) {
+          const idx = chunks.length
+          chunks.push({ id: docId + "_" + String(idx).padStart(4, "0"), content: buf.trim(), heading: bufHeading })
+          buf = para
+          bufHeading = section.heading
+        } else {
+          buf = buf ? buf + "\n\n" + para : para
+        }
+      }
+      if (buf.trim().length > 20) {
+        const idx = chunks.length
+        chunks.push({ id: docId + "_" + String(idx).padStart(4, "0"), content: buf.trim(), heading: bufHeading })
+      }
+    }
+  }
+  return chunks
 }
+
 
 export type HeldoutBinding = "chunk-markdown" | "split-for-eval"
 export const HELDOUT_BINDINGS: HeldoutBinding[] = ["chunk-markdown", "split-for-eval"]
@@ -150,7 +183,7 @@ export interface HeldoutGoldenReport {
   bindings: HeldoutBindingResult[]
 }
 
-const MODEL = "Xenova/all-MiniLM-L6-v2"
+const MODEL = "Xenova/paraphrase-multilingual-MiniLM-L12-v2"
 const DIMENSIONS = 384
 const FUSION_LIMIT = 10
 const NDCG_K = 10

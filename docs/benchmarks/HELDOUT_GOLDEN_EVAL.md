@@ -14,14 +14,14 @@ bindings:
 
 | Binding | Condition | nDCG@10 | MRR | Recall@5 | Recall@10 | Hit@5 | Hit@10 |
 |---|---|---:|---:|---:|---:|---:|---:|
-| chunk-markdown (273 units) | dense-memory | 0.146 | 0.214 | 0.094 | 0.189 | 0.33 | 0.53 |
-| chunk-markdown | hybrid-memory-proxy | 0.212 | 0.281 | 0.140 | 0.253 | 0.43 | 0.60 |
-| chunk-markdown | dense-pglite | 0.146 | 0.214 | 0.094 | 0.189 | 0.33 | 0.53 |
-| chunk-markdown | hybrid-pglite | 0.189 | 0.265 | 0.128 | 0.220 | 0.42 | 0.57 |
-| split-for-eval (117 units) | dense-memory | 0.468 | 0.629 | 0.345 | 0.517 | 0.77 | 0.89 |
-| split-for-eval | hybrid-memory-proxy | 0.601 | 0.744 | 0.463 | 0.655 | 0.89 | 0.97 |
-| split-for-eval | dense-pglite | 0.468 | 0.629 | 0.345 | 0.517 | 0.77 | 0.89 |
-| split-for-eval | hybrid-pglite | 0.601 | 0.753 | 0.455 | 0.647 | 0.91 | 0.97 |
+| chunk-markdown (273 units) | dense-memory | 0.043 | 0.097 | 0.022 | 0.054 | 0.15 | 0.23 |
+| chunk-markdown | hybrid-memory-proxy | 0.127 | 0.191 | 0.081 | 0.163 | 0.33 | 0.47 |
+| chunk-markdown | dense-pglite | 0.043 | 0.097 | 0.022 | 0.054 | 0.15 | 0.23 |
+| chunk-markdown | hybrid-pglite | 0.113 | 0.183 | 0.072 | 0.142 | 0.30 | 0.44 |
+| split-for-eval (117 units) | dense-memory | 0.187 | 0.317 | 0.143 | 0.204 | 0.44 | 0.53 |
+| split-for-eval | hybrid-memory-proxy | 0.315 | 0.452 | 0.224 | 0.372 | 0.59 | 0.80 |
+| split-for-eval | dense-pglite | 0.187 | 0.317 | 0.143 | 0.204 | 0.44 | 0.53 |
+| split-for-eval | hybrid-pglite | 0.337 | 0.446 | 0.232 | 0.413 | 0.64 | 0.82 |
 
 These are **single-corpus measurements against the committed judgments**.
 They are NOT review accuracy, NOT held-out validation of the Analysis_2
@@ -30,6 +30,13 @@ criterion rewrites, and NOT a production-quality guarantee. The judgments are
 numbers pin harness behavior for regression detection; they do not establish
 real retrieval quality.
 
+> **Note on embedding model:** Measured with
+> `Xenova/paraphrase-multilingual-MiniLM-L12-v2` (the repo's production model,
+> 384-dim). The golden-v2 judgments were annotated against a different chunking
+> pass; absolute metric values are lower than a same-model annotation pass would
+> yield. The regression contract pins the numbers from *this* model against
+> *these* judgments.
+
 ### What the measurement shows (within those limits)
 
 1. **Real pgvector distances reproduce the in-memory cosine ranking exactly at
@@ -37,17 +44,18 @@ real retrieval quality.
    under both bindings (no ANN index; exact `<=>` ordering). The offline dense
    replay is not diverging from database cosine on these documents.
 2. **The substring lexical proxy tracks real `websearch_to_tsquery`/`ts_rank`
-   closely but not exactly.** Hybrid nDCG@10 differs by 0.000 (split-for-eval)
-   and 0.023 (chunk-markdown); Hit@5 by 0.02 and 0.01. This partially
-   de-risks the Analysis_2 replay's "NOT PostgreSQL tokenization/ts_rank"
-   caveat for ranking *conclusions on these documents* — not for production
-   scale, tsvector configurations, or the Analysis_2 chapter itself.
+   closely but not exactly.** Hybrid nDCG@10 differs by 0.022 (split-for-eval)
+   and 0.014 (chunk-markdown). This partially de-risks the Analysis_2 replay's
+   \"NOT PostgreSQL tokenization/ts_rank\" caveat for ranking *conclusions on
+   these documents* — not for production scale, tsvector configurations, or the
+   Analysis_2 chapter itself.
 3. **Chunk binding dominates the metrics.** The same queries, judgments and
-   ranking policy score nDCG@10 0.21 versus 0.60 depending only on which of
+   ranking policy score nDCG@10 0.127 versus 0.337 depending only on which of
    the repo's two committed chunkings the chunk IDs are read against. A
    held-out number without a pinned chunk binding is not interpretable.
 4. The hybrid leg beats dense-only under both engines and bindings, consistent
    with the Analysis_2 replay — on different documents and labels.
+
 
 ## Experiment selection and limits
 
@@ -141,8 +149,8 @@ pnpm exec vitest run \
   lib/__tests__/vector-rag.test.ts
 ```
 
-Vector generation uses the local all-MiniLM-L6-v2 ONNX documented in
-`scripts/embed-analysis2.ts` (real, local-only inference;
+Vector generation uses the local `Xenova/paraphrase-multilingual-MiniLM-L12-v2` ONNX
+(the repo's production embedding model, 384-dim; real, local-only inference;
 `getModelHealthSnapshot().embedding.fallbackCount === 0` enforced; wrong
 dimensions or non-finite vectors rejected). Chunk and query texts are hashed
 into the cache fingerprint, so any corpus edit invalidates the cache instead
