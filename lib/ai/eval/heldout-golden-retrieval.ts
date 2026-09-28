@@ -214,7 +214,7 @@ export function loadHeldoutCorpus(corpusDir = "data/eval/corpus"): {
   const manifest = JSON.parse(readFileSync(`${corpusDir}/manifest.json`, "utf8")) as Array<{ docId: string; title: string; path: string }>
   const chunksByBinding: Record<HeldoutBinding, HeldoutUnit[]> = { "chunk-markdown": [], "split-for-eval": [] }
   for (const doc of manifest) {
-    const markdown = readFileSync(doc.path, "utf8")
+    const markdown = readFileSync(doc.path, "utf8").replace(/\r\n/g, "\n")
     // Binding A: chunkMarkdown(), the listing corpus-chunk-inspect writes to
     // chunks-index.json (ids {docId}_{ordinal:04d}, per document).
     let ordinal = 0
