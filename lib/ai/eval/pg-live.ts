@@ -265,6 +265,16 @@ export async function applyMigrations(
       results.push({ name, ok: true, ms: Date.now() - t0 })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
+      // Idempotency: re-running the harness against an already-migrated database (e.g. one the
+      // application itself migrated, or a previous run of this suite) makes CREATE TABLE / ADD
+      // COLUMN / CREATE INDEX statements fail with "already exists". That is a no-op, not a
+      // regression, so it is reported as applied. Genuine DDL failures (syntax, missing column,
+      // bad opclass) keep failing loudly and still stop the chain.
+      const alreadyApplied = /already exists/i.test(message)
+      if (alreadyApplied) {
+        results.push({ name, ok: true, ms: Date.now() - t0 })
+        continue
+      }
       results.push({ name, ok: false, ms: Date.now() - t0, error: message })
       if (stopOnError) break
     }
