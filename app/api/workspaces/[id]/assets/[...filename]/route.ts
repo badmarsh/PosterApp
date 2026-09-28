@@ -19,11 +19,15 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid workspace ID' }, { status: 400 })
   }
 
-  try {
-    await requireWorkspaceAccess(id)
-  } catch (err) {
-    if (err instanceof Response) return err
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  // Demo/showcase workspaces are not in the DB — serve their bundled assets
+  // without a workspace membership check, matching compile/pdf/GET routes.
+  if (!isDemoProject(id)) {
+    try {
+      await requireWorkspaceAccess(id)
+    } catch (err) {
+      if (err instanceof Response) return err
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   }
 
   const filePath = workspacePath(id, "assets", ...filename)

@@ -62,6 +62,18 @@ PosterApp is an intelligent, Next.js-based academic poster editor that assists r
   pnpm test:e2e
   ```
 
+## Database Mode Switching
+
+Switch between different database configurations without manual env editing:
+
+```bash
+pnpm run dev:local      # Local Docker PostgreSQL (pgvector)
+pnpm run dev:supabase   # Supabase Cloud
+pnpm run dev:dokploy    # Dokploy Remote DB (staging/production)
+```
+
+Each mode merges `.env.local.{mode}` into `.env.local`, preserving non-DB settings (Clerk, AI, MinerU, etc.). Backs up original `.env.local` to `.env.local.backup`.
+
 ## Production Deployment Checklist
 
 When deploying PosterApp to a production cluster or cloud environment:
