@@ -9,8 +9,63 @@ import { test, expect } from '@playwright/test';
  * Total: ~165 tests covering 14 user journey categories
  */
 
+// Helper to close any open dialogs that block pointer events (workspace selector, etc.)
+async function closeAnyOpenDialogs(page: any) {
+  // Press Escape multiple times to close dialogs
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.waitForTimeout(100);
+  }
+  // Try to click close buttons
+  const closeBtns = page.locator('[data-slot="dialog-close"], button:has-text("Close"), [aria-label="Close"]');
+  const count = await closeBtns.count().catch(() => 0);
+  for (let i = 0; i < Math.min(count, 3); i++) {
+    try {
+      const btn = closeBtns.nth(i);
+      if (await btn.isVisible({ timeout: 500 }).catch(() => false)) {
+        await btn.click({ force: true }).catch(() => {});
+        await page.waitForTimeout(200);
+      }
+    } catch {}
+  }
+  // Set lastWorkspaceId in localStorage to prevent auto-opening workspace selector
+  await page.evaluate(() => {
+    try {
+      const key = 'posterapp-editor-storage';
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.state) {
+          parsed.state.lastWorkspaceId = 'ws-1';
+          parsed.state.isWorkspaceSelectorOpen = false;
+          localStorage.setItem(key, JSON.stringify(parsed));
+        }
+      } else {
+        localStorage.setItem(key, JSON.stringify({
+          state: { selectedCardId: null, lastWorkspaceId: 'ws-1', isWorkspaceSelectorOpen: false },
+          version: 1
+        }));
+      }
+      // Also set a flag to prevent auto-open
+      localStorage.setItem('posterapp-e2e-workspace', 'ws-1');
+    } catch {}
+  }).catch(() => {});
+}
+
 // Helper to mock common APIs
 async function mockCommonAPIs(page: any) {
+  // Pre-set localStorage to avoid workspace selector auto-open
+  await page.addInitScript(() => {
+    try {
+      const key = 'posterapp-editor-storage';
+      localStorage.setItem(key, JSON.stringify({
+        state: { selectedCardId: null, lastWorkspaceId: 'ws-1', isWorkspaceSelectorOpen: false },
+        version: 1
+      }));
+      localStorage.setItem('posterapp-e2e-workspace', 'ws-1');
+    } catch {}
+  }).catch(() => {});
+
   await page.route('**/api/workspaces', async (route: any) => {
     const req = route.request();
     if (req.method() === 'GET') {
