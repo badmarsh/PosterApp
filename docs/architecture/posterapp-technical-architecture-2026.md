@@ -37,8 +37,8 @@ Po vzore sesterského projektu **OpenVPM-AI** bola pre PosterApp zavedená robus
 2. **Dokploy Arena Klon (`posterapp-arena-postgres-c9x2`)**:
    - Hostiteľ: `dev.significa.sk` (Port **`5435`**).
    - Obraz: `pgvector/pgvector:pg17` s natívnou podporou pre vektorové indexy.
-   - Používateľ / Databáza / Heslo: `posterapp` / `posterapp` / `posterapp_arena_pass_2026`.
-   - Pripojenie: `postgresql://posterapp:posterapp_arena_pass_2026@dev.significa.sk:5435/posterapp`.
+   - Používateľ / Databáza / Heslo: `posterapp` / `posterapp` / `***REDACTED***` (heslo žije v secret store servera, nie v Gite).
+   - Pripojenie: `postgresql://posterapp:<DB_PASSWORD>@<clone-host>:5435/posterapp` (pozri secret store).
 
 ### 2.2 Automatický Denný Cron & PII Retušovanie
 Každú noc o **02:30 UTC** beží na serveri skript `/usr/local/bin/posterapp-sync-clone.sh`:

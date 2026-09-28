@@ -1,0 +1,293 @@
+[
+  {
+    "id": "vla-autonomous-surgery",
+    "title": "SurgiVLA: Autonomous Microsurgery",
+    "subtitle": "A safety-constrained vision-language-action foundation model for sub-millimetre robotic manipulation.",
+    "category": "AI & Robotics",
+    "tags": [
+      "Vision-Language-Action",
+      "Robotics",
+      "Safety",
+      "CVPR"
+    ],
+    "outputs": [
+      "poster",
+      "slides",
+      "paper",
+      "thesis-review"
+    ],
+    "accent": "#00A6A6",
+    "highlights": [
+      {
+        "value": "98.7%",
+        "label": "task success"
+      },
+      {
+        "value": "0.31 mm",
+        "label": "median error"
+      },
+      {
+        "value": "42 Hz",
+        "label": "closed-loop control"
+      }
+    ]
+  },
+  {
+    "id": "neural-wavefunction-superconductors",
+    "title": "Neural Quantum States for Hydride Superconductors",
+    "subtitle": "Equivariant neural wavefunctions map anharmonic pairing under megabar pressure.",
+    "category": "Physics",
+    "tags": [
+      "Quantum Matter",
+      "Neural Wavefunctions",
+      "Superconductivity",
+      "APS"
+    ],
+    "outputs": [
+      "poster",
+      "slides",
+      "paper"
+    ],
+    "accent": "#6D5DFB",
+    "highlights": [
+      {
+        "value": "287 K",
+        "label": "predicted Tc"
+      },
+      {
+        "value": "−2.4 meV",
+        "label": "energy error"
+      },
+      {
+        "value": "8.1×",
+        "label": "sampling speedup"
+      }
+    ]
+  },
+  {
+    "id": "jwst-gravitational-lensing",
+    "title": "JWST Gravitational Lensing: Dark Matter Substructures",
+    "subtitle": "Forward neural ray-tracing resolves sub-kpc dark matter subhalos in cosmic dawn clusters.",
+    "category": "Physics",
+    "tags": [
+      "Gravitational Lensing",
+      "JWST",
+      "Dark Matter",
+      "Astrophysics"
+    ],
+    "outputs": [
+      "poster",
+      "slides",
+      "paper",
+      "thesis-review"
+    ],
+    "accent": "#0284C7",
+    "highlights": [
+      {
+        "value": "10^7 M_☉",
+        "label": "subhalo threshold"
+      },
+      {
+        "value": "0.028″",
+        "label": "astrometric resolution"
+      },
+      {
+        "value": "5.8σ",
+        "label": "detection confidence"
+      }
+    ]
+  },
+  {
+    "id": "speculative-decoding-guarantees",
+    "title": "Speculative Decoding with Provable Latency Guarantees",
+    "subtitle": "Martingale-bounded acceptance trees achieve lossless 3.4× acceleration on frontier LLMs.",
+    "category": "AI & Robotics",
+    "tags": [
+      "Speculative Decoding",
+      "Inference Acceleration",
+      "Martingale Bounds",
+      "NeurIPS"
+    ],
+    "outputs": [
+      "poster",
+      "slides",
+      "paper"
+    ],
+    "accent": "#6366F1",
+    "highlights": [
+      {
+        "value": "3.42×",
+        "label": "latency speedup"
+      },
+      {
+        "value": "0.0%",
+        "label": "distribution drift"
+      },
+      {
+        "value": "18.2 ms",
+        "label": "token latency (p99)"
+      }
+    ]
+  },
+  {
+    "id": "cas13-panviral-immunity",
+    "title": "Programmable Cas13 Pan-Viral Immunity",
+    "subtitle": "Structure-aware guide ensembles suppress escape across diverse respiratory RNA viruses.",
+    "category": "Biomedicine",
+    "tags": [
+      "CRISPR-Cas13",
+      "RNA Therapeutics",
+      "Viral Escape",
+      "NeurIPS"
+    ],
+    "outputs": [
+      "poster",
+      "slides",
+      "paper"
+    ],
+    "accent": "#E45756",
+    "highlights": [
+      {
+        "value": "99.2%",
+        "label": "viral knockdown"
+      },
+      {
+        "value": "0/48",
+        "label": "escape cultures"
+      },
+      {
+        "value": "6.8 h",
+        "label": "design cycle"
+      }
+    ]
+  },
+  {
+    "id": "mamba-selective-ssm",
+    "title": "Mamba: Selective State Space Models",
+    "subtitle": "Input-dependent state-space scans replace quadratic attention, matching Transformers at 5× throughput on million-length sequences.",
+    "category": "AI & Robotics",
+    "tags": [
+      "Selective SSM",
+      "Linear-Time Models",
+      "Hardware-aware Scan",
+      "State Space Models",
+      "arXiv"
+    ],
+    "outputs": [
+      "poster",
+      "slides",
+      "paper"
+    ],
+    "accent": "#0F766E",
+    "highlights": [
+      {
+        "value": "5×",
+        "label": "inference throughput"
+      },
+      {
+        "value": "1M",
+        "label": "token context"
+      },
+      {
+        "value": "3B ≈ 6B",
+        "label": "vs Transformer params"
+      }
+    ]
+  },
+  {
+    "id": "aurora-topological-photonics",
+    "title": "Aurora: Topological Photonic Crystals",
+    "subtitle": "Synthetic frequency dimensions enable non-Abelian braiding with 42 dB topological isolation.",
+    "category": "Physics",
+    "tags": [
+      "Photonics",
+      "Topology",
+      "Synthetic Dimensions",
+      "Nature"
+    ],
+    "outputs": [
+      "poster",
+      "slides",
+      "paper"
+    ],
+    "accent": "#6C3CE0",
+    "highlights": [
+      {
+        "value": "42 dB",
+        "label": "isolation"
+      },
+      {
+        "value": "0.98",
+        "label": "braiding fidelity"
+      },
+      {
+        "value": "21",
+        "label": "synthetic sites"
+      }
+    ]
+  },
+  {
+    "id": "landscape-ocean-circulation",
+    "title": "Landscape: AMOC Tipping Early Warning",
+    "subtitle": "High-resolution ocean model quantifies critical slowing down 38 years before collapse.",
+    "category": "Physics",
+    "tags": [
+      "Climate",
+      "Tipping Points",
+      "Ocean",
+      "HPC"
+    ],
+    "outputs": [
+      "poster",
+      "slides",
+      "paper"
+    ],
+    "accent": "#0F4C75",
+    "highlights": [
+      {
+        "value": "0.32 Sv",
+        "label": "tipping threshold"
+      },
+      {
+        "value": "38 yr",
+        "label": "early warning"
+      },
+      {
+        "value": "0.91",
+        "label": "AUC"
+      }
+    ]
+  },
+  {
+    "id": "betterposter-single-cell-atlas",
+    "title": "Betterposter: Human Cell Atlas",
+    "subtitle": "11.7M-cell variational atlas discovers ultra-rare niches at 0.02% frequency.",
+    "category": "Biomedicine",
+    "tags": [
+      "scRNA-seq",
+      "Atlas",
+      "Trajectory",
+      "Cell"
+    ],
+    "outputs": [
+      "poster",
+      "slides",
+      "paper"
+    ],
+    "accent": "#E63946",
+    "highlights": [
+      {
+        "value": "11.7M",
+        "label": "cells"
+      },
+      {
+        "value": "284",
+        "label": "clusters"
+      },
+      {
+        "value": "0.94",
+        "label": "kBET"
+      }
+    ]
+  }
+]
