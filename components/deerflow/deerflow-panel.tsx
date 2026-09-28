@@ -564,7 +564,7 @@ export function DeerflowPanel({ projectId }: { projectId: string }) {
   const improveProposal = isImprovePosterProposal(proposal) ? proposal : null
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col" data-testid="deerflow-panel">
       {/* Sub-tab switcher */}
       <div className="flex border-b border-border">
         <button

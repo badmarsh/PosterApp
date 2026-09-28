@@ -31,6 +31,7 @@ export function PreviewToolbar({
         <Button
           type="button"
           variant="ghost"
+          data-testid="compile-btn"
           disabled={compiling && !autoCompile}
           onClick={() => autoCompile ? onSetAutoCompile(false) : onCompile(format)}
           className={cn("h-full rounded-none gap-1.5 px-3 text-[11px] font-semibold", autoCompile ? "bg-primary/10 text-primary" : "text-foreground", !autoCompile && compileOk === true && "text-success", !autoCompile && compileOk === false && "text-destructive")}

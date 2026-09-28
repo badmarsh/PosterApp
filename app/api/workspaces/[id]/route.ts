@@ -46,7 +46,7 @@ export async function GET(
 ) {
   const { id } = await params
 
-  if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+  if (!/^[a-zA-Z0-9_-]{3,64}$/.test(id)) {
     return NextResponse.json({ error: 'Invalid workspace ID' }, { status: 400 })
   }
 
@@ -133,7 +133,7 @@ export async function PUT(
 ) {
   const { id } = await params
   
-  if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+  if (!/^[a-zA-Z0-9_-]{3,64}$/.test(id)) {
     return NextResponse.json({ error: 'Invalid workspace ID' }, { status: 400 })
   }
 
@@ -620,7 +620,7 @@ export async function DELETE(
 ) {
   const { id } = await params
   
-  if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+  if (!/^[a-zA-Z0-9_-]{3,64}$/.test(id)) {
     return NextResponse.json({ error: 'Invalid workspace ID' }, { status: 400 })
   }
 

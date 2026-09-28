@@ -11,6 +11,10 @@ export default defineConfig({
   globalSetup: require.resolve('./global-setup.ts'),
   use: {
     baseURL: process.env.BASE_URL ?? 'http://localhost:3333',
+    launchOptions: {
+      executablePath: process.env.CHROMIUM_PATH || '/tmp/chromium',
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    },
   },
   webServer: {
     command: process.env.CI ? 'pnpm exec next dev --port 3333' : 'pnpm run dev',
@@ -23,6 +27,7 @@ export default defineConfig({
       // Server-only flag: enables the auth bypass (requires NODE_ENV=development|test).
       E2E_AUTH_BYPASS: '1',
       NODE_ENV: 'development',
+      LD_LIBRARY_PATH: `${process.env.LD_LIBRARY_PATH || ''}:/tmp/libs:/tmp/nss_libs:/tmp/zlib_install/lib`,
     }
   },
 })

@@ -93,6 +93,8 @@ const CardRow = memo(function CardRow({ card }: { card: Card }) {
         role="button"
           tabIndex={0}
           aria-current={active ? "true" : undefined}
+      data-testid="card"
+      data-card-id={card.id}
       aria-label={`Edit card ${card.title || "Untitled"} (${card.id})`}
       onClick={() => selectCard(card.id)}
       onKeyDown={(e) => {

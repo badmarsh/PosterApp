@@ -215,7 +215,7 @@ export function ThesisReviewPanel({ workspaceId }: Props) {
   const isPaper = formMetadata.reviewKind === "paper"
 
   return (
-    <div className="flex-1 h-full w-full min-h-0 overflow-y-auto p-4 lg:p-8 bg-background">
+    <div className="flex-1 h-full w-full min-h-0 overflow-y-auto p-4 lg:p-8 bg-background" data-testid="thesis-review-panel">
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-foreground">

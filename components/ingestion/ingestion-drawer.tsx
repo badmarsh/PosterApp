@@ -58,6 +58,7 @@ export function IngestionDrawer() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="ingestion-drawer-title"
+        data-testid="ingestion-panel"
         className="relative flex h-[100dvh] w-full sm:max-w-xl max-w-full flex-col border-l border-border bg-sidebar shadow-xl duration-200 animate-in slide-in-from-right overflow-hidden"
       >
         {/* header — sticky */}

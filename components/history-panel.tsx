@@ -170,7 +170,7 @@ export function HistoryPanel() {
       />
 
       {/* Drawer */}
-      <aside ref={asideRef} role="dialog" aria-label="Save history" className="fixed right-0 top-0 z-[55] h-full w-[380px] max-w-[calc(100vw-2rem)] bg-background border-l border-border shadow-2xl flex flex-col">
+      <aside ref={asideRef} role="dialog" aria-label="Save history" data-testid="history-panel" className="fixed right-0 top-0 z-[55] h-full w-[380px] max-w-[calc(100vw-2rem)] bg-background border-l border-border shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2">
