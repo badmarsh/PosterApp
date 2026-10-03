@@ -12,6 +12,7 @@
 
 import { fuseCandidates, type FusionOptions, type RankedSource, type RetrievalSource } from "../fusion"
 import { ALL_GENERATORS } from "./generators"
+import { applySectionBoost } from "./candidate-ranking"
 import type { CandidateGenerator, GeneratorResult, RetrievalCandidate, RetrievalContext } from "./types"
 
 export * from "./types"
@@ -104,7 +105,14 @@ export async function runCandidateGenerators(ctx: RetrievalContext, opts: RunOpt
       }
       const t0 = Date.now()
       try {
-        const items = await withTimeout(gen.retrieve(genCtx), timeoutMs, `${gen.source} retriever`)
+        const rawItems = await withTimeout(gen.retrieve(genCtx), timeoutMs, `${gen.source} retriever`)
+        // Dense and lexical apply this same policy in their shared merge path. Apply it
+        // to supplementary legs here too, then pin every source's tie order by chunk id.
+        const items = (gen.source === "dense" || gen.source === "lexical"
+          ? rawItems
+          : applySectionBoost(rawItems, genCtx.sectionPathPrefixes))
+          .slice()
+          .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
         return { source: gen.source, items, latencyMs: Date.now() - t0, enabled: true }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)

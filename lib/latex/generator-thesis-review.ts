@@ -29,7 +29,7 @@ import {
 import { thesisReviewStyleFor, type ThesisReviewStyle } from "./thesis-review-styles"
 import { THESIS_CRITERIA, computeOverallScore, type ThesisSection, type ReviewLanguage } from "@/lib/ai/thesis-rubric"
 import { SK_ACADEMIC_RUBRIC_V1 } from "@/lib/ai/rubric-engine"
-import type { ReviewKind, ReviewFinding } from "@/lib/ai/review-types"
+import type { ReviewKind, ReviewFinding, ReportingGuidelineCheck } from "@/lib/ai/review-types"
 import { getEligibleFindings } from "@/lib/ai/review-composer"
 import { bucketFindings } from "@/lib/ai/review-bucketing"
 import { mapUnicodeToLatex, parseMarkdownToLatex } from "./parser"
@@ -272,7 +272,7 @@ function buildIdentificationBlock(
     department?: string | null
     academicYear?: string | null
   },
-  kind: "thesis" | "paper"
+  kind: ReviewKind
 ): string {
   const rows: string[] = [
     `  \\textbf{${escapeLatex(labels.studentLabel)}:} & ${escapeLatex(meta.studentName)} \\\\`,
@@ -492,19 +492,20 @@ type EvaluationBlock = { heading: string; body: string }
  */
 function buildEvaluationBlocks(
   input: ThesisReviewGeneratorInput,
-  reviewKind: "thesis" | "paper"
+  reviewKind: ReviewKind
 ): EvaluationBlock[] {
   const lang = input.language
   const isPaper = reviewKind === "paper"
+  const isGrant = reviewKind === "grant"
   const L = (sk: string, cs: string, en: string) => (lang === "sk" ? sk : lang === "cs" ? cs : en)
   const blocks: EvaluationBlock[] = []
 
   if (input.summary && input.summary.trim()) {
     blocks.push({
       heading: L(
-        isPaper ? "Zhrnutie rukopisu (Manuscript Summary)" : "Zhrnutie práce a hlavný prínos (Executive Summary)",
-        isPaper ? "Shrnutí rukopisu (Manuscript Summary)" : "Shrnutí práce a hlavní přínos (Executive Summary)",
-        isPaper ? "Manuscript Summary" : "Executive Summary"
+        isPaper ? "Zhrnutie rukopisu (Manuscript Summary)" : isGrant ? "Zhrnutie grantového návrhu" : "Zhrnutie práce a hlavný prínos (Executive Summary)",
+        isPaper ? "Shrnutí rukopisu (Manuscript Summary)" : isGrant ? "Shrnutí grantového návrhu" : "Shrnutí práce a hlavní přínos (Executive Summary)",
+        isPaper ? "Manuscript Summary" : isGrant ? "Grant Proposal Summary" : "Executive Summary"
       ),
       body: escapeProse(renderProse(input.summary)),
     })
@@ -528,9 +529,9 @@ function buildEvaluationBlocks(
     const items = strengths.map((s) => "  \\item " + escapeProse(s)).join("\n")
     blocks.push({
       heading: L(
-        isPaper ? "Podložené silné stránky rukopisu (Evidence-Grounded Strengths)" : "Silné stránky práce (Key Strengths)",
-        isPaper ? "Podložené silné stránky rukopisu (Evidence-Grounded Strengths)" : "Silné stránky práce (Key Strengths)",
-        isPaper ? "Evidence-Grounded Strengths" : "Key Strengths"
+        isPaper ? "Podložené silné stránky rukopisu (Evidence-Grounded Strengths)" : isGrant ? "Silné stránky grantového návrhu" : "Silné stránky práce (Key Strengths)",
+        isPaper ? "Podložené silné stránky rukopisu (Evidence-Grounded Strengths)" : isGrant ? "Silné stránky grantového návrhu" : "Silné stránky práce (Key Strengths)",
+        isPaper ? "Evidence-Grounded Strengths" : isGrant ? "Grant Proposal Strengths" : "Key Strengths"
       ),
       body: "\\begin{itemize}[leftmargin=*,itemsep=2pt]\n" + items + "\n\\end{itemize}",
     })
@@ -554,7 +555,9 @@ function buildEvaluationBlocks(
 
   if (buckets.major.length > 0) {
     blocks.push({
-      heading: L("Zásadné pripomienky (Major Concerns)", "Zásadní připomínky (Major Concerns)", "Major Concerns"),
+      heading: isGrant
+        ? L("Zásadné riziká financovania", "Zásadní rizika financování", "Major Funding Risks")
+        : L("Zásadné pripomienky (Major Concerns)", "Zásadní připomínky (Major Concerns)", "Major Concerns"),
       body: buckets.major.map(renderFinding).join("\n\n"),
     })
   }
@@ -570,7 +573,9 @@ function buildEvaluationBlocks(
       })
       .join("\n")
     blocks.push({
-      heading: L("Drobné pripomienky (Minor Concerns)", "Drobné připomínky (Minor Concerns)", "Minor Concerns"),
+      heading: isGrant
+        ? L("Menšie odporúčania k návrhu", "Menší doporučení k návrhu", "Minor Proposal Recommendations")
+        : L("Drobné pripomienky (Minor Concerns)", "Drobné připomínky (Minor Concerns)", "Minor Concerns"),
       body: "\\begin{itemize}[leftmargin=*,itemsep=4pt]\n" + items + "\n\\end{itemize}",
     })
   }
@@ -586,6 +591,19 @@ function buildEvaluationBlocks(
         "Statutory Requirements of the Doctoral Study Programme"
       ),
       body: escapeProse(statutoryClause),
+    })
+  }
+
+  const guidelineChecks = input.reportingGuidelineChecks ?? []
+  if (guidelineChecks.length > 0) {
+    const items = guidelineChecks.map((check) =>
+      `  \\item \\textbf{[${escapeLatex(check.status.toUpperCase())}] ${escapeLatex(check.item)}}: ${escapeProse(check.notes || "")}`
+    ).join("\n")
+    blocks.push({
+      heading: isGrant
+        ? L("Súlad, etika a riadenie", "Soulad, etika a řízení", "Compliance, Ethics, and Governance")
+        : L("Súlad s metodickými usmerneniami", "Soulad s metodickými pokyny", "Reporting Guideline Compliance"),
+      body: `\\begin{itemize}[leftmargin=*,itemsep=2pt]\n${items}\n\\end{itemize}`,
     })
   }
 
@@ -706,28 +724,33 @@ function labelsForReviewKind(
   lang: ReportLanguage,
   reviewKind: ReviewKind
 ): ThesisReviewLabels {
-  if (reviewKind !== "paper") return labels
+  if (reviewKind === "thesis") return labels
 
   const sk = lang === "sk"
   const cs = lang === "cs"
+  const isGrant = reviewKind === "grant"
   const scientificPaper = sk ? "Vedecký článok" : cs ? "Vědecký článek" : "Scientific paper"
+  const grantProposal = sk ? "Grantový návrh" : cs ? "Grantový návrh" : "Grant proposal"
+  const documentLabel = isGrant ? grantProposal : scientificPaper
   return {
     ...labels,
-    title: sk ? "ODBORNÁ RECENZIA VEDECKÉHO ČLÁNKU" : cs ? "ODBORNÁ RECENZE VEDECKÉHO ČLÁNKU" : "SCIENTIFIC PAPER PEER REVIEW",
-    studentLabel: sk ? "Autor/Autorka článku" : cs ? "Autor/Autorka článku" : "Author(s)",
-    thesisTitleLabel: sk ? "Názov článku" : cs ? "Název článku" : "Paper title",
-    thesisTypeLabel: sk ? "Typ rukopisu" : cs ? "Typ rukopisu" : "Manuscript type",
-    gradingLabel: sk ? "ODBORNÉ POSÚDENIE" : cs ? "ODBORNÉ POSOUZENÍ" : "PEER-REVIEW FINDINGS",
-    defenseLabel: sk ? "OTÁZKY PRE AUTOROV" : cs ? "OTÁZKY PRO AUTORY" : "QUESTIONS FOR THE AUTHORS",
+    title: isGrant
+      ? (sk ? "ODBORNÉ HODNOTENIE GRANTOVÉHO NÁVRHU" : cs ? "ODBORNÉ HODNOCENÍ GRANTOVÉHO NÁVRHU" : "GRANT PROPOSAL REVIEW")
+      : (sk ? "ODBORNÁ RECENZIA VEDECKÉHO ČLÁNKU" : cs ? "ODBORNÁ RECENZE VEDECKÉHO ČLÁNKU" : "SCIENTIFIC PAPER PEER REVIEW"),
+    studentLabel: isGrant ? (sk ? "Žiadateľ" : cs ? "Žadatel" : "Applicant") : (sk ? "Autor/Autorka článku" : cs ? "Autor/Autorka článku" : "Author(s)"),
+    thesisTitleLabel: isGrant ? (sk ? "Názov projektu" : cs ? "Název projektu" : "Project title") : (sk ? "Názov článku" : cs ? "Název článku" : "Paper title"),
+    thesisTypeLabel: isGrant ? (sk ? "Typ výzvy" : cs ? "Typ výzvy" : "Funding call") : (sk ? "Typ rukopisu" : cs ? "Typ rukopisu" : "Manuscript type"),
+    gradingLabel: isGrant ? (sk ? "POSÚDENIE GRANTOVÉHO NÁVRHU" : cs ? "POSOUZENÍ GRANTOVÉHO NÁVRHU" : "FUNDING REVIEW") : (sk ? "ODBORNÉ POSÚDENIE" : cs ? "ODBORNÉ POSOUZENÍ" : "PEER-REVIEW FINDINGS"),
+    defenseLabel: isGrant ? (sk ? "OTÁZKY PRE ŽIADATEĽA" : cs ? "OTÁZKY PRO ŽADATELE" : "QUESTIONS FOR THE APPLICANT") : (sk ? "OTÁZKY PRE AUTOROV" : cs ? "OTÁZKY PRO AUTORY" : "QUESTIONS FOR THE AUTHORS"),
     citationLabel: sk ? "POZNÁMKY K CITÁCIÁM" : cs ? "POZNÁMKY K CITACÍM" : "CITATION NOTES",
-    summaryLabel: sk ? "PUBLIKAČNÉ ODPORÚČANIE" : cs ? "PUBLIKAČNÍ DOPORUČENÍ" : "PUBLICATION RECOMMENDATION",
-    confidentialLabel: sk ? "DÔVERNÉ POZNÁMKY PRE EDITORA" : cs ? "DŮVĚRNÉ POZNÁMKY PRO EDITORA" : "CONFIDENTIAL COMMENTS TO THE EDITOR",
-    recommendationLabel: sk ? "Odporúčanie editorovi" : cs ? "Doporučení editorovi" : "Recommendation to the editor",
+    summaryLabel: isGrant ? (sk ? "ODPORÚČANIE K FINANCOVANIU" : cs ? "DOPORUČENÍ K FINANCOVÁNÍ" : "FUNDING RECOMMENDATION") : (sk ? "PUBLIKAČNÉ ODPORÚČANIE" : cs ? "PUBLIKAČNÍ DOPORUČENÍ" : "PUBLICATION RECOMMENDATION"),
+    confidentialLabel: isGrant ? (sk ? "DÔVERNÉ POZNÁMKY PRE KOMISIU" : cs ? "DŮVĚRNÉ POZNÁMKY PRO KOMISI" : "CONFIDENTIAL COMMENTS TO THE PANEL") : (sk ? "DÔVERNÉ POZNÁMKY PRE EDITORA" : cs ? "DŮVĚRNÉ POZNÁMKY PRO EDITORA" : "CONFIDENTIAL COMMENTS TO THE EDITOR"),
+    recommendationLabel: isGrant ? (sk ? "Odporúčanie k financovaniu" : cs ? "Doporučení k financování" : "Funding recommendation") : (sk ? "Odporúčanie editorovi" : cs ? "Doporučení editorovi" : "Recommendation to the editor"),
     signatureLabel: sk ? "Podpis recenzenta/ky" : cs ? "Podpis recenzenta/ky" : "Reviewer's signature",
     identificationLabel: sk ? "IDENTIFIKÁCIA RUKOPISU" : cs ? "IDENTIFIKACE RUKOPISU" : "MANUSCRIPT IDENTIFICATION",
     criteriaOverviewLabel: sk ? "PREHĽAD POSÚDENIA KRITÉRIÍ" : cs ? "PŘEHLED POSOUZENÍ KRITÉRIÍ" : "REVIEW CRITERIA OVERVIEW",
-    thesisTypes: { bachelor: scientificPaper, master: scientificPaper, phd: scientificPaper },
-    roles: { ...labels.roles, supervisor: "Reviewer", opponent: "Reviewer", self: "Author triage", reviewer: "Reviewer" },
+    thesisTypes: { bachelor: documentLabel, master: documentLabel, phd: documentLabel },
+    roles: { ...labels.roles, supervisor: isGrant ? "Grant reviewer" : "Reviewer", opponent: isGrant ? "Grant reviewer" : "Reviewer", self: "Author triage", reviewer: isGrant ? "Grant reviewer" : "Reviewer", peer_reviewer: "Peer reviewer", editor: "Editor" },
   }
 }
 
@@ -772,12 +795,14 @@ export interface ThesisReviewGeneratorInput {
   summary?: string | null
   strengths?: string[]
   defenseQuestions: string[]
+  questionsForAuthors?: string[]
   citationIssues: string[]
   /** Report language. Wider than ReviewLanguage: de/pl/hu are render-only. */
   language: ReportLanguage
   template: ThesisReviewTemplate
   /** Optional statutory enrichment (e.g. the § 67 clause) rendered as its own block. */
   phdEnrichment?: { statutoryClause?: string } | null
+  reportingGuidelineChecks?: ReportingGuidelineCheck[] | null
   confidentialComments?: string | null
   includeConfidential?: boolean
 }
@@ -787,11 +812,11 @@ export interface ThesisReviewGeneratorInput {
  */
 export function generateThesisReviewLatex(input: ThesisReviewGeneratorInput): string {
   const lang = input.language
-  const reviewKind: "thesis" | "paper" = input.reviewKind === "paper" ? "paper" : "thesis"
+  const reviewKind: ReviewKind = input.reviewKind === "paper" || input.reviewKind === "grant" ? input.reviewKind : "thesis"
   const style = thesisReviewStyleFor(input.template)
   const labels = labelsForReviewKind(THESIS_REVIEW_LABELS[lang], lang, reviewKind)
   const preamble = getThesisReviewPreamble(input.template, labels.title)
-  const isThesis = reviewKind !== "paper"
+  const isThesis = reviewKind === "thesis"
 
   const letterhead = buildLetterhead(labels, input)
   const identification = buildIdentificationBlock(labels, style, {
@@ -840,12 +865,13 @@ ${headingFor(labels.gradingLabel)}
 ${criteriaBlock}`)
   }
 
-  // Defense questions — may be in sections or top-level
-  const defenseSection = input.sections.find((s) => s.criterionId === "defense_questions")
-  const allDefenseQuestions = [
-    ...(defenseSection?.text ? [defenseSection.text] : []),
-    ...input.defenseQuestions,
-  ].filter(Boolean)
+  // Keep thesis defence questions distinct from editorial questions for
+  // authors/applicants. An editorial review must never fall back to calibrated
+  // thesis-defence questions.
+  const defenseSection = isThesis ? input.sections.find((s) => s.criterionId === "defense_questions") : undefined
+  const allDefenseQuestions = isThesis
+    ? [...(defenseSection?.text ? [defenseSection.text] : []), ...input.defenseQuestions].filter(Boolean)
+    : (input.questionsForAuthors ?? []).filter(Boolean)
 
   const defenseBlock = buildDefenseQuestions(labels, allDefenseQuestions)
   const citationBlock = buildCitationNotes(labels, input.citationIssues)
@@ -983,6 +1009,7 @@ export class ThesisReviewLatexGenerator implements LatexGenerator {
       summary: derived.summary || null,
       strengths: derived.strengths,
       defenseQuestions: derived.defenseQuestions,
+      questionsForAuthors: derived.questionsForAuthors,
       citationIssues: derived.citationIssues,
       language: lang,
       template,

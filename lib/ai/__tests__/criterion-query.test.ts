@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest"
-import { readFileSync } from "fs"
 import { buildCriterionRetrievalQuery, supportsCalibrationEvidenceQueries } from "../criterion-query"
 import { SK_ACADEMIC_RUBRIC_V1 } from "../rubric-engine"
 
@@ -60,35 +59,11 @@ describe("criterion retrieval queries", () => {
     }
   })
 
-  it("reproduces all reports from unchanged passage and cached neural query vectors", async () => {
+  it("rejects cached vectors built from the unsafe legacy HyDE templates", async () => {
     const { scoreCriterionQueries } = await import("../../../scripts/score-pipeline-variants")
-    for (const mode of ["comparison", "pipeline", "criterion-aware"] as const) {
-      const report = await scoreCriterionQueries(mode, { cachedQueries: true, writeReport: false })
-      const reportName = mode === "criterion-aware" ? "criterion-aware" : `criterion-${mode}`
-      const saved = JSON.parse(readFileSync(`artifacts/analysis-2/${reportName}.json`, "utf8"))
-      expect(report).toEqual(saved)
-      expect(report.passageUnits).toBe(473)
-      expect(report.fallbackCount).toBe(0)
-      for (const condition of report.conditions) {
-        expect(condition.baselineHit5).toBe(3)
-        expect(condition.candidateHit5).toBe(condition.kind === "dense" ? 5 : 6)
-        expect(condition.accepted).toBe(true)
-        for (const id of report.protectedIds) {
-          const row = condition.detail.find(d => d.id === id)!
-          expect(row.candidate.hit5).toBe(true)
-          if (id !== "methodology_rigor") {
-            expect(row.candidateQuery).toBe(row.baselineQuery)
-            expect(row.candidate).toEqual(row.baseline)
-          }
-        }
-        if (mode === "criterion-aware") {
-          expect(condition.previousCandidateHit5).toBe(5)
-          expect(condition.detail.find(d => d.id === "methodology_rigor")!.baseline.hit5).toBe(false)
-          expect(condition.detail.find(d => d.id === "analytical_execution")!.baseline.hit5).toBe(true)
-          expect(condition.detail.find(d => d.id === "analytical_execution")!.candidateRoute?.profiles).toContain("methodology")
-        }
-        expect(condition.detail.find(d => d.id === "originality_contribution")!.candidate.hit5).toBe(false)
-      }
-    }
+    // The checked-in cache embeds older passages that injected a physics prior and asserted
+    // unobserved methods/results. New neutral HyDE text must not silently reuse those vectors.
+    await expect(scoreCriterionQueries("comparison", { cachedQueries: true, writeReport: false }))
+      .rejects.toThrow("Query cache mismatch")
   })
 })

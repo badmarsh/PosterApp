@@ -59,7 +59,7 @@ export type DerivedCriterion = {
 
 export type ThesisReviewDerived = {
   language: ReportLanguageCode
-  reviewKind: "thesis" | "paper"
+  reviewKind: "thesis" | "paper" | "grant"
   studentName: string
   thesisTitle: string
   thesisType: "bachelor" | "master" | "phd"
@@ -80,6 +80,7 @@ export type ThesisReviewDerived = {
   summary: string
   strengths: string[]
   defenseQuestions: string[]
+  questionsForAuthors: string[]
   citationIssues: string[]
   criteria: DerivedCriterion[]
   /** Weighted score over rated criteria, in percent. `null` when nothing is rated. */
@@ -612,6 +613,7 @@ export function deriveThesisReview(
 ): ThesisReviewDerived {
   const cards = output?.cards ?? []
   const rm: ThesisReviewOutputMeta = { ...(output?.reviewMeta ?? {}), ...(reviewMetaOverride ?? {}) }
+  const reviewKind: ThesisReviewDerived["reviewKind"] = rm.reviewKind === "paper" || rm.reviewKind === "grant" ? rm.reviewKind : "thesis"
   const resolved = resolveOutputMetadata(project, output ?? null)
   const provenance: ThesisReviewDerived["provenance"] = {}
 
@@ -698,12 +700,15 @@ export function deriveThesisReview(
     ? rm.strengths.filter(Boolean)
     : cards.filter((c) => cardRole(c) === "strengths").flatMap((c) => bulletItems(c.content))
   const defenseSection = cards.filter((c) => cardRole(c) === "defense")
-  const defenseQuestions = rm.defenseQuestions?.length
-    ? rm.defenseQuestions.filter(Boolean)
-    : defenseSection.flatMap((c) => {
-        const numbered = numberedItems(c.content)
-        return numbered.length ? numbered : bulletItems(c.content)
-      })
+  const defenseQuestions = reviewKind === "thesis"
+    ? rm.defenseQuestions?.length
+      ? rm.defenseQuestions.filter(Boolean)
+      : defenseSection.flatMap((c) => {
+          const numbered = numberedItems(c.content)
+          return numbered.length ? numbered : bulletItems(c.content)
+        })
+    : []
+  const questionsForAuthors = reviewKind === "thesis" ? [] : (rm.questionsForAuthors ?? []).filter(Boolean)
   const citationIssues = rm.citationIssues?.length
     ? rm.citationIssues.filter(Boolean)
     : cards.filter((c) => cardRole(c) === "citations").flatMap((c) => bulletItems(c.content))
@@ -771,7 +776,7 @@ export function deriveThesisReview(
 
   return {
     language,
-    reviewKind: rm.reviewKind ?? "thesis",
+    reviewKind,
     studentName: student,
     thesisTitle,
     thesisType,
@@ -792,6 +797,7 @@ export function deriveThesisReview(
     summary,
     strengths,
     defenseQuestions,
+    questionsForAuthors,
     citationIssues,
     criteria,
     weightedScore,
@@ -909,6 +915,13 @@ export function reviewMetaFromRecord(record: ThesisReviewRecordLike | null | und
     ? (record.language as ReportLanguageCode)
     : undefined
 
+  const reviewKind: ThesisReviewOutputMeta["reviewKind"] = record.reviewKind === "paper" || record.reviewKind === "grant"
+    ? record.reviewKind
+    : "thesis"
+  const questionsForAuthors = reviewKind === "thesis"
+    ? []
+    : stringList(record.questionsForAuthors)
+
   const meta: ThesisReviewOutputMeta = {
     studentName: record.studentName?.trim() || undefined,
     thesisTitle: record.thesisTitle?.trim() || undefined,
@@ -923,9 +936,10 @@ export function reviewMetaFromRecord(record: ThesisReviewRecordLike | null | und
     recommendation: (record.finalRecommendation || record.recommendation || "").trim() || undefined,
     summary: record.summary?.trim() || undefined,
     strengths: stringList(record.strengths),
-    defenseQuestions: [...stringList(record.defenseQuestions), ...stringList(record.questionsForAuthors)],
+    defenseQuestions: reviewKind === "thesis" ? stringList(record.defenseQuestions) : [],
+    questionsForAuthors,
     citationIssues: stringList(record.citationIssues),
-    reviewKind: record.reviewKind === "paper" ? "paper" : "thesis",
+    reviewKind,
     language,
     place: record.place?.trim() || undefined,
     date: record.date?.trim() || undefined,

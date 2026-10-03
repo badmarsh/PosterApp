@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest"
 vi.mock("@/lib/prisma", () => ({ prisma: {} }))
 vi.mock("@prisma/client", () => ({ Prisma: { sql: () => "", empty: "", join: () => "" } }))
-import { applyMMR, rerankChunks, compressChunks, buildFtsQuery, domainQueryPrefix, resolveCriterionFamily, resolveThesisDomainContext } from "@/lib/ai/vector-rag"
+import { applyMMR, rerankChunks, compressChunks, buildFtsQuery, domainQueryPrefix, expandQuery, generateHypotheticalDocument, getThesisCriterionQueryExpansion, resolveCriterionFamily, resolveThesisDomainContext } from "@/lib/ai/vector-rag"
 
 describe("vector-rag fixes", () => {
   it("buildFtsQuery OR-joins informative tokens", () => {
@@ -29,6 +29,33 @@ describe("vector-rag fixes", () => {
     expect(resolveThesisDomainContext({ thesisTitle: "Interný audit v bankovom sektore" } as any)).not.toContain("Informatika")
     expect(resolveThesisDomainContext({ thesisTitle: "Detailná analýza fotosyntézy" } as any)).not.toContain("Informatika")
     expect(resolveThesisDomainContext({ thesisTitle: "Využitie AI v diagnostike" } as any)).toContain("Informatika")
+  })
+
+  it("returns no physics or generic domain prior for absent or sparse metadata", () => {
+    expect(resolveThesisDomainContext()).toBe("")
+    expect(resolveThesisDomainContext({})).toBe("")
+    expect(resolveThesisDomainContext({ thesisTitle: "A study of local practices" } as any)).toBe("")
+  })
+
+  it("expands criterion queries with SK/CS/EN terms and emits cautious multilingual HyDE", async () => {
+    const skExpansion = getThesisCriterionQueryExpansion("methodology_rigor", "sk")
+    const csExpansion = getThesisCriterionQueryExpansion("methodology_rigor", "cs")
+    const enExpansion = getThesisCriterionQueryExpansion("methodology_rigor", "en")
+    expect(skExpansion).toContain("metodológia")
+    expect(csExpansion).toContain("metodologie")
+    expect(enExpansion).toContain("methodology")
+    expect(expandQuery("Ako bola zvolená metodika?", skExpansion)).toHaveLength(3)
+
+    const sk = await generateHypotheticalDocument("Ako bola zvolená metodika?", "", "sk")
+    const cs = await generateHypotheticalDocument("Jak byla zvolena metodika?", "", "cs")
+    const en = await generateHypotheticalDocument("How was the method selected?", "", "en")
+    expect(sk).toContain("Nepredpokladá sa žiadna konkrétna metóda")
+    expect(cs).toContain("Nepředpokládá se žádná konkrétní metoda")
+    expect(en).toContain("No specific method or outcome is assumed")
+    for (const hypothetical of [sk, cs, en]) {
+      expect(hypothetical).not.toMatch(/confirms our hypotheses|potvrzujú stanovené hypotézy|potvrzují stanovené hypotézy/i)
+      expect(hypothetical).not.toMatch(/STEM, Fyzika|STEM \/ Physics/)
+    }
   })
   it("MMR with normalised relevance prefers relevant chunk over diverse-but-irrelevant", () => {
     const chunks = [
@@ -59,5 +86,28 @@ describe("vector-rag fixes", () => {
     const out = compressChunks("presnosť výsledkov testovacej", [c], 3)
     expect(out[0].content).toContain("| CNN | 0.91 |")
     expect(out[0].content).toContain("94.2%")
+  })
+
+  it("preserves formulas, equation numbers, statistics, citation anchors and abbreviations", () => {
+    const unrelated = "Unrelated background passage about a different topic with no useful evidence here."
+    const content = [
+      "Prof. Smith describes the measurement method, e.g. the repeated baseline procedure, in detail.",
+      ...Array.from({ length: 8 }, () => unrelated),
+      "The fitted result is reported in Equation (3.1), with p < 0.05 and N = 40.",
+      "$$\nE = mc^2\n$$",
+      "The source passage is linked to [c-1234567890abcdef] and (Smith, 2020).",
+      ...Array.from({ length: 4 }, () => unrelated),
+    ].join("\n\n")
+    const [compressed] = compressChunks("measurement method", [{ id: "evidence", heading: null, content }], 4)
+
+    expect(compressed.content.length).toBeLessThan(content.length)
+    expect(compressed.content).toContain("Prof. Smith")
+    expect(compressed.content).toContain("e.g.")
+    expect(compressed.content).toContain("Equation (3.1)")
+    expect(compressed.content).toContain("p < 0.05")
+    expect(compressed.content).toContain("N = 40")
+    expect(compressed.content).toContain("E = mc^2")
+    expect(compressed.content).toContain("[c-1234567890abcdef]")
+    expect(compressed.content).toContain("(Smith, 2020)")
   })
 })

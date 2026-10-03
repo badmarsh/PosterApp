@@ -119,12 +119,15 @@ describe("DOCX generator — confidential comments separation (regression)", () 
       reviewKind: "paper",
       reviewerRole: "reviewer",
       recommendation: "major_revisions",
+      questionsForAuthors: ["How were the inclusion criteria determined?"],
     })
     const xml = await getDocXml(blob)
 
     expect(xml).toContain("ODBORNÁ RECENZIA VEDECKÉHO ČLÁNKU")
     expect(xml).toContain("Publikačné odporúčanie")
     expect(xml).toContain("Otázky pre autorov")
+    expect(xml).toContain("How were the inclusion criteria determined?")
+    expect(xml).not.toContain("Aká je časová zložitosť vášho algoritmu?")
     expect(xml).toContain("AI Assistance Disclosure")
     expect(xml).not.toContain("Klasifikácia / Grade")
     expect(xml).not.toContain("Otázky k obhajobe")

@@ -3,6 +3,8 @@
  */
 
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
+import { detectStatutoryJurisdiction } from "@/lib/ai/review-bucketing"
+import { getReviewerRoleGuidance } from "@/lib/ai/thesis-review-policy"
 import { formatGradeBandsText } from "@/lib/ai/rubric-engine"
 import {
   THESIS_LEVEL_PROFILES,
@@ -21,6 +23,7 @@ export function buildSystemPrompt(
   const expectationsText = profile.evidenceExpectations.map((e) => `- ${e}`).join("\n")
   const gradeAnchorsText = formatGradeAnchorsText(profile, lang)
 
+  const roleGuidance = getReviewerRoleGuidance(metadata.reviewKind, metadata.reviewerRole)
   if (reviewTone === "constructive") {
     const constructiveTexts: Record<ReviewLanguage, string> = {
       sk: `Si školiteľ a akademický mentor hodnotiaci koncept študentskej práce. 
@@ -91,7 +94,7 @@ Evaluation rules:
 - Strictly align numericScore (0-100) with ECTS grade (A/B/C/D/E/FX).
 - Citation audit results are advisory and may represent external service limits.`,
     }
-    return constructiveTexts[lang]
+    return `${constructiveTexts[lang]}\n\n--- ROLE-SPECIFIC EXPECTATIONS ---\n${roleGuidance}`
   }
 
   const formalTexts: Record<ReviewLanguage, string> = {
@@ -142,7 +145,7 @@ Evaluation rules:
 - Strictly align numericScore (0-100) with ECTS grade (A/B/C/D/E/FX).
 - Citation audit results are advisory and may represent external service limits.`,
   }
-  return formalTexts[lang]
+  return `${formalTexts[lang]}\n\n--- ROLE-SPECIFIC EXPECTATIONS ---\n${roleGuidance}`
 }
 
 export function buildUserPrompt(
@@ -191,8 +194,9 @@ Provide overall grade (A/B/C/D/E/FX) and formal recommendation.`,
   // ("minor_revisions") and a review that the committee chair would return to
   // the dean for completion, which is exactly what § 67 (SK) / § 54a (CZ)
   // forbids. Applied to thesis reviews only; paper/grant flows are untouched.
-  const isDoctoralOpponent = metadata.reviewKind !== "paper" && metadata.reviewKind !== "grant"
+  const isDoctoralOpponent = (metadata.reviewKind === undefined || metadata.reviewKind === "thesis")
     && metadata.thesisType === "phd" && metadata.reviewerRole === "opponent"
+    && detectStatutoryJurisdiction(metadata) !== "none"
   const doctoralOpponentRules = isDoctoralOpponent
     ? lang === "sk"
       ? `
@@ -200,7 +204,7 @@ Provide overall grade (A/B/C/D/E/FX) and formal recommendation.`,
 Pravidlá oponentského posudku dizertačnej práce (zákon č. 131/2002 Z. z., § 67):
 - Posudok musí obsahovať vyjadrenie k týmto bodom: a) aktuálnosť zvolenej témy, b) zvolené metódy a postup spracovania, c) vyhodnotenie výsledkov a nových poznatkov, d) prínos pre rozvoj vedy a techniky, e) splnenie sledovaných cieľov a požiadaviek kladených na dizertačné práce. K každému bodu sa vyjadri explicitne a vedicky podložene.
 - Vychádzaj výhradne z textu, ktorý je v tomto podnete. Ak časť rukopisu chýba, o jej hodnotení napíš, že ju nemožno bez celého textu posúdiť — nenahrádzaj ju domienkou a netvrd, že prácu hodnotíš „z dostupných úryvkov“.
-- Položka "recommendation" nesmie obsahovať hodnoty accept/minor_revisions/major_revisions/reject. Napíš jednu uzatvárajúcu vetu v slovenčine v tvare: „[Práca spĺňa podmienky kladené na dizertačnú prácu podľa § 67 zákona č. 131/2002 Z. z.] [Dizertačnú prácu odporúčam na obhajobu.] [Navrhujem udelenie akademického titulu PhD s klasifikačným stupňom prospel/neprospel.]“ Ak na to dôkazy nestačia, napíš, ktoré podmienky nie sú preukázané, a nechaj posudok otvorený; neodporúčaj nič, čo nie je podložené textom práce.
+- Položka "recommendation" nesmie obsahovať hodnoty accept/minor_revisions/major_revisions/reject. Výslovne posúď vedeckú spôsobilosť doktoranda a v závere odporuč alebo neodporuč obhajobu aj udelenie titulu PhD. Vhodný tvar: „Doktorand preukázal schopnosť samostatnej vedeckej práce. Dizertačnú prácu odporúčam na obhajobu a navrhujem udelenie akademického titulu PhD s klasifikačným stupňom prospel/neprospel.“ Ak na to dôkazy nestačia, uveď to a nechaj rozhodnutie na ľudskom oponentovi.
 - Nálada posudku je vecná a kritická: k prednostiam aj nedostatkom sa vyjadri priamo. Námitku formuluj tak, aby sa na ňu dalo na obhajobe odpovedať (konkrétny dôkaz, miesto v texte, očakávaná oprava).`
     : lang === "cs"
       ? `
@@ -208,14 +212,14 @@ Pravidlá oponentského posudku dizertačnej práce (zákon č. 131/2002 Z. z., 
 Pravidla oponentského posudku disertační práce (zákon č. 111/1998 Sb., § 54a):
 - Posudek musí obsahovat vyjádření k: a) aktuálnosti tématu, b) zvoleným metodám a postupu, c) vyhodnocení výsledků a nových poznatků, d) přínosu pro rozvoj vědy, e) splnění sledovaných cílů a požadavků na disertační práci.
 - Hodnoť pouze z textu uvedeného v tomto podnětu; chybějící části práce explicitně označ, nenahrazuj je domněnkami.
-- Položka "recommendation" nesmie obsahovat accept/minor_revisions/major_revisions/reject; např. „Práce splňuje požadavky na disertační práci podle § 54a zákona č. 111/1998 Sb. Práci doporučuji k obhajobě a navrhuji udělení titulu Ph.D.“
+- Položka "recommendation" nesmí obsahovat accept/minor_revisions/major_revisions/reject. Výslovně posuďte vědeckou způsobilost doktoranda a doporučte či nedoporučte obhajobu i udělení titulu Ph.D. Pokud podklady nestačí, uveďte to a ponechte rozhodnutí na lidském oponentovi.
 - Výtky formuluj tak, aby na ně šlo na obhajobě odpovědět (konkrétny dôkaz, miesto v texte, očakávaná oprava).`
     : `
 
 Doctoral opponent review rules (Slovak/Czech third-cycle regime):
 - Address all five statutory items: topic timeliness, methods and procedure, results and new knowledge, contribution to science, fulfilment of the stated objectives.
 - Judge only from the text supplied here; explicitly mark what cannot be assessed from it instead of speculating.
-- The "recommendation" field must be a conclusive statement (thesis meets the statutory conditions / recommended for defence / proposed title with pass-fail classification) — never accept/minor_revisions/major_revisions/reject.`
+- The "recommendation" field must explicitly assess scientific/research ability, recommend for or against the defence, and state whether the PhD degree should be awarded. If evidence is insufficient, say so and leave the decision to the human opponent. Never use accept/minor_revisions/major_revisions/reject.`
     : ""
 
   const evidenceRules: Record<ReviewLanguage, string> = {

@@ -52,8 +52,9 @@ import { z } from "zod"
  * Biases the MiniLM multilingual embedding vector toward field-specific semantic clusters.
  */
 export function resolveThesisDomainContext(metadata?: Partial<ThesisMetadata>): string {
-  if (!metadata) return "STEM, Fyzika"
-  const combined = `${metadata.department || ""} ${metadata.institution || ""} ${metadata.targetVenue || ""} ${metadata.thesisTitle || ""}`.toLowerCase()
+  if (!metadata) return ""
+  const combined = `${metadata.department || ""} ${metadata.institution || ""} ${metadata.targetVenue || ""} ${metadata.thesisTitle || ""}`.trim().toLowerCase()
+  if (!combined) return ""
 
   if (/informatik|počítač|software|softvér|programov|\b(ai|it|ml|ict|ikt)\b|strojov[eé]h?o? učen|machine learning|neural|\bweb|cloud|kybernet|databáz|algoritm|počítačov[áé] grafik/i.test(combined)) {
     return "Informatika, Softvérové inžinierstvo, AI a dátové vedy"
@@ -70,7 +71,8 @@ export function resolveThesisDomainContext(metadata?: Partial<ThesisMetadata>): 
   if (/ekonom|manažment|financ|obchod|marketing|bankov|podnik|hospodár/i.test(combined)) {
     return "Ekonómia, Manažment a podnikové financie"
   }
-  return "Akademický výskum, STEM a aplikované vedy"
+  // Unknown/sparse metadata is not a domain. Do not inject a generic or physics prior.
+  return ""
 }
 
 /**
@@ -201,49 +203,38 @@ export function expandQuery(query: string, criterionExpansion = ""): string[] {
 
 export async function generateHypotheticalDocument(
   query: string,
-  domainContext: string,
+  domainContext = "",
   lang: ReviewLanguage = "sk"
 ): Promise<string> {
-  const lowerQuery = query.toLowerCase()
-  const domain = domainContext || (lang === "cs" ? "STEM, Fyzika" : lang === "en" ? "STEM / Physics" : "STEM, Fyzika")
+  const fold = (value: string) => value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase()
+  const normalizedQuery = fold(query)
+  const domain = domainContext.trim()
+  const topic = query.trim() || (lang === "en" ? "the review question" : lang === "cs" ? "hodnocená otázka" : "hodnotená otázka")
+  const domainPhrase = domain
+    ? lang === "en" ? ` in ${domain}` : lang === "cs" ? ` v oblasti ${domain}` : ` v oblasti ${domain}`
+    : ""
+  const resultIntent = /\b(result|results|finding|findings|vysled|zjisten|vyhodnoc|diskus)\w*/.test(normalizedQuery)
+  const methodIntent = /\b(method|methodology|implement|dataset|approach|metod|postup|implementac|soubor dat)\w*/.test(normalizedQuery)
+  const literatureIntent = /\b(literatur|related work|state of the art|background|research overview|resers|prehlad)\w*/.test(normalizedQuery)
 
   if (lang === "en") {
-    if (lowerQuery.includes("result") || lowerQuery.includes("evaluat") || lowerQuery.includes("finding") || lowerQuery.includes("diskusi")) {
-      return `In this work, the experimental results demonstrate significant performance characteristics in ${domain}. The quantitative evaluation confirms our hypotheses and theoretical predictions.`
-    }
-    if (lowerQuery.includes("method") || lowerQuery.includes("implement") || lowerQuery.includes("dataset") || lowerQuery.includes("approach")) {
-      return `In this work, we propose a rigorous methodology and architectural approach for ${domain}. The dataset and implementation pipeline are thoroughly described and validated.`
-    }
-    if (lowerQuery.includes("literatur") || lowerQuery.includes("related") || lowerQuery.includes("state") || lowerQuery.includes("survey")) {
-      return `In this work, we present a comprehensive state of the art survey of literature and related research in ${domain}.`
-    }
-    return `In this work, we investigate fundamental properties and key concepts in ${domain}, addressing ${query}.`
+    if (resultIntent) return `A relevant passage may describe results, their quantitative or qualitative assessment, interpretation, and limitations related to “${topic}”${domainPhrase}. No particular result or conclusion is assumed.`
+    if (methodIntent) return `A relevant passage may describe the research design, methods, implementation, data, and evaluation choices related to “${topic}”${domainPhrase}. No specific method or outcome is assumed.`
+    if (literatureIntent) return `A relevant passage may summarize prior work, sources, and the state of knowledge related to “${topic}”${domainPhrase}. No particular consensus or contribution is assumed.`
+    return `A relevant academic passage may define terms, describe evidence, and discuss limitations related to “${topic}”${domainPhrase}. No specific claim or conclusion is assumed.`
   }
 
   if (lang === "cs") {
-    if (lowerQuery.includes("výsled") || lowerQuery.includes("vyhodnocen") || lowerQuery.includes("diskusi") || lowerQuery.includes("zjištěn")) {
-      return `Tato práce přináší experimentální výsledky a jejich podrobné vyhodnocení v oblasti ${domain}. Dosažené výsledky potvrzují stanovené hypotézy.`
-    }
-    if (lowerQuery.includes("metod") || lowerQuery.includes("implement") || lowerQuery.includes("postup") || lowerQuery.includes("přístup")) {
-      return `Tato práce popisuje metodologii řešení a postup implementace v oblasti ${domain}. Metodický rámec je podrobně specifikován.`
-    }
-    if (lowerQuery.includes("literatur") || lowerQuery.includes("rešerš") || lowerQuery.includes("stav")) {
-      return `Tato práce analyzuje současný stav poznání a odbornou literaturu v oblasti ${domain}.`
-    }
-    return `Tato práce se zabývá řešením problematiky ${query} v kontextu ${domain}.`
+    if (resultIntent) return `Relevantní pasáž může popisovat výsledky, jejich kvantitativní či kvalitativní vyhodnocení, interpretaci a omezení související s tématem „${topic}“${domainPhrase}. Nepředpokládá se žádný konkrétní výsledek ani závěr.`
+    if (methodIntent) return `Relevantní pasáž může popisovat výzkumný design, metody, implementaci, data a způsob vyhodnocení související s tématem „${topic}“${domainPhrase}. Nepředpokládá se žádná konkrétní metoda ani výsledek.`
+    if (literatureIntent) return `Relevantní pasáž může shrnovat předchozí práce, zdroje a stav poznání související s tématem „${topic}“${domainPhrase}. Nepředpokládá se žádný konkrétní konsenzus ani přínos.`
+    return `Relevantní odborná pasáž může vymezovat pojmy, popisovat podklady a uvádět omezení související s tématem „${topic}“${domainPhrase}. Nepředpokládá se žádné konkrétní tvrzení ani závěr.`
   }
 
-  // Slovak (default)
-  if (lowerQuery.includes("výsled") || lowerQuery.includes("vyhodnoten") || lowerQuery.includes("diskusi") || lowerQuery.includes("prínos")) {
-    return `Táto práca prezentuje experimentálne výsledky a ich podrobné vyhodnotenie v oblasti ${domain}. Dosiahnuté výsledky a prínos potvrdzujú stanovené hypotézy.`
-  }
-  if (lowerQuery.includes("metod") || lowerQuery.includes("implement") || lowerQuery.includes("postup") || lowerQuery.includes("dataset")) {
-    return `Táto práca opisuje metodológiu výskumu a postup implementácie v oblasti ${domain}. Metodický postup a dataset sú detailne analyzované.`
-  }
-  if (lowerQuery.includes("literatúr") || lowerQuery.includes("rešerš") || lowerQuery.includes("stav")) {
-    return `Táto práca poskytuje prehľad literatúry a analyzuje súčasný stav poznania v oblasti ${domain}.`
-  }
-  return `Táto práca sa zameriava na analýzu a riešenie problematiky ${query} v rámci odboru ${domain}.`
+  if (resultIntent) return `Relevantná pasáž môže opisovať výsledky, ich kvantitatívne alebo kvalitatívne vyhodnotenie, interpretáciu a obmedzenia súvisiace s témou „${topic}“${domainPhrase}. Nepredpokladá sa žiadny konkrétny výsledok ani záver.`
+  if (methodIntent) return `Relevantná pasáž môže opisovať výskumný dizajn, metódy, implementáciu, údaje a spôsob vyhodnotenia súvisiace s témou „${topic}“${domainPhrase}. Nepredpokladá sa žiadna konkrétna metóda ani výsledok.`
+  if (literatureIntent) return `Relevantná pasáž môže sumarizovať predchádzajúce práce, zdroje a stav poznania súvisiace s témou „${topic}“${domainPhrase}. Nepredpokladá sa žiadny konkrétny konsenzus ani prínos.`
+  return `Relevantná odborná pasáž môže vymedziť pojmy, opísať podklady a uviesť obmedzenia súvisiace s témou „${topic}“${domainPhrase}. Nepredpokladá sa žiadne konkrétne tvrdenie ani záver.`
 }
 
 /**
@@ -258,13 +249,18 @@ export async function generateHypotheses(
 ): Promise<Record<string, string>> {
   if (process.env.AI_HYDE_LLM === "false" || criteria.length === 0) return {}
   if (process.env.VITEST) return {}
+  const usefulSignal = (value?: string) => {
+    const normalized = (value ?? "").trim().toLowerCase()
+    return normalized.length >= 8 && !/^(?:thesis|paper|grant|academic research|academic review|unknown|unspecified|general research)$/i.test(normalized)
+  }
+  if (!usefulSignal(ctx.domainContext) && !usefulSignal(ctx.thesisTitle)) return {}
   const schema = z.object({ hypotheses: z.record(z.string(), z.string()) })
   const langName = ctx.lang === "sk" ? "Slovak" : ctx.lang === "cs" ? "Czech" : "English"
   try {
     const res = await generateAIResponse<z.infer<typeof schema>>("hyde-hypotheses", {
       model: ctx.model,
       apiKey: ctx.apiKey,
-      systemPrompt: `You write hypothetical thesis passages used only as retrieval queries (HyDE). For each criterion write 2–3 sentences in ${langName}, in the voice of the thesis itself (first-person plural academic style), using concrete domain vocabulary that such a passage would contain. Do NOT evaluate; do NOT mention criteria or reviewers. Respond as JSON: {"hypotheses": {"<criterionId>": "<passage>"}}.`,
+      systemPrompt: `You write short hypothetical passages used ONLY as retrieval queries (HyDE), not as facts about the manuscript. For each criterion write 1–2 neutral search-oriented sentences in ${langName}, using only topic/domain terms supported by the supplied title and discipline. Do not invent experiments, datasets, numerical values, hypotheses, results, novelty, or conclusions. Use cautious phrases such as “a relevant section may discuss”. Do not evaluate or mention reviewers. Respond as JSON: {"hypotheses": {"<criterionId>": "<passage>"}}.`,
       userPrompt: `Thesis title: ${ctx.thesisTitle || "(unknown)"}\nDomain: ${ctx.domainContext}\n\nCriteria:\n${criteria.map((c) => `- ${c.id}: ${c.label} — ${c.guidance.slice(0, 200)}`).join("\n")}`,
       schema,
       temperature: 0.4,
@@ -303,14 +299,18 @@ export interface RetrievedChunk {
   tokens: number
   kind: string
   similarity: number
+  /** Physical page range emitted by the document parser, if available. */
+  pageStart?: number | null
+  pageEnd?: number | null
+  sectionPath?: string | null
   /** Anthropic-style contextual prefix (indexed for FTS; never part of content). */
   contextPrefix?: string | null
 }
 // Re-export alone does NOT bind the symbol in this module, so import them explicitly too.
 import { buildFtsQuery, efSearchFor, retrievalJoin } from "./retrieval-sql"
 import type { RetrievalFilter } from "./retrieval-sql"
-import { applyMMR as sharedApplyMMR } from "./retrieval-ranking"
-export { mmrSelect, detectNoveltyDrift, rerankCandidates, cosineSimilarity } from "./retrieval-ranking"
+import { applyMMR as sharedApplyMMR, DEFAULT_MMR_LAMBDA } from "./retrieval-ranking"
+export { DEFAULT_MMR_LAMBDA, mmrSelect, detectNoveltyDrift, rerankCandidates, cosineSimilarity } from "./retrieval-ranking"
 
 
 /** Exact (non-indexed) nearest-neighbour scan, scoped by the same isolation filters. */
@@ -324,13 +324,13 @@ function exactScanSql(
   // true nearest neighbours of the (workspace, document) subset. Used ONLY as
   // a recall fallback for small workspaces (see retrieveSingleQuery).
   return Prisma.sql`
-    SELECT id, heading, content, tokens, kind, "contextPrefix",
+    SELECT id, heading, content, tokens, kind, "contextPrefix", "pageStart", "pageEnd", "sectionPath",
            1.0 - (embedding <=> ${queryEmbeddingStr}::vector) AS similarity
     FROM "DocumentChunk"
     WHERE "workspaceId" = ${workspaceId}
       ${docCondition}
       AND embedding IS NOT NULL
-    ORDER BY embedding <=> ${queryEmbeddingStr}::vector
+    ORDER BY embedding <=> ${queryEmbeddingStr}::vector, id ASC
     LIMIT ${limit}
   `
 }
@@ -397,11 +397,14 @@ async function retrieveSingleQuery(
       kind: string
       similarity: number
       contextPrefix?: string | null
+      pageStart?: number | null
+      pageEnd?: number | null
+      sectionPath?: string | null
     }>>`
     WITH vector_search AS (
       SELECT
         id,
-        ROW_NUMBER() OVER (ORDER BY embedding <=> ${queryEmbeddingStr}::vector) AS rank_vec
+        ROW_NUMBER() OVER (ORDER BY embedding <=> ${queryEmbeddingStr}::vector, id ASC) AS rank_vec
       FROM "DocumentChunk"
       WHERE "workspaceId" = ${workspaceId}
         ${docCondition}
@@ -411,7 +414,7 @@ async function retrieveSingleQuery(
     fts_search AS (
       SELECT
         id,
-        ROW_NUMBER() OVER (ORDER BY ts_rank(to_tsvector('simple', COALESCE("contextPrefix", '') || ' ' || content), websearch_to_tsquery('simple', ${ftsQuery})) DESC) AS rank_fts
+        ROW_NUMBER() OVER (ORDER BY ts_rank(to_tsvector('simple', COALESCE("contextPrefix", '') || ' ' || content), websearch_to_tsquery('simple', ${ftsQuery})) DESC, id ASC) AS rank_fts
       FROM "DocumentChunk"
       WHERE "workspaceId" = ${workspaceId}
         ${docCondition}
@@ -425,6 +428,9 @@ async function retrieveSingleQuery(
       d.tokens,
       d.kind,
       d."contextPrefix",
+      d."pageStart",
+      d."pageEnd",
+      d."sectionPath",
       (
         COALESCE(0.7 / (60.0 + v.rank_vec), 0.0) +
         COALESCE(0.3 / (60.0 + f.rank_fts), 0.0)
@@ -433,7 +439,7 @@ async function retrieveSingleQuery(
     LEFT JOIN vector_search v ON d.id = v.id
     LEFT JOIN fts_search f ON d.id = f.id
     WHERE v.id IS NOT NULL OR f.id IS NOT NULL
-    ORDER BY similarity DESC
+    ORDER BY similarity DESC, d.id ASC
     LIMIT ${limit}
   `
   }
@@ -503,7 +509,7 @@ export async function searchHybrid(
   workspaceId: string,
   query: string,
   limit = 20,
-  domainContext = "STEM, Fyzika",
+  domainContext = "",
   documentId?: string,
   opts?: {
     criterionExpansion?: string
@@ -527,11 +533,13 @@ export async function searchHybrid(
   const queryPrefix = domainQueryPrefix(domainContext, opts?.lang ?? "sk")
   const embedInputs = queryVariants.map((q) => (queryPrefix ? `${queryPrefix}: ${q}` : q))
   if (useHyDE) {
-    const hydeDoc = opts?.hypothesis?.trim() || await generateHypotheticalDocument(query, domainContext, opts?.lang)
-    embedInputs.push(hydeDoc)
-    // With a real LLM hypothesis, also embed the template one — two different
-    // "shapes" of the answer widen recall at negligible cost.
-    if (opts?.hypothesis?.trim()) embedInputs.push(await generateHypotheticalDocument(query, domainContext, opts?.lang))
+    const hypothesis = opts?.hypothesis?.trim()
+    if (hypothesis) embedInputs.push(hypothesis)
+    // Static HyDE is only useful when a supported domain is available. On a
+    // sparse query it would be a generic invented paragraph, so leave HyDE off.
+    if (domainContext.trim()) {
+      embedInputs.push(await generateHypotheticalDocument(query, domainContext, opts?.lang))
+    }
   }
 
   const embeddings = await Promise.all(embedInputs.map((text) => generateLocalEmbedding(text)))
@@ -572,7 +580,7 @@ export async function searchHybrid(
   // ~[0.016, 0.065], which is not comparable with the Jaccard term in MMR
   // (0–1) or the additive boosts in the reranker — without normalisation
   // those terms completely dominate semantic relevance.
-  const fused = Array.from(scoreMap.values()).sort((a, b) => b.rrfScore - a.rrfScore).slice(0, limit)
+  const fused = Array.from(scoreMap.values()).sort((a, b) => b.rrfScore - a.rrfScore || a.chunk.id.localeCompare(b.chunk.id)).slice(0, limit)
   const maxS = fused[0]?.rrfScore ?? 0
   const minS = fused[fused.length - 1]?.rrfScore ?? 0
   const span = maxS - minS
@@ -617,7 +625,7 @@ export async function fetchChunksByIds(
 export function applyMMR<T extends { id: string; content: string; heading: string | null; similarity?: number }>(
   chunks: T[],
   topK: number,
-  lambda = 0.7
+  lambda = DEFAULT_MMR_LAMBDA
 ): T[] {
   return sharedApplyMMR(chunks, topK, lambda)
 }
@@ -633,9 +641,9 @@ export function applyMMR<T extends { id: string; content: string; heading: strin
  */
 export async function rerankChunks(
   query: string,
-  chunks: Array<{ id: string; content: string; heading: string | null; kind?: string; similarity?: number; contextPrefix?: string | null }>,
+  chunks: Array<{ id: string; content: string; heading: string | null; kind?: string; similarity?: number; contextPrefix?: string | null; pageStart?: number | null; pageEnd?: number | null; sectionPath?: string | null }>,
   options?: { criterionId?: string; rerankPool?: number; topN?: number }
-): Promise<Array<{ id: string; content: string; heading: string | null; kind?: string; similarity?: number; contextPrefix?: string | null; relevanceScore: number; crossEncoderScore?: number }>> {
+): Promise<Array<{ id: string; content: string; heading: string | null; kind?: string; similarity?: number; contextPrefix?: string | null; pageStart?: number | null; pageEnd?: number | null; sectionPath?: string | null; relevanceScore: number; crossEncoderScore?: number }>> {
   const queryTokens = new Set(
     query.toLowerCase().split(/\s+/).filter((t) => t.length > 3)
   )
@@ -749,11 +757,17 @@ export async function rerankChunks(
  * @param maxSentences Max sentences to retain per chunk (default: 6)
  * @returns Compressed chunks with `content` trimmed
  */
-export function compressChunks(
+export function compressChunks<TChunk extends {
+  id: string
+  content: string
+  heading: string | null
+  relevanceScore?: number
+  similarity?: number
+}>(
   query: string,
-  chunks: Array<{ id: string; content: string; heading: string | null; relevanceScore?: number; similarity?: number }>,
+  chunks: TChunk[],
   maxSentences = 6
-): typeof chunks {
+): TChunk[] {
   const MIN_COMPRESS_LEN = 400 // don't compress short chunks
   const RELEVANCE_THRESHOLD = 0.05 // minimum sentence score to keep
 
@@ -793,14 +807,23 @@ export function compressChunks(
 
     if (sentences.length <= maxSentences) return chunk
 
-    // Score and select top sentences above threshold, then sort by original idx
-    const isStructural = (t: string) => /^\s*\|/.test(t) || /^\s*\$\$/.test(t)
-    const scored = sentences
-      .map((s) => ({ ...s, score: isStructural(s.text) ? 1 : scoreSentence(s.text) }))
-      .filter((s) => s.score >= RELEVANCE_THRESHOLD)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, maxSentences)
-      .sort((a, b) => a.idx - b.idx)
+    // Preserve evidence-bearing units before the sentence cap. Retrieval compression must
+    // never remove formulas, equation references/numbers, statistics, or citation anchors.
+    const isStructural = (text: string) => /^\s*\|/.test(text) || /^\s*\$\$/.test(text)
+    const protectedEvidence = /(?:\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\\begin\{(?:equation|align|gather|multline)\*?\}[\s\S]*?\\end\{(?:equation|align|gather|multline)\*?\}|(?<!\$)\$(?!\$)[^$\n]+\$|\b(?:equation|eqn?\.?|rovnic[ae])\s*(?:number\s*)?(?:\(?[a-z]?\d+(?:[.-]\d+)*\)?|\\ref\{[^}]+\})|\(\s*\d+(?:\.\d+)+\s*\)|\b(?:p|q|t|f|chi2|χ2|df|n|N|r|r2|r²|or|rr|hr|ci|sd|se)\s*(?:<=|>=|≤|≥|=|<|>)\s*[-+]?\d+(?:[.,]\d+)?\s*%?|\b\d{1,3}(?:\.\d+)?\s*%\s*(?:ci|confidence interval)|\[(?:c(?:-[a-z0-9_-]{6,}|\d{1,3})|\d{1,3}(?:\s*[,;–-]\s*\d{1,3})*)\]|\(\s*[A-Z][^()]{0,80}\b(?:19|20)\d{2}[a-z]?\s*\))/i
+    const scoredUnits = sentences.map((sentence) => ({
+      ...sentence,
+      protected: isStructural(sentence.text) || protectedEvidence.test(sentence.text),
+      score: isStructural(sentence.text) || protectedEvidence.test(sentence.text) ? 1 : scoreSentence(sentence.text),
+    }))
+    const mandatory = scoredUnits.filter((sentence) => sentence.protected)
+    const optional = scoredUnits
+      .filter((sentence) => !sentence.protected && sentence.score >= RELEVANCE_THRESHOLD)
+      .sort((a, b) => b.score - a.score || a.idx - b.idx)
+    const selectedCount = Math.max(0, maxSentences - mandatory.length)
+    const selected = [...mandatory, ...optional.slice(0, selectedCount)].sort((a, b) => a.idx - b.idx)
+    const keptIndexes = new Set(selected.map((sentence) => sentence.idx))
+    const scored = sentences.filter((sentence) => keptIndexes.has(sentence.idx))
 
     if (scored.length === 0) return chunk
 
@@ -872,13 +895,13 @@ export async function retrieveForCriterion(
     kinds?: string[]
   } = {}
 ): Promise<{
-  chunks: Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; relevanceScore: number; contextPrefix: string | null }>
+  chunks: Array<{ id: string; heading: string | null; content: string; tokens: number; kind: string; relevanceScore: number; contextPrefix: string | null; pageStart?: number | null; pageEnd?: number | null; sectionPath?: string | null }>
   /** Serialized community summary block — prepend to LLM prompt for global context */
   communityContext: string
 }> {
   const topK = opts.topK ?? 5
-  const lambda = opts.lambda ?? 0.7
-  const domainContext = opts.domainContext ?? "STEM, Fyzika"
+  const lambda = opts.lambda ?? DEFAULT_MMR_LAMBDA
+  const domainContext = opts.domainContext ?? ""
   const compress = opts.compress ?? true
 
   // ---------------------------------------------------------------------
@@ -931,6 +954,9 @@ export async function retrieveForCriterion(
             kind: e.kind,
             relevanceScore: e.rerankScore ?? e.score,
             contextPrefix: e.contextPrefix,
+            pageStart: e.pageStart,
+            pageEnd: e.pageEnd,
+            sectionPath: e.sectionPath,
           })),
           communityContext: result.globalContext.join("\n\n"),
         }
@@ -989,6 +1015,9 @@ export async function retrieveForCriterion(
       kind: (c as { kind?: string }).kind ?? "prose",
       relevanceScore: c.relevanceScore ?? c.similarity ?? 0,
       contextPrefix: (c as { contextPrefix?: string | null }).contextPrefix ?? null,
+      pageStart: c.pageStart,
+      pageEnd: c.pageEnd,
+      sectionPath: c.sectionPath,
     })),
     communityContext,
   }

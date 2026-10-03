@@ -32,12 +32,15 @@ export function formatReviewToMarkdown(
     if (review.institution) lines.push(`**Inštitúcia / Institution:** ${review.institution}`)
   }
   lines.push(`**Typ hodnotenia / Review Type:** ${review.reviewKind || review.thesisType}`)
-  if (review.grade) lines.push(`**Klasifikácia / ECTS Grade:** ${review.grade}`)
-  if (review.recommendation) lines.push(`**Záverečné odporúčanie / Recommendation:** ${review.recommendation}`)
+  const isPaper = review.reviewKind === "paper"
+  const isGrant = review.reviewKind === "grant"
+  const isEditorial = isPaper || isGrant
+  if (!isEditorial && review.grade) lines.push(`**Klasifikácia / ECTS Grade:** ${review.grade}`)
+  const finalRecommendation = review.finalRecommendation || review.recommendation
+  if (finalRecommendation) lines.push(`**${isGrant ? "Odporúčanie k financovaniu / Funding Recommendation" : isPaper ? "Publikačné odporúčanie / Publication Recommendation" : "Záverečné odporúčanie / Recommendation"}:** ${finalRecommendation}`)
   lines.push(`**Dátum / Date:** ${new Date(review.updatedAt || review.createdAt).toLocaleDateString()}`)
   lines.push("")
 
-  const isPaper = review.reviewKind === "paper"
   const allFindings = review.findings || []
   const activeFindings = options.excludeRejected
     ? allFindings.filter((f) => f.includeInExport && f.status !== "rejected")
@@ -49,7 +52,7 @@ export function formatReviewToMarkdown(
   const linesFor: { heading: string; body: string[] }[] = []
   const push = (heading: string, body: string[]) => linesFor.push({ heading, body })
 
-  if (review.summary) push(isPaper ? "Zhrnutie rukopisu" : "Zhrnutie práce", [review.summary])
+  if (review.summary) push(isGrant ? "Zhrnutie grantového návrhu" : isPaper ? "Zhrnutie rukopisu" : "Zhrnutie práce", [review.summary])
 
   const findingStrengths = isPaper
     ? []
@@ -58,7 +61,7 @@ export function formatReviewToMarkdown(
         .map((f) => f.explanation || f.title)
   const strengths = [...new Set([...(review.strengths || []), ...findingStrengths])].filter(Boolean)
   if (strengths.length > 0) {
-    push(isPaper ? "Silné stránky rukopisu" : "Silné stránky práce", strengths.map((s) => `- ${s}`))
+    push(isGrant ? "Silné stránky grantového návrhu" : isPaper ? "Silné stránky rukopisu" : "Silné stránky práce", strengths.map((s) => `- ${s}`))
   }
 
   if (buckets.major.length > 0) {
@@ -71,7 +74,7 @@ export function formatReviewToMarkdown(
       if (f.reviewerNotes) body.push(`*Poznámka recenzenta:* ${f.reviewerNotes}`)
       body.push("")
     }
-    push("Zásadné pripomienky / Major Concerns", body)
+    push(isGrant ? "Zásadné riziká financovania / Major Funding Risks" : "Zásadné pripomienky / Major Concerns", body)
   }
 
   if (buckets.minor.length > 0) {
@@ -81,26 +84,36 @@ export function formatReviewToMarkdown(
       if (f.recommendation) body.push(`  - *Náprava:* ${f.recommendation}`)
     }
     body.push("")
-    push("Drobné pripomienky / Minor Concerns", body)
+    push(isGrant ? "Menšie odporúčania k návrhu / Minor Proposal Recommendations" : "Drobné pripomienky / Minor Concerns", body)
   }
 
   // Slovak/Czech doctoral opponent reviews must state the statutory conditions
   // and an explicit recommendation for the defence plus the proposed title.
   const statutoryClause: string | undefined = review.phdEnrichment?.statutoryClause
-  if (!isPaper && review.thesisType === "phd" && review.reviewerRole === "opponent") {
-    if (statutoryClause?.trim()) {
-      push("Zákonné podmienky doktorského študijného programu", [statutoryClause, ""])
-    }
-    if (review.recommendation?.trim()) {
-      push(
-        "Záverečné stanovisko",
-        [review.recommendation.trim(), "", "Klasifikačný stupeň: .................. (prospel / neprospel)", ""]
-      )
+  if (review.reviewKind === "thesis" && review.thesisType === "phd" && review.reviewerRole === "opponent" && statutoryClause?.trim()) {
+    const statutoryHeading = review.language === "cs"
+      ? "Zákonné podmínky doktorského studijního programu"
+      : review.language === "en"
+        ? "Statutory Requirements of the Doctoral Study Programme"
+        : "Zákonné podmienky doktorského študijného programu"
+    push(statutoryHeading, [statutoryClause, ""] )
+    const conclusionHeading = review.language === "cs"
+      ? "Závěrečné stanovisko"
+      : review.language === "en"
+        ? "Conclusive Statement"
+        : "Záverečné stanovisko"
+    const passFailLabel = review.language === "cs"
+      ? "Klasifikační stupeň: .................. (prospěl / neprospěl)"
+      : review.language === "en"
+        ? "Classification: .................. (pass / fail)"
+        : "Klasifikačný stupeň: .................. (prospel / neprospel)"
+    if (finalRecommendation?.trim()) {
+      push(conclusionHeading, [finalRecommendation.trim(), "", passFailLabel, ""])
     }
   }
 
   let sectionNo = 0
-  const numbered = (title: string) => (isPaper ? title : `${++sectionNo}. ${title}`)
+  const numbered = (title: string) => (isEditorial ? title : `${++sectionNo}. ${title}`)
   for (const block of linesFor) {
     lines.push(`## ${numbered(block.heading)}`)
     lines.push(...block.body)
@@ -109,9 +122,9 @@ export function formatReviewToMarkdown(
 
   // Criteria Sections (if standard thesis review)
   if ((!review.findings || review.findings.length === 0) && review.sections?.length > 0) {
-    lines.push("## Hodnotenie jednotlivých kritérií")
+    lines.push(`## ${numbered(isGrant ? "Posúdenie grantových kritérií" : isPaper ? "Odborné posúdenie kritérií" : "Hodnotenie jednotlivých kritérií")}`)
     for (const sec of review.sections) {
-      lines.push(`### ${sec.criterionId || sec.sectionId} (Hodnotenie: ${sec.rating || "---"})`)
+      lines.push(`### ${sec.criterionId || sec.sectionId}${isEditorial ? "" : ` (Hodnotenie: ${sec.rating || "---"})`}`)
       lines.push(sec.text)
       if (sec.suggestions && sec.suggestions.length > 0) {
         lines.push(`*Návrhy na zlepšenie:* ${sec.suggestions.join("; ")}`)
@@ -130,9 +143,9 @@ export function formatReviewToMarkdown(
   }
 
   // Questions for Authors / Defense Questions
-  const questions = review.questionsForAuthors || review.defenseQuestions || []
+  const questions = isEditorial ? (review.questionsForAuthors ?? []) : (review.defenseQuestions ?? [])
   if (questions.length > 0) {
-    lines.push(`## ${numbered("Otázky na autora / Questions for Authors")}`)
+    lines.push(`## ${numbered(isGrant ? "Otázky pre žiadateľa / Questions for the Applicant" : "Otázky na autora / Questions for Authors")}`)
     questions.forEach((q: string, idx: number) => {
       lines.push(`${idx + 1}. ${q}`)
     })
@@ -141,7 +154,7 @@ export function formatReviewToMarkdown(
 
   // Confidential comments for editor
   if (options.includeConfidential && review.confidentialComments) {
-    lines.push(`## ${numbered("Dôverné komentáre pre editora / Confidential Comments for Editor")}`)
+    lines.push(`## ${numbered(isGrant ? "Dôverné komentáre pre komisiu / Confidential Comments for Panel" : "Dôverné komentáre pre editora / Confidential Comments for Editor")}`)
     lines.push(review.confidentialComments)
     lines.push("")
   }

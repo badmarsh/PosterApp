@@ -11,7 +11,7 @@ import { adjudicateFindings } from "./review-adjudicator"
  */
 
 import { generateAIResponse } from "@/lib/ai/client"
-import { buildDoctoralStatutoryClause } from "@/lib/ai/review-bucketing"
+import { buildDoctoralStatutoryClause, detectStatutoryJurisdiction } from "@/lib/ai/review-bucketing"
 import { resolveAiModel, resolveAiModelWithOverrides, type AiModelRole } from "@/lib/ai/models"
 import { wrapUntrustedContext } from "@/lib/ai/prompts"
 import { z } from "zod"
@@ -35,7 +35,7 @@ import type {
   EpistemicStatus,
   ReviewDefenseQuestion,
 } from "./review-types"
-import { THESIS_LEVEL_PROFILES, formatGradeAnchorsText, type ReviewLanguage, type ThesisType, type ReviewTone } from "./thesis-rubric"
+import { THESIS_LEVEL_PROFILES, formatGradeAnchorsText, type ReviewLanguage, type ThesisType, type ReviewTone, type ReviewerRole } from "./thesis-rubric"
 import { sortFindingsByPriority } from "./review-priorities"
 import {
   extractDocumentStructure,
@@ -70,7 +70,9 @@ import {
   type GradeReconciliationResult,
 } from "./rubric-engine"
 import { THESIS_CRITERIA } from "./thesis-rubric"
-import { shouldApplyEctsGrading, shouldRunPhdEnrichment } from "./thesis-review-policy"
+import { getReviewerRoleGuidance, shouldApplyEctsGrading, shouldRunPhdEnrichment } from "./thesis-review-policy"
+import { buildBudgetedReviewContext, MAX_REVIEW_CONTEXT_CHARS } from "./context-budget"
+import { THESIS_CONTEXT_SHARES } from "./thesis-context"
 import { verifyNumericalConsistency, type NumericalDiscrepancy } from "./numerical-verifier"
 import { checkEquationSanity, type EquationValidationResult } from "./equation-consistency"
 import { verifyClaim } from "./claim-verifier"
@@ -105,6 +107,7 @@ export interface GenerateProfessionalReviewOptions {
   institution?: string
   graphAugmentation?: string
   vectorAugmentation?: string
+  citationAuditSummary?: string
   /**
    * Chunks actually retrieved for this review (with stable [cN] anchors).
    * When provided, the LLM is instructed to cite each quote with its chunk
@@ -160,17 +163,34 @@ export function buildRubricGuidanceText(
  */
 export async function buildPreGenerationGrounding(
   sections: Array<{ id: string; heading: string; content: string }>,
-  language: ReviewLanguage
+  language: ReviewLanguage,
+  reviewKind: ReviewKind = "thesis"
 ): Promise<string> {
   if (sections.length === 0) return ""
 
   const chunks = sections.map((s) => ({ id: s.id, heading: s.heading, content: s.content }))
   const grounds: Array<ReturnType<typeof formatGroundedEvidenceBlock> | null> = []
 
-  for (const criterion of THESIS_CRITERIA) {
-    if (criterion.id === "defense_questions") continue
+  const editorialCriteria = reviewKind === "paper"
+    ? [
+        { id: "problem_relevance", labels: { sk: "Význam a rozsah", cs: "Význam a rozsah", en: "Significance and scope" }, guidance: { sk: "Výskumná otázka, prínos a vhodnosť pre publikum.", cs: "Výzkumná otázka, přínos a vhodnost pro publikum.", en: "Research question, contribution, and fit for the audience." } },
+        { id: "methodology_rigor", labels: { sk: "Metodika a analýza", cs: "Metodika a analýza", en: "Methods and analysis" }, guidance: { sk: "Dizajn, postup, analýza, štatistika a reprodukovateľnosť.", cs: "Design, postup, analýza, statistika a reprodukovatelnost.", en: "Design, procedure, analysis, statistics, and reproducibility." } },
+        { id: "results_validity", labels: { sk: "Výsledky a interpretácia", cs: "Výsledky a interpretace", en: "Results and interpretation" }, guidance: { sk: "Podloženie, interpretácia, obmedzenia a súlad záverov.", cs: "Podložení, interpretace, omezení a soulad závěrů.", en: "Evidence, interpretation, limitations, and consistency of conclusions." } },
+        { id: "ethics_transparency", labels: { sk: "Etika a transparentnosť", cs: "Etika a transparentnost", en: "Ethics and transparency" }, guidance: { sk: "Etické postupy, údaje, registrácia a transparentnosť podľa dizajnu.", cs: "Etické postupy, data, registrace a transparentnost podle designu.", en: "Ethics, data, registration, and design-appropriate transparency." } },
+      ]
+    : reviewKind === "grant"
+      ? [
+          { id: "problem_relevance", labels: { sk: "Význam a ciele projektu", cs: "Význam a cíle projektu", en: "Project significance and aims" }, guidance: { sk: "Jasnosť problému, cieľov a očakávaného prínosu.", cs: "Jasnost problému, cílů a očekávaného přínosu.", en: "Clarity of the problem, aims, and expected contribution." } },
+          { id: "methodology_rigor", labels: { sk: "Plán a uskutočniteľnosť", cs: "Plán a proveditelnost", en: "Plan and feasibility" }, guidance: { sk: "Metódy, míľniky, riziká, zdroje a uskutočniteľnosť.", cs: "Metody, milníky, rizika, zdroje a proveditelnost.", en: "Methods, milestones, risks, resources, and feasibility." } },
+          { id: "originality_contribution", labels: { sk: "Novosť a dopad", cs: "Novost a dopad", en: "Novelty and impact" }, guidance: { sk: "Novosť, dopad a prínos vzhľadom na súčasný stav poznania.", cs: "Novost, dopad a přínos vzhledem k současnému stavu poznání.", en: "Novelty, impact, and contribution relative to current knowledge." } },
+          { id: "ethics_transparency", labels: { sk: "Etika a riadenie", cs: "Etika a řízení", en: "Ethics and governance" }, guidance: { sk: "Etika, otvorená veda, správa údajov a zodpovedné riadenie.", cs: "Etika, otevřená věda, správa dat a odpovědné řízení.", en: "Ethics, open science, data management, and responsible governance." } },
+        ]
+      : []
+  const criteria = reviewKind === "thesis" ? THESIS_CRITERIA.filter((criterion) => criterion.id !== "defense_questions") : editorialCriteria
+  for (const criterion of criteria) {
     const label = criterion.labels[language] ?? criterion.labels.en
-    const claimText = `${label}: ${criterion.guidance[language] ?? criterion.guidance.en}`
+    const guidance = criterion.guidance[language] ?? criterion.guidance.en
+    const claimText = `${label}: ${guidance}`
     const result = await groundClaimInChunks(claimText, chunks)
     const block = formatGroundedEvidenceBlock([result], label)
     if (block) grounds.push(block)
@@ -193,7 +213,7 @@ export async function buildPreGenerationGrounding(
  *  - critical:   −20 per finding (fatal flaws)
  *  - major:      −8  per finding (core weaknesses)
  *  - minor:      −2  per finding (secondary issues)
- *  - suggestion: 0 (non-binding suggestions or praise never reduce the grade)
+ *  - suggestion: 0.5 (non-binding improvement suggestions have a small deduction)
  *
  * Safety & Calibration Guards:
  *  1. Non-weakness findings (`findingType === "strength"` or `"question"`) NEVER deduct points.
@@ -210,7 +230,7 @@ export function computeScoreFromFindings(findings: ReviewFinding[]): number {
     critical: 20,
     major: 8,
     minor: 2,
-    suggestion: 0,
+    suggestion: 0.5,
   }
 
   let substantiveDeduction = 0
@@ -638,10 +658,24 @@ export function anchorEvidenceQuotes(
       const evidence: EvidenceReference = {
         id: `ev-${idx + 1}-${evIdx + 1}`,
         quote: ev.quote || "",
+        chunkId: ev.chunkId,
         page: ev.page,
+        pageNumber: ev.pageNumber,
         sectionHeading: ev.sectionHeading,
         sectionTitle: ev.sectionHeading,
         sourceRevision,
+      }
+      // Chunk-anchored claims are verified later against the actual retrieved chunk,
+      // where parser-supplied physical page bounds are available. Do not discard a
+      // potentially valid page or substitute manuscript-wide substring matching here.
+      if (evidence.chunkId) {
+        return {
+          ...evidence,
+          verified: false,
+          state: "unverified",
+          confidence: 0.1,
+          verificationMethod: "manual",
+        }
       }
       return verifyEvidenceQuote(evidence, rag.fullText, rag.sections, sourceRevision)
     })
@@ -701,7 +735,7 @@ export async function generateProfessionalReview(
   defenseQuestions: ReviewDefenseQuestion[]
   phdEnrichment?: any
   /** How much of the manuscript the model actually saw (section-routed excerpts). */
-  contextCoverage: { totalChars: number; selectedChars: number; truncated: boolean }
+  contextCoverage: { totalChars: number; selectedChars: number; manuscriptSelectedChars: number; truncated: boolean }
   /** Deterministic verification results (numerical, equation, claim). */
   verification?: {
     numericalDiscrepancies: NumericalDiscrepancy[]
@@ -716,7 +750,7 @@ export async function generateProfessionalReview(
       studentName: options.authorName,
       thesisTitle: options.documentTitle,
       thesisType: options.thesisType || "master",
-      reviewerRole: "opponent",
+      reviewerRole: (options.reviewerRole as ReviewerRole | undefined) ?? "opponent",
       language: options.language,
     },
     // Load the whole manuscript (sections are needed for routing + quote
@@ -756,8 +790,10 @@ ${formatGradeAnchorsText(profile, options.language)}
   }
 
   const effectiveThesisType: DetailedThesisType = options.detailedThesisType ?? "unknown"
-  const rubricGuidanceText = buildRubricGuidanceText(effectiveThesisType, options.language)
-  const preGroundingText = await buildPreGenerationGrounding(rag.sections, options.language)
+  const rubricGuidanceText = options.reviewKind === "thesis"
+    ? buildRubricGuidanceText(effectiveThesisType, options.language)
+    : ""
+  const preGroundingText = await buildPreGenerationGrounding(rag.sections, options.language, options.reviewKind)
 
   const effectiveReviewTone: ReviewTone = options.reviewTone ?? (options.reviewerRole === "supervisor" || options.reviewerRole === "self" ? "constructive" : "formal")
 
@@ -792,28 +828,46 @@ ${formatGradeAnchorsText(profile, options.language)}
     if (options.signal?.aborted) throw abortError()
   }
 
-  // Section-routed manuscript excerpts (80k budget spread across all rubric
-  // criteria) instead of the first 80k characters of the file.
-  const PROFESSIONAL_CONTEXT_BUDGET = 80_000
-  const routedCriterionIds = THESIS_CRITERIA.map((c) => c.id).filter((id) => id !== "defense_questions")
+  // Route the manuscript first, then compose *all* evidence sources under one
+  // strict 60,000-character cap. The outer untrusted-context wrapper is reserved too.
+  const fullContextBudget = MAX_REVIEW_CONTEXT_CHARS - 256
+  const routedBudget = MAX_REVIEW_CONTEXT_CHARS
+  const routedCriterionIds = options.reviewKind === "thesis"
+    ? THESIS_CRITERIA.map((c) => c.id).filter((id) => id !== "defense_questions")
+    : options.reviewKind === "grant"
+      ? ["problem_relevance", "objectives_clarity", "methodology_rigor", "originality_contribution", "results_validity", "resource_feasibility", "ethics_transparency"]
+      : ["problem_relevance", "methodology_rigor", "results_validity", "originality_contribution", "citations_quality", "ethics_transparency", "reproducibility"]
   let routed: { contextText: string; selectedChars: number; truncated: boolean }
   try {
-    routed = buildFullGenerationContext(rag, routedCriterionIds, PROFESSIONAL_CONTEXT_BUDGET)
+    routed = buildFullGenerationContext(rag, routedCriterionIds, routedBudget)
   } catch (routeErr) {
-    console.warn("[review-engine] section routing failed, using manuscript prefix:", routeErr instanceof Error ? routeErr.message : routeErr)
-    routed = { contextText: "", selectedChars: 0, truncated: rag.fullText.length > PROFESSIONAL_CONTEXT_BUDGET }
+    console.warn("[review-engine] section routing failed, using bounded manuscript prefix:", routeErr instanceof Error ? routeErr.message : routeErr)
+    routed = { contextText: "", selectedChars: 0, truncated: rag.fullText.length > routedBudget }
   }
-  // Short manuscripts fit whole — no routing needed and no partial-coverage caveat.
-  const manuscriptExcerpts = rag.fullText.length <= PROFESSIONAL_CONTEXT_BUDGET && !rag.truncated
+  const manuscriptCandidate = rag.fullText.length <= routedBudget && !rag.truncated
     ? rag.fullText
-    : (routed.contextText || rag.fullText.slice(0, PROFESSIONAL_CONTEXT_BUDGET))
-  const coveragePct = rag.totalChars > 0 ? Math.round((100 * manuscriptExcerpts.length) / rag.totalChars) : 100
+    : (routed.contextText || rag.fullText.slice(0, routedBudget))
+  const sectionInventory = rag.sections.map((s) => s.heading).filter(Boolean).slice(0, 80).join(" | ").slice(0, 4_000)
+  const boundedContext = buildBudgetedReviewContext(
+    [
+      { key: "manuscript", label: "Routed manuscript excerpts", content: manuscriptCandidate, weight: THESIS_CONTEXT_SHARES.routed },
+      { key: "grounding", label: "Pre-generation evidence grounding", content: preGroundingText, weight: THESIS_CONTEXT_SHARES.grounding },
+      { key: "vector", label: "Citation-anchored vector evidence", content: anchoredVectorAugmentation, weight: THESIS_CONTEXT_SHARES.vector },
+      { key: "graph", label: "Knowledge graph context", content: options.graphAugmentation ?? "", weight: THESIS_CONTEXT_SHARES.graph },
+      { key: "citation-audit", label: "Citation audit context", content: options.citationAuditSummary ?? "", weight: THESIS_CONTEXT_SHARES.citationAudit },
+      { key: "section-inventory", label: "Detected manuscript sections", content: sectionInventory, weight: 0.02 },
+    ],
+    fullContextBudget
+  )
+  const manuscriptExcerpts = boundedContext.contextText
+  const manuscriptSelectedChars = boundedContext.selectedBySource.manuscript ?? 0
+  const coveragePct = rag.totalChars > 0 ? Math.min(100, Math.round((100 * manuscriptSelectedChars) / rag.totalChars)) : 100
   const contextCoverage = {
     totalChars: rag.totalChars,
-    selectedChars: manuscriptExcerpts.length,
-    truncated: manuscriptExcerpts !== rag.fullText || rag.truncated,
+    selectedChars: boundedContext.selectedChars,
+    manuscriptSelectedChars,
+    truncated: boundedContext.truncated || routed.truncated || rag.truncated,
   }
-  const sectionInventory = rag.sections.map((s) => s.heading).filter(Boolean).slice(0, 80).join(" | ")
 
   const systemPrompt = effectiveReviewTone === "constructive"
     ? `You are an experienced academic supervisor and mentor performing a rigorous, evidence-grounded assessment of a student manuscript.
@@ -879,8 +933,13 @@ CRITICAL INSTRUCTIONS:
    - Any methodological gap you may have missed on first pass → add it.
    The final output must represent your most calibrated, evidence-grounded judgment.` : ""}`
 
-  const isThesisReview = options.reviewKind === "thesis"
-  const userPrompt = `Please evaluate the following academic manuscript and generate a comprehensive, structured ${isThesisReview ? "thesis assessment" : "peer review"}.
+  const isThesisReview = options.reviewKind === "thesis" || options.reviewKind === undefined
+  const roleAwareSystemPrompt = `${systemPrompt}\n\n--- ROLE-SPECIFIC REVIEW EXPECTATIONS ---\n${getReviewerRoleGuidance(options.reviewKind, options.reviewerRole)}`
+  const statutoryJurisdiction = detectStatutoryJurisdiction({ language: options.language, institution: options.institution })
+  const statutoryGuidance = shouldRunPhdEnrichment(options.reviewKind, options.thesisType, options.reviewerRole) && statutoryJurisdiction !== "none"
+    ? `This is a doctoral opponent review under ${statutoryJurisdiction === "sk" ? "§ 67 of Slovak Act No. 131/2002 Z. z." : "§ 54a(3) of Czech Act No. 111/1998 Sb."}. Explicitly address all five areas: topic timeliness; selected methods and procedure; results and new knowledge; contribution to science, technology, or the arts; and fulfilment of objectives/doctoral requirements. The final recommendation must clearly assess research ability, recommend for or against the defence, and state whether to award the PhD. If the supplied evidence is insufficient, state that and leave the decision to the human opponent. Never use journal verdict enums as the doctoral conclusion.`
+    : ""
+  const userPrompt = `Please evaluate the following academic manuscript and generate a comprehensive, structured ${isThesisReview ? "thesis assessment" : options.reviewKind === "grant" ? "grant proposal review" : "peer review"}.
 
 --- MANUSCRIPT METADATA ---
 Document Title: ${options.documentTitle}
@@ -894,22 +953,19 @@ Source Revision: ${sourceRevision}
 
 --- REPORTING GUIDELINE FOCUS ---
 ${standardGuidance}
+${statutoryGuidance ? `--- DOCTORAL STATUTORY CHECKLIST ---\n${statutoryGuidance}\n` : ""}
 ${levelExpectationsText}
 ${rubricGuidanceText ? `--- RUBRIC ANTI-OVER-PENALIZATION GUIDANCE (sk-academic-v1) ---\n${rubricGuidanceText}\n` : ""}
 
-${options.graphAugmentation ? `--- KNOWLEDGE GRAPH (MULTI-HOP REASONING) ---\n${options.graphAugmentation}\n` : ""}
-${anchoredVectorAugmentation ? `--- RELEVANT EXTRACTED CONTEXT (VECTOR RAG, CITATION-ANCHORED) ---\n${anchoredVectorAugmentation}\n` : ""}
-${preGroundingText}
-
---- MANUSCRIPT EXCERPTS (${contextCoverage.truncated ? "PARTIAL" : "COMPLETE"}) ---
-Coverage: ${manuscriptExcerpts.length.toLocaleString("en-US")} of ${rag.totalChars.toLocaleString("en-US")} characters (${coveragePct} %), selected per evaluation criterion. Sections detected in the full manuscript: ${sectionInventory || "n/a"}.
+--- BOUNDED SOURCE CONTEXT (${contextCoverage.truncated ? "PARTIAL" : "COMPLETE"}) ---
+Manuscript excerpts selected: ${manuscriptSelectedChars.toLocaleString("en-US")} of ${rag.totalChars.toLocaleString("en-US")} characters (${coveragePct} %). All manuscript-derived excerpts, retrieval passages, graph evidence, grounding notes, and audit context combined: ${contextCoverage.selectedChars.toLocaleString("en-US")} characters (hard limit ${MAX_REVIEW_CONTEXT_CHARS.toLocaleString("en-US")}).
 ${contextCoverage.truncated ? `If a required element is not present in these excerpts, use epistemicStatus "REQUIRES_HUMAN_VERIFICATION" (NOT "MISSING_EVIDENCE") and name the section you would expect it in.` : ""}
 ${wrapUntrustedContext("manuscript_text", manuscriptExcerpts)}
 
 --- RESPONSE JSON FORMAT ---
 Respond with a valid JSON object matching this structure:
 {
-  "summary": "High-level summary of the ${isThesisReview ? "thesis" : "paper"}'s core premise, contribution, and primary novelty in ${options.language}",
+  "summary": "High-level summary of the ${isThesisReview ? "thesis" : options.reviewKind === "grant" ? "grant proposal" : "paper"}'s core premise, contribution, and primary novelty in ${options.language}",
   "strengths": [
     "Key strength 1 with specific merit",
     "Key strength 2"
@@ -959,7 +1015,7 @@ Respond with a valid JSON object matching this structure:
   const validated = await generateAIResponse<ProfessionalReviewGenerationResult>("peer-review", {
     model,
     apiKey: options.apiKey,
-    systemPrompt,
+    systemPrompt: roleAwareSystemPrompt,
     userPrompt,
     schema: ProfessionalReviewGenerationSchema,
     temperature: 0.15, // slightly tighter than before for primary review
@@ -997,7 +1053,7 @@ Respond with a valid JSON object matching this structure:
     rag.sections,
     sourceRevision,
     options.evidenceChunks
-      ? options.evidenceChunks.map((c) => ({ id: c.id, heading: c.heading, content: c.content, kind: c.kind, documentId: c.documentId }))
+      ? options.evidenceChunks.map((c) => ({ id: c.id, heading: c.heading, content: c.content, kind: c.kind, documentId: c.documentId, pageStart: c.pageStart, pageEnd: c.pageEnd }))
       : undefined
   )
   let finalFindings = sortFindingsByPriority(validationResult.validatedFindings, options.language)
@@ -1036,7 +1092,7 @@ Respond with a valid JSON object matching this structure:
       rag.sections,
       sourceRevision,
       options.evidenceChunks
-        ? options.evidenceChunks.map((c) => ({ id: c.id, heading: c.heading, content: c.content, kind: c.kind, documentId: c.documentId }))
+        ? options.evidenceChunks.map((c) => ({ id: c.id, heading: c.heading, content: c.content, kind: c.kind, documentId: c.documentId, pageStart: c.pageStart, pageEnd: c.pageEnd }))
         : undefined
     )
     finalFindings = critiqueValidation.validatedFindings
@@ -1215,8 +1271,12 @@ Respond with a valid JSON object matching this structure:
     finalFindings = [...finalFindings, contributionGuardFinding]
   }
 
-  // 4. Calibrated defense questions (5-12)
-  const calibratedQuestions = generateCalibratedDefenseQuestions(rag, finalFindings, options.thesisType || "master", options.language)
+  // Thesis defence questions are a separate deliverable from peer-review
+  // questions for authors/applicants. Never replace professional questions with
+  // thesis-style calibration in paper or grant reviews.
+  const calibratedQuestions = isThesisReview
+    ? generateCalibratedDefenseQuestions(rag, finalFindings, options.thesisType || "master", options.language)
+    : []
 
   // 5. Calculate proposed grade range — derived from actual finding severity, NOT hardcoded.
   // Uses severity-weighted deduction: critical=−20, major=−8, minor=−2, suggestion=−0.5
@@ -1269,21 +1329,10 @@ Respond with a valid JSON object matching this structure:
 
       await Promise.all(tasks)
 
-      // Determine jurisdiction from institution name and language
-      const institutionLower = options.institution?.toLowerCase() || ""
-
-      let statutoryClause: string | undefined
-      if (options.language === "sk" || 
-          institutionLower.includes("slovak") || 
-          institutionLower.includes("slovensk")) {
-        statutoryClause = buildDoctoralStatutoryClause({ language: options.language, institution: options.institution })
-      } else if (options.language === "cs" ||
-                 institutionLower.includes("czech") ||
-                 institutionLower.includes("česk") ||
-                 institutionLower.includes("morav")) {
-        statutoryClause = buildDoctoralStatutoryClause({ language: "cs", institution: options.institution })
-      }
-      // Otherwise: no statutory clause (non-Slovak/Czech institution)
+      const statutoryClause = buildDoctoralStatutoryClause({
+        language: options.language,
+        institution: options.institution,
+      })
 
       const defenseQuestionsExternal: string[] = []
       if (sotaBenchmarking.length > 0) {
@@ -1345,7 +1394,8 @@ Respond with a valid JSON object matching this structure:
     debateLog: [critiqueLog ?? validated.debateLog, gradeReconciliationNote]
       .filter(Boolean)
       .join("\n\n") || undefined,
-    defenseQuestions: calibratedQuestions,
+    questionsForAuthors: isThesisReview ? [] : validated.questionsForAuthors,
+    defenseQuestions: isThesisReview ? calibratedQuestions : [],
     phdEnrichment,
     contextCoverage,
     verification: {

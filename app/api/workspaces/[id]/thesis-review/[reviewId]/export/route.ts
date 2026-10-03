@@ -108,12 +108,14 @@ export async function POST(
       summary: deserialized.summary,
       strengths: deserialized.strengths,
       defenseQuestions,
+      questionsForAuthors: deserialized.questionsForAuthors,
       citationIssues,
       language: reportLanguageFor(template),
       template,
       confidentialComments: review.confidentialComments,
       includeConfidential,
       phdEnrichment: deserialized.phdEnrichment ?? null,
+      reportingGuidelineChecks: deserialized.reportingGuidelineChecks ?? [],
     })
 
     // Statutory completeness check (doctoral opponent reviews under SK/CZ law).
@@ -271,6 +273,7 @@ export async function GET(
       summary: deserialized.summary,
       strengths: deserialized.strengths,
       defenseQuestions,
+      questionsForAuthors: deserialized.questionsForAuthors,
       citationIssues,
       language: reportLanguageFor(template),
       template,

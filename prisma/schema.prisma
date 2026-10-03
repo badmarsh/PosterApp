@@ -511,8 +511,10 @@ model ThesisReview {
   confirmedAt              DateTime?
   /// Serialized JSON: array of ThesisReviewSection objects
   sections                 String?
-  /// Generated defense questions (JSON string[])
+  /// Generated thesis defence questions (JSON string[])
   defenseQuestions         String?
+  /// Author/applicant-facing questions for professional paper and grant reviews (JSON string[])
+  questionsForAuthors      String?
   /// Citation issues found (JSON string[])
   citationIssues           String?
   /// "thesis" | "paper" | "grant"

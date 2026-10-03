@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { QUERY_CATEGORIES, categoryPolicy, classifyQuery, routeQuery } from "../query-router"
+import { HYBRID_DENSE_RRF_WEIGHT, HYBRID_LEXICAL_RRF_WEIGHT, QUERY_CATEGORIES, categoryPolicy, classifyQuery, routeQuery } from "../query-router"
 import { CRITERION_PROFILES, resolveCriterionProfile, requiresCounterEvidenceSearch } from "../criterion-profiles"
 import { applyMMR, cosineSimilarity, detectNoveltyDrift, heuristicRerankScores, mmrSelect, rerankCandidates } from "../retrieval-ranking"
 import { buildEvidenceContext, selectCounterEvidence, selectRetrievalUnits, type ContextChunk } from "../parent-context"
@@ -155,13 +155,18 @@ describe("routeQuery", () => {
     for (const s of resolveCriterionProfile("results_validity").strategies) expect(sources).toContain(s.source)
   })
 
-  it("takes the higher limit and weight when both name the same leg", () => {
+  it("keeps the largest candidate limits but pins the dense/FTS RRF blend to 70/30", () => {
     const r = routeQuery("Akú presnosť dosiahol model?", { criterionId: "results_validity" })
     const dense = r.sources.find((s) => s.source === "dense")!
-    const fromPolicy = categoryPolicy("numerical").sources.find((s) => s.source === "dense")!
-    const fromProfile = resolveCriterionProfile("results_validity").strategies.find((s) => s.source === "dense")!
-    expect(dense.limit).toBe(Math.max(fromPolicy.limit, fromProfile.limit))
-    expect(dense.weight).toBe(Math.max(fromPolicy.weight, fromProfile.weight))
+    const lexical = r.sources.find((s) => s.source === "lexical")!
+    const fromPolicyDense = categoryPolicy("numerical").sources.find((s) => s.source === "dense")!
+    const fromProfileDense = resolveCriterionProfile("results_validity").strategies.find((s) => s.source === "dense")!
+    const fromPolicyLexical = categoryPolicy("numerical").sources.find((s) => s.source === "lexical")!
+    const fromProfileLexical = resolveCriterionProfile("results_validity").strategies.find((s) => s.source === "lexical")!
+    expect(dense.limit).toBe(Math.max(fromPolicyDense.limit, fromProfileDense.limit))
+    expect(lexical.limit).toBe(Math.max(fromPolicyLexical.limit, fromProfileLexical.limit))
+    expect(dense.weight).toBe(HYBRID_DENSE_RRF_WEIGHT)
+    expect(lexical.weight).toBe(HYBRID_LEXICAL_RRF_WEIGHT)
   })
 
   it("orders legs by weight so the strongest signal is retrieved first", () => {
@@ -207,8 +212,13 @@ describe("applyMMR", () => {
     expect(out.map((c) => c.id)).toEqual(["a", "b"])
   })
 
-  it("returns everything when the pool is already smaller than topK", () => {
+  it("returns everything in deterministic relevance order when the pool is already smaller than topK", () => {
+    const tied = [
+      { id: "z", heading: null, content: "same content", similarity: 0.5 },
+      { id: "a", heading: null, content: "same content", similarity: 0.5 },
+    ]
     expect(applyMMR(chunks, 10)).toHaveLength(3)
+    expect(applyMMR(tied, 10).map((chunk) => chunk.id)).toEqual(["a", "z"])
   })
 
   it("is generic, so the new pipeline can reuse it on its own row shape", () => {
@@ -242,6 +252,21 @@ describe("mmrSelect", () => {
       { id: "b", score: 0.9, emb: [0, 1] },
     ]
     expect(mmrSelect(items, { scoreOf: (i) => i.score, idOf: (i) => i.id, embeddingOf: (i) => i.emb, limit: 5 }).map((i) => i.id)).toEqual(["b", "a"])
+  })
+
+  it("normalizes small RRF relevance scores before combining them with cosine penalties", () => {
+    const duplicate = "the retrieved methods explain the same sampling design and analysis"
+    const items = [
+      { id: "a", score: 0.01639, emb: [1, 0, 0], text: duplicate },
+      { id: "b", score: 0.01638, emb: [0.99, 0.01, 0], text: duplicate },
+      { id: "c", score: 0.0159, emb: [0, 0, 1], text: "an independent and unrelated discussion of study limitations" },
+    ]
+    expect(mmrSelect(items, {
+      scoreOf: (item) => item.score,
+      idOf: (item) => item.id,
+      embeddingOf: (item) => item.emb,
+      limit: 2,
+    }).map((item) => item.id)).toEqual(["a", "b"])
   })
 
   it("handles items with no embedding without throwing", () => {

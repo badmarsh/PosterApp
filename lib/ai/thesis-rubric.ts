@@ -10,7 +10,7 @@
 // ---------------------------------------------------------------------------
 
 export type ThesisType = "bachelor" | "master" | "phd"
-export type ReviewerRole = "supervisor" | "opponent" | "self" | "reviewer"
+export type ReviewerRole = "supervisor" | "opponent" | "self" | "reviewer" | "peer_reviewer" | "editor"
 export type ReviewTone = "formal" | "constructive"
 export type ReviewLanguage = "sk" | "cs" | "en"
 export type CriterionRating = "A" | "B" | "C" | "D" | "E" | "FX" | "pending"

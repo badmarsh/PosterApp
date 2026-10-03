@@ -88,8 +88,8 @@ export interface FusionOptions {
  * sweeps them on the golden set, and the dashboard shows the measured result.
  */
 export const DEFAULT_FUSION_WEIGHTS: Record<RetrievalSource, number> = {
-  dense: 1.0,
-  lexical: 0.9,
+  dense: 0.7,
+  lexical: 0.3,
   graph: 0.6,
   "graph-drift": 0.12,
   citation: 0.6,
@@ -211,14 +211,14 @@ export function candidateCountBySource(rankedSources: RankedSource[]): Record<st
  * Deduplicates a fused list down to at most `maxPerParent` entries sharing the same parent
  * section, so one long section cannot monopolise the evidence budget. Pure and order-preserving.
  */
-export function diversifyByGroup(
-  candidates: FusedCandidate[],
-  groupOf: (c: FusedCandidate) => string | null,
+export function diversifyByGroup<T>(
+  candidates: FusedCandidate<T>[],
+  groupOf: (c: FusedCandidate<T>) => string | null,
   maxPerGroup: number
-): FusedCandidate[] {
+): FusedCandidate<T>[] {
   if (maxPerGroup <= 0) return candidates
   const seen = new Map<string, number>()
-  const out: FusedCandidate[] = []
+  const out: FusedCandidate<T>[] = []
   for (const c of candidates) {
     const g = groupOf(c)
     if (!g) {

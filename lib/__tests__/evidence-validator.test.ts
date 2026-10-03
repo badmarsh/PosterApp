@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest"
 import {
   stableEvidenceAnchor,
   verifyEvidenceQuote,
+  verifyEvidenceByChunkId,
   validateAndCalibrateFindings,
 } from "@/lib/ai/evidence-validator"
 import { anchorEvidenceQuotes } from "@/lib/ai/review-engine"
@@ -51,12 +52,48 @@ Dosiahnuté Dice skóre segmentácie dosiahlo hodnotu 0.912 ± 0.005.
     expect(verified.state).toBe("unverified")
   })
 
-  it("strips synthetic or unverified page numbers", () => {
-    const verified = verifyEvidenceQuote({ quote: "pri teplote 15 mK", page: 42, pageNumber: 42 }, sourceText)
+  it("strips synthetic page labels only when physical page bounds are unavailable", () => {
+    const raw = "[Page 42] Trénovanie a meranie relaxačného času T1 prebehlo pri teplote 15 mK"
+    const noBounds = verifyEvidenceQuote({ quote: raw, page: 42 }, raw)
+    expect(noBounds.verified).toBe(true)
+    expect(noBounds.quote).not.toContain("[Page 42]")
+    expect(noBounds.page).toBeUndefined()
 
-    expect(verified.verified).toBe(true)
-    // Synthetic page 42 is removed because markdown does not have authoritative PDF page coordinates
-    expect(verified.pageNumber).toBeUndefined()
+    const withBounds = verifyEvidenceQuote(
+      { quote: raw, page: 42 },
+      raw,
+      [{ heading: "Method", content: raw, pageStart: 40, pageEnd: 42 }],
+    )
+    expect(withBounds.verified).toBe(true)
+    expect(withBounds.quote).toBe(raw)
+    expect(withBounds.page).toBe(42)
+  })
+
+  it("keeps an explicit page only when it falls within the matched physical range", () => {
+    const quote = "Trénovanie a meranie relaxačného času T1 prebehlo pri teplote 15 mK"
+    const sections = [{ heading: "Method", content: quote, pageStart: 10, pageEnd: 12 }]
+    expect(verifyEvidenceQuote({ quote, page: 11 }, quote, sections).page).toBe(11)
+    expect(verifyEvidenceQuote({ quote, page: 99 }, quote, sections).page).toBeUndefined()
+  })
+
+  it("does not treat blank or short chunk-anchored quotes as evidence", () => {
+    const chunkMap = new Map([["chunk-1", { id: "chunk-1", content: "A sufficiently long source passage that contains a valid citation." }]])
+    const blank = verifyEvidenceByChunkId({ chunkId: "chunk-1", quote: "" }, chunkMap)!
+    const short = verifyEvidenceByChunkId({ chunkId: "chunk-1", quote: "citation" }, chunkMap)!
+    expect(blank.verified).toBe(false)
+    expect(blank.state).toBe("unverified")
+    expect(short.verified).toBe(false)
+    expect(short.state).toBe("unverified")
+  })
+
+  it("marks a retrieved 60-character-prefix match approximate with confidence 0.45", () => {
+    const fullQuote = "A sufficiently long source statement with exactly enough content to test the approximate citation threshold safely."
+    const prefix = fullQuote.slice(0, 60)
+    const chunkMap = new Map([["chunk-approx", { id: "chunk-approx", content: `${prefix} and then diverges.` }]])
+    const result = verifyEvidenceByChunkId({ chunkId: "chunk-approx", quote: fullQuote }, chunkMap)!
+    expect(result.state).toBe("approximate")
+    expect(result.verified).toBe(false)
+    expect(result.confidence).toBe(0.45)
   })
 
   it("downgrades ungrounded findings from SUPPORTED_FACT to REQUIRES_HUMAN_VERIFICATION", () => {

@@ -104,7 +104,40 @@ describe("review-serializer", () => {
     expect(deserialized.findings).toHaveLength(1)
     expect(deserialized.findings[0].id).toBe("f1")
     expect(deserialized.findings[0].status).toBe("accepted")
+    expect(deserialized.questionsForAuthors).toEqual([])
     expect(deserialized.strengths).toEqual(["Silná experimentálna časť", "Vynikajúci prehľad literatúry"])
+  })
+
+  it("round-trips paper author questions separately from thesis defence questions", () => {
+    const paperRecord = {
+      id: "paper-questions",
+      workspaceId: "ws-paper",
+      reviewKind: "paper",
+      defenseQuestions: JSON.stringify([]),
+      questionsForAuthors: JSON.stringify(["How does the analysis generalize?"]),
+      sections: JSON.stringify([]),
+      citationIssues: JSON.stringify([]),
+      strengths: JSON.stringify([]),
+      findings: JSON.stringify([]),
+      reportingGuidelineChecks: JSON.stringify([]),
+      reportingStandard: "none",
+    }
+    const paper = deserializeThesisReview(paperRecord)
+    expect(paper.defenseQuestions).toEqual([])
+    expect(paper.questionsForAuthors).toEqual(["How does the analysis generalize?"])
+
+    const update = serializeThesisReviewUpdate(paper)
+    expect(JSON.parse(update.defenseQuestions)).toEqual([])
+    expect(JSON.parse(update.questionsForAuthors)).toEqual(["How does the analysis generalize?"])
+
+    const legacyPaper = deserializeThesisReview({
+      ...paperRecord,
+      defenseQuestions: JSON.stringify(["Legacy author question"]),
+      questionsForAuthors: undefined,
+    })
+    expect(legacyPaper.questionsForAuthors).toEqual([])
+    expect(legacyPaper.defenseQuestions).toEqual([])
+    expect(deserializeThesisReview({ ...paperRecord, reviewKind: "thesis", questionsForAuthors: undefined }).questionsForAuthors).toEqual([])
   })
 
   it("deserializes a legacy record with null/missing newer fields gracefully", () => {

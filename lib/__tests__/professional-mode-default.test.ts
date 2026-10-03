@@ -7,6 +7,7 @@ import {
   shouldApplyEctsGrading,
   shouldRunPhdEnrichment,
   shouldUseProfessionalMode,
+  getReviewerRoleGuidance,
 } from "@/lib/ai/thesis-review-policy"
 
 describe("Task 11: shouldUseProfessionalMode and Path A defaults", () => {
@@ -48,6 +49,24 @@ describe("Task 11: shouldUseProfessionalMode and Path A defaults", () => {
     it("forces professionalMode to true when reviewerRole is self", () => {
       expect(shouldUseProfessionalMode(false, "thesis", "none", "bachelor", "self")).toBe(true)
       expect(shouldUseProfessionalMode(undefined, undefined, undefined, undefined, "self")).toBe(true)
+    })
+  })
+
+  describe("role-specific review guidance", () => {
+    it("distinguishes supervisor, opponent, and self-review responsibilities", () => {
+      const supervisor = getReviewerRoleGuidance("thesis", "supervisor")
+      const opponent = getReviewerRoleGuidance("thesis", "opponent")
+      const self = getReviewerRoleGuidance("thesis", "self")
+      expect(supervisor).toContain("developmental")
+      expect(opponent).toContain("independent")
+      expect(self).toContain("pre-submission")
+      expect(new Set([supervisor, opponent, self]).size).toBe(3)
+    })
+
+    it("keeps editorial and grant roles free of thesis grading language", () => {
+      expect(getReviewerRoleGuidance("paper", "editor")).toContain("editorial triage")
+      expect(getReviewerRoleGuidance("paper", "peer_reviewer")).toContain("PEER REVIEWER")
+      expect(getReviewerRoleGuidance("grant", "reviewer")).toContain("funding decision")
     })
   })
 

@@ -62,11 +62,11 @@ describe("fuseCandidates", () => {
     expect([...scores].sort((x, y) => y - x)).toEqual(scores)
   })
 
-  it("uses the RRF paper constant by default", () => {
+  it("uses the RRF paper constant with the configured dense weight by default", () => {
     expect(DEFAULT_RRF_K).toBe(60)
     const [top] = fuseCandidates([src("dense", [["a", 1]])])
-    // Single source, weight 1, rank 1 → 1 / (k + 1).
-    expect(top.fusedScore).toBeCloseTo(1 / 61, 10)
+    // Single dense source, default 70% weight, rank 1 → 0.7 / (k + 1).
+    expect(top.fusedScore).toBeCloseTo(DEFAULT_FUSION_WEIGHTS.dense / 61, 10)
   })
 
   it("lets per-source weights change the winner under weighted-rrf", () => {

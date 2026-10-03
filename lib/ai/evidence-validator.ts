@@ -29,6 +29,8 @@ export interface CitedChunk {
   content: string
   kind?: string
   documentId?: string
+  pageStart?: number | null
+  pageEnd?: number | null
 }
 
 /** Stable, opaque display anchor derived solely from the persistent chunk ID. */
@@ -48,6 +50,30 @@ function normalize(s: string): string {
  *      after whitespace normalization.
  * Returns null when the reference carries no usable chunkId.
  */
+function hasPhysicalPageBounds(source: { pageStart?: number | null; pageEnd?: number | null }): boolean {
+  const start = source.pageStart
+  const end = source.pageEnd ?? source.pageStart
+  return Number.isInteger(start) && Number(start) > 0 && Number.isInteger(end) && Number(end) >= Number(start)
+}
+
+function validatedPage(evidence: EvidenceReference, source?: { pageStart?: number | null; pageEnd?: number | null }): number | undefined {
+  if (!source || !hasPhysicalPageBounds(source)) return undefined
+  const page = evidence.pageNumber ?? evidence.page
+  const start = Number(source.pageStart)
+  const end = Number(source.pageEnd ?? source.pageStart)
+  return Number.isInteger(page) && Number(page) >= start && Number(page) <= end ? Number(page) : undefined
+}
+
+/** Strip parser/model page labels only when the source has no physical page range. */
+function stripSyntheticPageHints(text: string): string {
+  return text.replace(/\[\s*(?:page|página|strana|stránka)\s*[:#]?\s*\d{1,4}\s*\]\s*/giu, " ").trim()
+}
+
+/**
+ * Verifies a chunk-anchored quote by exact lookup into the retrieved chunk map.
+ * Empty/very short quotes are never accepted as proof. A 60-character prefix may
+ * be reported as approximate, but is not treated as an exact verification.
+ */
 export function verifyEvidenceByChunkId(
   evidence: EvidenceReference,
   chunksById: Map<string, CitedChunk>
@@ -63,48 +89,61 @@ export function verifyEvidenceByChunkId(
       confidence: 0.1,
       verificationMethod: "exact",
       quote: evidence.quote || evidence.exactQuote || "",
+      page: undefined,
+      pageNumber: undefined,
       staleAt: new Date().toISOString(),
     }
   }
 
-  const quote = (evidence.quote || evidence.exactQuote || "").trim()
-  const normChunk = normalize(chunk.content)
+  const rawQuote = (evidence.quote || evidence.exactQuote || "").trim()
+  const physicalPages = hasPhysicalPageBounds(chunk)
+  const quote = physicalPages ? rawQuote : stripSyntheticPageHints(rawQuote)
+  const content = physicalPages ? chunk.content : stripSyntheticPageHints(chunk.content)
+  const normChunk = normalize(content)
   const normQuote = normalize(quote)
 
-  let matched = false
-  if (quote && normQuote.length >= 12) {
-    matched = normChunk.includes(normQuote)
-    if (!matched && normQuote.length > 60) {
-      matched = normChunk.includes(normQuote.slice(0, 60))
-    }
-  } else {
-    // No quote — the chunk itself is the evidence; structural anchors are accepted.
-    matched = true
-  }
-
-  if (matched) {
+  if (normQuote.length < 12) {
     return {
       ...evidence,
-      sourceDocumentId: evidence.sourceDocumentId ?? chunk.documentId,
-      sectionHeading: evidence.sectionHeading ?? chunk.heading ?? undefined,
-      sectionTitle: evidence.sectionTitle ?? chunk.heading ?? undefined,
-      exactQuote: evidence.exactQuote ?? (quote || undefined),
-      verified: true,
-      state: "verified-exact",
-      confidence: 1.0,
+      quote,
+      verified: false,
+      state: "unverified",
+      confidence: 0.05,
       verificationMethod: "exact",
       page: undefined,
       pageNumber: undefined,
     }
   }
 
-  // Cited chunk exists but does NOT contain the quote → fabrication signal.
+  const exactMatch = normChunk.includes(normQuote)
+  const approximateMatch = !exactMatch && normQuote.length >= 60 && normChunk.includes(normQuote.slice(0, 60))
+  if (!exactMatch && !approximateMatch) {
+    return {
+      ...evidence,
+      quote,
+      verified: false,
+      state: "unverified",
+      confidence: 0.05,
+      verificationMethod: "exact",
+      page: undefined,
+      pageNumber: undefined,
+    }
+  }
+
+  const page = validatedPage(evidence, chunk)
   return {
     ...evidence,
-    verified: false,
-    state: "unverified",
-    confidence: 0.05,
-    verificationMethod: "exact",
+    quote,
+    sourceDocumentId: evidence.sourceDocumentId ?? chunk.documentId,
+    sectionHeading: evidence.sectionHeading ?? chunk.heading ?? undefined,
+    sectionTitle: evidence.sectionTitle ?? chunk.heading ?? undefined,
+    exactQuote: exactMatch ? (evidence.exactQuote ?? quote) : undefined,
+    verified: exactMatch,
+    state: exactMatch ? "verified-exact" : "approximate",
+    confidence: exactMatch ? 1.0 : 0.45,
+    verificationMethod: exactMatch ? "exact" : "approximate",
+    page,
+    pageNumber: page,
   }
 }
 
@@ -128,19 +167,19 @@ function normalizeWhitespace(text: string): string {
 export function verifyEvidenceQuote(
   evidenceOrQuote: string | EvidenceReference,
   sourceText: string,
-  sectionsOrRevision?: Array<{ id?: string; heading: string; content: string }> | string,
+  sectionsOrRevision?: Array<{ id?: string; heading: string; content: string; pageStart?: number | null; pageEnd?: number | null }> | string,
   currentRevision?: string
 ): EvidenceReference {
   const evidence: EvidenceReference = typeof evidenceOrQuote === "string"
     ? { quote: evidenceOrQuote }
     : { ...evidenceOrQuote }
 
-  const sections: Array<{ id?: string; heading: string; content: string }> =
+  const sections: Array<{ id?: string; heading: string; content: string; pageStart?: number | null; pageEnd?: number | null }> =
     Array.isArray(sectionsOrRevision) ? sectionsOrRevision : []
   const revision = typeof sectionsOrRevision === "string" ? sectionsOrRevision : currentRevision
 
-  const quote = evidence.quote || evidence.exactQuote || ""
-  if (!quote.trim()) {
+  const rawQuote = evidence.quote || evidence.exactQuote || ""
+  if (!rawQuote.trim()) {
     return {
       ...evidence,
       quote: "",
@@ -148,6 +187,8 @@ export function verifyEvidenceQuote(
       state: "unverified",
       confidence: 0.0,
       verificationMethod: "manual",
+      page: undefined,
+      pageNumber: undefined,
     }
   }
 
@@ -163,89 +204,128 @@ export function verifyEvidenceQuote(
     }
   }
 
-  const cleanQuote = normalizeWhitespace(quote)
-  const normSource = normalizeWhitespace(sourceText)
+  const hasPhysicalSectionBounds = sections.some(hasPhysicalPageBounds)
+  const cleanedQuote = hasPhysicalSectionBounds ? rawQuote.trim() : stripSyntheticPageHints(rawQuote)
+  const sourceWithoutSyntheticHints = hasPhysicalSectionBounds ? sourceText : stripSyntheticPageHints(sourceText)
+  if (!cleanedQuote.trim()) {
+    return {
+      ...evidence,
+      quote: "",
+      exactQuote: "",
+      verified: false,
+      state: "unverified",
+      confidence: 0,
+      verificationMethod: "manual",
+      page: undefined,
+      pageNumber: undefined,
+    }
+  }
 
-  // 1. Exact match search
-  const exactMatches = sections.filter((s) => s.content && s.content.includes(quote))
-  if (exactMatches.length > 0 || sourceText.includes(quote)) {
-    const isAmbiguous = exactMatches.length > 1
-    const state: EvidenceState = isAmbiguous ? "ambiguous" : "verified-exact"
-    const matchedSec = exactMatches[0] || sections.find((s) => s.content && s.content.includes(quote))
-    const idx = sourceText.includes(quote) ? sourceText.indexOf(quote) : undefined
+  const views = sections.map((section) => {
+    const physicalPages = hasPhysicalPageBounds(section)
+    return {
+      section,
+      physicalPages,
+      content: physicalPages ? section.content : stripSyntheticPageHints(section.content),
+      quote: physicalPages ? rawQuote.trim() : stripSyntheticPageHints(rawQuote),
+    }
+  })
 
+  // Prefer an exact match in a physically page-bounded section; only then use
+  // cleaned text whose synthetic page hints cannot support a page assertion.
+  const exactViews = views.filter((view) => view.quote.length > 0 && view.content.includes(view.quote))
+  const exactView = exactViews[0]
+  const exactSourceMatch = sourceWithoutSyntheticHints.includes(cleanedQuote)
+  if (exactView || exactSourceMatch) {
+    const matchedView = exactView
+    const quote = matchedView?.quote ?? cleanedQuote
+    const matchedSection = matchedView?.section
+    const page = validatedPage(evidence, matchedSection)
+    const pageTagRemoved = quote !== rawQuote.trim()
+    const sourceForOffset = matchedView?.physicalPages ? sourceText : sourceWithoutSyntheticHints
+    const idx = !pageTagRemoved && sourceForOffset.includes(quote) ? sourceForOffset.indexOf(quote) : undefined
+    const isAmbiguous = exactViews.length > 1
     return {
       ...evidence,
       quote,
       exactQuote: quote,
       startOffset: idx !== undefined && idx >= 0 ? idx : undefined,
       endOffset: idx !== undefined && idx >= 0 ? idx + quote.length : undefined,
-      sectionHeading: evidence.sectionHeading || matchedSec?.heading,
-      sectionTitle: evidence.sectionTitle || matchedSec?.heading,
+      sectionHeading: evidence.sectionHeading || matchedSection?.heading,
+      sectionTitle: evidence.sectionTitle || matchedSection?.heading,
       verified: true,
-      state,
+      state: isAmbiguous ? "ambiguous" : "verified-exact",
       confidence: isAmbiguous ? 0.95 : 1.0,
       verificationMethod: "exact",
-      // Protect against synthetic page numbers: only keep if explicitly numeric and verified
-      page: undefined,
-      pageNumber: undefined,
+      page,
+      pageNumber: page,
     }
   }
 
   // 2. Whitespace-normalized match search
-  const normMatches = sections.filter((s) => s.content && normalizeWhitespace(s.content).includes(cleanQuote))
-  if (normMatches.length > 0 || normSource.includes(cleanQuote)) {
-    const isAmbiguous = normMatches.length > 1
-    const state: EvidenceState = isAmbiguous ? "ambiguous" : "verified-normalized"
-    const matchedSec = normMatches[0] || sections.find((s) => s.content && normalizeWhitespace(s.content).includes(cleanQuote))
-    const normIdx = normSource.includes(cleanQuote) ? normSource.indexOf(cleanQuote) : undefined
-
+  const normalizedViews = views.filter((view) =>
+    view.quote.length > 0 && normalizeWhitespace(view.content).includes(normalizeWhitespace(view.quote))
+  )
+  const normalizedView = normalizedViews[0]
+  const cleanQuote = normalizedView?.quote ?? cleanedQuote
+  const normSource = normalizeWhitespace(sourceWithoutSyntheticHints)
+  if (normalizedView || normSource.includes(normalizeWhitespace(cleanQuote))) {
+    const matchedSection = normalizedView?.section
+    const page = validatedPage(evidence, matchedSection)
+    const pageTagRemoved = cleanQuote !== rawQuote.trim()
+    const normIdx = !pageTagRemoved && normSource.includes(normalizeWhitespace(cleanQuote))
+      ? normSource.indexOf(normalizeWhitespace(cleanQuote))
+      : undefined
+    const isAmbiguous = normalizedViews.length > 1
     return {
       ...evidence,
-      quote,
+      quote: cleanQuote,
       startOffset: normIdx !== undefined && normIdx >= 0 ? normIdx : undefined,
-      endOffset: normIdx !== undefined && normIdx >= 0 ? normIdx + cleanQuote.length : undefined,
-      sectionHeading: evidence.sectionHeading || matchedSec?.heading,
-      sectionTitle: evidence.sectionTitle || matchedSec?.heading,
+      endOffset: normIdx !== undefined && normIdx >= 0 ? normIdx + normalizeWhitespace(cleanQuote).length : undefined,
+      sectionHeading: evidence.sectionHeading || matchedSection?.heading,
+      sectionTitle: evidence.sectionTitle || matchedSection?.heading,
       verified: true,
-      state,
+      state: isAmbiguous ? "ambiguous" : "verified-normalized",
       confidence: 0.95,
       verificationMethod: "whitespace_normalized",
+      page,
+      pageNumber: page,
     }
   }
 
-  // 3. Approximate match for long quotes (> 60 characters)
-  // Require a 60-char anchor to resist hallucinated continuations:
-  // an LLM appending fabricated text after a real prefix must reproduce
-  // at least 60 real characters before we grant any match.
-  // Confidence 0.45 (clearly between unverified=0.1 and normalized=0.95).
-  if (cleanQuote.length > 60) {
-    const prefix = cleanQuote.slice(0, 60)
-    const approxMatches = sections.filter((s) => s.content && normalizeWhitespace(s.content).includes(prefix))
-    if (approxMatches.length > 0 || normSource.includes(prefix)) {
-      const matchedSec = approxMatches[0] || sections.find((s) => s.content && normalizeWhitespace(s.content).includes(prefix))
+  // 3. Approximate match requires at least 60 real source characters.
+  // Confidence stays low and the reference is explicitly marked approximate.
+  const approximateQuote = cleanedQuote
+  const normalizedApproxQuote = normalizeWhitespace(approximateQuote)
+  if (normalizedApproxQuote.length >= 60) {
+    const prefix = normalizedApproxQuote.slice(0, 60)
+    const approxViews = views.filter((view) => normalizeWhitespace(view.content).includes(prefix))
+    if (approxViews.length > 0 || normSource.includes(prefix)) {
+      const matchedView = approxViews[0]
+      const matchedSection = matchedView?.section
+      const page = validatedPage(evidence, matchedSection)
       const subIndex = normSource.includes(prefix) ? normSource.indexOf(prefix) : undefined
       return {
         ...evidence,
-        quote,
+        quote: matchedView?.quote ?? approximateQuote,
         startOffset: subIndex !== undefined && subIndex >= 0 ? subIndex : undefined,
         endOffset: subIndex !== undefined && subIndex >= 0 ? subIndex + prefix.length : undefined,
-        sectionHeading: evidence.sectionHeading || matchedSec?.heading,
-        sectionTitle: evidence.sectionTitle || matchedSec?.heading,
+        sectionHeading: evidence.sectionHeading || matchedSection?.heading,
+        sectionTitle: evidence.sectionTitle || matchedSection?.heading,
         verified: false,
         state: "approximate",
         confidence: 0.45,
         verificationMethod: "approximate",
-        page: undefined,
-        pageNumber: undefined,
+        page,
+        pageNumber: page,
       }
     }
   }
 
-  // 4. Unverified fallback
+  // 4. Unverified fallback. Unsupported page hints are never retained.
   return {
     ...evidence,
-    quote,
+    quote: cleanedQuote,
     verified: false,
     state: "unverified",
     confidence: 0.1,
@@ -266,11 +346,11 @@ export function verifyEvidenceQuote(
 export function validateAndCalibrateFindings(
   findings: ReviewFinding[],
   sourceText: string,
-  sectionsOrRevision?: Array<{ id?: string; heading: string; content: string }> | string,
+  sectionsOrRevision?: Array<{ id?: string; heading: string; content: string; pageStart?: number | null; pageEnd?: number | null }> | string,
   currentRevision?: string,
   citedChunks?: CitedChunk[]
 ): EvidenceValidationResult {
-  const sections: Array<{ id?: string; heading: string; content: string }> =
+  const sections: Array<{ id?: string; heading: string; content: string; pageStart?: number | null; pageEnd?: number | null }> =
     Array.isArray(sectionsOrRevision) ? sectionsOrRevision : []
   const revision = typeof sectionsOrRevision === "string" ? sectionsOrRevision : currentRevision
 

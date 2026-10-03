@@ -156,6 +156,46 @@ describe("OpenXML DOCX Structure & Plain Text / Markdown Deep Verification", () 
     expect(txt).not.toContain("Vynechaná interná poznámka")
   })
 
+  it("exports professional author questions without substituting thesis defence questions", async () => {
+    const paperReview: ThesisReviewRecord = {
+      ...completeReview,
+      id: "paper-questions",
+      reviewKind: "paper",
+      defenseQuestions: ["CALIBRATED THESIS DEFENCE QUESTION — MUST NOT APPEAR"],
+      questionsForAuthors: ["How does the result generalize to a second dataset?"],
+    }
+    const markdown = formatReviewToMarkdown(paperReview)
+    expect(markdown).toContain("How does the result generalize to a second dataset?")
+    expect(markdown).not.toContain("CALIBRATED THESIS DEFENCE QUESTION")
+
+    const blob = await generateThesisReviewDocx(paperReview)
+    const zip = await JSZip.loadAsync(await blob.arrayBuffer())
+    const docXml = await zip.file("word/document.xml")!.async("string")
+    expect(docXml).toContain("How does the result generalize to a second dataset?")
+    expect(docXml).not.toContain("CALIBRATED THESIS DEFENCE QUESTION")
+  })
+
+  it("labels grant-review questions for the applicant and suppresses thesis questions", async () => {
+    const grantReview: ThesisReviewRecord = {
+      ...completeReview,
+      id: "grant-questions",
+      reviewKind: "grant",
+      defenseQuestions: ["THESIS DEFENCE QUESTION — MUST NOT APPEAR"],
+      questionsForAuthors: ["What is the contingency plan if the data-sharing agreement is delayed?"],
+    }
+    const markdown = formatReviewToMarkdown(grantReview)
+    expect(markdown).toContain("Questions for the Applicant")
+    expect(markdown).toContain("What is the contingency plan")
+    expect(markdown).not.toContain("THESIS DEFENCE QUESTION")
+
+    const blob = await generateThesisReviewDocx(grantReview)
+    const zip = await JSZip.loadAsync(await blob.arrayBuffer())
+    const docXml = await zip.file("word/document.xml")!.async("string")
+    expect(docXml).toContain("Questions for the Applicant")
+    expect(docXml).toContain("What is the contingency plan")
+    expect(docXml).not.toContain("THESIS DEFENCE QUESTION")
+  })
+
   it("renders math and table evidence cleanly as Unicode in DOCX XML", async () => {
     const reviewWithMathEvidence: ThesisReviewRecord = {
       ...completeReview,

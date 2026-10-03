@@ -83,6 +83,7 @@ describe("Expert Review Contracts & Validation", () => {
     expect(parsed.strengths).toHaveLength(2)
     expect(parsed.findings).toHaveLength(1)
     expect(parsed.reportingStandard).toBe("ml_reproducibility")
+    expect(parsed.questionsForAuthors).toEqual(["How sensitive is the model to random seeds?"])
   })
 })
 

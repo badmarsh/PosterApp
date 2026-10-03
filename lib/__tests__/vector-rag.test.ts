@@ -194,7 +194,7 @@ describe("searchHybrid — mocked DB integration", () => {
     )
   })
 
-  it("uses default domain context STEM, Fyzika when not specified", async () => {
+  it("does not inject a physics domain when context is not specified", async () => {
     const mockEmbed = vi.fn().mockResolvedValue(new Array(384).fill(0.0))
     vi.doMock("@/lib/ai/local-embeddings", () => ({
       generateLocalEmbedding: mockEmbed,
@@ -208,9 +208,8 @@ describe("searchHybrid — mocked DB integration", () => {
     const { searchHybrid } = await import("@/lib/ai/vector-rag")
     await searchHybrid("ws-1", "magnetické pole")
 
-    expect(mockEmbed).toHaveBeenCalledWith(
-      expect.stringContaining("STEM, Fyzika: magnetické pole")
-    )
+    expect(mockEmbed).toHaveBeenCalledWith("magnetické pole")
+    expect(mockEmbed.mock.calls.flat().join(" ")).not.toContain("STEM, Fyzika")
   })
 
   it("returns empty array when workspace has no indexed chunks", async () => {
@@ -305,9 +304,9 @@ describe("resolveThesisDomainContext", () => {
     expect(ctx).toContain("Inžinierstvo")
   })
 
-  it("returns fallback domain for undefined metadata", async () => {
+  it("returns no domain prior for undefined metadata", async () => {
     const { resolveThesisDomainContext } = await import("@/lib/ai/vector-rag")
-    expect(resolveThesisDomainContext(undefined)).toBe("STEM, Fyzika")
+    expect(resolveThesisDomainContext(undefined)).toBe("")
   })
 })
 

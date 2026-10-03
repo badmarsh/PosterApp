@@ -35,6 +35,7 @@ export interface DeserializedThesisReview {
   finalRecommendation?: string | null
   sections: ThesisSection[]
   defenseQuestions: string[]
+  questionsForAuthors: string[]
   citationIssues: string[]
   reviewKind: ReviewKind
   targetVenue: string | null
@@ -238,6 +239,12 @@ export function deserializeThesisReview(dbRecord: any): DeserializedThesisReview
     "defenseQuestions",
     diagnosticsCollector
   )
+  const rawQuestionsForAuthors = safeJsonParseWithDiagnostics<string[] | null>(
+    dbRecord.questionsForAuthors,
+    null,
+    "questionsForAuthors",
+    diagnosticsCollector
+  )
   const citationIssues = safeJsonParseWithDiagnostics<string[]>(
     dbRecord.citationIssues,
     [],
@@ -273,6 +280,14 @@ export function deserializeThesisReview(dbRecord: any): DeserializedThesisReview
   const reviewKind: ReviewKind = validReviewKinds.has(String(dbRecord.reviewKind))
     ? (dbRecord.reviewKind as ReviewKind)
     : "thesis"
+  // Keep the two question channels strictly separate. In particular, never
+  // reinterpret legacy thesis defence questions as author-facing questions.
+  const questionsForAuthors = Array.isArray(rawQuestionsForAuthors)
+    ? rawQuestionsForAuthors.map(String)
+    : []
+  const thesisDefenseQuestions = reviewKind === "thesis" && Array.isArray(defenseQuestions)
+    ? defenseQuestions.map(String)
+    : []
 
   const validStandards = new Set(["consort", "prisma", "strobe", "ml_reproducibility", "none"])
   const reportingStandard: ReportingStandard = validStandards.has(String(dbRecord.reportingStandard))
@@ -316,7 +331,8 @@ export function deserializeThesisReview(dbRecord: any): DeserializedThesisReview
       : null,
     finalRecommendation: dbRecord.finalRecommendation ? String(dbRecord.finalRecommendation) : null,
     sections: Array.isArray(sections) ? sections : [],
-    defenseQuestions: Array.isArray(defenseQuestions) ? defenseQuestions.map(String) : [],
+    defenseQuestions: thesisDefenseQuestions,
+    questionsForAuthors,
     citationIssues: Array.isArray(citationIssues) ? citationIssues.map(String) : [],
     reviewKind,
     targetVenue: dbRecord.targetVenue ? String(dbRecord.targetVenue) : null,
@@ -409,6 +425,14 @@ export function serializeThesisReviewUpdate(data: Record<string, any>): Record<s
       throw new Error("Payload size limit exceeded for defenseQuestions")
     }
     result.defenseQuestions = raw
+  }
+
+  if (data.questionsForAuthors !== undefined) {
+    const raw = typeof data.questionsForAuthors === "string" ? data.questionsForAuthors : JSON.stringify(data.questionsForAuthors)
+    if (raw.length > MAX_SERIALIZED_PAYLOAD_BYTES) {
+      throw new Error("Payload size limit exceeded for questionsForAuthors")
+    }
+    result.questionsForAuthors = raw
   }
 
   if (data.citationIssues !== undefined) {

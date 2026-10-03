@@ -24,6 +24,19 @@ import { embedTexts, getReranker, lexicalHeuristicScores } from "./model-registr
 // Diversity
 // ---------------------------------------------------------------------------
 
+export const DEFAULT_MMR_LAMBDA = 0.7
+
+/** Min-max normalize relevance scores so they share a [0, 1] scale with overlap penalties. */
+export function normalizeRelevanceScores(scores: number[]): number[] {
+  if (scores.length === 0) return []
+  const finite = scores.map((score) => (Number.isFinite(score) ? score : 0))
+  const min = Math.min(...finite)
+  const max = Math.max(...finite)
+  const span = max - min
+  if (span <= 0) return finite.map(() => 1)
+  return finite.map((score) => Math.max(0, Math.min(1, (score - min) / span)))
+}
+
 export interface MmrOptions {
   lambda?: number
   similarityThreshold?: number
@@ -49,46 +62,56 @@ export function mmrSelect<T>(
   }
 ): T[] {
   if (items.length === 0) return []
-  const lambda = opts.lambda ?? 0.8
-  const limit = Math.min(opts.limit, items.length)
+  const lambda = Math.max(0, Math.min(1, opts.lambda ?? DEFAULT_MMR_LAMBDA))
+  const limit = Math.min(Math.max(0, Math.floor(opts.limit)), items.length)
   if (limit <= 0) return []
-  if (items.length <= limit) return [...items].sort((a, b) => opts.scoreOf(b) - opts.scoreOf(a))
 
-  const selected: T[] = []
+  // Fusion (especially RRF) has a much smaller numeric range than cosine similarity.
+  // Normalize it before combining relevance with the [0,1] redundancy penalty.
+  const relevance = normalizeRelevanceScores(items.map(opts.scoreOf))
+  const pool = items.map((item, index) => ({
+    item,
+    id: opts.idOf(item),
+    relevance: relevance[index],
+    embedding: opts.embeddingOf(item),
+  }))
+  const byRelevance = (a: typeof pool[number], b: typeof pool[number]) =>
+    b.relevance - a.relevance || a.id.localeCompare(b.id)
+  if (pool.length <= limit) return pool.sort(byRelevance).map((candidate) => candidate.item)
+
+  const selected: typeof pool = []
   const selectedEmbs: number[][] = []
-  const pool = [...items]
-
-  // Greedy first pick.
-  pool.sort((a, b) => opts.scoreOf(b) - opts.scoreOf(a))
+  pool.sort(byRelevance)
   selected.push(pool.shift()!)
-  const firstEmb = opts.embeddingOf(selected[0])
-  if (firstEmb) selectedEmbs.push(firstEmb)
+  if (selected[0].embedding) selectedEmbs.push(selected[0].embedding)
 
   while (selected.length < limit && pool.length > 0) {
     if (opts.signal?.aborted) break
     let bestIdx = 0
     let bestMmr = -Infinity
     for (let i = 0; i < pool.length; i++) {
-      const emb = opts.embeddingOf(pool[i])
+      const candidate = pool[i]
       let maxSim = 0
-      if (emb && selectedEmbs.length > 0) {
-        for (const se of selectedEmbs) {
-          const sim = cosineSimilarity(emb, se)
+      if (candidate.embedding && selectedEmbs.length > 0) {
+        for (const selectedEmbedding of selectedEmbs) {
+          const sim = cosineSimilarity(candidate.embedding, selectedEmbedding)
           if (sim > maxSim) maxSim = sim
         }
       }
-      const mmr = lambda * opts.scoreOf(pool[i]) - (1 - lambda) * maxSim
-      if (mmr > bestMmr) {
+      const mmr = lambda * candidate.relevance - (1 - lambda) * maxSim
+      if (
+        mmr > bestMmr ||
+        (mmr === bestMmr && candidate.id.localeCompare(pool[bestIdx].id) < 0)
+      ) {
         bestMmr = mmr
         bestIdx = i
       }
     }
     const chosen = pool.splice(bestIdx, 1)[0]
     selected.push(chosen)
-    const cEmb = opts.embeddingOf(chosen)
-    if (cEmb) selectedEmbs.push(cEmb)
+    if (chosen.embedding) selectedEmbs.push(chosen.embedding)
   }
-  return selected
+  return selected.map((candidate) => candidate.item)
 }
 
 /**
@@ -104,9 +127,22 @@ export function mmrSelect<T>(
 export function applyMMR<T extends { id: string; content: string; heading: string | null; similarity?: number }>(
   chunks: T[],
   topK: number,
-  lambda = 0.7
+  lambda = DEFAULT_MMR_LAMBDA
 ): T[] {
-  if (chunks.length <= topK) return chunks
+  const limit = Math.min(Math.max(0, Math.floor(topK)), chunks.length)
+  if (limit <= 0) return []
+  const boundedLambda = Math.max(0, Math.min(1, lambda))
+  // `similarity` is already calibrated to [0,1] (cosine-like retrieval score).
+  // Do not min-max it per candidate pool: that turns a valid 0.70 hit into 0 and
+  // can make a near-duplicate outrank an unrelated but still relevant passage.
+  const relevanceScores = chunks.map((chunk) => {
+    const score = chunk.similarity ?? 0
+    return Number.isFinite(score) ? Math.max(0, Math.min(1, score)) : 0
+  })
+  const initialOrder = chunks
+    .map((chunk, index) => ({ chunk, index, relevance: relevanceScores[index] }))
+    .sort((a, b) => b.relevance - a.relevance || a.chunk.id.localeCompare(b.chunk.id))
+  if (chunks.length <= limit || boundedLambda >= 1) return initialOrder.slice(0, limit).map(({ chunk }) => chunk)
 
   function tokenize(text: string): Set<string> {
     const clean = text.toLowerCase()
@@ -133,12 +169,10 @@ export function applyMMR<T extends { id: string; content: string; heading: strin
   }
 
   const tokenSets = chunks.map((c) => tokenize(c.content))
-  const relevanceScores = chunks.map((c) => c.similarity ?? 0)
-
   const selected: number[] = []
   const remaining = new Set(chunks.map((_, i) => i))
 
-  while (selected.length < topK && remaining.size > 0) {
+  while (selected.length < limit && remaining.size > 0) {
     let bestIdx = -1
     let bestScore = -Infinity
 
@@ -148,8 +182,11 @@ export function applyMMR<T extends { id: string; content: string; heading: strin
       for (const selIdx of selected) {
         maxSim = Math.max(maxSim, jaccard(tokenSets[idx], tokenSets[selIdx]))
       }
-      const mmrScore = lambda * relevance - (1 - lambda) * maxSim
-      if (mmrScore > bestScore) {
+      const mmrScore = boundedLambda * relevance - (1 - boundedLambda) * maxSim
+      if (
+        mmrScore > bestScore ||
+        (mmrScore === bestScore && (bestIdx === -1 || chunks[idx].id.localeCompare(chunks[bestIdx].id) < 0))
+      ) {
         bestScore = mmrScore
         bestIdx = idx
       }

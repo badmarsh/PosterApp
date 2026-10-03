@@ -407,11 +407,10 @@ describe("degradation", () => {
     const { retrieveForCriterion } = await import("@/lib/ai/vector-rag")
     const { chunks } = await retrieveForCriterion("ws-1", NUMERICAL_QUERY, { topK: 3, useHyDE: false, compress: false })
     expect(chunks.length).toBeGreaterThan(0)
-    // Discriminator: the legacy projection is `id, heading, content, tokens, kind,
-    // "contextPrefix"`; every multi-source generator also selects "chunkType" and "sectionPath".
-    // If the new pipeline had run, those columns would appear in the SQL.
+    // The legacy path still selects physical page and section provenance, but unlike the
+    // multi-source generators it does not request structural chunkType metadata.
     expect(queryLog.length).toBeGreaterThan(0)
-    expect(queryLog.every((q) => !/"chunkType"/.test(q) && !/"sectionPath"/.test(q))).toBe(true)
+    expect(queryLog.every((q) => !/"chunkType"/.test(q))).toBe(true)
     expect(queryLog.some((q) => /<=>/.test(q))).toBe(true)
   })
 })
