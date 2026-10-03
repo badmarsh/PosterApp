@@ -13,7 +13,7 @@
  */
 
 import type { ThesisReviewRecord } from "@/components/thesis-review/use-thesis-review-store"
-import { hasConclusiveStatement } from "./review-bucketing"
+import { bucketFindings, detectStatutoryJurisdiction, hasConclusiveStatement } from "./review-bucketing"
 import type { ReviewFinding, FindingAudience, ReviewDefenseQuestion } from "./review-types"
 import type { ReviewLanguage } from "./thesis-rubric"
 
@@ -110,6 +110,24 @@ export function composePaperReviewNarrative(
   audience: FindingAudience = "author",
   lang: ReviewLanguage = review.language || "sk",
 ): ComposedReviewResult {
+  return composeEditorialReviewNarrative(review, audience, lang, "paper")
+}
+
+export function composeGrantReviewNarrative(
+  review: ThesisReviewRecord,
+  audience: FindingAudience = "author",
+  lang: ReviewLanguage = review.language || "sk",
+): ComposedReviewResult {
+  return composeEditorialReviewNarrative(review, audience, lang, "grant")
+}
+
+function composeEditorialReviewNarrative(
+  review: ThesisReviewRecord,
+  audience: FindingAudience,
+  lang: ReviewLanguage,
+  editorialKind: "paper" | "grant",
+): ComposedReviewResult {
+  const isGrant = editorialKind === "grant"
   const findings = getEligibleFindings(review.findings, audience)
   const isConfirmed = Boolean(review.confirmedAt)
   const recommendation = review.finalRecommendation || review.recommendation || review.suggestedRecommendation
@@ -127,60 +145,85 @@ export function composePaperReviewNarrative(
   const minor = findings.filter(
     (finding) => finding.findingType !== "strength" && (finding.severity === "minor" || finding.severity === "suggestion"),
   )
-  const questions = review.questionsForAuthors?.length
-    ? review.questionsForAuthors
-    : review.defenseQuestions ?? []
+  const questions = review.questionsForAuthors ?? []
 
   const sections: ComposedSection[] = [
     {
       id: "manuscript_identification",
-      title: lang === "sk" ? "1. Identifikácia rukopisu a recenzenta" : "1. Manuscript and Reviewer Identification",
+      title: isGrant
+        ? (lang === "sk" ? "1. Identifikácia grantového návrhu a hodnotiteľa" : "1. Grant Proposal and Reviewer Identification")
+        : (lang === "sk" ? "1. Identifikácia rukopisu a recenzenta" : "1. Manuscript and Reviewer Identification"),
       content: [
-        `${lang === "sk" ? "Názov článku" : "Paper title"}: ${review.thesisTitle}`,
-        `${lang === "sk" ? "Autor(i)" : "Author(s)"}: ${review.studentName}`,
-        `${lang === "sk" ? "Recenzent" : "Reviewer"}: ${review.reviewerName || (lang === "sk" ? "Odborný recenzent" : "Peer reviewer")}`,
-        review.targetVenue ? `${lang === "sk" ? "Cieľový časopis / konferencia" : "Target journal / conference"}: ${review.targetVenue}` : null,
+        `${isGrant ? (lang === "sk" ? "Názov projektu" : "Project title") : (lang === "sk" ? "Názov článku" : "Paper title")}: ${review.thesisTitle}`,
+        `${lang === "sk" ? (isGrant ? "Žiadateľ" : "Autor(i)") : (isGrant ? "Applicant" : "Author(s)")}: ${review.studentName}`,
+        `${lang === "sk" ? "Recenzent" : "Reviewer"}: ${review.reviewerName || (lang === "sk" ? (isGrant ? "Hodnotiteľ projektu" : "Odborný recenzent") : (isGrant ? "Grant reviewer" : "Peer reviewer"))}`,
+        review.targetVenue ? `${lang === "sk" ? (isGrant ? "Poskytovateľ / výzva" : "Cieľový časopis / konferencia") : (isGrant ? "Funder / call" : "Target journal / conference")}: ${review.targetVenue}` : null,
       ].filter(Boolean).join("\n"),
     },
     {
       id: "review_scope",
-      title: lang === "sk" ? "2. Rozsah a limity recenzie" : "2. Review Scope and Limitations",
+      title: isGrant
+        ? (lang === "sk" ? "2. Rozsah hodnotenia grantového návrhu" : "2. Grant Review Scope and Limitations")
+        : (lang === "sk" ? "2. Rozsah a limity recenzie" : "2. Review Scope and Limitations"),
       content: review.limitationsSummary || noGroundedAssessment(lang),
     },
     {
       id: "paper_summary",
-      title: lang === "sk" ? "3. Zhrnutie rukopisu" : "3. Manuscript Summary",
+      title: isGrant
+        ? (lang === "sk" ? "3. Zhrnutie projektu" : "3. Proposal Summary")
+        : (lang === "sk" ? "3. Zhrnutie rukopisu" : "3. Manuscript Summary"),
       content: review.summary || (lang === "sk" ? "Zhrnutie nebolo poskytnuté; recenzent ho musí doplniť." : "No summary was provided; the reviewer must add one."),
     },
     {
       id: "paper_strengths",
-      title: lang === "sk" ? "4. Podložené silné stránky" : "4. Evidence-Grounded Strengths",
+      title: isGrant
+        ? (lang === "sk" ? "4. Silné stránky návrhu" : "4. Proposal Strengths")
+        : (lang === "sk" ? "4. Podložené silné stránky" : "4. Evidence-Grounded Strengths"),
       content: strengths.length ? strengths.map((strength, index) => `${index + 1}. ${strength}`).join("\n") : noGroundedAssessment(lang),
     },
     {
       id: "major_concerns",
-      title: lang === "sk" ? "5. Zásadné pripomienky" : "5. Major Concerns",
+      title: isGrant
+        ? (lang === "sk" ? "5. Zásadné riziká financovania" : "5. Major Funding Concerns")
+        : (lang === "sk" ? "5. Zásadné pripomienky" : "5. Major Concerns"),
       content: major.length ? major.map((finding, index) => formatFindingWithEpistemicClarity(finding, index + 1, lang)).join("\n\n") : noGroundedAssessment(lang),
     },
     {
       id: "minor_concerns",
-      title: lang === "sk" ? "6. Drobné pripomienky" : "6. Minor Concerns",
+      title: isGrant
+        ? (lang === "sk" ? "6. Menšie odporúčania na zlepšenie" : "6. Minor Improvement Recommendations")
+        : (lang === "sk" ? "6. Drobné pripomienky" : "6. Minor Concerns"),
       content: minor.length ? minor.map((finding, index) => formatFindingWithEpistemicClarity(finding, index + 1, lang)).join("\n\n") : noGroundedAssessment(lang),
     },
+    ...(review.reportingGuidelineChecks?.length
+      ? [{
+          id: "reporting_guidelines",
+          title: isGrant
+            ? (lang === "sk" ? "Kontroly súladu, etiky a riadenia" : "Compliance, Ethics, and Governance Checks")
+            : (lang === "sk" ? "Súlad s metodickými usmerneniami" : "Reporting Guideline Compliance"),
+          content: review.reportingGuidelineChecks.map((check) =>
+            `- [${check.status.toUpperCase()}] ${check.item}: ${check.notes}`
+          ).join("\n"),
+        }]
+      : []),
     {
       id: "questions_for_authors",
-      title: lang === "sk" ? "7. Otázky pre autorov" : "7. Questions for the Authors",
+      title: isGrant
+        ? (lang === "sk" ? "7. Otázky pre žiadateľa" : "7. Questions for the Applicant")
+        : (lang === "sk" ? "7. Otázky pre autorov" : "7. Questions for the Authors"),
       content: questions.length ? questions.map((question, index) => `${index + 1}. ${question}`).join("\n\n") : noGroundedAssessment(lang),
       itemsCount: questions.length,
     },
     {
       id: "publication_recommendation",
-      title: lang === "sk" ? "8. Odporúčanie editorovi a vyhlásenie o AI asistencii" : "8. Recommendation to the Editor and AI Disclosure",
+      title: isGrant
+        ? (lang === "sk" ? "8. Odporúčanie poskytovateľovi a transparentnosť AI" : "8. Funding Recommendation and AI Disclosure")
+        : (lang === "sk" ? "8. Odporúčanie editorovi a vyhlásenie o AI asistencii" : "8. Recommendation to the Editor and AI Disclosure"),
       content: [
-        `${lang === "sk" ? "Publikačné odporúčanie" : "Publication recommendation"}: ${recommendation || (lang === "sk" ? "Nebol zadaný návrh; rozhodne recenzent/editor." : "No recommendation supplied; the reviewer/editor must decide.")}`,
+        `${isGrant ? (lang === "sk" ? "Odporúčanie k financovaniu" : "Funding recommendation") : (lang === "sk" ? "Publikačné odporúčanie" : "Publication recommendation")}: ${recommendation || (lang === "sk" ? "Nebol zadaný návrh; rozhodne hodnotiteľ a komisia." : "No recommendation supplied; the reviewer and panel must decide.")}`,
         lang === "sk"
-          ? "Koncept recenzie pripravil evidenciou podložený AI asistent PosterApp. Konečné redakčné rozhodnutie patrí ľudskému recenzentovi a editorovi."
-          : "This draft was prepared with PosterApp's evidence-grounded AI assistant. Final editorial judgment belongs to the human reviewer and editor.",
+          ? (isGrant ? "Koncept hodnotenia pripravil evidenciou podložený AI asistent PosterApp. Konečné rozhodnutie o financovaní patrí ľudskej hodnotiacej komisii." : "Koncept recenzie pripravil evidenciou podložený AI asistent PosterApp. Konečné redakčné rozhodnutie patrí ľudskému recenzentovi a editorovi.")
+          : (isGrant ? "This draft was prepared with PosterApp's evidence-grounded AI assistant. Final funding decisions belong to the human review panel." : "This draft was prepared with PosterApp's evidence-grounded AI assistant. Final editorial judgment belongs to the human reviewer and editor."),
       ].join("\n\n"),
     },
   ]
@@ -188,7 +231,9 @@ export function composePaperReviewNarrative(
   if (review.confidentialComments && audience !== "author") {
     sections.push({
       id: "confidential",
-      title: lang === "sk" ? "Dôverné poznámky editorovi" : "Confidential Comments to the Editor",
+      title: isGrant
+        ? (lang === "sk" ? "Dôverné poznámky hodnotiacej komisii" : "Confidential Comments to the Panel")
+        : (lang === "sk" ? "Dôverné poznámky editorovi" : "Confidential Comments to the Editor"),
       content: review.confidentialComments,
       isConfidential: true,
     })
@@ -196,7 +241,7 @@ export function composePaperReviewNarrative(
 
   const markdownText = [
     `# ${review.thesisTitle}`,
-    `**${lang === "sk" ? "Odborná recenzia vedeckého článku" : "Scientific Paper Peer Review"}**`,
+    `**${isGrant ? (lang === "sk" ? "Hodnotenie grantového návrhu" : "Grant Proposal Review") : (lang === "sk" ? "Odborná recenzia vedeckého článku" : "Scientific Paper Peer Review")}**`,
     ...sections.map((section) => `## ${section.title}\n\n${section.content}`),
   ].join("\n\n---\n\n")
 
@@ -230,11 +275,16 @@ export function composeFullReviewNarrative(
   if (review.reviewKind === "paper") {
     return composePaperReviewNarrative(review, audience, lang)
   }
+  if (review.reviewKind === "grant") {
+    return composeGrantReviewNarrative(review, audience, lang)
+  }
 
   const eligibleFindings = getEligibleFindings(review.findings, audience)
   const isConfirmed = Boolean(review.confirmedAt)
   const effectiveGrade = review.finalGrade || review.grade || review.suggestedGrade
   const effectiveRecommendation = review.finalRecommendation || review.recommendation || review.suggestedRecommendation
+  const statutoryJurisdiction = detectStatutoryJurisdiction({ language: review.language, institution: review.institution })
+  const findingBuckets = bucketFindings(eligibleFindings)
 
   const sections: ComposedSection[] = []
 
@@ -351,7 +401,7 @@ export function composeFullReviewNarrative(
 
   // 10. Slabé stránky a oblasti na zlepšenie
   const sec10Title = lang === "sk" ? "10. Slabé stránky a oblasti na zlepšenie" : "10. Weaknesses and Areas for Improvement"
-  const weaknesses = eligibleFindings.filter((f) => f.findingType === "weakness" || f.severity === "critical" || f.severity === "major")
+  const weaknesses = [...findingBuckets.major, ...findingBuckets.minor]
   const sec10Content = weaknesses.length > 0
     ? weaknesses.map((w, i) => formatFindingWithEpistemicClarity(w, i + 1, lang)).join("\n\n")
     : noGroundedAssessment(lang)
@@ -359,7 +409,7 @@ export function composeFullReviewNarrative(
 
   // 11. Otázky k obhajobe
   const sec11Title = lang === "sk" ? "11. Otázky a námety k obhajobe" : "11. Defense Questions"
-  let questions = review.questionsForAuthors?.length ? [...review.questionsForAuthors] : (review.defenseQuestions ? [...review.defenseQuestions] : [])
+  let questions = [...(review.defenseQuestions ?? [])]
   if (review.phdEnrichment?.defenseQuestionsExternal?.length) {
     questions.push(...review.phdEnrichment.defenseQuestionsExternal)
   }
@@ -388,13 +438,18 @@ export function composeFullReviewNarrative(
     (review.reviewKind ?? "thesis") === "thesis" &&
     review.thesisType === "phd" &&
     review.reviewerRole === "opponent" &&
-    !hasConclusiveStatement(sec12Lines, review.language === "cs" ? "cz" : "sk")
+    statutoryJurisdiction !== "none" &&
+    !hasConclusiveStatement(sec12Lines, statutoryJurisdiction)
   ) {
     conclusivePlaceholder = lang === "sk"
-      ? "\u00a1DOPNIŤ: Záverečné stanovisko (§ 67 zákona č. 131/2002 Z. z.) — veta o splnení podmienok, odporúčanie na obhajobu a návrh titulu PhD s klasifikačným stupňom."
+      ? (statutoryJurisdiction === "sk"
+          ? "\u00a1DOPLNIŤ: Záverečné stanovisko musí výslovne posúdiť vedeckú spôsobilosť, odporučiť alebo neodporučiť obhajobu a uviesť návrh na udelenie titulu PhD. (§ 67 zákona č. 131/2002 Z. z.)"
+          : "\u00a1DOPLNIT: Závěrečné stanovisko musí výslovně posoudit vědeckou způsobilost, doporučit či nedoporučit obhajobu a uvést návrh na udělení titulu Ph.D. (§ 54a odst. 3 zákona č. 111/1998 Sb.)")
       : lang === "cs"
-        ? "\u00a1DOPNIŤ: Závěrečné stanovisko (§ 54a zákona č. 111/1998 Sb.) — věta o splnění podmínek, doporučení k obhajobě a návrh na udělení titulu."
-        : "\u00a1DOPNIŤ: Add the conclusive statement — the sentence on fulfilled conditions, the recommendation for defence and the proposed title with a pass/fail classification."
+        ? (statutoryJurisdiction === "sk"
+            ? "\u00a1DOPLNIŤ: Záverečné stanovisko musí výslovne posúdiť vedeckú spôsobilosť, odporučiť alebo neodporučiť obhajobu a uviesť návrh na udelenie titulu PhD. (§ 67 zákona č. 131/2002 Z. z.)"
+            : "\u00a1DOPLNIT: Závěrečné stanovisko musí výslovně posoudit vědeckou způsobilost, doporučit či nedoporučit obhajobu a uvést návrh na udělení titulu Ph.D. (§ 54a odst. 3 zákona č. 111/1998 Sb.)")
+        : `\u00a1ADD: State the candidate's research ability, recommend for or against the defence, and say whether the PhD should be awarded (${statutoryJurisdiction === "sk" ? "§ 67, Act 131/2002 Coll." : "§ 54a(3), Act 111/1998 Sb."}).`
   }
   sections.push({ id: "evaluation_summary", title: sec12Title, content: [sec12Lines, conclusivePlaceholder].filter(Boolean).join("\n\n") })
 

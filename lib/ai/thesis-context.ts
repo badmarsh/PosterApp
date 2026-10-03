@@ -13,16 +13,15 @@ import type { ThesisMetadata, ReviewLanguage } from "./thesis-rubric"
 import { WORKSPACES_ROOT } from "@/lib/workspace-files"
 import { prisma } from "@/lib/prisma"
 import { resolveCriterionFamily } from "./vector-rag"
+import { buildBudgetedReviewContext, MAX_REVIEW_CONTEXT_CHARS } from "./context-budget"
 
 // ---------------------------------------------------------------------------
 // Context Budgets
 // ---------------------------------------------------------------------------
 
 export const THESIS_CONTEXT_BUDGETS = {
-  /** Total manuscript context per review prompt. 120k chars ≈ 40–50k tokens —
-   *  comfortably inside modern 128k–1M context windows; override with
-   *  AI_CONTEXT_BUDGET_CHARS for smaller self-hosted models. */
-  fullGeneration: Number(process.env.AI_CONTEXT_BUDGET_CHARS) || 120_000,
+  /** Hard-capped source context for a full review-generation prompt. */
+  fullGeneration: Math.min(Number(process.env.AI_CONTEXT_BUDGET_CHARS) || MAX_REVIEW_CONTEXT_CHARS, MAX_REVIEW_CONTEXT_CHARS),
   metadata: 2_000,
   citationAudit: 8_000,
   perCriterion: 9_000,
@@ -36,9 +35,11 @@ export const THESIS_CONTEXT_BUDGETS = {
  * left the 6-stage RAG output sliced to ~0 chars).
  */
 export const THESIS_CONTEXT_SHARES = {
-  routed: 0.5,
-  vector: 0.38,
-  graph: 0.12,
+  routed: 0.43,
+  vector: 0.30,
+  graph: 0.08,
+  grounding: 0.12,
+  citationAudit: 0.05,
 } as const
 
 // ---------------------------------------------------------------------------
@@ -550,10 +551,18 @@ function scoreSectionForCriterion(
     score -= 50
   }
 
-  // 5. References penalty for non-citation criteria
-  if (section.kind === "references" && criterionId !== "citations_bibliography") {
-    score -= 100
-  }
+  // 5. References, front matter, contents and acknowledgements must not crowd out
+  // substantive evidence. References stay eligible for citation-specific criteria.
+  const familyId = resolveCriterionFamily(criterionId) ?? criterionId
+  const isCitationCriterion = familyId === "citations"
+  if (section.kind === "references" && !isCitationCriterion) score -= 100
+  if (section.kind === "preamble" && !["goals", "formal"].includes(familyId)) score -= 75
+
+  const heading = normalizeHeading(section.heading)
+  const isAcknowledgements = /acknowledg|podakov|podekov|dedication|thanks/.test(heading)
+  const isContents = /^(?:obsah|contents|table of contents|obsah prace|obsah prace a priloh)$/.test(heading)
+  if (isAcknowledgements) score -= 120
+  if (isContents && familyId !== "formal") score -= 120
 
   // 6. Prefer non-empty sections
   if (section.content.length < 100) {
@@ -568,13 +577,15 @@ function scoreSectionForCriterion(
  */
 function sampleDocumentAcrossSections(
   sections: ThesisDocumentSection[],
-  budgetChars: number
+  budgetChars: number,
+  excludedSectionIds: ReadonlySet<string> = new Set()
 ): { text: string; sectionIds: string[]; sourceFiles: string[] } {
-  const contentSections = sections.filter((s) => s.kind !== "preamble" && s.kind !== "references" && s.kind !== "appendix")
-  const pool = contentSections.length > 0 ? contentSections : sections
+  const available = sections.filter((s) => !excludedSectionIds.has(s.id))
+  const contentSections = available.filter((s) => s.kind !== "preamble" && s.kind !== "references" && s.kind !== "appendix")
+  const pool = contentSections.length > 0 ? contentSections : available
 
   if (pool.length === 0) {
-    return { text: "No document content available.", sectionIds: [], sourceFiles: [] }
+    return { text: excludedSectionIds.size > 0 ? "" : "No document content available.", sectionIds: [], sourceFiles: [] }
   }
 
   if (pool.length === 1) {
@@ -616,8 +627,10 @@ function sampleDocumentAcrossSections(
 export function routeSectionsForCriterion(
   criterionId: string,
   sections: ThesisDocumentSection[],
-  budgetChars: number = THESIS_CONTEXT_BUDGETS.perCriterion
+  budgetChars: number = THESIS_CONTEXT_BUDGETS.perCriterion,
+  options: { excludeSectionIds?: ReadonlySet<string> } = {}
 ): RoutedExcerpt {
+  const excludedSectionIds = options.excludeSectionIds ?? new Set<string>()
   if (!sections.length) {
     return {
       criterionId,
@@ -631,7 +644,7 @@ export function routeSectionsForCriterion(
 
   // Language quality or formal structure: use deterministic whole-doc sampling
   if (criterionId === "language_quality") {
-    const sample = sampleDocumentAcrossSections(sections, budgetChars)
+    const sample = sampleDocumentAcrossSections(sections, budgetChars, excludedSectionIds)
     return {
       criterionId,
       text: sample.text,
@@ -647,7 +660,7 @@ export function routeSectionsForCriterion(
     const outline = sections
       .map((s) => `  - ${s.heading} (${s.kind}, ~${s.content.length} chars)`)
       .join("\n")
-    const sample = sampleDocumentAcrossSections(sections, Math.floor(budgetChars * 0.7))
+    const sample = sampleDocumentAcrossSections(sections, Math.floor(budgetChars * 0.7), excludedSectionIds)
     const text = `Document Outline:\n${outline}\n\nRepresentative Document Samples:\n${sample.text}`
     return {
       criterionId,
@@ -671,13 +684,14 @@ export function routeSectionsForCriterion(
   }
 
   // Score all sections
-  const scored = sections.map((sec) => ({
+  const availableSections = sections.filter((section) => !excludedSectionIds.has(section.id))
+  const scored = availableSections.map((sec) => ({
     sec,
     score: scoreSectionForCriterion(sec, rule, criterionId),
   }))
 
   // Sort descending by score
-  scored.sort((a, b) => b.score - a.score)
+  scored.sort((a, b) => b.score - a.score || a.sec.id.localeCompare(b.sec.id))
 
   // Take top matching sections until budget is filled
   const chosenSections: ThesisDocumentSection[] = []
@@ -699,12 +713,10 @@ export function routeSectionsForCriterion(
     criterionId === "problem_relevance"
 
   if (isGoalsCriterion) {
-    const pinnedIntro = sections.find(
-      (s) =>
-        s.kind === "introduction" ||
-        s.kind === "preamble" ||
-        /intro|úvod|ciel|motivation|abstract|summary|overview|problem/i.test(s.heading)
-    )
+    const pinnedIntro =
+      availableSections.find((s) => s.kind === "introduction") ??
+      availableSections.find((s) => s.kind === "preamble" && /abstract|summary|overview|problem|ciel|goal/i.test(s.heading)) ??
+      availableSections.find((s) => /intro|úvod|ciel|motivation|overview|problem/i.test(s.heading))
     if (pinnedIntro) {
       const needed = Math.min(pinnedIntro.content.length + 100, Math.floor(budgetChars * 0.4))
       chosenSections.push(pinnedIntro)
@@ -734,7 +746,7 @@ export function routeSectionsForCriterion(
 
   // If no good sections matched, fall back to whole document sampling
   if (chosenSections.length === 0) {
-    const fallback = sampleDocumentAcrossSections(sections, budgetChars)
+    const fallback = sampleDocumentAcrossSections(sections, budgetChars, excludedSectionIds)
     return {
       criterionId,
       text: fallback.text,
@@ -787,38 +799,47 @@ export function buildFullGenerationContext(
     return { contextText: "", selectedChars: 0, truncated: false }
   }
 
+  // This is a hard ceiling, not merely a default. Per-criterion excerpts also reserve
+  // enough room for each other, while the final composer accounts for headers/separators.
+  const budget = Math.max(0, Math.min(MAX_REVIEW_CONTEXT_CHARS, Math.floor(maxChars)))
+  const criterionIds = Array.from(new Set(activeCriterionIds))
+  if (criterionIds.length === 0 || budget === 0) {
+    return { contextText: "", selectedChars: 0, truncated: ragContext.totalChars > 0 }
+  }
   const perCriterionBudget = Math.min(
     THESIS_CONTEXT_BUDGETS.perCriterion,
-    Math.floor(maxChars / Math.max(1, activeCriterionIds.length))
+    Math.floor(budget / criterionIds.length)
   )
 
   const usedSectionIds = new Set<string>()
-  const formattedBlocks: string[] = []
-  let totalLength = 0
-  let isTruncated = false
+  const sources: Array<{ key: string; label: string; content: string; weight: number }> = []
+  let routeTruncated = false
 
-  for (const critId of activeCriterionIds) {
-    const excerpt = routeSectionsForCriterion(critId, ragContext.sections, perCriterionBudget)
-    formattedBlocks.push(`=== Evidence for Criterion [${critId}] ===\n${excerpt.text}`)
-    totalLength += excerpt.text.length
-
-    for (const sid of excerpt.sectionIds) {
-      usedSectionIds.add(sid)
+  for (const critId of criterionIds) {
+    let excerpt = routeSectionsForCriterion(critId, ragContext.sections, perCriterionBudget, {
+      excludeSectionIds: usedSectionIds,
+    })
+    // If the remaining sections cannot support this criterion, reuse the best evidence
+    // rather than silently dropping the only substantive section in a sparse manuscript.
+    if (!excerpt.sectionIds.length && usedSectionIds.size > 0) {
+      excerpt = routeSectionsForCriterion(critId, ragContext.sections, perCriterionBudget)
     }
-
-    if (totalLength >= maxChars) {
-      isTruncated = true
-      break
-    }
+    if (!excerpt.text.trim()) continue
+    routeTruncated ||= excerpt.truncated
+    sources.push({
+      key: critId,
+      label: `Evidence for Criterion [${critId}]`,
+      content: excerpt.text,
+      weight: 1,
+    })
+    for (const sectionId of excerpt.sectionIds) usedSectionIds.add(sectionId)
   }
 
-  const combined = formattedBlocks.join("\n\n\n")
-  const finalContext = combined.slice(0, maxChars)
-
+  const composed = buildBudgetedReviewContext(sources, budget)
   return {
-    contextText: finalContext,
-    selectedChars: finalContext.length,
-    truncated: isTruncated || combined.length > maxChars,
+    contextText: composed.contextText,
+    selectedChars: composed.selectedChars,
+    truncated: routeTruncated || composed.truncated || composed.sourceChars > composed.selectedChars,
   }
 }
 

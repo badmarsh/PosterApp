@@ -795,6 +795,9 @@ function createThesisReviewStore(
       const buildRecord = (data: any): ThesisReviewRecord => {
         const initialGrade = data.overallGrade ?? data.grade ?? null
         const initialRec = data.recommendation ?? null
+        const reviewKind: ReviewKind = data.reviewKind === "paper" || data.reviewKind === "grant"
+          ? data.reviewKind
+          : opts.metadata.reviewKind ?? "thesis"
         return {
           id: data.id,
           studentName: opts.metadata.studentName,
@@ -811,16 +814,16 @@ function createThesisReviewStore(
           suggestedRecommendation: initialRec,
           finalRecommendation: initialRec,
           sections: data.sections ?? [],
-          defenseQuestions: data.defenseQuestions ?? [],
+          defenseQuestions: reviewKind === "thesis" ? data.defenseQuestions ?? [] : [],
           citationIssues: data.citationIssues ?? [],
-          reviewKind: data.reviewKind ?? opts.metadata.reviewKind ?? "thesis",
+          reviewKind,
           targetVenue: data.targetVenue ?? opts.metadata.targetVenue,
           summary: data.summary ?? "",
           strengths: data.strengths ?? [],
           findings: data.findings ?? [],
           reportingStandard: data.reportingStandard ?? opts.metadata.reportingStandard ?? "none",
           reportingGuidelineChecks: data.reportingGuidelineChecks ?? [],
-          questionsForAuthors: data.questionsForAuthors ?? data.defenseQuestions ?? [],
+          questionsForAuthors: reviewKind === "thesis" ? [] : data.questionsForAuthors ?? [],
           confidentialComments: data.confidentialComments,
           phdEnrichment: data.phdEnrichment ?? null,
           status: "draft",
@@ -1050,6 +1053,7 @@ function createThesisReviewStore(
             recommendation: activeReview.finalRecommendation ?? activeReview.recommendation,
             sections: JSON.stringify(activeReview.sections),
             defenseQuestions: JSON.stringify(activeReview.defenseQuestions),
+            questionsForAuthors: JSON.stringify(activeReview.questionsForAuthors ?? []),
             citationIssues: JSON.stringify(activeReview.citationIssues),
             reviewKind: activeReview.reviewKind,
             targetVenue: activeReview.targetVenue,

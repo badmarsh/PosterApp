@@ -36,11 +36,13 @@ export async function generateThesisReviewDocx(
   const children: any[] = []
   const isAnonymized = Boolean(options.anonymize || options.anonymizeReviewer)
   const isPaper = review.reviewKind === "paper"
+  const isGrant = review.reviewKind === "grant"
+  const isEditorial = isPaper || isGrant
 
   // Document Main Header
   children.push(
     new Paragraph({
-      text: sanitizeXmlString(isPaper ? "ODBORNÁ RECENZIA VEDECKÉHO ČLÁNKU" : "POSUDOK ZÁVEREČNEJ PRÁCE"),
+      text: sanitizeXmlString(isGrant ? "ODBORNÉ HODNOTENIE GRANTOVÉHO NÁVRHU" : isPaper ? "ODBORNÁ RECENZIA VEDECKÉHO ČLÁNKU" : "POSUDOK ZÁVEREČNEJ PRÁCE"),
       heading: HeadingLevel.HEADING_1,
       alignment: AlignmentType.CENTER,
       spacing: { after: 200 },
@@ -53,7 +55,7 @@ export async function generateThesisReviewDocx(
       children: [
         new TableCell({
           width: { size: 30, type: WidthType.PERCENTAGE },
-          children: [new Paragraph({ children: [new TextRun({ text: isPaper ? "Názov článku / Paper title:" : "Názov práce / Thesis title:", bold: true })] })],
+          children: [new Paragraph({ children: [new TextRun({ text: isGrant ? "Názov projektu / Project title:" : isPaper ? "Názov článku / Paper title:" : "Názov práce / Thesis title:", bold: true })] })],
         }),
         new TableCell({
           width: { size: 70, type: WidthType.PERCENTAGE },
@@ -100,7 +102,7 @@ export async function generateThesisReviewDocx(
           new TableCell({
             children: [
               new Paragraph({
-                text: `${review.reviewerName} (${isPaper ? "Odborný recenzent / Peer Reviewer" : review.reviewerRole === "supervisor" ? "Vedúci práce" : "Oponent"})`,
+                text: `${review.reviewerName} (${isGrant ? "Hodnotiteľ grantového návrhu / Grant reviewer" : isPaper ? "Odborný recenzent / Peer Reviewer" : review.reviewerRole === "supervisor" ? "Vedúci práce" : review.reviewerRole === "self" ? "Autor / Self-review" : "Oponent"})`,
               }),
             ],
           }),
@@ -109,7 +111,7 @@ export async function generateThesisReviewDocx(
     )
   }
 
-  if (!isPaper && review.grade) {
+  if (!isEditorial && review.grade) {
     tableRows.push(
       new TableRow({
         children: [
@@ -124,15 +126,16 @@ export async function generateThesisReviewDocx(
     )
   }
 
-  if (review.recommendation) {
+  const finalRecommendation = review.finalRecommendation || review.recommendation
+  if (finalRecommendation) {
     tableRows.push(
       new TableRow({
         children: [
           new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: isPaper ? "Publikačné odporúčanie:" : "Odporúčanie k obhajobe:", bold: true })] })],
+            children: [new Paragraph({ children: [new TextRun({ text: isGrant ? "Odporúčanie k financovaniu / Funding recommendation:" : isPaper ? "Publikačné odporúčanie / Publication recommendation:" : "Odporúčanie k obhajobe:", bold: true })] })],
           }),
           new TableCell({
-            children: [new Paragraph({ text: review.recommendation })],
+            children: [new Paragraph({ text: finalRecommendation })],
           }),
         ],
       })
@@ -157,9 +160,9 @@ export async function generateThesisReviewDocx(
     options.includeConfidential ? "editor" : "author",
   )
   const buckets = bucketFindings(findings)
-  const isDoctoralOpponent = !isPaper && review.thesisType === "phd" && review.reviewerRole === "opponent"
+  const isDoctoralOpponent = review.reviewKind === "thesis" && review.thesisType === "phd" && review.reviewerRole === "opponent"
   const statutoryClause: string | undefined = review.phdEnrichment?.statutoryClause
-  const findingStrengths = isPaper
+  const findingStrengths = isEditorial
     ? []
     : buckets.strengths
         .filter((f) => f.evidence?.some((e) => e.verified))
@@ -169,19 +172,19 @@ export async function generateThesisReviewDocx(
   let sectionNo = 0
   const heading = (title: string) =>
     new Paragraph({
-      text: sanitizeXmlString(isPaper ? title : `${++sectionNo}. ${title}`),
+      text: sanitizeXmlString(isEditorial ? title : `${++sectionNo}. ${title}`),
       heading: HeadingLevel.HEADING_2,
       spacing: { before: 300, after: 150 },
     })
 
   if (review.summary) {
-    children.push(heading(isPaper ? "Zhrnutie rukopisu (Manuscript Summary)" : "Zhrnutie práce a hlavný prínos (Executive Summary)"))
+    children.push(heading(isGrant ? "Zhrnutie grantového návrhu (Grant Proposal Summary)" : isPaper ? "Zhrnutie rukopisu (Manuscript Summary)" : "Zhrnutie práce a hlavný prínos (Executive Summary)"))
     children.push(new Paragraph({ text: sanitizeXmlString(review.summary), spacing: { after: 200 } }))
   }
 
   if (strengths.length > 0) {
     children.push(
-      heading(isPaper ? "Podložené silné stránky rukopisu (Evidence-Grounded Strengths)" : "Silné stránky práce (Key Strengths)")
+      heading(isGrant ? "Silné stránky grantového návrhu (Grant Proposal Strengths)" : isPaper ? "Podložené silné stránky rukopisu (Evidence-Grounded Strengths)" : "Silné stránky práce (Key Strengths)")
     )
     for (const str of strengths) {
       children.push(new Paragraph({ text: sanitizeXmlString(`\u2022 ${str}`), spacing: { after: 100 } }))
@@ -189,7 +192,7 @@ export async function generateThesisReviewDocx(
   }
 
   if (buckets.major.length > 0) {
-    children.push(heading("Zásadné pripomienky (Major Concerns)"))
+    children.push(heading(isGrant ? "Zásadné riziká financovania (Major Funding Risks)" : "Zásadné pripomienky (Major Concerns)"))
     for (const f of buckets.major) {
       children.push(
         new Paragraph({
@@ -238,7 +241,7 @@ export async function generateThesisReviewDocx(
   }
 
   if (buckets.minor.length > 0) {
-    children.push(heading("Drobné pripomienky (Minor Concerns)"))
+    children.push(heading(isGrant ? "Menšie odporúčania k návrhu (Minor Proposal Recommendations)" : "Drobné pripomienky (Minor Concerns)"))
     for (const f of buckets.minor) {
       children.push(
         new Paragraph({
@@ -250,15 +253,42 @@ export async function generateThesisReviewDocx(
   }
 
   if (isDoctoralOpponent && statutoryClause?.trim()) {
-    children.push(heading("Zákonné podmienky doktorského študijného programu"))
+    const statutoryHeading = review.language === "cs"
+      ? "Zákonné podmínky doktorského studijního programu"
+      : review.language === "en"
+        ? "Statutory Requirements of the Doctoral Study Programme"
+        : "Zákonné podmienky doktorského študijného programu"
+    children.push(heading(statutoryHeading))
     children.push(new Paragraph({ text: sanitizeXmlString(statutoryClause), spacing: { after: 200 } }))
+    const conclusionHeading = review.language === "cs"
+      ? "Závěrečné stanovisko"
+      : review.language === "en"
+        ? "Conclusive Statement"
+        : "Záverečné stanovisko"
+    const conclusiveRecommendation = finalRecommendation
+    if (conclusiveRecommendation?.trim()) {
+      children.push(heading(conclusionHeading))
+      children.push(new Paragraph({ text: sanitizeXmlString(conclusiveRecommendation.trim()), spacing: { after: 200 } }))
+    }
+  }
+
+  if (review.reportingGuidelineChecks?.length) {
+    children.push(heading(isGrant ? "Kontroly súladu, etiky a riadenia" : "Reporting Guideline Compliance"))
+    for (const check of review.reportingGuidelineChecks) {
+      children.push(new Paragraph({
+        text: sanitizeXmlString(`[${check.status.toUpperCase()}] ${check.item}: ${check.notes}`),
+        bullet: { level: 0 },
+        indent: { left: 360 },
+        spacing: { after: 80 },
+      }))
+    }
   }
 
   // Criteria Sections (for standard thesis reviews)
   if (findings.length === 0 && review.sections?.length > 0) {
     children.push(
       new Paragraph({
-        text: isPaper ? "Odborné posúdenie jednotlivých kritérií" : "Hodnotenie jednotlivých kritérií",
+        text: isEditorial ? (isGrant ? "Posúdenie grantových kritérií" : "Odborné posúdenie jednotlivých kritérií") : `${++sectionNo}. Hodnotenie jednotlivých kritérií`,
         heading: HeadingLevel.HEADING_2,
         spacing: { before: 300, after: 150 },
       })
@@ -268,7 +298,7 @@ export async function generateThesisReviewDocx(
         new Paragraph({
           children: [
             new TextRun({ text: sanitizeXmlString(`${sec.criterionId || sec.sectionId}: `), bold: true }),
-            ...(isPaper ? [] : [new TextRun({ text: sanitizeXmlString(`(Známka: ${sec.rating || "---"})`), italics: true })]),
+            ...(isEditorial ? [] : [new TextRun({ text: sanitizeXmlString(`(Známka: ${sec.rating || "---"})`), italics: true })]),
           ],
           spacing: { before: 150, after: 50 },
         })
@@ -282,15 +312,13 @@ export async function generateThesisReviewDocx(
     }
   }
 
-  // Questions for Authors / Defense Questions
-  const questions = review.questionsForAuthors || review.defenseQuestions || []
+  // Questions for authors/applicants or thesis defence.
+  const questions = isEditorial ? (review.questionsForAuthors ?? []) : (review.defenseQuestions ?? [])
   if (questions.length > 0) {
     children.push(
-      new Paragraph({
-        text: isPaper ? "5. Otázky pre autorov (Questions for the Authors)" : "5. Otázky k obhajobe",
-        heading: HeadingLevel.HEADING_2,
-        spacing: { before: 300, after: 150 },
-      })
+      heading(isEditorial
+        ? (isGrant ? "Otázky pre žiadateľa (Questions for the Applicant)" : "Otázky pre autorov (Questions for the Authors)")
+        : "Otázky k obhajobe")
     )
     questions.forEach((q: string, idx: number) => {
       children.push(
@@ -304,13 +332,11 @@ export async function generateThesisReviewDocx(
 
   // Transparent AI-assistance disclosure is included in every formal export.
   children.push(
+    heading("Vyhlásenie o AI asistencii / AI Assistance Disclosure"),
     new Paragraph({
-      text: "Vyhlásenie o AI asistencii / AI Assistance Disclosure",
-      heading: HeadingLevel.HEADING_2,
-      spacing: { before: 300, after: 100 },
-    }),
-    new Paragraph({
-      text: "Koncept recenzie bol pripravený s podporou evidenciou podloženého AI asistenta PosterApp. Konečné odborné posúdenie a rozhodnutie patrí ľudskému recenzentovi.",
+      text: isGrant
+        ? "Návrh hodnotenia pripravil AI asistent PosterApp. Konečné rozhodnutie o financovaní patrí ľudskej hodnotiacej komisii."
+        : "Koncept recenzie bol pripravený s podporou evidenciou podloženého AI asistenta PosterApp. Konečné odborné posúdenie a rozhodnutie patrí ľudskému recenzentovi.",
       spacing: { after: 200 },
     }),
   )
@@ -346,9 +372,11 @@ export async function generateThesisReviewDocx(
       new Paragraph({
         children: [
           new TextRun({
-            text: isPaper
-              ? "⚠ DÔVERNÉ / CONFIDENTIAL — Nesprístupňovať autorom rukopisu"
-              : "⚠ DÔVERNÉ / CONFIDENTIAL — Nesprístupňovať autorovi práce",
+            text: isGrant
+              ? "⚠ DÔVERNÉ / CONFIDENTIAL — Nesprístupňovať žiadateľovi"
+              : isPaper
+                ? "⚠ DÔVERNÉ / CONFIDENTIAL — Nesprístupňovať autorom rukopisu"
+                : "⚠ DÔVERNÉ / CONFIDENTIAL — Nesprístupňovať autorovi práce",
             bold: true,
             color: "CC0000",
           }),

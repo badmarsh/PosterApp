@@ -225,6 +225,10 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
   const effectiveSourceMarkdown = storeSourceMarkdown || sourceMarkdown
   const lang: ReviewLanguage = activeReview?.language || "sk"
   const rawFindings = activeReview?.findings
+  const isEditorialReview = activeReview?.reviewKind === "paper" || activeReview?.reviewKind === "grant"
+  const currentReviewQuestions = isEditorialReview
+    ? activeReview?.questionsForAuthors ?? []
+    : activeReview?.defenseQuestions ?? []
 
   // Memoize findings
   const findings = useMemo(() => rawFindings ?? [], [rawFindings])
@@ -1188,9 +1192,9 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Otázky k obhajobe ({(activeReview.questionsForAuthors || activeReview.defenseQuestions || []).length})
+                  {isEditorialReview ? (activeReview.reviewKind === "grant" ? "Otázky pre žiadateľa" : "Otázky pre autorov") : "Otázky k obhajobe"} ({currentReviewQuestions.length})
                 </button>
-                <button
+                {!isEditorialReview && <button
                   type="button"
                   onClick={() => setActiveDefenseTab("prep")}
                   className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${
@@ -1201,26 +1205,25 @@ export function ExpertReviewWorkspace({ workspaceId, sourceMarkdown = "" }: Prop
                 >
                   <GraduationCap className="h-3.5 w-3.5 text-primary" />
                   Príprava na obhajobu & Argumenty
-                </button>
+                </button>}
               </div>
             </div>
 
-            {activeDefenseTab === "questions" ? (
+            {activeDefenseTab === "questions" || isEditorialReview ? (
               <DefenseQuestionsPanel
-                questions={activeReview.questionsForAuthors || activeReview.defenseQuestions || []}
+                questions={currentReviewQuestions}
                 lang={lang}
                 onUpdateQuestions={(newQuestions) => {
-                  updateReviewLocally({
-                    questionsForAuthors: newQuestions,
-                    defenseQuestions: newQuestions,
-                  })
+                  updateReviewLocally(isEditorialReview
+                    ? { questionsForAuthors: newQuestions }
+                    : { defenseQuestions: newQuestions })
                 }}
               />
             ) : (
               <DefensePrepPanel
                 workspaceId={workspaceId}
                 findings={activeReview.findings ?? []}
-                existingQuestions={activeReview.questionsForAuthors || activeReview.defenseQuestions || []}
+                existingQuestions={currentReviewQuestions}
               />
             )}
           </div>

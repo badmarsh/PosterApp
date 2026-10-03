@@ -3,6 +3,7 @@ import {
   escapeLatex,
   generateThesisReviewLatex,
 } from "@/lib/latex/generator-thesis-review"
+import { reviewMetaFromRecord } from "@/lib/latex/thesis-review-meta"
 
 describe("LaTeX Escaping & Formatting", () => {
   it("escapes backslashes without corrupting subsequently added curly braces (single-pass)", () => {
@@ -97,7 +98,8 @@ describe("Thesis Review LaTeX Generator", () => {
         rating: "C",
         suggestions: [],
       }],
-      defenseQuestions: ["How was the protocol preregistered?"],
+      defenseQuestions: ["CALIBRATED THESIS DEFENCE QUESTION — MUST NOT APPEAR"],
+      questionsForAuthors: ["How was the protocol preregistered?"],
       citationIssues: [],
       language: "en",
       template: "posudok-en",
@@ -105,9 +107,36 @@ describe("Thesis Review LaTeX Generator", () => {
 
     expect(tex).toContain("SCIENTIFIC PAPER PEER REVIEW")
     expect(tex).toContain("QUESTIONS FOR THE AUTHORS")
+    expect(tex).toContain("How was the protocol preregistered?")
+    expect(tex).not.toContain("CALIBRATED THESIS DEFENCE QUESTION")
     expect(tex).toContain("PUBLICATION RECOMMENDATION")
     expect(tex).toContain("AI Assistance Disclosure")
     expect(tex).not.toMatch(/THESIS ASSESSMENT|Thesis title|Proposed grade|DEFENSE QUESTIONS|\\ratingsymbol\{[AC]\}/)
+  })
+
+  it("exports grant questions for the applicant without thesis grading or defence questions", () => {
+    const tex = generateThesisReviewLatex({
+      reviewKind: "grant",
+      studentName: "Dr. A. Applicant",
+      thesisTitle: "Open Methods Research Proposal",
+      thesisType: "phd",
+      reviewerRole: "reviewer",
+      grade: "A",
+      recommendation: "Recommend funding.",
+      sections: [],
+      defenseQuestions: ["THESIS-STYLE QUESTION — MUST NOT APPEAR"],
+      questionsForAuthors: ["How will the team mitigate recruitment delays?"],
+      citationIssues: [],
+      language: "en",
+      template: "posudok-en",
+    })
+    expect(tex).toContain("GRANT PROPOSAL REVIEW")
+    expect(tex).toContain("QUESTIONS FOR THE APPLICANT")
+    expect(tex).toContain("How will the team mitigate recruitment delays?")
+    expect(tex).not.toContain("THESIS-STYLE QUESTION")
+    expect(tex).toContain("FUNDING RECOMMENDATION")
+    expect(tex).not.toMatch(/\\ratingsymbol\s*\{A\}/)
+    expect(tex).not.toContain("ECTS")
   })
 
   it("generates English review with English header and labels", () => {
@@ -439,6 +468,26 @@ describe("Report languages beyond the AI rubric (de/pl/hu)", () => {
     expect(tex).toContain("4. Zákonné podmienky doktorského študijného programu")
     expect(tex).toContain("§ 67")
     expect(tex).not.toContain("§ 54 ods")
+  })
+})
+
+describe("reviewMetaFromRecord question-channel separation", () => {
+  it("never substitutes legacy thesis defence questions for paper author questions", () => {
+    const meta = reviewMetaFromRecord({
+      reviewKind: "paper",
+      defenseQuestions: ["THESIS-STYLE QUESTION — MUST NOT LEAK"],
+      questionsForAuthors: undefined,
+    })
+    expect(meta.defenseQuestions).toEqual([])
+    expect(meta.questionsForAuthors).toEqual([])
+
+    const withAuthorQuestions = reviewMetaFromRecord({
+      reviewKind: "paper",
+      defenseQuestions: ["THESIS-STYLE QUESTION — MUST NOT LEAK"],
+      questionsForAuthors: ["How was the sample size determined?"],
+    })
+    expect(withAuthorQuestions.defenseQuestions).toEqual([])
+    expect(withAuthorQuestions.questionsForAuthors).toEqual(["How was the sample size determined?"])
   })
 })
 

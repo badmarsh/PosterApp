@@ -52,9 +52,11 @@ import {
   AUTO_APPLY_CONFIDENCE_THRESHOLD,
   shouldApplyEctsGrading,
   shouldUseProfessionalMode,
+  shouldRunPhdEnrichment,
 } from "./thesis-review-policy"
 import type { ReviewStage } from "./review-stages"
 import { stableEvidenceAnchor } from "./evidence-validator"
+import { buildBudgetedReviewContext, MAX_REVIEW_CONTEXT_CHARS } from "./context-budget"
 
 export interface PipelineParams {
   workspaceId: string
@@ -68,6 +70,67 @@ export interface PipelineParams {
 export interface PipelineResult {
   saved: { id: string }
   responsePayload: Record<string, unknown>
+}
+
+type PipelineCriterion = {
+  id: string
+  key: string
+  category: string
+  weight: number
+  labels: Record<ReviewLanguage, string>
+  description: Record<ReviewLanguage, string>
+  cautionGuidance: Record<ReviewLanguage, string>
+  prohibitedInferences: Record<ReviewLanguage, string[]>
+  guidance: Record<ReviewLanguage, string>
+}
+
+type EditorialCriterionSeed = Omit<PipelineCriterion, "key" | "description" | "cautionGuidance" | "prohibitedInferences" | "guidance">
+
+const EDITORIAL_CRITERIA: Record<"paper" | "grant", EditorialCriterionSeed[]> = {
+  paper: [
+    { id: "problem_relevance", category: "scope", weight: 12, labels: { sk: "Význam, rozsah a vhodnosť článku", cs: "Význam, rozsah a vhodnost článku", en: "Significance, scope, and fit" } },
+    { id: "methodology_rigor", category: "methods", weight: 22, labels: { sk: "Metodika, analýza a štatistika", cs: "Metodika, analýza a statistika", en: "Methods, analysis, and statistics" } },
+    { id: "results_validity", category: "results", weight: 18, labels: { sk: "Platnosť výsledkov a záverov", cs: "Platnost výsledků a závěrů", en: "Validity of results and conclusions" } },
+    { id: "originality_contribution", category: "novelty", weight: 14, labels: { sk: "Originalita a prínos", cs: "Originalita a přínos", en: "Originality and contribution" } },
+    { id: "citations_quality", category: "literature", weight: 10, labels: { sk: "Literatúra a citácie", cs: "Literatura a citace", en: "Literature and citations" } },
+    { id: "ethics_transparency", category: "ethics", weight: 10, labels: { sk: "Etika a transparentnosť", cs: "Etika a transparentnost", en: "Ethics and transparency" } },
+    { id: "reproducibility", category: "reproducibility", weight: 8, labels: { sk: "Reprodukovateľnosť a otvorená veda", cs: "Reprodukovatelnost a otevřená věda", en: "Reproducibility and open science" } },
+    { id: "structure_coherence", category: "presentation", weight: 6, labels: { sk: "Štruktúra a zrozumiteľnosť", cs: "Struktura a srozumitelnost", en: "Structure and clarity" } },
+  ],
+  grant: [
+    { id: "problem_relevance", category: "significance", weight: 18, labels: { sk: "Význam problému a súlad výzvy", cs: "Význam problému a soulad výzvy", en: "Problem significance and call fit" } },
+    { id: "objectives_clarity", category: "objectives", weight: 12, labels: { sk: "Ciele a očakávaný prínos", cs: "Cíle a očekávaný přínos", en: "Aims and expected contribution" } },
+    { id: "methodology_rigor", category: "feasibility", weight: 20, labels: { sk: "Metodika, plán a uskutočniteľnosť", cs: "Metodika, plán a proveditelnost", en: "Methods, work plan, and feasibility" } },
+    { id: "originality_contribution", category: "impact", weight: 15, labels: { sk: "Novosť a očakávaný dopad", cs: "Novost a očekávaný dopad", en: "Novelty and expected impact" } },
+    { id: "results_validity", category: "deliverables", weight: 10, labels: { sk: "Výstupy, míľniky a vyhodnotenie", cs: "Výstupy, milníky a vyhodnocení", en: "Deliverables, milestones, and evaluation" } },
+    { id: "resource_feasibility", category: "resources", weight: 15, labels: { sk: "Tím, zdroje a rozpočet", cs: "Tým, zdroje a rozpočet", en: "Team, resources, and budget" } },
+    { id: "ethics_transparency", category: "ethics", weight: 10, labels: { sk: "Etika, správa údajov a riadenie", cs: "Etika, správa dat a řízení", en: "Ethics, data governance, and oversight" } },
+  ],
+}
+
+function buildEditorialCriteria(
+  reviewKind: "paper" | "grant",
+  weightOverrides: Record<string, number> | null | undefined,
+  focusCriteria?: string[],
+): PipelineCriterion[] {
+  return EDITORIAL_CRITERIA[reviewKind]
+    .filter((criterion) => !focusCriteria?.length || focusCriteria.includes(criterion.id))
+    .map((criterion) => {
+      const guidanceByLanguage: Record<ReviewLanguage, string> = {
+        sk: `Posúďte ${criterion.labels.sk.toLowerCase()} na základe textu a dostupných dôkazov. Oddeľte doložené fakty, interpretáciu a chýbajúce informácie.`,
+        cs: `Posuďte ${criterion.labels.cs.toLowerCase()} na základě textu a dostupných důkazů. Oddělte doložená fakta, interpretaci a chybějící informace.`,
+        en: `Assess ${criterion.labels.en.toLowerCase()} from the text and available evidence. Separate supported facts, interpretation, and missing information.`,
+      }
+      return {
+        ...criterion,
+        key: criterion.id,
+        weight: weightOverrides?.[criterion.id] ?? criterion.weight,
+        description: guidanceByLanguage,
+        guidance: guidanceByLanguage,
+        cautionGuidance: { sk: "", cs: "", en: "" },
+        prohibitedInferences: { sk: [], cs: [], en: [] },
+      }
+    })
 }
 
 function throwIfCancelled(signal?: AbortSignal) {
@@ -91,13 +154,13 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     studentName: body.thesisMetadata.studentName || "Študent / Autor",
     thesisTitle: body.thesisMetadata.thesisTitle,
     thesisType: body.thesisMetadata.thesisType,
-    reviewerRole: body.thesisMetadata.reviewerRole === "supervisor"
-      ? "supervisor"
-      : body.thesisMetadata.reviewerRole === "self"
-      ? "self"
-      : body.thesisMetadata.reviewerRole === "reviewer"
-      ? "reviewer"
-      : "opponent",
+    reviewerRole: ["supervisor", "self", "reviewer", "peer_reviewer", "editor", "opponent"].includes(body.thesisMetadata.reviewerRole)
+      ? body.thesisMetadata.reviewerRole
+      : reviewKind === "thesis"
+        ? "opponent"
+        : reviewKind === "grant"
+          ? "reviewer"
+          : "peer_reviewer",
     reviewerName: body.thesisMetadata.reviewerName,
     institution: body.thesisMetadata.institution,
     department: body.thesisMetadata.department,
@@ -151,29 +214,28 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
   const template = body.rubricTemplateId ? getFacultyRubricTemplate(body.rubricTemplateId) : null
   const weightOverrides = body.customWeights || (template ? Object.fromEntries(template.criteria.map((c) => [c.id, c.weight])) : null)
 
-  const activeCriteria = SK_ACADEMIC_RUBRIC_V1.criteria
-    .filter((c) => {
-      if (body.focusCriteria?.length && !body.focusCriteria.includes(c.id)) return false
-      return applicableCriterionMap.has(c.id)
-    })
-    .map((c) => {
-      const weight = weightOverrides && weightOverrides[c.id] != null ? weightOverrides[c.id] : c.weight
-      return {
-        id: c.id,
-        key: c.key,
-        category: c.category,
-        weight,
-        labels: c.labels,
-        description: c.description,
-        cautionGuidance: c.cautionGuidance,
-        prohibitedInferences: c.prohibitedInferences,
-        guidance: {
-          sk: `${c.description.sk}${c.cautionGuidance.sk ? ` Upozornenie: ${c.cautionGuidance.sk}` : ""}${c.prohibitedInferences.sk?.length ? ` Neusudzujte: ${c.prohibitedInferences.sk.join("; ")}` : ""}`,
-          cs: `${c.description.cs}${c.cautionGuidance.cs ? ` Upozornění: ${c.cautionGuidance.cs}` : ""}${c.prohibitedInferences.cs?.length ? ` Nevyvozujte: ${c.prohibitedInferences.cs.join("; ")}` : ""}`,
-          en: `${c.description.en}${c.cautionGuidance.en ? ` Caution: ${c.cautionGuidance.en}` : ""}${c.prohibitedInferences.en?.length ? ` Do not infer: ${c.prohibitedInferences.en.join("; ")}` : ""}`,
-        },
-      }
-    })
+  const activeCriteria: PipelineCriterion[] = isThesisReview
+    ? SK_ACADEMIC_RUBRIC_V1.criteria
+        .filter((c) => {
+          if (body.focusCriteria?.length && !body.focusCriteria.includes(c.id)) return false
+          return applicableCriterionMap.has(c.id)
+        })
+        .map((c) => ({
+          id: c.id,
+          key: c.key,
+          category: c.category,
+          weight: weightOverrides && weightOverrides[c.id] != null ? weightOverrides[c.id] : c.weight,
+          labels: c.labels,
+          description: c.description,
+          cautionGuidance: c.cautionGuidance,
+          prohibitedInferences: c.prohibitedInferences,
+          guidance: {
+            sk: `${c.description.sk}${c.cautionGuidance.sk ? ` Upozornenie: ${c.cautionGuidance.sk}` : ""}${c.prohibitedInferences.sk?.length ? ` Neusudzujte: ${c.prohibitedInferences.sk.join("; ")}` : ""}`,
+            cs: `${c.description.cs}${c.cautionGuidance.cs ? ` Upozornění: ${c.cautionGuidance.cs}` : ""}${c.prohibitedInferences.cs?.length ? ` Nevyvozujte: ${c.prohibitedInferences.cs.join("; ")}` : ""}`,
+            en: `${c.description.en}${c.cautionGuidance.en ? ` Caution: ${c.cautionGuidance.en}` : ""}${c.prohibitedInferences.en?.length ? ` Do not infer: ${c.prohibitedInferences.en.join("; ")}` : ""}`,
+          },
+        }))
+    : buildEditorialCriteria(reviewKind, weightOverrides, body.focusCriteria)
   const activeCriterionIds = activeCriteria.map((c) => c.id)
 
   const detectedReportingGuideline = detectReportingGuideline(ragContext.fullText)
@@ -207,7 +269,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
   } catch { /* non-fatal */ }
 
   // 2. Routed context
-  const routedBudget = Math.floor(THESIS_CONTEXT_BUDGETS.fullGeneration * THESIS_CONTEXT_SHARES.routed)
+  const routedBudget = THESIS_CONTEXT_BUDGETS.fullGeneration
   const vectorBudgetReserved = Math.floor(THESIS_CONTEXT_BUDGETS.fullGeneration * THESIS_CONTEXT_SHARES.vector)
   const { contextText: routedContext, selectedChars, truncated } = buildFullGenerationContext(ragContext, activeCriterionIds, routedBudget)
 
@@ -261,7 +323,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
   const modelOverrides = parseAiModelOverrides(params.headers)
   const clientApiKey = parseAiApiKey(params.headers)
   const criterionVectorContextParts = new Map<string, string>()
-  const retrievedChunkMap = new Map<string, { anchor: string; heading: string | null; content: string; kind?: string }>()
+  const retrievedChunkMap = new Map<string, { anchor: string; heading: string | null; content: string; kind?: string; pageStart?: number | null; pageEnd?: number | null; sectionPath?: string | null; score: number }>()
   let retrievalDone = 0
   try {
     const hypotheses = await generateHypotheses(
@@ -306,8 +368,17 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
           const labeled = chunks.map((ch) => {
             const anchor = stableEvidenceAnchor(ch.id)
             const existing = retrievedChunkMap.get(ch.id)
-            if (!existing || ch.content.length > existing.content.length) {
-              retrievedChunkMap.set(ch.id, { anchor, heading: ch.heading, content: ch.content, kind: ch.kind })
+            if (!existing || ch.relevanceScore > existing.score || (ch.relevanceScore === existing.score && ch.content.length > existing.content.length)) {
+              retrievedChunkMap.set(ch.id, {
+                anchor,
+                heading: ch.heading,
+                content: ch.content,
+                kind: ch.kind,
+                pageStart: ch.pageStart,
+                pageEnd: ch.pageEnd,
+                sectionPath: ch.sectionPath,
+                score: ch.relevanceScore,
+              })
             }
             return `[${anchor}]${ch.heading ? ` ${ch.heading}` : ""}\n${ch.content}`
           })
@@ -323,11 +394,19 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     console.warn("[review-pipeline] pgvector augmentation skipped:", vectorErr)
   }
 
-  const orderedVectorContext = activeCriteria
-    .map((criterion) => criterionVectorContextParts.get(criterion.id))
-    .filter((part): part is string => Boolean(part))
-  const vectorAugmentation = orderedVectorContext.length > 0
-    ? orderedVectorContext.join("\n\n---\n\n").slice(0, vectorBudgetReserved)
+  const vectorSources = activeCriteria
+    .map((criterion) => ({ criterion, content: criterionVectorContextParts.get(criterion.id) }))
+    .filter((entry): entry is { criterion: typeof activeCriteria[number]; content: string } => Boolean(entry.content))
+  const vectorAugmentation = vectorSources.length > 0
+    ? buildBudgetedReviewContext(
+        vectorSources.map(({ criterion, content }) => ({
+          key: criterion.id,
+          label: `Vector evidence for ${criterion.id}`,
+          content,
+          weight: 1,
+        })),
+        vectorBudgetReserved
+      ).contextText
     : ""
 
   // 2c. GraphRAG augmentation
@@ -363,11 +442,20 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     .map((c) => `[${c.id}] ${c.labels[lang]} (weight: ${c.weight}%)\nGuidance: ${c.guidance[lang]}`)
     .join("\n\n")
 
-  const sourceContextWithAudit = routedContext
-    + (preGroundingText ? `\n\n${preGroundingText}` : "")
-    + (vectorAugmentation ? `\n\n[Vector-Retrieved Evidence — cite chunks by anchor, e.g. (c17)]\n${vectorAugmentation}` : "")
-    + (graphAugmentation ? `\n\n[GraphRAG Knowledge Graph]\n${graphAugmentation}` : "")
-    + (citationAuditSummary ? `\n\n[Citation Audit (Advisory)]\n${citationAuditSummary}` : "")
+  // Bound the complete manuscript-derived context together. Every source is
+  // charged against the same hard 60k ceiling, including wrappers and labels.
+  const assembledSourceContext = buildBudgetedReviewContext(
+    [
+      { key: "routed", label: "Routed manuscript excerpts", content: routedContext, weight: THESIS_CONTEXT_SHARES.routed },
+      { key: "grounding", label: "Pre-generation evidence grounding", content: preGroundingText, weight: THESIS_CONTEXT_SHARES.grounding },
+      { key: "vector", label: "Vector-retrieved evidence and citation anchors", content: vectorAugmentation, weight: THESIS_CONTEXT_SHARES.vector },
+      { key: "graph", label: "Knowledge graph context", content: graphAugmentation, weight: THESIS_CONTEXT_SHARES.graph },
+      { key: "citation-audit", label: "Citation audit (advisory)", content: citationAuditSummary, weight: THESIS_CONTEXT_SHARES.citationAudit },
+    ],
+    MAX_REVIEW_CONTEXT_CHARS - 256
+  )
+  const sourceContextWithAudit = assembledSourceContext.contextText
+  const assembledSelectedChars = assembledSourceContext.selectedChars
 
   const effectiveReviewTone = body.reviewTone ?? (normalizedMetadata.reviewerRole === "supervisor" || normalizedMetadata.reviewerRole === "self" ? "constructive" : "formal")
   const systemPrompt = buildSystemPrompt(lang, normalizedMetadata, effectiveReviewTone)
@@ -383,21 +471,21 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
 
   // Agentic decomposition opt-out (default ON for professional reviews; set
   // agenticReview:false to force the monolithic call).
-  const useAgentic = useProfessionalMode && body.agenticReview !== false && process.env.AI_AGENTIC_REVIEW !== "false"
+  const useAgentic = useProfessionalMode && reviewKind === "thesis" &&
+    !shouldRunPhdEnrichment(reviewKind, body.thesisMetadata.thesisType, normalizedMetadata.reviewerRole) &&
+    effectiveReportingStandard === "none" &&
+    body.agenticReview !== false && process.env.AI_AGENTIC_REVIEW !== "false"
 
   let result: any
   let professionalResult: any = null
   let calibratedDefenseQuestions: string[] | null = null
+  let questionsForAuthors: string[] = []
   const reviewProvenance: { source?: AIProviderSource } = {}
 
   // Preserve the exact same stable anchor shown in retrieval context.
-  const evidenceChunks = Array.from(retrievedChunkMap.entries()).map(([id, c]) => ({
-    id,
-    anchor: c.anchor,
-    heading: c.heading,
-    content: c.content,
-    kind: c.kind,
-  }))
+  const evidenceChunks = Array.from(retrievedChunkMap.entries())
+    .map(([id, c]) => ({ id, ...c }))
+    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
 
   if (useAgentic) {
     // ---- Agentic per-criterion path (auditable, cacheable, no prefix truncation) ----
@@ -409,7 +497,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       language: lang,
       reviewKind,
       thesisType: body.thesisMetadata.thesisType,
-      reviewerRole: body.thesisMetadata.reviewerRole,
+      reviewerRole: normalizedMetadata.reviewerRole,
       detailedThesisType: rubricDocumentType,
       sourceRevision,
       signal,
@@ -500,12 +588,16 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       graphAugmentation,
       vectorAugmentation,
       evidenceChunks: evidenceChunks.length > 0 ? evidenceChunks : undefined,
+      citationAuditSummary,
       onProgress: (stage: string, detail?: string) => report(stage as ReviewStage, detail),
       signal,
       apiKey: clientApiKey,
       modelOverrides,
     })
-    calibratedDefenseQuestions = normalizeDefenseQuestions(professionalResult.defenseQuestions)
+    calibratedDefenseQuestions = normalizeDefenseQuestions(professionalResult.defenseQuestions ?? [])
+    questionsForAuthors = reviewKind === "thesis"
+      ? []
+      : normalizeDefenseQuestions(professionalResult.questionsForAuthors ?? [])
 
     const sections = activeCriteria.map((c) => {
       const matchingFindings = (professionalResult.anchoredFindings || []).filter((f: any) => {
@@ -641,9 +733,7 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
   // Doctoral opponent reviews must close with the conclusive statement. When
   // the model produced none, attach the statutory clause (if available) and
   // mark the verdict as pending so it can never look like an AI verdict.
-  const isDoctoralOpponent =
-    reviewKind !== "paper" && body.thesisMetadata.thesisType === "phd" && normalizedMetadata.reviewerRole === "opponent"
-  const statutoryClause: string | undefined = professionalResult?.phdEnrichment?.statutoryClause
+  const isDoctoralOpponent = shouldRunPhdEnrichment(reviewKind, body.thesisMetadata.thesisType, normalizedMetadata.reviewerRole)
   if (isDoctoralOpponent) {
     if (!result.recommendation) {
       result.recommendation =
@@ -652,8 +742,6 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
           : lang === "cs"
             ? "Závěrečné stanovisko (doporučení k obhajobě a návrh titulu) doplní a podepíše recenzent."
             : "The conclusive statement (recommendation for defence and proposed title) must be added and signed by the reviewer."
-    } else if (statutoryClause && !result.recommendation.includes("§")) {
-      result.recommendation = `${result.recommendation} ${statutoryClause}`
     }
   }
 
@@ -685,7 +773,8 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
       recommendation: result.recommendation,
       suggestedRecommendation: professionalResult?.recommendation ?? result.recommendation ?? null,
       sections: JSON.stringify(result.sections),
-      defenseQuestions: JSON.stringify(calibratedDefenseQuestions ?? result.defenseQuestions),
+      defenseQuestions: JSON.stringify(isThesisReview ? (calibratedDefenseQuestions ?? result.defenseQuestions) : []),
+      questionsForAuthors: JSON.stringify(isThesisReview ? [] : questionsForAuthors),
       citationIssues: JSON.stringify([...result.citationIssues, ...(citationAuditSummary ? [citationAuditSummary] : [])]),
       reviewKind,
       targetVenue: body.thesisMetadata.targetVenue ?? null,
@@ -728,6 +817,8 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     id: saved.id,
     ...result,
     reviewKind,
+    defenseQuestions: isThesisReview ? (calibratedDefenseQuestions ?? result.defenseQuestions ?? []) : [],
+    questionsForAuthors: isThesisReview ? [] : questionsForAuthors,
     targetVenue: body.thesisMetadata.targetVenue,
     summary: finalSummary,
     strengths: finalStrengths,
@@ -750,8 +841,8 @@ export async function runReviewPipeline(params: PipelineParams): Promise<Pipelin
     agentic: useAgentic,
     ragStats: {
       totalChars: ragContext.totalChars,
-      selectedChars: professionalResult?.contextCoverage?.selectedChars ?? selectedChars,
-      truncated: professionalResult?.contextCoverage?.truncated ?? truncated,
+      selectedChars: professionalResult?.contextCoverage?.selectedChars ?? assembledSelectedChars,
+      truncated: professionalResult?.contextCoverage?.truncated ?? (truncated || assembledSourceContext.truncated),
       referencesFound: ragContext.referencesTitles.length,
       citationAuditRan: !body.skipCitationAudit && ragContext.referencesTitles.length > 0,
       evidenceChunks: retrievedChunkMap.size,

@@ -31,6 +31,28 @@ describe("shared generator ranking", () => {
     expect(result[0].score).toBeCloseTo(0.5 * 1.15)
   })
 
+  it("downranks front matter, contents, acknowledgements and irrelevant references", () => {
+    const rows = [
+      candidate("results", 0.7, "5 Results > Evaluation"),
+      candidate("front", 0.95, "Title page"),
+      candidate("contents", 0.9, "Table of Contents"),
+      candidate("thanks", 0.85, "Acknowledgements"),
+      candidate("refs", 0.8, "References"),
+    ]
+    const ranked = applySectionBoost(rows, ["results"])
+    expect(ranked[0].id).toBe("results")
+    expect(ranked.find((c) => c.id === "front")?.score).toBeCloseTo(0.95 * 0.45)
+    expect(ranked.find((c) => c.id === "contents")?.score).toBeCloseTo(0.9 * 0.35)
+    expect(ranked.find((c) => c.id === "thanks")?.score).toBeCloseTo(0.85 * 0.35)
+    expect(ranked.find((c) => c.id === "refs")?.score).toBeCloseTo(0.8 * 0.35)
+  })
+
+  it("keeps references eligible for a citation-focused route", () => {
+    const [reference] = applySectionBoost([candidate("ref", 0.8, "References")], ["bibliography"])
+    expect(reference.score).toBeCloseTo(0.8 * 1.15)
+    expect(reference.meta?.sectionPenalty).toBeUndefined()
+  })
+
   it("preserves first-seen ties, empty input and absent preferences", () => {
     const rows = [candidate("first", 0.8), candidate("second", 0.8), candidate("first", 0.8, "Later")]
     expect(mergeDenseCandidates(rows, [], 10)).toEqual([rows[0], rows[1]])

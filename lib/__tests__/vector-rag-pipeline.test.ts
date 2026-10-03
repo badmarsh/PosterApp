@@ -91,15 +91,18 @@ describe("generateHypotheticalDocument", () => {
     expect(doc.length).toBeGreaterThan(0)
   })
 
-  it("generates English hypothetical document for English queries", async () => {
+  it("generates a cautious, non-assertive English hypothetical passage", async () => {
     const doc = await generateHypotheticalDocument("experimental methodology and dataset", "Computer Science", "en")
-    expect(doc).toContain("In this work")
     expect(doc).toContain("Computer Science")
+    expect(doc).toContain("No specific method or outcome is assumed.")
+    expect(doc).not.toContain("In this work")
   })
 
-  it("generates Czech hypothetical document for Czech queries", async () => {
+  it("generates a cautious Czech passage without inventing results", async () => {
     const doc = await generateHypotheticalDocument("shrnutí výsledků", "Chemie", "cs")
-    expect(doc).toContain("práce")
+    expect(doc).toContain("Chemie")
+    expect(doc).toContain("výsledky")
+    expect(doc).toContain("Nepředpokládá se žádný konkrétní výsledek")
     expect(doc.length).toBeGreaterThan(50)
   })
 })

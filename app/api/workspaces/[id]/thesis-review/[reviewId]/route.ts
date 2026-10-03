@@ -32,6 +32,7 @@ const UpdateSchema = z.object({
   confirmedAt: z.union([z.string(), z.date()]).optional().nullable(),
   sections: z.union([z.string(), z.array(z.any())]).optional().nullable(),
   defenseQuestions: z.union([z.string(), z.array(z.any())]).optional().nullable(),
+  questionsForAuthors: z.union([z.string(), z.array(z.any())]).optional().nullable(),
   citationIssues: z.union([z.string(), z.array(z.any())]).optional().nullable(),
   reviewKind: z.string().optional().nullable(),
   targetVenue: z.string().max(500).optional().nullable(),

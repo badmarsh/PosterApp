@@ -11,6 +11,7 @@ import {
   GraduationCap,
   Wrench,
   FileSearch,
+  ClipboardCheck,
   type LucideIcon,
 } from "lucide-react"
 import type { ReviewerRole } from "@/lib/ai/thesis-rubric"
@@ -77,6 +78,30 @@ export const REVIEW_ROLE_META: Record<ReviewerRole, RoleMeta> = {
     banner: "border-status-ambiguous/50 bg-status-ambiguous/10 dark:bg-status-ambiguous/15 text-status-ambiguous dark:text-status-ambiguous",
     badge: "bg-status-ambiguous/15 text-status-ambiguous border-status-ambiguous/40 dark:bg-status-ambiguous/25 dark:text-status-ambiguous dark:border-status-ambiguous/40",
     accent: "text-status-ambiguous dark:text-status-ambiguous",
+  },
+  peer_reviewer: {
+    icon: FileSearch,
+    sk: "Odborný recenzent",
+    cs: "Odborný recenzent",
+    en: "Peer Reviewer",
+    skSub: "Nezávislé odborné posúdenie rukopisu",
+    csSub: "Nezávislé odborné posouzení rukopisu",
+    enSub: "Independent scholarly assessment of a manuscript",
+    banner: "border-status-ambiguous/50 bg-status-ambiguous/10 dark:bg-status-ambiguous/15 text-status-ambiguous dark:text-status-ambiguous",
+    badge: "bg-status-ambiguous/15 text-status-ambiguous border-status-ambiguous/40 dark:bg-status-ambiguous/25 dark:text-status-ambiguous dark:border-status-ambiguous/40",
+    accent: "text-status-ambiguous dark:text-status-ambiguous",
+  },
+  editor: {
+    icon: ClipboardCheck,
+    sk: "Editoriálne posúdenie",
+    cs: "Editoriální posouzení",
+    en: "Editorial Assessment",
+    skSub: "Triage zamerané na rozsah, etiku, súlad a pripravenosť rozhodnutia",
+    csSub: "Triage zaměřené na rozsah, etiku, soulad a připravenost rozhodnutí",
+    enSub: "Triage of scope, ethics, compliance, and decision readiness",
+    banner: "border-info/50 bg-info/10 dark:bg-info/15 text-info dark:text-info",
+    badge: "bg-info/15 text-info border-info/40 dark:bg-info/25 dark:text-info dark:border-info/40",
+    accent: "text-info dark:text-info",
   },
 }
 

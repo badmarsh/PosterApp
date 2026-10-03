@@ -65,8 +65,8 @@ export type StatutoryJurisdiction = "sk" | "cz" | "none"
 export interface StatutoryItem {
   id: string
   label: Record<"sk" | "cs" | "en", string>
-  /** Folded (diacritic-stripped, lowercase) terms any of which marks coverage. */
-  terms: Record<"sk" | "cz", string[]>
+  /** Folded term groups: every group must have at least one hit. */
+  terms: Record<"sk" | "cz" | "en", string[][]>
 }
 
 /**
@@ -79,65 +79,84 @@ export interface StatutoryItem {
 export const STATUTORY_REVIEW_ITEMS: StatutoryItem[] = [
   {
     id: "topic_currency",
-    label: { sk: "aktuálnosť zvolenej témy", cs: "aktuálnost zvoleného tématu", en: "timeliness of the topic" },
-    terms: { sk: ["aktualn", "vyzn"], cz: ["aktualn", "vyzn"] },
+    label: { sk: "aktuálnosť zvolenej témy", cs: "aktuálnost zvoleného tématu", en: "timeliness of the chosen topic" },
+    terms: {
+      sk: [["tema", "tematik"], ["aktualn", "sucasn", "casov", "relevantn"]],
+      cz: [["tema", "tematik"], ["aktualn", "sucasn", "casov", "relevantn"]],
+      en: [["topic"], ["timely", "current", "relevant", "significant", "contemporary"]],
+    },
   },
   {
     id: "methods",
-    label: { sk: "zvolené metódy spracovania", cs: "zvolené metody zpracování", en: "methods used" },
-    terms: { sk: ["metod", "postup riezenia"], cz: ["metod", "zpracovani"] },
+    label: { sk: "zvolené metódy spracovania", cs: "zvolené metody zpracování", en: "methods and procedure" },
+    terms: {
+      sk: [["metod"], ["postup", "spracovan", "zvolen", "opis"]],
+      cz: [["metod"], ["postup", "zpracovan", "zvolen", "popis"]],
+      en: [["method"], ["procedure", "approach", "process", "design"]],
+    },
   },
   {
     id: "results_novelty",
     label: {
       sk: "vyhodnotenie výsledkov a nových poznatkov",
       cs: "vyhodnocení výsledků a nových poznatků",
-      en: "results and new knowledge",
+      en: "assessment of results and new knowledge",
     },
-    terms: { sk: ["vysledk", "nove poznatk"], cz: ["vysledk", "nove poznatky"] },
+    terms: {
+      sk: [["vysledk", "zisten"], ["nove poznatk", "novy poznatk", "nove vedomost"]],
+      cz: [["vysledk", "zjisten"], ["nove poznatk", "novy poznatk", "nove vedomost"]],
+      en: [["result", "finding", "outcome"], ["new knowledge", "novel", "original finding", "new insight"]],
+    },
   },
   {
     id: "contribution",
     label: {
       sk: "prínos pre rozvoj vedy, techniky alebo umenia",
       cs: "přínos pro rozvoj vědy, techniky nebo umění",
-      en: "contribution to the development of science",
+      en: "contribution to the development of science, technology, or the arts",
     },
-    terms: { sk: ["prinos pre", "prinos v odbore", "prinos pre rozvoj"], cz: ["prinos pro", "prinos v oboru"] },
+    terms: {
+      sk: [["prinos"], ["rozvoj", "veda", "techn", "umen", "odbor"]],
+      cz: [["prinos"], ["rozvoj", "veda", "techn", "umen", "obor"]],
+      en: [["contribut"], ["science", "technology", "art", "field", "discipline", "development"]],
+    },
   },
   {
     id: "objective_fulfilment",
     label: {
       sk: "splnenie sledovaných cieľov a požiadaviek",
       cs: "splnění sledovaných cílů a požadavků",
-      en: "fulfilment of the stated objectives",
+      en: "fulfilment of stated objectives and requirements",
     },
-    terms: { sk: ["spln", "ciel bol", "ciele bol", "splnene"], cz: ["spln", "cil byl", "cile byl"] },
+    terms: {
+      sk: [["ciel", "ciele", "poziadavk"], ["spln", "dosiahn", "napln"]],
+      cz: [["cil", "cile", "pozadavk"], ["spln", "dosaz", "napln"]],
+      en: [["objective", "aim", "goal", "requirement"], ["achiev", "fulfil", "fulfill", "meet", "attain"]],
+    },
   },
 ]
 
 /**
- * The conclusive statement required for the review to be considered complete.
- * Patterns run against a diacritic-stripped, lowercased copy of the text (see
- * `stripDiacritics`) so both "odporúčam" and "oporucam" spellings match, and
- * they are deliberately tolerant of word order because reviewers phrase the
- * sentence differently ("Prácu odporúčam na obhajobu" / "Odporúčam prácu
- * na obhajobu").
+ * Required conclusion components: demonstrated research ability, an explicit
+ * defence recommendation, and a proposed doctoral-degree award. Patterns run
+ * against diacritic-folded text to support SK/CZ and English reports.
  */
-const CONCLUSIVE_PATTERNS: Record<StatutoryJurisdiction, RegExp[]> = {
-  none: [],
-  sk: [
-    /odporucam[^\n]{0,60}obhajobu/,
-    /praca sp(?:l|n)a[^\n]{0,40}podmienky/,
-    /navrhujem udelenie[^\n]{0,40}titulu/,
-    /zavazujem[^\n]{0,60}obhajobu/,
-  ],
-  cz: [
-    /doporucuji[^\n]{0,60}obhajob/,
-    /prace splnuje[^\n]{0,40}po(ad|z)avky/,
-    /navrhuji udeleni[^\n]{0,40}titulu/,
-  ],
-}
+const ABILITY_PATTERNS = [
+  /(?:schopnost|sposobilost|predpoklad)[^.!?\n]{0,120}(?:vedeck|vyzkum|samostatn|research|scientific)/,
+  /(?:vedeck|vyzkum|samostatn|research|scientific)[^.!?\n]{0,120}(?:schopnost|sposobilost|ability|capacity|competence)/,
+  /(?:demonstrat|prokaz|preukaz)[^.!?\n]{0,100}(?:ability|schopnost|spusobilost|vedeck|research)/,
+]
+
+const DEFENCE_RECOMMENDATION_PATTERNS = [
+  /(?:odporuc|doporuc|navrhuj|recommend|propos)[^.!?\n]{0,140}(?:obhajob|defen[cs]e|defend)/,
+  /(?:obhajob|defen[cs]e|defend)[^.!?\n]{0,140}(?:odporuc|doporuc|navrhuj|recommend|propos)/,
+]
+
+const DEGREE_AWARD_PATTERNS = [
+  /(?:navrhuj|doporuc|recommend|propos)[^.!?\n]{0,160}(?:udelen|udelit|award|grant|confer|akademick.{0,20}titul|doctoral degree|ph\.?d)/,
+  /(?:award|grant|confer|udelen|udelit)[^.!?\n]{0,100}(?:ph\.?d|doktor|academic title|akademick.{0,20}titul|degree)/,
+  /(?:ph\.?d|doktor|degree|titul)[^.!?\n]{0,100}(?:udelen|udelit|award|grant|confer)/,
+]
 
 /** Diacritic + case folding so wording is found in any spelling variant. */
 export function stripDiacritics(value: string): string {
@@ -151,9 +170,14 @@ export function stripDiacritics(value: string): string {
 /** Sentence-level claim that the review is based on fragments only. */
 const EXCERPT_BOUND_PATTERN = /z dostupn.{0,3}ch\s+(uryvk|vysk|extract)|from the available excerpts|excerptov/
 
-/** True when `text` contains a conclusive statement (recommendation + title). */
+/** True only when ability, defence recommendation, and degree award are all explicit. */
 export function hasConclusiveStatement(text: string, jurisdiction: StatutoryJurisdiction): boolean {
-  return CONCLUSIVE_PATTERNS[jurisdiction].some((re) => re.test(stripDiacritics(text || "")))
+  if (jurisdiction === "none") return false
+  const folded = stripDiacritics(text || "")
+  const hasAbility = ABILITY_PATTERNS.some((re) => re.test(folded))
+  const hasDefenceRecommendation = DEFENCE_RECOMMENDATION_PATTERNS.some((re) => re.test(folded))
+  const hasDegreeAward = DEGREE_AWARD_PATTERNS.some((re) => re.test(folded))
+  return hasAbility && hasDefenceRecommendation && hasDegreeAward
 }
 
 export interface StatutoryCheckInput {
@@ -191,29 +215,17 @@ function isDoctoralOpponentReview(input: StatutoryCheckInput): boolean {
 export function detectStatutoryJurisdiction(
   input: Pick<StatutoryCheckInput, "language" | "institution">
 ): StatutoryJurisdiction {
-  const inst = (input.institution || "").toLowerCase()
-  if (
-    input.language === "cs" ||
-    inst.includes("czech") ||
-    inst.includes("česk") ||
-    inst.includes("karlova") ||
-    inst.includes("morav") ||
-    inst.includes("siles")
-  ) {
-    return "cz"
-  }
-  if (
-    input.language === "sk" ||
-    inst.includes("slovak") ||
-    inst.includes("slovensk") ||
-    inst.includes("komenskeho") ||
-    inst.includes("pavol josef") ||
-    inst.includes("stuba") ||
-    inst.includes("technicka univerzita")
-  ) {
-    return "sk"
-  }
-  // Neither legal system recognised: no statutory framing at all.
+  const inst = stripDiacritics(input.institution || "")
+  const czechInstitution = ["czech", "cesk", "karlova", "masaryk", "mendel", "palack", "siles", "brno", "praha", "ostrava", "olomouc", "cvut", "vut "]
+    .some((marker) => inst.includes(marker))
+  const slovakInstitution = ["slovak", "slovensk", "komenskeho", "pavol jozef", "safarik", "stuba", "tuke", "zilina", "kosice", "technicka univerzita"]
+    .some((marker) => inst.includes(marker))
+
+  // An explicit institution is stronger jurisdictional evidence than report language.
+  if (czechInstitution) return "cz"
+  if (slovakInstitution) return "sk"
+  if (input.language === "cs") return "cz"
+  if (input.language === "sk") return "sk"
   return "none"
 }
 
@@ -244,18 +256,26 @@ export function checkStatutoryPosudok(params: {
   const applies = isDoctoralOpponentReview(params.input) && hasStatutoryFramework(params.input)
   const text = params.text || ""
   const foldedText = stripDiacritics(text)
-  const haystack = stripDiacritics(`${text}\n${(params.citationIssues || []).join("\n")}`)
+  const reviewClauses = foldedText.split(/[.!?;\n]+/).map((clause) => clause.trim()).filter(Boolean)
+  const language = params.input.language === "en"
+    ? "en"
+    : jurisdiction === "cz"
+      ? "cs"
+      : "sk"
 
   const covered: string[] = []
   const missing: string[] = []
-  for (const item of STATUTORY_REVIEW_ITEMS) {
-    const terms = jurisdiction === "cz" ? item.terms.cz : item.terms.sk
-    const hit = terms.some((term) => haystack.includes(stripDiacritics(term)))
+  for (const item of applies ? STATUTORY_REVIEW_ITEMS : []) {
+    const termLanguage = language === "en" ? "en" : jurisdiction === "cz" ? "cz" : "sk"
+    const groups = item.terms[termLanguage]
+    const hit = reviewClauses.some((clause) =>
+      groups.every((group) => group.some((term) => clause.includes(stripDiacritics(term))))
+    )
     if (hit) covered.push(item.id)
-    else missing.push(item.label[jurisdiction === "cz" ? "cs" : "sk"])
+    else missing.push(item.label[language])
   }
 
-  const conclusiveStatementMissing = !CONCLUSIVE_PATTERNS[jurisdiction].some((re) => re.test(foldedText))
+  const conclusiveStatementMissing = !hasConclusiveStatement(text, jurisdiction)
   const excerptBoundClaims = EXCERPT_BOUND_PATTERN.test(foldedText)
   const citationNotesContradiction = hasCitationNotesContradiction(params.citationIssues || [])
 
@@ -263,31 +283,39 @@ export function checkStatutoryPosudok(params: {
   if (applies) {
     if (missing.length > 0) {
       problems.push(
-        jurisdiction === "sk"
-          ? `Posudok neobsahuje zákonom vyžadované vyjadrenia k: ${missing.join(", ")} (§ 67 ods. 6 zákona č. 131/2002 Z. z.).`
-          : `Posudek neobsahuje zákonem vyžadovaná vyjádření k: ${missing.join(", ")} (§ 54a odst. 3 zákona č. 111/1998 Sb.).`
+        language === "en"
+          ? `The doctoral opponent review does not address the required areas: ${missing.join(", ")} (${jurisdiction === "sk" ? "§ 67 of Act No. 131/2002 Coll." : "§ 54a(3) of Act No. 111/1998 Sb."}).`
+          : jurisdiction === "sk"
+            ? `Posudok neobsahuje zákonom vyžadované vyjadrenia k: ${missing.join(", ")} (§ 67 ods. 6 zákona č. 131/2002 Z. z.).`
+            : `Posudek neobsahuje zákonem vyžadovaná vyjádření k: ${missing.join(", ")} (§ 54a odst. 3 zákona č. 111/1998 Sb.).`
       )
     }
     if (conclusiveStatementMissing) {
       problems.push(
-        jurisdiction === "sk"
-          ? "Chýba záverečné stanovisko (odporúčanie na obhajobu a návrh udelenia titulu PhD s klasifikačným stupňom prospel/neprospel). Bez neho nemožno posudok považovať za úplný."
-          : "Chybí závěrečné stanovisko (doporučení k obhajobě a návrh na udělení titulu). Bez něj nelze posudek považovat za úplný."
+        language === "en"
+          ? "The conclusion must explicitly assess the candidate's scientific/research ability, recommend for or against the defence, and state whether the PhD degree should be awarded."
+          : jurisdiction === "sk"
+            ? "Chýba záverečné stanovisko, ktoré výslovne posúdi vedeckú spôsobilosť, odporučí alebo neodporučí obhajobu a uvedie návrh na udelenie titulu PhD."
+            : "Chybí závěrečné stanovisko, které výslovně posoudí vědeckou způsobilost, doporučí či nedoporučí obhajobu a uvede návrh na udělení titulu Ph.D."
       )
     }
   }
-  if (excerptBoundClaims) {
+  if (excerptBoundClaims && applies) {
     problems.push(
-      jurisdiction === "sk"
-        ? "Text priznáva hodnotenie z čiastočných výňatkov; posudok k dizertačnej práci musí vychádzať z celého rukopisu."
-        : "Text přiznává hodnocení z částečných výňatků; posudek musí vycházet z celého textu práce."
+      language === "en"
+        ? "The review says its assessment is based only on excerpts; confirm that the complete thesis was reviewed."
+        : jurisdiction === "sk"
+          ? "Text priznáva hodnotenie z čiastočných výňatkov; posudok k dizertačnej práci musí vychádzať z celého rukopisu."
+          : "Text přiznává hodnocení z částečných výňatků; posudek musí vycházet z celého textu práce."
     )
   }
-  if (citationNotesContradiction) {
+  if (citationNotesContradiction && applies) {
     problems.push(
-      jurisdiction === "sk"
-        ? "Poznámky k citáciám si protirečia (tvrdia 0 neverifikovaných a zároveň uvádzajú neverifikovanú citáciu)."
-        : "Poznámky k citacím si odporují (tvrdí 0 neověřených a zároveň uvádí neověřenou citaci)."
+      language === "en"
+        ? "Citation notes contradict themselves: they report zero unverified references while listing an unverified citation."
+        : jurisdiction === "sk"
+          ? "Poznámky k citáciám si protirečia (tvrdia 0 neverifikovaných a zároveň uvádzajú neverifikovanú citáciu)."
+          : "Poznámky k citacím si odporují (tvrdí 0 neověřených a zároveň uvádí neověřenou citaci)."
     )
   }
 
@@ -320,10 +348,14 @@ export function buildDoctoralStatutoryClause(params: {
 }): string | undefined {
   const jurisdiction = detectStatutoryJurisdiction(params)
   if (jurisdiction === "sk") {
-    return "Predložená dizertačná práca spĺňa podmienky kladené na dizertačnú prácu podľa § 67 zákona č. 131/2002 Z. z. o vysokých školách a o zmene a doplnení niektorých zákonov v znení neskorších predpisov. Na základe predloženej dizertačnej práce navrhujem udelenie akademického titulu „philosophiae doctor“ (v skratke „PhD.“)."
+    return params.language === "en"
+      ? "Legal framework: § 67 of Act No. 131/2002 Coll. on Higher Education (statutory requirements for doctoral opponent reviews)."
+      : "Právny rámec: § 67 zákona č. 131/2002 Z. z. o vysokých školách (zákonné náležitosti oponentského posudku dizertačnej práce)."
   }
   if (jurisdiction === "cz") {
-    return "Předložená disertační práce splňuje požadavky kladené na disertační práce podle § 54a odst. 3 zákona č. 111/1998 Sb., o vysokých školách, ve znění pozdějších předpisů. Na základě předložené disertační práce navrhuji udělení akademického titulu „doktor“ (ve zkratce „Ph.D.“)."
+    return params.language === "en"
+      ? "Legal framework: § 54a(3) of Act No. 111/1998 Sb. on Higher Education (statutory requirements for doctoral opponent reviews)."
+      : "Právní rámec: § 54a odst. 3 zákona č. 111/1998 Sb., o vysokých školách (zákonné náležitosti posudku disertační práce)."
   }
   return undefined
 }

@@ -32,7 +32,7 @@ import { computeScoreFromFindings } from "./review-engine"
 import type { ReviewLanguage, ThesisType } from "./thesis-rubric"
 import type { ReviewFinding, ReviewKind } from "./review-types"
 import type { DetailedThesisType } from "./document-understanding"
-import { shouldApplyEctsGrading } from "./thesis-review-policy"
+import { getReviewerRoleGuidance, shouldApplyEctsGrading } from "./thesis-review-policy"
 
 export interface CriterionCriterion {
   id: string
@@ -86,8 +86,8 @@ const criterionCache = new Map<string, CacheEntry>()
 const CACHE_TTL_MS = 60 * 60 * 1000
 const CACHE_MAX = 500
 
-function cacheKey(workspaceId: string, sourceRevision: string, criterionId: string, reviewKind: ReviewKind): string {
-  return `${workspaceId}|${sourceRevision}|${reviewKind}|${criterionId}`
+function cacheKey(workspaceId: string, sourceRevision: string, criterionId: string, reviewKind: ReviewKind, reviewerRole?: string): string {
+  return `${workspaceId}|${sourceRevision}|${reviewKind}|${reviewerRole ?? "reviewer"}|${criterionId}`
 }
 
 /** Test helper. */
@@ -110,6 +110,7 @@ export async function reviewCriterionWithEvidence(
     documentTitle: string
     language: ReviewLanguage
     reviewKind?: ReviewKind
+    reviewerRole?: string
     thesisType: ThesisType
     domainContext: string
     sourceRevision: string
@@ -122,7 +123,7 @@ export async function reviewCriterionWithEvidence(
   }
 ): Promise<AgenticCriterionResult> {
   const reviewKind = ctx.reviewKind ?? "thesis"
-  const key = cacheKey(ctx.workspaceId, ctx.sourceRevision, criterion.id, reviewKind)
+  const key = cacheKey(ctx.workspaceId, ctx.sourceRevision, criterion.id, reviewKind, ctx.reviewerRole)
   const cached = criterionCache.get(key)
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
     return { ...cached.result, cached: true }
@@ -148,6 +149,8 @@ export async function reviewCriterionWithEvidence(
     heading: c.heading,
     content: c.content.slice(0, PER_CRITERION_EVIDENCE_BUDGET_CHARS / Math.max(1, chunks.length)),
     kind: c.kind,
+    pageStart: c.pageStart,
+    pageEnd: c.pageEnd,
   }))
 
   const evidenceBlock = evidenceChunks
@@ -155,8 +158,9 @@ export async function reviewCriterionWithEvidence(
     .join("\n\n")
 
   // 2. Per-criterion grounded generation.
-  const manuscriptLabel = reviewKind === "thesis" ? `${ctx.thesisType} thesis` : "scientific paper"
-  const sys = `You are an academic ${reviewKind === "thesis" ? "thesis evaluator" : "peer reviewer"} assessing ONE evaluation criterion of a ${manuscriptLabel}.
+  const manuscriptLabel = reviewKind === "thesis" ? `${ctx.thesisType} thesis` : reviewKind === "grant" ? "grant proposal" : "scientific paper"
+  const sys = `You are an academic ${reviewKind === "thesis" ? "thesis evaluator" : reviewKind === "grant" ? "grant reviewer" : "peer reviewer"} assessing ONE evaluation criterion of a ${manuscriptLabel}.
+${getReviewerRoleGuidance(reviewKind, ctx.reviewerRole)}
 - Judge strictly the criterion: "${criterion.label}".
 - Ground substantive findings in the retrieved evidence passages below. When citing evidence, copy a quote character-for-character from one passage and set "chunkId" to that passage's anchor (e.g. "c2").
 - If reporting a missing element or section that appears absent from the retrieved excerpts, do NOT attach an unrelated quote as fake evidence of absence. Instead set "evidence": [] and use epistemicStatus "REQUIRES_HUMAN_VERIFICATION" (or "MISSING_EVIDENCE").
@@ -220,7 +224,7 @@ Return the JSON object now.`
     evidenceChunks.map((c) => c.content).join("\n\n"),
     [],
     ctx.sourceRevision,
-    evidenceChunks.map((c) => ({ id: c.id, heading: c.heading, content: c.content, kind: c.kind }))
+    evidenceChunks.map((c) => ({ id: c.id, heading: c.heading, content: c.content, kind: c.kind, pageStart: c.pageStart, pageEnd: c.pageEnd }))
   )
   const validated = sortFindingsByPriority(validation.validatedFindings, ctx.language)
 
@@ -316,6 +320,7 @@ export async function runAgenticPerCriterionReview(opts: {
           documentTitle: opts.documentTitle,
           language: opts.language,
           reviewKind: opts.reviewKind,
+          reviewerRole: opts.reviewerRole,
           thesisType: opts.thesisType,
           domainContext,
           sourceRevision: opts.sourceRevision,
@@ -346,7 +351,7 @@ export async function runAgenticPerCriterionReview(opts: {
     .map((f, i) => `[${i + 1}] (${f.severity}/${f.criterionId ?? "general"}) ${f.title}: ${(f.explanation ?? "").slice(0, 220)}`)
     .join("\n")
 
-  const applyEctsGrading = shouldApplyEctsGrading(opts.reviewKind)
+  const applyEctsGrading = shouldApplyEctsGrading(opts.reviewKind, opts.reviewerRole)
   // A Slovak/Czech doctoral opponent review is a legally defined document: the
   // recommendation field must carry the conclusive statement, not a journal
   // verdict enum ("minor_revisions" has no legal meaning for a dizertačná práca).
@@ -356,9 +361,12 @@ export async function runAgenticPerCriterionReview(opts: {
     ? `
 Recommendation rule (mandatory): the "recommendation" value must be a complete sentence in language "${opts.language}" stating that the thesis meets the conditions for the defence under the applicable Higher Education Act (§ 67 of Act No. 131/2002 Coll. in Slovakia; § 54a of Act No. 111/1998 Sb. in Czechia) and recommending award of the PhD title with a pass/fail classification. Never output the tokens accept, minor_revisions, major_revisions or reject for a doctoral thesis review.`
     : ""
-  const synthesisSys = `You are the lead reviewer synthesising per-criterion findings of a ${opts.reviewKind === "paper" ? "scientific paper" : `${opts.thesisType} thesis`} into a final assessment.
-Write in language "${opts.language}". Produce: a 4-8 sentence summary, 3-6 concrete strengths, 5-10 targeted ${opts.reviewKind === "paper" ? "questions for the authors" : "defense questions"}, and a recommendation (accept|minor_revisions|major_revisions|reject)${applyEctsGrading ? ", plus an ECTS grade (A-FX) justified by the severity distribution" : ". Do not assign an ECTS or academic grade"}.${doctoralRecommendationRule}`
-  const synthesisUser = `${opts.reviewKind === "paper" ? "Paper" : "Thesis"}: "${opts.documentTitle}"
+  const manuscriptLabel = opts.reviewKind === "thesis" ? `${opts.thesisType} thesis` : opts.reviewKind === "grant" ? "grant proposal" : "scientific paper"
+  const questionLabel = opts.reviewKind === "thesis" ? "defense questions" : opts.reviewKind === "grant" ? "questions for the applicant" : "questions for the authors"
+  const synthesisSys = `You are the lead reviewer synthesising per-criterion findings of a ${manuscriptLabel} into a final assessment.
+${getReviewerRoleGuidance(opts.reviewKind, opts.reviewerRole)}
+Write in language "${opts.language}". Produce: a 4-8 sentence summary, 3-6 concrete strengths, 5-10 targeted ${questionLabel}, and a recommendation${applyEctsGrading ? ", plus an ECTS grade (A-FX) justified by the severity distribution" : ". Do not assign an ECTS or academic grade"}.${doctoralRecommendationRule}`
+  const synthesisUser = `${opts.reviewKind === "thesis" ? "Thesis" : opts.reviewKind === "grant" ? "Grant proposal" : "Paper"}: "${opts.documentTitle}"
 
 Per-criterion findings:
 ${findingsDigest || "(no findings were produced)"}

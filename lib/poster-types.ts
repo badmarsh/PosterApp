@@ -268,7 +268,7 @@ export type ThesisReviewMetaCriterion = {
 }
 
 export type ThesisReviewOutputMeta = {
-  reviewKind?: "thesis" | "paper"
+  reviewKind?: "thesis" | "paper" | "grant"
   studentName?: string
   thesisTitle?: string
   thesisType?: "bachelor" | "master" | "phd"
@@ -296,6 +296,7 @@ export type ThesisReviewOutputMeta = {
   summary?: string
   strengths?: string[]
   defenseQuestions?: string[]
+  questionsForAuthors?: string[]
   citationIssues?: string[]
 }
 

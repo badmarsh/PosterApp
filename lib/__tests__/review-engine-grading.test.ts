@@ -88,6 +88,20 @@ describe("computeScoreFromFindings evidence gate", () => {
     expect(computeScoreFromFindings([makeFinding({ severity: "major" })])).toBe(92)
   })
 
+  it("deducts exactly 0.5 points for a non-strength suggestion", () => {
+    expect(computeScoreFromFindings([makeFinding({ severity: "suggestion" })])).toBe(99.5)
+    expect(computeScoreFromFindings([makeFinding({ severity: "suggestion", findingType: "strength" })])).toBe(100)
+  })
+
+  it("uses the required critical/major/minor/suggestion deductions", () => {
+    expect(computeScoreFromFindings([
+      makeFinding({ id: "critical", severity: "critical" }),
+      makeFinding({ id: "major", severity: "major" }),
+      makeFinding({ id: "minor", severity: "minor" }),
+      makeFinding({ id: "suggestion", severity: "suggestion" }),
+    ])).toBe(69.5)
+  })
+
   it("inverted cap: methodology/results/ethics deductions are uncapped even at critical severity", () => {
     const findings: ReviewFinding[] = [
       makeFinding({ id: "1", category: "methodology", severity: "critical" }), // -20

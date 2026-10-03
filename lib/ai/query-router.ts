@@ -19,6 +19,9 @@
 import { resolveCriterionProfile, type CriterionProfile, type ResolvedProfile, type SufficiencyRule } from "./criterion-profiles"
 import type { RetrievalSource } from "./fusion"
 
+export const HYBRID_DENSE_RRF_WEIGHT = 0.7
+export const HYBRID_LEXICAL_RRF_WEIGHT = 0.3
+
 export type QueryCategory =
   | "exact-fact"
   | "definitional"
@@ -326,6 +329,12 @@ export function routeQuery(query: string, opts: { criterionId?: string | null; p
     if (!existing) merged.set(s.source, { ...s })
     else merged.set(s.source, { source: s.source, limit: Math.max(existing.limit, s.limit), weight: Math.max(existing.weight, s.weight) })
   }
+  // Dense pgvector and PostgreSQL FTS form the stable hybrid base on every route.
+  // Other retrieval legs remain supplementary and cannot silently re-tune the 70/30 pair.
+  if (merged.has("dense") && merged.has("lexical")) {
+    merged.get("dense")!.weight = HYBRID_DENSE_RRF_WEIGHT
+    merged.get("lexical")!.weight = HYBRID_LEXICAL_RRF_WEIGHT
+  }
 
   const sufficiency: SufficiencyRule = {
     ...profile.sufficiency,
@@ -343,7 +352,11 @@ export function routeQuery(query: string, opts: { criterionId?: string | null; p
     queryTransform: policy.queryTransform,
     useDrift: policy.useDrift,
     expectedEvidence: profile.expectedEvidence,
-    preferredSections: profile.preferredSections,
+    preferredSections: Array.from(new Set([
+      ...profile.preferredSections,
+      ...(classification.category === "citation" ? ["references", "bibliography", "zoznam použitej literatúry"] : []),
+      ...(classification.category === "structural" ? ["contents", "obsah", "outline"] : []),
+    ])),
     relevantEntityTypes: profile.relevantEntityTypes,
     expectedCounterEvidence: profile.expectedCounterEvidence,
     sufficiency,

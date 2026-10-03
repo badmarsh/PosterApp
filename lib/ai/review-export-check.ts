@@ -60,8 +60,8 @@ export function buildReviewExportText(review: ReviewExportTextParts): string {
     parts.push(`${f.title}. ${f.explanation || ""} ${f.recommendation || ""}`)
   }
 
-  parts.push(...(review.questionsForAuthors || []))
-  parts.push(...(review.defenseQuestions || []))
+  const editorial = review.reviewKind === "paper" || review.reviewKind === "grant"
+  parts.push(...(editorial ? review.questionsForAuthors || [] : review.defenseQuestions || []))
   if (review.confidentialComments) parts.push(review.confidentialComments)
   const statutoryClause = review.phdEnrichment?.statutoryClause
   if (typeof statutoryClause === "string") parts.push(statutoryClause)
@@ -97,7 +97,7 @@ export function checkExportCompleteness(review: ReviewExportTextParts): ExportCo
   const excerptOnly = /z dostupn[ae]ch (uryvk|extract)|from the available excerpts|excerptov/.test(folded)
 
   const problems = [...base.problems]
-  if (excerptOnly && !problems.some((p) => /výňatk|excerpt/i.test(p))) {
+  if (base.applies && excerptOnly && !problems.some((p) => /výňatk|excerpt/i.test(p))) {
     problems.push(
       "Text priznáva hodnotenie z čiastočných výňatkov; posudok k dizertačnej práci musí vychádzať z celého rukopisu."
     )

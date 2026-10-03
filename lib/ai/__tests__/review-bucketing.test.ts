@@ -69,8 +69,8 @@ describe("buildDoctoralStatutoryClause — the right section of the right act", 
     expect(clause).toContain("131/2002")
     // § 54 is habilitation/professorship — never a doctoral-thesis basis.
     expect(clause).not.toContain("§ 54")
-    expect(clause).toContain("udelenie akademického titulu")
-    expect(clause).toContain("PhD")
+    expect(clause).toContain("§ 67")
+    expect(clause).not.toMatch(/spĺňa podmienky|navrhujem udelenie/i)
   })
 
   it("cites § 54a of Act 111/1998 for Czech theses", () => {
@@ -96,10 +96,20 @@ describe("checkStatutoryPosudok", () => {
     reviewKind: "thesis",
   }
 
-  it("does not apply to non-doctoral or non-opponent reviews", () => {
-    const r = checkStatutoryPosudok({ input: { ...doctoralOpponent, thesisType: "master" }, text: "hocijaký text" })
-    expect(r.applies).toBe(false)
-    expect(r.ok).toBe(true)
+  it("does not apply to non-doctoral, non-opponent, paper, or grant reviews", () => {
+    const cases = [
+      { ...doctoralOpponent, thesisType: "master" },
+      { ...doctoralOpponent, reviewerRole: "supervisor" },
+      { ...doctoralOpponent, reviewKind: "paper" },
+      { ...doctoralOpponent, reviewKind: "grant" },
+    ]
+    for (const input of cases) {
+      const result = checkStatutoryPosudok({ input, text: "hocijaký text" })
+      expect(result.applies).toBe(false)
+      expect(result.missing).toEqual([])
+      expect(result.conclusiveStatementMissing).toBe(false)
+      expect(result.ok).toBe(true)
+    }
   })
 
   it("flags a review that only lists praise", () => {
@@ -122,7 +132,8 @@ describe("checkStatutoryPosudok", () => {
       "Prínos pre rozvoj fyziky vysokých energií je metodologický a interpretačný.",
       "Cieľ práce bol splnený.",
       "Práca spĺňa všetky podmienky na dizertačnú prácu podľa zákona č. 131/2002 Z. z.",
-      "Dizertačnú prácu odporúčam na obhajobu a navrhujem udelenie akademického titulu PhD s klasifikačným stupňom prospech.",
+      "Kandidát preukázal schopnosť samostatnej vedeckej práce.",
+      "Dizertačnú prácu odporúčam na obhajobu a navrhujem udelenie akademického titulu PhD s klasifikačným stupňom prospel.",
     ].join("\n\n")
     const result = checkStatutoryPosudok({ input: doctoralOpponent, text, citationIssues: [] })
     expect(result.missing).toEqual([])
@@ -131,10 +142,10 @@ describe("checkStatutoryPosudok", () => {
   })
 
   it("matches the conclusive statement regardless of diacritics", () => {
-    const withDiacritics = "Dizertacnu pracu odporucam na obhajobu."
-    const without = "Dizertačnú prácu odporúčam na obhajobu."
-    const a = checkStatutoryPosudok({ input: doctoralOpponent, text: `${without}\nAktuálnosť, metódy, výsledky, prínos pre rozvoj vedy, splnenie cieľa.` })
-    const b = checkStatutoryPosudok({ input: doctoralOpponent, text: `${withDiacritics}\nAktualnost, metody, vysledky, prinos pre rozvoj vedy, splnenie ciel'a.` })
+    const withDiacritics = "Kandidát preukázal schopnosť samostatnej vedeckej práce. Dizertačnú prácu odporúčam na obhajobu a navrhujem udelenie akademického titulu PhD."
+    const without = "Kandidat preukazal schopnost samostatnej vedeckej prace. Dizertacnu pracu odporucam na obhajobu a navrhujem udelenie akademickeho titulu PhD."
+    const a = checkStatutoryPosudok({ input: doctoralOpponent, text: `${withDiacritics}\nTéma je aktuálna; metódy spracovania; výsledky a nové poznatky; prínos pre rozvoj vedy; ciele práce boli splnené.` })
+    const b = checkStatutoryPosudok({ input: doctoralOpponent, text: `${without}\nTema je aktualna; metody spracovania; vysledky a nove poznatky; prinos pre rozvoj vedy; ciele prace boli splnene.` })
     expect(a.conclusiveStatementMissing).toBe(false)
     expect(b.conclusiveStatementMissing).toBe(false)
   })
@@ -165,6 +176,16 @@ describe("review-export-check", () => {
     expect(text).toContain("Chýba diskusia")
     expect(text).toContain("§ 67")
     expect(text).not.toContain("undefined")
+  })
+
+  it("keeps professional author questions separate from thesis defence questions", () => {
+    const text = buildReviewExportText({
+      reviewKind: "paper",
+      questionsForAuthors: ["How was the sample selected?"],
+      defenseQuestions: ["THESIS-STYLE QUESTION — MUST NOT LEAK"],
+    })
+    expect(text).toContain("How was the sample selected?")
+    expect(text).not.toContain("THESIS-STYLE QUESTION")
   })
 
   it("surfaces the missing statutory items for a doctoral posudok export", () => {
@@ -278,7 +299,7 @@ describe("composer: conclusive-statement placeholder", () => {
       "sk"
     )
     const evalSection = composed.sections.find((s) => s.id === "evaluation_summary")
-    expect(evalSection?.content).toContain("DOPNIŤ")
+    expect(evalSection?.content).toContain("DOPLNIŤ")
   })
 
   it("stays silent when the conclusive statement is present", async () => {
@@ -292,7 +313,7 @@ describe("composer: conclusive-statement placeholder", () => {
         thesisTitle: "Dizertačná práca",
         studentName: "J. Novák",
         summary: "Zhrnutie.",
-        recommendation: "Dizertačnú prácu spĺňajúcu podmienky podľa § 67 zákona č. 131/2002 Z. z. odporúčam na obhajobu.",
+        recommendation: "Kandidát preukázal schopnosť samostatnej vedeckej práce. Dizertačnú prácu odporúčam na obhajobu a navrhujem udelenie akademického titulu PhD.",
         findings: [],
         sections: [],
         defenseQuestions: [],
@@ -318,6 +339,7 @@ describe("gate sensitivity (regression against the real case)", () => {
       "Prínos pre rozvoj vedy je metodologický a interpretačný.",
       "Cieľ práce bol splnený.",
       "Dizertačná práca spĺňa podmienky podľa § 67 zákona 131/2002. Dizertačnú prácu odporúčam na obhajobu.",
+      "Kandidát preukázal schopnosť samostatnej vedeckej práce.",
       "Navrhujem udelenie akademického titulu PhD s klasifikačným stupňom prospech.",
     ].join("\n\n")
     expect(checkStatutoryPosudok({

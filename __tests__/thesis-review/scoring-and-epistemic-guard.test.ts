@@ -40,12 +40,12 @@ describe("computeScoreFromFindings Calibration & Safety Guards", () => {
     expect(computeScoreFromFindings(findings)).toBe(100)
   })
 
-  it("does not deduct points for severity 'suggestion'", () => {
+  it("deducts 0.5 points per non-strength suggestion", () => {
     const findings: ReviewFinding[] = [
       makeFinding({ id: "1", severity: "suggestion", recommendation: "Consider testing with larger batch size" }),
       makeFinding({ id: "2", severity: "suggestion", recommendation: "Future work could expand this" }),
     ]
-    expect(computeScoreFromFindings(findings)).toBe(100)
+    expect(computeScoreFromFindings(findings)).toBe(99)
   })
 
   it("does not deduct points for praise even if mislabeled as weakness", () => {

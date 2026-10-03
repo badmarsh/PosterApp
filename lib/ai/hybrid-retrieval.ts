@@ -23,8 +23,8 @@
 
 import { prisma } from "@/lib/prisma"
 import { embedTexts, modelHealth } from "./model-registry"
-import { fuseCandidates, type FusionMethod, type FusedCandidate, type RetrievalSource } from "./fusion"
-import { applyMMR, detectNoveltyDrift, rerankCandidates } from "./retrieval-ranking"
+import { diversifyByGroup, fuseCandidates, type FusionMethod, type FusedCandidate, type RetrievalSource } from "./fusion"
+import { applyMMR, DEFAULT_MMR_LAMBDA, detectNoveltyDrift, normalizeRelevanceScores, rerankCandidates } from "./retrieval-ranking"
 import { buildEvidenceContext, expandContext, selectCounterEvidence, type ContextChunk } from "./parent-context"
 import { runCandidateGenerators, DEFAULT_CANDIDATE_LIMITS, type CandidatePool } from "./retrievers"
 import type { RetrievalCandidate } from "./retrievers/types"
@@ -230,11 +230,11 @@ export async function retrieveEvidence(opts: RetrieveEvidenceOptions): Promise<E
         variants.push(hypothesis)
         appliedTransforms.push("hyde-llm")
       }
-      // Template HyDE only when the route asks for it, or as a second view beside a real hypothesis
-      // (two shapes of the answer widen recall; the legacy searchHybrid path does the same).
-      if (route.queryTransform.hyde || hypothesis) {
-        const templateDomain = domain || resolveThesisDomainContext(opts.metadata)
-        const template = await generateHypotheticalDocument(opts.query, templateDomain, lang)
+      // A template HyDE needs a reliable domain from caller metadata. With sparse/unknown
+      // metadata, a generic invented passage adds noise; rely on query expansion instead.
+      // A real caller-supplied hypothesis remains usable even without a domain label.
+      if (route.queryTransform.hyde && domain) {
+        const template = await generateHypotheticalDocument(opts.query, domain, lang)
         if (template && !variants.includes(template)) {
           variants.push(template)
           appliedTransforms.push("hyde")
@@ -317,20 +317,39 @@ export async function retrieveEvidence(opts: RetrieveEvidenceOptions): Promise<E
 
   // ---- 6. Diversity ------------------------------------------------------
   t0 = Date.now()
-  const lambda = ablation.lambda ?? 0.8
+  const lambda = Math.max(0, Math.min(1, ablation.lambda ?? DEFAULT_MMR_LAMBDA))
   const poolSize = Math.min(topK * 4, fused.length)
-  // Diversity runs on lexical Jaccard overlap (see `applyMMR`): the fused pool carries no
-  // stored embeddings, and pretending otherwise would silently turn MMR into pure relevance.
-  const pool_ = fused.slice(0, Math.max(poolSize * 2, poolSize)).filter((f) => f.payload)
+  const sectionGroupOf = (candidate: FusedCandidate<RetrievalCandidate>): string | null => {
+    const path = candidate.payload?.sectionPath || candidate.payload?.heading || ""
+    const root = path.split(/\s*(?:>|›|::|\/)\s*/)[0]?.trim()
+    const normalized = (root ?? "")
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLowerCase()
+      .replace(/^\s*\d+(?:\.\d+)*[.):\s-]*/, "")
+      .replace(/\s+/g, " ")
+      .trim()
+    return normalized || null
+  }
+  const sectionGroups = new Set(fused.map(sectionGroupOf).filter((group): group is string => Boolean(group)))
+  // Bound repeated chunks from one root section when alternatives exist; if all hits
+  // belong to one section, preserve recall instead of returning fewer than topK.
+  const fairFused = sectionGroups.size > 1
+    ? diversifyByGroup(fused, sectionGroupOf, Math.max(1, Math.ceil(topK / 2)))
+    : fused
+  const pool_ = fairFused.slice(0, Math.max(poolSize * 2, poolSize)).filter((f) => f.payload)
+  const relevance = normalizeRelevanceScores(pool_.map((candidate) => candidate.fusedScore))
+  // MMR uses lexical Jaccard overlap in [0,1]; normalize RRF relevance to that same
+  // unit interval before applying λ=0.7, otherwise RRF's ~0.01 scores lose to diversity.
   const lexicallyDiverse =
     lambda >= 1
       ? pool_.slice(0, poolSize)
       : applyMMR(
-          pool_.map((f) => ({
+          pool_.map((f, index) => ({
             id: f.id,
             content: f.payload!.content,
             heading: f.payload!.heading,
-            similarity: f.fusedScore,
+            similarity: relevance[index],
           })),
           poolSize,
           lambda

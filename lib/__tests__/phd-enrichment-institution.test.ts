@@ -84,8 +84,7 @@ describe("Task 6: Institution-aware PhD enrichment (sk/cs/en)", () => {
     expect(result.phdEnrichment.statutoryClause).toContain("§ 67")
     expect(result.phdEnrichment.statutoryClause).toContain("131/2002")
     expect(result.phdEnrichment.statutoryClause).not.toContain("§ 54")
-    expect(result.phdEnrichment.statutoryClause).toContain("udelenie akademického titulu")
-    expect(result.phdEnrichment.statutoryClause).toContain("PhD")
+    expect(result.phdEnrichment.statutoryClause).toContain("statutory requirements for doctoral opponent reviews")
   })
 
   it("includes Czech clause for Czech institutions", async () => {
@@ -104,7 +103,7 @@ describe("Task 6: Institution-aware PhD enrichment (sk/cs/en)", () => {
     expect(result.phdEnrichment).toBeDefined()
     expect(result.phdEnrichment.statutoryClause).toContain("§ 54a")
     expect(result.phdEnrichment.statutoryClause).toContain("111/1998")
-    expect(result.phdEnrichment.statutoryClause).toContain("udělení akademického titulu")
+    expect(result.phdEnrichment.statutoryClause).toContain("zákonné náležitosti posudku disertační práce")
   })
 
   it("does not apply thesis grading or PhD enrichment to a scientific paper", async () => {
@@ -144,7 +143,6 @@ describe("Task 6: Institution-aware PhD enrichment (sk/cs/en)", () => {
     expect(result.phdEnrichment.statutoryClause).toContain("§ 67")
     expect(result.phdEnrichment.statutoryClause).toContain("131/2002")
     expect(result.phdEnrichment.statutoryClause).not.toContain("§ 54")
-    expect(result.phdEnrichment.statutoryClause).toContain("udelenie akademického titulu")
-    expect(result.phdEnrichment.statutoryClause).toContain("PhD")
+    expect(result.phdEnrichment.statutoryClause).toContain("zákonné náležitosti oponentského posudku dizertačnej práce")
   })
 })

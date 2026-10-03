@@ -777,48 +777,48 @@
           "engine": "dense-memory + substring lexical proxy (buildFtsQuery term counts; NOT ts_rank) fused with weighted RRF at routed source weights",
           "database": "none (offline proxy)",
           "macro": {
-            "ndcg10": 0.127,
-            "mrr": 0.191,
-            "recall5": 0.081,
-            "recall10": 0.163,
-            "hit5": 0.33,
-            "hit10": 0.47
+            "ndcg10": 0.093,
+            "mrr": 0.161,
+            "recall5": 0.068,
+            "recall10": 0.119,
+            "hit5": 0.3,
+            "hit10": 0.38
           },
           "perQuery": [
             {
               "id": "q-001",
-              "ndcg10": 0.256,
-              "mrr": 0.333,
+              "ndcg10": 0.1,
+              "mrr": 0.2,
               "recall5": 0.077,
-              "recall10": 0.231
+              "recall10": 0.077
             },
             {
               "id": "q-002",
-              "ndcg10": 0.4,
-              "mrr": 0.5,
+              "ndcg10": 0.415,
+              "mrr": 1,
               "recall5": 0.286,
               "recall10": 0.429
             },
             {
               "id": "q-003",
-              "ndcg10": 0.326,
+              "ndcg10": 0.243,
               "mrr": 1,
               "recall5": 0.091,
-              "recall10": 0.273
+              "recall10": 0.182
             },
             {
               "id": "q-004",
-              "ndcg10": 0.218,
-              "mrr": 0.25,
-              "recall5": 0.167,
+              "ndcg10": 0.168,
+              "mrr": 0.143,
+              "recall5": 0,
               "recall10": 0.167
             },
             {
               "id": "q-005",
-              "ndcg10": 0.575,
+              "ndcg10": 0.488,
               "mrr": 1,
               "recall5": 0.2,
-              "recall10": 0.333
+              "recall10": 0.267
             },
             {
               "id": "q-006",
@@ -829,59 +829,59 @@
             },
             {
               "id": "q-007",
-              "ndcg10": 0.364,
-              "mrr": 0.5,
+              "ndcg10": 0.285,
+              "mrr": 0.2,
               "recall5": 0.1,
               "recall10": 0.4
             },
             {
               "id": "q-008",
-              "ndcg10": 0.054,
-              "mrr": 0.111,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.091
+              "recall10": 0
             },
             {
               "id": "q-009",
-              "ndcg10": 0.053,
-              "mrr": 0.1,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.091
+              "recall10": 0
             },
             {
               "id": "q-010",
-              "ndcg10": 0.378,
+              "ndcg10": 0.218,
               "mrr": 0.5,
-              "recall5": 0.231,
-              "recall10": 0.385
+              "recall5": 0.154,
+              "recall10": 0.231
             },
             {
               "id": "q-011",
-              "ndcg10": 0.334,
+              "ndcg10": 0.216,
               "mrr": 0.5,
               "recall5": 0.154,
-              "recall10": 0.462
+              "recall10": 0.308
             },
             {
               "id": "q-012",
-              "ndcg10": 0.128,
-              "mrr": 0.333,
+              "ndcg10": 0.159,
+              "mrr": 0.25,
               "recall5": 0.071,
-              "recall10": 0.071
+              "recall10": 0.143
             },
             {
               "id": "q-013",
-              "ndcg10": 0.316,
+              "ndcg10": 0.307,
               "mrr": 0.2,
               "recall5": 0.167,
               "recall10": 0.5
             },
             {
               "id": "q-014",
-              "ndcg10": 0.282,
+              "ndcg10": 0.193,
               "mrr": 1,
               "recall5": 0.154,
-              "recall10": 0.231
+              "recall10": 0.154
             },
             {
               "id": "q-015",
@@ -892,23 +892,23 @@
             },
             {
               "id": "q-016",
-              "ndcg10": 0.336,
+              "ndcg10": 0.284,
               "mrr": 0.5,
-              "recall5": 0.286,
+              "recall5": 0.143,
               "recall10": 0.286
             },
             {
               "id": "q-017",
-              "ndcg10": 0.244,
+              "ndcg10": 0.376,
               "mrr": 0.5,
-              "recall5": 0.182,
-              "recall10": 0.273
+              "recall5": 0.273,
+              "recall10": 0.455
             },
             {
               "id": "q-018",
-              "ndcg10": 0.584,
+              "ndcg10": 0.56,
               "mrr": 0.5,
-              "recall5": 0.333,
+              "recall5": 0.222,
               "recall10": 0.556
             },
             {
@@ -920,44 +920,44 @@
             },
             {
               "id": "q-020",
-              "ndcg10": 0.255,
-              "mrr": 1,
+              "ndcg10": 0.099,
+              "mrr": 0.2,
               "recall5": 0.143,
               "recall10": 0.143
             },
             {
               "id": "q-021",
-              "ndcg10": 0.232,
-              "mrr": 0.25,
+              "ndcg10": 0.247,
+              "mrr": 0.333,
               "recall5": 0.182,
               "recall10": 0.273
             },
             {
               "id": "q-022",
-              "ndcg10": 0.487,
+              "ndcg10": 0.484,
               "mrr": 1,
               "recall5": 0.125,
               "recall10": 0.375
             },
             {
               "id": "q-023",
-              "ndcg10": 0.635,
+              "ndcg10": 0.489,
               "mrr": 1,
               "recall5": 0.333,
-              "recall10": 0.5
+              "recall10": 0.333
             },
             {
               "id": "q-024",
-              "ndcg10": 0.314,
+              "ndcg10": 0.271,
               "mrr": 0.5,
-              "recall5": 0.2,
+              "recall5": 0.1,
               "recall10": 0.3
             },
             {
               "id": "q-025",
-              "ndcg10": 0.102,
-              "mrr": 0.2,
-              "recall5": 0.083,
+              "ndcg10": 0.088,
+              "mrr": 0.143,
+              "recall5": 0,
               "recall10": 0.083
             },
             {
@@ -1004,8 +1004,8 @@
             },
             {
               "id": "q-032",
-              "ndcg10": 0.242,
-              "mrr": 0.143,
+              "ndcg10": 0.21,
+              "mrr": 0.1,
               "recall5": 0,
               "recall10": 0.333
             },
@@ -1025,8 +1025,8 @@
             },
             {
               "id": "q-035",
-              "ndcg10": 0.63,
-              "mrr": 1,
+              "ndcg10": 0.315,
+              "mrr": 0.333,
               "recall5": 0.333,
               "recall10": 0.333
             },
@@ -1053,22 +1053,22 @@
             },
             {
               "id": "q-039",
-              "ndcg10": 0.197,
-              "mrr": 0.2,
-              "recall5": 0.333,
-              "recall10": 0.333
+              "ndcg10": 0,
+              "mrr": 0,
+              "recall5": 0,
+              "recall10": 0
             },
             {
               "id": "q-040",
-              "ndcg10": 0.198,
-              "mrr": 0.167,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-041",
-              "ndcg10": 0.127,
-              "mrr": 0.143,
+              "ndcg10": 0.135,
+              "mrr": 0.167,
               "recall5": 0,
               "recall10": 0.333
             },
@@ -1102,10 +1102,10 @@
             },
             {
               "id": "q-046",
-              "ndcg10": 0.487,
+              "ndcg10": 0.339,
               "mrr": 1,
               "recall5": 0.333,
-              "recall10": 0.667
+              "recall10": 0.333
             },
             {
               "id": "q-047",
@@ -1123,10 +1123,10 @@
             },
             {
               "id": "q-049",
-              "ndcg10": 0.141,
-              "mrr": 0.111,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-050",
@@ -1179,10 +1179,10 @@
             },
             {
               "id": "q-057",
-              "ndcg10": 0.102,
-              "mrr": 0.111,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-058",
@@ -1277,10 +1277,10 @@
             },
             {
               "id": "q-071",
-              "ndcg10": 0.114,
-              "mrr": 0.111,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-072",
@@ -1347,9 +1347,9 @@
             },
             {
               "id": "q-081",
-              "ndcg10": 0.54,
-              "mrr": 0.5,
-              "recall5": 0.667,
+              "ndcg10": 0.436,
+              "mrr": 0.333,
+              "recall5": 0.333,
               "recall10": 0.667
             },
             {
@@ -1361,10 +1361,10 @@
             },
             {
               "id": "q-083",
-              "ndcg10": 0.161,
-              "mrr": 0.125,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-084",
@@ -1382,17 +1382,17 @@
             },
             {
               "id": "q-086",
-              "ndcg10": 0.29,
-              "mrr": 0.125,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.667
+              "recall10": 0
             },
             {
               "id": "q-087",
-              "ndcg10": 0.286,
-              "mrr": 0.125,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.667
+              "recall10": 0
             },
             {
               "id": "q-088",
@@ -1417,15 +1417,15 @@
             },
             {
               "id": "q-091",
-              "ndcg10": 0,
-              "mrr": 0,
+              "ndcg10": 0.102,
+              "mrr": 0.111,
               "recall5": 0,
-              "recall10": 0
+              "recall10": 0.333
             },
             {
               "id": "q-092",
-              "ndcg10": 0.148,
-              "mrr": 0.125,
+              "ndcg10": 0.141,
+              "mrr": 0.111,
               "recall5": 0,
               "recall10": 0.333
             },
@@ -1452,10 +1452,10 @@
             },
             {
               "id": "q-096",
-              "ndcg10": 0.402,
-              "mrr": 0.333,
+              "ndcg10": 0.182,
+              "mrr": 0.2,
               "recall5": 0.333,
-              "recall10": 0.667
+              "recall10": 0.333
             },
             {
               "id": "q-097",
@@ -1473,20 +1473,30 @@
             },
             {
               "id": "q-099",
-              "ndcg10": 0.147,
-              "mrr": 0.1,
-              "recall5": 0,
-              "recall10": 0.333
-            },
-            {
-              "id": "q-100",
               "ndcg10": 0,
               "mrr": 0,
               "recall5": 0,
               "recall10": 0
+            },
+            {
+              "id": "q-100",
+              "ndcg10": 0.19,
+              "mrr": 0.111,
+              "recall5": 0,
+              "recall10": 0.333
             }
           ],
           "lowestNdcg10": [
+            {
+              "id": "q-008",
+              "query": "encoder decoder architecture sequence-to-sequence translation",
+              "ndcg10": 0
+            },
+            {
+              "id": "q-009",
+              "query": "BERT fine-tuning downstream NLP tasks classification question answering",
+              "ndcg10": 0
+            },
             {
               "id": "q-015",
               "query": "human annotator accuracy NLI zero-shot instruction-tuned model comparison",
@@ -1500,16 +1510,6 @@
             {
               "id": "q-029",
               "query": "encoder decoder attention queries keys values decoder stack",
-              "ndcg10": 0
-            },
-            {
-              "id": "q-030",
-              "query": "self-attention in encoder queries keys values same sequence",
-              "ndcg10": 0
-            },
-            {
-              "id": "q-031",
-              "query": "masked self-attention in decoder autoregressive left to right prevention of future tokens",
               "ndcg10": 0
             }
           ]
@@ -2261,48 +2261,48 @@
           "engine": "pgvector dense + websearch_to_tsquery('simple')/ts_rank lexical (production SQL shape), same weighted RRF fusion",
           "database": "pglite (real PostgreSQL + pgvector, in-process WASM)",
           "macro": {
-            "ndcg10": 0.113,
-            "mrr": 0.183,
-            "recall5": 0.072,
-            "recall10": 0.142,
-            "hit5": 0.3,
-            "hit10": 0.44
+            "ndcg10": 0.086,
+            "mrr": 0.148,
+            "recall5": 0.05,
+            "recall10": 0.11,
+            "hit5": 0.24,
+            "hit10": 0.35
           },
           "perQuery": [
             {
               "id": "q-001",
-              "ndcg10": 0.1,
-              "mrr": 0.2,
-              "recall5": 0.077,
+              "ndcg10": 0.092,
+              "mrr": 0.167,
+              "recall5": 0,
               "recall10": 0.077
             },
             {
               "id": "q-002",
-              "ndcg10": 0.236,
+              "ndcg10": 0.208,
               "mrr": 0.5,
-              "recall5": 0.214,
+              "recall5": 0.143,
               "recall10": 0.214
             },
             {
               "id": "q-003",
-              "ndcg10": 0.346,
+              "ndcg10": 0.251,
               "mrr": 1,
-              "recall5": 0.182,
-              "recall10": 0.273
+              "recall5": 0.091,
+              "recall10": 0.182
             },
             {
               "id": "q-004",
-              "ndcg10": 0.196,
-              "mrr": 0.2,
-              "recall5": 0.167,
+              "ndcg10": 0.159,
+              "mrr": 0.125,
+              "recall5": 0,
               "recall10": 0.167
             },
             {
               "id": "q-005",
-              "ndcg10": 0.567,
+              "ndcg10": 0.468,
               "mrr": 1,
-              "recall5": 0.2,
-              "recall10": 0.333
+              "recall5": 0.133,
+              "recall10": 0.267
             },
             {
               "id": "q-006",
@@ -2313,10 +2313,10 @@
             },
             {
               "id": "q-007",
-              "ndcg10": 0.332,
-              "mrr": 0.333,
+              "ndcg10": 0.23,
+              "mrr": 0.2,
               "recall5": 0.1,
-              "recall10": 0.4
+              "recall10": 0.3
             },
             {
               "id": "q-008",
@@ -2327,45 +2327,45 @@
             },
             {
               "id": "q-009",
-              "ndcg10": 0.055,
-              "mrr": 0.111,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.091
+              "recall10": 0
             },
             {
               "id": "q-010",
-              "ndcg10": 0.215,
+              "ndcg10": 0.18,
               "mrr": 0.5,
-              "recall5": 0.154,
+              "recall5": 0.077,
               "recall10": 0.231
             },
             {
               "id": "q-011",
-              "ndcg10": 0.287,
+              "ndcg10": 0.28,
               "mrr": 0.5,
-              "recall5": 0.077,
+              "recall5": 0.154,
               "recall10": 0.385
             },
             {
               "id": "q-012",
-              "ndcg10": 0.161,
-              "mrr": 0.5,
+              "ndcg10": 0.164,
+              "mrr": 0.25,
               "recall5": 0.071,
-              "recall10": 0.071
+              "recall10": 0.143
             },
             {
               "id": "q-013",
-              "ndcg10": 0.308,
-              "mrr": 0.25,
-              "recall5": 0.167,
-              "recall10": 0.5
+              "ndcg10": 0.183,
+              "mrr": 0.143,
+              "recall5": 0,
+              "recall10": 0.333
             },
             {
               "id": "q-014",
-              "ndcg10": 0.117,
-              "mrr": 0.167,
+              "ndcg10": 0.135,
+              "mrr": 0.125,
               "recall5": 0,
-              "recall10": 0.154
+              "recall10": 0.231
             },
             {
               "id": "q-015",
@@ -2383,16 +2383,16 @@
             },
             {
               "id": "q-017",
-              "ndcg10": 0.25,
+              "ndcg10": 0.381,
               "mrr": 0.5,
               "recall5": 0.273,
-              "recall10": 0.273
+              "recall10": 0.455
             },
             {
               "id": "q-018",
-              "ndcg10": 0.667,
+              "ndcg10": 0.587,
               "mrr": 1,
-              "recall5": 0.333,
+              "recall5": 0.222,
               "recall10": 0.444
             },
             {
@@ -2404,44 +2404,44 @@
             },
             {
               "id": "q-020",
-              "ndcg10": 0.204,
-              "mrr": 0.5,
+              "ndcg10": 0.141,
+              "mrr": 0.2,
               "recall5": 0.143,
               "recall10": 0.286
             },
             {
               "id": "q-021",
-              "ndcg10": 0.239,
-              "mrr": 0.333,
+              "ndcg10": 0.266,
+              "mrr": 0.5,
               "recall5": 0.182,
               "recall10": 0.273
             },
             {
               "id": "q-022",
-              "ndcg10": 0.535,
+              "ndcg10": 0.501,
               "mrr": 1,
-              "recall5": 0.375,
+              "recall5": 0.125,
               "recall10": 0.375
             },
             {
               "id": "q-023",
-              "ndcg10": 0.64,
+              "ndcg10": 0.583,
               "mrr": 1,
               "recall5": 0.333,
               "recall10": 0.5
             },
             {
               "id": "q-024",
-              "ndcg10": 0.266,
+              "ndcg10": 0.195,
               "mrr": 0.333,
-              "recall5": 0.2,
-              "recall10": 0.3
+              "recall5": 0.1,
+              "recall10": 0.2
             },
             {
               "id": "q-025",
-              "ndcg10": 0.102,
-              "mrr": 0.2,
-              "recall5": 0.083,
+              "ndcg10": 0.094,
+              "mrr": 0.167,
+              "recall5": 0,
               "recall10": 0.083
             },
             {
@@ -2453,8 +2453,8 @@
             },
             {
               "id": "q-027",
-              "ndcg10": 0.092,
-              "mrr": 0.143,
+              "ndcg10": 0.08,
+              "mrr": 0.1,
               "recall5": 0,
               "recall10": 0.5
             },
@@ -2509,8 +2509,8 @@
             },
             {
               "id": "q-035",
-              "ndcg10": 0.63,
-              "mrr": 1,
+              "ndcg10": 0.271,
+              "mrr": 0.25,
               "recall5": 0.333,
               "recall10": 0.333
             },
@@ -2537,17 +2537,17 @@
             },
             {
               "id": "q-039",
-              "ndcg10": 0.17,
-              "mrr": 0.143,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-040",
-              "ndcg10": 0.167,
-              "mrr": 0.111,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-041",
@@ -2565,10 +2565,10 @@
             },
             {
               "id": "q-043",
-              "ndcg10": 0.126,
-              "mrr": 0.111,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-044",
@@ -2586,10 +2586,10 @@
             },
             {
               "id": "q-046",
-              "ndcg10": 0.367,
-              "mrr": 0.5,
+              "ndcg10": 0.339,
+              "mrr": 1,
               "recall5": 0.333,
-              "recall10": 0.667
+              "recall10": 0.333
             },
             {
               "id": "q-047",
@@ -2635,8 +2635,8 @@
             },
             {
               "id": "q-053",
-              "ndcg10": 0.24,
-              "mrr": 0.5,
+              "ndcg10": 0.19,
+              "mrr": 0.333,
               "recall5": 0.333,
               "recall10": 0.333
             },
@@ -2663,10 +2663,10 @@
             },
             {
               "id": "q-057",
-              "ndcg10": 0.098,
-              "mrr": 0.1,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-058",
@@ -2698,9 +2698,9 @@
             },
             {
               "id": "q-062",
-              "ndcg10": 0.147,
-              "mrr": 0.2,
-              "recall5": 0.333,
+              "ndcg10": 0.135,
+              "mrr": 0.167,
+              "recall5": 0,
               "recall10": 0.333
             },
             {
@@ -2726,8 +2726,8 @@
             },
             {
               "id": "q-066",
-              "ndcg10": 0.265,
-              "mrr": 0.5,
+              "ndcg10": 0.21,
+              "mrr": 0.333,
               "recall5": 0.333,
               "recall10": 0.333
             },
@@ -2754,10 +2754,10 @@
             },
             {
               "id": "q-070",
-              "ndcg10": 0.126,
-              "mrr": 0.111,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-071",
@@ -2789,9 +2789,9 @@
             },
             {
               "id": "q-075",
-              "ndcg10": 0.162,
-              "mrr": 0.2,
-              "recall5": 0.333,
+              "ndcg10": 0.15,
+              "mrr": 0.167,
+              "recall5": 0,
               "recall10": 0.333
             },
             {
@@ -2831,24 +2831,24 @@
             },
             {
               "id": "q-081",
-              "ndcg10": 0.728,
-              "mrr": 1,
-              "recall5": 0.667,
+              "ndcg10": 0.389,
+              "mrr": 0.25,
+              "recall5": 0.333,
               "recall10": 0.667
             },
             {
               "id": "q-082",
-              "ndcg10": 0.098,
-              "mrr": 0.1,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-083",
-              "ndcg10": 0.161,
-              "mrr": 0.125,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-084",
@@ -2887,10 +2887,10 @@
             },
             {
               "id": "q-089",
-              "ndcg10": 0.061,
-              "mrr": 0.1,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-090",
@@ -2936,8 +2936,8 @@
             },
             {
               "id": "q-096",
-              "ndcg10": 0.463,
-              "mrr": 0.5,
+              "ndcg10": 0.359,
+              "mrr": 0.25,
               "recall5": 0.333,
               "recall10": 0.667
             },
@@ -2964,8 +2964,8 @@
             },
             {
               "id": "q-100",
-              "ndcg10": 0.182,
-              "mrr": 0.1,
+              "ndcg10": 0.199,
+              "mrr": 0.125,
               "recall5": 0,
               "recall10": 0.333
             }
@@ -2974,6 +2974,11 @@
             {
               "id": "q-008",
               "query": "encoder decoder architecture sequence-to-sequence translation",
+              "ndcg10": 0
+            },
+            {
+              "id": "q-009",
+              "query": "BERT fine-tuning downstream NLP tasks classification question answering",
               "ndcg10": 0
             },
             {
@@ -2989,11 +2994,6 @@
             {
               "id": "q-029",
               "query": "encoder decoder attention queries keys values decoder stack",
-              "ndcg10": 0
-            },
-            {
-              "id": "q-030",
-              "query": "self-attention in encoder queries keys values same sequence",
               "ndcg10": 0
             }
           ]
@@ -3752,26 +3752,26 @@
           "engine": "dense-memory + substring lexical proxy (buildFtsQuery term counts; NOT ts_rank) fused with weighted RRF at routed source weights",
           "database": "none (offline proxy)",
           "macro": {
-            "ndcg10": 0.315,
-            "mrr": 0.452,
-            "recall5": 0.224,
-            "recall10": 0.372,
-            "hit5": 0.59,
-            "hit10": 0.8
+            "ndcg10": 0.241,
+            "mrr": 0.387,
+            "recall5": 0.174,
+            "recall10": 0.259,
+            "hit5": 0.49,
+            "hit10": 0.64
           },
           "perQuery": [
             {
               "id": "q-001",
-              "ndcg10": 0.365,
+              "ndcg10": 0.387,
               "mrr": 1,
               "recall5": 0.308,
               "recall10": 0.308
             },
             {
               "id": "q-002",
-              "ndcg10": 0.425,
+              "ndcg10": 0.436,
               "mrr": 1,
-              "recall5": 0.214,
+              "recall5": 0.286,
               "recall10": 0.286
             },
             {
@@ -3783,63 +3783,63 @@
             },
             {
               "id": "q-004",
-              "ndcg10": 0.065,
-              "mrr": 0.2,
-              "recall5": 0.167,
+              "ndcg10": 0.056,
+              "mrr": 0.143,
+              "recall5": 0,
               "recall10": 0.167
             },
             {
               "id": "q-005",
-              "ndcg10": 0.371,
+              "ndcg10": 0.208,
               "mrr": 1,
               "recall5": 0.067,
-              "recall10": 0.267
+              "recall10": 0.133
             },
             {
               "id": "q-006",
-              "ndcg10": 0.315,
+              "ndcg10": 0.055,
               "mrr": 0.143,
               "recall5": 0,
-              "recall10": 0.6
+              "recall10": 0.2
             },
             {
               "id": "q-007",
-              "ndcg10": 0.511,
+              "ndcg10": 0.492,
               "mrr": 1,
               "recall5": 0.3,
               "recall10": 0.4
             },
             {
               "id": "q-008",
-              "ndcg10": 0.159,
-              "mrr": 1,
-              "recall5": 0.182,
-              "recall10": 0.182
+              "ndcg10": 0.139,
+              "mrr": 0.5,
+              "recall5": 0.091,
+              "recall10": 0.273
             },
             {
               "id": "q-009",
-              "ndcg10": 0.312,
-              "mrr": 0.5,
+              "ndcg10": 0.338,
+              "mrr": 0.333,
               "recall5": 0.182,
-              "recall10": 0.364
+              "recall10": 0.455
             },
             {
               "id": "q-010",
-              "ndcg10": 0.272,
+              "ndcg10": 0.229,
               "mrr": 0.333,
-              "recall5": 0.231,
+              "recall5": 0.077,
               "recall10": 0.308
             },
             {
               "id": "q-011",
-              "ndcg10": 0.336,
+              "ndcg10": 0.345,
               "mrr": 1,
-              "recall5": 0.154,
+              "recall5": 0.231,
               "recall10": 0.231
             },
             {
               "id": "q-012",
-              "ndcg10": 0.47,
+              "ndcg10": 0.437,
               "mrr": 1,
               "recall5": 0.143,
               "recall10": 0.214
@@ -3853,16 +3853,16 @@
             },
             {
               "id": "q-014",
-              "ndcg10": 0.204,
+              "ndcg10": 0.174,
               "mrr": 1,
-              "recall5": 0.154,
+              "recall5": 0.077,
               "recall10": 0.154
             },
             {
               "id": "q-015",
-              "ndcg10": 0.412,
-              "mrr": 0.333,
-              "recall5": 0.286,
+              "ndcg10": 0.374,
+              "mrr": 0.25,
+              "recall5": 0.143,
               "recall10": 0.571
             },
             {
@@ -3874,17 +3874,17 @@
             },
             {
               "id": "q-017",
-              "ndcg10": 0.332,
+              "ndcg10": 0.226,
               "mrr": 1,
               "recall5": 0.182,
-              "recall10": 0.273
+              "recall10": 0.182
             },
             {
               "id": "q-018",
-              "ndcg10": 0.326,
-              "mrr": 0.333,
-              "recall5": 0.111,
-              "recall10": 0.333
+              "ndcg10": 0.182,
+              "mrr": 0.143,
+              "recall5": 0,
+              "recall10": 0.222
             },
             {
               "id": "q-019",
@@ -3895,73 +3895,73 @@
             },
             {
               "id": "q-020",
-              "ndcg10": 0.177,
-              "mrr": 0.333,
+              "ndcg10": 0.154,
+              "mrr": 0.25,
               "recall5": 0.286,
               "recall10": 0.286
             },
             {
               "id": "q-021",
-              "ndcg10": 0.428,
-              "mrr": 0.333,
-              "recall5": 0.182,
-              "recall10": 0.455
+              "ndcg10": 0.203,
+              "mrr": 0.25,
+              "recall5": 0.091,
+              "recall10": 0.273
             },
             {
               "id": "q-022",
-              "ndcg10": 0.067,
-              "mrr": 0.125,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.125
+              "recall10": 0
             },
             {
               "id": "q-023",
-              "ndcg10": 0.109,
-              "mrr": 0.143,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.167
+              "recall10": 0
             },
             {
               "id": "q-024",
-              "ndcg10": 0.08,
-              "mrr": 0.111,
+              "ndcg10": 0.082,
+              "mrr": 0.125,
               "recall5": 0,
               "recall10": 0.2
             },
             {
               "id": "q-025",
-              "ndcg10": 0.235,
-              "mrr": 1,
+              "ndcg10": 0.135,
+              "mrr": 0.25,
               "recall5": 0.083,
               "recall10": 0.167
             },
             {
               "id": "q-026",
-              "ndcg10": 0.271,
-              "mrr": 0.25,
-              "recall5": 0.333,
-              "recall10": 0.333
-            },
-            {
-              "id": "q-027",
-              "ndcg10": 0.521,
-              "mrr": 0.5,
-              "recall5": 0.5,
-              "recall10": 0.5
-            },
-            {
-              "id": "q-028",
               "ndcg10": 0.224,
               "mrr": 0.167,
               "recall5": 0,
               "recall10": 0.333
             },
             {
-              "id": "q-029",
-              "ndcg10": 0.224,
-              "mrr": 0.111,
+              "id": "q-027",
+              "ndcg10": 0.32,
+              "mrr": 0.2,
+              "recall5": 0.5,
+              "recall10": 0.5
+            },
+            {
+              "id": "q-028",
+              "ndcg10": 0.182,
+              "mrr": 0.1,
               "recall5": 0,
-              "recall10": 0.667
+              "recall10": 0.333
+            },
+            {
+              "id": "q-029",
+              "ndcg10": 0,
+              "mrr": 0,
+              "recall5": 0,
+              "recall10": 0
             },
             {
               "id": "q-030",
@@ -3986,45 +3986,45 @@
             },
             {
               "id": "q-033",
-              "ndcg10": 0.811,
-              "mrr": 1,
-              "recall5": 0.667,
-              "recall10": 0.667
+              "ndcg10": 0,
+              "mrr": 0,
+              "recall5": 0,
+              "recall10": 0
             },
             {
               "id": "q-034",
-              "ndcg10": 0.591,
+              "ndcg10": 0.629,
               "mrr": 0.5,
               "recall5": 0.667,
               "recall10": 0.667
             },
             {
               "id": "q-035",
-              "ndcg10": 0.32,
-              "mrr": 0.125,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.667
+              "recall10": 0
             },
             {
               "id": "q-036",
-              "ndcg10": 0.126,
-              "mrr": 0.111,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-037",
-              "ndcg10": 0.126,
-              "mrr": 0.111,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-038",
-              "ndcg10": 0.126,
-              "mrr": 0.111,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-039",
@@ -4042,17 +4042,17 @@
             },
             {
               "id": "q-041",
-              "ndcg10": 0.515,
+              "ndcg10": 0.38,
               "mrr": 1,
               "recall5": 0.333,
-              "recall10": 0.667
+              "recall10": 0.333
             },
             {
               "id": "q-042",
-              "ndcg10": 0.33,
-              "mrr": 0.167,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.667
+              "recall10": 0
             },
             {
               "id": "q-043",
@@ -4098,10 +4098,10 @@
             },
             {
               "id": "q-049",
-              "ndcg10": 0.437,
-              "mrr": 0.333,
-              "recall5": 0.667,
-              "recall10": 0.667
+              "ndcg10": 0.136,
+              "mrr": 0.1,
+              "recall5": 0,
+              "recall10": 0.333
             },
             {
               "id": "q-050",
@@ -4119,17 +4119,17 @@
             },
             {
               "id": "q-052",
-              "ndcg10": 0.458,
-              "mrr": 0.5,
+              "ndcg10": 0.271,
+              "mrr": 0.25,
               "recall5": 0.333,
-              "recall10": 0.667
+              "recall10": 0.333
             },
             {
               "id": "q-053",
-              "ndcg10": 0.18,
-              "mrr": 0.125,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-054",
@@ -4154,35 +4154,35 @@
             },
             {
               "id": "q-057",
-              "ndcg10": 0.343,
-              "mrr": 0.25,
-              "recall5": 0.667,
-              "recall10": 0.667
+              "ndcg10": 0.214,
+              "mrr": 0.5,
+              "recall5": 0.333,
+              "recall10": 0.333
             },
             {
               "id": "q-058",
-              "ndcg10": 0.31,
-              "mrr": 0.143,
+              "ndcg10": 0.313,
+              "mrr": 0.167,
               "recall5": 0,
               "recall10": 0.667
             },
             {
               "id": "q-059",
-              "ndcg10": 0.872,
+              "ndcg10": 0.811,
               "mrr": 1,
               "recall5": 0.667,
-              "recall10": 1
-            },
-            {
-              "id": "q-060",
-              "ndcg10": 0.61,
-              "mrr": 1,
-              "recall5": 0.333,
               "recall10": 0.667
             },
             {
+              "id": "q-060",
+              "ndcg10": 0.42,
+              "mrr": 1,
+              "recall5": 0.333,
+              "recall10": 0.333
+            },
+            {
               "id": "q-061",
-              "ndcg10": 0.834,
+              "ndcg10": 0.796,
               "mrr": 1,
               "recall5": 0.667,
               "recall10": 0.667
@@ -4203,10 +4203,10 @@
             },
             {
               "id": "q-064",
-              "ndcg10": 0.486,
-              "mrr": 0.5,
+              "ndcg10": 0.57,
+              "mrr": 1,
               "recall5": 0.333,
-              "recall10": 0.667
+              "recall10": 0.333
             },
             {
               "id": "q-065",
@@ -4217,8 +4217,8 @@
             },
             {
               "id": "q-066",
-              "ndcg10": 0.265,
-              "mrr": 0.5,
+              "ndcg10": 0.21,
+              "mrr": 0.333,
               "recall5": 0.333,
               "recall10": 0.333
             },
@@ -4238,10 +4238,10 @@
             },
             {
               "id": "q-069",
-              "ndcg10": 0.114,
-              "mrr": 0.111,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-070",
@@ -4252,23 +4252,23 @@
             },
             {
               "id": "q-071",
-              "ndcg10": 0.11,
-              "mrr": 0.1,
+              "ndcg10": 0,
+              "mrr": 0,
+              "recall5": 0,
+              "recall10": 0
+            },
+            {
+              "id": "q-072",
+              "ndcg10": 0.127,
+              "mrr": 0.143,
               "recall5": 0,
               "recall10": 0.333
             },
             {
-              "id": "q-072",
-              "ndcg10": 0.164,
-              "mrr": 0.25,
-              "recall5": 0.333,
-              "recall10": 0.333
-            },
-            {
               "id": "q-073",
-              "ndcg10": 0.451,
-              "mrr": 0.2,
-              "recall5": 0.333,
+              "ndcg10": 0.442,
+              "mrr": 0.167,
+              "recall5": 0,
               "recall10": 1
             },
             {
@@ -4280,10 +4280,10 @@
             },
             {
               "id": "q-075",
-              "ndcg10": 0.696,
+              "ndcg10": 0.63,
               "mrr": 1,
               "recall5": 0.333,
-              "recall10": 0.667
+              "recall10": 0.333
             },
             {
               "id": "q-076",
@@ -4294,23 +4294,23 @@
             },
             {
               "id": "q-077",
-              "ndcg10": 0.705,
+              "ndcg10": 0.763,
               "mrr": 1,
-              "recall5": 0.333,
+              "recall5": 0.667,
               "recall10": 0.667
             },
             {
               "id": "q-078",
-              "ndcg10": 0.691,
+              "ndcg10": 0.42,
               "mrr": 1,
-              "recall5": 0.667,
-              "recall10": 0.667
+              "recall5": 0.333,
+              "recall10": 0.333
             },
             {
               "id": "q-079",
-              "ndcg10": 0.481,
-              "mrr": 0.333,
-              "recall5": 0.667,
+              "ndcg10": 0.433,
+              "mrr": 0.25,
+              "recall5": 0.333,
               "recall10": 1
             },
             {
@@ -4322,8 +4322,8 @@
             },
             {
               "id": "q-081",
-              "ndcg10": 0.17,
-              "mrr": 0.143,
+              "ndcg10": 0.161,
+              "mrr": 0.125,
               "recall5": 0,
               "recall10": 0.333
             },
@@ -4336,10 +4336,10 @@
             },
             {
               "id": "q-083",
-              "ndcg10": 0.647,
-              "mrr": 1,
+              "ndcg10": 0.214,
+              "mrr": 0.5,
               "recall5": 0.333,
-              "recall10": 1
+              "recall10": 0.333
             },
             {
               "id": "q-084",
@@ -4350,64 +4350,64 @@
             },
             {
               "id": "q-085",
-              "ndcg10": 0.198,
-              "mrr": 0.167,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-086",
-              "ndcg10": 0.165,
-              "mrr": 0.1,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-087",
-              "ndcg10": 0.458,
-              "mrr": 0.5,
+              "ndcg10": 0.313,
+              "mrr": 0.25,
               "recall5": 0.333,
               "recall10": 0.333
             },
             {
               "id": "q-088",
-              "ndcg10": 0.829,
+              "ndcg10": 0.816,
               "mrr": 1,
               "recall5": 1,
               "recall10": 1
             },
             {
               "id": "q-089",
-              "ndcg10": 0.21,
+              "ndcg10": 0,
+              "mrr": 0,
+              "recall5": 0,
+              "recall10": 0
+            },
+            {
+              "id": "q-090",
+              "ndcg10": 0,
+              "mrr": 0,
+              "recall5": 0,
+              "recall10": 0
+            },
+            {
+              "id": "q-091",
+              "ndcg10": 0.113,
               "mrr": 0.143,
               "recall5": 0,
               "recall10": 0.333
             },
             {
-              "id": "q-090",
-              "ndcg10": 0.199,
-              "mrr": 0.125,
+              "id": "q-092",
+              "ndcg10": 0.141,
+              "mrr": 0.111,
               "recall5": 0,
               "recall10": 0.333
             },
             {
-              "id": "q-091",
-              "ndcg10": 0.17,
-              "mrr": 0.333,
-              "recall5": 0.333,
-              "recall10": 0.333
-            },
-            {
-              "id": "q-092",
-              "ndcg10": 0.235,
-              "mrr": 0.333,
-              "recall5": 0.333,
-              "recall10": 0.333
-            },
-            {
               "id": "q-093",
-              "ndcg10": 0.351,
-              "mrr": 0.5,
+              "ndcg10": 0.278,
+              "mrr": 0.333,
               "recall5": 0.333,
               "recall10": 0.333
             },
@@ -4420,17 +4420,17 @@
             },
             {
               "id": "q-095",
-              "ndcg10": 0.197,
-              "mrr": 0.2,
+              "ndcg10": 0.255,
+              "mrr": 0.333,
               "recall5": 0.333,
               "recall10": 0.333
             },
             {
               "id": "q-096",
-              "ndcg10": 0.526,
-              "mrr": 0.25,
-              "recall5": 0.333,
-              "recall10": 1
+              "ndcg10": 0.315,
+              "mrr": 0.167,
+              "recall5": 0,
+              "recall10": 0.667
             },
             {
               "id": "q-097",
@@ -4441,22 +4441,22 @@
             },
             {
               "id": "q-098",
-              "ndcg10": 0.664,
+              "ndcg10": 0.42,
               "mrr": 1,
-              "recall5": 0.667,
-              "recall10": 0.667
+              "recall5": 0.333,
+              "recall10": 0.333
             },
             {
               "id": "q-099",
-              "ndcg10": 0.877,
+              "ndcg10": 0.808,
               "mrr": 1,
               "recall5": 0.667,
               "recall10": 1
             },
             {
               "id": "q-100",
-              "ndcg10": 0.315,
-              "mrr": 0.333,
+              "ndcg10": 0.397,
+              "mrr": 0.5,
               "recall5": 0.333,
               "recall10": 0.333
             }
@@ -4483,8 +4483,8 @@
               "ndcg10": 0
             },
             {
-              "id": "q-030",
-              "query": "self-attention in encoder queries keys values same sequence",
+              "id": "q-022",
+              "query": "transformer model training Adam optimizer learning rate warmup",
               "ndcg10": 0
             }
           ]
@@ -5236,27 +5236,27 @@
           "engine": "pgvector dense + websearch_to_tsquery('simple')/ts_rank lexical (production SQL shape), same weighted RRF fusion",
           "database": "pglite (real PostgreSQL + pgvector, in-process WASM)",
           "macro": {
-            "ndcg10": 0.337,
-            "mrr": 0.446,
-            "recall5": 0.232,
-            "recall10": 0.413,
-            "hit5": 0.64,
-            "hit10": 0.82
+            "ndcg10": 0.253,
+            "mrr": 0.389,
+            "recall5": 0.187,
+            "recall10": 0.275,
+            "hit5": 0.54,
+            "hit10": 0.64
           },
           "perQuery": [
             {
               "id": "q-001",
-              "ndcg10": 0.387,
+              "ndcg10": 0.399,
               "mrr": 1,
               "recall5": 0.308,
               "recall10": 0.308
             },
             {
               "id": "q-002",
-              "ndcg10": 0.506,
+              "ndcg10": 0.443,
               "mrr": 1,
               "recall5": 0.286,
-              "recall10": 0.357
+              "recall10": 0.286
             },
             {
               "id": "q-003",
@@ -5267,66 +5267,66 @@
             },
             {
               "id": "q-004",
-              "ndcg10": 0.084,
-              "mrr": 0.333,
+              "ndcg10": 0.065,
+              "mrr": 0.2,
               "recall5": 0.167,
               "recall10": 0.167
             },
             {
               "id": "q-005",
-              "ndcg10": 0.318,
-              "mrr": 0.5,
+              "ndcg10": 0.285,
+              "mrr": 1,
               "recall5": 0.067,
-              "recall10": 0.267
+              "recall10": 0.2
             },
             {
               "id": "q-006",
-              "ndcg10": 0.359,
+              "ndcg10": 0.064,
               "mrr": 0.2,
               "recall5": 0.2,
-              "recall10": 0.6
+              "recall10": 0.2
             },
             {
               "id": "q-007",
-              "ndcg10": 0.533,
+              "ndcg10": 0.495,
               "mrr": 1,
-              "recall5": 0.4,
+              "recall5": 0.3,
               "recall10": 0.4
             },
             {
               "id": "q-008",
-              "ndcg10": 0.121,
-              "mrr": 0.5,
+              "ndcg10": 0.127,
+              "mrr": 0.333,
               "recall5": 0.091,
-              "recall10": 0.182
+              "recall10": 0.273
             },
             {
               "id": "q-009",
-              "ndcg10": 0.312,
+              "ndcg10": 0.307,
               "mrr": 0.5,
               "recall5": 0.182,
               "recall10": 0.364
             },
             {
               "id": "q-010",
-              "ndcg10": 0.235,
-              "mrr": 0.25,
+              "ndcg10": 0.149,
+              "mrr": 0.333,
               "recall5": 0.077,
-              "recall10": 0.308
+              "recall10": 0.231
             },
             {
               "id": "q-011",
-              "ndcg10": 0.336,
+              "ndcg10": 0.345,
               "mrr": 1,
-              "recall5": 0.154,
+              "recall5": 0.231,
               "recall10": 0.231
             },
             {
               "id": "q-012",
-              "ndcg10": 0.582,
+              "ndcg10": 0.502,
               "mrr": 1,
               "recall5": 0.214,
-              "recall10": 0.286
+              "recall10": 0.214
             },
             {
               "id": "q-013",
@@ -5337,16 +5337,16 @@
             },
             {
               "id": "q-014",
-              "ndcg10": 0.13,
-              "mrr": 0.2,
+              "ndcg10": 0.129,
+              "mrr": 0.333,
               "recall5": 0.077,
               "recall10": 0.154
             },
             {
               "id": "q-015",
-              "ndcg10": 0.412,
-              "mrr": 0.333,
-              "recall5": 0.286,
+              "ndcg10": 0.374,
+              "mrr": 0.25,
+              "recall5": 0.143,
               "recall10": 0.571
             },
             {
@@ -5358,17 +5358,17 @@
             },
             {
               "id": "q-017",
-              "ndcg10": 0.403,
+              "ndcg10": 0.286,
               "mrr": 1,
               "recall5": 0.182,
-              "recall10": 0.364
+              "recall10": 0.273
             },
             {
               "id": "q-018",
-              "ndcg10": 0.297,
-              "mrr": 0.25,
-              "recall5": 0.111,
-              "recall10": 0.333
+              "ndcg10": 0.179,
+              "mrr": 0.143,
+              "recall5": 0,
+              "recall10": 0.222
             },
             {
               "id": "q-019",
@@ -5379,31 +5379,31 @@
             },
             {
               "id": "q-020",
-              "ndcg10": 0.255,
-              "mrr": 1,
+              "ndcg10": 0.128,
+              "mrr": 0.333,
               "recall5": 0.143,
               "recall10": 0.143
             },
             {
               "id": "q-021",
-              "ndcg10": 0.429,
+              "ndcg10": 0.221,
               "mrr": 0.333,
-              "recall5": 0.182,
-              "recall10": 0.455
+              "recall5": 0.091,
+              "recall10": 0.273
             },
             {
               "id": "q-022",
-              "ndcg10": 0.071,
-              "mrr": 0.143,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.125
+              "recall10": 0
             },
             {
               "id": "q-023",
-              "ndcg10": 0.229,
-              "mrr": 0.2,
-              "recall5": 0.167,
-              "recall10": 0.333
+              "ndcg10": 0,
+              "mrr": 0,
+              "recall5": 0,
+              "recall10": 0
             },
             {
               "id": "q-024",
@@ -5414,8 +5414,8 @@
             },
             {
               "id": "q-025",
-              "ndcg10": 0.141,
-              "mrr": 0.333,
+              "ndcg10": 0.121,
+              "mrr": 0.2,
               "recall5": 0.083,
               "recall10": 0.167
             },
@@ -5428,31 +5428,31 @@
             },
             {
               "id": "q-027",
-              "ndcg10": 0.413,
-              "mrr": 0.333,
+              "ndcg10": 0.32,
+              "mrr": 0.2,
               "recall5": 0.5,
               "recall10": 0.5
             },
             {
               "id": "q-028",
-              "ndcg10": 0.244,
-              "mrr": 0.2,
-              "recall5": 0.333,
+              "ndcg10": 0.199,
+              "mrr": 0.125,
+              "recall5": 0,
               "recall10": 0.333
             },
             {
               "id": "q-029",
-              "ndcg10": 0.224,
-              "mrr": 0.111,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.667
+              "recall10": 0
             },
             {
               "id": "q-030",
-              "ndcg10": 0.25,
-              "mrr": 0.111,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.667
+              "recall10": 0
             },
             {
               "id": "q-031",
@@ -5470,10 +5470,10 @@
             },
             {
               "id": "q-033",
-              "ndcg10": 0.811,
-              "mrr": 1,
-              "recall5": 0.667,
-              "recall10": 0.667
+              "ndcg10": 0,
+              "mrr": 0,
+              "recall5": 0,
+              "recall10": 0
             },
             {
               "id": "q-034",
@@ -5484,38 +5484,38 @@
             },
             {
               "id": "q-035",
-              "ndcg10": 0.336,
-              "mrr": 0.143,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.667
+              "recall10": 0
             },
             {
               "id": "q-036",
-              "ndcg10": 0.126,
-              "mrr": 0.111,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-037",
-              "ndcg10": 0.14,
-              "mrr": 0.143,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-038",
-              "ndcg10": 0.15,
-              "mrr": 0.167,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-039",
-              "ndcg10": 0.308,
-              "mrr": 0.125,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.667
+              "recall10": 0
             },
             {
               "id": "q-040",
@@ -5526,24 +5526,24 @@
             },
             {
               "id": "q-041",
-              "ndcg10": 0.57,
+              "ndcg10": 0.545,
               "mrr": 1,
               "recall5": 0.333,
               "recall10": 0.667
             },
             {
               "id": "q-042",
-              "ndcg10": 0.476,
-              "mrr": 0.2,
-              "recall5": 0.333,
-              "recall10": 1
+              "ndcg10": 0,
+              "mrr": 0,
+              "recall5": 0,
+              "recall10": 0
             },
             {
               "id": "q-043",
-              "ndcg10": 0.444,
-              "mrr": 0.2,
-              "recall5": 0.333,
-              "recall10": 1
+              "ndcg10": 0,
+              "mrr": 0,
+              "recall5": 0,
+              "recall10": 0
             },
             {
               "id": "q-044",
@@ -5554,10 +5554,10 @@
             },
             {
               "id": "q-045",
-              "ndcg10": 0.11,
-              "mrr": 0.1,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-046",
@@ -5575,24 +5575,24 @@
             },
             {
               "id": "q-048",
-              "ndcg10": 0.493,
+              "ndcg10": 0.487,
               "mrr": 1,
               "recall5": 0.333,
               "recall10": 0.667
             },
             {
               "id": "q-049",
-              "ndcg10": 0.323,
-              "mrr": 0.2,
-              "recall5": 0.333,
-              "recall10": 0.667
+              "ndcg10": 0,
+              "mrr": 0,
+              "recall5": 0,
+              "recall10": 0
             },
             {
               "id": "q-050",
-              "ndcg10": 0.279,
-              "mrr": 0.111,
+              "ndcg10": 0.12,
+              "mrr": 0.125,
               "recall5": 0,
-              "recall10": 0.667
+              "recall10": 0.333
             },
             {
               "id": "q-051",
@@ -5603,17 +5603,17 @@
             },
             {
               "id": "q-052",
-              "ndcg10": 0.59,
-              "mrr": 0.5,
+              "ndcg10": 0.315,
+              "mrr": 0.333,
               "recall5": 0.333,
-              "recall10": 1
+              "recall10": 0.333
             },
             {
               "id": "q-053",
-              "ndcg10": 0.203,
-              "mrr": 0.167,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.333
+              "recall10": 0
             },
             {
               "id": "q-054",
@@ -5638,16 +5638,16 @@
             },
             {
               "id": "q-057",
-              "ndcg10": 0.411,
-              "mrr": 0.5,
-              "recall5": 0.667,
-              "recall10": 0.667
+              "ndcg10": 0.339,
+              "mrr": 1,
+              "recall5": 0.333,
+              "recall10": 0.333
             },
             {
               "id": "q-058",
-              "ndcg10": 0.33,
-              "mrr": 0.167,
-              "recall5": 0,
+              "ndcg10": 0.34,
+              "mrr": 0.2,
+              "recall5": 0.333,
               "recall10": 0.667
             },
             {
@@ -5659,14 +5659,14 @@
             },
             {
               "id": "q-060",
-              "ndcg10": 0.602,
+              "ndcg10": 0.42,
               "mrr": 1,
               "recall5": 0.333,
-              "recall10": 0.667
+              "recall10": 0.333
             },
             {
               "id": "q-061",
-              "ndcg10": 0.772,
+              "ndcg10": 0.834,
               "mrr": 1,
               "recall5": 0.667,
               "recall10": 0.667
@@ -5687,10 +5687,10 @@
             },
             {
               "id": "q-064",
-              "ndcg10": 0.48,
-              "mrr": 0.5,
+              "ndcg10": 0.57,
+              "mrr": 1,
               "recall5": 0.333,
-              "recall10": 0.667
+              "recall10": 0.333
             },
             {
               "id": "q-065",
@@ -5708,10 +5708,10 @@
             },
             {
               "id": "q-067",
-              "ndcg10": 0.402,
-              "mrr": 0.333,
+              "ndcg10": 0.219,
+              "mrr": 0.25,
               "recall5": 0.333,
-              "recall10": 0.667
+              "recall10": 0.333
             },
             {
               "id": "q-068",
@@ -5743,17 +5743,17 @@
             },
             {
               "id": "q-072",
-              "ndcg10": 0.147,
-              "mrr": 0.2,
-              "recall5": 0.333,
+              "ndcg10": 0.127,
+              "mrr": 0.143,
+              "recall5": 0,
               "recall10": 0.333
             },
             {
               "id": "q-073",
-              "ndcg10": 0.31,
-              "mrr": 0.2,
-              "recall5": 0.333,
-              "recall10": 0.667
+              "ndcg10": 0.431,
+              "mrr": 0.167,
+              "recall5": 0,
+              "recall10": 1
             },
             {
               "id": "q-074",
@@ -5764,7 +5764,7 @@
             },
             {
               "id": "q-075",
-              "ndcg10": 0.705,
+              "ndcg10": 0.696,
               "mrr": 1,
               "recall5": 0.333,
               "recall10": 0.667
@@ -5785,14 +5785,14 @@
             },
             {
               "id": "q-078",
-              "ndcg10": 0.644,
+              "ndcg10": 0.602,
               "mrr": 1,
               "recall5": 0.333,
               "recall10": 0.667
             },
             {
               "id": "q-079",
-              "ndcg10": 0.491,
+              "ndcg10": 0.495,
               "mrr": 0.25,
               "recall5": 0.667,
               "recall10": 1
@@ -5806,8 +5806,8 @@
             },
             {
               "id": "q-081",
-              "ndcg10": 0.17,
-              "mrr": 0.143,
+              "ndcg10": 0.161,
+              "mrr": 0.125,
               "recall5": 0,
               "recall10": 0.333
             },
@@ -5820,10 +5820,10 @@
             },
             {
               "id": "q-083",
-              "ndcg10": 0.674,
-              "mrr": 1,
+              "ndcg10": 0.17,
+              "mrr": 0.333,
               "recall5": 0.333,
-              "recall10": 1
+              "recall10": 0.333
             },
             {
               "id": "q-084",
@@ -5834,64 +5834,64 @@
             },
             {
               "id": "q-085",
-              "ndcg10": 0.376,
-              "mrr": 0.2,
-              "recall5": 0.333,
-              "recall10": 0.667
+              "ndcg10": 0,
+              "mrr": 0,
+              "recall5": 0,
+              "recall10": 0
             },
             {
               "id": "q-086",
-              "ndcg10": 0.304,
-              "mrr": 0.143,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.667
+              "recall10": 0
             },
             {
               "id": "q-087",
-              "ndcg10": 0.313,
-              "mrr": 0.25,
+              "ndcg10": 0.281,
+              "mrr": 0.2,
               "recall5": 0.333,
               "recall10": 0.333
             },
             {
               "id": "q-088",
-              "ndcg10": 0.829,
+              "ndcg10": 0.791,
               "mrr": 1,
               "recall5": 1,
               "recall10": 1
             },
             {
               "id": "q-089",
-              "ndcg10": 0.21,
-              "mrr": 0.143,
+              "ndcg10": 0.182,
+              "mrr": 0.1,
               "recall5": 0,
               "recall10": 0.333
             },
             {
               "id": "q-090",
-              "ndcg10": 0.336,
-              "mrr": 0.143,
+              "ndcg10": 0,
+              "mrr": 0,
               "recall5": 0,
-              "recall10": 0.667
+              "recall10": 0
             },
             {
               "id": "q-091",
-              "ndcg10": 0.214,
-              "mrr": 0.5,
+              "ndcg10": 0.131,
+              "mrr": 0.2,
               "recall5": 0.333,
               "recall10": 0.333
             },
             {
               "id": "q-092",
-              "ndcg10": 0.296,
-              "mrr": 0.5,
-              "recall5": 0.333,
+              "ndcg10": 0.136,
+              "mrr": 0.1,
+              "recall5": 0,
               "recall10": 0.333
             },
             {
               "id": "q-093",
-              "ndcg10": 0.351,
-              "mrr": 0.5,
+              "ndcg10": 0.278,
+              "mrr": 0.333,
               "recall5": 0.333,
               "recall10": 0.333
             },
@@ -5904,16 +5904,16 @@
             },
             {
               "id": "q-095",
-              "ndcg10": 0.219,
-              "mrr": 0.25,
+              "ndcg10": 0.321,
+              "mrr": 0.5,
               "recall5": 0.333,
               "recall10": 0.333
             },
             {
               "id": "q-096",
-              "ndcg10": 0.807,
-              "mrr": 1,
-              "recall5": 0.667,
+              "ndcg10": 0.5,
+              "mrr": 0.25,
+              "recall5": 0.333,
               "recall10": 1
             },
             {
@@ -5925,9 +5925,9 @@
             },
             {
               "id": "q-098",
-              "ndcg10": 0.664,
+              "ndcg10": 0.602,
               "mrr": 1,
-              "recall5": 0.667,
+              "recall5": 0.333,
               "recall10": 0.667
             },
             {
@@ -5939,8 +5939,8 @@
             },
             {
               "id": "q-100",
-              "ndcg10": 0.315,
-              "mrr": 0.333,
+              "ndcg10": 0.397,
+              "mrr": 0.5,
               "recall5": 0.333,
               "recall10": 0.333
             }
@@ -5967,8 +5967,8 @@
               "ndcg10": 0
             },
             {
-              "id": "q-024",
-              "query": "misleading pathological prompt NLI model fooled incorrect instruction",
+              "id": "q-022",
+              "query": "transformer model training Adam optimizer learning rate warmup",
               "ndcg10": 0
             }
           ]
