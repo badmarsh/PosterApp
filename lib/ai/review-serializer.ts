@@ -92,6 +92,32 @@ export function safeJsonParseWithDiagnostics<T>(
   }
 }
 
+const ReviewQuestionListSchema = z.array(z.string().trim().min(1).max(5_000)).max(100)
+
+function normalizeStoredQuestionList(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((question): question is string => typeof question === "string")
+    .map((question) => question.trim())
+    .filter(Boolean)
+}
+
+function serializeQuestionList(value: unknown, fieldName: "defenseQuestions" | "questionsForAuthors"): string {
+  let candidate = value
+  if (typeof value === "string") {
+    try {
+      candidate = JSON.parse(value)
+    } catch {
+      throw new Error(`${fieldName} must be a JSON array of strings`)
+    }
+  }
+  const parsed = ReviewQuestionListSchema.safeParse(candidate)
+  if (!parsed.success) {
+    throw new Error(`${fieldName} must contain at most 100 non-empty strings of 5000 characters or fewer`)
+  }
+  return JSON.stringify(parsed.data)
+}
+
 /**
  * Normalizes and validates an array of findings.
  * Ensures stable IDs, valid enums, evidence references, and non-crashing fallbacks.
@@ -282,11 +308,11 @@ export function deserializeThesisReview(dbRecord: any): DeserializedThesisReview
     : "thesis"
   // Keep the two question channels strictly separate. In particular, never
   // reinterpret legacy thesis defence questions as author-facing questions.
-  const questionsForAuthors = Array.isArray(rawQuestionsForAuthors)
-    ? rawQuestionsForAuthors.map(String)
-    : []
-  const thesisDefenseQuestions = reviewKind === "thesis" && Array.isArray(defenseQuestions)
-    ? defenseQuestions.map(String)
+  const questionsForAuthors = reviewKind === "thesis"
+    ? []
+    : normalizeStoredQuestionList(rawQuestionsForAuthors)
+  const thesisDefenseQuestions = reviewKind === "thesis"
+    ? normalizeStoredQuestionList(defenseQuestions)
     : []
 
   const validStandards = new Set(["consort", "prisma", "strobe", "ml_reproducibility", "none"])
@@ -420,16 +446,20 @@ export function serializeThesisReviewUpdate(data: Record<string, any>): Record<s
   }
 
   if (data.defenseQuestions !== undefined) {
-    const raw = typeof data.defenseQuestions === "string" ? data.defenseQuestions : JSON.stringify(data.defenseQuestions)
-    if (raw.length > MAX_SERIALIZED_PAYLOAD_BYTES) {
+    const raw = data.defenseQuestions === null
+      ? null
+      : serializeQuestionList(data.defenseQuestions, "defenseQuestions")
+    if (raw && raw.length > MAX_SERIALIZED_PAYLOAD_BYTES) {
       throw new Error("Payload size limit exceeded for defenseQuestions")
     }
     result.defenseQuestions = raw
   }
 
   if (data.questionsForAuthors !== undefined) {
-    const raw = typeof data.questionsForAuthors === "string" ? data.questionsForAuthors : JSON.stringify(data.questionsForAuthors)
-    if (raw.length > MAX_SERIALIZED_PAYLOAD_BYTES) {
+    const raw = data.questionsForAuthors === null
+      ? null
+      : serializeQuestionList(data.questionsForAuthors, "questionsForAuthors")
+    if (raw && raw.length > MAX_SERIALIZED_PAYLOAD_BYTES) {
       throw new Error("Payload size limit exceeded for questionsForAuthors")
     }
     result.questionsForAuthors = raw

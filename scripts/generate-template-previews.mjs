@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Generate `public/template-previews/<templateId>.svg` (+ `.png` @2x) for every
- * template in the registry.
+ * Generate `public/template-previews/<templateId>.svg` (+ 640 × 480 `.png`)
+ * for every template in the registry. All preview images use a shared 4:3 frame.
  *
  *   pnpm exec tsx scripts/generate-template-previews.mjs
  *   node scripts/generate-template-previews.mjs            (via the tsx shim below)
@@ -55,7 +55,7 @@ for (const t of targets) {
   if (wantPng && sharpMod) {
     try {
       await sharpMod(Buffer.from(svg, "utf8"), { density: 192 })
-        .resize({ width: 640 })
+        .resize({ width: 640, height: 480, fit: "fill" })
         .png()
         .toFile(path.join(OUT_DIR, `${t.id}.png`))
     } catch (err) {

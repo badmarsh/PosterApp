@@ -113,8 +113,13 @@ export async function resetRegistrationSetting(): Promise<RegistrationSettingRes
     await prisma.systemSetting.delete({
       where: { key: SYSTEM_SETTING_KEYS.ALLOW_REGISTRATION },
     })
-  } catch {
-    // Ignore error if row didn't exist
+  } catch (error) {
+    // Deleting a missing row is an idempotent reset; database/connection
+    // failures must still reach the caller instead of reporting false success.
+    const code = error && typeof error === "object" && "code" in error
+      ? (error as { code?: unknown }).code
+      : undefined
+    if (code !== "P2025") throw error
   }
   invalidateSystemSettingsCache()
   return getRegistrationSetting(true)

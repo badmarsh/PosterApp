@@ -20,6 +20,18 @@ export interface AgentTool<I = any, O = any> {
   handler: (ctx: AgentContext, args: I) => Promise<O>
 }
 
+function parseStringListJson(value: string | null): string[] {
+  if (!value) return []
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
+      : []
+  } catch {
+    return []
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 8.1 Read Tools
 // ---------------------------------------------------------------------------
@@ -488,7 +500,8 @@ const reviewLatestTool: AgentTool = {
         suggestedGrade: z.string().nullable(),
         finalGrade: z.string().nullable(),
         recommendation: z.string().nullable(),
-        defenseQuestions: z.any().nullable(),
+        defenseQuestions: z.array(z.string()).nullable(),
+        questionsForAuthors: z.array(z.string()).nullable(),
         findingsCount: z.number(),
         createdAt: z.date(),
       })
@@ -507,6 +520,7 @@ const reviewLatestTool: AgentTool = {
         finalGrade: true,
         recommendation: true,
         defenseQuestions: true,
+        questionsForAuthors: true,
         findings: true,
         createdAt: true,
       },
@@ -520,7 +534,12 @@ const reviewLatestTool: AgentTool = {
         suggestedGrade: review.suggestedGrade,
         finalGrade: review.finalGrade,
         recommendation: review.recommendation,
-        defenseQuestions: review.defenseQuestions ? JSON.parse(review.defenseQuestions as string) : null,
+        defenseQuestions: review.reviewKind === "thesis"
+          ? parseStringListJson(review.defenseQuestions)
+          : null,
+        questionsForAuthors: review.reviewKind === "paper" || review.reviewKind === "grant"
+          ? parseStringListJson(review.questionsForAuthors)
+          : null,
         findingsCount: review.findings ? (JSON.parse(review.findings as string) as any[]).length : 0,
         createdAt: review.createdAt,
       },

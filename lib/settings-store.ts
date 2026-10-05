@@ -4,7 +4,7 @@ import { createStore, useStore } from "zustand"
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware"
 import type { AiModelRole } from "@/lib/ai/models"
 import type { ReviewLanguage } from "@/lib/ai/thesis-rubric"
-import type { AiEndpointConfig } from "@/lib/ai/endpoints"
+import { isValidEndpointBaseUrl, normalizeEndpointBaseUrl, type AiEndpointConfig } from "@/lib/ai/endpoints"
 
 export type SettingsState = {
   defaultReviewLanguage: ReviewLanguage
@@ -31,6 +31,10 @@ export type SettingsState = {
   isFetchingModels: Record<string, boolean>
   fetchModelsForEndpoint: (id: string) => Promise<string[]>
   fetchAllEndpointModels: () => Promise<void>
+  endpointSyncStatus: "idle" | "loading" | "syncing" | "load-error" | "error"
+  endpointSyncError: string | null
+  retryEndpointSync: () => Promise<void>
+  hydrateServerEndpoints: () => Promise<void>
 }
 
 export const SETTINGS_STORAGE_KEY = "posterapp-settings"
@@ -42,10 +46,103 @@ const noopStorage: StateStorage = {
   removeItem: () => {},
 }
 
+let endpointSyncQueue: Promise<void> = Promise.resolve()
+let endpointConfigurationTouched = false
+
+function getResponseError(data: any, status: number): string {
+  if (typeof data?.error === "string") return data.error
+  if (typeof data?.error?.message === "string") return data.error.message
+  return `HTTP ${status}`
+}
+
+function isStoredEndpoint(value: unknown): value is AiEndpointConfig {
+  if (!value || typeof value !== "object") return false
+  const endpoint = value as Record<string, unknown>
+  return typeof endpoint.id === "string"
+    && typeof endpoint.name === "string"
+    && typeof endpoint.baseUrl === "string"
+    && isValidEndpointBaseUrl(endpoint.baseUrl)
+    && (endpoint.apiKey === undefined || typeof endpoint.apiKey === "string")
+    && (endpoint.enabled === undefined || typeof endpoint.enabled === "boolean")
+    && (endpoint.models === undefined || (Array.isArray(endpoint.models) && endpoint.models.every((model) => typeof model === "string")))
+    && (endpoint.status === undefined || ["connected", "error", "untested"].includes(String(endpoint.status)))
+}
+
+function syncEndpointsToServer(endpoints: AiEndpointConfig[]): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve()
+
+  const operation = endpointSyncQueue.catch(() => undefined).then(async () => {
+    const response = await fetch("/api/ai/endpoints", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoints }),
+    })
+    const data = await response.json().catch(() => null)
+    if (!response.ok || data?.ok !== true) {
+      throw new Error(getResponseError(data, response.status))
+    }
+  })
+  endpointSyncQueue = operation
+  return operation
+}
+
+/** Persisting an empty list is part of Reset all settings. */
+export function clearStoredAiEndpoints(): Promise<void> {
+  endpointConfigurationTouched = true
+  return syncEndpointsToServer([])
+}
+
 export function createSettingsStore() {
   return createStore<SettingsState>()(
     persist(
-      (set, get) => ({
+      (set, get) => {
+        const persistEndpointUpdate = async (endpoints: AiEndpointConfig[]) => {
+          endpointConfigurationTouched = true
+          set({ endpointSyncStatus: "syncing", endpointSyncError: null })
+          try {
+            await syncEndpointsToServer(endpoints)
+            set({ endpointSyncStatus: "idle", endpointSyncError: null })
+          } catch (error) {
+            set({
+              endpointSyncStatus: "error",
+              endpointSyncError: error instanceof Error ? error.message : String(error),
+            })
+          }
+        }
+
+        const hydrateServerEndpoints = async () => {
+          if (endpointConfigurationTouched || get().endpoints.length > 0) return
+          set({ endpointSyncStatus: "loading", endpointSyncError: null })
+          try {
+            const response = await fetch("/api/ai/endpoints")
+            const data = await response.json().catch(() => null)
+            if (!response.ok) throw new Error(getResponseError(data, response.status))
+            if (!Array.isArray(data?.endpoints) || !data.endpoints.every(isStoredEndpoint)) {
+              throw new Error("Invalid endpoints response")
+            }
+            if (endpointConfigurationTouched || get().endpoints.length > 0) {
+              set({ endpointSyncStatus: "idle", endpointSyncError: null })
+              return
+            }
+
+            const endpoints: AiEndpointConfig[] = (data.endpoints as AiEndpointConfig[]).map((endpoint) => ({
+              ...endpoint,
+              baseUrl: normalizeEndpointBaseUrl(endpoint.baseUrl),
+            }))
+            const activeEndpointId = endpoints.some((endpoint: AiEndpointConfig) => endpoint.id === get().activeEndpointId)
+              ? get().activeEndpointId
+              : endpoints.find((endpoint: AiEndpointConfig) => endpoint.enabled !== false)?.id
+            set({ endpoints, activeEndpointId, endpointSyncStatus: "idle", endpointSyncError: null })
+          } catch (error) {
+            if (endpointConfigurationTouched) return
+            set({
+              endpointSyncStatus: "load-error",
+              endpointSyncError: error instanceof Error ? error.message : String(error),
+            })
+          }
+        }
+
+        return ({
         defaultReviewLanguage: "sk",
         setDefaultReviewLanguage: (lang) => set({ defaultReviewLanguage: lang }),
 
@@ -90,62 +187,61 @@ export function createSettingsStore() {
             models: endpoint.models || [],
             status: endpoint.status || "untested",
           }
-          set((s) => {
-            const nextEndpoints = [...s.endpoints, newEndpoint]
-            const activeId = s.activeEndpointId || id
-            // Persist to server in background
-            syncEndpointsToServer(nextEndpoints)
-            return { endpoints: nextEndpoints, activeEndpointId: activeId }
-          })
+          const { endpoints, activeEndpointId } = get()
+          const nextEndpoints = [...endpoints, newEndpoint]
+          set({ endpoints: nextEndpoints, activeEndpointId: activeEndpointId || id })
+          void persistEndpointUpdate(nextEndpoints)
           return id
         },
 
         updateEndpoint: (id, updates) => {
-          set((s) => {
-            const nextEndpoints = s.endpoints.map((e) =>
-              e.id === id ? { ...e, ...updates } : e
-            )
-            syncEndpointsToServer(nextEndpoints)
-            return { endpoints: nextEndpoints }
-          })
+          const nextEndpoints = get().endpoints.map((endpoint) =>
+            endpoint.id === id ? { ...endpoint, ...updates } : endpoint
+          )
+          set({ endpoints: nextEndpoints })
+          void persistEndpointUpdate(nextEndpoints)
         },
 
         removeEndpoint: (id) => {
-          set((s) => {
-            const nextEndpoints = s.endpoints.filter((e) => e.id !== id)
-            const nextActiveId =
-              s.activeEndpointId === id
-                ? nextEndpoints[0]?.id
-                : s.activeEndpointId
-            syncEndpointsToServer(nextEndpoints)
-            return { endpoints: nextEndpoints, activeEndpointId: nextActiveId }
-          })
+          const { endpoints, activeEndpointId } = get()
+          const nextEndpoints = endpoints.filter((endpoint) => endpoint.id !== id)
+          const nextActiveId = activeEndpointId === id ? nextEndpoints[0]?.id : activeEndpointId
+          set({ endpoints: nextEndpoints, activeEndpointId: nextActiveId })
+          void persistEndpointUpdate(nextEndpoints)
         },
 
         setEndpoints: (endpoints) => {
           set({ endpoints })
-          syncEndpointsToServer(endpoints)
+          void persistEndpointUpdate(endpoints)
         },
 
         setEndpointModels: (id, models) => {
-          set((s) => {
-            const nextEndpoints = s.endpoints.map((e) =>
-              e.id === id
-                ? {
-                    ...e,
-                    models,
-                    status: "connected" as const,
-                    lastLoadedAt: new Date().toISOString(),
-                    errorMessage: undefined,
-                  }
-                : e
-            )
-            syncEndpointsToServer(nextEndpoints)
-            return { endpoints: nextEndpoints }
-          })
+          const nextEndpoints = get().endpoints.map((endpoint) =>
+            endpoint.id === id
+              ? {
+                  ...endpoint,
+                  models,
+                  status: "connected" as const,
+                  lastLoadedAt: new Date().toISOString(),
+                  errorMessage: undefined,
+                }
+              : endpoint
+          )
+          set({ endpoints: nextEndpoints })
+          void persistEndpointUpdate(nextEndpoints)
         },
 
         isFetchingModels: {},
+        endpointSyncStatus: "idle",
+        endpointSyncError: null,
+        retryEndpointSync: async () => {
+          if (get().endpointSyncStatus === "load-error" && !endpointConfigurationTouched && get().endpoints.length === 0) {
+            await hydrateServerEndpoints()
+            return
+          }
+          await persistEndpointUpdate(get().endpoints)
+        },
+        hydrateServerEndpoints,
 
         fetchModelsForEndpoint: async (id: string): Promise<string[]> => {
           const endpoint = get().endpoints.find((e) => e.id === id)
@@ -166,7 +262,7 @@ export function createSettingsStore() {
             })
 
             const data = await res.json()
-            if (data.ok && Array.isArray(data.models)) {
+            if (res.ok && data?.ok === true && Array.isArray(data.models)) {
               get().setEndpointModels(id, data.models)
               return data.models
             } else {
@@ -200,13 +296,21 @@ export function createSettingsStore() {
               .map((e) => fetchModelsForEndpoint(e.id))
           )
         },
-      }),
+      })
+      },
       {
         name: SETTINGS_STORAGE_KEY,
-        version: 2,
+        version: 3,
         storage: createJSONStorage(() =>
           typeof window !== "undefined" ? window.localStorage : noopStorage
         ),
+        partialize: (state) => ({
+          defaultReviewLanguage: state.defaultReviewLanguage,
+          aiModelOverrides: state.aiModelOverrides,
+          geminiApiKey: state.geminiApiKey,
+          endpoints: state.endpoints,
+          activeEndpointId: state.activeEndpointId,
+        }),
         migrate: (persistedState: any, version: number) => {
           if (!persistedState || typeof persistedState !== "object") {
             return persistedState
@@ -214,7 +318,11 @@ export function createSettingsStore() {
           if (version < 2) {
             persistedState.endpoints = persistedState.endpoints || []
             persistedState.activeEndpointId = persistedState.activeEndpointId || undefined
-            persistedState.isFetchingModels = {}
+          }
+          if (version < 3) {
+            delete persistedState.isFetchingModels
+            delete persistedState.endpointSyncStatus
+            delete persistedState.endpointSyncError
           }
           return persistedState
         },
@@ -223,38 +331,18 @@ export function createSettingsStore() {
   )
 }
 
-// Background sync to server SystemSetting
-function syncEndpointsToServer(endpoints: AiEndpointConfig[]) {
-  if (typeof window === "undefined") return
-  fetch("/api/ai/endpoints", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ endpoints }),
-  }).catch((err) => {
-    console.warn("[settings-store] Failed to sync endpoints to server:", err)
-  })
-}
-
 // Singleton store for client usage
 let clientStore: ReturnType<typeof createSettingsStore> | null = null
 
 export function getSettingsStore() {
   if (!clientStore) {
     clientStore = createSettingsStore()
-    // Hydrate endpoints from server if localStorage has no endpoints
+    // Hydrate server-persisted endpoints without writing them back. A local
+    // change always wins if it happens while this request is in flight.
     if (typeof window !== "undefined") {
       setTimeout(() => {
         const state = clientStore?.getState()
-        if (state && (!state.endpoints || state.endpoints.length === 0)) {
-          fetch("/api/ai/endpoints")
-            .then((r) => r.json())
-            .then((data) => {
-              if (Array.isArray(data?.endpoints) && data.endpoints.length > 0) {
-                clientStore?.getState().setEndpoints(data.endpoints)
-              }
-            })
-            .catch(() => {})
-        }
+        if (state) void state.hydrateServerEndpoints()
       }, 500)
     }
   }

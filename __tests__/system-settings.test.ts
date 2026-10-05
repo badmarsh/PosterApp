@@ -177,6 +177,15 @@ describe("System Settings — User Registration Control", () => {
       expect(res.source).toBe("default")
       expect(res.allowRegistration).toBe(true)
     })
+
+    it("treats a missing row as an idempotent reset but propagates database failures", async () => {
+      vi.mocked(prisma.systemSetting.delete).mockRejectedValueOnce({ code: "P2025" })
+      vi.mocked(prisma.systemSetting.findUnique).mockResolvedValue(null)
+      await expect(resetRegistrationSetting()).resolves.toMatchObject({ source: "default", allowRegistration: true })
+
+      vi.mocked(prisma.systemSetting.delete).mockRejectedValueOnce(new Error("database unavailable"))
+      await expect(resetRegistrationSetting()).rejects.toThrow("database unavailable")
+    })
   })
 
   describe("API Route Handlers", () => {
@@ -200,6 +209,27 @@ describe("System Settings — User Registration Control", () => {
       })
       const res = await PATCH(req)
       expect(res.status).toBe(401)
+    })
+
+    it("PATCH /api/system/settings rejects empty, conflicting, and false reset payloads", async () => {
+      const { PATCH } = await import("@/app/api/system/settings/route")
+      for (const payload of [
+        {},
+        { resetToEnv: false },
+        { allowRegistration: true, resetToEnv: true },
+        { allowRegistration: true, unexpected: "value" },
+      ]) {
+        vi.mocked(auth).mockResolvedValueOnce({ userId: "settings-test-user" } as any)
+        const req = new Request("http://localhost/api/system/settings", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+        const res = await PATCH(req)
+        expect(res.status).toBe(400)
+      }
+      expect(prisma.systemSetting.upsert).not.toHaveBeenCalled()
+      expect(prisma.systemSetting.delete).not.toHaveBeenCalled()
     })
 
     it("PATCH /api/system/settings succeeds when authenticated", async () => {
