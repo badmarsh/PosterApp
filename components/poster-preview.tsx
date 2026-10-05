@@ -75,6 +75,7 @@ import { SuggestedAssetsTray } from "@/components/grounding/suggested-assets-tra
 import { LayoutTruthBanner } from "@/components/grounding/layout-truth-banner"
 import { parseCompileLog, attributeIssuesToCards } from "@/lib/latex/log-parser"
 import { InlineCardContent } from "@/components/preview/inline-card-content"
+import { TemplatePreviewImage } from "@/components/template-preview-image"
 
 // ---------------------------------------------------------------------------
 // OutputTypeIcon — maps output type to a small icon
@@ -217,14 +218,18 @@ function LayoutDiagram({
  * {@link LargeLayoutDiagram} if the asset is missing (e.g. an old build folder).
  */
 function TemplatePreview({ template }: { template: import("@/lib/output-types").TemplateDef }) {
-  const [failed, setFailed] = useState(false)
-  if (failed) return <LargeLayoutDiagram kind={template.layoutPreview} colors={template.colors} />
   return (
-    <img
-      src={`/template-previews/${template.id}.svg`}
-      alt={`${template.label} template preview`}
-      onError={() => setFailed(true)}
-      className="w-full max-w-[340px] h-auto rounded drop-shadow-sm"
+    <TemplatePreviewImage
+      templateId={template.id}
+      label={template.label}
+      loading="eager"
+      className="w-full max-w-[420px] shadow-sm"
+      imageClassName="rounded-lg"
+      fallback={(
+        <div className="flex h-full w-full items-center justify-center">
+          <LargeLayoutDiagram kind={template.layoutPreview} colors={template.colors} />
+        </div>
+      )}
     />
   )
 }
@@ -429,23 +434,25 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent showCloseButton={false} className="w-[92vw] max-w-4xl sm:max-w-4xl p-0 overflow-hidden shadow-2xl">
+      <DialogContent showCloseButton={false} className="flex max-h-[92dvh] w-[96vw] max-w-6xl flex-col overflow-hidden p-0 shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-border shrink-0 bg-card">
-          <div>
+        <div className="flex shrink-0 flex-col gap-3 border-b border-border bg-card px-4 pb-3 pt-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-5">
+          <div className="min-w-0">
             <DialogTitle className="text-base font-semibold">Add Output</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground mt-0.5">
               Choose a format and template for this workspace.
             </DialogDescription>
           </div>
           {/* Output type pills */}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-1.5 sm:justify-end">
             {(["poster", "slides", "paper", "thesis-review"] as OutputType[]).map((t) => (
               <button
                 key={t}
+                type="button"
+                aria-pressed={selectedType === t}
                 onClick={() => handleTypeChange(t)}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg border px-3.5 py-1.5 text-xs font-medium transition-all",
+                  "flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-all sm:gap-2 sm:px-3.5 sm:text-xs",
                   selectedType === t
                     ? "border-primary bg-primary/10 text-primary shadow-xs"
                     : "border-border text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground",
@@ -458,16 +465,20 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
           </div>
         </div>
 
-        {/* Body: left list + right detail panel */}
-        <div className="flex min-h-0" style={{ height: "620px" }}>
+        {/* Body: scrollable template list + responsive detail panel */}
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row" style={{ height: "min(620px, calc(92dvh - 150px))" }}>
           {/* Left: template list */}
-          <div className="flex flex-col gap-1 overflow-y-auto p-3.5 border-r border-border shrink-0 bg-muted/10" style={{ width: "270px" }}>
+          <div className="flex max-h-[42%] min-h-[132px] shrink-0 flex-col gap-1 overflow-y-auto border-b border-border bg-muted/10 p-2.5 md:max-h-none md:min-h-0 md:w-[270px] md:border-b-0 md:border-r md:p-3.5">
             <p className="px-1.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               Select Template ({templates.length})
             </p>
             {templates.map((tmpl) => (
               <button
                 key={tmpl.id}
+                type="button"
+                data-testid="template-option"
+                aria-pressed={selectedTemplate === tmpl.id}
+                aria-label={`${tmpl.label} template`}
                 onClick={() => setSelectedTemplate(tmpl.id)}
                 className={cn(
                   "flex items-center gap-3 rounded-lg border p-2.5 text-left transition-all",
@@ -476,7 +487,16 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
                     : "border-transparent hover:border-border hover:bg-muted/40",
                 )}
               >
-                <LayoutDiagram kind={tmpl.layoutPreview} color={tmpl.colors[0]?.hex ?? "#2563EB"} />
+                <TemplatePreviewImage
+                  templateId={tmpl.id}
+                  label={tmpl.label}
+                  decorative
+                  className="size-[68px] shrink-0 rounded-md"
+                  imageClassName="p-1"
+                  fallback={(
+                    <LayoutDiagram kind={tmpl.layoutPreview} color={tmpl.colors[0]?.hex ?? "#2563EB"} />
+                  )}
+                />
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className={cn("text-xs font-semibold truncate", selectedTemplate === tmpl.id ? "text-primary font-bold" : "")}>

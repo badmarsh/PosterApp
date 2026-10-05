@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useRef, useState, useMemo } from "react"
 import { useTheme } from "next-themes"
 import { useShallow } from "zustand/react/shallow"
 import {
@@ -37,6 +37,7 @@ import {
   type AiEndpointConfig,
   type LoadedAiModel,
   normalizeEndpointBaseUrl,
+  isValidEndpointBaseUrl,
 } from "@/lib/ai/endpoints"
 import { toast } from "sonner"
 import { AgentIntegrationPanel } from "@/components/settings/agent-integration-panel"
@@ -56,7 +57,7 @@ import {
 } from "@/components/ui/select"
 import { THEMES } from "@/components/theme-picker"
 import { useEditor } from "@/components/editor-store"
-import { useSettings, SETTINGS_STORAGE_KEY } from "@/lib/settings-store"
+import { useSettings, SETTINGS_STORAGE_KEY, clearStoredAiEndpoints } from "@/lib/settings-store"
 import { apiFetch } from "@/lib/api-fetch"
 import { DEMO_PROJECT_ID } from "@/lib/mock-data"
 import { DEFAULT_AI_MODELS, type AiModelRole } from "@/lib/ai/models"
@@ -182,6 +183,7 @@ export function SettingsPanel() {
   const [tab, setTab] = useState<SettingsTab>("theme")
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const [isCompactLayout, setIsCompactLayout] = useState(false)
 
   const {
     project,
@@ -242,6 +244,9 @@ export function SettingsPanel() {
     fetchModelsForEndpoint,
     fetchAllEndpointModels,
     isFetchingModels,
+    endpointSyncStatus,
+    endpointSyncError,
+    retryEndpointSync,
   } = useSettings(
     useShallow((s) => ({
       defaultReviewLanguage: s.defaultReviewLanguage,
@@ -262,11 +267,19 @@ export function SettingsPanel() {
       fetchModelsForEndpoint: s.fetchModelsForEndpoint,
       fetchAllEndpointModels: s.fetchAllEndpointModels,
       isFetchingModels: s.isFetchingModels,
+      endpointSyncStatus: s.endpointSyncStatus,
+      endpointSyncError: s.endpointSyncError,
+      retryEndpointSync: s.retryEndpointSync,
     }))
   )
 
   useEffect(() => {
     setMounted(true)
+    const media = window.matchMedia("(max-width: 767px)")
+    const updateLayout = () => setIsCompactLayout(media.matches)
+    updateLayout()
+    media.addEventListener("change", updateLayout)
+    return () => media.removeEventListener("change", updateLayout)
   }, [])
 
   const tabs = [
@@ -281,27 +294,54 @@ export function SettingsPanel() {
     { id: "access" as const, icon: Shield, label: "Access & Security" },
     { id: "deerflow" as const, icon: Sparkles, label: "DeerFlow Agent" },
   ]
+  const tabTriggerRefs = useRef<(HTMLButtonElement | null)[]>([])
+  function focusSettingsTab(index: number) {
+    const nextIndex = (index + tabs.length) % tabs.length
+    setTab(tabs[nextIndex].id)
+    tabTriggerRefs.current[nextIndex]?.focus()
+  }
+
+  function handleSettingsTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
+    let nextIndex: number | undefined
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = index + 1
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = index - 1
+    else if (event.key === "Home") nextIndex = 0
+    else if (event.key === "End") nextIndex = tabs.length - 1
+    if (nextIndex === undefined) return
+    event.preventDefault()
+    focusSettingsTab(nextIndex)
+  }
 
   return (
-    <div className="flex h-full min-h-0 w-full overflow-hidden">
-      {/* Vertical tab sidebar */}
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden md:flex-row">
+      {/* Responsive, keyboard-navigable settings tabs */}
       <div
         role="tablist"
         aria-label="Settings sections"
-        className="flex w-52 shrink-0 flex-col gap-1 border-r border-border bg-muted/20 p-2 overflow-y-auto"
+        aria-orientation={isCompactLayout ? "horizontal" : "vertical"}
+        className="flex w-full shrink-0 flex-row gap-1 overflow-x-auto border-b border-border bg-muted/20 p-2 md:w-52 md:flex-col md:overflow-x-hidden md:overflow-y-auto md:border-b-0 md:border-r"
       >
-        {tabs.map((t) => {
+        {tabs.map((t, index) => {
           const Icon = t.icon
           const isActive = tab === t.id
           return (
             <Button
               key={t.id}
+              ref={(element) => { tabTriggerRefs.current[index] = element }}
+              id={`settings-tab-${t.id}`}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              aria-controls="settings-tabpanel"
+              tabIndex={isActive ? 0 : -1}
+              data-testid={`settings-tab-${t.id}`}
               variant={isActive ? "secondary" : "ghost"}
               size="sm"
               onClick={() => setTab(t.id)}
-              className={`h-10 w-full gap-2.5 justify-start text-sm ${!isActive ? "text-muted-foreground" : ""}`}
+              onKeyDown={(event) => handleSettingsTabKeyDown(event, index)}
+              className={`h-9 shrink-0 justify-start gap-2 text-xs md:h-10 md:w-full md:gap-2.5 md:text-sm ${!isActive ? "text-muted-foreground" : ""}`}
             >
-              <Icon className="size-4 shrink-0" />
+              <Icon className="size-4 shrink-0" aria-hidden="true" />
               <span className="truncate">{t.label}</span>
             </Button>
           )
@@ -309,7 +349,13 @@ export function SettingsPanel() {
       </div>
 
       {/* Content area */}
-      <div className="min-w-0 flex-1 h-full min-h-0 overflow-y-auto p-6 pb-16">
+      <div
+        id="settings-tabpanel"
+        role="tabpanel"
+        aria-labelledby={`settings-tab-${tab}`}
+        tabIndex={0}
+        className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 pb-8 sm:p-6 sm:pb-10"
+      >
         {tab === "theme" && (
           <ThemeSettings
             mounted={mounted}
@@ -429,6 +475,9 @@ export function SettingsPanel() {
             onFetchModelsForEndpoint={fetchModelsForEndpoint}
             onFetchAllEndpointModels={fetchAllEndpointModels}
             isFetchingModels={isFetchingModels}
+            endpointSyncStatus={endpointSyncStatus}
+            endpointSyncError={endpointSyncError}
+            onRetryEndpointSync={retryEndpointSync}
           />
         )}
         {tab === "shortcuts" && (
@@ -793,6 +842,9 @@ function AiModelSettings({
   onFetchModelsForEndpoint,
   onFetchAllEndpointModels,
   isFetchingModels = {},
+  endpointSyncStatus = "idle",
+  endpointSyncError,
+  onRetryEndpointSync,
 }: {
   overrides: Partial<Record<AiModelRole, string>>
   onOverride: (role: AiModelRole, model: string) => void
@@ -810,6 +862,9 @@ function AiModelSettings({
   onFetchModelsForEndpoint?: (id: string) => Promise<string[]>
   onFetchAllEndpointModels?: () => Promise<void>
   isFetchingModels?: Record<string, boolean>
+  endpointSyncStatus?: "idle" | "loading" | "syncing" | "load-error" | "error"
+  endpointSyncError?: string | null
+  onRetryEndpointSync?: () => Promise<void>
 }) {
   const roles = Object.keys(DEFAULT_AI_MODELS) as AiModelRole[]
   const [selectedCategory, setSelectedCategory] = useState<string>("All")
@@ -950,6 +1005,10 @@ function AiModelSettings({
       return
     }
     const cleanBaseUrl = normalizeEndpointBaseUrl(rawUrl)
+    if (!isValidEndpointBaseUrl(cleanBaseUrl)) {
+      toast.error("Use a valid HTTP or HTTPS Base URL without embedded credentials")
+      return
+    }
     const apiKey = endpointApiKey.trim()
 
     setIsTestingEndpoint(true)
@@ -1071,6 +1130,27 @@ function AiModelSettings({
             </Button>
           </div>
         </div>
+
+        {(endpointSyncStatus === "loading" || endpointSyncStatus === "syncing") && (
+          <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+            {endpointSyncStatus === "loading" ? "Loading saved endpoints from the server…" : "Saving endpoint settings to the server…"}
+          </p>
+        )}
+        {endpointSyncError && (
+          <div role="alert" className="flex flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive sm:flex-row sm:items-center sm:justify-between">
+            <span>Endpoint settings could not be synchronized with the server: {endpointSyncError}</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={endpointSyncStatus === "syncing" || endpointSyncStatus === "loading"}
+              onClick={() => void onRetryEndpointSync?.()}
+            >
+              Retry sync
+            </Button>
+          </div>
+        )}
 
         {/* Add/Edit Endpoint Form */}
         {isAddingEndpoint && (
@@ -1858,6 +1938,7 @@ function DataSettings({
 }) {
   const [exporting, setExporting] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   async function exportWorkspace() {
     setExporting(true)
@@ -1876,7 +1957,7 @@ function DataSettings({
       a.href = url
       a.download = `${workspaceName.toLowerCase().replace(/[^a-z0-9_-]/g, "_") || "workspace"}.json`
       a.click()
-      URL.revokeObjectURL(url)
+      window.setTimeout(() => URL.revokeObjectURL(url), 1_000)
       toast.success("Workspace exported", {
         description: "The full workspace (outputs, cards, assets) was downloaded as JSON.",
       })
@@ -1889,10 +1970,19 @@ function DataSettings({
     }
   }
 
-  function resetAllSettings() {
-    window.localStorage.removeItem(SETTINGS_STORAGE_KEY)
-    window.localStorage.removeItem("posterapp-editor-storage")
-    window.location.reload()
+  async function resetAllSettings() {
+    setResetting(true)
+    try {
+      await clearStoredAiEndpoints()
+      window.localStorage.removeItem(SETTINGS_STORAGE_KEY)
+      window.localStorage.removeItem("posterapp-editor-storage")
+      window.location.reload()
+    } catch (err) {
+      toast.error("Resetting settings failed", {
+        description: err instanceof Error ? err.message : String(err),
+      })
+      setResetting(false)
+    }
   }
 
   return (
@@ -1961,8 +2051,9 @@ function DataSettings({
           open={resetOpen}
           onOpenChange={setResetOpen}
           title="Reset all settings?"
-          description="Every local preference (theme is kept, it is stored separately) will return to its default. This cannot be undone."
-          confirmLabel="Reset settings"
+          description="Local preferences, AI model overrides and saved AI endpoints will be cleared. Theme and workspace content are kept. This cannot be undone."
+          confirmLabel={resetting ? "Resetting…" : "Reset settings"}
+          busy={resetting}
           onConfirm={resetAllSettings}
         />
       </div>
@@ -1990,35 +2081,59 @@ function DataSettings({
 
 /* ----------------------------------- access & registration ----------------------------------- */
 
+type RegistrationSettings = {
+  allowRegistration: boolean
+  source: "database" | "env" | "default"
+  envDefault: boolean | null
+}
+
+function isRegistrationSettings(value: unknown): value is RegistrationSettings {
+  if (!value || typeof value !== "object") return false
+  const settings = value as Record<string, unknown>
+  return typeof settings.allowRegistration === "boolean"
+    && ["database", "env", "default"].includes(String(settings.source))
+    && (typeof settings.envDefault === "boolean" || settings.envDefault === null)
+}
+
 function AccessSettings() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [settings, setSettings] = useState<{
-    allowRegistration: boolean
-    source: "database" | "env" | "default"
-    envDefault: boolean | null
-  } | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
+  const [settings, setSettings] = useState<RegistrationSettings | null>(null)
 
   useEffect(() => {
     let active = true
+    setLoading(true)
+    setLoadError(null)
+
     async function load() {
       try {
         const res = await apiFetch("/api/system/settings")
-        if (res.ok) {
-          const data = await res.json()
-          if (active) setSettings(data)
+        const data = await res.json().catch(() => null)
+        if (!res.ok) {
+          throw new Error(data?.error?.message || data?.error || `HTTP ${res.status}`)
         }
+        if (!isRegistrationSettings(data)) {
+          throw new Error("Neplatná odpoveď servera s nastaveniami registrácie")
+        }
+        if (active) setSettings(data)
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
         console.warn("[AccessSettings] Failed to fetch settings:", err)
+        if (active) {
+          setSettings(null)
+          setLoadError(message)
+        }
       } finally {
         if (active) setLoading(false)
       }
     }
-    load()
+    void load()
     return () => {
       active = false
     }
-  }, [])
+  }, [retryKey])
 
   async function handleToggle(newValue: boolean) {
     if (!settings) return
@@ -2036,9 +2151,10 @@ function AccessSettings() {
         throw new Error(data?.error?.message || `HTTP ${res.status}`)
       }
       const data = await res.json()
-      if (data?.settings) {
-        setSettings(data.settings)
+      if (!isRegistrationSettings(data?.settings)) {
+        throw new Error("Neplatná odpoveď servera pri ukladaní nastavení")
       }
+      setSettings(data.settings)
       toast.success(
         newValue ? "Registrácia je povolená" : "Registrácia je zakázaná",
         {
@@ -2070,9 +2186,10 @@ function AccessSettings() {
         throw new Error(data?.error?.message || `HTTP ${res.status}`)
       }
       const data = await res.json()
-      if (data?.settings) {
-        setSettings(data.settings)
+      if (!isRegistrationSettings(data?.settings)) {
+        throw new Error("Neplatná odpoveď servera pri obnove nastavení")
       }
+      setSettings(data.settings)
       toast.info("Nastavenie registrácie obnovené", {
         description: "Boli aplikované predvolené hodnoty z premenných prostredia.",
       })
@@ -2085,7 +2202,7 @@ function AccessSettings() {
     }
   }
 
-  const isAllowed = settings?.allowRegistration ?? true
+  const isAllowed = settings?.allowRegistration ?? false
   const isCustomized = settings?.source === "database"
 
   return (
@@ -2097,7 +2214,16 @@ function AccessSettings() {
           description="Správa dostupnosti registrácie nových používateľov a zabezpečenie prístupu."
         />
 
-        <div className="rounded-lg border border-border bg-card p-4 space-y-4">
+        {loadError && (
+          <div role="alert" className="mb-4 flex flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+            <span>Nepodarilo sa načítať nastavenia registrácie: {loadError}</span>
+            <Button type="button" variant="outline" size="sm" onClick={() => setRetryKey((key) => key + 1)}>
+              Skúsiť znova
+            </Button>
+          </div>
+        )}
+
+        <div className="space-y-4 rounded-lg border border-border bg-card p-4" aria-busy={loading || saving}>
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 space-y-1">
               <div className="flex items-center gap-2">
@@ -2105,14 +2231,16 @@ function AccessSettings() {
                   Povoliť registráciu nových používateľov
                 </Label>
                 {loading ? (
-                  <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-                ) : (
+                  <Loader2 className="size-3.5 animate-spin text-muted-foreground" aria-label="Načítava sa nastavenie" />
+                ) : settings ? (
                   <Badge
                     variant={isAllowed ? "default" : "destructive"}
                     className="h-5 px-2 text-[11px]"
                   >
                     {isAllowed ? "Povolená" : "Zakázaná"}
                   </Badge>
+                ) : (
+                  <Badge variant="outline" className="h-5 px-2 text-[11px]">Neznámy stav</Badge>
                 )}
                 {isCustomized && (
                   <Badge variant="outline" className="h-5 px-2 text-[10px] text-muted-foreground">
@@ -2129,7 +2257,7 @@ function AccessSettings() {
               <Switch
                 id="allow-registration-switch"
                 checked={isAllowed}
-                disabled={loading || saving}
+                disabled={loading || saving || !settings}
                 onCheckedChange={handleToggle}
               />
             </div>
@@ -2140,9 +2268,11 @@ function AccessSettings() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-muted-foreground bg-muted/40 p-3 rounded-md">
             <div>
               <span className="font-semibold text-foreground">Konfigurácia v prostredí (.env): </span>
-              {settings?.envDefault === null ? (
+              {!settings ? (
+                <span>Hodnoty prostredia nie je možné zobraziť, kým sa nastavenie nenačíta.</span>
+              ) : settings.envDefault === null ? (
                 <span>Premenná <code>ALLOW_REGISTRATION</code> nie je nastavená (predvolene: povolená)</span>
-              ) : settings?.envDefault ? (
+              ) : settings.envDefault ? (
                 <span className="text-success dark:text-success font-medium">ALLOW_REGISTRATION=true</span>
               ) : (
                 <span className="text-warning dark:text-warning font-medium">ALLOW_REGISTRATION=false</span>

@@ -158,4 +158,40 @@ describe("P0.1 Database Round-Trip & Decision Support Pipeline", () => {
     expect(docxBlob).toBeTruthy()
     expect(docxBlob.size).toBeGreaterThan(1000)
   })
+
+  it("validates paper/grant author questions separately from thesis defence questions", async () => {
+    inMemoryDB[`${wsId}:${revId}`].reviewKind = "paper"
+    inMemoryDB[`${wsId}:${revId}`].defenseQuestions = JSON.stringify(["STALE THESIS QUESTION"])
+    inMemoryDB[`${wsId}:${revId}`].questionsForAuthors = JSON.stringify(["Existing author question"])
+
+    const mismatchedReq = new NextRequest(`http://localhost:3333/api/workspaces/${wsId}/thesis-review/${revId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reviewKind: "paper",
+        defenseQuestions: ["THESIS QUESTION MUST NOT BE SAVED ON A PAPER"],
+        questionsForAuthors: ["How was the sample selected?"],
+      }),
+    })
+    const mismatchedRes = await PUT(mismatchedReq, { params: Promise.resolve({ id: wsId, reviewId: revId }) })
+    expect(mismatchedRes.status).toBe(400)
+
+    const validReq = new NextRequest(`http://localhost:3333/api/workspaces/${wsId}/thesis-review/${revId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reviewKind: "paper",
+        defenseQuestions: [],
+        questionsForAuthors: ["How was the sample selected?"],
+      }),
+    })
+    const validRes = await PUT(validReq, { params: Promise.resolve({ id: wsId, reviewId: revId }) })
+    expect(validRes.status).toBe(200)
+
+    const readReq = new NextRequest(`http://localhost:3333/api/workspaces/${wsId}/thesis-review/${revId}`)
+    const readRes = await GET(readReq, { params: Promise.resolve({ id: wsId, reviewId: revId }) })
+    const data = await readRes.json()
+    expect(data.questionsForAuthors).toEqual(["How was the sample selected?"])
+    expect(data.defenseQuestions).toEqual([])
+  })
 })

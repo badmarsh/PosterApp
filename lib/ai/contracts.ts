@@ -593,9 +593,12 @@ export const ProfessionalReviewGenerationSchema = z.preprocess((raw: any) => {
       ? raw.strengths.map((s: any) => String(s).trim()).filter(Boolean)
       : []
     const findings = Array.isArray(raw.findings) ? raw.findings : []
+    // Editorial reviews have an author-facing question channel. Never copy
+    // thesis defence questions (or generic `questions`) into it: the two are
+    // separately stored and exported for different audiences.
     const questionsForAuthors = Array.isArray(raw.questionsForAuthors)
       ? raw.questionsForAuthors.map((q: any) => String(q).trim()).filter(Boolean)
-      : (Array.isArray(raw.defenseQuestions) ? raw.defenseQuestions.map((q: any) => String(q).trim()).filter(Boolean) : [])
+      : []
     const reportingGuidelineChecks = Array.isArray(raw.reportingGuidelineChecks) ? raw.reportingGuidelineChecks : []
 
     return {

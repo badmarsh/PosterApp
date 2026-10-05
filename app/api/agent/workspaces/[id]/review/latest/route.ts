@@ -13,6 +13,13 @@ function parseJsonValue(value: string | null) {
   }
 }
 
+function parseStringList(value: string | null): string[] {
+  const parsed: unknown = parseJsonValue(value)
+  return Array.isArray(parsed)
+    ? parsed.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
+    : []
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -39,6 +46,7 @@ export async function GET(
             finalGrade: true,
             recommendation: true,
             defenseQuestions: true,
+            questionsForAuthors: true,
             findings: true,
             createdAt: true,
           },
@@ -72,7 +80,12 @@ export async function GET(
     const orphanCitations = bibKeys.filter((k) => !usedCitations.has(k))
 
     const latestReview = workspace.thesisReviews[0]
-    const defenseQuestions = latestReview ? parseJsonValue(latestReview.defenseQuestions) : null
+    const defenseQuestions = latestReview?.reviewKind === "thesis"
+      ? parseStringList(latestReview.defenseQuestions)
+      : null
+    const questionsForAuthors = latestReview && (latestReview.reviewKind === "paper" || latestReview.reviewKind === "grant")
+      ? parseStringList(latestReview.questionsForAuthors)
+      : null
     const findings = latestReview ? parseJsonValue(latestReview.findings) : null
     // Keep the REST projection aligned with the canonical review.latest tool:
     // no reviewer identity, confidential remarks, or raw finding narratives.
@@ -85,6 +98,7 @@ export async function GET(
           finalGrade: latestReview.finalGrade,
           recommendation: latestReview.recommendation,
           defenseQuestions,
+          questionsForAuthors,
           findingsCount: Array.isArray(findings) ? findings.length : 0,
           createdAt: latestReview.createdAt,
         }

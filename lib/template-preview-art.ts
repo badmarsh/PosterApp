@@ -83,7 +83,22 @@ export type PosudokPreviewArt = {
   ratings: string[]
 }
 
-export type TemplatePreviewArt = PosterPreviewArt | SlidePreviewArt | PosudokPreviewArt
+export type PaperPreviewArt = {
+  kind: "paper"
+  columns: 1 | 2
+  titleAlign: "left" | "center"
+  masthead: "plain" | "publisher" | "badge" | "band" | "rule"
+  abstract: "plain" | "shaded" | "boxed"
+  headings: "numbered" | "ruled" | "filled"
+  authorLayout: "centered" | "affiliations" | "compact"
+  runningHeader: "none" | "one-sided" | "two-sided"
+  figure: "none" | "column" | "wide"
+  footer: "page" | "publisher" | "copyright" | "none"
+  /** Optional short masthead wordmark (e.g. IEEE, ACM, or ACL). */
+  wordmark?: string
+}
+
+export type TemplatePreviewArt = PosterPreviewArt | SlidePreviewArt | PaperPreviewArt | PosudokPreviewArt
 
 /**
  * Criterion rows per posudok template. The German and Czech forms assess more
@@ -213,10 +228,43 @@ const PREVIEW_ART: Record<string, TemplatePreviewArt> = {
   },
 }
 
+/**
+ * Paper templates use a shared page frame but keep their own recognizable
+ * publishing cues. These descriptors intentionally reflect the registry's
+ * actual single/two-column choice and venue identity rather than reusing one
+ * generic paper drawing for every class.
+ */
+const PAPER_PREVIEW_ART: Record<string, PaperPreviewArt> = {
+  "article-twocol": { kind: "paper", columns: 2, titleAlign: "center", masthead: "plain", abstract: "shaded", headings: "ruled", authorLayout: "affiliations", runningHeader: "none", figure: "column", footer: "page" },
+  "article-single": { kind: "paper", columns: 1, titleAlign: "center", masthead: "plain", abstract: "shaded", headings: "ruled", authorLayout: "affiliations", runningHeader: "none", figure: "wide", footer: "page" },
+  "ieee-conf": { kind: "paper", columns: 2, titleAlign: "center", masthead: "badge", abstract: "plain", headings: "numbered", authorLayout: "compact", runningHeader: "two-sided", figure: "column", footer: "copyright", wordmark: "IEEE" },
+  "acm-sigconf": { kind: "paper", columns: 2, titleAlign: "left", masthead: "band", abstract: "boxed", headings: "numbered", authorLayout: "affiliations", runningHeader: "two-sided", figure: "wide", footer: "copyright", wordmark: "ACM" },
+  "springer-llncs": { kind: "paper", columns: 1, titleAlign: "center", masthead: "publisher", abstract: "plain", headings: "numbered", authorLayout: "centered", runningHeader: "two-sided", figure: "wide", footer: "page", wordmark: "SPRINGER" },
+  "jinst-proceedings": { kind: "paper", columns: 1, titleAlign: "left", masthead: "rule", abstract: "boxed", headings: "ruled", authorLayout: "affiliations", runningHeader: "one-sided", figure: "wide", footer: "publisher", wordmark: "JINST" },
+  "pos-proceedings": { kind: "paper", columns: 1, titleAlign: "left", masthead: "badge", abstract: "shaded", headings: "filled", authorLayout: "compact", runningHeader: "one-sided", figure: "column", footer: "publisher", wordmark: "PoS" },
+  elsarticle: { kind: "paper", columns: 1, titleAlign: "left", masthead: "band", abstract: "boxed", headings: "ruled", authorLayout: "affiliations", runningHeader: "one-sided", figure: "wide", footer: "page", wordmark: "ELSEVIER" },
+  "revtex-aps": { kind: "paper", columns: 2, titleAlign: "center", masthead: "badge", abstract: "boxed", headings: "numbered", authorLayout: "centered", runningHeader: "two-sided", figure: "wide", footer: "none", wordmark: "PHYSICAL REVIEW" },
+  "epj-woc": { kind: "paper", columns: 1, titleAlign: "center", masthead: "publisher", abstract: "shaded", headings: "numbered", authorLayout: "affiliations", runningHeader: "one-sided", figure: "wide", footer: "publisher", wordmark: "EPJ WEB OF CONFERENCES" },
+  iopart: { kind: "paper", columns: 1, titleAlign: "left", masthead: "rule", abstract: "plain", headings: "ruled", authorLayout: "affiliations", runningHeader: "one-sided", figure: "column", footer: "publisher", wordmark: "IOP PUBLISHING" },
+  neurips: { kind: "paper", columns: 1, titleAlign: "center", masthead: "band", abstract: "shaded", headings: "filled", authorLayout: "centered", runningHeader: "none", figure: "wide", footer: "copyright", wordmark: "NeurIPS" },
+  icml: { kind: "paper", columns: 2, titleAlign: "center", masthead: "publisher", abstract: "plain", headings: "numbered", authorLayout: "compact", runningHeader: "two-sided", figure: "wide", footer: "copyright", wordmark: "ICML" },
+  iclr: { kind: "paper", columns: 1, titleAlign: "center", masthead: "rule", abstract: "boxed", headings: "filled", authorLayout: "centered", runningHeader: "none", figure: "wide", footer: "page", wordmark: "ICLR" },
+  acl: { kind: "paper", columns: 2, titleAlign: "left", masthead: "publisher", abstract: "boxed", headings: "numbered", authorLayout: "affiliations", runningHeader: "two-sided", figure: "column", footer: "page", wordmark: "ACL" },
+  cvpr: { kind: "paper", columns: 2, titleAlign: "center", masthead: "badge", abstract: "shaded", headings: "numbered", authorLayout: "centered", runningHeader: "two-sided", figure: "wide", footer: "copyright", wordmark: "CVPR" },
+  aaai: { kind: "paper", columns: 2, titleAlign: "center", masthead: "band", abstract: "boxed", headings: "ruled", authorLayout: "compact", runningHeader: "two-sided", figure: "column", footer: "copyright", wordmark: "AAAI" },
+}
+
 /** Build a sensible spec for a template that has no bespoke art yet. */
 export function derivePreviewArt(t: TemplateDef): TemplatePreviewArt {
   if (t.outputType === "slides") {
-    return { kind: "slide", header: "plain", titleWeight: "plain", footer: "none", body: "bullets", darkTitleSlide: false }
+    return PREVIEW_ART[t.id] ?? { kind: "slide", header: "plain", titleWeight: "plain", footer: "none", body: "bullets", darkTitleSlide: false }
+  }
+  if (t.outputType === "paper") {
+    return PAPER_PREVIEW_ART[t.id] ?? {
+      kind: "paper", columns: t.layoutPreview === "paper-twocol" ? 2 : 1,
+      titleAlign: "center", masthead: "plain", abstract: "shaded", headings: "ruled",
+      authorLayout: "centered", runningHeader: "none", figure: "column", footer: "page",
+    }
   }
   if (t.outputType === "thesis-review") {
     const style = THESIS_REVIEW_STYLES[posudokStyleIdFor(t.id)]
@@ -249,7 +297,8 @@ export function derivePreviewArt(t: TemplateDef): TemplatePreviewArt {
 
 export function getPreviewArt(templateId: string, def?: TemplateDef): TemplatePreviewArt {
   if (PREVIEW_ART[templateId]) return PREVIEW_ART[templateId]
-  if (THESIS_REVIEW_STYLES[posudokStyleIdFor(templateId)]) {
+  if (PAPER_PREVIEW_ART[templateId]) return PAPER_PREVIEW_ART[templateId]
+  if (resolvePosudokStyleId(templateId)) {
     return derivePreviewArt({ ...(def ?? {}), id: templateId, outputType: "thesis-review" } as TemplateDef)
   }
   return def ? derivePreviewArt(def) : derivePreviewArt({ layoutPreview: "poster-3col" } as TemplateDef)
@@ -258,17 +307,22 @@ export function getPreviewArt(templateId: string, def?: TemplateDef): TemplatePr
 type ThesisReviewTemplateId = keyof typeof THESIS_REVIEW_STYLES
 
 /** Map a template id to a posudok style id (tolerates legacy aliases). */
-function posudokStyleIdFor(templateId: string): ThesisReviewTemplateId {
+function resolvePosudokStyleId(templateId: string): ThesisReviewTemplateId | undefined {
   if (templateId in THESIS_REVIEW_STYLES) return templateId as ThesisReviewTemplateId
-  const match = (Object.keys(THESIS_REVIEW_STYLES) as ThesisReviewTemplateId[]).find(
+  return (Object.keys(THESIS_REVIEW_STYLES) as ThesisReviewTemplateId[]).find(
     (id) => id.replace(/^posudok-/, "") === templateId.replace(/^(posudok|posudek|gutachten|recenzja|biralat)-/, ""),
   )
-  return match ?? "posudok-sk"
+}
+
+function posudokStyleIdFor(templateId: string): ThesisReviewTemplateId {
+  return resolvePosudokStyleId(templateId) ?? "posudok-sk"
 }
 
 /** True when the preview art for a template is bespoke rather than derived. */
 export function hasBespokePreviewArt(templateId: string): boolean {
   return Object.prototype.hasOwnProperty.call(PREVIEW_ART, templateId)
+    || Object.prototype.hasOwnProperty.call(PAPER_PREVIEW_ART, templateId)
+    || resolvePosudokStyleId(templateId) !== undefined
 }
 
 // ---------------------------------------------------------------------------
@@ -310,10 +364,11 @@ function r(n: number): number {
 }
 
 /**
- * Render the SVG mockup for a template.
+ * Render a consistently sized 4:3 SVG mockup for a template. The actual
+ * poster, slide, paper, or review page is fitted inside the shared frame without
+ * stretching, so picker cards line up while the document keeps its real ratio.
  *
- * @param width  Output width in SVG user units. Height follows the template's
- *               orientation (posters are portrait/landscape boards, slides 16:9).
+ * @param width Output width in SVG user units (height is always width × 3/4).
  */
 export function renderTemplatePreviewSvg(
   templateId: string,
@@ -321,12 +376,52 @@ export function renderTemplatePreviewSvg(
   width = 320,
   def?: TemplateDef,
 ): string {
+  const safeWidth = Number.isFinite(width) && width > 0 ? width : 320
   const art = getPreviewArt(templateId, def)
   const p = paletteFrom(colors)
-  if (art.kind === "posudok") return renderPosudok(art, p, width, templateId)
-  return art.kind === "poster"
-    ? renderPoster(art, p, width, templateId)
-    : renderSlide(art, p, width, templateId)
+  let nativeHeight: number
+  let nativeSvg: string
+
+  if (art.kind === "posudok") {
+    nativeHeight = safeWidth * (297 / 210)
+    nativeSvg = renderPosudok(art, p, safeWidth, templateId)
+  } else if (art.kind === "paper") {
+    nativeHeight = safeWidth * (297 / 210)
+    nativeSvg = renderPaper(art, p, safeWidth, templateId)
+  } else if (art.kind === "poster") {
+    nativeHeight = art.orientation === "landscape" ? safeWidth * (841 / 1189) : safeWidth * (1189 / 841)
+    nativeSvg = renderPoster(art, p, safeWidth, templateId)
+  } else {
+    nativeHeight = safeWidth * (9 / 16)
+    nativeSvg = renderSlide(art, p, safeWidth, templateId)
+  }
+
+  const frameHeight = safeWidth * 0.75
+  const padding = safeWidth * 0.055
+  const scale = Math.min((safeWidth - padding * 2) / safeWidth, (frameHeight - padding * 2) / nativeHeight)
+  const contentWidth = safeWidth * scale
+  const contentHeight = nativeHeight * scale
+  const x = (safeWidth - contentWidth) / 2
+  const y = (frameHeight - contentHeight) / 2
+  const content = nativeSvg.slice(nativeSvg.indexOf(">") + 1, nativeSvg.lastIndexOf("</svg>"))
+  const label = escapeXml(`${def?.label ?? templateId} template preview`)
+
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${r(safeWidth)}" height="${r(frameHeight)}" viewBox="0 0 ${r(safeWidth)} ${r(frameHeight)}" role="img" aria-label="${label}" data-template-id="${escapeXml(templateId)}">`,
+    `<rect width="${r(safeWidth)}" height="${r(frameHeight)}" rx="${r(safeWidth * 0.035)}" fill="#F1F4F8"/>`,
+    `<rect x="${r(safeWidth * 0.025)}" y="${r(frameHeight * 0.035)}" width="${r(safeWidth * 0.95)}" height="${r(frameHeight * 0.93)}" rx="${r(safeWidth * 0.025)}" fill="#FFFFFF" stroke="#DCE3EC"/>`,
+    `<svg x="${r(x)}" y="${r(y)}" width="${r(contentWidth)}" height="${r(contentHeight)}" viewBox="0 0 ${r(safeWidth)} ${r(nativeHeight)}" preserveAspectRatio="none" aria-hidden="true">${content}</svg>`,
+    `</svg>`,
+  ].join("")
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;")
 }
 
 function svgOpen(w: number, h: number, id: string): string {
@@ -452,6 +547,160 @@ function renderPoster(art: PosterPreviewArt, p: PreviewPalette, width: number, i
     }
     x += colW + gutter
   })
+
+  parts.push("</svg>")
+  return parts.join("")
+}
+
+/** A4 research-paper mockup with venue-specific masthead and column treatment. */
+function renderPaper(art: PaperPreviewArt, p: PreviewPalette, width: number, id: string): string {
+  const W = width
+  const H = width * (297 / 210)
+  const pad = W * 0.085
+  const innerW = W - pad * 2
+  const parts: string[] = [svgOpen(W, H, id)]
+  parts.push(`<rect width="${r(W)}" height="${r(H)}" fill="${p.paper}"/>`)
+  parts.push(`<rect x="0.5" y="0.5" width="${r(W - 1)}" height="${r(H - 1)}" fill="none" stroke="${withAlpha(p.ink, 0.12)}"/>`)
+
+  let y = pad
+  const wordmark = art.wordmark
+  const markH = H * 0.032
+  if (art.masthead === "band") {
+    parts.push(`<rect x="${r(pad)}" y="${r(y)}" width="${r(innerW)}" height="${r(markH * 1.35)}" fill="${withAlpha(p.accent, 0.14)}"/>`)
+    if (wordmark) parts.push(`<text x="${r(pad + innerW * 0.035)}" y="${r(y + markH * 0.8)}" font-size="${r(markH * 0.47)}" font-family="Arial, sans-serif" font-weight="700" letter-spacing="0.5" fill="${p.accent}">${escapeXml(wordmark.toUpperCase())}</text>`)
+    parts.push(textBar(pad + innerW * 0.62, y + markH * 0.38, innerW * 0.32, markH * 0.16, withAlpha(p.ink, 0.4)))
+    y += markH * 1.75
+  } else if (art.masthead === "badge") {
+    const badgeW = innerW * (wordmark && wordmark.length > 10 ? 0.52 : 0.26)
+    parts.push(`<rect x="${r(pad)}" y="${r(y)}" width="${r(badgeW)}" height="${r(markH * 1.12)}" rx="${r(markH * 0.12)}" fill="${p.accent}"/>`)
+    if (wordmark) parts.push(`<text x="${r(pad + badgeW * 0.08)}" y="${r(y + markH * 0.72)}" font-size="${r(markH * 0.44)}" font-family="Arial, sans-serif" font-weight="700" fill="#FFFFFF">${escapeXml(wordmark.toUpperCase())}</text>`)
+    else parts.push(textBar(pad + badgeW * 0.12, y + markH * 0.4, badgeW * 0.7, markH * 0.2, "#FFFFFF", 0.92))
+    parts.push(textBar(pad + badgeW + innerW * 0.035, y + markH * 0.45, innerW * 0.34, markH * 0.15, withAlpha(p.ink, 0.45)))
+    y += markH * 1.45
+  } else if (art.masthead === "publisher") {
+    if (wordmark) parts.push(`<text x="${r(pad)}" y="${r(y + markH * 0.72)}" font-size="${r(markH * 0.47)}" font-family="Arial, sans-serif" font-weight="700" letter-spacing="0.65" fill="${p.accent}">${escapeXml(wordmark.toUpperCase())}</text>`)
+    parts.push(`<rect x="${r(pad)}" y="${r(y + markH)}" width="${r(innerW)}" height="${r(Math.max(1, H * 0.0018))}" fill="${p.accent}"/>`)
+    y += markH * 1.55
+  } else if (art.masthead === "rule") {
+    parts.push(`<rect x="${r(pad)}" y="${r(y)}" width="${r(innerW)}" height="${r(Math.max(1.5, H * 0.006))}" fill="${p.accent}"/>`)
+    if (wordmark) parts.push(`<text x="${r(pad)}" y="${r(y + markH * 1.45)}" font-size="${r(markH * 0.44)}" font-family="Arial, sans-serif" font-weight="700" letter-spacing="0.4" fill="${p.accent}">${escapeXml(wordmark.toUpperCase())}</text>`)
+    y += markH * 1.85
+  } else {
+    if (art.runningHeader !== "none") {
+      parts.push(textBar(pad, y, innerW * 0.34, markH * 0.18, withAlpha(p.ink, 0.35)))
+      parts.push(textBar(pad + innerW * 0.74, y, innerW * 0.26, markH * 0.18, withAlpha(p.ink, 0.35)))
+    }
+    y += markH * 1.35
+  }
+
+  // Title and author block. Alignment and affiliation density come from the
+  // target venue, while the restrained bars keep the artwork legible at card size.
+  const titleW = innerW * (art.titleAlign === "center" ? 0.78 : 0.92)
+  const titleX = art.titleAlign === "center" ? (W - titleW) / 2 : pad
+  const titleH = H * 0.024
+  if (art.titleAlign === "center") {
+    parts.push(textBar(titleX, y, titleW, titleH * 0.62, p.ink, 0.92))
+    parts.push(textBar(W / 2 - titleW * 0.37, y + titleH * 0.82, titleW * 0.74, titleH * 0.42, p.ink, 0.75))
+  } else {
+    parts.push(textBar(titleX, y, titleW, titleH * 0.62, p.ink, 0.92))
+    parts.push(textBar(titleX, y + titleH * 0.82, titleW * 0.68, titleH * 0.42, p.ink, 0.75))
+  }
+  if (art.masthead === "band") {
+    parts.push(`<rect x="${r(titleX)}" y="${r(y - titleH * 0.28)}" width="${r(titleW)}" height="${r(titleH * 1.75)}" fill="${withAlpha(p.accent, 0.055)}"/>`)
+  }
+  y += titleH * 1.85
+
+  const authorY = y
+  const authorCount = art.authorLayout === "affiliations" ? 3 : art.authorLayout === "compact" ? 2 : 1
+  const authorW = innerW * (art.authorLayout === "centered" ? 0.48 : 0.72)
+  const authorX = art.titleAlign === "center" ? (W - authorW) / 2 : pad
+  for (let i = 0; i < authorCount; i++) {
+    parts.push(textBar(authorX + (i % 2) * authorW * 0.5, authorY + i * H * 0.009, authorW * (i % 2 ? 0.42 : 0.5), H * 0.0045, withAlpha(p.accent, i === 0 ? 0.78 : 0.48)))
+  }
+  y += H * (art.authorLayout === "affiliations" ? 0.043 : 0.03)
+
+  // Abstract block is full width in both single- and two-column venues.
+  const abstractH = H * 0.105
+  if (art.abstract === "shaded") {
+    parts.push(`<rect x="${r(pad)}" y="${r(y)}" width="${r(innerW)}" height="${r(abstractH)}" fill="${withAlpha(p.accent, 0.075)}"/>`)
+  } else if (art.abstract === "boxed") {
+    parts.push(`<rect x="${r(pad)}" y="${r(y)}" width="${r(innerW)}" height="${r(abstractH)}" fill="none" stroke="${withAlpha(p.accent, 0.48)}" stroke-width="${r(Math.max(0.7, W * 0.002))}"/>`)
+  }
+  parts.push(textBar(pad + innerW * 0.035, y + abstractH * 0.13, innerW * 0.2, abstractH * 0.11, p.accent, 0.9))
+  for (let i = 0; i < 4; i++) {
+    parts.push(textBar(pad + innerW * 0.035, y + abstractH * (0.34 + i * 0.15), innerW * (i % 2 ? 0.86 : 0.93), abstractH * 0.045, withAlpha(p.ink, 0.28)))
+  }
+  y += abstractH + H * 0.025
+
+  const columns = art.columns
+  const gutter = columns === 2 ? innerW * 0.065 : 0
+  const colW = (innerW - gutter * (columns - 1)) / columns
+  const bodyTop = y
+  const bodyBottom = H - pad - H * 0.07
+  const bodyH = Math.max(H * 0.2, bodyBottom - bodyTop)
+
+  const drawHeading = (x: number, top: number, w: number, index: number) => {
+    const headingH = Math.max(H * 0.012, w * 0.025)
+    if (art.headings === "filled") {
+      parts.push(`<rect x="${r(x)}" y="${r(top - headingH * 0.16)}" width="${r(w)}" height="${r(headingH * 1.35)}" fill="${withAlpha(p.accent, 0.12)}"/>`)
+      parts.push(textBar(x + w * 0.035, top + headingH * 0.15, w * 0.56, headingH * 0.4, p.accent, 0.95))
+    } else {
+      parts.push(textBar(x, top, w * (index % 2 ? 0.5 : 0.62), headingH * 0.47, art.headings === "numbered" ? p.accent : p.ink, 0.88))
+      if (art.headings === "ruled") {
+        parts.push(`<rect x="${r(x)}" y="${r(top + headingH * 0.68)}" width="${r(w)}" height="${r(Math.max(0.7, W * 0.002))}" fill="${withAlpha(p.accent, 0.75)}"/>`)
+      }
+    }
+    return headingH * 1.6
+  }
+  const drawTextLines = (x: number, top: number, w: number, count: number, height: number) => {
+    const lineGap = height / (count + 1)
+    for (let i = 0; i < count; i++) {
+      const lineW = w * (i % 4 === 3 ? 0.69 : i % 2 ? 0.88 : 0.98)
+      parts.push(textBar(x, top + i * lineGap, lineW, Math.max(1, H * 0.0045), withAlpha(p.ink, 0.25)))
+    }
+  }
+
+  for (let column = 0; column < columns; column++) {
+    const x = pad + column * (colW + gutter)
+    let sectionY = bodyTop
+    const sectionCount = art.figure === "none" ? 3 : 2
+    for (let section = 0; section < sectionCount; section++) {
+      sectionY += drawHeading(x, sectionY, colW, section)
+      const sectionH = (bodyH * (art.figure === "none" ? 0.86 : 0.54)) / sectionCount
+      const reserveFigure = art.figure === "column" && column === 0 && section === sectionCount - 1
+      drawTextLines(x, sectionY, colW, reserveFigure ? 4 : 6, sectionH * (reserveFigure ? 0.52 : 0.86))
+      sectionY += sectionH
+      if (reserveFigure) {
+        const graphY = sectionY - sectionH * 0.36
+        parts.push(`<rect x="${r(x + colW * 0.08)}" y="${r(graphY)}" width="${r(colW * 0.82)}" height="${r(sectionH * 0.34)}" fill="${withAlpha(p.accent2, 0.13)}" stroke="${withAlpha(p.accent, 0.22)}"/>`)
+        parts.push(`<path d="M${r(x + colW * 0.16)} ${r(graphY + sectionH * 0.27)} L${r(x + colW * 0.36)} ${r(graphY + sectionH * 0.18)} L${r(x + colW * 0.52)} ${r(graphY + sectionH * 0.22)} L${r(x + colW * 0.73)} ${r(graphY + sectionH * 0.08)}" fill="none" stroke="${p.accent}" stroke-width="${r(Math.max(1, W * 0.006))}"/>`)
+      }
+    }
+  }
+
+  if (art.figure === "wide") {
+    const graphY = bodyTop + bodyH * 0.68
+    const graphH = bodyH * 0.21
+    parts.push(`<rect x="${r(pad + innerW * 0.06)}" y="${r(graphY)}" width="${r(innerW * 0.88)}" height="${r(graphH)}" fill="${withAlpha(p.accent2, 0.12)}" stroke="${withAlpha(p.accent, 0.2)}"/>`)
+    parts.push(`<path d="M${r(pad + innerW * 0.12)} ${r(graphY + graphH * 0.76)} L${r(pad + innerW * 0.3)} ${r(graphY + graphH * 0.56)} L${r(pad + innerW * 0.48)} ${r(graphY + graphH * 0.63)} L${r(pad + innerW * 0.67)} ${r(graphY + graphH * 0.28)} L${r(pad + innerW * 0.86)} ${r(graphY + graphH * 0.38)}" fill="none" stroke="${p.accent}" stroke-width="${r(Math.max(1, W * 0.006))}"/>`)
+    parts.push(textBar(pad + innerW * 0.32, graphY + graphH * 1.08, innerW * 0.36, H * 0.004, withAlpha(p.ink, 0.28)))
+  }
+
+  if (art.runningHeader !== "none") {
+    const footerY = H - pad * 0.64
+    parts.push(`<rect x="${r(pad)}" y="${r(footerY)}" width="${r(innerW)}" height="${r(Math.max(0.7, H * 0.0016))}" fill="${withAlpha(p.ink, 0.22)}"/>`)
+    if (art.runningHeader === "two-sided") {
+      parts.push(textBar(pad, footerY + H * 0.008, innerW * 0.32, H * 0.0038, withAlpha(p.ink, 0.28)))
+      parts.push(textBar(pad + innerW * 0.82, footerY + H * 0.008, innerW * 0.18, H * 0.0038, withAlpha(p.accent, 0.78)))
+    }
+  }
+  if (art.footer === "copyright" || art.footer === "publisher") {
+    const footerY = H - pad * 0.42
+    parts.push(textBar(pad, footerY, innerW * (art.footer === "copyright" ? 0.62 : 0.45), H * 0.0034, withAlpha(p.ink, 0.32)))
+    if (art.footer === "copyright") parts.push(`<text x="${r(W - pad)}" y="${r(footerY + H * 0.0045)}" text-anchor="end" font-size="${r(H * 0.009)}" font-family="Arial, sans-serif" fill="${withAlpha(p.ink, 0.6)}">©</text>`)
+  } else if (art.footer === "page") {
+    parts.push(textBar(W / 2 - innerW * 0.06, H - pad * 0.42, innerW * 0.12, H * 0.0034, withAlpha(p.ink, 0.3)))
+  }
 
   parts.push("</svg>")
   return parts.join("")

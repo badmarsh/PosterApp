@@ -34,10 +34,12 @@ export function generateAis2ProtocolText(review: ThesisReviewRecord): string {
     lines.push("")
   }
 
-  if (review.defenseQuestions && review.defenseQuestions.length > 0) {
+  const isEditorial = review.reviewKind === "paper" || review.reviewKind === "grant"
+  const questions = isEditorial ? (review.questionsForAuthors ?? []) : (review.defenseQuestions ?? [])
+  if (questions.length > 0) {
     lines.push("--------------------------------------------------------------------------------")
-    lines.push("OTÁZKY NA OBHAJOBU:")
-    review.defenseQuestions.forEach((q, i) => lines.push(`${i + 1}. ${q}`))
+    lines.push(review.reviewKind === "grant" ? "OTÁZKY PRE ŽIADATEĽA:" : isEditorial ? "OTÁZKY PRE AUTORA:" : "OTÁZKY NA OBHAJOBU:")
+    questions.forEach((q, i) => lines.push(`${i + 1}. ${q}`))
   }
 
   lines.push("================================================================================")

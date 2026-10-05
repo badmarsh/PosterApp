@@ -84,6 +84,12 @@ describe("Expert Review Contracts & Validation", () => {
     expect(parsed.findings).toHaveLength(1)
     expect(parsed.reportingStandard).toBe("ml_reproducibility")
     expect(parsed.questionsForAuthors).toEqual(["How sensitive is the model to random seeds?"])
+
+    const legacyMixedPayload = ProfessionalReviewGenerationSchema.parse({
+      defenseQuestions: ["THESIS DEFENCE QUESTION — MUST NOT LEAK"],
+      questions: ["Generic questions are not an author-question contract"],
+    })
+    expect(legacyMixedPayload.questionsForAuthors).toEqual([])
   })
 })
 

@@ -22,6 +22,7 @@
     "test": "vitest",
     "test:e2e": "playwright test",
     "deadcode": "knip",
+    "templates:previews": "tsx scripts/generate-template-previews.mjs",
     "prisma:types": "node scripts/generate-prisma-types.js",
     "eval:pgvector": "vitest run lib/ai/eval/__tests__/pgvector-live.test.ts",
     "eval:retrieval": "vitest run lib/ai/eval/__tests__/retrieval-golden-eval.test.ts",

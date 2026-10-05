@@ -8,10 +8,10 @@ import {
   resetRegistrationSetting,
 } from "@/lib/system-settings"
 
-const UpdateSettingsSchema = z.object({
-  allowRegistration: z.boolean().optional(),
-  resetToEnv: z.boolean().optional(),
-})
+const UpdateSettingsSchema = z.union([
+  z.object({ allowRegistration: z.boolean() }).strict(),
+  z.object({ resetToEnv: z.literal(true) }).strict(),
+])
 
 export async function GET() {
   try {
@@ -45,16 +45,9 @@ export async function PATCH(req: Request) {
       return apiError("INVALID_PAYLOAD", parsed.error.issues[0]?.message || "Invalid payload", 400)
     }
 
-    const { allowRegistration, resetToEnv } = parsed.data
-
-    let updated
-    if (resetToEnv) {
-      updated = await resetRegistrationSetting()
-    } else if (typeof allowRegistration === "boolean") {
-      updated = await setRegistrationSetting(allowRegistration)
-    } else {
-      updated = await getRegistrationSetting()
-    }
+    const updated = "resetToEnv" in parsed.data
+      ? await resetRegistrationSetting()
+      : await setRegistrationSetting(parsed.data.allowRegistration)
 
     return NextResponse.json({
       success: true,

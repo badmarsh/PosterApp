@@ -42,6 +42,19 @@ describe("Multi-Format Export Engine", () => {
     expect(ais2).toContain("Ako ovplyvnila voľba batch size")
   })
 
+  it("exports only the question channel appropriate to the review kind", () => {
+    const paper = generateAis2ProtocolText({
+      ...sampleReview,
+      reviewKind: "paper",
+      defenseQuestions: ["THESIS DEFENCE QUESTION — MUST NOT LEAK"],
+      questionsForAuthors: ["How was the sample size determined?"],
+    })
+    expect(paper).toContain("OTÁZKY PRE AUTORA:")
+    expect(paper).toContain("How was the sample size determined?")
+    expect(paper).not.toContain("THESIS DEFENCE QUESTION")
+    expect(paper).not.toContain("OTÁZKY NA OBHAJOBU:")
+  })
+
   it("generates valid CSV grade roster with escaping", () => {
     const csv = generateCsvGradeRoster([sampleReview])
     const lines = csv.split("\n")

@@ -42,6 +42,21 @@ export function normalizeEndpointBaseUrl(url: string): string {
   return trimmed
 }
 
+/** Accept only credential-free HTTP(S) URLs before sending them to the server. */
+export function isValidEndpointBaseUrl(value: string): boolean {
+  try {
+    const url = new URL(normalizeEndpointBaseUrl(value))
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      Boolean(url.hostname) &&
+      !url.username &&
+      !url.password
+    )
+  } catch {
+    return false
+  }
+}
+
 /**
  * Normalizes a base URL to full chat completions URL (/chat/completions).
  */
@@ -156,23 +171,18 @@ export async function getStoredAiEndpoints(skipCache = false): Promise<AiEndpoin
     return cachedEndpoints.data
   }
 
-  try {
-    const { prisma } = await import("@/lib/prisma")
-    if (!prisma?.systemSetting) return []
-    const row = await prisma.systemSetting.findUnique({
-      where: { key: "ai_endpoints" },
-    })
-    if (row?.value) {
-      const parsed = JSON.parse(row.value)
-      if (Array.isArray(parsed)) {
-        cachedEndpoints = { data: parsed, expiresAt: now + CACHE_TTL_MS }
-        return parsed
-      }
-    }
-  } catch (err) {
-    console.warn("[ai-endpoints] Failed to load endpoints from DB:", err)
-  }
+  const { prisma } = await import("@/lib/prisma")
+  if (!prisma?.systemSetting) return []
+  const row = await prisma.systemSetting.findUnique({
+    where: { key: "ai_endpoints" },
+  })
+  if (!row?.value) return []
 
+  const parsed = JSON.parse(row.value)
+  if (Array.isArray(parsed)) {
+    cachedEndpoints = { data: parsed, expiresAt: now + CACHE_TTL_MS }
+    return parsed
+  }
   return []
 }
 

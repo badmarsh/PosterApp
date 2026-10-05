@@ -113,7 +113,7 @@ describe("review-serializer", () => {
       id: "paper-questions",
       workspaceId: "ws-paper",
       reviewKind: "paper",
-      defenseQuestions: JSON.stringify([]),
+      defenseQuestions: JSON.stringify(["THESIS DEFENCE QUESTION — MUST NOT LEAK INTO A PAPER REVIEW"]),
       questionsForAuthors: JSON.stringify(["How does the analysis generalize?"]),
       sections: JSON.stringify([]),
       citationIssues: JSON.stringify([]),
@@ -137,7 +137,15 @@ describe("review-serializer", () => {
     })
     expect(legacyPaper.questionsForAuthors).toEqual([])
     expect(legacyPaper.defenseQuestions).toEqual([])
-    expect(deserializeThesisReview({ ...paperRecord, reviewKind: "thesis", questionsForAuthors: undefined }).questionsForAuthors).toEqual([])
+
+    const thesisWithStaleAuthorQuestions = deserializeThesisReview({
+      ...paperRecord,
+      reviewKind: "thesis",
+      defenseQuestions: JSON.stringify(["Why was this defence protocol selected?"]),
+      questionsForAuthors: JSON.stringify(["STALE PAPER QUESTION — MUST NOT LEAK INTO THESIS REVIEW"]),
+    })
+    expect(thesisWithStaleAuthorQuestions.defenseQuestions).toEqual(["Why was this defence protocol selected?"])
+    expect(thesisWithStaleAuthorQuestions.questionsForAuthors).toEqual([])
   })
 
   it("deserializes a legacy record with null/missing newer fields gracefully", () => {
@@ -284,6 +292,12 @@ describe("review-serializer", () => {
     expect(deserialized2.findings).toHaveLength(deserialized1.findings.length)
     expect(deserialized2.findings[0].title).toBe(deserialized1.findings[0].title)
     expect(deserialized2.sections).toHaveLength(deserialized1.sections.length)
+  })
+
+  it("rejects malformed or non-string question lists instead of persisting corrupted data", () => {
+    expect(() => serializeThesisReviewUpdate({ defenseQuestions: ["", "valid"] })).toThrow(/defenseQuestions/)
+    expect(() => serializeThesisReviewUpdate({ questionsForAuthors: "not-json" })).toThrow(/JSON array/)
+    expect(() => serializeThesisReviewUpdate({ questionsForAuthors: [{ question: "not a string" }] })).toThrow(/questionsForAuthors/)
   })
 
   it("rejects oversized payload exceeding MAX_SERIALIZED_PAYLOAD_BYTES", () => {

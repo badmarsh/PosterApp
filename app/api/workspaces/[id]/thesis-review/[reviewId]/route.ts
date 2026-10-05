@@ -15,6 +15,15 @@ import {
   serializeThesisReviewUpdate,
 } from "@/lib/ai/review-serializer"
 
+const ReviewQuestionListSchema = z.preprocess((value) => {
+  if (typeof value !== "string") return value
+  try {
+    return JSON.parse(value)
+  } catch {
+    return value
+  }
+}, z.array(z.string().trim().min(1).max(5_000)).max(100))
+
 const UpdateSchema = z.object({
   studentName: z.string().min(1).max(300).optional(),
   thesisTitle: z.string().min(1).max(1000).optional(),
@@ -31,10 +40,10 @@ const UpdateSchema = z.object({
   finalRecommendation: z.string().max(50000).optional().nullable(),
   confirmedAt: z.union([z.string(), z.date()]).optional().nullable(),
   sections: z.union([z.string(), z.array(z.any())]).optional().nullable(),
-  defenseQuestions: z.union([z.string(), z.array(z.any())]).optional().nullable(),
-  questionsForAuthors: z.union([z.string(), z.array(z.any())]).optional().nullable(),
+  defenseQuestions: ReviewQuestionListSchema.optional().nullable(),
+  questionsForAuthors: ReviewQuestionListSchema.optional().nullable(),
   citationIssues: z.union([z.string(), z.array(z.any())]).optional().nullable(),
-  reviewKind: z.string().optional().nullable(),
+  reviewKind: z.enum(["thesis", "paper", "grant"]).optional().nullable(),
   targetVenue: z.string().max(500).optional().nullable(),
   summary: z.string().optional().nullable(),
   strengths: z.union([z.string(), z.array(z.any())]).optional().nullable(),
@@ -45,7 +54,22 @@ const UpdateSchema = z.object({
   phdEnrichment: z.union([z.string(), z.any(), z.null()]).optional(),
   status: z.string().optional().nullable(),
   language: z.enum(["sk", "cs", "en"]).optional(),
-}).passthrough()
+}).passthrough().superRefine((update, context) => {
+  if (update.reviewKind === "thesis" && update.questionsForAuthors?.length) {
+    context.addIssue({
+      code: "custom",
+      path: ["questionsForAuthors"],
+      message: "Thesis defence questions must be sent through defenseQuestions, not questionsForAuthors.",
+    })
+  }
+  if ((update.reviewKind === "paper" || update.reviewKind === "grant") && update.defenseQuestions?.length) {
+    context.addIssue({
+      code: "custom",
+      path: ["defenseQuestions"],
+      message: "Paper and grant author questions must be sent through questionsForAuthors, not defenseQuestions.",
+    })
+  }
+})
 
 // ---------------------------------------------------------------------------
 // GET — fetch a single thesis review
