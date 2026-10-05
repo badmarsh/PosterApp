@@ -142,10 +142,43 @@ export function isPrivateOrReservedHost(hostname: string): boolean {
 }
 
 /**
+ * Hosts that must never be fetched, even when internal/private targets were
+ * explicitly allowed: cloud metadata endpoints, link-local ranges, the
+ * unspecified address and multicast/reserved space.
+ */
+export function isMetadataOrReservedHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().trim().replace(/^\[|\]$/g, "")
+
+  if (host === "instance-data" || host === "metadata" || host === "metadata.google.internal") return true
+
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+  if (ipv4) {
+    const [a, b, c, d] = ipv4.slice(1).map(Number)
+    if (a > 255 || b > 255 || c > 255 || d > 255) return true
+    if (a === 0) return true // 0.0.0.0/8 (unspecified / "this network")
+    if (a === 169 && b === 254) return true // 169.254.0.0/16 link-local + cloud metadata
+    if (a >= 224) return true // multicast, reserved, broadcast
+    return false
+  }
+
+  if (host.includes(":")) {
+    if (host === "::") return true // unspecified
+    if (host.startsWith("fe80:")) return true // link-local
+    if (host.startsWith("ff")) return true // multicast
+    const mapped = host.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i)
+    if (mapped) return isMetadataOrReservedHost(mapped[1])
+  }
+
+  return false
+}
+
+/**
  * Validates that an external URL is safe to fetch (HTTP/HTTPS, non-SSRF).
  * Throws an error if the URL is invalid or targets a reserved/internal address.
+ * Pass `allowPrivateHosts` to permit loopback/RFC1918/ULA targets (self-hosted
+ * local inference servers); metadata, link-local and multicast stay blocked.
  */
-export function assertSafeExternalUrl(urlStr: string): URL {
+export function assertSafeExternalUrl(urlStr: string, options: { allowPrivateHosts?: boolean } = {}): URL {
   if (!urlStr || typeof urlStr !== "string") {
     throw new Error("URL must be a non-empty string")
   }
@@ -161,7 +194,10 @@ export function assertSafeExternalUrl(urlStr: string): URL {
     throw new Error(`Unsupported protocol: ${parsed.protocol}`)
   }
 
-  if (isPrivateOrReservedHost(parsed.hostname)) {
+  if (isMetadataOrReservedHost(parsed.hostname)) {
+    throw new Error("Target address is reserved or internal (SSRF protection)")
+  }
+  if (!options.allowPrivateHosts && isPrivateOrReservedHost(parsed.hostname)) {
     throw new Error("Target address is reserved or internal (SSRF protection)")
   }
 

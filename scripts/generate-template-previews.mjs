@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Generate `public/template-previews/<templateId>.svg` (+ 640 × 480 `.png`)
- * for every template in the registry. All preview images use a shared 4:3 frame.
+ * Generate `public/template-previews/<templateId>.svg` (+ 960 × 720 `.png`)
+ * for every template in the registry. Every preview is an isometric mockup of
+ * the template's own document, on a shared 4:3 canvas.
  *
  *   pnpm exec tsx scripts/generate-template-previews.mjs
  *   node scripts/generate-template-previews.mjs            (via the tsx shim below)
@@ -40,6 +41,10 @@ try {
   console.warn(`[template-previews] sharp unavailable (${err.message}); writing SVG only`)
 }
 
+// One intrinsic size for both formats keeps the SVG and PNG canvases identical
+// and gives the raster version enough resolution for 2× picker thumbnails.
+const PREVIEW_WIDTH = 800
+
 const only = process.argv.slice(2).filter((a) => !a.startsWith("-"))
 const wantPng = !process.argv.includes("--no-png")
 
@@ -47,16 +52,18 @@ const targets = TEMPLATE_REGISTRY.filter((t) => (only.length ? only.includes(t.i
 
 let written = 0
 for (const t of targets) {
-  const svg = art.renderTemplatePreviewSvg(t.id, t.colors, 320, t)
+  const svg = art.renderTemplatePreviewSvg(t.id, t.colors, PREVIEW_WIDTH, t)
   const svgPath = path.join(OUT_DIR, `${t.id}.svg`)
   fs.writeFileSync(svgPath, svg, "utf8")
   written++
 
   if (wantPng && sharpMod) {
     try {
-      await sharpMod(Buffer.from(svg, "utf8"), { density: 192 })
-        .resize({ width: 640, height: 480, fit: "fill" })
-        .png()
+      await sharpMod(Buffer.from(svg, "utf8"), { density: 96 })
+        .resize({ width: PREVIEW_WIDTH, height: Math.round(PREVIEW_WIDTH * 0.75), fit: "fill" })
+        // The scene is flat vector artwork, so a palette PNG is ~60% smaller than
+        // truecolour without visible loss at picker sizes.
+        .png({ compressionLevel: 9, palette: true, quality: 80, effort: 8 })
         .toFile(path.join(OUT_DIR, `${t.id}.png`))
     } catch (err) {
       console.warn(`[template-previews] png failed for ${t.id}: ${err.message}`)

@@ -5,19 +5,26 @@
  * (`layoutPreview` in lib/output-types.ts), so every poster looked identical
  * and every slide deck looked identical. This module replaces that with a
  * per-template description of the *actual* visual language the LaTeX template
- * implements — title band, card treatment, column widths, stat tiles — plus a
- * renderer that turns it into SVG.
+ * implements — title band, card treatment, column widths, stat tiles — and
+ * renders that document in the same isometric mockup style the showcase
+ * galleries use (see `lib/template-mockup-scene.ts` and
+ * `public/showcases/mockups/`), so a preview shows the template as a finished
+ * artefact: printed on a board on an easel, on an open laptop, or as sheets on
+ * the desk.
  *
- * Keeping it declarative (rather than one hand-drawn SVG per template) means
+ * Keeping it declarative (rather than one hand-drawn image per template) means
  * the artwork can never drift from the palette the user picks: the renderer
- * takes the template's `colors` at call time.
+ * takes the template's `colors` at call time, which is also why the previews
+ * stay distinct per template while sharing one canvas, one camera and one set.
  *
  * Consumers:
- *  - `scripts/generate-template-previews.mjs` writes `public/template-previews/*.svg`
- *  - `components/poster-preview.tsx` renders the same SVG inline in the picker
+ *  - `scripts/generate-template-previews.mjs` writes `public/template-previews/*.{svg,png}`
+ *  - `components/template-preview-image.tsx` shows those assets in the picker
+ *    list and in the selected-template detail panel
  */
 
 import type { TemplateColor, TemplateDef } from "./output-types"
+import { renderMockupScene, type MockupKind, type SceneDocument, type ScenePalette } from "./template-mockup-scene"
 import { THESIS_REVIEW_STYLES, thesisReviewStyleFor } from "./latex/thesis-review-styles"
 
 export type PosterCardStyle =
@@ -363,10 +370,69 @@ function r(n: number): number {
   return Math.round(n * 100) / 100
 }
 
+/** Inner markup of a rendered document, plus its local dimensions. */
+function innerDocument(svg: string, width: number, height: number): SceneDocument {
+  return {
+    markup: svg.slice(svg.indexOf(">") + 1, svg.lastIndexOf("</svg>")),
+    width,
+    height,
+  }
+}
+
+/** A template's document as a printable artefact, ready for the mockup stage. */
+export type TemplateDocument = SceneDocument & {
+  kind: MockupKind
+  /** Native aspect ratio (height / width) of the printed document. */
+  aspect: number
+}
+
 /**
- * Render a consistently sized 4:3 SVG mockup for a template. The actual
- * poster, slide, paper, or review page is fitted inside the shared frame without
- * stretching, so picker cards line up while the document keeps its real ratio.
+ * The template's own document — poster page, slide, paper page or posudok form —
+ * rendered in local coordinates. `renderTemplatePreviewSvg` prints it onto the
+ * matching surface of the mockup scene.
+ */
+export function renderTemplateDocument(
+  templateId: string,
+  colors: TemplateColor[],
+  def?: TemplateDef,
+  options: { slide?: "title" | "content"; width?: number } = {},
+): TemplateDocument {
+  const width = options.width ?? 320
+  const art = getPreviewArt(templateId, def)
+  const p = paletteFrom(colors)
+
+  if (art.kind === "posudok") {
+    const height = width * (297 / 210)
+    return { kind: "posudok", ...innerDocument(renderPosudok(art, p, width, templateId), width, height), aspect: 297 / 210 }
+  }
+  if (art.kind === "paper") {
+    const height = width * (297 / 210)
+    return { kind: "paper", ...innerDocument(renderPaper(art, p, width, templateId), width, height), aspect: 297 / 210 }
+  }
+  if (art.kind === "poster") {
+    const height = width * (art.orientation === "landscape" ? 841 / 1189 : 1189 / 841)
+    return { kind: "poster", ...innerDocument(renderPoster(art, p, width, templateId), width, height), aspect: height / width }
+  }
+  const height = width * (9 / 16)
+  const markup = slideFrame(art, p, { x: 0, y: 0, w: width, h: height }, options.slide ?? "title").join("")
+  return { kind: "slides", markup, width, height, aspect: 9 / 16 }
+}
+
+/** Stable per-template variation for the mockup camera and props. */
+function previewVariant(templateId: string): number {
+  let hash = 0
+  for (let i = 0; i < templateId.length; i++) {
+    hash = (hash * 31 + templateId.charCodeAt(i)) % 9973
+  }
+  return hash
+}
+
+/**
+ * Render a template preview as an isometric mockup: the shared studio set with
+ * the template's own document printed onto the surface that fits its output
+ * type. Every preview uses the same 4:3 canvas, the same camera fit and the same
+ * set, so the picker reads as one gallery — while the printed document keeps the
+ * template's real palette, layout and page ratio.
  *
  * @param width Output width in SVG user units (height is always width × 3/4).
  */
@@ -377,40 +443,25 @@ export function renderTemplatePreviewSvg(
   def?: TemplateDef,
 ): string {
   const safeWidth = Number.isFinite(width) && width > 0 ? width : 320
-  const art = getPreviewArt(templateId, def)
-  const p = paletteFrom(colors)
-  let nativeHeight: number
-  let nativeSvg: string
-
-  if (art.kind === "posudok") {
-    nativeHeight = safeWidth * (297 / 210)
-    nativeSvg = renderPosudok(art, p, safeWidth, templateId)
-  } else if (art.kind === "paper") {
-    nativeHeight = safeWidth * (297 / 210)
-    nativeSvg = renderPaper(art, p, safeWidth, templateId)
-  } else if (art.kind === "poster") {
-    nativeHeight = art.orientation === "landscape" ? safeWidth * (841 / 1189) : safeWidth * (1189 / 841)
-    nativeSvg = renderPoster(art, p, safeWidth, templateId)
-  } else {
-    nativeHeight = safeWidth * (9 / 16)
-    nativeSvg = renderSlide(art, p, safeWidth, templateId)
-  }
-
-  const frameHeight = safeWidth * 0.75
-  const padding = safeWidth * 0.055
-  const scale = Math.min((safeWidth - padding * 2) / safeWidth, (frameHeight - padding * 2) / nativeHeight)
-  const contentWidth = safeWidth * scale
-  const contentHeight = nativeHeight * scale
-  const x = (safeWidth - contentWidth) / 2
-  const y = (frameHeight - contentHeight) / 2
-  const content = nativeSvg.slice(nativeSvg.indexOf(">") + 1, nativeSvg.lastIndexOf("</svg>"))
+  const height = safeWidth * 0.75
+  const document = renderTemplateDocument(templateId, colors, def)
+  const pal = paletteFrom(colors)
+  const palette: ScenePalette = { accent: pal.accent, accent2: pal.accent2, ink: pal.ink }
+  const scene = renderMockupScene(
+    {
+      kind: document.kind,
+      variant: previewVariant(templateId),
+      palette,
+      document,
+      idPrefix: `tp-${templateId.replace(/[^a-zA-Z0-9_-]/g, "")}`,
+    },
+    { width: safeWidth, height },
+  )
   const label = escapeXml(`${def?.label ?? templateId} template preview`)
 
   return [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${r(safeWidth)}" height="${r(frameHeight)}" viewBox="0 0 ${r(safeWidth)} ${r(frameHeight)}" role="img" aria-label="${label}" data-template-id="${escapeXml(templateId)}">`,
-    `<rect width="${r(safeWidth)}" height="${r(frameHeight)}" rx="${r(safeWidth * 0.035)}" fill="#F1F4F8"/>`,
-    `<rect x="${r(safeWidth * 0.025)}" y="${r(frameHeight * 0.035)}" width="${r(safeWidth * 0.95)}" height="${r(frameHeight * 0.93)}" rx="${r(safeWidth * 0.025)}" fill="#FFFFFF" stroke="#DCE3EC"/>`,
-    `<svg x="${r(x)}" y="${r(y)}" width="${r(contentWidth)}" height="${r(contentHeight)}" viewBox="0 0 ${r(safeWidth)} ${r(nativeHeight)}" preserveAspectRatio="none" aria-hidden="true">${content}</svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${r(safeWidth)}" height="${r(height)}" viewBox="0 0 ${r(safeWidth)} ${r(height)}" role="img" aria-label="${label}" data-template-id="${escapeXml(templateId)}">`,
+    scene,
     `</svg>`,
   ].join("")
 }
@@ -980,52 +1031,58 @@ function renderPosudok(art: PosudokPreviewArt, p: PreviewPalette, width: number,
   return parts.join("")
 }
 
-function renderSlide(art: SlidePreviewArt, p: PreviewPalette, width: number, id: string): string {
-  const W = width
-  const H = width * (9 / 16)
-  const parts: string[] = [svgOpen(W, H, id)]
-  const pad = W * 0.03
-  const slideH = (H - pad * 2) * 0.46
+/**
+ * One 16:9 slide drawn into the given box. `which` selects the title slide or
+ * the content slide, so the same frame can be shown on its own (the mockup
+ * laptop) or two-up on a printed handout sheet.
+ */
+function slideFrame(
+  art: SlidePreviewArt,
+  p: PreviewPalette,
+  box: { x: number; y: number; w: number; h: number },
+  which: "title" | "content",
+): string[] {
+  const { x, y, w, h } = box
+  const parts: string[] = []
 
-  // ── Slide 1: title slide ────────────────────────────────────────────────
-  const y1 = pad
-  if (art.darkTitleSlide) {
-    parts.push(`<rect x="${r(pad)}" y="${r(y1)}" width="${r(W - pad * 2)}" height="${r(slideH)}" fill="${p.ink}"/>`)
-    parts.push(`<rect x="${r(pad)}" y="${r(y1 + slideH - slideH * 0.09)}" width="${r(W - pad * 2)}" height="${r(slideH * 0.09)}" fill="${p.accent}"/>`)
-    parts.push(textBar(W * 0.2, y1 + slideH * 0.3, W * 0.6, slideH * 0.13, "#FFFFFF", 0.95))
-    parts.push(`<rect x="${r(W * 0.42)}" y="${r(y1 + slideH * 0.52)}" width="${r(W * 0.16)}" height="${r(Math.max(1.5, slideH * 0.025))}" fill="${p.accent}"/>`)
-    parts.push(textBar(W * 0.34, y1 + slideH * 0.66, W * 0.32, slideH * 0.07, "#FFFFFF", 0.55))
-  } else {
-    parts.push(`<rect x="${r(pad)}" y="${r(y1)}" width="${r(W - pad * 2)}" height="${r(slideH)}" fill="${p.paper}" stroke="${withAlpha(p.ink, 0.14)}"/>`)
-    parts.push(`<rect x="${r(pad)}" y="${r(y1)}" width="${r(W - pad * 2)}" height="${r(slideH * 0.5)}" fill="${p.accent}"/>`)
-    parts.push(textBar(W * 0.16, y1 + slideH * 0.14, W * 0.68, slideH * 0.12, "#FFFFFF", 0.95))
-    parts.push(textBar(W * 0.3, y1 + slideH * 0.33, W * 0.4, slideH * 0.06, "#FFFFFF", 0.6))
-    parts.push(textBar(W * 0.34, y1 + slideH * 0.7, W * 0.32, slideH * 0.07, p.ink, 0.45))
+  if (which === "title") {
+    if (art.darkTitleSlide) {
+      parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(w)}" height="${r(h)}" fill="${p.ink}"/>`)
+      parts.push(`<rect x="${r(x)}" y="${r(y + h - h * 0.09)}" width="${r(w)}" height="${r(h * 0.09)}" fill="${p.accent}"/>`)
+      parts.push(textBar(x + w * 0.2, y + h * 0.3, w * 0.6, h * 0.13, "#FFFFFF", 0.95))
+      parts.push(`<rect x="${r(x + w * 0.42)}" y="${r(y + h * 0.52)}" width="${r(w * 0.16)}" height="${r(Math.max(1.5, h * 0.025))}" fill="${p.accent}"/>`)
+      parts.push(textBar(x + w * 0.34, y + h * 0.66, w * 0.32, h * 0.07, "#FFFFFF", 0.55))
+    } else {
+      parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(w)}" height="${r(h)}" fill="${p.paper}" stroke="${withAlpha(p.ink, 0.14)}"/>`)
+      parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(w)}" height="${r(h * 0.5)}" fill="${p.accent}"/>`)
+      parts.push(textBar(x + w * 0.16, y + h * 0.14, w * 0.68, h * 0.12, "#FFFFFF", 0.95))
+      parts.push(textBar(x + w * 0.3, y + h * 0.33, w * 0.4, h * 0.06, "#FFFFFF", 0.6))
+      parts.push(textBar(x + w * 0.34, y + h * 0.7, w * 0.32, h * 0.07, p.ink, 0.45))
+    }
+    return parts
   }
 
-  // ── Slide 2: content slide ──────────────────────────────────────────────
-  const y2 = pad + slideH + pad
-  parts.push(`<rect x="${r(pad)}" y="${r(y2)}" width="${r(W - pad * 2)}" height="${r(slideH)}" fill="${p.paper}" stroke="${withAlpha(p.ink, 0.14)}"/>`)
+  parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(w)}" height="${r(h)}" fill="${p.paper}" stroke="${withAlpha(p.ink, 0.14)}"/>`)
 
   if (art.header === "band") {
-    parts.push(`<rect x="${r(pad)}" y="${r(y2)}" width="${r(W - pad * 2)}" height="${r(slideH * 0.24)}" fill="${p.accent}"/>`)
-    parts.push(textBar(pad + W * 0.02, y2 + slideH * 0.07, W * 0.4, slideH * 0.1, "#FFFFFF", 0.95))
-    parts.push(textBar(pad + W * 0.02, y2 + slideH * 0.165, W * 0.22, slideH * 0.05, "#FFFFFF", 0.6))
+    parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(w)}" height="${r(h * 0.24)}" fill="${p.accent}"/>`)
+    parts.push(textBar(x + w * 0.04, y + h * 0.07, w * 0.42, h * 0.1, "#FFFFFF", 0.95))
+    parts.push(textBar(x + w * 0.04, y + h * 0.165, w * 0.24, h * 0.05, "#FFFFFF", 0.6))
   } else if (art.header === "rule") {
-    parts.push(`<rect x="${r(pad)}" y="${r(y2)}" width="${r(W - pad * 2)}" height="${r(slideH * 0.055)}" fill="${p.accent}"/>`)
-    parts.push(textBar(pad + W * 0.02, y2 + slideH * 0.12, W * 0.46, slideH * (art.titleWeight === "heavy" ? 0.11 : 0.07), p.ink, 0.9))
-    parts.push(`<rect x="${r(pad + W * 0.02)}" y="${r(y2 + slideH * 0.26)}" width="${r(W * 0.1)}" height="${r(Math.max(1.4, slideH * 0.022))}" fill="${p.accent}"/>`)
+    parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(w)}" height="${r(h * 0.055)}" fill="${p.accent}"/>`)
+    parts.push(textBar(x + w * 0.04, y + h * 0.12, w * 0.46, h * (art.titleWeight === "heavy" ? 0.11 : 0.07), p.ink, 0.9))
+    parts.push(`<rect x="${r(x + w * 0.04)}" y="${r(y + h * 0.26)}" width="${r(w * 0.1)}" height="${r(Math.max(1.4, h * 0.022))}" fill="${p.accent}"/>`)
   } else {
-    parts.push(textBar(pad + W * 0.02, y2 + slideH * 0.1, W * 0.42, slideH * 0.07, p.ink, 0.85))
+    parts.push(textBar(x + w * 0.04, y + h * 0.1, w * 0.42, h * 0.07, p.ink, 0.85))
   }
 
-  const bodyTop = y2 + slideH * (art.header === "plain" ? 0.26 : 0.34)
-  const bodyH = y2 + slideH * (art.footer === "none" ? 0.94 : 0.86) - bodyTop
+  const bodyTop = y + h * (art.header === "plain" ? 0.26 : 0.34)
+  const bodyH = y + h * (art.footer === "none" ? 0.94 : 0.86) - bodyTop
 
   if (art.body === "columns") {
-    const colW = (W - pad * 2 - W * 0.05) / 2 - W * 0.01
+    const colW = (w - w * 0.05) / 2 - w * 0.01
     for (let c = 0; c < 2; c++) {
-      const cx = pad + W * 0.025 + c * (colW + W * 0.02)
+      const cx = x + w * 0.025 + c * (colW + w * 0.02)
       for (let l = 0; l < 4; l++) {
         parts.push(`<circle cx="${r(cx + 3)}" cy="${r(bodyTop + bodyH * (0.1 + l * 0.22))}" r="2" fill="${p.accent}"/>`)
         parts.push(textBar(cx + 8, bodyTop + bodyH * (0.07 + l * 0.22), colW * (l % 2 ? 0.6 : 0.9), bodyH * 0.09, withAlpha(p.ink, 0.32)))
@@ -1033,26 +1090,40 @@ function renderSlide(art: SlidePreviewArt, p: PreviewPalette, width: number, id:
     }
   } else if (art.body === "figure") {
     for (let l = 0; l < 2; l++) {
-      parts.push(textBar(pad + W * 0.025, bodyTop + bodyH * (0.06 + l * 0.2), W * 0.34, bodyH * 0.1, withAlpha(p.ink, 0.32)))
+      parts.push(textBar(x + w * 0.025, bodyTop + bodyH * (0.06 + l * 0.2), w * 0.34, bodyH * 0.1, withAlpha(p.ink, 0.32)))
     }
-    parts.push(`<rect x="${r(pad + W * 0.42)}" y="${r(bodyTop)}" width="${r(W * 0.5)}" height="${r(bodyH * 0.85)}" rx="3" fill="${withAlpha(p.accent, 0.16)}"/>`)
+    parts.push(`<rect x="${r(x + w * 0.42)}" y="${r(bodyTop)}" width="${r(w * 0.5)}" height="${r(bodyH * 0.85)}" rx="3" fill="${withAlpha(p.accent, 0.16)}"/>`)
   } else {
     for (let l = 0; l < 4; l++) {
       const yy = bodyTop + bodyH * (0.08 + l * 0.22)
-      parts.push(`<circle cx="${r(pad + W * 0.035)}" cy="${r(yy + bodyH * 0.05)}" r="2.2" fill="${p.accent}"/>`)
-      parts.push(textBar(pad + W * 0.055, yy, W * (l % 2 ? 0.55 : 0.82), bodyH * 0.1, withAlpha(p.ink, 0.32)))
+      parts.push(`<circle cx="${r(x + w * 0.035)}" cy="${r(yy + bodyH * 0.05)}" r="2.2" fill="${p.accent}"/>`)
+      parts.push(textBar(x + w * 0.055, yy, w * (l % 2 ? 0.55 : 0.82), bodyH * 0.1, withAlpha(p.ink, 0.32)))
     }
   }
 
   if (art.footer === "bar") {
-    parts.push(`<rect x="${r(pad)}" y="${r(y2 + slideH * 0.9)}" width="${r(W - pad * 2)}" height="${r(slideH * 0.1)}" fill="${withAlpha(p.accent, 0.9)}"/>`)
-    parts.push(textBar(pad + W * 0.02, y2 + slideH * 0.93, W * 0.16, slideH * 0.04, "#FFFFFF", 0.9))
-    parts.push(textBar(W - pad - W * 0.08, y2 + slideH * 0.93, W * 0.05, slideH * 0.04, "#FFFFFF", 0.9))
+    parts.push(`<rect x="${r(x)}" y="${r(y + h * 0.9)}" width="${r(w)}" height="${r(h * 0.1)}" fill="${withAlpha(p.accent, 0.9)}"/>`)
+    parts.push(textBar(x + w * 0.02, y + h * 0.93, w * 0.16, h * 0.04, "#FFFFFF", 0.9))
+    parts.push(textBar(x + w * 0.92, y + h * 0.93, w * 0.05, h * 0.04, "#FFFFFF", 0.9))
   } else if (art.footer === "rule") {
-    parts.push(`<rect x="${r(pad + W * 0.025)}" y="${r(y2 + slideH * 0.93)}" width="${r(W - pad * 2 - W * 0.05)}" height="${r(Math.max(1, slideH * 0.012))}" fill="${withAlpha(p.ink, 0.18)}"/>`)
-    parts.push(textBar(W - pad - W * 0.09, y2 + slideH * 0.87, W * 0.06, slideH * 0.05, withAlpha(p.ink, 0.4)))
+    parts.push(`<rect x="${r(x + w * 0.025)}" y="${r(y + h * 0.93)}" width="${r(w * 0.95)}" height="${r(Math.max(1, h * 0.012))}" fill="${withAlpha(p.ink, 0.18)}"/>`)
+    parts.push(textBar(x + w * 0.89, y + h * 0.87, w * 0.06, h * 0.05, withAlpha(p.ink, 0.4)))
   }
 
-  parts.push("</svg>")
+  return parts
+}
+
+/** Two slides on one handout page (the printed companion to the deck). */
+function renderSlide(art: SlidePreviewArt, p: PreviewPalette, width: number, id: string): string {
+  const W = width
+  const H = width * (9 / 16)
+  const pad = W * 0.03
+  const slideH = (H - pad * 2) * 0.46
+  const parts: string[] = [
+    svgOpen(W, H, id),
+    ...slideFrame(art, p, { x: pad, y: pad, w: W - pad * 2, h: slideH }, "title"),
+    ...slideFrame(art, p, { x: pad, y: pad + slideH + pad, w: W - pad * 2, h: slideH }, "content"),
+    "</svg>",
+  ]
   return parts.join("")
 }

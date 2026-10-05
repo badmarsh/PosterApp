@@ -106,6 +106,7 @@ All AI/model configuration is via `.env.local`. Key vars:
 | `OPENROUTER_IMAGE_MODEL` | Image-to-image model | `openai/gpt-image-1` |
 | `MINERU_API_URL` | MinerU parse service | `http://mineru-api-wsl:8000` or `http://localhost:8002` |
 | `MINERU_API_KEY` | Secret token for MinerU sidecar (`X-API-Key`) | required in production |
+| `AI_ENDPOINTS_ALLOW_PRIVATE_HOSTS` | Allow model discovery against loopback/private AI endpoints (Ollama/LM Studio/vLLM); metadata & link-local addresses stay blocked | unset (blocked) |
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/posterapp` |
 | `NEXT_PUBLIC_YJS_WS_URL` | Yjs WebSocket URL (enables collaboration) | `ws://localhost:3333/api/yjs` |
 | `CLERK_SECRET_KEY` | Used by server.ts to verify WebSocket JWT tokens | required |
