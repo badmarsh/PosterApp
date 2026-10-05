@@ -91,3 +91,12 @@ verify_patch.py
 tmp_*.js
 /patch_*.b64
 /_patch_registry.py
+
+# Local env backups and editor/agent configs
+.env.local.backup
+.env.local.backup-before-fix
+.env.local.supabase
+.env.local.dokploy
+.mcp.json
+.claude/
+.agents/
