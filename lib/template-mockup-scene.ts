@@ -57,11 +57,19 @@ export type SceneInput = {
   /** The template's own document, printed onto the featured surface. */
   document: SceneDocument
   /**
-   * Optional second artefact for the easel board. Slide decks print a portrait
-   * handout (title slide + content slide) on the board while the laptop shows
-   * the live deck; other kinds print `document` on both.
+   * What is pinned on the easel board. Other kinds default to the featured
+   * document; slide decks default to a portrait handout when no board document
+   * is supplied (their featured document sits on the laptop screen).
    */
   boardDocument?: SceneDocument
+  /** What the laptop screen shows. Defaults to the featured document on decks, neutral artwork otherwise. */
+  screenDocument?: SceneDocument
+  /**
+   * Printed pages lying on the desk, in layout order — typically the demo
+   * workspace's paper (and, where the featured document already fills the
+   * board, its poster as a larger folded print).
+   */
+  sheets?: { document: SceneDocument; width?: number }[]
   /** Prefix for gradient/clip ids so two scenes can coexist in one document. */
   idPrefix: string
 }
@@ -389,8 +397,8 @@ function layoutFor(kind: MockupKind, aspect: number): Layout {
       board: { width: 32, bottom: 22, centreX: -36, z: -13, yaw: 9 },
       laptop: { x: 14, z: 16, yaw: -11, width: 48 },
       sheets: [
-        { x: -50, z: 36, rot: -9 },
-        { x: 34, z: 44, rot: 8 },
+        { x: -42, z: 44, rot: -9 },
+        { x: 26, z: 46, rot: 8 },
       ],
       plant: { x: 58, z: -10, scale: 1 },
       ...shared,
@@ -401,8 +409,8 @@ function layoutFor(kind: MockupKind, aspect: number): Layout {
       board: { width: 41, bottom: 16, centreX: -24, z: -13, yaw: 7 },
       laptop: { x: 48, z: 0, yaw: -20, width: 30 },
       sheets: [
-        { x: -54, z: 40, rot: -8 },
-        { x: 34, z: 38, rot: 9 },
+        { x: -42, z: 42, rot: -8 },
+        { x: 28, z: 44, rot: 9 },
       ],
       plant: { x: 60, z: -12, scale: 0.92 },
       ...shared,
@@ -414,8 +422,8 @@ function layoutFor(kind: MockupKind, aspect: number): Layout {
     board: { width: landscape ? 56 : 38, bottom: landscape ? 26 : 12, centreX: -18, z: -13, yaw: 6 },
     laptop: { x: 46, z: 4, yaw: -18, width: 32 },
     sheets: [
-      { x: -54, z: 40, rot: -8 },
-      { x: 34, z: 42, rot: 8 },
+      { x: -42, z: 43, rot: -8 },
+      { x: 27, z: 45, rot: 8 },
     ],
     plant: { x: 58, z: -10, scale: 1 },
     ...shared,
@@ -719,20 +727,24 @@ function drawSheet(
   c.draw(planeContent(c, plane, cam, doc, "sheet"))
 }
 
-function drawSheetStack(c: SceneCanvas, cam: SceneCamera, palette: ScenePalette, sheets: Layout["sheets"]): void {
-  const offsets = [
-    { x: -1.5, z: 1.8, rot: -4 },
-    { x: 1, z: 0.8, rot: 2.5 },
-  ]
+function drawSheetStack(
+  c: SceneCanvas,
+  cam: SceneCamera,
+  palette: ScenePalette,
+  sheets: Layout["sheets"],
+  documents: SceneInput["sheets"],
+): void {
   sheets.forEach((sheet, index) => {
-    const offset = offsets[index % offsets.length]
+    // The first supplied document repeats when the caller gave fewer sheets than
+    // the layout has slots, so a single printed page still lands on the desk.
+    const supplied = documents?.[index] ?? documents?.[0]
     drawSheet(
       c,
       cam,
       palette,
-      { x: sheet.x + offset.x, z: sheet.z + offset.z, rot: sheet.rot + offset.rot },
-      neutralPage(palette, 220),
-      21,
+      { x: sheet.x, z: sheet.z, rot: sheet.rot },
+      supplied?.document ?? neutralPage(palette, 220),
+      supplied?.width ?? 21,
       0.25 + index * 0.22,
     )
   })
@@ -830,7 +842,7 @@ function drawLighting(c: SceneCanvas, size: SceneSize): void {
  * template's own document on the surface that matches its output type.
  */
 export function renderMockupScene(input: SceneInput, size: SceneSize): string {
-  const { kind, palette, document: doc, boardDocument, variant, idPrefix } = input
+  const { kind, palette, document: doc, boardDocument, screenDocument, sheets, variant, idPrefix } = input
   const canvas = new SceneCanvas(idPrefix)
   const layout = layoutFor(kind, doc.height / doc.width)
   const cam = fitCamera(roomKeyPoints(), size, variantYaw(variant), 15, size.width * 0.045)
@@ -844,9 +856,9 @@ export function renderMockupScene(input: SceneInput, size: SceneSize): string {
   drawEasel(canvas, cam, palette, layout.board, kind === "slides" ? (boardDocument ?? neutralPage(palette, 260)) : doc)
   drawBackProps(canvas, cam, palette, layout)
   canvas.begin()
-  drawLaptop(canvas, cam, palette, layout.laptop, kind === "slides" ? doc : neutralScreenArt(palette, 320))
+  drawLaptop(canvas, cam, palette, layout.laptop, screenDocument ?? (kind === "slides" ? doc : neutralScreenArt(palette, 320)))
   canvas.begin()
-  drawSheetStack(canvas, cam, palette, layout.sheets)
+  drawSheetStack(canvas, cam, palette, layout.sheets, sheets)
   drawFrontProps(canvas, cam, palette, layout)
   canvas.begin()
   drawLighting(canvas, size)

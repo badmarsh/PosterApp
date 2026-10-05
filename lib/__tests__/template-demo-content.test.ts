@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest"
 import { TEMPLATE_REGISTRY } from "@/lib/output-types"
-import { templateDemoContent, templateDemoContentOrGeneric } from "@/lib/template-demo-content"
+import {
+  demoWorkspaceDocuments,
+  demoWorkspaceForTemplate,
+  templateDemoScene,
+} from "@/lib/template-demo-content"
+import { ALL_SHOWCASE_PROJECTS } from "@/lib/showcases-data"
 import {
   GENERIC_DOCUMENT_CONTENT,
   splitLines,
@@ -62,66 +67,74 @@ describe("preview content helpers", () => {
   })
 })
 
-describe("templateDemoContent", () => {
-  it("carries the gallery document's title, authors, venue and sections", () => {
-    const content = templateDemoContent("atlas")!
-    expect(content).toBeTruthy()
-    expect(content.title).toContain("Di-Photon")
-    expect(content.authors).toContain("Horák")
-    expect(content.venue).toContain("ICHEP")
-    expect(content.sections.length).toBeGreaterThan(3)
-    expect(content.sections.map((section) => section.title)).toContain("Mass Spectrum")
-    expect(content.sections.some((section) => section.hasFigure)).toBe(true)
-    // Demo column assignments survive, so the artwork can honour the demo grid.
-    expect(content.sections.some((section) => section.column === 2 || section.column === 3)).toBe(true)
+describe("demo workspace documents", () => {
+  it("uses the workspace that actually ships the template", () => {
+    expect(demoWorkspaceForTemplate("atlas")!.id).toBe("atlas-bose-einstein-correlations")
+    expect(demoWorkspaceForTemplate("beamer-atlas")!.id).toBe("atlas-bose-einstein-correlations")
+    expect(demoWorkspaceForTemplate("epj-woc")!.id).toBe("atlas-bose-einstein-correlations")
+    expect(demoWorkspaceForTemplate("cvpr")!.id).toBe("vla-autonomous-surgery")
   })
 
-  it("leaves no markdown or math delimiters in the printable text", () => {
+  it("gives every document template a workspace with all three documents", () => {
     for (const template of TEMPLATE_REGISTRY) {
-      const content = templateDemoContent(template.id)
-      if (!content) continue
-      const printable = [
-        content.title,
-        content.authors ?? "",
-        content.venue ?? "",
-        content.abstract ?? "",
-        content.claim ?? "",
-        ...content.sections.flatMap((section) => [section.title, ...section.lines]),
-      ]
-        .map((piece) => piece.trim())
-        .filter(Boolean)
-        .join(" | ")
-      expect(printable, `${template.id} text`).not.toMatch(/(\*\*|\$|\\[a-zA-Z]+\{|\]\()/)
-      expect(printable, `${template.id} whitespace`).not.toMatch(/\s{2,}/)
+      if (template.outputType === "thesis-review") {
+        expect(demoWorkspaceForTemplate(template.id), template.id).toBeTruthy()
+        continue
+      }
+      const documents = demoWorkspaceDocuments(template.id)
+      expect(Object.keys(documents).sort(), template.id).toEqual(["paper", "poster", "slides"])
+      for (const type of ["poster", "slides", "paper"] as const) {
+        expect(documents[type]!.content.title.length, `${template.id} ${type}`).toBeGreaterThan(8)
+        expect(documents[type]!.content.sections.length, `${template.id} ${type}`).toBeGreaterThan(0)
+      }
     }
   })
 
-  it("extracts a paper abstract as front matter, not as a body section", () => {
-    const content = templateDemoContent("article-twocol")!
-    expect(content.abstract).toBeTruthy()
-    expect(content.abstract!.length).toBeGreaterThan(80)
-    expect(content.sections.map((section) => section.title.toLowerCase())).not.toContain("abstract")
-    expect(content.sections.map((section) => section.title)).toContain("Introduction")
+  it("prints the previewed template's artwork for its own document type", () => {
+    // A poster template prints its own poster; the workspace's deck and paper
+    // keep their own templates.
+    const posterDocs = demoWorkspaceDocuments("aaai")
+    expect(posterDocs.paper!.templateId).toBe("aaai")
+    expect(posterDocs.poster!.templateId).not.toBe("aaai")
+    expect(demoWorkspaceDocuments("atlas").poster!.templateId).toBe("atlas")
+
+    const deckDocs = demoWorkspaceDocuments("beamer-metropolis")
+    expect(deckDocs.slides!.templateId).toBe("beamer-metropolis")
   })
 
-  it("gives Better Poster a one-sentence take-home claim", () => {
-    const content = templateDemoContent("betterposter")!
-    expect(content.claim).toBeTruthy()
-    // A sentence, not a dangling clause, and short enough for the hero block.
-    expect(content.claim!.length).toBeLessThanOrEqual(160)
-    expect(content.claim).not.toMatch(/…\.$/)
+  it("scenes every surface with the workspace's poster, slides and paper", () => {
+    const posterScene = templateDemoScene("atlas")!
+    expect(posterScene.content.title).toContain("Bose-Einstein")
+    // Slides on the laptop, paper on the desk; the poster is the featured doc.
+    expect(posterScene.scene.screen!.content.title).toContain("Bose-Einstein")
+    expect(posterScene.scene.sheets).toHaveLength(1)
+    expect(posterScene.scene.sheets![0].content.title).toContain("Bose-Einstein")
+
+    const deckScene = templateDemoScene("beamer-metropolis")!
+    expect(deckScene.scene.board!.content.title).toBeTruthy()
+    expect(deckScene.scene.board!.templateId).not.toBe("beamer-metropolis")
+    expect(deckScene.scene.sheets![0].content.title).toBeTruthy()
+
+    // A paper preview shows the poster as a larger folded print on the desk.
+    const paperScene = templateDemoScene("article-twocol")!
+    expect(paperScene.scene.sheets).toHaveLength(2)
+    expect(paperScene.scene.sheets![0].width).toBeGreaterThan(paperScene.scene.sheets![1].width!)
+    // The laptop shows the 16:9 deck, not a portrait handout.
+    expect(paperScene.scene.screen!.layout).toBeUndefined()
   })
 
-  it("has demo content for every non-thesis-review template", () => {
-    const missing = TEMPLATE_REGISTRY.filter(
-      (template) => template.outputType !== "thesis-review" && templateDemoContent(template.id) === null,
-    ).map((template) => template.id)
-    expect(missing).toEqual([])
+  it("keeps thesis-review templates out of the workspace scene", () => {
+    expect(templateDemoScene("posudok-sk")).toBeNull()
+    // …but they still resolve a workspace, for fallback artwork.
+    expect(demoWorkspaceForTemplate("posudok-sk")).toBeTruthy()
   })
 
-  it("falls back to the generic document for unknown templates", () => {
-    expect(templateDemoContent("nope")).toBeNull()
-    expect(templateDemoContentOrGeneric("nope")).toBe(GENERIC_DOCUMENT_CONTENT)
-    expect(GENERIC_DOCUMENT_CONTENT.sections.length).toBeGreaterThan(2)
+  it("resolves every registered template deterministically", () => {
+    for (const template of TEMPLATE_REGISTRY) {
+      const first = demoWorkspaceForTemplate(template.id)!.id
+      const second = demoWorkspaceForTemplate(template.id)!.id
+      expect(first, template.id).toBe(second)
+      expect(ALL_SHOWCASE_PROJECTS.some((project) => project.id === first), template.id).toBe(true)
+    }
   })
 })

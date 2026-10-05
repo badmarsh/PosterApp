@@ -10,7 +10,7 @@ import {
   hasBespokePreviewArt,
   paletteFrom,
 } from "@/lib/template-preview-art"
-import { templateDemoContent } from "@/lib/template-demo-content"
+import { templateDemoScene, demoWorkspaceForTemplate } from "@/lib/template-demo-content"
 
 const PREVIEWS_DIR = path.join(process.cwd(), "public", "template-previews")
 const TEMPLATE_IDS = TEMPLATE_REGISTRY.map((template) => template.id)
@@ -199,34 +199,50 @@ describe("generated preview assets", () => {
     for (const template of TEMPLATE_REGISTRY) {
       const svg = fs.readFileSync(path.join(PREVIEWS_DIR, `${template.id}.svg`), "utf8")
       // Same inputs as the generator: the template's own palette plus the demo
-      // document its workspace holds.
+      // workspace documents the scene prints.
       expect(svg, `${template.id} SVG matches its renderer`).toBe(
-        renderTemplatePreviewSvg(template.id, template.colors, ASSET_WIDTH, template, {
-          content: templateDemoContent(template.id) ?? undefined,
-        }),
+        renderTemplatePreviewSvg(template.id, template.colors, ASSET_WIDTH, template, templateDemoScene(template.id) ?? {}),
       )
     }
   })
 
-  it("prints the demo document's own text on the page", () => {
-    // The gallery content is what a demo workspace contains; the preview must
-    // show that document, not filler.
-    const atlas = fs.readFileSync(path.join(PREVIEWS_DIR, "atlas.svg"), "utf8")
-    const atlasContent = templateDemoContent("atlas")!
-    expect(atlas).toContain(atlasContent.title.slice(0, 40).replace(/&/g, "&amp;"))
-    expect(atlas).toContain("Mass Spectrum")
-    expect(atlas).toContain("630") // the demo document's headline number
+  it("prints the demo workspace's documents on the scene", () => {
+    // Wrapped text is split across <text> elements, so compare the SVG's
+    // rendered words as one string rather than a contiguous substring.
+    const visibleText = (svg: string) =>
+      svg
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&apos;/g, "'")
+        .replace(/\s+/g, " ")
+        .trim()
+    const titleLine = (templateId: string, type: "poster" | "slides" | "paper") => {
+      const project = demoWorkspaceForTemplate(templateId)!
+      const output = project.outputs.find((o) => o.outputType === type)!
+      // First few words are distinctive and never split across lines.
+      return output.title.split(/\s+/).slice(0, 3).join(" ")
+    }
 
-    const paper = fs.readFileSync(path.join(PREVIEWS_DIR, "article-twocol.svg"), "utf8")
-    const paperContent = templateDemoContent("article-twocol")!
-    expect(paper).toContain("Abstract")
-    expect(paperContent.abstract).toBeTruthy()
-    expect(paper).toContain(paperContent.sections[0].title.slice(0, 20))
+    // A poster template shows its own poster big, plus the workspace's slides
+    // and paper on the laptop and desk.
+    const atlas = visibleText(fs.readFileSync(path.join(PREVIEWS_DIR, "atlas.svg"), "utf8"))
+    expect(atlas, "atlas poster").toContain(titleLine("atlas", "poster"))
+    expect(atlas, "atlas slides on the laptop").toContain(titleLine("atlas", "slides"))
+    expect(atlas, "atlas paper on the desk").toContain(titleLine("atlas", "paper"))
 
-    const deck = fs.readFileSync(path.join(PREVIEWS_DIR, "beamer-metropolis.svg"), "utf8")
-    const deckContent = templateDemoContent("beamer-metropolis")!
-    expect(deck).toContain(deckContent.title.slice(0, 30))
-    expect(deck).toContain(deckContent.sections[0].title.slice(0, 12))
+    // A slide template shows its deck on the laptop, the poster on the board and
+    // the paper on the desk.
+    const deck = visibleText(fs.readFileSync(path.join(PREVIEWS_DIR, "beamer-metropolis.svg"), "utf8"))
+    expect(deck, "deck").toContain(titleLine("beamer-metropolis", "slides"))
+    expect(deck, "deck poster on the board").toContain(titleLine("beamer-metropolis", "poster"))
+    expect(deck, "deck paper on the desk").toContain(titleLine("beamer-metropolis", "paper"))
+
+    // A paper template shows its paper big, the deck on the laptop and the
+    // poster as the folded print on the desk.
+    const paper = visibleText(fs.readFileSync(path.join(PREVIEWS_DIR, "article-twocol.svg"), "utf8"))
+    expect(paper, "paper").toContain(titleLine("article-twocol", "paper"))
+    expect(paper, "paper deck on the laptop").toContain(titleLine("article-twocol", "slides"))
+    expect(paper, "paper poster print on the desk").toContain(titleLine("article-twocol", "poster"))
   })
 
   it("never ships the same image twice (one distinct picture per template)", () => {

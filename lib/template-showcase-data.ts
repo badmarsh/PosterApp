@@ -1991,6 +1991,16 @@ export function templateGalleryFor(templateId: string): OutputConfig | null {
 }
 
 /** Every template that has a curated example. */
+/**
+ * The curated subject a template's gallery tells (HEP, bio, VLA, NLP) — used by
+ * the preview pipeline to pick the demo workspace that matches the template.
+ */
+export function gallerySubjectForTemplate(templateId: string): string | null {
+  const def = getTemplateDef(templateId)
+  if (!def || def.outputType === "thesis-review") return null
+  return assignmentFor(templateId, def.outputType)?.subject.id ?? null
+}
+
 export function galleryTemplateIds(): string[] {
   return TEMPLATE_REGISTRY.filter((t) => templateGalleryFor(t.id) !== null).map((t) => t.id)
 }

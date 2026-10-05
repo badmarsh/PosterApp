@@ -23,7 +23,7 @@
  *    list and in the selected-template detail panel
  */
 
-import type { TemplateColor, TemplateDef } from "./output-types"
+import { getTemplateDef, type TemplateColor, type TemplateDef } from "./output-types"
 import { renderMockupScene, type MockupKind, type SceneDocument, type ScenePalette } from "./template-mockup-scene"
 import {
   GENERIC_DOCUMENT_CONTENT,
@@ -387,6 +387,26 @@ function innerDocument(svg: string, width: number, height: number): SceneDocumen
 }
 
 /** A template's document as a printable artefact, ready for the mockup stage. */
+/**
+ * One document in the mockup scene: which template prints it (so each surface
+ * keeps its own typography) and the demo workspace content it carries.
+ */
+export type PreviewSceneSlot = {
+  templateId: string
+  content: PreviewDocumentContent
+  layout?: "single" | "deck"
+}
+
+/** The documents the scene prints besides the featured one. */
+export type PreviewScene = {
+  /** Pinned on the easel board (defaults per output kind). */
+  board?: PreviewSceneSlot
+  /** Shown on the laptop screen. */
+  screen?: PreviewSceneSlot
+  /** Printed pages on the desk; `width` lets a folded poster print be larger. */
+  sheets?: (PreviewSceneSlot & { width?: number })[]
+}
+
 export type TemplateDocument = SceneDocument & {
   kind: MockupKind
   /** Native aspect ratio (height / width) of the printed document. */
@@ -473,17 +493,35 @@ export function renderTemplatePreviewSvg(
   colors: TemplateColor[],
   width = 320,
   def?: TemplateDef,
-  options: { content?: PreviewDocumentContent } = {},
+  options: { content?: PreviewDocumentContent; scene?: PreviewScene } = {},
 ): string {
   const safeWidth = Number.isFinite(width) && width > 0 ? width : 320
   const height = safeWidth * 0.75
-  const document = renderTemplateDocument(templateId, colors, def, { content: options.content })
-  // Slide decks also pin their printed handout on the board, so both surfaces
+  const content = options.content
+  const document = renderTemplateDocument(templateId, colors, def, { content })
+  const slots = options.scene
+  // A slot can name any registered template, so a paper preview can show the
+  // demo workspace's deck on the laptop and its poster on the desk.
+  const renderSlot = (slot: PreviewSceneSlot | undefined): SceneDocument | undefined => {
+    if (!slot) return undefined
+    const slotDef = getTemplateDef(slot.templateId)
+    return renderTemplateDocument(slot.templateId, slotDef?.colors ?? colors, slotDef, {
+      content: slot.content,
+      layout: slot.layout,
+    })
+  }
+  // Slide decks default to their printed handout on the board, so both surfaces
   // show the demo deck rather than a placeholder page.
   const boardDocument =
-    document.kind === "slides"
-      ? renderTemplateDocument(templateId, colors, def, { content: options.content, layout: "deck" })
-      : undefined
+    renderSlot(slots?.board) ??
+    (document.kind === "slides"
+      ? renderTemplateDocument(templateId, colors, def, { content, layout: "deck" })
+      : undefined)
+  const screenDocument = renderSlot(slots?.screen)
+  const sheetDocuments = slots?.sheets?.map((sheet) => ({
+    document: renderSlot(sheet),
+    width: sheet.width,
+  }))
   const pal = paletteFrom(colors)
   const palette: ScenePalette = { accent: pal.accent, accent2: pal.accent2, ink: pal.ink }
   const scene = renderMockupScene(
@@ -493,6 +531,8 @@ export function renderTemplatePreviewSvg(
       palette,
       document,
       boardDocument,
+      screenDocument,
+      sheets: sheetDocuments?.flatMap((sheet) => (sheet.document ? [{ document: sheet.document, width: sheet.width }] : [])),
       idPrefix: `tp-${templateId.replace(/[^a-zA-Z0-9_-]/g, "")}`,
     },
     { width: safeWidth, height },
