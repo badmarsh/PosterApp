@@ -8,8 +8,10 @@
  *   node scripts/generate-template-previews.mjs            (via the tsx shim below)
  *
  * The artwork is produced by `lib/template-preview-art.ts` from each
- * template's own palette and geometry, so re-running this after a palette
- * change refreshes every mockup. PNGs are optional — they need `sharp`, which
+ * template's own palette and geometry — and prints the template's curated demo
+ * document (title, authors, sections, figures) from `lib/template-demo-content.ts`
+ * onto the page, so the preview shows the same content a demo workspace holds.
+ * Re-running this after a palette or gallery change refreshes every mockup. PNGs are optional — they need `sharp`, which
  * is already a dependency — and are skipped with a warning if it cannot load.
  */
 import fs from "node:fs"
@@ -30,6 +32,10 @@ async function loadArt() {
 
 const { TEMPLATE_REGISTRY } = await import("../lib/output-types.ts")
 const art = await loadArt()
+
+// The demo document each template prints: the curated workspace content from
+// lib/template-showcase-data.ts, flattened for the artwork.
+const { templateDemoContent } = await import("../lib/template-demo-content.ts")
 
 const OUT_DIR = path.join(ROOT, "public", "template-previews")
 fs.mkdirSync(OUT_DIR, { recursive: true })
@@ -52,7 +58,8 @@ const targets = TEMPLATE_REGISTRY.filter((t) => (only.length ? only.includes(t.i
 
 let written = 0
 for (const t of targets) {
-  const svg = art.renderTemplatePreviewSvg(t.id, t.colors, PREVIEW_WIDTH, t)
+  const content = templateDemoContent(t.id) ?? undefined
+  const svg = art.renderTemplatePreviewSvg(t.id, t.colors, PREVIEW_WIDTH, t, { content })
   const svgPath = path.join(OUT_DIR, `${t.id}.svg`)
   fs.writeFileSync(svgPath, svg, "utf8")
   written++

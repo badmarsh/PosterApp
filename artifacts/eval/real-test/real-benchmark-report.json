@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-26T11:03:00.507Z",
+  "timestamp": "2026-10-05T17:24:43.562Z",
   "methodology": "empirical",
   "methodologyNote": "No golden judgments available. Populate data/eval/golden-v2-nonexistent to run retrieval evaluation.",
   "goldenSetSize": 0,

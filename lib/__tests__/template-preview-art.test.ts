@@ -10,6 +10,7 @@ import {
   hasBespokePreviewArt,
   paletteFrom,
 } from "@/lib/template-preview-art"
+import { templateDemoContent } from "@/lib/template-demo-content"
 
 const PREVIEWS_DIR = path.join(process.cwd(), "public", "template-previews")
 const TEMPLATE_IDS = TEMPLATE_REGISTRY.map((template) => template.id)
@@ -197,10 +198,35 @@ describe("generated preview assets", () => {
   it("matches the renderer output, so regenerating changes nothing", () => {
     for (const template of TEMPLATE_REGISTRY) {
       const svg = fs.readFileSync(path.join(PREVIEWS_DIR, `${template.id}.svg`), "utf8")
+      // Same inputs as the generator: the template's own palette plus the demo
+      // document its workspace holds.
       expect(svg, `${template.id} SVG matches its renderer`).toBe(
-        renderTemplatePreviewSvg(template.id, template.colors, ASSET_WIDTH, template),
+        renderTemplatePreviewSvg(template.id, template.colors, ASSET_WIDTH, template, {
+          content: templateDemoContent(template.id) ?? undefined,
+        }),
       )
     }
+  })
+
+  it("prints the demo document's own text on the page", () => {
+    // The gallery content is what a demo workspace contains; the preview must
+    // show that document, not filler.
+    const atlas = fs.readFileSync(path.join(PREVIEWS_DIR, "atlas.svg"), "utf8")
+    const atlasContent = templateDemoContent("atlas")!
+    expect(atlas).toContain(atlasContent.title.slice(0, 40).replace(/&/g, "&amp;"))
+    expect(atlas).toContain("Mass Spectrum")
+    expect(atlas).toContain("630") // the demo document's headline number
+
+    const paper = fs.readFileSync(path.join(PREVIEWS_DIR, "article-twocol.svg"), "utf8")
+    const paperContent = templateDemoContent("article-twocol")!
+    expect(paper).toContain("Abstract")
+    expect(paperContent.abstract).toBeTruthy()
+    expect(paper).toContain(paperContent.sections[0].title.slice(0, 20))
+
+    const deck = fs.readFileSync(path.join(PREVIEWS_DIR, "beamer-metropolis.svg"), "utf8")
+    const deckContent = templateDemoContent("beamer-metropolis")!
+    expect(deck).toContain(deckContent.title.slice(0, 30))
+    expect(deck).toContain(deckContent.sections[0].title.slice(0, 12))
   })
 
   it("never ships the same image twice (one distinct picture per template)", () => {

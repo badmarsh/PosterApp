@@ -56,6 +56,12 @@ export type SceneInput = {
   palette: ScenePalette
   /** The template's own document, printed onto the featured surface. */
   document: SceneDocument
+  /**
+   * Optional second artefact for the easel board. Slide decks print a portrait
+   * handout (title slide + content slide) on the board while the laptop shows
+   * the live deck; other kinds print `document` on both.
+   */
+  boardDocument?: SceneDocument
   /** Prefix for gradient/clip ids so two scenes can coexist in one document. */
   idPrefix: string
 }
@@ -824,7 +830,7 @@ function drawLighting(c: SceneCanvas, size: SceneSize): void {
  * template's own document on the surface that matches its output type.
  */
 export function renderMockupScene(input: SceneInput, size: SceneSize): string {
-  const { kind, palette, document: doc, variant, idPrefix } = input
+  const { kind, palette, document: doc, boardDocument, variant, idPrefix } = input
   const canvas = new SceneCanvas(idPrefix)
   const layout = layoutFor(kind, doc.height / doc.width)
   const cam = fitCamera(roomKeyPoints(), size, variantYaw(variant), 15, size.width * 0.045)
@@ -835,7 +841,7 @@ export function renderMockupScene(input: SceneInput, size: SceneSize): string {
   canvas.begin()
   drawDesk(canvas, cam, palette)
   canvas.begin()
-  drawEasel(canvas, cam, palette, layout.board, kind === "slides" ? neutralPage(palette, 260) : doc)
+  drawEasel(canvas, cam, palette, layout.board, kind === "slides" ? (boardDocument ?? neutralPage(palette, 260)) : doc)
   drawBackProps(canvas, cam, palette, layout)
   canvas.begin()
   drawLaptop(canvas, cam, palette, layout.laptop, kind === "slides" ? doc : neutralScreenArt(palette, 320))
