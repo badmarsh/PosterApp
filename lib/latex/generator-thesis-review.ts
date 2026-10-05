@@ -1,4 +1,4 @@
-/**
+﻿/**
  * LaTeX generator for thesis assessment reports (posudok / Gutachten / recenzja).
  *
  * Two entry paths share every renderer below:
@@ -252,7 +252,7 @@ function buildLetterhead(
   const rightMeta = [meta.place, meta.date].filter(Boolean).join(", ") || labels.title
   if (!institution.institution && !facultyLine) return ""
   const logo = meta.logoUrl
-    ? `\\noindent\\PosterIncludeGraphics[height=1.5cm]{${escapeLatex(meta.logoUrl)}}\\\\[0.4em]\n`
+    ? `\\noindent\\PosterIncludeGraphics[height=1.5cm]{${figurePath(meta.logoUrl)}}\\\\[0.4em]\n`
     : ""
   return `${logo}\\posudokletterhead{${escapeLatex(institution.institution)}}{${escapeLatex(facultyLine)}}{${escapeLatex(rightMeta)}}`
 }

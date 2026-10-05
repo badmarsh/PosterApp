@@ -154,6 +154,35 @@ describe("executeDeerflowImproveLoop", () => {
     expect(mockedCompile).toHaveBeenCalledTimes(2)
   })
 
+  it("skips improve loop immediately when initial compile already succeeds", async () => {
+    mockedCompile.mockResolvedValueOnce({ ok: true, log: "Initial clean compile" })
+
+    await executeDeerflowImproveLoop(baseParams(3))
+
+    // 0 iterations ran: no snapshots, no card patches, no workspace revision bumps
+    expect(mockedSnapshot).not.toHaveBeenCalled()
+    expect(mockedCardUpdate).not.toHaveBeenCalled()
+    expect(mockedWorkspaceUpdate).not.toHaveBeenCalled()
+    // No calls to the DeerFlow agent
+    expect(fixture.callCount).toBe(0)
+    // Only the initial compile was run
+    expect(mockedCompile).toHaveBeenCalledTimes(1)
+    // Run is marked done with cleanCompile: true and 0 iterations
+    expect(mockedUpdateRun).toHaveBeenCalledWith(
+      RUN_ID,
+      WORKSPACE_ID,
+      expect.objectContaining({
+        status: "done",
+        phase: "finished",
+        proposal: expect.objectContaining({
+          cleanCompile: true,
+          iterations: [],
+          summary: "Initial poster already compiles cleanly.",
+        }),
+      })
+    )
+  })
+
   it("stops at maxIterations when compilation never becomes clean", async () => {
     // Always-failing compile (default mock), 2 iterations.
     fixture.resetCalls()

@@ -103,3 +103,18 @@ describe("hasUnsafeLatex — bypass vectors", () => {
     expect(hasUnsafeLatex("Energy $E = mc^2$ and \\textbf{bold} 50\\% done")).toEqual([])
   })
 })
+
+describe("hasUnsafeLatex — \\def word boundary", () => {
+  it("allows safe commands starting with def (e.g. \\definecolor, \\default, \\definition)", () => {
+    expect(hasUnsafeLatex("\\definecolor{maincolor}{HTML}{2B4B9E}")).toEqual([])
+    expect(hasUnsafeLatex("\\default\\definition\\defcitealias")).toEqual([])
+    expect(hasUnsafeLatex("Text with \\definecolor{red}{RGB}{255,0,0} and \\textbf{result}")).toEqual([])
+  })
+
+  it("still rejects dangerous \\def macro definitions", () => {
+    expect(hasUnsafeLatex("\\def\\evil{bad}")).toContain("prohibited command \\def")
+    expect(hasUnsafeLatex("\\def \\evil{bad}")).toContain("prohibited command \\def")
+    expect(hasUnsafeLatex("\\def{bad}")).toContain("prohibited command \\def")
+    expect(hasUnsafeLatex("\\def")).toContain("prohibited command \\def")
+  })
+})
