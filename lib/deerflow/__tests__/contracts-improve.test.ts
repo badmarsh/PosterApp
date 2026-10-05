@@ -208,6 +208,30 @@ describe("normalizeImprovePosterProposal", () => {
     }
   })
 
+  it("allows safe commands like \\definecolor while stripping \\def", () => {
+    const proposal = makeValidProposal({
+      iterations: [
+        {
+          iterationIndex: 0,
+          patches: [
+            { id: "card_1", content: "\\definecolor{accent}{HTML}{2B4B9E}", rationale: "color def" },
+            { id: "card_2", content: "\\def\\evil{hack}", rationale: "macro def" },
+          ],
+          compileLog: "",
+          diagnosis: "",
+        },
+      ],
+    })
+    const result = normalizeImprovePosterProposal(proposal, { allowedCardIds: VALID_CARD_IDS })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.rejected.unsafePatchIds).toContain("card_2")
+      expect(result.rejected.unsafePatchIds).not.toContain("card_1")
+      expect(result.proposal.iterations[0].patches).toHaveLength(1)
+      expect(result.proposal.iterations[0].patches[0].id).toBe("card_1")
+    }
+  })
+
   it("rejects unbalanced braces in patch content", () => {
     const proposal = makeValidProposal({
       iterations: [

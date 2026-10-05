@@ -146,12 +146,27 @@ export async function POST(req: NextRequest) {
   })
 
   // 7. Connect stateless WebStandard transport (sessionIdGenerator: undefined)
-  const transport = new WebStandardStreamableHTTPServerTransport({
-    sessionIdGenerator: undefined,
-  })
+  try {
+    const transport = new WebStandardStreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+    })
 
-  await server.connect(transport)
+    await server.connect(transport)
 
-  // 8. Delegate request handling to transport
-  return transport.handleRequest(proxiedReq)
+    // 8. Delegate request handling to transport
+    return await transport.handleRequest(proxiedReq)
+  } catch (err) {
+    console.error("[POST /api/agent/mcp] Transport error:", err)
+    return NextResponse.json(
+      {
+        jsonrpc: "2.0",
+        error: {
+          code: -32603,
+          message: "Internal MCP transport error",
+        },
+        id: null,
+      },
+      { status: 500 }
+    )
+  }
 }

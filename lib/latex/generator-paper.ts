@@ -1,15 +1,9 @@
-import type { Card, Project, OutputConfig } from "@/lib/poster-types"
+﻿import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
 import { getPaperPreamble } from "./template-map"
 import type { LatexGenerator } from "./types"
-import { assetUrlToLatexPath, normalizeLatexPath } from "./helpers"
-
-function cleanCaption(caption: string | undefined, prefix: "Figure" | "Table"): string {
-  if (!caption) return ""
-  const regex = prefix === "Figure" ? /^(Figure\s*\d*:?\s*|Fig\.\s*\d*:?\s*)/i : /^(Table\s*\d*:?\s*)/i
-  return caption.replace(regex, "").trim()
-}
+import { assetUrlToLatexPath, normalizeLatexPath, cleanCaption } from "./helpers"
 
 /**
  * Paper templates whose document class is single-column. `figure*`/`table*`

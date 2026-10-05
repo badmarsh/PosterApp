@@ -289,7 +289,7 @@ export async function executeDeerflowImproveLoop(params: LaunchImprovePosterPara
     // Loop through iterations
     for (let iter = 0; iter < maxIterations; iter++) {
       if (controller.signal.aborted) break
-      if (cleanCompile && iter > 0) break
+      if (cleanCompile) break
 
       updateRunRecord(runId, { phase: "patching" })
       appendRunEvent(runId, {
@@ -458,7 +458,9 @@ export async function executeDeerflowImproveLoop(params: LaunchImprovePosterPara
       version: IMPROVE_POSTER_PROPOSAL_VERSION,
       iterations: accumulatedIterations,
       summary: cleanCompile
-        ? `Clean compilation achieved in ${accumulatedIterations.length} iteration(s).`
+        ? (accumulatedIterations.length === 0
+            ? "Initial poster already compiles cleanly."
+            : `Clean compilation achieved in ${accumulatedIterations.length} iteration(s).`)
         : `Completed ${accumulatedIterations.length} iteration(s).`,
       cleanCompile,
       meta: {

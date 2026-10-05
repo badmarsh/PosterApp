@@ -98,12 +98,21 @@ const DANGEROUS_LATEX_COMMANDS = [
 /** Case-insensitive detection of active-character / caret-notation tricks (^^40 == @). */
 const CARET_NOTATION = /\^\^[0-9a-f]{2}|\^\^[@-_]/i
 
+/** Matches \def not followed by letters (e.g. \def\x, \def , but NOT \definecolor, \default). */
+const DEF_COMMAND_REGEX = /\\def(?![a-zA-Z])/
+
 export function hasUnsafeLatex(input: string): string[] {
   if (!input || typeof input !== "string") return []
   const found = new Set<string>()
 
   // Check for dangerous TeX primitives
   for (const cmd of DANGEROUS_LATEX_COMMANDS) {
+    if (cmd === "\\def") {
+      if (DEF_COMMAND_REGEX.test(input)) {
+        found.add(`prohibited command ${cmd}`)
+      }
+      continue
+    }
     if (input.includes(cmd)) {
       found.add(`prohibited command ${cmd}`)
     }
