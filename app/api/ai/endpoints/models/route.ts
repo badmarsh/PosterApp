@@ -2,7 +2,8 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { rateLimitAsync } from "@/lib/rate-limit"
-import { fetchModelsFromEndpoint, isValidEndpointBaseUrl, normalizeEndpointBaseUrl } from "@/lib/ai/endpoints"
+import { isValidEndpointBaseUrl, normalizeEndpointBaseUrl } from "@/lib/ai/endpoints"
+import { fetchModelsFromEndpoint } from "@/lib/ai/model-discovery"
 
 const FetchModelsSchema = z.object({
   baseUrl: z.string().trim().min(1).max(2048).url().refine(isValidEndpointBaseUrl, "Base URL must use HTTP or HTTPS and cannot contain embedded credentials"),

@@ -2,12 +2,8 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { auth, apiError } from "@/lib/auth"
 import { rateLimitAsync } from "@/lib/rate-limit"
-import {
-  getStoredAiEndpoints,
-  isValidEndpointBaseUrl,
-  normalizeEndpointBaseUrl,
-  setStoredAiEndpoints,
-} from "@/lib/ai/endpoints"
+import { isValidEndpointBaseUrl, normalizeEndpointBaseUrl } from "@/lib/ai/endpoints"
+import { getUserAiEndpoints, saveUserAiEndpoints } from "@/lib/ai/endpoint-store"
 
 const EndpointSchema = z.object({
   id: z.string().trim().min(1).max(128),
@@ -31,11 +27,14 @@ async function getAuthenticatedUserId() {
 }
 
 export async function GET() {
+  // Endpoints belong to the authenticated user; there is no anonymous view.
   try {
     const userId = await getAuthenticatedUserId()
     if (!userId) return apiError("UNAUTHENTICATED", "Sign in to access AI endpoint settings", 401)
 
-    const endpoints = await getStoredAiEndpoints()
+    // Only the caller's own endpoints are ever returned: the settings UI must
+    // never disclose another user's stored credentials.
+    const endpoints = await getUserAiEndpoints(userId)
     return NextResponse.json({ endpoints }, {
       headers: { "Cache-Control": "no-store, max-age=0" },
     })
@@ -66,7 +65,7 @@ export async function POST(req: Request) {
       baseUrl: normalizeEndpointBaseUrl(endpoint.baseUrl),
       apiKey: endpoint.apiKey?.trim() || undefined,
     }))
-    await setStoredAiEndpoints(endpoints)
+    await saveUserAiEndpoints(userId, endpoints)
     return NextResponse.json({ ok: true, endpoints })
   } catch (err) {
     console.error("[api/ai/endpoints] Failed to save endpoints:", err)

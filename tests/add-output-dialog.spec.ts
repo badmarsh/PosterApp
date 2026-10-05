@@ -47,3 +47,50 @@ test('AddOutputDialog resets state when reopened', async ({ page }) => {
   await expect(page.locator('button.bg-primary\\/10:has-text("Slides")')).toBeVisible();
   await expect(page.locator('button.bg-primary\\/10:has-text("Paper")')).toBeHidden();
 });
+
+test('AddOutputDialog shows an isometric mockup for every template, in the list and in the detail panel', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  await page.click('button[aria-label="Add output"]');
+  await expect(page.locator('[role="dialog"]')).toBeVisible();
+
+  // Template list: one preview per option, all on the shared 4:3 canvas.
+  const options = page.locator('[data-testid="template-option"]');
+  await expect(options.first()).toBeVisible();
+  const optionCount = await options.count();
+  expect(optionCount).toBeGreaterThan(0);
+
+  const listPreviews = page.locator('[data-testid="template-option"] [data-testid="template-preview-image"]');
+  await expect(listPreviews).toHaveCount(optionCount);
+
+  const firstPreview = listPreviews.first();
+  const firstBox = await firstPreview.boundingBox();
+  expect(firstBox).not.toBeNull();
+  expect(firstBox!.width / firstBox!.height).toBeCloseTo(4 / 3, 1);
+
+  // Each template serves its own asset, and the image really decoded.
+  const listSrcs = await listPreviews.locator('img').evaluateAll((imgs) =>
+    imgs.map((img) => ({ src: (img as HTMLImageElement).getAttribute('src'), width: (img as HTMLImageElement).naturalWidth })),
+  );
+  expect(listSrcs.length).toBe(optionCount);
+  expect(new Set(listSrcs.map((entry) => entry.src)).size).toBe(optionCount);
+  for (const entry of listSrcs) {
+    expect(entry.src).toMatch(/^\/template-previews\/[a-z0-9-]+\.(png|svg)$/);
+    expect(entry.width).toBeGreaterThan(0);
+  }
+
+  // Detail panel: the selected template renders the same artwork, larger.
+  const detailPreview = page.locator('[data-testid="template-preview-image"]').last();
+  await expect(detailPreview).toBeVisible();
+  const detailBox = await detailPreview.boundingBox();
+  expect(detailBox!.width).toBeGreaterThan(firstBox!.width);
+  expect(detailBox!.width / detailBox!.height).toBeCloseTo(4 / 3, 1);
+  const detailSrc = await detailPreview.locator('img').first().getAttribute('src');
+  expect(detailSrc).toBe(listSrcs[0].src);
+
+  // Selecting another template swaps the detail preview to that template's art.
+  if (optionCount > 1) {
+    await options.nth(1).click();
+    await expect(detailPreview.locator('img').first()).toHaveAttribute('src', listSrcs[1].src!);
+  }
+});

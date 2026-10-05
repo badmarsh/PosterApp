@@ -201,10 +201,10 @@ export async function POST(req: Request) {
     // Fall back to OpenRouter generative edit if configured
     const orKey = process.env.OPENROUTER_API_KEY
     const orModel = process.env.OPENROUTER_IMAGE_MODEL ?? "openai/gpt-image-1"
-    const { getStoredAiEndpoints } = await import("@/lib/ai/endpoints")
-    const storedEndpoints = await getStoredAiEndpoints().catch(() => [])
+    const { resolveAiEndpointsForWorkspace } = await import("@/lib/ai/endpoint-store")
+    const storedEndpoints = await resolveAiEndpointsForWorkspace(workspaceId).catch(() => [])
     const orEndpoint = storedEndpoints.find(
-      (e) => e.enabled !== false && (e.name.toLowerCase().includes("openrouter") || e.baseUrl.includes("openrouter"))
+      (e: { enabled?: boolean; name: string; baseUrl: string }) => e.enabled !== false && (e.name.toLowerCase().includes("openrouter") || e.baseUrl.includes("openrouter"))
     )
     const orBase = (orEndpoint?.baseUrl || storedEndpoints[0]?.baseUrl || "https://openrouter.ai/api/v1").replace(/\/+$/, "")
     if (orKey) {

@@ -59,15 +59,12 @@ function withDefaultTimeout(signal?: AbortSignal): AbortSignal {
 
 type AIRequestOptions = Omit<AIClientOptions<any>, "schema">
 
-import {
-  getStoredAiEndpoints,
-  resolveEndpointForModel,
-  normalizeChatCompletionsUrl,
-} from "./endpoints"
+import { resolveEndpointForModel, normalizeChatCompletionsUrl } from "./endpoints"
+import { getInstanceAiEndpoints, resolveAiEndpointsForWorkspace } from "./endpoint-store"
 
 export { normalizeChatCompletionsUrl }
 
-async function resolveProvider(options: Pick<AIRequestOptions, "role" | "model" | "apiUrl" | "apiKey">) {
+async function resolveProvider(options: Pick<AIRequestOptions, "role" | "model" | "apiUrl" | "apiKey" | "workspaceId">) {
   // If explicitly provided via options, use directly
   if (options.apiUrl) {
     return {
@@ -81,7 +78,11 @@ async function resolveProvider(options: Pick<AIRequestOptions, "role" | "model" 
   const isTest = process.env.NODE_ENV === "test" || Boolean(process.env.VITEST)
   if (!isTest) {
     try {
-      const storedEndpoints = await getStoredAiEndpoints()
+      // Endpoints belong to the workspace owner; instance defaults only apply
+      // when the owner has not configured any.
+      const storedEndpoints = options.workspaceId
+        ? await resolveAiEndpointsForWorkspace(options.workspaceId)
+        : await getInstanceAiEndpoints()
       if (storedEndpoints && storedEndpoints.length > 0) {
         const ep = resolveEndpointForModel(options.model, storedEndpoints)
         if (ep && ep.baseUrl?.trim()) {
@@ -379,7 +380,9 @@ async function resolveFallbackProvider(options?: AIRequestOptions): Promise<{ ap
 
   // 2. Secondary configured endpoint from Settings
   try {
-    const endpoints = await getStoredAiEndpoints()
+    const endpoints = options?.workspaceId
+      ? await resolveAiEndpointsForWorkspace(options.workspaceId)
+      : await getInstanceAiEndpoints()
     const enabled = endpoints.filter((e) => e.enabled !== false && Boolean(e.baseUrl?.trim()))
     if (enabled.length > 1) {
       const fallbackEp = enabled[1]

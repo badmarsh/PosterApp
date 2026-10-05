@@ -5,19 +5,33 @@
  * (`layoutPreview` in lib/output-types.ts), so every poster looked identical
  * and every slide deck looked identical. This module replaces that with a
  * per-template description of the *actual* visual language the LaTeX template
- * implements — title band, card treatment, column widths, stat tiles — plus a
- * renderer that turns it into SVG.
+ * implements — title band, card treatment, column widths, stat tiles — and
+ * renders that document in the same isometric mockup style the showcase
+ * galleries use (see `lib/template-mockup-scene.ts` and
+ * `public/showcases/mockups/`), so a preview shows the template as a finished
+ * artefact: printed on a board on an easel, on an open laptop, or as sheets on
+ * the desk.
  *
- * Keeping it declarative (rather than one hand-drawn SVG per template) means
+ * Keeping it declarative (rather than one hand-drawn image per template) means
  * the artwork can never drift from the palette the user picks: the renderer
- * takes the template's `colors` at call time.
+ * takes the template's `colors` at call time, which is also why the previews
+ * stay distinct per template while sharing one canvas, one camera and one set.
  *
  * Consumers:
- *  - `scripts/generate-template-previews.mjs` writes `public/template-previews/*.svg`
- *  - `components/poster-preview.tsx` renders the same SVG inline in the picker
+ *  - `scripts/generate-template-previews.mjs` writes `public/template-previews/*.{svg,png}`
+ *  - `components/template-preview-image.tsx` shows those assets in the picker
+ *    list and in the selected-template detail panel
  */
 
-import type { TemplateColor, TemplateDef } from "./output-types"
+import { getTemplateDef, type TemplateColor, type TemplateDef } from "./output-types"
+import { renderMockupScene, type MockupKind, type SceneDocument, type ScenePalette } from "./template-mockup-scene"
+import {
+  GENERIC_DOCUMENT_CONTENT,
+  truncate,
+  wrapText,
+  type PreviewDocumentContent,
+  type PreviewSection,
+} from "./template-preview-content"
 import { THESIS_REVIEW_STYLES, thesisReviewStyleFor } from "./latex/thesis-review-styles"
 
 export type PosterCardStyle =
@@ -363,10 +377,114 @@ function r(n: number): number {
   return Math.round(n * 100) / 100
 }
 
+/** Inner markup of a rendered document, plus its local dimensions. */
+function innerDocument(svg: string, width: number, height: number): SceneDocument {
+  return {
+    markup: svg.slice(svg.indexOf(">") + 1, svg.lastIndexOf("</svg>")),
+    width,
+    height,
+  }
+}
+
+/** A template's document as a printable artefact, ready for the mockup stage. */
 /**
- * Render a consistently sized 4:3 SVG mockup for a template. The actual
- * poster, slide, paper, or review page is fitted inside the shared frame without
- * stretching, so picker cards line up while the document keeps its real ratio.
+ * One document in the mockup scene: which template prints it (so each surface
+ * keeps its own typography) and the demo workspace content it carries.
+ */
+export type PreviewSceneSlot = {
+  templateId: string
+  content: PreviewDocumentContent
+  layout?: "single" | "deck"
+}
+
+/** The documents the scene prints besides the featured one. */
+export type PreviewScene = {
+  /** Pinned on the easel board (defaults per output kind). */
+  board?: PreviewSceneSlot
+  /** Shown on the laptop screen. */
+  screen?: PreviewSceneSlot
+  /** Printed pages on the desk; `width` lets a folded poster print be larger. */
+  sheets?: (PreviewSceneSlot & { width?: number })[]
+}
+
+export type TemplateDocument = SceneDocument & {
+  kind: MockupKind
+  /** Native aspect ratio (height / width) of the printed document. */
+  aspect: number
+}
+
+/**
+ * The template's own document — poster page, slide, paper page or posudok form —
+ * rendered in local coordinates. `renderTemplatePreviewSvg` prints it onto the
+ * matching surface of the mockup scene.
+ */
+export function renderTemplateDocument(
+  templateId: string,
+  colors: TemplateColor[],
+  def?: TemplateDef,
+  options: {
+    slide?: "title" | "content"
+    width?: number
+    content?: PreviewDocumentContent
+    /** `deck` prints the portrait handout (title slide over a content slide). */
+    layout?: "single" | "deck"
+  } = {},
+): TemplateDocument {
+  const width = options.width ?? 320
+  const art = getPreviewArt(templateId, def)
+  const p = paletteFrom(colors)
+  // Demo documents are injected by the generator (see lib/template-demo-content.ts)
+  // so this module stays free of the gallery payload in the client bundle.
+  const content = options.content ?? GENERIC_DOCUMENT_CONTENT
+
+  if (art.kind === "posudok") {
+    const height = width * (297 / 210)
+    return { kind: "posudok", ...innerDocument(renderPosudok(art, p, width, templateId), width, height), aspect: 297 / 210 }
+  }
+  if (art.kind === "paper") {
+    const height = width * (297 / 210)
+    return { kind: "paper", ...innerDocument(renderPaper(art, p, width, templateId, content), width, height), aspect: 297 / 210 }
+  }
+  if (art.kind === "poster") {
+    const height = width * (art.orientation === "landscape" ? 841 / 1189 : 1189 / 841)
+    return { kind: "poster", ...innerDocument(renderPoster(art, p, width, templateId, content), width, height), aspect: height / width }
+  }
+  if (options.layout === "deck") {
+    // Portrait handout: the deck as it would be printed and pinned on a board.
+    const pad = width * 0.05
+    const slideW = width - pad * 2
+    const slideH = slideW * (9 / 16)
+    const gap = width * 0.045
+    const height = pad * 2 + slideH * 2 + gap
+    const parts = [
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${r(width)}" height="${r(height)}" viewBox="0 0 ${r(width)} ${r(height)}" role="img" aria-label="${escapeXml(templateId)} deck handout">`,
+      `<rect width="${r(width)}" height="${r(height)}" fill="${p.paper}"/>`,
+      ...slideFrame(art, p, { x: pad, y: pad, w: slideW, h: slideH }, "title", content),
+      ...slideFrame(art, p, { x: pad, y: pad + slideH + gap, w: slideW, h: slideH }, "content", content),
+      "</svg>",
+    ]
+    return { kind: "slides", ...innerDocument(parts.join(""), width, height), aspect: height / width }
+  }
+  const height = width * (9 / 16)
+  const markup = slideFrame(art, p, { x: 0, y: 0, w: width, h: height }, options.slide ?? "title", content).join("")
+  return { kind: "slides", markup, width, height, aspect: 9 / 16 }
+}
+
+/** Stable per-template variation for the mockup camera and props. */
+function previewVariant(templateId: string): number {
+  let hash = 0
+  for (let i = 0; i < templateId.length; i++) {
+    hash = (hash * 31 + templateId.charCodeAt(i)) % 9973
+  }
+  return hash
+}
+
+/**
+ * Render a template preview as an isometric mockup: the shared studio set with
+ * the template's own document printed onto the surface that fits its output
+ * type. Every preview uses the same 4:3 canvas, the same camera fit and the same
+ * set, so the picker reads as one gallery — while the printed document keeps the
+ * template's real palette, layout and page ratio.
  *
  * @param width Output width in SVG user units (height is always width × 3/4).
  */
@@ -375,42 +493,55 @@ export function renderTemplatePreviewSvg(
   colors: TemplateColor[],
   width = 320,
   def?: TemplateDef,
+  options: { content?: PreviewDocumentContent; scene?: PreviewScene } = {},
 ): string {
   const safeWidth = Number.isFinite(width) && width > 0 ? width : 320
-  const art = getPreviewArt(templateId, def)
-  const p = paletteFrom(colors)
-  let nativeHeight: number
-  let nativeSvg: string
-
-  if (art.kind === "posudok") {
-    nativeHeight = safeWidth * (297 / 210)
-    nativeSvg = renderPosudok(art, p, safeWidth, templateId)
-  } else if (art.kind === "paper") {
-    nativeHeight = safeWidth * (297 / 210)
-    nativeSvg = renderPaper(art, p, safeWidth, templateId)
-  } else if (art.kind === "poster") {
-    nativeHeight = art.orientation === "landscape" ? safeWidth * (841 / 1189) : safeWidth * (1189 / 841)
-    nativeSvg = renderPoster(art, p, safeWidth, templateId)
-  } else {
-    nativeHeight = safeWidth * (9 / 16)
-    nativeSvg = renderSlide(art, p, safeWidth, templateId)
+  const height = safeWidth * 0.75
+  const content = options.content
+  const document = renderTemplateDocument(templateId, colors, def, { content })
+  const slots = options.scene
+  // A slot can name any registered template, so a paper preview can show the
+  // demo workspace's deck on the laptop and its poster on the desk.
+  const renderSlot = (slot: PreviewSceneSlot | undefined): SceneDocument | undefined => {
+    if (!slot) return undefined
+    const slotDef = getTemplateDef(slot.templateId)
+    return renderTemplateDocument(slot.templateId, slotDef?.colors ?? colors, slotDef, {
+      content: slot.content,
+      layout: slot.layout,
+    })
   }
-
-  const frameHeight = safeWidth * 0.75
-  const padding = safeWidth * 0.055
-  const scale = Math.min((safeWidth - padding * 2) / safeWidth, (frameHeight - padding * 2) / nativeHeight)
-  const contentWidth = safeWidth * scale
-  const contentHeight = nativeHeight * scale
-  const x = (safeWidth - contentWidth) / 2
-  const y = (frameHeight - contentHeight) / 2
-  const content = nativeSvg.slice(nativeSvg.indexOf(">") + 1, nativeSvg.lastIndexOf("</svg>"))
+  // Slide decks default to their printed handout on the board, so both surfaces
+  // show the demo deck rather than a placeholder page.
+  const boardDocument =
+    renderSlot(slots?.board) ??
+    (document.kind === "slides"
+      ? renderTemplateDocument(templateId, colors, def, { content, layout: "deck" })
+      : undefined)
+  const screenDocument = renderSlot(slots?.screen)
+  const sheetDocuments = slots?.sheets?.map((sheet) => ({
+    document: renderSlot(sheet),
+    width: sheet.width,
+  }))
+  const pal = paletteFrom(colors)
+  const palette: ScenePalette = { accent: pal.accent, accent2: pal.accent2, ink: pal.ink }
+  const scene = renderMockupScene(
+    {
+      kind: document.kind,
+      variant: previewVariant(templateId),
+      palette,
+      document,
+      boardDocument,
+      screenDocument,
+      sheets: sheetDocuments?.flatMap((sheet) => (sheet.document ? [{ document: sheet.document, width: sheet.width }] : [])),
+      idPrefix: `tp-${templateId.replace(/[^a-zA-Z0-9_-]/g, "")}`,
+    },
+    { width: safeWidth, height },
+  )
   const label = escapeXml(`${def?.label ?? templateId} template preview`)
 
   return [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${r(safeWidth)}" height="${r(frameHeight)}" viewBox="0 0 ${r(safeWidth)} ${r(frameHeight)}" role="img" aria-label="${label}" data-template-id="${escapeXml(templateId)}">`,
-    `<rect width="${r(safeWidth)}" height="${r(frameHeight)}" rx="${r(safeWidth * 0.035)}" fill="#F1F4F8"/>`,
-    `<rect x="${r(safeWidth * 0.025)}" y="${r(frameHeight * 0.035)}" width="${r(safeWidth * 0.95)}" height="${r(frameHeight * 0.93)}" rx="${r(safeWidth * 0.025)}" fill="#FFFFFF" stroke="#DCE3EC"/>`,
-    `<svg x="${r(x)}" y="${r(y)}" width="${r(contentWidth)}" height="${r(contentHeight)}" viewBox="0 0 ${r(safeWidth)} ${r(nativeHeight)}" preserveAspectRatio="none" aria-hidden="true">${content}</svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${r(safeWidth)}" height="${r(height)}" viewBox="0 0 ${r(safeWidth)} ${r(height)}" role="img" aria-label="${label}" data-template-id="${escapeXml(templateId)}">`,
+    scene,
     `</svg>`,
   ].join("")
 }
@@ -431,7 +562,76 @@ function svgOpen(w: number, h: number, id: string): string {
   )
 }
 
-function renderPoster(art: PosterPreviewArt, p: PreviewPalette, width: number, id: string): string {
+const TEXT_FONT = "Helvetica, Arial, sans-serif"
+
+type TextOpts = {
+  size: number
+  fill: string
+  weight?: number
+  opacity?: number
+  anchor?: "start" | "middle"
+  letterSpacing?: number
+  italic?: boolean
+}
+
+/** A real text run in document coordinates. */
+function textEl(x: number, y: number, value: string, opts: TextOpts): string {
+  if (!value) return ""
+  return (
+    `<text x="${r(x)}" y="${r(y)}" font-family="${TEXT_FONT}" font-size="${r(opts.size)}" fill="${opts.fill}"` +
+    (opts.weight ? ` font-weight="${opts.weight}"` : "") +
+    (opts.italic ? ` font-style="italic"` : "") +
+    (opts.letterSpacing ? ` letter-spacing="${r(opts.letterSpacing)}"` : "") +
+    (opts.opacity !== undefined ? ` opacity="${opts.opacity}"` : "") +
+    (opts.anchor === "middle" ? ` text-anchor="middle"` : "") +
+    `>${escapeXml(value)}</text>`
+  )
+}
+
+/** Wrap to a width using the average Helvetica advance (~0.52 em). */
+function wrapToWidth(value: string, width: number, size: number, maxLines: number, bold = false): string[] {
+  const advance = Math.max(0.01, size) * (bold ? 0.56 : 0.52)
+  return wrapText(value, Math.max(6, Math.floor(width / advance)), maxLines)
+}
+
+/** Plain body lines for a section, each shortened to the available width. */
+function bodyLines(section: PreviewSection | undefined, width: number, size: number, maxLines: number): string[] {
+  if (!section) return []
+  const perLine = Math.max(8, Math.floor(width / (size * 0.52)))
+  return section.lines
+    .slice(0, maxLines)
+    .map((line) => truncate(line.replace(/^•\s*/, ""), perLine))
+    .filter(Boolean)
+}
+
+/**
+ * Distribute the demo sections over the artwork's columns: honour the demo
+ * document's own column grid when it matches this template's column count,
+ * otherwise keep the document reading order and fill column by column.
+ */
+function groupSections(sections: PreviewSection[], columns: number): PreviewSection[][] {
+  const groups: PreviewSection[][] = Array.from({ length: columns }, () => [])
+  if (columns < 1) return groups
+  const used = sections.filter((s) => typeof s.column === "number")
+  const maxColumn = used.reduce((max, s) => Math.max(max, s.column ?? 1), 0)
+  if (used.length && maxColumn === columns) {
+    for (const section of sections) {
+      const index = Math.min(columns - 1, Math.max(0, (section.column ?? 1) - 1))
+      groups[index].push(section)
+    }
+    return groups
+  }
+  sections.forEach((section, index) => groups[index % columns].push(section))
+  return groups
+}
+
+function renderPoster(
+  art: PosterPreviewArt,
+  p: PreviewPalette,
+  width: number,
+  id: string,
+  content: PreviewDocumentContent,
+): string {
   const W = width
   const H = art.orientation === "landscape" ? width * (841 / 1189) : width * (1189 / 841)
   const pad = W * 0.035
@@ -442,23 +642,49 @@ function renderPoster(art: PosterPreviewArt, p: PreviewPalette, width: number, i
   parts.push(`<rect width="${r(W)}" height="${r(H)}" fill="${art.titleBand.fill === "ink" ? withAlpha(p.ink, 0.03) : p.paper}"/>`)
   parts.push(`<rect x="0.5" y="0.5" width="${r(W - 1)}" height="${r(H - 1)}" fill="none" stroke="${withAlpha(p.ink, 0.14)}"/>`)
 
-  // Title band
+  // Title band: the demo document's title, authors and venue. The two band
+  // styles typeset the title at different sizes, so each wraps to its own size.
+  const bandTitleSize = bandH * 0.15
+  const plainTitleSize = bandH * (wrapToWidth(content.title, W - pad * 3, bandH * 0.15, 2, true).length > 1 ? 0.24 : 0.3)
+  const titleLines =
+    art.titleBand.fill === "none"
+      ? wrapToWidth(content.title, W - pad * 3, plainTitleSize, 2, true)
+      : wrapToWidth(content.title, W - pad * 3, bandTitleSize, 2, true)
   if (art.titleBand.fill !== "none") {
     const fill = art.titleBand.fill === "ink" ? p.ink : p.accent
     parts.push(
       `<rect x="${r(pad)}" y="${r(pad)}" width="${r(W - pad * 2)}" height="${r(bandH)}" rx="${art.titleBand.radius}" fill="${fill}"/>`,
     )
-    const tw = (W - pad * 2) * 0.6
-    parts.push(textBar(W / 2 - tw / 2, pad + bandH * 0.28, tw, bandH * 0.16, "#FFFFFF", 0.95))
-    parts.push(textBar(W / 2 - tw * 0.32, pad + bandH * 0.58, tw * 0.64, bandH * 0.1, "#FFFFFF", 0.6))
+    const size = bandH * (titleLines.length > 1 ? 0.13 : 0.155)
+    const titleY = pad + bandH * (titleLines.length > 1 ? 0.32 : 0.42)
+    titleLines.forEach((line, i) => {
+      parts.push(textEl(W / 2, titleY + i * bandH * 0.24, line, { size, fill: "#FFFFFF", weight: 700, anchor: "middle", opacity: 0.97 }))
+    })
+    const meta = content.authors ?? content.venue
+    if (meta) {
+      const metaSize = bandH * 0.073
+      parts.push(
+        textEl(W / 2, pad + bandH * 0.9, truncate(meta, Math.floor((W - pad * 3) / (metaSize * 0.52))), {
+          size: metaSize,
+          fill: "#FFFFFF",
+          anchor: "middle",
+          opacity: 0.75,
+        }),
+      )
+    }
     if (art.logoChips) {
       const chip = bandH * 0.5
       parts.push(`<rect x="${r(pad * 2)}" y="${r(pad + bandH / 2 - chip / 2)}" width="${r(chip)}" height="${r(chip)}" rx="3" fill="#FFFFFF" opacity="0.85"/>`)
       parts.push(`<rect x="${r(W - pad * 2 - chip)}" y="${r(pad + bandH / 2 - chip / 2)}" width="${r(chip)}" height="${r(chip)}" rx="3" fill="#FFFFFF" opacity="0.85"/>`)
     }
   } else {
-    parts.push(textBar(pad, pad + bandH * 0.15, (W - pad * 2) * 0.7, bandH * 0.28, p.ink, 0.9))
-    parts.push(textBar(pad, pad + bandH * 0.6, (W - pad * 2) * 0.42, bandH * 0.14, p.ink, 0.45))
+    const size = plainTitleSize
+    titleLines.forEach((line, i) => {
+      parts.push(textEl(pad, pad + bandH * (0.34 + i * 0.32), line, { size, fill: p.ink, weight: 700, opacity: 0.92 }))
+    })
+    if (content.venue) {
+      parts.push(textEl(pad, pad + bandH * 0.92, truncate(content.venue, 76), { size: bandH * 0.11, fill: p.ink, opacity: 0.5 }))
+    }
   }
 
   if (art.accentRule) {
@@ -470,17 +696,28 @@ function renderPoster(art: PosterPreviewArt, p: PreviewPalette, width: number, i
   const bottom = H - pad
   const gutter = (W - pad * 2) * 0.022
   const usableW = W - pad * 2 - gutter * (art.columnWidths.length - 1)
+  const grouped = groupSections(content.sections, art.columnWidths.length)
   let x = pad
 
   art.columnWidths.forEach((frac, ci) => {
     const colW = usableW * frac
     const colH = bottom - top
+    const columnSections = grouped[ci] ?? []
+    let sectionCursor = 0
+    const nextSection = () => columnSections[sectionCursor++]
+
     if (art.card.style === "hero" && ci === 1) {
       // Better Poster: one enormous plain-language finding in the middle.
+      const statement = truncate(content.claim ?? columnSections[0]?.lines[0]?.replace(/^•\s*/, "") ?? "", 150)
+      const statementLines = wrapToWidth(statement, colW * 0.78, colH * 0.052, 3, true)
       parts.push(`<rect x="${r(x)}" y="${r(top)}" width="${r(colW)}" height="${r(colH * 0.62)}" rx="${art.card.radius}" fill="${withAlpha(p.accent, 0.08)}"/>`)
-      parts.push(textBar(x + colW * 0.12, top + colH * 0.2, colW * 0.76, colH * 0.055, p.ink, 0.9))
-      parts.push(textBar(x + colW * 0.18, top + colH * 0.3, colW * 0.64, colH * 0.055, p.ink, 0.9))
-      parts.push(textBar(x + colW * 0.26, top + colH * 0.4, colW * 0.48, colH * 0.055, p.ink, 0.9))
+      statementLines.forEach((line, i) => {
+        parts.push(textEl(x + colW / 2, top + colH * (0.24 + i * 0.09), line, { size: colH * 0.052, fill: p.ink, weight: 700, anchor: "middle", opacity: 0.9 }))
+      })
+      const heroBody = bodyLines(nextSection(), colW * 0.84, colH * 0.03, 4)
+      heroBody.forEach((line, i) => {
+        parts.push(textEl(x + colW * 0.08, top + colH * (0.44 + i * 0.045), line, { size: colH * 0.03, fill: withAlpha(p.ink, 0.62) }))
+      })
       parts.push(`<rect x="${r(x)}" y="${r(top + colH * 0.68)}" width="${r(colW)}" height="${r(colH * 0.3)}" fill="${withAlpha(p.accent2, 0.1)}"/>`)
     } else if (art.card.style === "plain-section") {
       // No card chrome: a heading rule then body text.
@@ -488,11 +725,17 @@ function renderPoster(art: PosterPreviewArt, p: PreviewPalette, width: number, i
       const bh = colH / blocks
       for (let b = 0; b < blocks; b++) {
         const y = top + b * bh
-        parts.push(textBar(x, y + bh * 0.06, colW * 0.7, bh * 0.07, p.accent, 0.95))
-        parts.push(`<rect x="${r(x)}" y="${r(y + bh * 0.16)}" width="${r(colW * 0.5)}" height="${r(Math.max(1, H * 0.003))}" fill="${withAlpha(p.ink, 0.25)}"/>`)
-        for (let l = 0; l < 5; l++) {
-          parts.push(textBar(x, y + bh * (0.26 + l * 0.13), colW * (l % 2 ? 0.82 : 0.98), bh * 0.05, withAlpha(p.ink, 0.28)))
+        const section = nextSection()
+        if (!section) {
+          parts.push(`<rect x="${r(x)}" y="${r(y + bh * 0.2)}" width="${r(colW)}" height="${r(bh * 0.5)}" fill="${withAlpha(p.accent2, 0.07)}"/>`)
+          continue
         }
+        const heading = truncate(section.title, Math.floor(colW / (bh * 0.075 * 0.52)))
+        parts.push(textEl(x, y + bh * 0.1, heading, { size: bh * 0.075, fill: p.accent, weight: 700, opacity: 0.95 }))
+        parts.push(`<rect x="${r(x)}" y="${r(y + bh * 0.16)}" width="${r(colW * 0.5)}" height="${r(Math.max(1, H * 0.003))}" fill="${withAlpha(p.ink, 0.25)}"/>`)
+        bodyLines(section, colW, bh * 0.05, 5).forEach((line, li) => {
+          parts.push(textEl(x, y + bh * (0.28 + li * 0.13), line, { size: bh * 0.05, fill: withAlpha(p.ink, 0.62) }))
+        })
       }
     } else {
       const cards = ci === 1 ? 2 : 3
@@ -501,46 +744,56 @@ function renderPoster(art: PosterPreviewArt, p: PreviewPalette, width: number, i
       for (let b = 0; b < cards; b++) {
         const y = top + b * (cardH + gap)
         const bodyTop = y + cardH * 0.2
-        const bodyH = cardH * 0.8
+        const section = nextSection()
+
+        if (!section) {
+          // The demo document has fewer cards than this template's grid slot:
+          // leave the slot empty rather than inventing a heading.
+          continue
+        }
+
+        const headingSize = cardH * 0.07
+        const heading = truncate(section.title, Math.floor((colW * 0.86) / (headingSize * 0.52)))
 
         if (art.card.style === "filled-title") {
           parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(colW)}" height="${r(cardH)}" rx="${art.card.radius}" fill="${withAlpha(p.accent, art.card.bodyTint)}"/>`)
           parts.push(`<path d="M${r(x)} ${r(y + cardH * 0.2)} L${r(x)} ${r(y + art.card.radius)} Q${r(x)} ${r(y)} ${r(x + art.card.radius)} ${r(y)} L${r(x + colW - art.card.radius)} ${r(y)} Q${r(x + colW)} ${r(y)} ${r(x + colW)} ${r(y + art.card.radius)} L${r(x + colW)} ${r(y + cardH * 0.2)} Z" fill="${p.accent}"/>`)
-          parts.push(textBar(x + colW * 0.06, y + cardH * 0.07, colW * 0.6, cardH * 0.07, "#FFFFFF", 0.95))
+          parts.push(textEl(x + colW * 0.06, y + cardH * 0.14, heading, { size: headingSize, fill: "#FFFFFF", weight: 700, opacity: 0.96 }))
         } else if (art.card.style === "underlined-title") {
           parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(colW)}" height="${r(cardH)}" rx="${art.card.radius}" fill="${withAlpha(p.accent, art.card.bodyTint)}" stroke="${withAlpha(p.accent, 0.28)}"/>`)
-          parts.push(textBar(x + colW * 0.06, y + cardH * 0.07, colW * 0.62, cardH * 0.07, p.accent, 0.95))
+          parts.push(textEl(x + colW * 0.06, y + cardH * 0.14, heading, { size: headingSize, fill: p.accent, weight: 700, opacity: 0.95 }))
           parts.push(`<rect x="${r(x + colW * 0.05)}" y="${r(y + cardH * 0.185)}" width="${r(colW * 0.9)}" height="${r(Math.max(1.2, cardH * 0.022))}" fill="${p.accent}"/>`)
         } else if (art.card.style === "left-bar") {
           parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(colW)}" height="${r(cardH)}" fill="${p.paper}" stroke="${withAlpha(p.ink, 0.08)}"/>`)
           parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(colW * 0.055)}" height="${r(cardH)}" fill="${p.accent}"/>`)
           parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(colW)}" height="${r(cardH * 0.2)}" fill="${withAlpha(p.accent, 0.08)}"/>`)
-          parts.push(textBar(x + colW * 0.11, y + cardH * 0.06, colW * 0.6, cardH * 0.07, p.accent, 0.95))
+          parts.push(textEl(x + colW * 0.11, y + cardH * 0.135, heading, { size: headingSize, fill: p.accent, weight: 700, opacity: 0.95 }))
         } else {
           // rounded-block (gemini)
           parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(colW)}" height="${r(cardH)}" rx="${art.card.radius}" fill="${withAlpha(p.accent, art.card.bodyTint)}"/>`)
           parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(colW)}" height="${r(cardH * 0.2)}" rx="${art.card.radius}" fill="${p.accent}"/>`)
-          parts.push(textBar(x + colW * 0.06, y + cardH * 0.065, colW * 0.6, cardH * 0.07, "#FFFFFF", 0.95))
+          parts.push(textEl(x + colW * 0.06, y + cardH * 0.14, heading, { size: headingSize, fill: "#FFFFFF", weight: 700, opacity: 0.96 }))
         }
 
-        // Body content
+        // Body content: the demo card's own lines, sized to fill the card.
+        const bodySize = cardH * 0.058
         if (art.statTiles && ci === 1 && b === 0) {
+          const statLines = section.lines.slice(0, 3)
           const tileW = colW * 0.28
-          for (let t = 0; t < 3; t++) {
+          statLines.forEach((line, t) => {
             const tx = x + colW * 0.04 + t * (tileW + colW * 0.02)
             parts.push(`<rect x="${r(tx)}" y="${r(bodyTop + cardH * 0.05)}" width="${r(tileW)}" height="${r(cardH * 0.2)}" rx="3" fill="${withAlpha(p.accent, 0.12)}"/>`)
-            parts.push(textBar(tx + tileW * 0.2, bodyTop + cardH * 0.1, tileW * 0.6, cardH * 0.06, p.accent, 0.95))
-          }
-          for (let l = 0; l < 3; l++) {
-            parts.push(textBar(x + colW * 0.06, bodyTop + cardH * (0.32 + l * 0.11), colW * (l % 2 ? 0.6 : 0.85), cardH * 0.045, withAlpha(p.ink, 0.3)))
-          }
+            parts.push(textEl(tx + tileW / 2, bodyTop + cardH * 0.185, truncate(line.replace(/^•\s*/, ""), 16), { size: cardH * 0.055, fill: p.accent, weight: 700, anchor: "middle", opacity: 0.95 }))
+          })
+          bodyLines(section, colW, bodySize, 3).slice(0, 3).forEach((line, li) => {
+            parts.push(textEl(x + colW * 0.06, bodyTop + cardH * (0.38 + li * 0.13), truncate(line, 34), { size: bodySize, fill: withAlpha(p.ink, 0.62) }))
+          })
         } else {
-          for (let l = 0; l < 4; l++) {
-            const lw = colW * (l % 2 ? 0.62 : 0.86)
-            parts.push(textBar(x + colW * 0.06, bodyTop + cardH * (0.07 + l * 0.13), lw, cardH * 0.045, withAlpha(p.ink, 0.3)))
-          }
-          if (b === cards - 1) {
-            parts.push(`<rect x="${r(x + colW * 0.06)}" y="${r(bodyTop + cardH * 0.58)}" width="${r(colW * 0.88)}" height="${r(cardH * 0.3)}" rx="2" fill="${withAlpha(p.accent2, 0.18)}"/>`)
+          bodyLines(section, colW * 0.88, bodySize, 4).forEach((line, li) => {
+            parts.push(textEl(x + colW * 0.06, bodyTop + cardH * (0.13 + li * 0.13), line, { size: bodySize, fill: withAlpha(p.ink, 0.62) }))
+          })
+          if (section.hasFigure) {
+            parts.push(`<rect x="${r(x + colW * 0.06)}" y="${r(bodyTop + cardH * 0.6)}" width="${r(colW * 0.88)}" height="${r(cardH * 0.28)}" rx="2" fill="${withAlpha(p.accent2, 0.18)}"/>`)
           }
         }
       }
@@ -553,7 +806,13 @@ function renderPoster(art: PosterPreviewArt, p: PreviewPalette, width: number, i
 }
 
 /** A4 research-paper mockup with venue-specific masthead and column treatment. */
-function renderPaper(art: PaperPreviewArt, p: PreviewPalette, width: number, id: string): string {
+function renderPaper(
+  art: PaperPreviewArt,
+  p: PreviewPalette,
+  width: number,
+  id: string,
+  content: PreviewDocumentContent,
+): string {
   const W = width
   const H = width * (297 / 210)
   const pad = W * 0.085
@@ -565,59 +824,71 @@ function renderPaper(art: PaperPreviewArt, p: PreviewPalette, width: number, id:
   let y = pad
   const wordmark = art.wordmark
   const markH = H * 0.032
+  const runningTitle = truncate(content.title, art.columns === 2 ? 58 : 62)
   if (art.masthead === "band") {
     parts.push(`<rect x="${r(pad)}" y="${r(y)}" width="${r(innerW)}" height="${r(markH * 1.35)}" fill="${withAlpha(p.accent, 0.14)}"/>`)
-    if (wordmark) parts.push(`<text x="${r(pad + innerW * 0.035)}" y="${r(y + markH * 0.8)}" font-size="${r(markH * 0.47)}" font-family="Arial, sans-serif" font-weight="700" letter-spacing="0.5" fill="${p.accent}">${escapeXml(wordmark.toUpperCase())}</text>`)
-    parts.push(textBar(pad + innerW * 0.62, y + markH * 0.38, innerW * 0.32, markH * 0.16, withAlpha(p.ink, 0.4)))
+    if (wordmark) parts.push(`<text x="${r(pad + innerW * 0.035)}" y="${r(y + markH * 0.8)}" font-size="${r(markH * 0.47)}" font-family="${TEXT_FONT}" font-weight="700" letter-spacing="0.5" fill="${p.accent}">${escapeXml(wordmark.toUpperCase())}</text>`)
+    if (content.venue) parts.push(textEl(pad + innerW * 0.62, y + markH * 0.75, truncate(content.venue, 42), { size: markH * 0.36, fill: withAlpha(p.ink, 0.55) }))
     y += markH * 1.75
   } else if (art.masthead === "badge") {
     const badgeW = innerW * (wordmark && wordmark.length > 10 ? 0.52 : 0.26)
     parts.push(`<rect x="${r(pad)}" y="${r(y)}" width="${r(badgeW)}" height="${r(markH * 1.12)}" rx="${r(markH * 0.12)}" fill="${p.accent}"/>`)
-    if (wordmark) parts.push(`<text x="${r(pad + badgeW * 0.08)}" y="${r(y + markH * 0.72)}" font-size="${r(markH * 0.44)}" font-family="Arial, sans-serif" font-weight="700" fill="#FFFFFF">${escapeXml(wordmark.toUpperCase())}</text>`)
-    else parts.push(textBar(pad + badgeW * 0.12, y + markH * 0.4, badgeW * 0.7, markH * 0.2, "#FFFFFF", 0.92))
-    parts.push(textBar(pad + badgeW + innerW * 0.035, y + markH * 0.45, innerW * 0.34, markH * 0.15, withAlpha(p.ink, 0.45)))
+    if (wordmark) parts.push(`<text x="${r(pad + badgeW * 0.08)}" y="${r(y + markH * 0.72)}" font-size="${r(markH * 0.44)}" font-family="${TEXT_FONT}" font-weight="700" fill="#FFFFFF">${escapeXml(wordmark.toUpperCase())}</text>`)
+    if (content.venue) parts.push(textEl(pad + badgeW + innerW * 0.035, y + markH * 0.78, truncate(content.venue, 40), { size: markH * 0.36, fill: withAlpha(p.ink, 0.5) }))
     y += markH * 1.45
   } else if (art.masthead === "publisher") {
-    if (wordmark) parts.push(`<text x="${r(pad)}" y="${r(y + markH * 0.72)}" font-size="${r(markH * 0.47)}" font-family="Arial, sans-serif" font-weight="700" letter-spacing="0.65" fill="${p.accent}">${escapeXml(wordmark.toUpperCase())}</text>`)
+    if (wordmark) parts.push(`<text x="${r(pad)}" y="${r(y + markH * 0.72)}" font-size="${r(markH * 0.47)}" font-family="${TEXT_FONT}" font-weight="700" letter-spacing="0.65" fill="${p.accent}">${escapeXml(wordmark.toUpperCase())}</text>`)
     parts.push(`<rect x="${r(pad)}" y="${r(y + markH)}" width="${r(innerW)}" height="${r(Math.max(1, H * 0.0018))}" fill="${p.accent}"/>`)
     y += markH * 1.55
   } else if (art.masthead === "rule") {
     parts.push(`<rect x="${r(pad)}" y="${r(y)}" width="${r(innerW)}" height="${r(Math.max(1.5, H * 0.006))}" fill="${p.accent}"/>`)
-    if (wordmark) parts.push(`<text x="${r(pad)}" y="${r(y + markH * 1.45)}" font-size="${r(markH * 0.44)}" font-family="Arial, sans-serif" font-weight="700" letter-spacing="0.4" fill="${p.accent}">${escapeXml(wordmark.toUpperCase())}</text>`)
+    if (wordmark) parts.push(`<text x="${r(pad)}" y="${r(y + markH * 1.45)}" font-size="${r(markH * 0.44)}" font-family="${TEXT_FONT}" font-weight="700" letter-spacing="0.4" fill="${p.accent}">${escapeXml(wordmark.toUpperCase())}</text>`)
     y += markH * 1.85
   } else {
     if (art.runningHeader !== "none") {
-      parts.push(textBar(pad, y, innerW * 0.34, markH * 0.18, withAlpha(p.ink, 0.35)))
-      parts.push(textBar(pad + innerW * 0.74, y, innerW * 0.26, markH * 0.18, withAlpha(p.ink, 0.35)))
+      parts.push(textEl(pad, y + markH * 0.2, runningTitle, { size: markH * 0.32, fill: withAlpha(p.ink, 0.55) }))
+      if (content.venue) parts.push(textEl(pad + innerW * 0.62, y + markH * 0.2, truncate(content.venue, 30), { size: markH * 0.32, fill: withAlpha(p.ink, 0.55) }))
     }
     y += markH * 1.35
   }
 
-  // Title and author block. Alignment and affiliation density come from the
-  // target venue, while the restrained bars keep the artwork legible at card size.
-  const titleW = innerW * (art.titleAlign === "center" ? 0.78 : 0.92)
+  // Title / authors / venue, as printed in the demo document.
+  const titleW = innerW * (art.titleAlign === "center" ? 0.82 : 0.94)
   const titleX = art.titleAlign === "center" ? (W - titleW) / 2 : pad
-  const titleH = H * 0.024
-  if (art.titleAlign === "center") {
-    parts.push(textBar(titleX, y, titleW, titleH * 0.62, p.ink, 0.92))
-    parts.push(textBar(W / 2 - titleW * 0.37, y + titleH * 0.82, titleW * 0.74, titleH * 0.42, p.ink, 0.75))
-  } else {
-    parts.push(textBar(titleX, y, titleW, titleH * 0.62, p.ink, 0.92))
-    parts.push(textBar(titleX, y + titleH * 0.82, titleW * 0.68, titleH * 0.42, p.ink, 0.75))
-  }
+  const titleSize = H * 0.0182
+  const titleLines = wrapToWidth(content.title, titleW, titleSize, 2, true)
   if (art.masthead === "band") {
-    parts.push(`<rect x="${r(titleX)}" y="${r(y - titleH * 0.28)}" width="${r(titleW)}" height="${r(titleH * 1.75)}" fill="${withAlpha(p.accent, 0.055)}"/>`)
+    const titleH = titleSize * titleLines.length + H * 0.006
+    parts.push(`<rect x="${r(titleX)}" y="${r(y - titleSize * 0.5)}" width="${r(titleW)}" height="${r(titleH * 1.35)}" fill="${withAlpha(p.accent, 0.055)}"/>`)
   }
-  y += titleH * 1.85
+  titleLines.forEach((line, i) => {
+    parts.push(textEl(art.titleAlign === "center" ? W / 2 : titleX, y + i * titleSize * 1.16, line, {
+      size: titleSize,
+      fill: p.ink,
+      weight: 700,
+      anchor: art.titleAlign === "center" ? "middle" : "start",
+      opacity: 0.95,
+    }))
+  })
+  y += titleSize * (titleLines.length + 0.75)
 
-  const authorY = y
-  const authorCount = art.authorLayout === "affiliations" ? 3 : art.authorLayout === "compact" ? 2 : 1
-  const authorW = innerW * (art.authorLayout === "centered" ? 0.48 : 0.72)
-  const authorX = art.titleAlign === "center" ? (W - authorW) / 2 : pad
-  for (let i = 0; i < authorCount; i++) {
-    parts.push(textBar(authorX + (i % 2) * authorW * 0.5, authorY + i * H * 0.009, authorW * (i % 2 ? 0.42 : 0.5), H * 0.0045, withAlpha(p.accent, i === 0 ? 0.78 : 0.48)))
+  const authorSize = H * 0.0062
+  if (content.authors) {
+    parts.push(textEl(art.titleAlign === "center" ? W / 2 : pad, y, truncate(content.authors, Math.floor(titleW / (authorSize * 0.52))), {
+      size: authorSize,
+      fill: withAlpha(p.accent, 0.9),
+      anchor: art.titleAlign === "center" ? "middle" : "start",
+    }))
   }
-  y += H * (art.authorLayout === "affiliations" ? 0.043 : 0.03)
+  y += authorSize * 1.5
+  if (content.venue) {
+    parts.push(textEl(art.titleAlign === "center" ? W / 2 : pad, y, truncate(content.venue, Math.floor(titleW / (authorSize * 0.9 * 0.52))), {
+      size: authorSize * 0.9,
+      fill: withAlpha(p.ink, 0.5),
+      anchor: art.titleAlign === "center" ? "middle" : "start",
+    }))
+  }
+  y += authorSize * 2.2
 
   // Abstract block is full width in both single- and two-column venues.
   const abstractH = H * 0.105
@@ -626,10 +897,12 @@ function renderPaper(art: PaperPreviewArt, p: PreviewPalette, width: number, id:
   } else if (art.abstract === "boxed") {
     parts.push(`<rect x="${r(pad)}" y="${r(y)}" width="${r(innerW)}" height="${r(abstractH)}" fill="none" stroke="${withAlpha(p.accent, 0.48)}" stroke-width="${r(Math.max(0.7, W * 0.002))}"/>`)
   }
-  parts.push(textBar(pad + innerW * 0.035, y + abstractH * 0.13, innerW * 0.2, abstractH * 0.11, p.accent, 0.9))
-  for (let i = 0; i < 4; i++) {
-    parts.push(textBar(pad + innerW * 0.035, y + abstractH * (0.34 + i * 0.15), innerW * (i % 2 ? 0.86 : 0.93), abstractH * 0.045, withAlpha(p.ink, 0.28)))
-  }
+  parts.push(textEl(pad + innerW * 0.035, y + abstractH * 0.17, "Abstract", { size: abstractH * 0.115, fill: p.accent, weight: 700, opacity: 0.9 }))
+  const abstractSize = abstractH * 0.085
+  const abstractText = content.abstract ?? content.claim ?? content.sections[0]?.lines.join(" ") ?? ""
+  wrapToWidth(abstractText, innerW * 0.94, abstractSize, 4).forEach((line, i) => {
+    parts.push(textEl(pad + innerW * 0.035, y + abstractH * (0.36 + i * 0.16), line, { size: abstractSize, fill: withAlpha(p.ink, 0.66) }))
+  })
   y += abstractH + H * 0.025
 
   const columns = art.columns
@@ -639,79 +912,94 @@ function renderPaper(art: PaperPreviewArt, p: PreviewPalette, width: number, id:
   const bodyBottom = H - pad - H * 0.07
   const bodyH = Math.max(H * 0.2, bodyBottom - bodyTop)
 
-  const drawHeading = (x: number, top: number, w: number, index: number) => {
-    const headingH = Math.max(H * 0.012, w * 0.025)
-    if (art.headings === "filled") {
-      parts.push(`<rect x="${r(x)}" y="${r(top - headingH * 0.16)}" width="${r(w)}" height="${r(headingH * 1.35)}" fill="${withAlpha(p.accent, 0.12)}"/>`)
-      parts.push(textBar(x + w * 0.035, top + headingH * 0.15, w * 0.56, headingH * 0.4, p.accent, 0.95))
-    } else {
-      parts.push(textBar(x, top, w * (index % 2 ? 0.5 : 0.62), headingH * 0.47, art.headings === "numbered" ? p.accent : p.ink, 0.88))
-      if (art.headings === "ruled") {
-        parts.push(`<rect x="${r(x)}" y="${r(top + headingH * 0.68)}" width="${r(w)}" height="${r(Math.max(0.7, W * 0.002))}" fill="${withAlpha(p.accent, 0.75)}"/>`)
+  const sections = content.sections.slice(0, art.headings === "numbered" ? 6 : 5)
+  const groups = groupSections(sections, columns)
+
+  // Auto-size the body type: the largest size at which every section in the
+  // busiest column still fits, so short demo documents fill the page instead of
+  // leaving the bottom third blank.
+  const measure = (group: PreviewSection[], size: number): number => {
+    const headingUnit = Math.max(H * 0.0105, colW * 0.03) * 1.7
+    return group.reduce((total, section) => {
+      const figureSpace = section.hasFigure ? Math.min(H * 0.052, 40) + size * 1.4 : 0
+      const isBulleted = section.lines.every((line) => line.startsWith("• "))
+      const count = isBulleted
+        ? section.lines.length
+        : wrapToWidth(section.lines.join(" "), colW, size, 30).length
+      return total + headingUnit + count * size * 1.5 + figureSpace + size
+    }, 0)
+  }
+  const baseSize = Math.max(H * 0.0052, colW * 0.0165)
+  let bodyTypeSize = baseSize
+  for (let size = Math.min(H * 0.011, colW * 0.042); size >= baseSize; size -= 0.12) {
+    if (groups.every((group) => group.length === 0 || measure(group, size) <= bodyH)) {
+      bodyTypeSize = size
+      break
+    }
+  }
+
+  groups.forEach((group, ci) => {
+    const x = pad + ci * (colW + gutter)
+    let cursorY = bodyTop
+    const available = bodyH / Math.max(1, group.length)
+    group.forEach((section, index) => {
+      // Start every section at the top of its own band so the column reaches the
+      // bottom of the page, the way a typeset paper does.
+      cursorY = bodyTop + index * available
+      const headingSize = Math.max(H * 0.0105, colW * 0.03)
+      const headingText =
+        art.headings === "numbered" ? `${index + 1}  ${truncate(section.title, Math.floor((colW * 0.9) / (headingSize * 0.52)))}` : truncate(section.title, Math.floor((colW * 0.95) / (headingSize * 0.52)))
+      if (art.headings === "filled") {
+        parts.push(`<rect x="${r(x)}" y="${r(cursorY - headingSize * 0.2)}" width="${r(colW)}" height="${r(headingSize * 1.4)}" fill="${withAlpha(p.accent, 0.12)}"/>`)
+        parts.push(textEl(x + colW * 0.035, cursorY + headingSize * 0.5, headingText, { size: headingSize, fill: p.accent, weight: 700, opacity: 0.95 }))
+        cursorY += headingSize * 1.5
+      } else {
+        parts.push(textEl(x, cursorY, headingText, { size: headingSize, fill: art.headings === "numbered" ? p.accent : p.ink, weight: 700, opacity: 0.9 }))
+        if (art.headings === "ruled") {
+          parts.push(`<rect x="${r(x)}" y="${r(cursorY + headingSize * 0.35)}" width="${r(colW)}" height="${r(Math.max(0.8, H * 0.0016))}" fill="${withAlpha(p.ink, 0.3)}"/>`)
+        }
+        cursorY += headingSize * 1.35
       }
-    }
-    return headingH * 1.6
-  }
-  const drawTextLines = (x: number, top: number, w: number, count: number, height: number) => {
-    const lineGap = height / (count + 1)
-    for (let i = 0; i < count; i++) {
-      const lineW = w * (i % 4 === 3 ? 0.69 : i % 2 ? 0.88 : 0.98)
-      parts.push(textBar(x, top + i * lineGap, lineW, Math.max(1, H * 0.0045), withAlpha(p.ink, 0.25)))
-    }
-  }
 
-  for (let column = 0; column < columns; column++) {
-    const x = pad + column * (colW + gutter)
-    let sectionY = bodyTop
-    const sectionCount = art.figure === "none" ? 3 : 2
-    for (let section = 0; section < sectionCount; section++) {
-      sectionY += drawHeading(x, sectionY, colW, section)
-      const sectionH = (bodyH * (art.figure === "none" ? 0.86 : 0.54)) / sectionCount
-      const reserveFigure = art.figure === "column" && column === 0 && section === sectionCount - 1
-      drawTextLines(x, sectionY, colW, reserveFigure ? 4 : 6, sectionH * (reserveFigure ? 0.52 : 0.86))
-      sectionY += sectionH
-      if (reserveFigure) {
-        const graphY = sectionY - sectionH * 0.36
-        parts.push(`<rect x="${r(x + colW * 0.08)}" y="${r(graphY)}" width="${r(colW * 0.82)}" height="${r(sectionH * 0.34)}" fill="${withAlpha(p.accent2, 0.13)}" stroke="${withAlpha(p.accent, 0.22)}"/>`)
-        parts.push(`<path d="M${r(x + colW * 0.16)} ${r(graphY + sectionH * 0.27)} L${r(x + colW * 0.36)} ${r(graphY + sectionH * 0.18)} L${r(x + colW * 0.52)} ${r(graphY + sectionH * 0.22)} L${r(x + colW * 0.73)} ${r(graphY + sectionH * 0.08)}" fill="none" stroke="${p.accent}" stroke-width="${r(Math.max(1, W * 0.006))}"/>`)
+      const bodySize = Math.max(baseSize, Math.min(bodyTypeSize, available / Math.max(2, section.lines.length + 1.6)))
+      const figureSpace = section.hasFigure ? Math.min(H * 0.052, available * 0.36) : 0
+      const maxLines = Math.max(3, Math.min(12, Math.floor((available - headingSize * 1.7 - figureSpace - bodySize) / (bodySize * 1.5))))
+      // Papers set whole paragraphs, so wrap the section text to the column
+      // width (bullets keep their own line breaks).
+      const isBulleted = section.lines.every((line) => line.startsWith("• "))
+      const wrapped = isBulleted
+        ? section.lines.slice(0, maxLines)
+        : wrapToWidth(section.lines.join(" "), colW, bodySize, maxLines)
+      const perLine = Math.max(8, Math.floor(colW / (bodySize * 0.52)))
+      wrapped.forEach((line, li) => {
+        parts.push(textEl(x, cursorY + li * bodySize * 1.5, truncate(line, perLine), { size: bodySize, fill: withAlpha(p.ink, 0.68) }))
+      })
+      cursorY += wrapped.length * bodySize * 1.5
+      if (section.hasFigure) {
+        const figH = Math.min(H * 0.052, available * 0.36)
+        parts.push(`<rect x="${r(x)}" y="${r(cursorY + bodySize * 0.4)}" width="${r(colW)}" height="${r(figH)}" rx="2" fill="${withAlpha(p.accent2, 0.16)}"/>`)
+        cursorY += figH + bodySize
       }
-    }
-  }
+      cursorY += bodySize * 0.9
+    })
+  })
 
-  if (art.figure === "wide") {
-    const graphY = bodyTop + bodyH * 0.68
-    const graphH = bodyH * 0.21
-    parts.push(`<rect x="${r(pad + innerW * 0.06)}" y="${r(graphY)}" width="${r(innerW * 0.88)}" height="${r(graphH)}" fill="${withAlpha(p.accent2, 0.12)}" stroke="${withAlpha(p.accent, 0.2)}"/>`)
-    parts.push(`<path d="M${r(pad + innerW * 0.12)} ${r(graphY + graphH * 0.76)} L${r(pad + innerW * 0.3)} ${r(graphY + graphH * 0.56)} L${r(pad + innerW * 0.48)} ${r(graphY + graphH * 0.63)} L${r(pad + innerW * 0.67)} ${r(graphY + graphH * 0.28)} L${r(pad + innerW * 0.86)} ${r(graphY + graphH * 0.38)}" fill="none" stroke="${p.accent}" stroke-width="${r(Math.max(1, W * 0.006))}"/>`)
-    parts.push(textBar(pad + innerW * 0.32, graphY + graphH * 1.08, innerW * 0.36, H * 0.004, withAlpha(p.ink, 0.28)))
-  }
-
-  if (art.runningHeader !== "none") {
-    const footerY = H - pad * 0.64
-    parts.push(`<rect x="${r(pad)}" y="${r(footerY)}" width="${r(innerW)}" height="${r(Math.max(0.7, H * 0.0016))}" fill="${withAlpha(p.ink, 0.22)}"/>`)
-    if (art.runningHeader === "two-sided") {
-      parts.push(textBar(pad, footerY + H * 0.008, innerW * 0.32, H * 0.0038, withAlpha(p.ink, 0.28)))
-      parts.push(textBar(pad + innerW * 0.82, footerY + H * 0.008, innerW * 0.18, H * 0.0038, withAlpha(p.accent, 0.78)))
-    }
-  }
-  if (art.footer === "copyright" || art.footer === "publisher") {
-    const footerY = H - pad * 0.42
-    parts.push(textBar(pad, footerY, innerW * (art.footer === "copyright" ? 0.62 : 0.45), H * 0.0034, withAlpha(p.ink, 0.32)))
-    if (art.footer === "copyright") parts.push(`<text x="${r(W - pad)}" y="${r(footerY + H * 0.0045)}" text-anchor="end" font-size="${r(H * 0.009)}" font-family="Arial, sans-serif" fill="${withAlpha(p.ink, 0.6)}">©</text>`)
-  } else if (art.footer === "page") {
-    parts.push(textBar(W / 2 - innerW * 0.06, H - pad * 0.42, innerW * 0.12, H * 0.0034, withAlpha(p.ink, 0.3)))
+  // Footer: real venue and page number.
+  const footerY = H - pad * 0.6
+  if (art.footer === "copyright") {
+    parts.push(textEl(W / 2, footerY, content.venue ? truncate(content.venue, 64) : "© 2026 The Authors", { size: H * 0.005, fill: withAlpha(p.ink, 0.5), anchor: "middle" }))
+  } else if (art.footer === "publisher") {
+    parts.push(textEl(pad, footerY, wordmark ? wordmark.toUpperCase() : "Proceedings", { size: H * 0.005, fill: withAlpha(p.ink, 0.5) }))
+    parts.push(textEl(W - pad, footerY, "1", { size: H * 0.005, fill: withAlpha(p.ink, 0.5), anchor: "start" }))
+  } else {
+    parts.push(textEl(pad, footerY, runningTitle, { size: H * 0.005, fill: withAlpha(p.ink, 0.45) }))
+    parts.push(textEl(W - pad, footerY, "1", { size: H * 0.005, fill: withAlpha(p.ink, 0.45) }))
   }
 
   parts.push("</svg>")
   return parts.join("")
 }
 
-/**
- * A4 posudok mockup: letterhead, title, identification block, weighted criteria
- * table, classification panel and signature line — drawn from the template's
- * own style descriptor (`letterhead`, `titleStyle`, `criteriaTable`,
- * `ratingSymbol`, `gradeStyle`), so the picker shows the form the user gets.
- */
 function renderPosudok(art: PosudokPreviewArt, p: PreviewPalette, width: number, id: string): string {
   const style = thesisReviewStyleFor(art.styleId as Parameters<typeof thesisReviewStyleFor>[0])
   const W = width
@@ -980,79 +1268,159 @@ function renderPosudok(art: PosudokPreviewArt, p: PreviewPalette, width: number,
   return parts.join("")
 }
 
-function renderSlide(art: SlidePreviewArt, p: PreviewPalette, width: number, id: string): string {
-  const W = width
-  const H = width * (9 / 16)
-  const parts: string[] = [svgOpen(W, H, id)]
-  const pad = W * 0.03
-  const slideH = (H - pad * 2) * 0.46
+/**
+ * One 16:9 slide drawn into the given box. `which` selects the title slide or
+ * the content slide, so the same frame can be shown on its own (the mockup
+ * laptop) or two-up on a printed handout sheet.
+ */
+/** Largest title size (within a range) at which `text` fits `maxLines` without ellipsis. */
+function fitTitleSize(value: string, width: number, maxSize: number, minSize: number, maxLines: number): { size: number; lines: string[] } {
+  for (let step = 0; step < 8; step++) {
+    const size = maxSize - ((maxSize - minSize) * step) / 7
+    const lines = wrapToWidth(value, width, size, maxLines)
+    const joined = lines.join(" ").replace(/…$/, "")
+    if (joined.length >= value.replace(/\s+/g, " ").trim().length) return { size, lines }
+  }
+  return { size: minSize, lines: wrapToWidth(value, width, minSize, maxLines) }
+}
 
-  // ── Slide 1: title slide ────────────────────────────────────────────────
-  const y1 = pad
-  if (art.darkTitleSlide) {
-    parts.push(`<rect x="${r(pad)}" y="${r(y1)}" width="${r(W - pad * 2)}" height="${r(slideH)}" fill="${p.ink}"/>`)
-    parts.push(`<rect x="${r(pad)}" y="${r(y1 + slideH - slideH * 0.09)}" width="${r(W - pad * 2)}" height="${r(slideH * 0.09)}" fill="${p.accent}"/>`)
-    parts.push(textBar(W * 0.2, y1 + slideH * 0.3, W * 0.6, slideH * 0.13, "#FFFFFF", 0.95))
-    parts.push(`<rect x="${r(W * 0.42)}" y="${r(y1 + slideH * 0.52)}" width="${r(W * 0.16)}" height="${r(Math.max(1.5, slideH * 0.025))}" fill="${p.accent}"/>`)
-    parts.push(textBar(W * 0.34, y1 + slideH * 0.66, W * 0.32, slideH * 0.07, "#FFFFFF", 0.55))
-  } else {
-    parts.push(`<rect x="${r(pad)}" y="${r(y1)}" width="${r(W - pad * 2)}" height="${r(slideH)}" fill="${p.paper}" stroke="${withAlpha(p.ink, 0.14)}"/>`)
-    parts.push(`<rect x="${r(pad)}" y="${r(y1)}" width="${r(W - pad * 2)}" height="${r(slideH * 0.5)}" fill="${p.accent}"/>`)
-    parts.push(textBar(W * 0.16, y1 + slideH * 0.14, W * 0.68, slideH * 0.12, "#FFFFFF", 0.95))
-    parts.push(textBar(W * 0.3, y1 + slideH * 0.33, W * 0.4, slideH * 0.06, "#FFFFFF", 0.6))
-    parts.push(textBar(W * 0.34, y1 + slideH * 0.7, W * 0.32, slideH * 0.07, p.ink, 0.45))
+function slideFrame(
+  art: SlidePreviewArt,
+  p: PreviewPalette,
+  box: { x: number; y: number; w: number; h: number },
+  which: "title" | "content",
+  content: PreviewDocumentContent,
+): string[] {
+  const { x, y, w, h } = box
+  const parts: string[] = []
+
+  if (which === "title") {
+    // Title slide: the demo document's title, authors and venue.
+    const dark = art.darkTitleSlide
+    const titleW = w * 0.82
+    const { size: titleSize, lines: titleLines } = fitTitleSize(
+      content.title,
+      titleW,
+      h * (dark ? 0.115 : 0.105),
+      h * 0.068,
+      4,
+    )
+    const startY = h * (dark ? 0.3 : 0.16 + h * 0.28)
+
+    parts.push(
+      dark
+        ? `<rect x="${r(x)}" y="${r(y)}" width="${r(w)}" height="${r(h)}" fill="${p.ink}"/>`
+        : `<rect x="${r(x)}" y="${r(y)}" width="${r(w)}" height="${r(h)}" fill="${p.paper}" stroke="${withAlpha(p.ink, 0.14)}"/>`,
+    )
+    if (dark) {
+      parts.push(`<rect x="${r(x)}" y="${r(y + h - h * 0.09)}" width="${r(w)}" height="${r(h * 0.09)}" fill="${p.accent}"/>`)
+    } else {
+      parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(w)}" height="${r(h * 0.5)}" fill="${p.accent}"/>`)
+    }
+    const titleFill = dark ? "#FFFFFF" : "#FFFFFF"
+    const firstY = dark ? y + h * 0.3 : y + h * 0.13
+    const lineGap = titleSize * 1.24
+    titleLines.forEach((line, i) => {
+      const ly = dark ? firstY + i * lineGap : firstY + i * lineGap
+      if (!dark && ly > y + h * 0.44) return // keep the light title inside its band
+      parts.push(textEl(x + w / 2, ly, line, { size: titleSize, fill: titleFill, weight: 700, anchor: "middle", opacity: 0.97 }))
+    })
+    if (dark) {
+      parts.push(`<rect x="${r(x + w * 0.42)}" y="${r(y + h * 0.62)}" width="${r(w * 0.16)}" height="${r(Math.max(1.5, h * 0.02))}" fill="${p.accent}"/>`)
+    }
+    const metaSize = h * 0.062
+    const meta = content.authors ?? ""
+    if (meta) {
+      parts.push(textEl(x + w / 2, y + h * (dark ? 0.76 : 0.79), truncate(meta, Math.floor((w * 0.86) / (metaSize * 0.52))), {
+        size: metaSize, fill: dark ? "#FFFFFF" : p.ink, anchor: "middle", opacity: dark ? 0.6 : 0.5,
+      }))
+    }
+    if (content.venue) {
+      parts.push(textEl(x + w / 2, y + h * (dark ? 0.88 : 0.9), truncate(content.venue, Math.floor((w * 0.8) / (metaSize * 0.44 * 0.52))), {
+        size: metaSize * 0.44, fill: dark ? "#FFFFFF" : p.ink, anchor: "middle", opacity: dark ? 0.42 : 0.38,
+      }))
+    }
+    return parts
   }
 
-  // ── Slide 2: content slide ──────────────────────────────────────────────
-  const y2 = pad + slideH + pad
-  parts.push(`<rect x="${r(pad)}" y="${r(y2)}" width="${r(W - pad * 2)}" height="${r(slideH)}" fill="${p.paper}" stroke="${withAlpha(p.ink, 0.14)}"/>`)
+  // Content slide: the first demo section, its heading and its bullet lines.
+  const section = content.sections[0]
+  const bodyWidth = w * 0.9
+  parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(w)}" height="${r(h)}" fill="${p.paper}" stroke="${withAlpha(p.ink, 0.14)}"/>`)
 
+  const headerTitle = truncate(section?.title ?? content.title, Math.floor((w * 0.62) / (h * 0.09 * 0.52)))
   if (art.header === "band") {
-    parts.push(`<rect x="${r(pad)}" y="${r(y2)}" width="${r(W - pad * 2)}" height="${r(slideH * 0.24)}" fill="${p.accent}"/>`)
-    parts.push(textBar(pad + W * 0.02, y2 + slideH * 0.07, W * 0.4, slideH * 0.1, "#FFFFFF", 0.95))
-    parts.push(textBar(pad + W * 0.02, y2 + slideH * 0.165, W * 0.22, slideH * 0.05, "#FFFFFF", 0.6))
+    parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(w)}" height="${r(h * 0.24)}" fill="${p.accent}"/>`)
+    parts.push(textEl(x + w * 0.04, y + h * 0.155, headerTitle, { size: h * 0.085, fill: "#FFFFFF", weight: 700, opacity: 0.96 }))
+    if (content.venue) parts.push(textEl(x + w * 0.04, y + h * 0.205, truncate(content.venue, 46), { size: h * 0.045, fill: "#FFFFFF", opacity: 0.6 }))
   } else if (art.header === "rule") {
-    parts.push(`<rect x="${r(pad)}" y="${r(y2)}" width="${r(W - pad * 2)}" height="${r(slideH * 0.055)}" fill="${p.accent}"/>`)
-    parts.push(textBar(pad + W * 0.02, y2 + slideH * 0.12, W * 0.46, slideH * (art.titleWeight === "heavy" ? 0.11 : 0.07), p.ink, 0.9))
-    parts.push(`<rect x="${r(pad + W * 0.02)}" y="${r(y2 + slideH * 0.26)}" width="${r(W * 0.1)}" height="${r(Math.max(1.4, slideH * 0.022))}" fill="${p.accent}"/>`)
+    parts.push(`<rect x="${r(x)}" y="${r(y)}" width="${r(w)}" height="${r(h * 0.055)}" fill="${p.accent}"/>`)
+    parts.push(textEl(x + w * 0.04, y + h * 0.19, headerTitle, { size: h * (art.titleWeight === "heavy" ? 0.1 : 0.075), fill: p.ink, weight: 700, opacity: 0.9 }))
+    parts.push(`<rect x="${r(x + w * 0.04)}" y="${r(y + h * 0.26)}" width="${r(w * 0.1)}" height="${r(Math.max(1.4, h * 0.022))}" fill="${p.accent}"/>`)
   } else {
-    parts.push(textBar(pad + W * 0.02, y2 + slideH * 0.1, W * 0.42, slideH * 0.07, p.ink, 0.85))
+    parts.push(textEl(x + w * 0.04, y + h * 0.16, headerTitle, { size: h * 0.075, fill: p.ink, weight: 700, opacity: 0.88 }))
   }
 
-  const bodyTop = y2 + slideH * (art.header === "plain" ? 0.26 : 0.34)
-  const bodyH = y2 + slideH * (art.footer === "none" ? 0.94 : 0.86) - bodyTop
+  const bodyTop = y + h * (art.header === "plain" ? 0.26 : 0.34)
+  const bodyH = y + h * (art.footer === "none" ? 0.94 : 0.86) - bodyTop
+  const bullets = (section?.lines ?? []).slice(0, 5).map((line) => line.replace(/^•\s*/, ""))
+  const bulletSize = Math.min(bodyH * 0.13, w * 0.032)
 
   if (art.body === "columns") {
-    const colW = (W - pad * 2 - W * 0.05) / 2 - W * 0.01
-    for (let c = 0; c < 2; c++) {
-      const cx = pad + W * 0.025 + c * (colW + W * 0.02)
-      for (let l = 0; l < 4; l++) {
-        parts.push(`<circle cx="${r(cx + 3)}" cy="${r(bodyTop + bodyH * (0.1 + l * 0.22))}" r="2" fill="${p.accent}"/>`)
-        parts.push(textBar(cx + 8, bodyTop + bodyH * (0.07 + l * 0.22), colW * (l % 2 ? 0.6 : 0.9), bodyH * 0.09, withAlpha(p.ink, 0.32)))
-      }
-    }
+    const colW = (w - w * 0.05) / 2 - w * 0.01
+    bullets.forEach((bullet, index) => {
+      const c = index % 2
+      const row = Math.floor(index / 2)
+      const cx = x + w * 0.025 + c * (colW + w * 0.02)
+      const by = bodyTop + Math.min(bodyH * 0.22, bulletSize * 1.7) * (row + 0.6)
+      parts.push(`<circle cx="${r(cx + 3)}" cy="${r(by - bulletSize * 0.32)}" r="2" fill="${p.accent}"/>`)
+      parts.push(textEl(cx + 8, by, truncate(bullet, Math.floor((colW - 10) / (bulletSize * 0.52))), { size: bulletSize, fill: withAlpha(p.ink, 0.68) }))
+    })
   } else if (art.body === "figure") {
-    for (let l = 0; l < 2; l++) {
-      parts.push(textBar(pad + W * 0.025, bodyTop + bodyH * (0.06 + l * 0.2), W * 0.34, bodyH * 0.1, withAlpha(p.ink, 0.32)))
-    }
-    parts.push(`<rect x="${r(pad + W * 0.42)}" y="${r(bodyTop)}" width="${r(W * 0.5)}" height="${r(bodyH * 0.85)}" rx="3" fill="${withAlpha(p.accent, 0.16)}"/>`)
+    bullets.slice(0, 2).forEach((bullet, index) => {
+      parts.push(textEl(x + w * 0.025, bodyTop + bodyH * (0.14 + index * 0.2), truncate(bullet, Math.floor((w * 0.36) / (bulletSize * 0.52))), {
+        size: bulletSize, fill: withAlpha(p.ink, 0.68),
+      }))
+    })
+    parts.push(`<rect x="${r(x + w * 0.42)}" y="${r(bodyTop)}" width="${r(w * 0.5)}" height="${r(bodyH * 0.85)}" rx="3" fill="${withAlpha(p.accent, 0.16)}"/>`)
   } else {
-    for (let l = 0; l < 4; l++) {
-      const yy = bodyTop + bodyH * (0.08 + l * 0.22)
-      parts.push(`<circle cx="${r(pad + W * 0.035)}" cy="${r(yy + bodyH * 0.05)}" r="2.2" fill="${p.accent}"/>`)
-      parts.push(textBar(pad + W * 0.055, yy, W * (l % 2 ? 0.55 : 0.82), bodyH * 0.1, withAlpha(p.ink, 0.32)))
-    }
+    const rows = Math.max(1, bullets.length)
+    bullets.forEach((bullet, index) => {
+      const ry = bodyTop + bodyH * (0.1 + index * Math.min(0.2, 0.82 / rows))
+      parts.push(`<circle cx="${r(x + w * 0.035)}" cy="${r(ry - bulletSize * 0.3)}" r="2.2" fill="${p.accent}"/>`)
+      parts.push(textEl(x + w * 0.055, ry, truncate(bullet, Math.floor(bodyWidth / (bulletSize * 0.52))), { size: bulletSize, fill: withAlpha(p.ink, 0.68) }))
+    })
   }
 
   if (art.footer === "bar") {
-    parts.push(`<rect x="${r(pad)}" y="${r(y2 + slideH * 0.9)}" width="${r(W - pad * 2)}" height="${r(slideH * 0.1)}" fill="${withAlpha(p.accent, 0.9)}"/>`)
-    parts.push(textBar(pad + W * 0.02, y2 + slideH * 0.93, W * 0.16, slideH * 0.04, "#FFFFFF", 0.9))
-    parts.push(textBar(W - pad - W * 0.08, y2 + slideH * 0.93, W * 0.05, slideH * 0.04, "#FFFFFF", 0.9))
+    parts.push(`<rect x="${r(x)}" y="${r(y + h * 0.9)}" width="${r(w)}" height="${r(h * 0.1)}" fill="${withAlpha(p.accent, 0.9)}"/>`)
+    parts.push(textEl(x + w * 0.02, y + h * 0.965, truncate(content.title, 30), { size: h * 0.038, fill: "#FFFFFF", opacity: 0.9 }))
+    parts.push(textEl(x + w * 0.98, y + h * 0.965, "1", { size: h * 0.038, fill: "#FFFFFF", opacity: 0.9, anchor: "start" }))
   } else if (art.footer === "rule") {
-    parts.push(`<rect x="${r(pad + W * 0.025)}" y="${r(y2 + slideH * 0.93)}" width="${r(W - pad * 2 - W * 0.05)}" height="${r(Math.max(1, slideH * 0.012))}" fill="${withAlpha(p.ink, 0.18)}"/>`)
-    parts.push(textBar(W - pad - W * 0.09, y2 + slideH * 0.87, W * 0.06, slideH * 0.05, withAlpha(p.ink, 0.4)))
+    parts.push(`<rect x="${r(x + w * 0.025)}" y="${r(y + h * 0.93)}" width="${r(w * 0.95)}" height="${r(Math.max(1, h * 0.012))}" fill="${withAlpha(p.ink, 0.18)}"/>`)
+    parts.push(textEl(x + w * 0.91, y + h * 0.915, "1", { size: h * 0.05, fill: withAlpha(p.ink, 0.5) }))
   }
 
-  parts.push("</svg>")
+  return parts
+}
+
+/** Two slides on one handout page (the printed companion to the deck). */
+function renderSlide(
+  art: SlidePreviewArt,
+  p: PreviewPalette,
+  width: number,
+  id: string,
+  content: PreviewDocumentContent,
+): string {
+  const W = width
+  const H = width * (9 / 16)
+  const pad = W * 0.03
+  const slideH = (H - pad * 2) * 0.46
+  const parts: string[] = [
+    svgOpen(W, H, id),
+    ...slideFrame(art, p, { x: pad, y: pad, w: W - pad * 2, h: slideH }, "title", content),
+    ...slideFrame(art, p, { x: pad, y: pad + slideH + pad, w: W - pad * 2, h: slideH }, "content", content),
+    "</svg>",
+  ]
   return parts.join("")
 }

@@ -7,9 +7,15 @@ import { cn } from "@/lib/utils"
 type PreviewFormat = "png" | "svg" | "fallback"
 
 /**
- * A single template's generated artwork. PNG is preferred for the picker; SVG
- * remains a sharp fallback, followed by a small, accessible placeholder if an
- * asset is missing from an old or partial deployment.
+ * A single template's generated artwork: the isometric mockup produced by
+ * `scripts/generate-template-previews.mjs` (see `lib/template-preview-art.ts`),
+ * i.e. the template printed in the same 3D studio set the showcase galleries
+ * use. PNG is preferred for the picker; SVG remains a sharp fallback, followed
+ * by a small, accessible placeholder if an asset is missing from an old or
+ * partial deployment.
+ *
+ * The frame is 4:3 because every generated preview shares that canvas, so the
+ * template list and the detail panel line up without per-template sizing.
  */
 export function TemplatePreviewImage({
   templateId,
@@ -43,6 +49,7 @@ export function TemplatePreviewImage({
       className={cn("relative aspect-[4/3] overflow-hidden rounded-lg bg-muted/40", className)}
       data-testid="template-preview-image"
       data-template-id={templateId}
+      data-format={format}
       aria-busy={isLoading || undefined}
     >
       {isLoading && format !== "fallback" && (

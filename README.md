@@ -160,7 +160,9 @@ The application requires several environment variables to function correctly. Co
 | `NEXT_PUBLIC_YJS_WS_URL` | Yjs WebSocket URL (`ws://localhost:3333/api/yjs`) |
 | `YPERSISTENCE` | (Prod) Directory for y-leveldb persistence of collaborative docs |
 | `RATE_LIMIT_ALLOW_IN_MEMORY` | (Prod) Set to `1` to permit per-process rate limiting without Redis (single instance only) |
+| `AI_ENDPOINTS_ALLOW_PRIVATE_HOSTS` | Allow model discovery against loopback/private endpoints such as Ollama (`http://localhost:11434/v1`) or LM Studio. Off by default; link-local and cloud-metadata addresses stay blocked | 
 | `AI_REQUEST_TIMEOUT_MS` | (Optional) Hard timeout per AI provider request (default 180000) |
+
 | `E2E_AUTH_BYPASS` | (Dev/test only) Server-side flag enabling the Playwright auth bypass; ignored in production |
 | `DEERFLOW_ENABLED` | (Optional) Master kill switch for the DeerFlow deep-research sidecar (`1` = on) |
 | `DEERFLOW_URL` | (Optional) DeerFlow unified proxy base URL (default `http://127.0.0.1:2026`) |

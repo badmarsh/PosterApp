@@ -4,7 +4,13 @@
  */
 import "server-only"
 import { lookup } from "node:dns/promises"
-import { isPrivateOrReservedHost, assertSafeExternalUrl } from "@/lib/security"
+import { isMetadataOrReservedHost, isPrivateOrReservedHost, assertSafeExternalUrl } from "@/lib/security"
+
+/** Blocked regardless of policy: link-local, cloud metadata, multicast, unspecified. */
+function isBlockedHost(hostname: string, allowPrivateHosts: boolean): boolean {
+  if (isMetadataOrReservedHost(hostname)) return true
+  return !allowPrivateHosts && isPrivateOrReservedHost(hostname)
+}
 
 /**
  * Resolves the hostname via DNS and rejects if ANY resolved address is in a
@@ -12,9 +18,10 @@ import { isPrivateOrReservedHost, assertSafeExternalUrl } from "@/lib/security"
  * that resolve to internal IPs, DNS rebinding of the first hop, etc.).
  * Literal IPs are validated directly by `isPrivateOrReservedHost`.
  */
-export async function assertSafeResolvedHost(hostname: string): Promise<void> {
+export async function assertSafeResolvedHost(hostname: string, options: { allowPrivateHosts?: boolean } = {}): Promise<void> {
+  const allowPrivateHosts = options.allowPrivateHosts === true
   const host = hostname.replace(/^\[|\]$/g, "")
-  if (isPrivateOrReservedHost(host)) {
+  if (isBlockedHost(host, allowPrivateHosts)) {
     throw new Error("Target address is reserved or internal (SSRF protection)")
   }
   // Skip DNS for IP literals — already checked above.
@@ -31,12 +38,12 @@ export async function assertSafeResolvedHost(hostname: string): Promise<void> {
   }
   for (const { address, family } of addresses) {
     const candidate = family === 6 ? `[${address}]` : address
-    if (isPrivateOrReservedHost(candidate) || isPrivateOrReservedHost(address)) {
+    if (isBlockedHost(candidate, allowPrivateHosts) || isBlockedHost(address, allowPrivateHosts)) {
       throw new Error("Target address resolves to a reserved or internal network (SSRF protection)")
     }
     // IPv4-mapped IPv6 (::ffff:10.0.0.1)
     const mapped = address.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i)
-    if (mapped && isPrivateOrReservedHost(mapped[1])) {
+    if (mapped && isBlockedHost(mapped[1], allowPrivateHosts)) {
       throw new Error("Target address resolves to a reserved or internal network (SSRF protection)")
     }
   }
@@ -46,6 +53,14 @@ export interface SafeFetchOptions {
   timeoutMs?: number
   maxRedirects?: number
   headers?: Record<string, string>
+  /**
+   * Allow loopback / RFC1918 / ULA targets. Intended for operators who serve
+   * models from their own host or network (Ollama, LM Studio, vLLM). Link-local
+   * ranges, cloud metadata endpoints and multicast stay blocked either way.
+   */
+  allowPrivateHosts?: boolean
+  /** Caller-supplied abort signal, combined with the timeout. */
+  signal?: AbortSignal
 }
 
 /**
@@ -55,17 +70,21 @@ export interface SafeFetchOptions {
  * internal network. Throws on violation; returns the final Response.
  */
 export async function safeFetch(urlStr: string, options: SafeFetchOptions = {}): Promise<Response> {
-  const { timeoutMs = 15_000, maxRedirects = 5, headers = {} } = options
-  let currentUrl = assertSafeExternalUrl(urlStr).toString()
+  const { timeoutMs = 15_000, maxRedirects = 5, headers = {}, allowPrivateHosts = false, signal } = options
+  const timeoutSignal = AbortSignal.timeout(timeoutMs)
+  const effectiveSignal =
+    signal && typeof AbortSignal.any === "function" ? AbortSignal.any([signal, timeoutSignal]) : (signal ?? timeoutSignal)
+  let currentUrl = assertSafeExternalUrl(urlStr, { allowPrivateHosts }).toString()
 
   for (let hop = 0; hop <= maxRedirects; hop++) {
-    const parsed = assertSafeExternalUrl(currentUrl)
-    await assertSafeResolvedHost(parsed.hostname)
+    const parsed = assertSafeExternalUrl(currentUrl, { allowPrivateHosts })
+    await assertSafeResolvedHost(parsed.hostname, { allowPrivateHosts })
 
     const res = await fetch(currentUrl, {
+      method: "GET",
       headers,
       redirect: "manual",
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: effectiveSignal,
     })
 
     if ([301, 302, 303, 307, 308].includes(res.status)) {

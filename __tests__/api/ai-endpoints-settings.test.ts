@@ -13,9 +13,12 @@ vi.mock("@/lib/rate-limit", () => ({
   rateLimitAsync: vi.fn().mockResolvedValue({ allowed: true, retryAfterMs: 0 }),
 }))
 
+vi.mock("@/lib/ai/endpoint-store", () => ({
+  getUserAiEndpoints: vi.fn(),
+  saveUserAiEndpoints: vi.fn(),
+}))
+
 vi.mock("@/lib/ai/endpoints", () => ({
-  getStoredAiEndpoints: vi.fn(),
-  setStoredAiEndpoints: vi.fn(),
   normalizeEndpointBaseUrl: (value: string) => value.trim().replace(/\/+$/, "").replace(/\/chat\/completions$/, ""),
   isValidEndpointBaseUrl: (value: string) => {
     try {
@@ -29,7 +32,7 @@ vi.mock("@/lib/ai/endpoints", () => ({
 
 import { auth } from "@/lib/auth"
 import { rateLimitAsync } from "@/lib/rate-limit"
-import { getStoredAiEndpoints, setStoredAiEndpoints } from "@/lib/ai/endpoints"
+import { getUserAiEndpoints, saveUserAiEndpoints } from "@/lib/ai/endpoint-store"
 import { GET, POST } from "@/app/api/ai/endpoints/route"
 
 const endpoint = {
@@ -63,11 +66,11 @@ describe("AI endpoint settings API", () => {
     const response = await GET()
 
     expect(response.status).toBe(401)
-    expect(getStoredAiEndpoints).not.toHaveBeenCalled()
+    expect(getUserAiEndpoints).not.toHaveBeenCalled()
   })
 
   it("returns server persistence failures instead of an empty successful response", async () => {
-    vi.mocked(getStoredAiEndpoints).mockRejectedValueOnce(new Error("database unavailable"))
+    vi.mocked(getUserAiEndpoints).mockRejectedValueOnce(new Error("database unavailable"))
 
     const response = await GET()
 
@@ -81,7 +84,7 @@ describe("AI endpoint settings API", () => {
     }))
 
     expect(response.status).toBe(400)
-    expect(setStoredAiEndpoints).not.toHaveBeenCalled()
+    expect(saveUserAiEndpoints).not.toHaveBeenCalled()
   })
 
   it("saves normalized endpoint settings for authenticated users", async () => {
@@ -90,10 +93,39 @@ describe("AI endpoint settings API", () => {
     }))
 
     expect(response.status).toBe(200)
-    expect(setStoredAiEndpoints).toHaveBeenCalledWith([
+    // Scoped to the signed-in user: the payload can never overwrite a shared row.
+    expect(saveUserAiEndpoints).toHaveBeenCalledWith("user-1", [
       expect.objectContaining({ baseUrl: "https://api.example.com/v1", apiKey: "secret-key" }),
     ])
     expect(await response.json()).toMatchObject({ ok: true })
+  })
+
+  it("reads only the signed-in user's endpoints, never an instance-wide row", async () => {
+    vi.mocked(getUserAiEndpoints).mockResolvedValueOnce([
+      { id: "ep-own", name: "Own endpoint", baseUrl: "https://api.example.com/v1" },
+    ])
+
+    const response = await GET()
+    const body = await response.json()
+
+    expect(getUserAiEndpoints).toHaveBeenCalledWith("user-1")
+    expect(body.endpoints).toEqual([expect.objectContaining({ id: "ep-own" })])
+  })
+
+  it("never exposes one user's saved credentials to another user", async () => {
+    vi.mocked(getUserAiEndpoints).mockResolvedValueOnce([
+      { id: "ep-a", name: "User A", baseUrl: "https://a.example.com/v1", apiKey: "sk-a" },
+    ])
+    const first = await GET()
+
+    vi.mocked(getUserAiEndpoints).mockResolvedValueOnce([])
+    vi.mocked(auth).mockResolvedValueOnce({ userId: "user-2" } as any)
+    const second = await GET()
+
+    expect((await second.json()).endpoints).toEqual([])
+    // The second caller's read is scoped to their own id, not the first user's row.
+    expect(getUserAiEndpoints).toHaveBeenLastCalledWith("user-2")
+    expect(JSON.stringify(await first.json())).not.toContain("user-2")
   })
 
   it("rejects unexpected settings fields and honors rate limits", async () => {

@@ -1,6 +1,13 @@
 /**
- * OpenAI-compatible AI endpoints management.
- * Endpoints are configured strictly in Settings -> AI Models and persisted in SystemSetting DB & localStorage.
+ * OpenAI-compatible AI endpoint helpers.
+ *
+ * This module is shared by client components (URL validation/normalisation) and
+ * server code (model discovery), so it deliberately contains no database
+ * access. Persistence and credential ownership live in `lib/ai/endpoint-store.ts`.
+ *
+ * Ownership in one line: endpoints (and the API keys inside them) belong to the
+ * user who configured them, are stored per user, and are never shared with other
+ * accounts. The legacy instance-wide row is an administrator-managed default.
  */
 
 export interface AiEndpointConfig {
@@ -21,13 +28,6 @@ export interface LoadedAiModel {
   endpointId: string
   endpointName: string
   baseUrl: string
-}
-
-let cachedEndpoints: { data: AiEndpointConfig[]; expiresAt: number } | null = null
-const CACHE_TTL_MS = 5_000
-
-export function invalidateAiEndpointsCache(): void {
-  cachedEndpoints = null
 }
 
 /**
@@ -102,107 +102,6 @@ export function extractModelIdsFromResponse(data: unknown): string[] {
   }
 
   return Array.from(new Set(ids)).sort((a, b) => a.localeCompare(b))
-}
-
-/**
- * Server-side fetch to load models from an OpenAI-compatible endpoint.
- * Calling from the server avoids browser CORS / mixed-content restrictions.
- */
-export async function fetchModelsFromEndpoint(
-  baseUrl: string,
-  apiKey?: string,
-  signal?: AbortSignal
-): Promise<{ ok: boolean; models: string[]; error?: string }> {
-  const normalizedBase = normalizeEndpointBaseUrl(baseUrl)
-  const modelsUrl = `${normalizedBase}/models`
-
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-  }
-  if (apiKey?.trim()) {
-    headers["Authorization"] = `Bearer ${apiKey.trim()}`
-  }
-
-  const timeoutSignal = AbortSignal.timeout(15_000)
-  const effectiveSignal = signal
-    ? typeof AbortSignal.any === "function"
-      ? AbortSignal.any([signal, timeoutSignal])
-      : signal
-    : timeoutSignal
-
-  try {
-    const res = await fetch(modelsUrl, {
-      method: "GET",
-      headers,
-      signal: effectiveSignal,
-    })
-
-    if (!res.ok) {
-      let message = `HTTP ${res.status}`
-      try {
-        const errJson = await res.json()
-        message = errJson?.error?.message || errJson?.message || message
-      } catch {
-        try {
-          message = (await res.text()).slice(0, 200) || message
-        } catch {}
-      }
-      return { ok: false, models: [], error: message }
-    }
-
-    const data = await res.json()
-    const models = extractModelIdsFromResponse(data)
-    return { ok: true, models }
-  } catch (err: unknown) {
-    return {
-      ok: false,
-      models: [],
-      error: err instanceof Error ? err.message : String(err),
-    }
-  }
-}
-
-/**
- * Loads stored AI endpoints from the database SystemSetting table.
- */
-export async function getStoredAiEndpoints(skipCache = false): Promise<AiEndpointConfig[]> {
-  const now = Date.now()
-  if (!skipCache && cachedEndpoints && cachedEndpoints.expiresAt > now) {
-    return cachedEndpoints.data
-  }
-
-  const { prisma } = await import("@/lib/prisma")
-  if (!prisma?.systemSetting) return []
-  const row = await prisma.systemSetting.findUnique({
-    where: { key: "ai_endpoints" },
-  })
-  if (!row?.value) return []
-
-  const parsed = JSON.parse(row.value)
-  if (Array.isArray(parsed)) {
-    cachedEndpoints = { data: parsed, expiresAt: now + CACHE_TTL_MS }
-    return parsed
-  }
-  return []
-}
-
-/**
- * Persists AI endpoints to the database SystemSetting table.
- */
-export async function setStoredAiEndpoints(endpoints: AiEndpointConfig[]): Promise<void> {
-  const { prisma } = await import("@/lib/prisma")
-  if (!prisma?.systemSetting) return
-  await prisma.systemSetting.upsert({
-    where: { key: "ai_endpoints" },
-    create: {
-      key: "ai_endpoints",
-      value: JSON.stringify(endpoints),
-    },
-    update: {
-      value: JSON.stringify(endpoints),
-    },
-  })
-  cachedEndpoints = { data: endpoints, expiresAt: Date.now() + CACHE_TTL_MS }
 }
 
 /**
