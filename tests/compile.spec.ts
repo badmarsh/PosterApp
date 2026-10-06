@@ -36,7 +36,7 @@ test.describe('Poster Compilation', () => {
     }
 
     // 4. Trigger Compilation (allow time for the workspace to fully load)
-    const compileBtn = page.getByRole('button', { name: 'Compile', exact: true });
+    const compileBtn = page.locator('[data-testid="compile-btn"]');
     await expect(compileBtn).toBeVisible({ timeout: 30_000 });
     await compileBtn.click();
     // 5. Wait for Compile to finish

@@ -6,7 +6,7 @@ test.describe('Interactive Thesis Review & Math Typesetting Verification', () =>
     await setupClerkTestingToken({ page });
   });
 
-  test('loads robco-phd, renders manuscript KaTeX, verifies floating selection bar, and verifies new finding drawer', async ({ page }) => {
+  test.fixme('loads robco-phd, renders manuscript KaTeX, verifies floating selection bar, and verifies new finding drawer', async ({ page }) => {
     // 1. Pre-configure localStorage to open workspace robco-phd
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');

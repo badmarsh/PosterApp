@@ -103,7 +103,7 @@ test.describe('Compile error lens', () => {
     await dismissOnboardingDialog(page)
 
     // Demo workspace loaded — the compile button lives in the preview header.
-    const compile = page.getByRole('button', { name: 'Compile', exact: true })
+    const compile = page.locator('[data-testid="compile-btn"]')
     await expect(compile).toBeVisible({ timeout: 30_000 })
     await compile.click()
 
@@ -135,8 +135,8 @@ test.describe('Compile error lens', () => {
     await page.goto('/')
     await dismissOnboardingDialog(page)
 
-    await expect(page.getByRole('button', { name: 'Compile', exact: true })).toBeVisible({ timeout: 30_000 })
-    await page.getByRole('button', { name: 'Compile', exact: true }).click()
+    await expect(page.locator('[data-testid="compile-btn"]')).toBeVisible({ timeout: 30_000 })
+    await page.locator('[data-testid="compile-btn"]').click()
     await expect(page.getByText(/✗ Compile failed/)).toBeVisible({ timeout: 20_000 })
 
     // Expand the log panel first, then toggle the raw view inside it.
