@@ -491,6 +491,7 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
                   templateId={tmpl.id}
                   label={tmpl.label}
                   decorative
+                  loading="eager"
                   className="h-[51px] w-[68px] shrink-0 rounded-md"
                   imageClassName="p-1"
                   fallback={(
