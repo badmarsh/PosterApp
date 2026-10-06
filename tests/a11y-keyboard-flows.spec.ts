@@ -51,7 +51,7 @@ test.describe('Keyboard-only flows', () => {
     const toggleBtn = page.getByRole('button', { name: 'Toggle structure panel' });
     await expect(toggleBtn).toBeVisible({ timeout: 15_000 });
     await toggleBtn.click();
-    const row = page.getByRole('button', { name: /Edit card .* \\(/ });
+    const row = page.getByRole('button', { name: /Edit card .* \(/ });
     await expect(row.first()).toBeVisible({ timeout: 15_000 });
     await row.first().focus();
     await expect(row.first()).toBeFocused();
