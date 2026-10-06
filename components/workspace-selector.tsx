@@ -152,6 +152,7 @@ export function WorkspaceSelector({
         className="z-[60] w-[96vw] max-w-[1080px] p-0 overflow-hidden rounded-2xl border border-border/70 shadow-2xl bg-background flex flex-col"
         style={{ height: "88vh", maxHeight: "880px" }}
         showCloseButton
+        data-testid="workspace-selector-dialog"
       >
         {/* Focus absorber - prevents search from auto-focusing on dialog open */}
         <button className="sr-only" tabIndex={0} aria-hidden="true" />

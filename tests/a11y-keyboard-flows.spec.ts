@@ -89,9 +89,9 @@ test.describe('Keyboard-only flows', () => {
     await expect(items.first()).toBeVisible({ timeout: 5_000 });
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Enter');
-    const dialog = page.getByRole('dialog');
-    await expect(dialog.first()).toBeVisible({ timeout: 10_000 });
+    const dialog = page.getByTestId('workspace-selector-dialog');
+    await expect(dialog).toBeVisible({ timeout: 10_000 });
     await page.keyboard.press('Escape');
-    await expect(dialog.first()).toBeHidden({ timeout: 5_000 });
+    await expect(dialog).toBeHidden({ timeout: 5_000 });
   });
 });
