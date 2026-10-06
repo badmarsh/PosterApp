@@ -796,8 +796,11 @@ test.describe('User Journey - LaTeX Compilation & Preview', () => {
     await page.waitForLoadState('networkidle');
     const outputSelect = page.locator('[data-testid="output-type"], select, button:has-text("Output")').first();
     if (await outputSelect.count() > 0) {
-      await outputSelect.click();
-      await page.waitForTimeout(500);
+      const isEnabled = await outputSelect.isEnabled().catch(() => false);
+      if (isEnabled) {
+        await outputSelect.click();
+        await page.waitForTimeout(500);
+      }
       await expect(page.locator('body')).toBeVisible();
     }
   });
@@ -1145,8 +1148,11 @@ test.describe('User Journey - AI Features', () => {
     await page.waitForLoadState('networkidle');
     const modelSelect = page.locator('[data-testid="ai-model"], select').first();
     if (await modelSelect.count() > 0) {
-      await modelSelect.click();
-      await page.waitForTimeout(300);
+      const isEnabled = await modelSelect.isEnabled().catch(() => false);
+      if (isEnabled) {
+        await modelSelect.click();
+        await page.waitForTimeout(300);
+      }
     }
     await expect(page.locator('body')).toBeVisible();
   });

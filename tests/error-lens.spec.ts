@@ -123,6 +123,7 @@ test.describe('Compile error lens', () => {
     await page.goto('/')
     await dismissOnboardingDialog(page)
 
+    await expect(page.getByRole('button', { name: 'Compile', exact: true })).toBeVisible({ timeout: 30_000 })
     await page.getByRole('button', { name: 'Compile', exact: true }).click()
     await expect(page.getByText(/✗ Compile failed/)).toBeVisible({ timeout: 20_000 })
 
@@ -142,6 +143,7 @@ test.describe('Quick fixes and height meter', () => {
     await dismissOnboardingDialog(page)
 
     // Select the Introduction card from the demo workspace.
+    await expect(page.getByText('Introduction', { exact: true }).first()).toBeVisible({ timeout: 30_000 })
     await page.getByText('Introduction', { exact: true }).first().click()
     const inspector = page.getByLabel(/Inspector for Introduction/)
     await expect(inspector).toBeVisible({ timeout: 15_000 })
@@ -166,6 +168,7 @@ test.describe('Quick fixes and height meter', () => {
     await page.goto('/')
     await dismissOnboardingDialog(page)
 
+    await expect(page.getByText('Introduction', { exact: true }).first()).toBeVisible({ timeout: 30_000 })
     await page.getByText('Introduction', { exact: true }).first().click()
     await expect(page.getByLabel(/Inspector for Introduction/)).toBeVisible({ timeout: 15_000 })
 

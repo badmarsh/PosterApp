@@ -12,6 +12,7 @@ test.describe('Poster Compilation', () => {
     await page.goto('/');
 
     // 2. Create new project
+    await page.getByRole('button', { name: 'Create New Project' }).waitFor({ state: 'visible', timeout: 15_000 });
     await page.getByRole('button', { name: 'Create New Project' }).click();
     await page.locator('input[placeholder="my-cool-project"]').fill(wsId);
     await page.locator('input[placeholder="My Cool Project"]').fill('Compile Test Workspace');

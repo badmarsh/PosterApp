@@ -13,6 +13,7 @@ test.describe('Features & Regression Tests', () => {
     await page.goto('/');
     
     // Create new project
+    await page.getByRole('button', { name: 'Create New Project' }).waitFor({ state: 'visible', timeout: 15_000 });
     await page.getByRole('button', { name: 'Create New Project' }).click();
     await page.locator('input[placeholder="my-cool-project"]').fill(wsId);
     await page.locator('input[placeholder="My Cool Project"]').fill('Bib Test Workspace');
@@ -41,6 +42,7 @@ test.describe('Features & Regression Tests', () => {
     await page.goto('/');
     
     // Create new project
+    await page.getByRole('button', { name: 'Create New Project' }).waitFor({ state: 'visible', timeout: 15_000 });
     await page.getByRole('button', { name: 'Create New Project' }).click();
     await page.locator('input[placeholder="my-cool-project"]').fill(wsId);
     await page.locator('input[placeholder="My Cool Project"]').fill('PDF Test Workspace');
