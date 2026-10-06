@@ -131,38 +131,20 @@ export function ThemePicker() {
     setMounted(true)
   }, [])
 
-  if (!mounted) {
-    return (
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              aria-label="Theme"
-            >
-              <Palette className="size-4" />
-            </Button>
-          }
-        />
-        <TooltipContent>Theme</TooltipContent>
-      </Tooltip>
-    )
-  }
-
   return (
     <DropdownMenu>
       <Tooltip>
         <TooltipTrigger
           render={
             <DropdownMenuTrigger
+              disabled={!mounted}
               render={
                 <Button
                   variant="ghost"
                   size="icon"
                   className="size-8"
                   aria-label="Theme"
+                  data-testid="theme-picker"
                 >
                   <Palette className="size-4" />
                 </Button>
@@ -186,11 +168,11 @@ export function ThemePicker() {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroup
-          value={theme}
+          value={mounted ? theme : undefined}
           onValueChange={(val) => val && setTheme(val)}
         >
           {THEMES.map((t) => {
-            const isActive = theme === t.id
+            const isActive = mounted && theme === t.id
             return (
               <DropdownMenuRadioItem
                 key={t.id}

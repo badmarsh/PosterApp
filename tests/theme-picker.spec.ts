@@ -95,10 +95,12 @@ test.describe('Theme Picker', () => {
 
     for (const t of EXPECTED_THEMES) {
       await page.getByRole('button', { name: 'Theme', exact: true }).click();
+      await expect(page.getByText('Theme Palette')).toBeVisible();
       await themeItem(page, t.name).click();
       await expectOnlyTheme(page, t.cls);
       // The dropdown closes after selection; reopen it to verify the indicator moved.
       await page.getByRole('button', { name: 'Theme', exact: true }).click();
+      await expect(page.getByText('Theme Palette')).toBeVisible();
       await expect(themeItem(page, t.name)).toHaveAttribute('aria-checked', 'true');
       await page.keyboard.press('Escape');
     }
@@ -108,6 +110,7 @@ test.describe('Theme Picker', () => {
     await seedWorkspace(page);
 
     await page.getByRole('button', { name: 'Theme', exact: true }).click();
+    await expect(page.getByText('Theme Palette')).toBeVisible();
     await themeItem(page, 'Midnight').click();
     await expectOnlyTheme(page, 'midnight');
 
