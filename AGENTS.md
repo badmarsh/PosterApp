@@ -2,6 +2,17 @@
 
 This file contains important context about the project infrastructure and dependencies for future agent sessions.
 
+## Shared memory (mem0 MCP)
+
+mem0 is the shared memory of all agents (Claude, Codex, Antigravity, Qwen) and the continuity layer across quota cutoffs and account switches.
+
+- Scope: `app_id` = `posterapp`, `user_id` = `marek` (pass both explicitly in mem0 tool calls).
+- Start of every session/task: call `mem0_get_context` (query = the task, `app_id=posterapp`). It returns this project's memories plus global ones. Use `mem0_search` for specifics before re-researching or re-deciding something.
+- Save as you go, not only at the end, with `mem0_remember`: user rules/preferences/constraints, decisions with the reason, non-obvious solutions, verified findings. One atomic, dated fact per record; mark VERIFIED / UNVERIFIED where relevant. Set `app_id=posterapp` for project-specific facts; omit `app_id` for global rules. Leave `agent_id` empty (the MCP fills it from `MEM0_AGENT_ID`).
+- Fix stale facts with `mem0_update_memory` instead of adding contradicting duplicates. Never delete memories without explicit user approval.
+- Never store secrets: API keys, passwords, tokens, webhook URLs, `.env*` contents.
+- Handoff: before a quota cutoff or account switch, and after a major milestone, save one `[HANDOFF][posterapp][YYYY-MM-DD HH:MM]` record with GOAL / DONE / DECISIONS / FINDINGS / STATE (branch, git status) / OPEN / NEXT. When resuming, call `mem0_get_context` with query `[HANDOFF][posterapp]` and compare STATE with `git status` before continuing.
+- If mem0 is unreachable (`mem0_status` fails), continue the task and print the summary in chat instead.
 ## Key Services
 - **Next.js Frontend/API + Yjs WebSocket**: Single custom server (`server.ts`). Run via `tsx --env-file=.env.local server.ts`. Serves Next.js on port 3333 AND the Yjs WebSocket at `ws://localhost:3333/api/yjs` (authenticated via short-lived, one-time ticket passed via `Sec-WebSocket-Protocol: posterapp-yjs-v1, <ticket>` to avoid token leakage in URLs).
 - **MinerU**: Document parsing service. Runs in a WSL (Ubuntu) environment at `http://localhost:8002` (local dev) or as Docker container `mineru-api-wsl` on `dokploy-network` at `http://mineru-api-wsl:8000` / host port 8001 (production on `dev.significa.sk`). Returns `md_content` (CommonMark Markdown with ATX headings), `images{}` (base64), `middle_json` (tables, equations, page structure). Secured via `X-API-Key: <MINERU_API_KEY>`.
