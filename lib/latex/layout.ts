@@ -95,7 +95,7 @@ export function estimateHeightBreakdown(card: Card): HeightBreakdown {
     let table = 0
     const tableRows = Array.isArray(card.table?.rows) ? card.table.rows.length : 0
     if (tableRows > 0) table = 30 + tableRows * TABLE_ROW_UNIT
-    const figureCount = (card.figures ?? []).filter((f) => Boolean(f?.url?.trim())).length
+    const figureCount = (Array.isArray(card.figures) ? card.figures : []).filter((f) => Boolean(f?.url?.trim())).length
     const figures = figureCount >= 2 ? 150 : figureCount === 1 ? 190 : 0
     return {
       total: chrome + metricHero + table + figures,
@@ -124,7 +124,7 @@ export function estimateHeightBreakdown(card: Card): HeightBreakdown {
   // Charge for figures the generator will actually emit. Two side-by-side
   // images share one row of height (150u), they must not be stacked as 2×190.
   // Missing/empty URLs render as a `% no figures` comment, so they cost 0.
-  const validFigCount = (card.figures ?? []).filter((f) => Boolean(f?.url?.trim())).length
+  const validFigCount = (Array.isArray(card.figures) ? card.figures : []).filter((f) => Boolean(f?.url?.trim())).length
   const rendersFigures =
     card.pattern === "bullets-image" ||
     card.pattern === "bullets-two-images" ||

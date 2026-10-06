@@ -65,6 +65,23 @@ describe("Workspace validation schemas", () => {
       })
       expect(result.success).toBe(false)
     })
+
+    it("deserializes stringified table, figures, and sourceIds", () => {
+      const result = CardSchema.safeParse({
+        id: "c1",
+        order: 0,
+        pattern: "bullets-table",
+        table: JSON.stringify({ hasHeader: true, caption: "Test", rows: [["A", "B"]] }),
+        figures: JSON.stringify([{ id: "f1", url: "http://example.com/fig.png" }]),
+        sourceIds: JSON.stringify(["src-1", "src-2"]),
+      })
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.table).toEqual({ hasHeader: true, caption: "Test", rows: [["A", "B"]] })
+        expect(result.data.figures).toEqual([{ id: "f1", url: "http://example.com/fig.png" }])
+        expect(result.data.sourceIds).toEqual(["src-1", "src-2"])
+      }
+    })
   })
 
   describe("WorkspaceCreateSchema", () => {

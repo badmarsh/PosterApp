@@ -144,6 +144,20 @@ export async function GET() {
   }
 }
 
+function parseCard(c: any) {
+  const defaultTable = { hasHeader: true, caption: "", rows: [] }
+  const safeJson = (val: unknown, fallback: any) => {
+    if (typeof val !== "string") return val ?? fallback
+    try { return JSON.parse(val) } catch { return fallback }
+  }
+  return {
+    ...c,
+    table: safeJson(c.table, defaultTable),
+    figures: safeJson(c.figures, []),
+    sourceIds: safeJson(c.sourceIds, []),
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const { userId } = await auth()
@@ -247,9 +261,14 @@ export async function POST(req: Request) {
     })
 
     // Return in the expected Project format for the frontend
-    const activeOutput = project.outputs.find((o: { isActive: boolean }) => o.isActive) || project.outputs[0]
+    const outputs = project.outputs.map((o) => ({
+      ...o,
+      cards: (o.cards || []).map(parseCard),
+    }))
+    const activeOutput = outputs.find((o) => o.isActive) || outputs[0]
     return NextResponse.json({
       ...project,
+      outputs,
       // Legacy flat fields for backward compat
       posterTitle: activeOutput?.title ?? name,
       templateName: activeOutput?.templateId ?? resolvedTemplateId,

@@ -750,7 +750,7 @@ export function deriveThesisReview(
         weight: rubric.weight,
         points: pointsForRating(rating),
         suggestions: bulletsAsSuggestions(card.content),
-        figures: (card.figures ?? []).filter((f) => f?.url).map((f) => ({ url: f.url, caption: f.caption ?? "" })),
+        figures: (Array.isArray(card.figures) ? card.figures : []).filter((f) => f?.url).map((f) => ({ url: f.url, caption: f.caption ?? "" })),
         matched: rubric.matched,
       }
     })

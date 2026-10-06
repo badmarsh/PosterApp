@@ -1,4 +1,4 @@
-﻿import type { Card, Project, OutputConfig } from "@/lib/poster-types"
+import type { Card, Project, OutputConfig } from "@/lib/poster-types"
 import { parseMarkdownToLatex } from "./parser"
 import { extractCiteKeys } from "@/lib/bib-parser"
 import { getPaperPreamble } from "./template-map"
@@ -68,7 +68,7 @@ function generateFigures(card: Card, workspaceId = "", isTwoColumn = false): str
   // `\includegraphics{}` aborts the whole compile ("File `' not found"), so
   // those figures are dropped rather than emitted. Mirrors the guard the
   // poster generator has always had.
-  const figs = (card.figures ?? [])
+  const figs = (Array.isArray(card.figures) ? card.figures : [])
     .filter((f): f is NonNullable<typeof f> => Boolean(f?.url?.trim()))
     .map((f) => ({ fig: f, path: latexPath(f.url) }))
     .filter((item) => item.path.length > 0)

@@ -14,21 +14,21 @@ import {
 } from "./layout"
 
 function generateTable(card: Card): string {
-  const rows = card.table?.rows
-  if (!rows || !rows.length) return "% no table rows"
-  const cols = rows[0].length
+  const rows = Array.isArray(card.table?.rows) ? card.table.rows : []
+  if (!rows.length) return "% no table rows"
+  const cols = Array.isArray(rows[0]) ? rows[0].length : 0
   // Publication-grade booktabs table: clean alignment, NO vertical rules
   const colSpec = Array.from({ length: cols }, (_, i) => (i === 0 ? "l" : "c")).join("")
 
-  const rawCap = cleanCaption(card.table.caption, "Table")
+  const rawCap = cleanCaption(card.table?.caption, "Table")
   const caption = rawCap
     ? "\n\\vspace{0.6ex}\\par\n{\\small\\textit{" + parseMarkdownToLatex(rawCap) + "}}"
     : ""
 
-  const formattedRows = rows.map((r) => r.map((c) => parseMarkdownToLatex(c)).join(" & "))
+  const formattedRows = rows.map((r) => Array.isArray(r) ? r.map((c) => parseMarkdownToLatex(c)).join(" & ") : parseMarkdownToLatex(String(r)))
 
   let tableBody = ""
-  if (card.table.hasHeader && formattedRows.length > 1) {
+  if (card.table?.hasHeader && formattedRows.length > 1) {
     const [header, ...rest] = formattedRows
     tableBody = "\\toprule\n" + header + " \\\\\n\\midrule\n" + rest.join(" \\\\\n") + " \\\\\n\\bottomrule"
   } else {
@@ -39,7 +39,8 @@ function generateTable(card: Card): string {
 }
 
 function generateFigures(card: Card, workspaceId = ""): string {
-  const figs = (card.figures ?? []).filter((f): f is NonNullable<typeof f> => Boolean(f?.url?.trim()))
+  const rawFigs = Array.isArray(card.figures) ? card.figures : []
+  const figs = rawFigs.filter((f): f is NonNullable<typeof f> => Boolean(f?.url?.trim()))
   if (!figs.length) return "% no figures"
 
   function latexPath(url: string): string | null {
@@ -188,10 +189,11 @@ export function generateLatexForCard(
     parts.push("\\begin{center}\n  \\begingroup\n  \\renewcommand{\\section}[2]{} % disable the bibliography section header\n  " + nociteCmd + "\n  \\bibliographystyle{plain}\n  \\bibliography{references}\n  \\endgroup\n\\end{center}")
   } else if (card.pattern === "stats" || card.pattern === "metric-card") {
     parts.push(generateMetricHero(card, templateId))
-    if (card.table?.rows?.length) {
+    if (Array.isArray(card.table?.rows) && card.table.rows.length) {
       parts.push(generateTable(card))
     }
-    if ((card.figures ?? []).some((f) => Boolean(f?.url?.trim()))) {
+    const rawCardFigs = Array.isArray(card.figures) ? card.figures : []
+    if (rawCardFigs.some((f) => Boolean(f?.url?.trim()))) {
       parts.push(generateFigures(card, workspaceId))
     }
   } else {

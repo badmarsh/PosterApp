@@ -51,7 +51,7 @@ export class BeamerSlidesGenerator implements LatexGenerator {
 
       // ── Two-column slide ──────────────────────────────────────────────────
       if (c.pattern === "two-column") {
-        const firstFigure = c.figures?.[0]
+        const firstFigure = Array.isArray(c.figures) ? c.figures[0] : undefined
         // `normalizeLatexPath` strips `{ } % # ~ $ & ^`, whitespace and control
         // characters, so a URL made only of those collapses to "". graphicx
         // aborts on `\includegraphics{}` ("File `' not found"), so an empty
@@ -110,7 +110,7 @@ export class BeamerSlidesGenerator implements LatexGenerator {
       if (c.pattern === "graph") {
         let tex = `\\begin{frame}{${parseMarkdownToLatex(c.title)}}\n`
         tex += parseMarkdownToLatex(c.content) + "\n"
-        if (c.figures && c.figures.length > 0) {
+        if (Array.isArray(c.figures) && c.figures.length > 0) {
           const f = c.figures[0]
           const imgPath = f?.url?.trim()
             ? normalizeLatexPath(workspaceId ? assetUrlToLatexPath(f.url, workspaceId) : f.url)
@@ -132,7 +132,7 @@ export class BeamerSlidesGenerator implements LatexGenerator {
       tex += `${content}\n`
 
       if (c.pattern === "bullets-image" || c.pattern === "figure-slide" || c.pattern === "image-focused") {
-        if (c.figures && c.figures.length > 0) {
+        if (Array.isArray(c.figures) && c.figures.length > 0) {
           const f = c.figures[0]
           // See the note on the two-column branch: a path that normalises to ""
           // must not reach \includegraphics.

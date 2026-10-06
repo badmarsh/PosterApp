@@ -4,7 +4,7 @@ import type { PrismaClient as PrismaClientType } from "@prisma/client"
 // Load .env.local / .env only when DATABASE_URL is not already provided by the
 // process environment (containers, CI, PaaS). Avoids surprising overrides and
 // filesystem reads on every cold import.
-if (!process.env.DATABASE_URL) {
+if (typeof window === "undefined" && !process.env.DATABASE_URL) {
   config({ path: ".env.local" })
   config()
 }

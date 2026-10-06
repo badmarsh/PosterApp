@@ -28,10 +28,16 @@ test.beforeEach(async ({ page }) => {
  * specs drive the demo workspace.
  */
 async function dismissOnboardingDialog(page: Page) {
-  const dialog = page.getByRole('dialog', { name: 'Select a Workspace' })
+  const dialog = page.getByRole('dialog')
   try {
     await dialog.waitFor({ state: 'visible', timeout: 8_000 })
-    await page.getByRole('button', { name: 'Close' }).click()
+    const closeBtn = page.getByRole('button', { name: /Close|✕/i }).or(page.locator('button[data-slot="dialog-close"]'))
+    if (await closeBtn.first().isVisible()) {
+      await closeBtn.first().click()
+    } else {
+      await page.keyboard.press('Escape')
+    }
+    await dialog.waitFor({ state: 'hidden', timeout: 5_000 })
   } catch {
     // Real environments with a last-workspace pointer boot straight into the
     // editor — nothing to dismiss.

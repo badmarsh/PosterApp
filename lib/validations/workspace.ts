@@ -53,10 +53,25 @@ export const CardSchema = z.object({
   order: z.number().int().min(0),
   pattern: z.string(),
   content: z.string().optional(),
-  table: CardTableSchema.nullable().optional(),
-  figures: z.array(FigureSchema).nullable().optional(),
+  table: z.preprocess((val) => {
+    if (typeof val === "string") {
+      try { return JSON.parse(val) } catch { return undefined }
+    }
+    return val
+  }, CardTableSchema.nullable().optional()),
+  figures: z.preprocess((val) => {
+    if (typeof val === "string") {
+      try { return JSON.parse(val) } catch { return [] }
+    }
+    return val
+  }, z.array(FigureSchema).nullable().optional()),
   figureLayout: z.string().optional(),
-  sourceIds: z.array(z.string()).nullable().optional(),
+  sourceIds: z.preprocess((val) => {
+    if (typeof val === "string") {
+      try { return JSON.parse(val) } catch { return [] }
+    }
+    return val
+  }, z.array(z.string()).nullable().optional()),
   heightBudget: z.number().finite().nullable().optional(),
   validation: z.string().optional(),
   generatedLatex: z.string().nullable().optional(),

@@ -3,7 +3,7 @@ import { apiFetch } from "@/lib/api-fetch"
 import { notify } from "@/lib/notify"
 import { parseBibEntries, formatBibEntry, type BibEntry } from "@/lib/bib-types"
 import { parseBibKeys } from "@/lib/bib-parser"
-import { suggestCitationsForText } from "@/lib/services/citation-suggester"
+import { suggestCitationsForText } from "@/lib/services/citation-matcher"
 
 export const createBibSlice: EditorSlice<BibSlice> = (set, get) => ({
   bibContent: "",

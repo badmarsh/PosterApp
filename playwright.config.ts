@@ -17,7 +17,7 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: process.env.CI ? 'pnpm exec next dev --port 3333' : 'pnpm run dev',
+    command: process.env.CI ? 'pnpm exec tsx server.ts' : 'pnpm run dev',
     url: 'http://localhost:3333',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

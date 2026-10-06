@@ -159,7 +159,9 @@ export function WorkspaceSelector({
         <div className="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-border/60 shrink-0">
           <img src="/apple-icon.png" alt="PosterApp" className="size-8 rounded-lg" />
           <div>
-            <DialogTitle className="text-sm font-bold tracking-tight leading-none text-foreground">PosterApp</DialogTitle>
+            <DialogTitle className="text-sm font-bold tracking-tight leading-none text-foreground">
+              PosterApp <span className="sr-only">Select a Workspace</span>
+            </DialogTitle>
             <DialogDescription className="text-[11px] text-muted-foreground mt-0.5 leading-none">Vedecke studio · LaTeX · AI</DialogDescription>
           </div>
         </div>
