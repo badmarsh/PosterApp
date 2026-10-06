@@ -11,15 +11,23 @@ test.describe('Poster Compilation', () => {
     const wsId = `test-compile-${Date.now()}`;
     await page.goto('/');
 
-    // 2. Create new project
-    await page.getByRole('button', { name: 'Create New Project' }).waitFor({ state: 'visible', timeout: 15_000 });
-    await page.getByRole('button', { name: 'Create New Project' }).click();
-    await page.locator('input[placeholder="my-cool-project"]').fill(wsId);
-    await page.locator('input[placeholder="My Cool Project"]').fill('Compile Test Workspace');
-    await page.getByRole('button', { name: 'Create' }).click();
-
-    // 3. Wait for it to switch to this project
-    await expect(page.getByRole('heading', { name: 'Compile Test Workspace' })).toBeVisible({ timeout: 10000 });
+    // 2. Create workspace via API and point app at it
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(async (id) => {
+      const res = await fetch('/api/workspaces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name: 'Compile Test Workspace' }),
+      });
+      if (!res.ok) throw new Error(`Failed to create workspace: ${res.status}`);
+      const data = await res.json();
+      window.localStorage.setItem(
+        'posterapp-editor-storage',
+        JSON.stringify({ state: { selectedCardId: null, lastWorkspaceId: data.id }, version: 1 }),
+      );
+    }, wsId);
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
 
     // 4. Trigger Compilation
     const compileBtn = page.getByRole('button', { name: 'Compile', exact: true });

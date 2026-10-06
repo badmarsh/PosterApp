@@ -60,7 +60,7 @@ test.describe('Keyboard-only flows', () => {
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toBeHidden();
-    await expect(page.evaluate(() => document.activeElement?.getAttribute('aria-label'))).toBe('Open command palette');
+    expect(await page.evaluate(() => document.activeElement?.getAttribute('aria-label'))).toBe('Open command palette');
   });
 
   test('structure sidebar: tab to card row, enter selects, focus rings visible', async ({ page }) => {
@@ -99,8 +99,8 @@ test.describe('Keyboard-only flows', () => {
 
     await page.keyboard.press('Escape');
     await expect(drawer).toBeHidden();
-    await expect(
-      page.evaluate(() => document.activeElement?.getAttribute('aria-label')),
+    expect(
+      await page.evaluate(() => document.activeElement?.getAttribute('aria-label')),
     ).toBe('Ingest source PDFs');
   });
 
@@ -116,8 +116,8 @@ test.describe('Keyboard-only flows', () => {
 
     await page.keyboard.press('Escape');
     await expect(panel).toBeHidden();
-    await expect(
-      page.evaluate(() => document.activeElement?.getAttribute('aria-label')),
+    expect(
+      await page.evaluate(() => document.activeElement?.getAttribute('aria-label')),
     ).toBe('Save History');
   });
 
