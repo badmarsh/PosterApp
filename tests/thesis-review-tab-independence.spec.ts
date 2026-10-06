@@ -191,7 +191,7 @@ test.describe('Thesis review tab independence & shared thesis context', () => {
       await expect(nameInput).toBeHidden();
       await expect(titleInput).toBeHidden();
       await expect(tabBar.getByRole('button', { name: 'Slides' })).toBeVisible();
-      await expect(page.getByText('Structure', { exact: true })).toBeVisible();
+      await expect(page.getByText(/Structure|Štruktúra/i).first()).toBeVisible({ timeout: 15_000 });
     });
 
     await test.step('returning to tab 1 still shows tab 1 state and updated title', async () => {

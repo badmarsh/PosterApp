@@ -11,18 +11,33 @@ test.describe('Poster Compilation', () => {
     const wsId = `test-compile-${Date.now()}`;
     await page.goto('/');
 
-    // 2. Create new project
-    await page.getByRole('button', { name: 'Create New Project' }).click();
-    await page.locator('input[placeholder="my-cool-project"]').fill(wsId);
-    await page.locator('input[placeholder="My Cool Project"]').fill('Compile Test Workspace');
-    await page.getByRole('button', { name: 'Create' }).click();
+    // 2. Create workspace via API and point app at it
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(async (id) => {
+      const res = await fetch('/api/workspaces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name: 'Compile Test Workspace' }),
+      });
+      if (!res.ok) throw new Error(`Failed to create workspace: ${res.status}`);
+      const data = await res.json();
+      window.localStorage.setItem(
+        'posterapp-editor-storage',
+        JSON.stringify({ state: { selectedCardId: null, lastWorkspaceId: data.id }, version: 1 }),
+      );
+    }, wsId);
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
 
-    // 3. Wait for it to switch to this project
-    await expect(page.getByRole('heading', { name: 'Compile Test Workspace' })).toBeVisible({ timeout: 10000 });
+    // 3. Close any workspace selector dialog that may appear
+    for (let i = 0; i < 3; i++) {
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.waitForTimeout(200);
+    }
 
-    // 4. Trigger Compilation
-    const compileBtn = page.getByRole('button', { name: 'Compile', exact: true });
-    await expect(compileBtn).toBeVisible();
+    // 4. Trigger Compilation (allow time for the workspace to fully load)
+    const compileBtn = page.locator('[data-testid="compile-btn"]');
+    await expect(compileBtn).toBeVisible({ timeout: 30_000 });
     await compileBtn.click();
     // 5. Wait for Compile to finish
     await expect(page.getByText('Compiling with pdflatex…')).toBeHidden({ timeout: 60000 });

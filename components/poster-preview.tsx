@@ -491,7 +491,8 @@ function AddOutputDialog({ open, onClose }: { open: boolean; onClose: () => void
                   templateId={tmpl.id}
                   label={tmpl.label}
                   decorative
-                  className="size-[68px] shrink-0 rounded-md"
+                  loading="eager"
+                  className="h-[51px] w-[68px] shrink-0 rounded-md"
                   imageClassName="p-1"
                   fallback={(
                     <LayoutDiagram kind={tmpl.layoutPreview} color={tmpl.colors[0]?.hex ?? "#2563EB"} />

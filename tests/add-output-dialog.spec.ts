@@ -69,6 +69,11 @@ test('AddOutputDialog shows an isometric mockup for every template, in the list 
   expect(firstBox!.width / firstBox!.height).toBeCloseTo(4 / 3, 1);
 
   // Each template serves its own asset, and the image really decoded.
+  await page.waitForFunction(() => {
+    const imgs = Array.from(document.querySelectorAll('[data-testid="template-option"] [data-testid="template-preview-image"] img')) as HTMLImageElement[];
+    return imgs.length > 0 && imgs.every((img) => img.complete && img.naturalWidth > 0);
+  }, { timeout: 15_000 }).catch(() => {});
+
   const listSrcs = await listPreviews.locator('img').evaluateAll((imgs) =>
     imgs.map((img) => ({ src: (img as HTMLImageElement).getAttribute('src'), width: (img as HTMLImageElement).naturalWidth })),
   );

@@ -118,6 +118,9 @@ export async function GET() {
     return NextResponse.json(result)
   } catch (err) {
     const msg = String(err);
+    if (msg.includes("P2002") || msg.includes("Unique constraint")) {
+      return NextResponse.json({ error: "A workspace with this ID already exists. Please choose a different name or ID." }, { status: 409 })
+    }
     if (
       msg.includes("Can't reach database") || 
       msg.includes("PrismaClientInitializationError") ||
@@ -212,7 +215,7 @@ export async function POST(req: Request) {
     const gallery = seedContent ? templateGalleryFor(resolvedTemplateId) : null
     const seededCards = gallery
       ? gallery.cards.map((card) => ({
-          id: card.id,
+          id: `${card.id}_${id.replace(/[^a-z0-9]/gi, "").slice(0, 12)}_${Date.now().toString(36).slice(-4)}`,
           title: card.title,
           column: card.column ?? null,
           order: card.order,
@@ -276,6 +279,9 @@ export async function POST(req: Request) {
     }, { status: 201 })
   } catch (err) {
     const msg = String(err);
+    if (msg.includes("P2002") || msg.includes("Unique constraint")) {
+      return NextResponse.json({ error: "A workspace with this ID already exists. Please choose a different name or ID." }, { status: 409 })
+    }
     if (
       msg.includes("Can't reach database") || 
       msg.includes("PrismaClientInitializationError") ||
@@ -295,9 +301,6 @@ export async function POST(req: Request) {
           ? " Start PostgreSQL and run 'pnpm exec prisma migrate deploy'."
           : ""
       return NextResponse.json({ error: `Database unavailable.${hint}` }, { status: 503 })
-    }
-    if (msg.includes("P2002") || msg.includes("Unique constraint")) {
-      return NextResponse.json({ error: "A workspace with this ID already exists. Please choose a different name or ID." }, { status: 409 })
     }
     console.error("[Workspaces POST] Server error:", err)
     return NextResponse.json({ error: "Failed to create workspace" }, { status: 500 })
