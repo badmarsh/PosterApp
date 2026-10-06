@@ -494,9 +494,9 @@ async function loadXenovaEmbedder(modelId: string): Promise<XenovaPipeline> {
     const fs = await import("fs")
     const mod: any = await import("@xenova/transformers")
     const localRoot = process.env.EMBEDDING_LOCAL_PATH || path.join(process.cwd(), ".cache", "models")
-    const localDir = path.join(localRoot, modelId)
-    const hasQuantized = fs.existsSync(path.join(localDir, "onnx", "model_quantized.onnx"))
-    const hasFull = fs.existsSync(path.join(localDir, "onnx", "model.onnx"))
+    const localDir = path.join(/* turbopackIgnore: true */ localRoot, modelId)
+    const hasQuantized = fs.existsSync(path.join(/* turbopackIgnore: true */ localDir, "onnx", "model_quantized.onnx"))
+    const hasFull = fs.existsSync(path.join(/* turbopackIgnore: true */ localDir, "onnx", "model.onnx"))
     const hasLocal = hasQuantized || hasFull
     mod.env.allowLocalModels = hasLocal || process.env.EMBEDDING_LOCAL_ONLY === "1"
     mod.env.localModelPath = localRoot

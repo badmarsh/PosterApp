@@ -21,7 +21,7 @@ async function main() {
   } catch (e) {
     console.error('DB ERROR:', (e as Error).message)
   } finally {
-    await p.()
+    await p.$disconnect()
   }
 }
 

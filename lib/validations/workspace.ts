@@ -55,20 +55,20 @@ export const CardSchema = z.object({
   content: z.string().optional(),
   table: z.preprocess((val) => {
     if (typeof val === "string") {
-      try { return JSON.parse(val) } catch { return undefined }
+      try { return JSON.parse(val) } catch { return val }
     }
     return val
   }, CardTableSchema.nullable().optional()),
   figures: z.preprocess((val) => {
     if (typeof val === "string") {
-      try { return JSON.parse(val) } catch { return [] }
+      try { return JSON.parse(val) } catch { return val }
     }
     return val
   }, z.array(FigureSchema).nullable().optional()),
   figureLayout: z.string().optional(),
   sourceIds: z.preprocess((val) => {
     if (typeof val === "string") {
-      try { return JSON.parse(val) } catch { return [] }
+      try { return JSON.parse(val) } catch { return val }
     }
     return val
   }, z.array(z.string()).nullable().optional()),
