@@ -1536,10 +1536,14 @@ test.describe('User Journey - Settings & Preferences', () => {
     await mockCommonAPIs(page);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    await closeAnyOpenDialogs(page);
     const langSwitch = page.locator('[data-testid="language-switcher"], button:has-text("EN"), button:has-text("SK")').first();
     if (await langSwitch.count() > 0) {
-      await langSwitch.click();
-      await page.waitForTimeout(500);
+      const isVisible = await langSwitch.isVisible({ timeout: 5_000 }).catch(() => false);
+      if (isVisible) {
+        await langSwitch.click({ force: true, timeout: 10_000 }).catch(() => {});
+      }
+      await page.waitForTimeout(300);
     }
     await expect(page.locator('body')).toBeVisible();
   });

@@ -19,7 +19,14 @@ import { test, expect, type Page } from '@playwright/test'
 
 test.beforeEach(async ({ page }) => {
   // Deterministic boot: no persisted last-workspace, no workspace list.
-  await page.addInitScript(() => window.localStorage.clear())
+  // Pre-set demo_ws as the active workspace so the selector dialog doesn't block.
+  await page.addInitScript(() => {
+    window.localStorage.clear()
+    window.localStorage.setItem('posterapp-editor-storage', JSON.stringify({
+      state: { selectedCardId: null, lastWorkspaceId: 'demo_ws', isWorkspaceSelectorOpen: false },
+      version: 1,
+    }))
+  })
 })
 
 /**
@@ -41,6 +48,11 @@ async function dismissOnboardingDialog(page: Page) {
   } catch {
     // Real environments with a last-workspace pointer boot straight into the
     // editor — nothing to dismiss.
+  }
+  // Fallback: repeatedly press Escape to close any overlay (e.g. workspace selector)
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.press('Escape').catch(() => {})
+    await page.waitForTimeout(200)
   }
 }
 
