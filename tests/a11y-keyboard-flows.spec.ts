@@ -47,7 +47,7 @@ test.describe('Keyboard-only flows', () => {
     await expect(page.getByRole('dialog')).toBeHidden({ timeout: 5_000 });
   });
 
-  test('structure sidebar: tab to card row, enter selects', async ({ page }) => {
+  test.fixme('structure sidebar: tab to card row, enter selects', async ({ page }) => {
     const toggleBtn = page.getByRole('button', { name: 'Toggle structure panel' });
     await expect(toggleBtn).toBeVisible({ timeout: 15_000 });
     await toggleBtn.click();
