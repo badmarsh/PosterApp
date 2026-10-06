@@ -29,9 +29,15 @@ test.describe('Poster Compilation', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    // 4. Trigger Compilation
+    // 3. Close any workspace selector dialog that may appear
+    for (let i = 0; i < 3; i++) {
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.waitForTimeout(200);
+    }
+
+    // 4. Trigger Compilation (allow time for the workspace to fully load)
     const compileBtn = page.getByRole('button', { name: 'Compile', exact: true });
-    await expect(compileBtn).toBeVisible();
+    await expect(compileBtn).toBeVisible({ timeout: 30_000 });
     await compileBtn.click();
     // 5. Wait for Compile to finish
     await expect(page.getByText('Compiling with pdflatex…')).toBeHidden({ timeout: 60000 });

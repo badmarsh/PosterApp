@@ -154,10 +154,10 @@ test.describe('Quick fixes and height meter', () => {
     await page.goto('/')
     await dismissOnboardingDialog(page)
 
-    // Select the Introduction card from the demo workspace.
-    await expect(page.getByText('Introduction', { exact: true }).first()).toBeVisible({ timeout: 30_000 })
-    await page.getByText('Introduction', { exact: true }).first().click()
-    const inspector = page.getByLabel(/Inspector for Introduction/)
+    // Select the Search Overview card from the demo workspace.
+    await expect(page.getByText('Search Overview', { exact: true }).first()).toBeVisible({ timeout: 30_000 })
+    await page.getByText('Search Overview', { exact: true }).first().click()
+    const inspector = page.getByLabel(/Inspector for Search Overview/)
     await expect(inspector).toBeVisible({ timeout: 15_000 })
 
     // Break the content: an odd number of $ delimiters.
@@ -180,9 +180,9 @@ test.describe('Quick fixes and height meter', () => {
     await page.goto('/')
     await dismissOnboardingDialog(page)
 
-    await expect(page.getByText('Introduction', { exact: true }).first()).toBeVisible({ timeout: 30_000 })
-    await page.getByText('Introduction', { exact: true }).first().click()
-    await expect(page.getByLabel(/Inspector for Introduction/)).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('Search Overview', { exact: true }).first()).toBeVisible({ timeout: 30_000 })
+    await page.getByText('Search Overview', { exact: true }).first().click()
+    await expect(page.getByLabel(/Inspector for Search Overview/)).toBeVisible({ timeout: 15_000 })
 
     await page.getByRole('tab', { name: 'Content' }).click()
 
