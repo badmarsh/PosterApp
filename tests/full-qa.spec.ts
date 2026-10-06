@@ -543,7 +543,7 @@ test.describe('Collaboration / Yjs', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     const yjsUrl = await page.evaluate(() => {
-      return (window as any).NEXT_PUBLIC_YJS_WS_URL || process.env.NEXT_PUBLIC_YJS_WS_URL || 'ws://localhost:3333/api/yjs';
+      return (window as any).__NEXT_DATA__?.runtimeConfig?.NEXT_PUBLIC_YJS_WS_URL || (window as any).NEXT_PUBLIC_YJS_WS_URL || 'ws://localhost:3333/api/yjs';
     });
     // Should be a string
     expect(typeof yjsUrl === 'string' || yjsUrl === undefined).toBeTruthy();

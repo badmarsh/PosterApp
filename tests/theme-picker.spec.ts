@@ -79,7 +79,7 @@ test.describe('Theme Picker', () => {
   test('dropdown lists all ten themes with the default one active', async ({ page }) => {
     await seedWorkspace(page);
 
-    await page.getByRole('button', { name: 'Theme' }).click();
+    await page.getByRole('button', { name: 'Theme', exact: true }).click();
 
     await expect(page.getByText('Theme Palette')).toBeVisible();
     for (const t of EXPECTED_THEMES) {
@@ -94,11 +94,11 @@ test.describe('Theme Picker', () => {
     await seedWorkspace(page);
 
     for (const t of EXPECTED_THEMES) {
-      await page.getByRole('button', { name: 'Theme' }).click();
+      await page.getByRole('button', { name: 'Theme', exact: true }).click();
       await themeItem(page, t.name).click();
       await expectOnlyTheme(page, t.cls);
       // The dropdown closes after selection; reopen it to verify the indicator moved.
-      await page.getByRole('button', { name: 'Theme' }).click();
+      await page.getByRole('button', { name: 'Theme', exact: true }).click();
       await expect(themeItem(page, t.name)).toHaveAttribute('aria-checked', 'true');
     }
   });
@@ -106,7 +106,7 @@ test.describe('Theme Picker', () => {
   test('theme selection persists across a reload', async ({ page }) => {
     await seedWorkspace(page);
 
-    await page.getByRole('button', { name: 'Theme' }).click();
+    await page.getByRole('button', { name: 'Theme', exact: true }).click();
     await themeItem(page, 'Midnight').click();
     await expectOnlyTheme(page, 'midnight');
 
