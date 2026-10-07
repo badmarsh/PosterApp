@@ -100,3 +100,6 @@ tmp_*.js
 .mcp.json
 .claude/
 .agents/
+
+# Audit SEC-001: local arena artifacts hold DB credentials and DB dumps. Never commit.
+.arena/
